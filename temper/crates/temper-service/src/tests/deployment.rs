@@ -43,7 +43,7 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
         let mut input = read_input(people::ApplicationScope::Deployment);
         if let kit::ToApplication::Read { record, .. } = &mut input {
             *record =
-                wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap());
+                wire::reading(&w::Reading { read: w::Read::Deployment });
         }
         let Err(answer) = family::to_root(
             &jig_protocol_config::Directories::working(),
@@ -70,7 +70,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
+        record: wire::reading(&w::Reading { read: w::Read::Playground }),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }

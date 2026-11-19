@@ -41,8 +41,7 @@ pub fn agents() -> w::AgentFigures {
     for &(name, value) in AGENT_PROFILE {
         profile
             .push(
-                w::AgentFigure::new(&w::CEILINGS, w::AgentFigureParts { name: name.into(), value })
-                    .expect("stock figure"),
+                w::AgentFigure { name: name.into(), value },
             )
             .expect("stock profile bound");
     }
@@ -50,21 +49,12 @@ pub fn agents() -> w::AgentFigures {
     for &(endpoint, figures) in AGENT_ENDPOINTS {
         endpoints
             .push(
-                w::AgentEndpointLimits::new(
-                    &w::CEILINGS,
-                    w::AgentEndpointLimitsParts { endpoint: endpoint.into(), limits: limits(figures) },
-                )
-                .expect("stock endpoint"),
+                w::AgentEndpointLimits { endpoint: endpoint.into(), limits: limits(figures) },
             )
             .expect("stock endpoint bound");
     }
-    w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback: limits(AGENT_FALLBACK) })
-        .expect("stock agents bounds")
+    w::AgentFigures { profile, endpoints, fallback: limits(AGENT_FALLBACK) }
 }
 fn limits((window, output, reasoning_item, head_ms, idle_ms): (u32, u32, u32, u64, u64)) -> w::AgentLimits {
-    w::AgentLimits::new(
-        &w::CEILINGS,
-        w::AgentLimitsParts { window, output, reasoning_item, head_ms, idle_ms, oversized: w::Oversized::Fail },
-    )
-    .expect("fixed limits fields")
+    w::AgentLimits { window, output, reasoning_item, head_ms, idle_ms, oversized: w::Oversized::Fail }
 }

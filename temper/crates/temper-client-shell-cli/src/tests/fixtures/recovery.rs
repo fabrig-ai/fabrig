@@ -313,9 +313,7 @@ impl Frame {
     }
     fn adopt_reply(&mut self, fd: Fd, keyed: &w::Keyed) {
         use temper_client_protocol_wire::{self as wire, v1 as f};
-        let answer = f::Answer::new(
-            &f::CEILINGS,
-            f::AnswerParts {
+        let answer = f::Answer {
                 outcome: if self.setting_up_projects() {
                     let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
                         .expect("adoption envelope");
@@ -329,13 +327,10 @@ impl Frame {
                     adopted()
                 } else {
                     f::Outcome::ForgeRefused(
-                        f::ForgeRefused::new(&f::CEILINGS, f::ForgeRefusedParts { reason: f::ForgeReason::NotFound })
-                            .expect("refusal"),
+                        f::ForgeRefused { reason: f::ForgeReason::NotFound },
                     )
                 },
-            },
-        )
-        .expect("answer");
+            };
         let owned = w::Owned::new(
             &w::CEILINGS,
             w::OwnedParts {
@@ -434,9 +429,7 @@ impl Frame {
 fn adopted() -> temper_client_protocol_wire::v1::Outcome {
     use temper_client_protocol_wire::v1 as f;
     f::Outcome::Adopted(
-        f::Adopted::new(
-            &f::CEILINGS,
-            f::AdoptedParts {
+        f::Adopted {
                 landing: b"main".as_slice().into(),
                 forge: 3,
                 repository: 42,
@@ -444,9 +437,7 @@ fn adopted() -> temper_client_protocol_wire::v1::Outcome {
                 name: b"n".as_slice().into(),
                 role: f::Role::Owned,
                 home: true,
-                kinds: f::Kinds::new(
-                    &f::CEILINGS,
-                    f::KindsParts {
+                kinds: f::Kinds {
                         read: true,
                         push: true,
                         open: true,
@@ -457,11 +448,7 @@ fn adopted() -> temper_client_protocol_wire::v1::Outcome {
                         issue: true,
                         branch: true,
                     },
-                )
-                .expect("repository kinds"),
                 protection: f::Protection::Unknown,
             },
-        )
-        .expect("adopted repository"),
     )
 }

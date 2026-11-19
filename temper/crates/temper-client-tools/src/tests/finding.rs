@@ -1,4 +1,5 @@
 //! Each finding act and the subject/read's printed forms.
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use crate::{
     finding,
@@ -21,15 +22,13 @@ fn root() -> f::Harness {
 fn request(root: &f::Harness, call: u32) -> w::Request {
     let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family request") };
     assert_eq!(*scope, c::Scope::Project(3));
-    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
 }
 fn held(task: u64) -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: task }).unwrap())
+    w::Holder::Task(w::HolderTask { number: task })
 }
 fn row() -> w::FindingRow {
-    w::FindingRow::new(
-        &w::CEILINGS,
-        w::FindingRowParts {
+    w::FindingRow {
             number: 12,
             kind: w::FindingKind::Red,
             severity: w::Severity::Medium,
@@ -39,35 +38,25 @@ fn row() -> w::FindingRow {
             holder: held(40),
             at: 77,
             why: Some(b"words, not code".as_slice().into()),
-            hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 39 }).unwrap())),
-        },
-    )
-    .unwrap()
+            hander: Some(w::Filer::Task(w::HolderTask { number: 39 })),
+        }
 }
 fn document() -> w::Findings {
-    let owner = w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap());
-    let area = w::AreaRow::new(
-        &w::CEILINGS,
-        w::AreaRowParts {
+    let owner = w::AreaOwner::Task(w::AreaTask { number: 40 });
+    let area = w::AreaRow {
             name: b"tests".as_slice().into(),
             words: b"Tests and their fixtures".as_slice().into(),
             owner,
             holder: Some(held(40)),
-        },
-    )
-    .unwrap();
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
+        };
+    w::Findings {
             project: 3,
             rows: List::from_boxed(Box::new([row()])),
             areas: List::from_boxed(Box::new([area])),
             triager: None,
             holder: held(41),
             cut: true,
-        },
-    )
-    .unwrap()
+        }
 }
 fn deliver(root: &mut f::Harness, state: Option<w::FindingState>, mine: bool) {
     let watch = root.watch_token(&finding::subject(3, state, mine));
@@ -83,20 +72,15 @@ fn deliver(root: &mut f::Harness, state: Option<w::FindingState>, mine: bool) {
     });
 }
 fn serve(root: &mut f::Harness, call: u32) {
-    let detail = w::FindingDetail::new(
-        &w::CEILINGS,
-        w::FindingDetailParts {
+    let detail = w::FindingDetail {
             row: row(),
             body: b"Boot twice".as_slice().into(),
-            filer: w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap()),
+            filer: w::Filer::Party(w::HolderParty { number: 8 }),
             goal: None,
             reason: None,
-        },
-    )
-    .unwrap();
+        };
     let answer =
-        w::FindingAnswer::new(&w::CEILINGS, w::FindingAnswerParts { result: w::FindingResult::Finding(detail) })
-            .unwrap();
+        w::FindingAnswer { result: w::FindingResult::Finding(detail) };
     root.serve_readout(
         call,
         client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -123,8 +107,8 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
     let call = root.submit_prepared(call, false, None);
     let w::Request::FileFinding(file) = request(&root, call) else { panic!("FileFinding") };
     assert_eq!(
-        file.into_parts(),
-        w::FileFindingParts {
+        file,
+        w::FileFinding {
             project: 3,
             kind: w::FindingKind::Red,
             severity: w::Severity::Medium,
@@ -133,15 +117,15 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
             body: b"Boot twice\n".as_slice().into()
         }
     );
-    root.adoption_answer(call, w::Outcome::Filed(w::Filed::new(&w::CEILINGS, w::FiledParts { number: 12 }).unwrap()));
+    root.adoption_answer(call, w::Outcome::Filed(w::Filed { number: 12 }));
     assert!(root.answer(call).is_none(), "the durable outcome has no holder; read it");
     serve(&mut root, call);
     assert_eq!(root.answer(call).unwrap().stdout.as_ref(), b"filed: 3/12, held by task 40\n");
     let hand = root.submit(&["finding", "hand", "3/12", "--area", "docs", "words, not code", "--key", "hand"]);
     let w::Request::HandFinding(handed) = request(&root, hand) else { panic!("HandFinding") };
     assert_eq!(
-        handed.into_parts(),
-        w::HandFindingParts {
+        handed,
+        w::HandFinding {
             project: 3,
             number: 12,
             area: b"docs".as_slice().into(),
@@ -154,22 +138,21 @@ fn finding_acts_send_their_fields_and_print_the_committed_holder() {
     for (argv, act, output) in [
         (
             &["finding", "route", "3/12", "--goal", "90", "--key", "route"][..],
-            w::Triage::Route(w::FindingRoute::new(&w::CEILINGS, w::FindingRouteParts { task: 90 }).unwrap()),
+            w::Triage::Route(w::FindingRoute { task: 90 }),
             "routed: 3/12\n",
         ),
         (&["finding", "backlog", "3/12", "--key", "backlog"][..], w::Triage::Backlog, "backlog: 3/12\n"),
         (
             &["finding", "drop", "shop/12", "duplicate", "--key", "drop"][..],
             w::Triage::Drop(
-                w::FindingDrop::new(&w::CEILINGS, w::FindingDropParts { reason: b"duplicate".as_slice().into() })
-                    .unwrap(),
+                w::FindingDrop { reason: b"duplicate".as_slice().into() },
             ),
             "dropped: 3/12\n",
         ),
     ] {
         let call = root.submit(argv);
         let w::Request::TriageFinding(triage) = request(&root, call) else { panic!("TriageFinding") };
-        assert_eq!(triage.into_parts(), w::TriageFindingParts { project: 3, number: 12, act });
+        assert_eq!(triage, w::TriageFinding { project: 3, number: 12, act });
         root.adoption_answer(call, w::Outcome::Triaged);
         assert_eq!(root.answer(call).unwrap().stdout.as_ref(), output.as_bytes());
     }
@@ -197,25 +180,20 @@ fn finding_reads_print_areas_triager_and_the_whole_finding() {
         assert_eq!(*scope, c::Scope::Project(3));
         let reading = w::Reading::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).unwrap();
         assert_eq!(
-            reading.read(),
+            &reading.read,
             &w::Read::Finding(
-                w::FindingRead::new(&w::CEILINGS, w::FindingReadParts { project: 3, number: 12 }).unwrap()
+                w::FindingRead { project: 3, number: 12 }
             )
         );
-        let detail = w::FindingDetail::new(
-            &w::CEILINGS,
-            w::FindingDetailParts {
+        let detail = w::FindingDetail {
                 row: row(),
                 body: b"Boot twice".as_slice().into(),
-                filer: w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 8 }).unwrap()),
+                filer: w::Filer::Party(w::HolderParty { number: 8 }),
                 goal: Some(90),
                 reason: Some(b"duplicate".as_slice().into()),
-            },
-        )
-        .unwrap();
+            };
         let answer =
-            w::FindingAnswer::new(&w::CEILINGS, w::FindingAnswerParts { result: w::FindingResult::Finding(detail) })
-                .unwrap();
+            w::FindingAnswer { result: w::FindingResult::Finding(detail) };
         root.serve_readout(
             show,
             client::Readout::Family { family: wire::FORGE, record: Some(wire::finding_answer(&answer)) },
@@ -244,18 +222,14 @@ fn finding_refuses_other_forms_and_names_the_areas_on_refusal() {
     assert!(root.nothing_sent());
     let call = root.submit(&["finding", "hand", "3/12", "--area", "missing", "wrong area", "--key", "missing"]);
     let why = w::FindingRefusal::NoArea(
-        w::FindingAreas::new(
-            &w::CEILINGS,
-            w::FindingAreasParts {
+        w::FindingAreas {
                 areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"docs".as_slice().into()])),
             },
-        )
-        .unwrap(),
     );
     root.adoption_answer(
         call,
         w::Outcome::FindingRefused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: why }).unwrap(),
+            w::FindingRefused { reason: why },
         ),
     );
     let printed = root.answer(call).unwrap();

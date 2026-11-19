@@ -1840,11 +1840,7 @@ pub(super) fn signoffs(
     for (party, name) in parties {
         signed
             .push(
-                w::ChangesSigned::new(
-                    &w::CEILINGS,
-                    w::ChangesSignedParts { name: Some(name.as_bytes().into()), party: *party, head: [0xab; 32], at },
-                )
-                .expect("sample signer"),
+                w::ChangesSigned { name: Some(name.as_bytes().into()), party: *party, head: [0xab; 32], at },
             )
             .expect("at most eight sample signers");
     }
@@ -3044,18 +3040,16 @@ fn home_domain(name: &str) -> Domain {
                         if name == "home-after-skip" {
                             dismissed
                                 .push(w::PersonFact::ToBegin(
-                                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 1 }).expect("Home skip"),
+                                    w::ToBegin { project: 1 },
                                 ))
                                 .expect("one skip");
                         }
                         wire::dismissals(
-                            &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed })
-                                .expect("Home dismissals"),
+                            &w::Dismissals { dismissed },
                         )
                     }
                     w::Watch::Forges => wire::forges(
-                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false })
-                            .expect("Home forges"),
+                        &w::Forges { forges: rows, linked: false },
                     ),
                     w::Watch::Status(_) => match if home_away {
                         Some(crate::worlds::home_away_status())
@@ -3068,24 +3062,18 @@ fn home_domain(name: &str) -> Domain {
                         None => continue,
                     },
                     w::Watch::Trials if status_name == "home-try-stopped" => {
-                        let row = w::TrialRow::new(
-                            &w::CEILINGS,
-                            w::TrialRowParts {
+                        let row = w::TrialRow {
                                 run_wait: None,
                                 account: accounts.accounts.get(0).expect("Home trial account").number,
                                 task: Some(91),
                                 took: None,
                                 step: w::TrialStep::Answers,
                                 state: w::TrialState::Failed(
-                                    w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited })
-                                        .expect("Home stopped try"),
+                                    w::TrialFailed { why: w::TrialWhy::Waited },
                                 ),
-                            },
-                        )
-                        .expect("Home trial row");
+                            };
                         let document =
-                            w::Trials::new(&w::CEILINGS, w::TrialsParts { rows: List::from_boxed(Box::new([row])) })
-                                .expect("Home trials");
+                            w::Trials { rows: List::from_boxed(Box::new([row])) };
                         let mut writer =
                             skein_lib::Writer::new(usize::try_from(document.measure()).expect("trial bytes fit"));
                         document.encode(&mut writer).expect("measured trial bytes");
@@ -3097,16 +3085,12 @@ fn home_domain(name: &str) -> Domain {
                         continue;
                     }
                     w::Watch::Decided(subject) => wire::decisions(
-                        &w::Decisions::new(
-                            &w::CEILINGS,
-                            w::DecisionsParts {
+                        &w::Decisions {
                                 project: subject.project(),
                                 rows: List::with_capacity(0),
                                 asked: List::with_capacity(0),
                                 cut: false,
                             },
-                        )
-                        .expect("Home decided document"),
                     ),
                     w::Watch::Away if away_sample => {
                         away_watch = Some(watch);
@@ -3295,8 +3279,7 @@ fn home_domain(name: &str) -> Domain {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
                                     bytes: wire::answer(
-                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
-                                            .expect("Home look"),
+                                        &w::Answer { outcome: w::Outcome::Looked },
                                     ),
                                 })),
                             },
@@ -3323,11 +3306,7 @@ fn home_domain(name: &str) -> Domain {
                         continue;
                     }
                     w::Read::Deployment => Some(wire::deployment_answer(
-                        &w::DeploymentAnswer::new(
-                            &w::CEILINGS,
-                            w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: None },
-                        )
-                        .expect("deployment"),
+                        &w::DeploymentAnswer { push: None, welcome: true, owned: true, program_login: None },
                     )),
                     _ => None,
                 };
@@ -3366,10 +3345,9 @@ fn home_domain(name: &str) -> Domain {
         let attempt = sent_attempt(&mut out);
         if name == "home-refused" {
             let outcome = w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::HomeHeld })
-                    .expect("refusal"),
+                w::ForgeRefused { reason: w::ForgeReason::HomeHeld },
             );
-            let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).expect("Home answer");
+            let answer = w::Answer { outcome };
             step(
                 &mut root,
                 Event::Client {
@@ -3492,11 +3470,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
     if in_project {
         repositories
             .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 1 },
-                )
-                .expect("adoption"),
+                w::Adoption { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 1 },
             )
             .expect("repository");
     }
@@ -3504,19 +3478,14 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
     if github {
         installations
             .push(
-                w::Installation::new(
-                    &w::CEILINGS,
-                    w::InstallationParts {
+                w::Installation {
                         id: 1,
                         account: Some(
-                            w::Account::new(&w::CEILINGS, w::AccountParts { id: 73, login: b"sam".as_slice().into() })
-                                .expect("account"),
+                            w::Account { id: 73, login: b"sam".as_slice().into() },
                         ),
                         suspended: false,
                         stray: false,
                     },
-                )
-                .expect("installation"),
             )
             .expect("one installation");
     }
@@ -3524,23 +3493,17 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
         None
     } else {
         Some(
-            w::FirstRepository::new(
-                &w::CEILINGS,
-                w::FirstRepositoryParts {
+            w::FirstRepository {
                     playground: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
-                    state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 1 }).expect("made")),
+                    state: w::FirstState::Made(w::Made { id: 1 }),
                     label: b"main".as_slice().into(),
                 },
-            )
-            .expect("first"),
         )
     };
     rows.push(
-        w::ForgeRow::new(
-            &w::CEILINGS,
-            w::ForgeRowParts {
+        w::ForgeRow {
                 starts_with: if name.starts_with("home-add-repository") {
                     w::StartsWith::Nothing
                 } else {
@@ -3551,8 +3514,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
                 kind: if github { w::Kind::Github } else { w::Kind::Forgejo },
                 mode: if github { w::Mode::Managed } else { w::Mode::Owned },
                 connection: w::Connection::Connected(
-                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                        .expect("connected"),
+                    w::Connected { id: 1, login: b"temper".as_slice().into() },
                 ),
                 offer: w::Offer::Offered,
                 first,
@@ -3567,14 +3529,12 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
                 ended_stop: None,
                 makings: List::with_capacity(0),
             },
-        )
-        .expect("Home row"),
     )
     .expect("one forge");
     if name.starts_with("home-cop") {
         let row = rows.get(0).expect("Home forge").clone().into_parts();
         *rows.get_mut(0).expect("Home forge") =
-            w::ForgeRow::new(&w::CEILINGS, crate::worlds::home_copies(row, name)).expect("Home copies");
+            crate::worlds::home_copies(row, name);
     }
     rows
 }
@@ -3646,23 +3606,23 @@ fn morning_status() -> temper_client_protocol_wire::v1::ProjectStatus {
     use temper_client_protocol_wire::v1 as w;
     let now = crate::worlds::sample_now(FirstRun { step: 7 }, "home-morning").as_nanos();
     let minute = 60_000_000_000;
-    w::ProjectStatus::new(&w::CEILINGS, w::ProjectStatusParts {
+    w::ProjectStatus {
         project: 1,
         landed: 41,
         last_landed: Some(now - 6 * minute),
-        brief: Some(w::StatusBrief::new(&w::CEILINGS, w::StatusBriefParts {
+        brief: Some(w::StatusBrief {
             sentence: b"41 changes landed overnight.".as_slice().into(),
             lede: b"first-run-projects is six of nine tasks in. Its store task hit the wasm size limit twice and was split in two.".as_slice().into(),
             at: now - 22 * minute,
             landed: 41,
-        }).expect("morning brief fits")),
+        }),
         previous: Some(now - 9 * 60 * minute),
         seen: 0,
         queued: 3,
         red: false,
         branch: b"main".as_slice().into(),
         unpaid: false,
-    }).expect("morning status fits")
+    }
 }
 
 fn confirmation(root: &mut Domain, kind: Confirmation, out: &mut Queue<Request>) {
@@ -3788,13 +3748,9 @@ fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
             _ => skein_lib::bytes::concat(&[b"repository-", skein_lib::Decimal::of(id).as_bytes()]),
         };
         rows.push(
-            w::Reached::new(
-                &w::CEILINGS,
-                w::ReachedParts {
+            w::Reached {
                     id,
-                    owner: w::Account::new(
-                        &w::CEILINGS,
-                        w::AccountParts {
+                    owner: w::Account {
                             id: 3,
                             login: if name == "sheet-copy-lines" {
                                 b"octo".as_slice().into()
@@ -3802,13 +3758,9 @@ fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
                                 b"sam".as_slice().into()
                             },
                         },
-                    )
-                    .expect("owner"),
                     name: repository,
                     private: id == 2,
                 },
-            )
-            .expect("row"),
         )
         .expect("page");
     }
@@ -3816,11 +3768,7 @@ fn adoption_sheet(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
         root,
         Event::Forge(forge::Event::SheetRead {
             request: key,
-            answer: Ok(w::Page::new(
-                &w::CEILINGS,
-                w::PageParts { rows, more: name == "sheet-adopt" || name == "sheet-searching" },
-            )
-            .expect("page")),
+            answer: Ok(w::Page { rows, more: name == "sheet-adopt" || name == "sheet-searching" }),
         }),
         out,
     );

@@ -15,33 +15,21 @@ use temper_client_protocol_wire::v1 as w;
 pub(super) const ADDRESS: &[u8] = b"way You approve";
 pub(super) const MIXED: &[u8] = b"Under You approve:\n\n```view\nway You approve\n```\n\nNothing lands without you.";
 pub(super) fn card() -> w::Card {
-    w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
+    w::Card {
             name: b"The coding agent".as_slice().into(),
             who: b"an agent".as_slice().into(),
-            facts: List::from_boxed(Box::new([w::Fact::new(
-                &w::CEILINGS,
-                w::FactParts { label: b"Can".as_slice().into(), value: b"push its branch".as_slice().into() },
-            )
-            .unwrap()])),
-        },
-    )
-    .unwrap()
+            facts: List::from_boxed(Box::new([w::Fact { label: b"Can".as_slice().into(), value: b"push its branch".as_slice().into() }])),
+        }
 }
 pub(super) fn path(stops: &[(w::Actor, w::PathStep, &[u8])]) -> w::BranchPath {
-    w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts {
+    w::BranchPath {
             repository: None,
             branch: b"main".as_slice().into(),
             stops: List::from_boxed(
                 stops
                     .iter()
                     .map(|(actor, step, words)| {
-                        w::Stop::new(
-                            &w::CEILINGS,
-                            w::StopParts {
+                        w::Stop {
                                 actor: actor.clone(),
                                 step: step.clone(),
                                 words: (*words).into(),
@@ -49,21 +37,15 @@ pub(super) fn path(stops: &[(w::Actor, w::PathStep, &[u8])]) -> w::BranchPath {
                                 over: Box::default(),
                                 opens: w::Opens::Nothing,
                                 card: card(),
-                            },
-                        )
-                        .unwrap()
+                            }
                     })
                     .collect(),
             ),
-        },
-    )
-    .unwrap()
+        }
 }
 pub(super) fn way(current: bool) -> w::View {
     w::View::Way(
-        w::WayView::new(
-            &w::CEILINGS,
-            w::WayViewParts {
+        w::WayView {
                 name: b"You approve".as_slice().into(),
                 line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
                 current,
@@ -79,8 +61,6 @@ pub(super) fn way(current: bool) -> w::View {
                     (w::Actor::Bar, w::PathStep::Branch, b"main"),
                 ]),
             },
-        )
-        .unwrap(),
     )
 }
 // A span's own styles, plus Description columns above it; parent paint stays inherited.
@@ -137,8 +117,8 @@ fn each_view_prints_its_lines() {
     let stop = conditional.stops.get_mut(0).unwrap();
     let mut parts = stop.clone().into_parts();
     parts.over = b"if protocol core".as_slice().into();
-    *stop = w::Stop::new(&w::CEILINGS, parts).unwrap();
-    let conditional = w::BranchPath::new(&w::CEILINGS, conditional).unwrap();
+    *stop = parts;
+    let conditional = conditional;
     let rows = [
         (
             "conditional sign-off",
@@ -159,49 +139,37 @@ fn each_view_prints_its_lines() {
         (
             "proposal",
             Some(Shown::Drawn(Box::new(w::View::Proposal(
-                w::ProposalView::new(&w::CEILINGS, w::ProposalViewParts { before: short(), after: short() }).unwrap(),
+                w::ProposalView { before: short(), after: short() },
             )))),
             proposal,
         ),
         (
             "charter",
             Some(Shown::Drawn(Box::new(w::View::Charter(
-                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 1, card: card() }).unwrap(),
+                w::CharterView { charter: 1, card: card() },
             )))),
             CARD.to_vec(),
         ),
         (
             "rule",
             Some(Shown::Drawn(Box::new(w::View::Rule(
-                w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card: card() }).unwrap(),
+                w::RuleView { kind: 2, number: 1, card: card() },
             )))),
             CARD.to_vec(),
         ),
         (
             "roles",
             Some(Shown::Drawn(Box::new(w::View::Roles(
-                w::RolesView::new(
-                    &w::CEILINGS,
-                    w::RolesViewParts {
-                        roles: List::from_boxed(Box::new([w::CharterView::new(
-                            &w::CEILINGS,
-                            w::CharterViewParts { charter: 1, card: card() },
-                        )
-                        .unwrap()])),
+                w::RolesView {
+                        roles: List::from_boxed(Box::new([w::CharterView { charter: 1, card: card() }])),
                     },
-                )
-                .unwrap(),
             )))),
             CARD.to_vec(),
         ),
         (
             "not drawn",
             Some(Shown::Drawn(Box::new(w::View::NotDrawn(
-                w::NotDrawn::new(
-                    &w::CEILINGS,
-                    w::NotDrawnParts { words: b"This revision isn't drawn yet.".as_slice().into() },
-                )
-                .unwrap(),
+                w::NotDrawn { words: b"This revision isn't drawn yet.".as_slice().into() },
             )))),
             vec![("This revision isn't drawn yet.", None, 0)],
         ),

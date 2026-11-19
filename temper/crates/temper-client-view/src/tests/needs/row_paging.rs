@@ -157,21 +157,15 @@ fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
                 let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS) else { continue };
                 let bytes = match watching.watch() {
                     w::Watch::Decided(subject) => wire::decisions(
-                        &w::Decisions::new(
-                            &w::CEILINGS,
-                            w::DecisionsParts {
+                        &w::Decisions {
                                 project: subject.project(),
                                 rows: List::with_capacity(0),
                                 asked: List::with_capacity(0),
                                 cut: false,
                             },
-                        )
-                        .unwrap(),
                     ),
                     w::Watch::Findings(subject) => wire::findings(
-                        &w::Findings::new(
-                            &w::CEILINGS,
-                            w::FindingsParts {
+                        &w::Findings {
                                 project: subject.project(),
                                 rows: List::from_boxed(if subject.project() == f::PROJECT && !subject.mine() {
                                     f::groups::bugs()
@@ -181,12 +175,10 @@ fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
                                 areas: List::with_capacity(0),
                                 triager: None,
                                 holder: w::Holder::Party(
-                                    w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap(),
+                                    w::HolderParty { number: 1 },
                                 ),
                                 cut: false,
                             },
-                        )
-                        .unwrap(),
                     ),
                     _ => continue,
                 };

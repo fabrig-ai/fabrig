@@ -258,10 +258,8 @@ pub fn confirm(root: &mut crate::Domain, watch: Token, party: u64, out: &mut Que
 
 pub fn adopted_bytes() -> jig_client::Family {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let limits = forge::wire_limits(&limits().forge).expect("wire limits");
-    let kinds = w::Kinds::new(
-        &limits,
-        w::KindsParts {
+
+    let kinds = w::Kinds {
             read: true,
             push: true,
             open: true,
@@ -271,12 +269,8 @@ pub fn adopted_bytes() -> jig_client::Family {
             comment: false,
             issue: false,
             branch: true,
-        },
-    )
-    .expect("kinds");
-    let adopted = w::Adopted::new(
-        &limits,
-        w::AdoptedParts {
+        };
+    let adopted = w::Adopted {
             landing: b"main".as_slice().into(),
             forge: FORGE,
             repository: 7,
@@ -286,10 +280,8 @@ pub fn adopted_bytes() -> jig_client::Family {
             home: true,
             kinds,
             protection: w::Protection::Unknown,
-        },
-    )
-    .expect("adopted repository");
-    let answer = w::Answer::new(&limits, w::AnswerParts { outcome: w::Outcome::Adopted(adopted) }).expect("answer");
+        };
+    let answer = w::Answer { outcome: w::Outcome::Adopted(adopted) };
     jig_client::Family {
         family: wire::number(wire::Owner::Forge),
         version: wire::CLIENT_VERSION,

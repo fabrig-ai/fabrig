@@ -85,9 +85,7 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
     assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
 
     let record = wire::playground_answer(
-        &f::PlaygroundAnswer::new(
-            &f::CEILINGS,
-            f::PlaygroundAnswerParts {
+        &f::PlaygroundAnswer {
                 state: f::PlaygroundState::Running,
                 project: Some(3),
                 forge: 2,
@@ -96,8 +94,6 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
                 name: b"widget".as_slice().into(),
                 cues: List::with_capacity(0),
             },
-        )
-        .unwrap(),
     );
     let answer = w::ReadAnswer::Value(goal::family(record));
     let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());

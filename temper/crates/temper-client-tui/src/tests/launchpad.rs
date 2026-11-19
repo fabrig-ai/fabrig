@@ -35,9 +35,7 @@ const SENTENCE: &str = "3 changes landed overnight.";
 const LEDE: &str = "csv-export is two of three tasks in; one waits on you.";
 
 fn status(brief: bool) -> w::ProjectStatus {
-    w::ProjectStatus::new(
-        &w::CEILINGS,
-        w::ProjectStatusParts {
+    w::ProjectStatus {
             project: PROJECT,
             landed: 3,
             seen: if brief { 0 } else { 3 },
@@ -49,23 +47,17 @@ fn status(brief: bool) -> w::ProjectStatus {
             unpaid: false,
             brief: if brief {
                 Some({
-                    w::StatusBrief::new(
-                        &w::CEILINGS,
-                        w::StatusBriefParts {
+                    w::StatusBrief {
                             sentence: SENTENCE.as_bytes().into(),
                             lede: LEDE.as_bytes().into(),
                             at: BRIEF_AT,
                             landed: 3,
-                        },
-                    )
-                    .unwrap()
+                        }
                 })
             } else {
                 None
             },
-        },
-    )
-    .unwrap()
+        }
 }
 fn family(bytes: Box<[u8]>) -> jig_client::Family {
     jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes }
@@ -317,9 +309,9 @@ fn home_team(
                         brief.at = 480 * MINUTE;
                         brief.landed = 1;
                     }
-                    parts.brief = Some(w::StatusBrief::new(&w::CEILINGS, brief).unwrap());
+                    parts.brief = Some(brief);
                 }
-                let record = family(wire::project_status(&w::ProjectStatus::new(&w::CEILINGS, parts).unwrap()));
+                let record = family(wire::project_status(&parts));
                 assert!(d::forge::status::document(&record, f::limits().forge).is_some(), "status decodes");
                 Up::FamilyDelivered { watch, record }
             }
@@ -333,9 +325,7 @@ fn home_team(
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
                         record: Some(wire::playground_answer(
-                            &w::PlaygroundAnswer::new(
-                                &w::CEILINGS,
-                                w::PlaygroundAnswerParts {
+                            &w::PlaygroundAnswer {
                                     state,
                                     project,
                                     forge: wire::FORGE,
@@ -344,8 +334,6 @@ fn home_team(
                                     name: b"demo".as_slice().into(),
                                     cues: List::with_capacity(0),
                                 },
-                            )
-                            .unwrap(),
                         )),
                     },
                 }
@@ -404,7 +392,7 @@ fn home_team(
                     envelope: skein_lib::RequestEnvelope::Final,
                     why: None,
                     answer: Some(jig_client::Answered::Family(family(wire::answer(
-                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked }).unwrap(),
+                        &w::Answer { outcome: w::Outcome::Looked },
                     )))),
                 }
             }

@@ -118,37 +118,29 @@ fn document() -> w::Findings {
     for (name, number) in [("docs", 40), ("tests", 52)] {
         areas
             .push(
-                w::AreaRow::new(
-                    &w::CEILINGS,
-                    w::AreaRowParts {
+                w::AreaRow {
                         name: name.as_bytes().into(),
                         words: doc(name).bytes().into(),
                         owner: w::AreaOwner::Task(
-                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("owner"),
+                            w::AreaTask { number },
                         ),
                         holder: Some(w::Holder::Task(
-                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("holder"),
+                            w::HolderTask { number },
                         )),
                     },
-                )
-                .expect("area"),
             )
             .expect("two areas");
     }
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
+    w::Findings {
             project: 1,
             rows: List::with_capacity(0),
             areas,
             cut: false,
             triager: Some(w::AreaOwner::Task(
-                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).expect("triager"),
+                w::AreaTask { number: 52 },
             )),
             holder: w::Holder::Task(
-                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("holder"),
+                w::HolderTask { number: 52 },
             ),
-        },
-    )
-    .expect("Tell's findings")
+        }
 }

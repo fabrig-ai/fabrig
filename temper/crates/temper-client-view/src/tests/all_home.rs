@@ -45,9 +45,7 @@ fn status(
     brief: Option<w::StatusBrief>,
 ) -> Status {
     Status::Shown(Box::new(
-        w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
+        w::ProjectStatus {
                 project,
                 landed,
                 seen,
@@ -59,8 +57,6 @@ fn status(
                 unpaid: false,
                 brief,
             },
-        )
-        .unwrap(),
     ))
 }
 

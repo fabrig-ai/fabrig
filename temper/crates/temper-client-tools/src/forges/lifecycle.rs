@@ -1,4 +1,5 @@
 //! Forge removal and playground reset (temper/docs/design/client/ctl/areas.md).
+use temper_client_protocol_wire::v1::Record;
 use super::{Forges, PLAYGROUND_END, REMOVE, finish};
 use crate::{
     jig::{
@@ -27,10 +28,10 @@ pub(super) fn owns(call: &jig::call::Call) -> bool {
 }
 pub(super) fn ask(request: w::Request, limits: &Limits) -> Option<Ask> {
     let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
+    let record = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
@@ -39,7 +40,6 @@ pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &
         finish(called, printed, out);
         return;
     }
-    let bounds = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
     let end = crate::table::TOOLS.get(usize::from(called.call.tool)).expect("parsed tool").name == PLAYGROUND_END.name;
     let checkpoint = crate::checkpoint::owns(&called.call);
     let until = if checkpoint { Some(env.now.saturating_add(crate::checkpoint::wait(&called.call))) } else { None };
@@ -49,11 +49,7 @@ pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &
         w::Request::EndPlayground
     } else {
         w::Request::RemoveForge(
-            w::RemoveForge::new(
-                &bounds,
-                w::RemoveForgeParts { forge: u16::try_from(super::number_arg(&called.call)).expect("checked forge") },
-            )
-            .expect("checked forge"),
+            w::RemoveForge { forge: u16::try_from(super::number_arg(&called.call)).expect("checked forge") },
         )
     };
     let request = ask(request, &env.limits).expect("checked limits");
@@ -74,8 +70,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 return false;
             };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
-            let checkpoint = *request.request() == w::Request::Checkpoint;
-            let end = match request.request() {
+            let checkpoint = request.request == w::Request::Checkpoint;
+            let end = match &request.request {
                 w::Request::EndPlayground => true,
                 w::Request::Checkpoint | w::Request::RemoveForge(_) => false,
                 w::Request::DismissMaking(_)
@@ -165,7 +161,7 @@ fn print(pending: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> j
             if !reader.is_empty() {
                 return render::failure(b"forge answer decoding failed", json, 1);
             }
-            Some(answer.into_parts().outcome)
+            Some(answer.outcome)
         }
         Outcome::Unknown => Some(w::Outcome::Unknown),
         Outcome::Answered(_)
@@ -274,9 +270,9 @@ fn answer_words(answer: w::Outcome, end: bool) -> Option<AnswerWords> {
         w::Outcome::Removed if !end => (b"removed", None, 0),
         w::Outcome::Reset if end => (b"reset", None, 0),
         w::Outcome::RemoveRefused(value) if !end => {
-            (b"remove_refused", Some(temper_client_domain_forge::forge::forges::connect_refusal(value.why())), 2)
+            (b"remove_refused", Some(temper_client_domain_forge::forge::forges::connect_refusal(&value.why)), 2)
         }
-        w::Outcome::EndRefused(value) if end => match value.why() {
+        w::Outcome::EndRefused(value) if end => match &value.why {
             w::EndRefusal::NotOffered => (b"end_refused", Some((b"not_offered", b"not offered")), 2),
         },
         w::Outcome::Unknown => (b"unknown", None, 1),

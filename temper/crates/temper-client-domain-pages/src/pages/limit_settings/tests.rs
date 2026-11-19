@@ -59,25 +59,17 @@ fn shared_settings_tolds_fall_through_and_only_the_limits_send_is_claimed() {
     assert_eq!(pages.limit_settings.refused(42), Some(&outcome));
 }
 fn item(name: &[u8], value: u64) -> w::LimitOverride {
-    w::LimitOverride::new(
-        &w::CEILINGS,
-        w::LimitOverrideParts { name: name.into(), value, reason: b"kept reason".as_slice().into() },
-    )
-    .unwrap()
+    w::LimitOverride { name: name.into(), value, reason: b"kept reason".as_slice().into() }
 }
 #[test]
 fn a_raise_sets_one_override_and_keeps_the_rest_of_the_list() {
-    let held = w::LimitHold::new(
-        &w::CEILINGS,
-        w::LimitHoldParts {
+    let held = w::LimitHold {
             task: 42,
             limit: b"forge.entries".as_slice().into(),
             configured: 8,
             needed: 9,
             revision: 3,
-        },
-    )
-    .unwrap();
+        };
     for previous in [None, Some(item(b"forge.entries", 10))] {
         let mut overrides = List::with_capacity(3);
         overrides.push(item(b"forge.client.entries", 12)).unwrap();
@@ -85,19 +77,19 @@ fn a_raise_sets_one_override_and_keeps_the_rest_of_the_list() {
             overrides.push(previous).unwrap();
         }
         overrides.push(item(b"transcript_memory", 2_000_000_000)).unwrap();
-        let value = w::TemperLimits::new(&w::CEILINGS, w::TemperLimitsParts { overrides }).unwrap();
+        let value = w::LimitOverrides { overrides };
         let changed = raised_item(&value, &held, &w::CEILINGS).unwrap();
         assert_eq!(changed.setting, c::Setting::Application { kind: 22, scope: 0, number: 1 });
         let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(encoded) }) = changed.edit else {
             panic!("one setting set")
         };
-        let value = w::TemperLimits::decode(&w::CEILINGS, &mut Reader::new(&encoded)).unwrap();
-        let rows = value.overrides();
+        let value = w::LimitOverrides::decode(&w::CEILINGS, &mut Reader::new(&encoded)).unwrap();
+        let rows = &value.overrides;
         assert_eq!(rows.len(), 3);
         assert_eq!(rows.get(0).unwrap(), &item(b"forge.client.entries", 12));
-        assert_eq!(rows.get(1).unwrap().name(), b"forge.entries");
-        assert_eq!(rows.get(1).unwrap().value(), 16);
-        assert_eq!(rows.get(1).unwrap().reason(), b"raised for task 42, which needed 9");
+        assert_eq!(rows.get(1).unwrap().name.as_ref(), b"forge.entries");
+        assert_eq!(rows.get(1).unwrap().value, 16);
+        assert_eq!(rows.get(1).unwrap().reason.as_ref(), b"raised for task 42, which needed 9");
         assert_eq!(rows.get(2).unwrap(), &item(b"transcript_memory", 2_000_000_000));
     }
 }

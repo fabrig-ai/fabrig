@@ -152,7 +152,7 @@ fn request(
     scope: people::ApplicationScope,
     request: w::Request,
 ) -> Option<w::Outcome> {
-    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let record = wire::requesting(&w::Requesting { request });
     let engine = service.engine.as_mut().unwrap();
     let event = crate::family::to_root(
         &jig_protocol_config::Directories::working(),
@@ -183,7 +183,7 @@ fn install(service: &mut crate::Service, key: u8) -> w::Outcome {
         service,
         key,
         people::ApplicationScope::Deployment,
-        w::Request::Install(w::Install::new(&w::CEILINGS, w::InstallParts { forge: FORGE, back: None }).unwrap()),
+        w::Request::Install(w::Install { forge: FORGE, back: None }),
     )
     .expect("install answer")
 }
@@ -221,16 +221,12 @@ fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
 
 fn connect_request_with_policy(app: u64, read_only: Option<bool>) -> w::Request {
     w::Request::Connect(
-        w::Connect::new(
-            &w::CEILINGS,
-            w::ConnectParts {
-                forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: FORGE }).unwrap()),
+        w::Connect {
+                forge: w::Making::Kept(w::Kept { forge: FORGE }),
                 how: w::How::GithubApp(
-                    w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app, read_only }).unwrap(),
+                    w::GitHubApp { id: app, read_only },
                 ),
             },
-        )
-        .unwrap(),
     )
 }
 
@@ -274,8 +270,7 @@ fn http_paste_with_policy(
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
     let record = wire::requesting(
-        &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request_with_policy(app, read_only) })
-            .unwrap(),
+        &w::Requesting { request: connect_request_with_policy(app, read_only) },
     );
     let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
@@ -495,9 +490,7 @@ fn a_successful_paste_retry_clears_the_rows_readable_failure() {
 
 fn adopt_request(owner: &[u8]) -> w::Request {
     w::Request::Adopt(
-        w::Adopt::new(
-            &w::CEILINGS,
-            w::AdoptParts {
+        w::Adopt {
                 project: 1,
                 home: false,
                 forge: FORGE,
@@ -509,8 +502,6 @@ fn adopt_request(owner: &[u8]) -> w::Request {
                 ci: false,
                 checks: List::with_capacity(0),
             },
-        )
-        .unwrap(),
     )
 }
 

@@ -1,4 +1,5 @@
 //! A person's facts (temper/docs/design/client/forge/records.md).
+use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
@@ -28,11 +29,11 @@ pub enum State {
 #[must_use]
 pub fn watch(limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let record = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Dismissed }).ok()?;
+    let record = w::Watching { watch: w::Watch::Dismissed };
     Some(Watchable::Family {
         scope: c::Scope::Own,
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 
@@ -42,28 +43,24 @@ pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
     let (project, what) = match what {
         PersonFact::ToBegin { project } => {
-            (project, w::PersonFact::ToBegin(w::ToBegin::new(&bounds, w::ToBeginParts { project }).ok()?))
+            (project, w::PersonFact::ToBegin(w::ToBegin { project }))
         }
         PersonFact::GoalFrom { project, chat, goal, at } => (
             project,
-            w::PersonFact::GoalFrom(w::GoalFrom::new(&bounds, w::GoalFromParts { project, chat, goal, at }).ok()?),
+            w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at }),
         ),
         PersonFact::KeepAsking { project, subject, at } => (
             project,
             w::PersonFact::KeepAsking(
-                w::KeepAsking::new(
-                    &bounds,
-                    w::KeepAskingParts { project, subject: subject_record(subject), at: at.as_nanos() },
-                )
-                .ok()?,
+                w::KeepAsking { project, subject: subject_record(subject), at: at.as_nanos() },
             ),
         ),
     };
-    let dismiss = w::Dismiss::new(&bounds, w::DismissParts { what }).ok()?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::Dismiss(dismiss) }).ok()?;
+    let dismiss = w::Dismiss { what };
+    let record = w::Requesting { request: w::Request::Dismiss(dismiss) };
     Some(Ask::Family {
         scope: c::Scope::Project(project),
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 
@@ -217,19 +214,19 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
     }
     let document = wire::decode_dismissals(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(wire::DISMISSED);
-    for what in document.into_parts().dismissed.into_boxed() {
+    for what in document.dismissed.into_boxed() {
         let what = match what {
             w::PersonFact::KeepAsking(value) => PersonFact::KeepAsking {
-                project: value.project(),
-                subject: subject_from(value.subject()),
-                at: Wall::from_nanos(value.at()),
+                project: value.project,
+                subject: subject_from(&value.subject),
+                at: Wall::from_nanos(value.at),
             },
-            w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project() },
+            w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project },
             w::PersonFact::GoalFrom(value) => PersonFact::GoalFrom {
-                project: value.project(),
-                chat: value.chat(),
-                goal: value.goal(),
-                at: value.at(),
+                project: value.project,
+                chat: value.chat,
+                goal: value.goal,
+                at: value.at,
             },
         };
         rows.push(what).expect("wire bounds dismissal rows");
@@ -279,7 +276,7 @@ fn answered(record: &Family, limits: Limits) -> Option<Answer> {
     if !reader.is_empty() {
         return None;
     }
-    Some(match answer.into_parts().outcome {
+    Some(match answer.outcome {
         w::Outcome::Dismissed => Answer::Dismissed,
         w::Outcome::Unknown => Answer::Unknown,
         w::Outcome::Looked

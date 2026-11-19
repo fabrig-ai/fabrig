@@ -18,17 +18,12 @@ fn root() -> Domain {
 }
 
 fn reached(id: u64, name: &[u8], private: bool) -> wire::Reached {
-    wire::Reached::new(
-        &wire::CEILINGS,
-        wire::ReachedParts {
+    wire::Reached {
             id,
-            owner: wire::Account::new(&wire::CEILINGS, wire::AccountParts { id: 3, login: b"acme".as_slice().into() })
-                .unwrap(),
+            owner: wire::Account { id: 3, login: b"acme".as_slice().into() },
             name: name.into(),
             private,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn node<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
@@ -237,14 +232,10 @@ fn copy_lines_have_separate_words_and_their_repairs_reach_the_sheet() {
         &mut root,
         temper_client_domain::Event::Forge(forge::Event::SheetRead {
             request: key,
-            answer: Ok(wire::Page::new(
-                &wire::CEILINGS,
-                wire::PageParts {
+            answer: Ok(wire::Page {
                     rows: skein_lib::List::from_boxed(Box::new([reached(9, b"kept", false)])),
                     more: false,
-                },
-            )
-            .unwrap()),
+                }),
         }),
     );
     assert_eq!(root.forge().sheet().unwrap().picks.get(0).unwrap().id, 9);
@@ -280,19 +271,13 @@ fn forges(modes: &[(wire::Kind, wire::Mode)]) -> Domain {
     let mut rows = skein_lib::List::with_capacity(u32::try_from(modes.len()).unwrap());
     for (index, (kind, mode)) in modes.iter().enumerate() {
         rows.push(
-            wire::ForgeRow::new(
-                &wire::CEILINGS,
-                wire::ForgeRowParts {
+            wire::ForgeRow {
                     number: u16::try_from(index.checked_add(1).unwrap()).unwrap(),
                     kind: kind.clone(),
                     mode: mode.clone(),
                     host: b"forge.invalid".as_slice().into(),
                     connection: wire::Connection::Connected(
-                        wire::Connected::new(
-                            &wire::CEILINGS,
-                            wire::ConnectedParts { id: 1, login: b"bot".as_slice().into() },
-                        )
-                        .unwrap(),
+                        wire::Connected { id: 1, login: b"bot".as_slice().into() },
                     ),
                     starts_with: wire::StartsWith::Nothing,
                     makings: skein_lib::List::with_capacity(0),
@@ -308,8 +293,6 @@ fn forges(modes: &[(wire::Kind, wire::Mode)]) -> Domain {
                     read_only: false,
                     ended_stop: None,
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
     }

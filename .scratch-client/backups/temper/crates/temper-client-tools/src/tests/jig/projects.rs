@@ -1,0 +1,623 @@
+#![expect(
+    clippy::disallowed_types,
+    clippy::disallowed_macros,
+    reason = "ordinary Rust fixtures and golden comparisons; testing-strategy.md, step tests"
+)]
+use crate::{jig, tests::fixtures as f};
+use jig_client::{Ask, contract as c};
+use skein_lib::{List, Wall};
+
+fn list<T>(values: Vec<T>) -> List<T> {
+    let mut out = List::with_capacity(values.len().try_into().unwrap());
+    for value in values {
+        out.push(value).ok().unwrap();
+    }
+    out
+}
+pub(in crate::tests) fn project() -> c::Project {
+    let authority = c::AuthorityDocument::complete(c::Authority {
+        models: None,
+        tools: 0,
+        grants: list(vec![]),
+        delegation: c::Delegation { kinds: list(vec![]), tasks: 0, depth: 0 },
+        spend: 100,
+        deadline: None,
+        notes: 0,
+        note_resources: list(vec![]),
+    });
+    let period = c::PoolLedger {
+        source: c::Funder::Period { project: 1, period: 3 },
+        parent: None,
+        numbers: c::Numbers { budget: 100, reserved: 40, spent: 5, spent_below: 15 },
+        left: 40,
+        closed: false,
+        began: Some(Wall::from_nanos(1_793_080_800_000_000_000)),
+        next: Some(Wall::from_nanos(1_793_685_600_000_000_000)),
+    };
+    let mut pools = vec![];
+    for person in [1, 2] {
+        let mut pool = period.clone();
+        pool.source = c::Funder::Pool { project: 1, person, period: 3 };
+        pool.parent = Some(period.source);
+        pools.push(pool);
+    }
+    c::Project {
+        acts: list(vec![]),
+        number: 1,
+        name: f::document_text(b"shop"),
+        resources: list(vec![c::ProjectResource {
+            part: c::Part {
+                connector: 4,
+                kind: c::PartKind::Resource,
+                key: c::PartKey::Path(list(vec![b"src".as_slice().into(), b"lib.rs".as_slice().into()])),
+            },
+            role: c::ProjectResourceRole::Owned,
+            home: true,
+        }]),
+        policy: c::ProjectPolicy {
+            templates: list(vec![]),
+            ceiling: authority.clone(),
+            period_spend: 100,
+            escalation_role: None,
+            projections: list(vec![]),
+            roles: list(vec![
+                c::ProjectPolicyRole {
+                    number: 0,
+                    authority: authority.clone(),
+                    period_spend: 100,
+                    requests: 0,
+                    decides: 0,
+                },
+                c::ProjectPolicyRole { number: 2, authority, period_spend: 50, requests: 0, decides: 0 },
+            ]),
+            requirements: list(vec![]),
+            permissions: None,
+            permissions_cut: false,
+            cut: false,
+        },
+        members: list(vec![
+            c::ProjectMember {
+                party: 1,
+                kind: c::PartyKind::Person,
+                role: c::HeldRole::Owner,
+                login: f::document_text(b"alice"),
+                name: f::document_text(b"Alice"),
+            },
+            c::ProjectMember {
+                party: 2,
+                kind: c::PartyKind::Person,
+                role: c::HeldRole::Member,
+                login: f::document_text(b"bob"),
+                name: f::document_text(b"Bob"),
+            },
+        ]),
+        current_period: Some(period),
+        pools: list(pools),
+        configured_period: 3,
+        configured_pools: list(vec![]),
+        configured_pools_cut: false,
+        spend: list(vec![]),
+        recurring: list(vec![]),
+        cut: false,
+    }
+}
+fn read(argv: &[&str], value: c::Project) -> jig::Printed {
+    let (mut root, call) = f::read_call(argv);
+    assert_eq!(root.reads[&call].1, c::Read::Project { project: 1 });
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(value))));
+    root.answer(call).expect("project read completed")
+}
+#[test]
+fn project_show_prints_the_open_period_and_each_pool() {
+    let printed = read(&["project", "show", "1"], project());
+    assert_eq!(printed.status, 0);
+    f::check_golden("project_show", &printed.stdout);
+}
+#[test]
+fn project_show_lists_a_fork_home_and_keeps_an_owned_non_home_out() {
+    let mut project = project();
+    let mut home = project.resources.get(0).unwrap().clone();
+    home.role = c::ProjectResourceRole::Fork;
+    let mut other = home.clone();
+    other.role = c::ProjectResourceRole::Owned;
+    other.home = false;
+    other.part.key = c::PartKey::Path(list(vec![b"other".as_slice().into()]));
+    project.resources = list(vec![home, other]);
+    let printed = read(&["project", "show", "1"], project.clone());
+    assert_eq!(printed.status, 0);
+    let text = String::from_utf8_lossy(&printed.stdout);
+    assert_eq!(text.lines().nth(2), Some("homes: src/lib.rs"));
+    let printed = read(&["project", "show", "1", "--json"], project);
+    f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
+    let json = String::from_utf8_lossy(&printed.stdout);
+    assert!(json.contains(r#""role":"fork","home":true"#), "{json}");
+    assert!(json.contains(r#""role":"owned","home":false"#), "{json}");
+}
+
+#[test]
+fn project_show_says_when_no_next_start_is_known() {
+    let mut project = project();
+    project.current_period.as_mut().unwrap().next = None;
+    let printed = read(&["project", "show", "1"], project);
+    assert!(String::from_utf8_lossy(&printed.stdout).contains("next start: none"));
+}
+#[test]
+fn project_show_says_when_no_period_is_open() {
+    let mut project = project();
+    project.current_period = None;
+    let printed = read(&["project", "show", "1"], project);
+    assert!(String::from_utf8_lossy(&printed.stdout).contains("period: none open\n"));
+}
+#[test]
+fn project_show_json_preserves_integer_ledgers_and_cut_flags() {
+    let mut project = project();
+    project.cut = true;
+    project.configured_pools_cut = true;
+    let printed = read(&["project", "show", "1", "--json"], project.clone());
+    assert_eq!(printed.status, 0);
+    f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
+    f::check_golden("project_show_json", &printed.stdout);
+    let printed = read(&["project", "show", "1"], project);
+    assert!(String::from_utf8_lossy(&printed.stdout).contains("project: cut\nconfigured pools: cut\ndigest: "));
+}
+#[test]
+fn project_fund_sends_project_spend_and_role_spend() {
+    for role in [None, Some("0")] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut argv = vec!["project", "fund", "1", "2.00", "--key", "fund"];
+        if let Some(role) = role {
+            argv.extend(["--role", role]);
+        }
+        let call = root.submit(&argv);
+        let edit = if role.is_some() {
+            c::PolicyEdit::RoleSpend { role: 0, period_spend: 200 }
+        } else {
+            c::PolicyEdit::ProjectSpend { period_spend: 200 }
+        };
+        assert_eq!(root.sends[&call].2, Ask::Jig(Box::new(c::Ask::ChangePolicy { project: 1, edit })));
+        assert_eq!(root.sent_name(call), Some(f::named("fund")));
+        assert!(root.reads.is_empty(), "no read before the act's answer");
+    }
+}
+#[test]
+fn project_fund_prints_the_edit_then_the_period_and_roles_pools() {
+    for role in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut argv = vec!["project", "fund", "1", "2.00", "--key", "fund"];
+        if role {
+            argv.extend(["--role", "0"]);
+        }
+        let call = root.submit(&argv);
+        root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+        assert_eq!(root.reads[&call].1, c::Read::Project { project: 1 });
+        root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(project()))));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        let expected = if role {
+            "role 0: spend per period 2.00\nnow: period 3: budget 1.00, left 0.40\nnow: pool, party 1 alice: budget 1.00, left 0.40\n"
+        } else {
+            "project 1: spend per period 2.00\nnow: period 3: budget 1.00, left 0.40\n"
+        };
+        assert_eq!(printed.stdout.as_ref(), expected.as_bytes());
+    }
+}
+#[test]
+fn project_fund_past_the_periods_room_exits_2_naming_what_is_left() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "fund", "1", "2.00", "--role", "0", "--key", "fund"]);
+    root.answered(
+        call,
+        c::Answer::Refused {
+            refusal: c::Refusal::Authority { lacking: c::Lacking::Budget { needed: 200, left: 60 }, proposable: None },
+            at: None,
+        },
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    assert_eq!(
+        printed.stderr.as_ref(),
+        b"refused: the period has 0.60 left, the pools need 2.00; raise the project's first: project fund 1 AMOUNT\n"
+    );
+    assert!(root.reads.is_empty());
+}
+#[test]
+fn project_fund_amount_and_role_bounds_are_usage() {
+    for amount in ["0.00", "184467440737095516.15"] {
+        let call = f::call(&["project", "fund", "1", amount, "--key", "fund"]);
+        assert_eq!(f::back(&call), f::owned(&["project", "fund", "1", amount, "--key", "fund"]));
+    }
+    for amount in ["184467440737095516.16", "-1", "no"] {
+        f::parse(&["project", "fund", "1", amount, "--key", "fund"]).expect_err("invalid amount is usage");
+    }
+    for role in ["0", "4294967295"] {
+        f::parse(&["project", "fund", "1", "2.00", "--role", role, "--key", "fund"]).expect("role bound parses");
+    }
+    f::parse(&["project", "fund", "1", "2.00", "--role", "4294967296", "--key", "fund"])
+        .expect_err("role past bound is usage");
+    f::parse(&["project", "fund", "1", "2.00"]).expect_err("funding requires a key");
+}
+
+#[test]
+fn project_show_resolves_names_and_preserves_read_refusals() {
+    let (mut root, call) = f::read_call(&["project", "show", "shop"]);
+    assert_eq!(root.reads[&call].1, c::Read::Project { project: f::PROJECT });
+    root.serve(call, c::ReadResult::None(c::ReadNone::Refused));
+    assert_eq!(root.answer(call).unwrap().status, 2);
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "show", "unknown", "--json"]);
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 1);
+    assert_eq!(printed.stderr.as_ref(), br#"{"error":"unknown project"}"#);
+}
+#[test]
+fn project_fund_json_reads_the_committed_ledgers() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "fund", "shop", "2.00", "--role", "0", "--key", "fund", "--json"]);
+    let Ask::Jig(ask) = &root.sends[&call].2 else { unreachable!() };
+    assert_eq!(
+        ask.as_ref(),
+        &c::Ask::ChangePolicy { project: f::PROJECT, edit: c::PolicyEdit::RoleSpend { role: 0, period_spend: 200 } }
+    );
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+    assert_eq!(root.reads[&call].1, c::Read::Project { project: 1 });
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(project()))));
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 0);
+    f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
+    f::check_golden("project_fund_json", &printed.stdout);
+}
+
+#[test]
+fn a_spent_pool_refusal_names_the_project_role_and_remedy() {
+    for pool_known in [false, true] {
+        let mut root = f::chat_root(100, f::SEED);
+        let mut me = f::chat_me(100);
+        if pool_known {
+            let mut pool = project().pools.get(0).unwrap().clone();
+            pool.numbers = c::Numbers { budget: 114, reserved: 0, spent: 114, spent_below: 0 };
+            pool.left = 0;
+            me.projects.get_mut(0).unwrap().pool = Some(pool);
+        }
+        root.deliver(c::Delivery::Me(Box::new(me)));
+        let call = root.submit(f::CREATE_CHAT_CALL);
+        root.answered(call, spent_pool_refusal());
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(
+            String::from_utf8_lossy(&printed.stderr),
+            "chat start: refused: your pool in project 1 had 0.00 left, 0.01 needed\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+        );
+    }
+}
+#[test]
+fn a_kept_spent_pool_refusal_with_room_now_names_the_new_key_remedy() {
+    for left in [1, 40] {
+        let mut root = f::chat_root(100, f::SEED);
+        let mut me = f::chat_me(100);
+        let mut pool = project().pools.get(0).unwrap().clone();
+        pool.left = left;
+        let amount = format!("{}.{:02}", left / 100, left % 100);
+        me.projects.get_mut(0).unwrap().pool = Some(pool);
+        root.deliver(c::Delivery::Me(Box::new(me)));
+        let call = root.submit(f::CREATE_CHAT_CALL);
+        root.answered(call, spent_pool_refusal());
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(
+            String::from_utf8_lossy(&printed.stderr),
+            format!(
+                "chat start: refused: your pool in project 1 had 0.00 left, 0.01 needed\nnow: your pool has {amount} left; budget 1.00; this key keeps its first answer: start new work with a new --key\n"
+            )
+        );
+    }
+}
+fn spent_pool_refusal() -> c::Answer {
+    c::Answer::Refused {
+        refusal: c::Refusal::Authority { lacking: c::Lacking::Budget { needed: 1, left: 0 }, proposable: None },
+        at: None,
+    }
+}
+#[test]
+fn a_spent_pool_json_preserves_the_engine_refusal() {
+    let mut root = f::chat_root(100, f::SEED);
+    let call = root.submit(f::extended(f::CREATE_CHAT_CALL, &["--json"]).as_slice());
+    root.answered(call, spent_pool_refusal());
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    assert_eq!(printed.stderr.as_ref(), br#"{"operation":"chat","outcome":{"refused":{"refusal":{"authority":{"lacking":{"budget":{"needed":1,"left":0}},"proposable":null}},"at":null}},"task":null,"to":null}"#);
+}
+#[test]
+fn project_fund_replays_the_edit_with_todays_balances() {
+    for (role, json) in [(false, false), (true, false), (false, true), (true, true)] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut argv = vec!["project", "fund", "1", "2.00", "--key", "first"];
+        if role {
+            argv.extend(["--role", "0"]);
+        }
+        if json {
+            argv.push("--json");
+        }
+        let first = root.submit(&argv);
+        root.done(first, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+        root.serve(first, c::ReadResult::Value(c::ReadValue::Project(Box::new(project()))));
+        let original = root.answer(first).unwrap().stdout.clone();
+        let mut changed = argv.clone();
+        changed[3] = "300";
+        changed[5] = "second";
+        let next = root.submit(&changed);
+        root.done(next, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+        let mut today = project();
+        today.current_period.as_mut().unwrap().left = 17;
+        today.pools.get_mut(0).unwrap().left = 9;
+        root.serve(next, c::ReadResult::Value(c::ReadValue::Project(Box::new(today.clone()))));
+        let replay = root.submit(&argv);
+        root.done(replay, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+        root.serve(replay, c::ReadResult::Value(c::ReadValue::Project(Box::new(today))));
+        let answer = root.answer(replay).unwrap();
+        assert_eq!(answer.status, 0);
+        let text = String::from_utf8_lossy(&answer.stdout);
+        if json {
+            f::unique_keys(&answer.stdout).expect("valid replay JSON");
+            let edit = if role {
+                r#"{"project":1,"role":0,"period_spend":200}"#
+            } else {
+                r#"{"project":1,"period_spend":200}"#
+            };
+            let prefix = format!("{{\"answer\":{edit},\"now\":");
+            assert!(text.starts_with(&prefix), "{text}");
+            assert!(String::from_utf8_lossy(&original).starts_with(&prefix));
+            assert!(text.contains(r#""left":17"#), "{text}");
+            if role {
+                assert!(text.contains(r#""left":9"#), "{text}");
+            }
+        } else {
+            let first_line = skein_lib::bytes::find(&original, b"\n").expect("edit line");
+            assert_eq!(&answer.stdout[..=first_line], &original[..=first_line]);
+            assert!(text.contains("now: period 3: budget 1.00, left 0.17\n"), "{text}");
+            if role {
+                assert!(text.contains("now: pool, party 1 alice: budget 1.00, left 0.09\n"), "{text}");
+            }
+        }
+    }
+}
+
+#[test]
+fn project_fund_marks_missing_period_and_cut_flags_as_current_reads() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "fund", "1", "0.00", "--key", "cut"]);
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::PolicyChanged { project: 1 }));
+    let mut current = project();
+    current.current_period = None;
+    current.cut = true;
+    current.configured_pools_cut = true;
+    root.serve(call, c::ReadResult::Value(c::ReadValue::Project(Box::new(current))));
+    assert_eq!(
+        root.answer(call).unwrap().stdout.as_ref(),
+        b"project 1: spend per period 0.00\nnow: period: none open\nnow: project: cut\nnow: configured pools: cut\n"
+    );
+}
+
+#[test]
+fn project_fund_ceiling_refusals_name_the_bound_and_remedy() {
+    for (holder, role, expected) in [
+        (
+            c::CeilingHolder::Rules,
+            None,
+            "project fund: past the rules' period spend, 10.00; raise the rules first with temper ctl settings apply\n",
+        ),
+        (
+            c::CeilingHolder::Policy,
+            Some("0"),
+            "project fund: past the project's period spend, 10.00; fund the project first: temper ctl project fund 1 AMOUNT\n",
+        ),
+        (
+            c::CeilingHolder::Role(0),
+            None,
+            "project fund: below role 0's period spend, 10.00; lower the role first: temper ctl project fund 1 AMOUNT --role 0\n",
+        ),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut argv = vec!["project", "fund", "1", "10.01", "--key", "fund"];
+        if let Some(role) = role {
+            argv.extend(["--role", role]);
+        }
+        let call = root.submit(&argv);
+        root.answered(call, ceiling_refusal(holder, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(printed.stderr.as_ref(), expected.as_bytes());
+        assert!(root.reads.is_empty());
+    }
+}
+
+#[test]
+fn project_fund_rechecks_the_rules_authority_ceiling() {
+    for (dimension, value, expected) in [
+        (
+            c::CeilingDimension::Spend,
+            Some(500),
+            "project fund: the project's authority is past the rules' spend, 5.00; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+        ),
+        (
+            c::CeilingDimension::Tools,
+            None,
+            "project fund: the project's authority is past the rules' tools; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+        ),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["project", "fund", "1", "10.00", "--key", "fund"]);
+        root.answered(call, ceiling_refusal(c::CeilingHolder::Rules, dimension, value, None));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(printed.stderr.as_ref(), expected.as_bytes());
+    }
+}
+fn ceiling_refusal(
+    holder: c::CeilingHolder,
+    dimension: c::CeilingDimension,
+    value: Option<u64>,
+    asked: Option<u64>,
+) -> c::Answer {
+    c::Answer::Refused {
+        refusal: c::Refusal::Authority {
+            lacking: c::Lacking::Ceiling { holder, dimension, value, asked },
+            proposable: None,
+        },
+        at: None,
+    }
+}
+
+#[test]
+fn project_fund_json_preserves_the_ceiling_facts() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "fund", "1", "10.01", "--key", "fund", "--json"]);
+    root.answered(
+        call,
+        ceiling_refusal(c::CeilingHolder::Rules, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)),
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    assert_eq!(printed.stderr.as_ref(), br#"{"operation":"project fund","outcome":{"refused":{"refusal":{"authority":{"lacking":{"ceiling":{"holder":"rules","dimension":"period_spend","value":1000}},"proposable":null}},"at":null}},"task":null,"to":null}"#);
+}
+
+#[test]
+fn second_project_after_setup_has_a_ctl_remedy() {
+    for json in [false, true] {
+        let mut root = crate::tests::forges::setup_for_projects();
+        second_setup_refusal(&mut root, json);
+        let read = root.submit(&["forge", "list"]);
+        crate::tests::forges::project_forge(&mut root);
+        assert_eq!(root.answer(read).unwrap().status, 0);
+        make_second_project(&mut root, json);
+        adopt_second_repository(&mut root, json);
+    }
+}
+
+fn second_setup_refusal(root: &mut f::Harness, json: bool) {
+    use temper_client_protocol_wire::v1 as w;
+    let call = root.submit_prepared(
+        f::call(&["forge", "setup", "--org", "work", "--repository", "second", "--key", "second-setup"]),
+        json,
+        None,
+    );
+    root.adoption_answer(
+        call,
+        w::Outcome::SetUpRefused(
+            w::SetUpRefused { why: w::SetUpRefusal::NotOffered },
+        ),
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    if json {
+        f::unique_keys(&printed.stderr).unwrap();
+    }
+    let refusal = String::from_utf8_lossy(&printed.stderr);
+    for remedy in [
+        "forge list",
+        "project make NAME --key KEY",
+        "repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY",
+    ] {
+        assert!(refusal.contains(remedy), "missing remedy {remedy}: {refusal}");
+    }
+}
+
+fn make_second_project(root: &mut f::Harness, json: bool) {
+    for _ in [false, true] {
+        let make = root.submit_prepared(f::call(&["project", "make", "Second", "--key", "second-project"]), json, None);
+        assert_eq!(f::act_ask(root, make), &c::Ask::MakeProject { name: f::act_text(b"Second"), policy: 1 });
+        assert_eq!(root.sent_name(make), Some(f::named("second-project")));
+        root.done(make, c::Outcome::Document(c::DocumentOutcome::ProjectMade { project: 8 }));
+        let printed = root.answer(make).unwrap();
+        assert_eq!(printed.status, 0);
+        if json {
+            f::unique_keys(&printed.stdout).unwrap();
+            assert!(String::from_utf8_lossy(&printed.stdout).contains(r#""project_made":{"project":8}"#));
+        } else {
+            assert_eq!(printed.stdout.as_ref(), b"project 8\n");
+        }
+    }
+}
+
+fn adopt_second_repository(root: &mut f::Harness, json: bool) {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let mut me = f::me(f::PARTY);
+    let mut second = me.projects.get(0).unwrap().clone();
+    second.project = 8;
+    second.name = f::document_text(b"Second");
+    me.projects = list(vec![me.projects.get(0).unwrap().clone(), second]);
+    root.deliver(c::Delivery::Me(Box::new(me)));
+    let make = root.submit_prepared(
+        f::call(&[
+            "repository",
+            "make",
+            "--project",
+            "8",
+            "--forge",
+            "3",
+            "work/second",
+            "--until",
+            "adopted",
+            "--key",
+            "second-repository",
+        ]),
+        json,
+        None,
+    );
+    let Ask::Family { record, .. } = root.adoption_bytes(make) else { panic!("repository request") };
+    let w::Request::MakeRepository(request) =
+        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+    else {
+        panic!("make")
+    };
+    assert_eq!((request).into.as_ref().unwrap().project(), 8);
+    root.adoption_answer(make, w::Outcome::MakeKept);
+    crate::tests::forges::adopted_project_repository(root, 8);
+    let printed = root.answer(make).unwrap();
+    assert_eq!(printed.status, 0);
+    if json {
+        f::unique_keys(&printed.stdout).unwrap();
+        assert!(String::from_utf8_lossy(&printed.stdout).contains(r#""adopted":true"#));
+    } else {
+        assert_eq!(printed.stdout.as_ref(), b"work/second is in 8.\n");
+    }
+}
+
+#[test]
+fn a_reserved_goal_pool_names_as_allowed_and_how_to_leave_room() {
+    for reserved in [Some(13000), Some(0), None] {
+        let mut me = super::goal_template::goal_me();
+        let held = me.projects.get_mut(0).unwrap();
+        held.role = c::HeldRole::Owner;
+        held.pool = if let Some(reserved) = reserved {
+            let mut pool = project().pools.get(0).unwrap().clone();
+            pool.numbers = c::Numbers { budget: 13000, reserved, spent: 0, spent_below: 0 };
+            pool.left = 0;
+            Some(pool)
+        } else {
+            None
+        };
+        let mut root = f::choice_root(me);
+        let call = root.submit(&[
+            "goal",
+            "start",
+            "--project",
+            "1",
+            "--charter",
+            "1",
+            "--as-allowed",
+            "--no-deadline",
+            "Work",
+            "--key",
+            "pool",
+        ]);
+        root.answered(call, spent_pool_refusal());
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, 2);
+        let reservation = if reserved == Some(13000) {
+            "reserved: 130.00, for the live work your pool funds; a goal or milestone started with --as-allowed takes all your pool may give: start them with --budget AMOUNT to leave room\n"
+        } else {
+            ""
+        };
+        assert_eq!(answer.stderr.as_ref(), format!("goal start: refused: your pool in project 1 had 0.00 left, 0.01 needed\n{reservation}read it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n").as_bytes());
+    }
+}

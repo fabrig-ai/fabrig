@@ -98,8 +98,7 @@ pub(super) fn world(name: &str) -> Domain {
                     && let w::Read::View(view) = reading.read()
                     && view.address() == b"charter 13"
                 {
-                    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: charter() })
-                        .expect("charter answer");
+                    let answer = w::ViewAnswer { view: charter() };
                     step(
                         &mut root,
                         Event::Client {
@@ -217,35 +216,27 @@ pub(super) fn world(name: &str) -> Domain {
 }
 
 fn areas(reader: u64) -> w::Findings {
-    let owner = w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).expect("task"));
-    let holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("task"));
+    let owner = w::AreaOwner::Task(w::AreaTask { number: 52 });
+    let holder = w::Holder::Task(w::HolderTask { number: 52 });
     let party =
-        w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: reader }).expect("party"));
+        w::AreaOwner::Party(w::AreaParty { number: reader });
     let person =
-        w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: reader }).expect("party"));
+        w::Holder::Party(w::HolderParty { number: reader });
     let rows = [
         (b"core".as_slice(), b"The protocol, its state machine and its document".as_slice(), party, person),
         (b"tests".as_slice(), b"Tests, fuzzing and the tiers".as_slice(), owner.clone(), holder.clone()),
     ]
     .map(|(name, words, owner, holder)| {
-        w::AreaRow::new(
-            &w::CEILINGS,
-            w::AreaRowParts { name: name.into(), words: words.into(), owner, holder: Some(holder) },
-        )
-        .expect("area")
+        w::AreaRow { name: name.into(), words: words.into(), owner, holder: Some(holder) }
     });
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
+    w::Findings {
             project: PROJECT,
             rows: List::with_capacity(0),
             areas: List::from_boxed(Box::new(rows)),
             triager: Some(owner),
             holder,
             cut: false,
-        },
-    )
-    .expect("Team's areas")
+        }
 }
 
 fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
@@ -256,9 +247,7 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
         let sam = [(SAM, "Sam")];
         for task in 1..=5 {
             rows.push(
-                w::ChangesLanded::new(
-                    &w::CEILINGS,
-                    w::ChangesLandedParts {
+                w::ChangesLanded {
                         goal: None,
                         chat: None,
                         milestone: None,
@@ -269,15 +258,11 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
                         default_branch: true,
                         signed: crate::samples::signoffs(if task <= 4 { both.as_slice() } else { sam.as_slice() }, at),
                     },
-                )
-                .expect("signed sample landing"),
             )
             .expect("five sample landings");
         }
     }
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
+    w::ChangesPanel {
             project: PROJECT,
             landing: b"main".as_slice().into(),
             queues: List::with_capacity(0),
@@ -286,9 +271,7 @@ fn changes(reader: u64, alone: bool) -> w::ChangesPanel {
             landed_more: 0,
             landed_default: rows,
             landed_default_more: 0,
-        },
-    )
-    .expect("sample changes")
+        }
 }
 
 fn member(party: u64, kind: c::PartyKind, name: &str, role: c::HeldRole) -> c::ProjectMember {
@@ -372,9 +355,7 @@ fn approvals(alone: bool) -> w::Approvals {
     let mut rows = List::with_capacity(1);
     if !alone {
         rows.push(
-            w::ApprovalRow::new(
-                &w::CEILINGS,
-                w::ApprovalRowParts {
+            w::ApprovalRow {
                     task: REVIEW,
                     project: PROJECT,
                     goal: None,
@@ -399,12 +380,10 @@ fn approvals(alone: bool) -> w::Approvals {
                     can_sign_more: 0,
                     size: None,
                 },
-            )
-            .expect("review"),
         )
         .expect("one review");
     }
-    w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows, more: 0 }).expect("approvals")
+    w::Approvals { rows, more: 0 }
 }
 
 const NOW: &[u8] = b"- Finding 91, from the fuzz tier at 01:50: a commit is lost when a witness rejoins during a view change. Reproduced with seed 4417 in a deterministic test, tests/sim/rejoin.c.\n- The fix is the protocol core's: count a rejoining witness only once it holds the log suffix. Asked you; I start the change at your answer.\n- Triaged three findings this week: two to you, one kept, a flaky replica timeout, repaired and landed.\n- Next: the fuzz tier's next run, then my weekly report on Monday.";
@@ -475,22 +454,14 @@ fn provers_report() -> c::NotePage {
 }
 
 fn charter() -> w::View {
-    let fact = w::Fact::new(
-        &w::CEILINGS,
-        w::FactParts {
+    let fact = w::Fact {
             label: b"Asked to".as_slice().into(),
             value: b"Reproduce before routing: a finding gets a seed or a test first.".as_slice().into(),
-        },
-    )
-    .expect("Asked to");
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
+        };
+    let card = w::Card {
             who: b"an agent".as_slice().into(),
             name: b"Prover".as_slice().into(),
             facts: List::from_boxed(Box::new([fact])),
-        },
-    )
-    .expect("charter card");
-    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 13, card }).expect("charter"))
+        };
+    w::View::Charter(w::CharterView { charter: 13, card })
 }

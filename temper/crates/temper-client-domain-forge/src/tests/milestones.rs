@@ -1,4 +1,5 @@
 //! Shared milestone facts and the forge's totals read.
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures::{self as f, chat};
 use crate::{
     forge::milestones as totals,
@@ -134,9 +135,9 @@ fn part(bytes: Box<[u8]>) -> c::RowPart {
 fn a_goals_part_alone_names_its_milestone() {
     let mut line = row();
     assert_eq!(milestones::of(&line), None);
-    let part_value = w::GoalPart::new(&w::CEILINGS, w::GoalPartParts { report: None, milestone: Some(811) }).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(part_value.measure()).unwrap());
-    part_value.encode(&mut writer).unwrap();
+    let part_value = w::GoalPart { report: None, milestone: Some(811) };
+    let mut writer = skein_lib::Writer::new(usize::try_from(part_value.measure(&w::CEILINGS).expect("within ceilings")).unwrap());
+    part_value.write(&w::CEILINGS, &mut writer).unwrap();
     line.parts = skein_lib::List::from_boxed(Box::new([part(writer.finish())]));
     assert_eq!(milestones::of(&line), Some(811));
     line.requester = c::Requester::Person(1);
@@ -156,15 +157,9 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
     let bytes = writer.finish();
     let trailing = skein_lib::bytes::concat(&[&bytes, &[0]]);
     let goal_row = |bytes: &[u8]| {
-        w::MilestoneGoal::new(
-            &w::CEILINGS,
-            w::MilestoneGoalParts { line: bytes.into(), headline: Some(b"Newest report.".as_slice().into()) },
-        )
-        .unwrap()
+        w::MilestoneGoal { line: bytes.into(), headline: Some(b"Newest report.".as_slice().into()) }
     };
-    let totals = w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts {
+    let totals = w::MilestoneTotals {
             task: line.chip.task,
             done: 2,
             failed: 0,
@@ -173,12 +168,8 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
             ended: None,
             last_landing: None,
             spent: 40,
-        },
-    )
-    .unwrap();
-    let value = w::MilestonePart::new(
-        &w::CEILINGS,
-        w::MilestonePartParts {
+        };
+    let value = w::MilestonePart {
             whole: Some(17),
             totals: totals.clone(),
             goals: List::from_boxed(Box::new([
@@ -188,11 +179,9 @@ fn milestone_parts_translate_goal_lines_and_count_undecodable_lines_as_more() {
                 goal_row(&bytes),
             ])),
             more: 3,
-        },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+        };
+    let mut writer = Writer::new(usize::try_from(value.measure(&w::CEILINGS).expect("within ceilings")).unwrap());
+    value.write(&w::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     line.parts = List::from_boxed(Box::new([part(bytes.clone())]));
     let decoded = parts::milestone(&line, &limits).unwrap();
@@ -230,10 +219,10 @@ fn the_totals_read_names_its_project_scope_and_task() {
     assert_eq!(scope, c::Scope::Project(7));
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    let w::Read::Milestone(read) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read else {
+    let w::Read::Milestone(read) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read else {
         panic!("milestone read")
     };
-    assert_eq!((read.project(), read.task()), (7, 812));
+    assert_eq!((read.project, read.task), (7, 812));
     let limits = crate::forge::Limits { field_bytes: u32::MAX, ..f::limits().forge };
     assert!(totals::read(7, 812, &limits).is_none());
 }
@@ -241,9 +230,7 @@ fn the_totals_read_names_its_project_scope_and_task() {
 #[test]
 fn totals_answers_require_the_family_and_complete_versioned_bytes() {
     let result = w::MilestoneResult::Totals(
-        w::MilestoneTotals::new(
-            &w::CEILINGS,
-            w::MilestoneTotalsParts {
+        w::MilestoneTotals {
                 task: 812,
                 done: 1,
                 failed: 2,
@@ -251,21 +238,17 @@ fn totals_answers_require_the_family_and_complete_versioned_bytes() {
                 live: 4,
                 ended: Some(89),
                 last_landing: Some(
-                    w::MilestoneLanding::new(&w::CEILINGS, w::MilestoneLandingParts { at: 87, goal: 815, change: 816 })
-                        .unwrap(),
+                    w::MilestoneLanding { at: 87, goal: 815, change: 816 },
                 ),
                 spent: 100,
             },
-        )
-        .unwrap(),
     );
-    let answer = w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result: result.clone() }).unwrap();
+    let answer = w::MilestoneAnswer { result: result.clone() };
     let bytes = wire::milestone_answer(&answer);
     let readout = Readout::Family { family: wire::FORGE, record: Some(bytes.clone()) };
     assert_eq!(totals::answer(&readout, &f::limits().forge), Some(result));
     let absent =
-        w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result: w::MilestoneResult::NotMilestone })
-            .unwrap();
+        w::MilestoneAnswer { result: w::MilestoneResult::NotMilestone };
     assert_eq!(
         totals::answer(
             &Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&absent)) },

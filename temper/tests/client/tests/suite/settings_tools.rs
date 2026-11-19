@@ -320,13 +320,12 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
                 let mut parts =
                     w::ForgeCharter::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("charter").into_parts();
                 parts.charter = if parts.charter == 1 { 2 } else { 1 };
-                let value = w::ForgeCharter::new(&w::CEILINGS, parts).expect("changed charter");
+                let value = parts;
                 let mut writer = Writer::new(usize::try_from(value.measure()).expect("charter bytes"));
                 value.encode(&mut writer).expect("measured charter");
                 *bytes = writer.finish();
             } else if matches!(setting, c::Setting::Application { kind: 11, .. }) {
-                let value = w::TemplateGoal::new(&w::CEILINGS, w::TemplateGoalParts { design: true, close_out: true })
-                    .expect("changed goal work");
+                let value = w::TemplateGoal { design: true, close_out: true };
                 let mut writer = Writer::new(usize::try_from(value.measure()).expect("goal work bytes"));
                 value.encode(&mut writer).expect("measured goal work");
                 *bytes = writer.finish();
@@ -334,7 +333,7 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
                 let mut parts =
                     w::LandingRule::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("rule").into_parts();
                 parts.ci = !parts.ci;
-                let value = w::LandingRule::new(&w::CEILINGS, parts).expect("changed rule");
+                let value = parts;
                 let mut writer = Writer::new(usize::try_from(value.measure()).expect("rule bytes"));
                 value.encode(&mut writer).expect("measured rule");
                 *bytes = writer.finish();

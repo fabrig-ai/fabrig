@@ -1,4 +1,5 @@
 //! The change source table (temper/docs/design/client/forge/README.md, 9.3).
+use temper_client_protocol_wire::v1::Record;
 use super::{Names, PublicAsk, w};
 use crate::{ChangeRow, Domain, Limits};
 use skein_lib::List;
@@ -45,9 +46,7 @@ impl Domain {
             }
             gates
                 .push(
-                    w::PublicGate::new(
-                        l,
-                        w::PublicGateParts {
+                    w::PublicGate {
                             number: gate.number,
                             kind: match gate.kind {
                                 c::GateKind::Agent => w::PublicGateKind::Review,
@@ -62,8 +61,6 @@ impl Domain {
                                 c::Status::Failed => w::PublicVerdict::Changes,
                             },
                         },
-                    )
-                    .ok()?,
                 )
                 .ok()?;
         }
@@ -75,9 +72,7 @@ impl Domain {
             Some(landing) => self.public_landing(ask, landing),
             None => false,
         };
-        w::PublicChange::new(
-            l,
-            w::PublicChangeParts {
+        { let value = w::PublicChange {
                 task: names.name(row.task)?,
                 head: row.change.last_head,
                 step: step.kind,
@@ -100,9 +95,7 @@ impl Domain {
                     c::Way::Turn => w::PublicWay::Turn,
                 },
                 in_landing,
-            },
-        )
-        .ok()
+            }; value.measure(l).ok()?; Some(value) }
     }
     fn public_step(&self, row: &ChangeRow, state: &c::State) -> Option<Step> {
         let mut repair = None;
@@ -132,11 +125,10 @@ impl Domain {
                     c::Repair::Review { .. } => w::PublicRepair::Review,
                     c::Repair::Semantic => w::PublicRepair::Semantic,
                     c::Repair::Gate(gate) => w::PublicRepair::Gate(
-                        w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: *gate }).ok()?,
+                        w::PublicGateNumber { gate: *gate },
                     ),
                     c::Repair::LandingAt { gate, .. } | c::Repair::Landing { gate } => w::PublicRepair::Landing(
-                        w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(*gate) })
-                            .ok()?,
+                        w::PublicGateNumber { gate: u64::from(*gate) },
                     ),
                 });
                 w::PublicStep::Repairing
@@ -172,7 +164,7 @@ impl Domain {
     }
 }
 fn used(used: u32, limit: u32) -> Option<w::PublicUsed> {
-    w::PublicUsed::new(&w::CEILINGS, w::PublicUsedParts { used, limit }).ok()
+    { let value = w::PublicUsed { used, limit }; value.measure(&w::CEILINGS).ok()?; Some(value) }
 }
 fn hold_kind(why: c::Hold) -> w::PublicHold {
     match why {

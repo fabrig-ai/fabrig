@@ -114,15 +114,11 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
+    let request = w::Requesting {
             request: w::Request::Reachable(
-                w::Reachable::new(&w::CEILINGS, w::ReachableParts { forge: 1, installation: None, page: 1 }).unwrap(),
+                w::Reachable { forge: 1, installation: None, page: 1 },
             ),
-        },
-    )
-    .unwrap();
+        };
     let family = j::FamilyRequest::new(
         limits,
         j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },

@@ -38,14 +38,10 @@ fn agents(turns: u64) -> w::AgentFigures {
     let mut parts = temper_service::stock::agents().into_parts();
     for row in parts.profile.iter_mut() {
         if row.name() == b"policy.max_turns" {
-            *row = w::AgentFigure::new(
-                &w::CEILINGS,
-                w::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: turns },
-            )
-            .expect("figure");
+            *row = w::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: turns };
         }
     }
-    w::AgentFigures::new(&w::CEILINGS, parts).expect("agents")
+    parts
 }
 fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));

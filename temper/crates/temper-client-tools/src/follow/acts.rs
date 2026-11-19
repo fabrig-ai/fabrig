@@ -1,4 +1,5 @@
 //! Keyed follow acts (temper/docs/design/client/ctl/tools.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use super::{
     BTreeMap, Box, Called, Client, Env, Event, Keyed, Kind, Limits, Out, Owner, Queue, Required, Told, Tool, Value,
     flag, forge, jig, number, render, value, w, wire,
@@ -134,7 +135,7 @@ fn prepare(call: &Call, project: u32) -> Option<w::FollowActRequest> {
     let after = commit(bytes)?;
     let name = crate::table::TOOLS.get(usize::from(call.tool))?.name;
     let act = if name == START.name {
-        w::FollowAct::Start(w::FollowAt::new(&w::CEILINGS, w::FollowAtParts { after }).ok()?)
+        w::FollowAct::Start(w::FollowAt { after })
     } else if name == MERGE.name {
         let mut afters = List::with_capacity(w::CEILINGS.follow_merge_act_afters);
         afters.push(after).ok()?;
@@ -147,18 +148,14 @@ fn prepare(call: &Call, project: u32) -> Option<w::FollowActRequest> {
         if afters.len() < 2 {
             return None;
         }
-        w::FollowAct::Merge(w::FollowMergeAct::new(&w::CEILINGS, w::FollowMergeActParts { afters }).ok()?)
+        w::FollowAct::Merge(w::FollowMergeAct { afters })
     } else {
         let Some(Value::Text(reason)) = value(call, 3) else { return None };
         let act =
-            w::FollowReasonAct::new(&w::CEILINGS, w::FollowReasonActParts { after, reason: reason.clone() }).ok()?;
+            w::FollowReasonAct { after, reason: reason.clone() };
         if name == HOLD.name { w::FollowAct::Hold(act) } else { w::FollowAct::Skip(act) }
     };
-    w::FollowActRequest::new(
-        &w::CEILINGS,
-        w::FollowActRequestParts { project, follow: u32::try_from(number(call, 1)?).ok()?, act },
-    )
-    .ok()
+    { let value = w::FollowActRequest { project, follow: u32::try_from(number(call, 1)?).ok()?, act }; value.measure(&w::CEILINGS).ok()?; Some(value) }
 }
 fn send(state: &mut Acts, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     let me = crate::forge::me(client).expect("live me");
@@ -201,7 +198,7 @@ fn restored(request: &Ask) -> bool {
         return false;
     }
     let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
-    match request.into_parts().request {
+    match request.request {
         w::Request::FollowAct(_) => true,
         w::Request::Adopt(_)
         | w::Request::SetUp(_)
@@ -264,9 +261,9 @@ fn print(request: &Ask, outcome: &Outcome, json: bool, limits: &Limits) -> jig::
         if record.family == wire::FORGE
             && record.version == wire::CLIENT_VERSION
             && let Some(answer) = decode_answer(&record.bytes)
-            && let w::Outcome::Follow(value) = answer.into_parts().outcome
+            && let w::Outcome::Follow(value) = answer.outcome
         {
-            return match value.refusal() {
+            return match &value.refusal {
                 Some(reason) => render::failure(reason, json, 2),
                 None => jig::Printed {
                     file: jig::FileEnd::Keep,

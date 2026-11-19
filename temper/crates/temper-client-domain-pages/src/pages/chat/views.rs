@@ -1,4 +1,5 @@
 //! Views read when shown and at a newer revision (temper/docs/design/client/pages/chat/conversation.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use super::{Chat, Request, handle, unwatch};
 use crate::{
     Limits, forge,
@@ -205,26 +206,22 @@ fn gather(text: &[u8], wanted: &mut Map<Box<[u8]>, ()>) {
 fn reading(read: &Reading, limits: forge::Limits) -> Option<Readable> {
     let project = read.project?;
     let bounds = forge::wire_limits(&limits)?;
-    let record = w::Reading::new(
-        &bounds,
-        w::ReadingParts {
+    let record = w::Reading {
             read: w::Read::View(
-                w::ViewRead::new(&bounds, w::ViewReadParts { project, address: read.address.clone() }).ok()?,
+                w::ViewRead { project, address: read.address.clone() },
             ),
-        },
-    )
-    .ok()?;
+        };
     Some(Readable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::reading(&record),
+            bytes: record.encode(&bounds).ok()?,
         },
     })
 }
 fn answer(page: &Readout, limits: forge::Limits) -> Option<w::View> {
     let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else { return None };
-    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.into_parts().view)
+    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.view)
 }

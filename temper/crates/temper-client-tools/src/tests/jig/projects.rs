@@ -503,7 +503,7 @@ fn second_setup_refusal(root: &mut f::Harness, json: bool) {
     root.adoption_answer(
         call,
         w::Outcome::SetUpRefused(
-            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
+            w::SetUpRefused { why: w::SetUpRefusal::NotOffered },
         ),
     );
     let printed = root.answer(call).unwrap();
@@ -565,11 +565,11 @@ fn adopt_second_repository(root: &mut f::Harness, json: bool) {
     );
     let Ask::Family { record, .. } = root.adoption_bytes(make) else { panic!("repository request") };
     let w::Request::MakeRepository(request) =
-        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
     else {
         panic!("make")
     };
-    assert_eq!(w::MakeRepository::into(&request).as_ref().unwrap().project(), 8);
+    assert_eq!((request).into.as_ref().unwrap().project, 8);
     root.adoption_answer(make, w::Outcome::MakeKept);
     crate::tests::forges::adopted_project_repository(root, 8);
     let printed = root.answer(make).unwrap();

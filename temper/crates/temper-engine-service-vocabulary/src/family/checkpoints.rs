@@ -1,4 +1,5 @@
 //! The store's terminal on the client family (temper/docs/design/protocol/checkpoints.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use temper_client_protocol_wire::v1 as w;
 use temper_engine_domain as root;
@@ -6,9 +7,7 @@ use temper_engine_domain as root;
 pub(super) fn answer(value: Result<root::Checkpointed, root::CheckpointWhy>, limits: &w::Limits) -> Option<w::Outcome> {
     Some(match value {
         Ok(value) => w::Outcome::Checkpointed(
-            w::Checkpointed::new(
-                limits,
-                w::CheckpointedParts {
+            w::Checkpointed {
                     name: value.name,
                     store: value.store,
                     secrets: value.secrets,
@@ -21,8 +20,6 @@ pub(super) fn answer(value: Result<root::Checkpointed, root::CheckpointWhy>, lim
                     removed: value.removed,
                     skipped: value.skipped,
                 },
-            )
-            .ok()?,
         ),
         Err(why) => {
             let why = match why {
@@ -35,17 +32,13 @@ pub(super) fn answer(value: Result<root::Checkpointed, root::CheckpointWhy>, lim
                 }
                 root::CheckpointWhy::Vanished { path } => w::CheckpointWhy::Vanished(path_record(path, limits)?),
                 root::CheckpointWhy::Failed { path, error } => w::CheckpointWhy::Failed(
-                    w::CheckpointFailed::new(
-                        limits,
-                        w::CheckpointFailedParts { path: path.into(), error: error.into() },
-                    )
-                    .ok()?,
+                    w::CheckpointFailed { path: path.into(), error: error.into() },
                 ),
             };
-            w::Outcome::CheckpointRefused(w::CheckpointRefused::new(limits, w::CheckpointRefusedParts { why }).ok()?)
+            w::Outcome::CheckpointRefused(w::CheckpointRefused { why })
         }
     })
 }
 fn path_record(path: Box<str>, limits: &w::Limits) -> Option<w::CheckpointPath> {
-    w::CheckpointPath::new(limits, w::CheckpointPathParts { path: path.into() }).ok()
+    { let value = w::CheckpointPath { path: path.into() }; value.measure(limits).ok()?; Some(value) }
 }

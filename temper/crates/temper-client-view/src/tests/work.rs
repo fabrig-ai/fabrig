@@ -223,9 +223,7 @@ impl Fixture {
             ] {
                 queued
                     .push(
-                        w::ChangesQueued::new(
-                            &w::CEILINGS,
-                            w::ChangesQueuedParts {
+                        w::ChangesQueued {
                                 goal: if task == QUEUED_GOAL { Some(origin(GOAL)) } else { None },
                                 chat: if task == QUEUED_CHAT { Some(origin(CHAT)) } else { None },
                                 milestone: None,
@@ -234,71 +232,49 @@ impl Fixture {
                                 ready_since: RECENT,
                                 checks_since: None,
                             },
-                        )
-                        .unwrap(),
                     )
                     .unwrap();
             }
         }
         let landed = if full {
-            list(&[w::ChangesLanded::new(
-                &w::CEILINGS,
-                w::ChangesLandedParts {
+            list(&[w::ChangesLanded {
                     goal: Some(origin(GOAL)),
                     chat: None,
                     milestone: Some(
-                        w::ChangeFrom::new(
-                            &w::CEILINGS,
-                            w::ChangeFromParts { task: 100, title: b"Store shape".as_slice().into() },
-                        )
-                        .unwrap(),
+                        w::ChangeFrom { task: 100, title: b"Store shape".as_slice().into() },
                     ),
-                    signed: list(&[w::ChangesSigned::new(
-                        &w::CEILINGS,
-                        w::ChangesSignedParts {
+                    signed: list(&[w::ChangesSigned {
                             party: 5,
                             name: Some(b"Sam".as_slice().into()),
                             head: [0; 32],
                             at: RECENT,
-                        },
-                    )
-                    .unwrap()]),
+                        }]),
                     commit: [0xab; 32],
                     default_branch: true,
                     task: LANDED,
                     title: b"Handoff states".as_slice().into(),
                     at: RECENT,
-                },
-            )
-            .unwrap()])
+                }])
         } else {
             List::with_capacity(0)
         };
-        let panel = w::ChangesPanel::new(
-            &w::CEILINGS,
-            w::ChangesPanelParts {
+        let panel = w::ChangesPanel {
                 landed_default: landed.clone(),
                 landed_default_more: 0,
                 project: f::PROJECT,
                 landing: b"main".as_slice().into(),
-                queues: list(&[w::ChangesQueue::new(
-                    &w::CEILINGS,
-                    w::ChangesQueueParts {
+                queues: list(&[w::ChangesQueue {
                         way: w::Way::Queue,
                         in_flight: None,
                         repository: b"owner/repo".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: full,
                         changes: queued,
-                    },
-                )
-                .unwrap()]),
+                    }]),
                 more: 0,
                 landed,
                 landed_more: 0,
-            },
-        )
-        .unwrap();
+            };
         self.up(Up::FamilyDelivered {
             watch: self.changes,
             record: jig_client::Family {
@@ -310,7 +286,7 @@ impl Fixture {
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
         let panel =
-            w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: list(rows) }).unwrap();
+            w::DraftsPanel { project: f::PROJECT, drafts: list(rows) };
         self.up(Up::FamilyDelivered {
             watch: self.drafts,
             record: jig_client::Family {
@@ -492,9 +468,7 @@ impl TurningWork {
         let mut milestone = line(f::milestones::TASK, b"Codec shape");
         milestone.label = f::milestones::LABEL;
         milestone.tracked = Some(1);
-        let totals = w::MilestoneTotals::new(
-            &w::CEILINGS,
-            w::MilestoneTotalsParts {
+        let totals = w::MilestoneTotals {
                 task: f::milestones::TASK,
                 done: 2,
                 failed: 0,
@@ -503,9 +477,7 @@ impl TurningWork {
                 ended: None,
                 last_landing: None,
                 spent: 0,
-            },
-        )
-        .unwrap();
+            };
         milestone.parts = list(&[f::milestones::part(None, totals, children.as_slice(), 0)]);
         page.live(watch, core::slice::from_ref(&milestone));
         page.live(page.goals, goals.as_slice());
@@ -700,6 +672,5 @@ fn work_draws_the_same_through_partial_answers_in_turns() {
 }
 
 fn origin(task: u64) -> w::ChangeFrom {
-    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: b"membership-handoff".as_slice().into() })
-        .unwrap()
+    w::ChangeFrom { task, title: b"membership-handoff".as_slice().into() }
 }

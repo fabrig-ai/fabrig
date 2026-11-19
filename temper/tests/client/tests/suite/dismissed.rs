@@ -286,27 +286,19 @@ fn a_second_dismissal_is_answered_as_the_first() {
 
 fn keep_asking_request(at: u64) -> jig_client::Ask {
     let what = w::PersonFact::KeepAsking(
-        w::KeepAsking::new(
-            &w::CEILINGS,
-            w::KeepAskingParts {
+        w::KeepAsking {
                 project: PROJECT,
                 subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
                     temper_protocol_reaches::Kind::Tests,
                 )),
                 at,
             },
-        )
-        .expect("fixture fits wire bounds"),
     );
-    let record = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
+    let record = w::Requesting {
             request: w::Request::Dismiss(
-                w::Dismiss::new(&w::CEILINGS, w::DismissParts { what }).expect("fixture fits wire bounds"),
+                w::Dismiss { what },
             ),
-        },
-    )
-    .expect("fixture fits wire bounds");
+        };
     jig_client::Ask::Family {
         scope: c::Scope::Project(PROJECT),
         record: jig_client::Family {

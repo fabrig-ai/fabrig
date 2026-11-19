@@ -1,4 +1,5 @@
 //! temper's pages own their handles and navigation (client/README.md, 3.1).
+use temper_client_protocol_wire::v1::Record;
 use crate::ChatsFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -3277,7 +3278,7 @@ fn copy_all(
             continue;
         }
         let Some((org, name)) = making::target(address) else { continue };
-        let Ok(into) = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: home && number == 1 }) else {
+        let Ok(into) = ({ let value = w::MakeInto { project, home: home && number == 1 }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
             continue;
         };
         let Ok(ask) = making::ask(copies.forge, &org, &name, Some(address), Some(into)) else { continue };
@@ -3313,7 +3314,7 @@ fn copy_again(
                 continue;
             }
             let Some(into) = &making.into else { continue };
-            if into.project() != project {
+            if into.project != project {
                 continue;
             }
             match &making.state {
@@ -3324,7 +3325,7 @@ fn copy_again(
                 | w::MakingState::Adopting(_) => continue,
             }
             let from = match &making.from {
-                w::MakeFrom::Copy(copy) => Some(copy.address()),
+                w::MakeFrom::Copy(copy) => Some(copy.address.as_ref()),
                 w::MakeFrom::Empty => None,
             };
             let Ok(ask) = making::ask(row.number, org, name, from, Some(into.clone())) else { return };

@@ -1,4 +1,5 @@
 //! Telling you (temper/docs/design/client/pages/told.md; client/web/README.md, 2.7).
+use temper_client_protocol_wire::v1::Record;
 use super::Request;
 use crate::{
     forge::{Limits, devices, wire_limits},
@@ -214,13 +215,13 @@ impl Told {
                 browser.endpoint = Some(subscription.endpoint.clone());
                 browser.permission = Permission::Granted;
                 let Some(bounds) = wire_limits(&limits) else { return };
-                let parts = w::AddDeviceParts {
+                let parts = w::AddDevice {
                     endpoint: subscription.endpoint,
                     p256dh: subscription.p256dh,
                     auth: subscription.auth,
                     label: label(&browser.user_agent),
                 };
-                let Ok(value) = w::AddDevice::new(&bounds, parts) else {
+                let Ok(value) = ({ let value = parts; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
                     self.refusal = Some(Refusal::Malformed);
                     return;
                 };
@@ -293,7 +294,7 @@ impl Told {
             }
         };
         let Some(bounds) = wire_limits(&limits) else { return };
-        let Ok(value) = w::RemoveDevice::new(&bounds, w::RemoveDeviceParts { number }) else { return };
+        let Ok(value) = ({ let value = w::RemoveDevice { number }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else { return };
         if let Some(key) = send(w::Request::RemoveDevice(value), serial, limits, out) {
             self.pending = Some(Pending::Remove { key, drop });
         }
@@ -353,7 +354,7 @@ impl Told {
     }
 }
 fn send(request: w::Request, serial: &mut u64, limits: Limits, out: &mut Queue<Request>) -> Option<Key> {
-    let record = w::Requesting::new(&wire_limits(&limits)?, w::RequestingParts { request }).ok()?;
+    let record = w::Requesting { request };
     *serial = serial.checked_add(1).expect("page keys fit");
     let key = Key { asker: Owner::Pages.asker(), number: *serial };
     out.push(Request::Client(jig_client::Event::Send {
@@ -364,7 +365,7 @@ fn send(request: w::Request, serial: &mut u64, limits: Limits, out: &mut Queue<R
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::requesting(&record),
+                bytes: record.encode(&wire_limits(&limits)?).ok()?,
             },
         },
     }));
@@ -385,14 +386,14 @@ fn answer(outcome: &Outcome, limits: Limits) -> Option<Answer> {
         return None;
     }
     let mut reader = skein_lib::Reader::new(&record.bytes);
-    let outcome = w::Answer::decode(&wire_limits(&limits)?, &mut reader).ok()?.into_parts().outcome;
+    let outcome = w::Answer::decode(&wire_limits(&limits)?, &mut reader).ok()?.outcome;
     if !reader.is_empty() {
         return None;
     }
     match outcome {
         w::Outcome::DeviceAdded(_) => Some(Answer::Added),
         w::Outcome::DeviceRemoved => Some(Answer::Removed),
-        w::Outcome::DeviceRefused(value) => Some(Answer::Refused(match value.reason() {
+        w::Outcome::DeviceRefused(value) => Some(Answer::Refused(match &value.reason {
             w::DeviceRefusal::Person => Refusal::Person,
             w::DeviceRefusal::Off => Refusal::Off,
             w::DeviceRefusal::Service => Refusal::Service,

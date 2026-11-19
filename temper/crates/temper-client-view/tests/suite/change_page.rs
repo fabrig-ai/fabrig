@@ -209,10 +209,10 @@ mod tests {
         }))
     }
     fn used(used: u32, limit: u32) -> w::Used {
-        w::Used::new(&w::CEILINGS, w::UsedParts { used, limit }).expect("wire numbers")
+        w::Used { used, limit }
     }
-    fn panel_parts(step: w::Step) -> w::ChangePanelParts {
-        w::ChangePanelParts {
+    fn panel_parts(step: w::Step) -> w::ChangePanel {
+        w::ChangePanel {
             wait: None,
             source: None,
             way: w::Way::Queue,
@@ -225,8 +225,7 @@ mod tests {
             landing: b"main".as_slice().into(),
             head: Some([0xab; 32]),
             pull: Some(
-                w::Pull::new(&w::CEILINGS, w::PullParts { number: 216, address: Box::new([]) })
-                    .expect("empty address is valid"),
+                w::Pull { number: 216, address: Box::new([]) },
             ),
             step,
             hold: None,
@@ -239,11 +238,7 @@ mod tests {
             repairs: used(0, 3),
             resolutions: used(0, 3),
             updates: used(0, 3),
-            questions: w::Questions::new(
-                &w::CEILINGS,
-                w::QuestionsParts { route: w::Route::None, taken: used(0, 4), open: List::with_capacity(0) },
-            )
-            .expect("no questions"),
+            questions: w::Questions { route: w::Route::None, taken: used(0, 4), open: List::with_capacity(0) },
         }
     }
     fn queued(place: u32, ahead: &[u64]) -> w::Step {
@@ -251,16 +246,16 @@ mod tests {
         for task in ahead {
             tasks.push(*task).expect("bounded tasks ahead");
         }
-        w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead: tasks }).expect("queued"))
+        w::Step::Queued(w::Queued { place, ahead: tasks })
     }
     fn landed() -> w::Step {
-        w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).expect("merge"))
+        w::Step::Landed(w::Landed { merge: [0xab; 32] })
     }
 
-    fn show(parts: w::ChangePanelParts) -> (Domain, Token) {
+    fn show(parts: w::ChangePanel) -> (Domain, Token) {
         let (mut root, _, _, requests) = opened(document());
         let watch = requests.iter().find_map(change_open).expect("forge panel watch");
-        let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("valid panel");
+        let panel = parts;
         drop(up(
             &mut root,
             jig_client::Up::FamilyDelivered {
@@ -600,7 +595,7 @@ mod tests {
             task.goal = goal;
             let (mut root, _, _, requests) = opened(task);
             let watch = requests.iter().find_map(change_open).expect("panel watch");
-            let panel = w::ChangePanel::new(&w::CEILINGS, panel_parts(w::Step::Opening)).expect("panel");
+            let panel = panel_parts(w::Step::Opening);
             drop(up(
                 &mut root,
                 jig_client::Up::FamilyDelivered {
@@ -638,8 +633,7 @@ mod tests {
         address.resize(usize::try_from(wire::ADDRESS_BYTES).expect("bound fits"), b'x');
         let mut parts = panel_parts(w::Step::Gating);
         parts.pull = Some(
-            w::Pull::new(&w::CEILINGS, w::PullParts { number: u64::MAX, address: address.clone().into() })
-                .expect("maximum address"),
+            w::Pull { number: u64::MAX, address: address.clone().into() },
         );
         let (root, _) = show(parts);
         let mut view = view(&root);
@@ -683,7 +677,7 @@ mod tests {
         end(&mut task);
         let (mut root, _, _, requests) = opened_with_tree(task, false);
         let watch = requests.iter().find_map(change_open).expect("panel watch");
-        let panel = w::ChangePanel::new(&w::CEILINGS, panel_parts(landed())).expect("panel");
+        let panel = panel_parts(landed());
         drop(up(
             &mut root,
             jig_client::Up::FamilyDelivered {

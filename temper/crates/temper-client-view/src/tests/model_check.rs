@@ -136,7 +136,7 @@ fn trial_failures_say_why_and_retry_the_account() {
         (v::TrialClass::Refused, "The try couldn't start."),
     ] {
         let why =
-            v::TrialWhy::Ended(v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: class.clone() }).unwrap());
+            v::TrialWhy::Ended(v::TrialEnded { class: class.clone() });
         rows(&mut root, watch, &[row(v::TrialStep::Answers, failed(why))]);
         for w in [f::words(), f::browser_words()] {
             let (tree, bindings) = from_root(&root, &w);
@@ -274,14 +274,10 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
         }
     }
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
-    let forges_doc = v::Forges::new(
-        &v::CEILINGS,
-        v::ForgesParts {
+    let forges_doc = v::Forges {
             forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
             linked: false,
-        },
-    )
-    .unwrap();
+        };
     up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -311,15 +307,11 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
 }
 
 pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(
-        &v::CEILINGS,
-        v::TrialRowParts { run_wait: None, account: 1, task: Some(91), took: None, step, state },
-    )
-    .unwrap()
+    v::TrialRow { run_wait: None, account: 1, task: Some(91), took: None, step, state }
 }
 
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
-    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
+    let doc = v::Trials { rows: List::from_boxed(rows.into()) };
     let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
     doc.encode(&mut writer).unwrap();
     up(
@@ -332,7 +324,7 @@ pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> 
 }
 
 pub(crate) fn failed(why: v::TrialWhy) -> v::TrialState {
-    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+    v::TrialState::Failed(v::TrialFailed { why })
 }
 
 pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
@@ -357,7 +349,7 @@ fn a_trial_row_draws_its_wait_and_keeps_it_after_timeout() {
     let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
     wait.encode(&mut writer).unwrap();
     parts.run_wait = Some(writer.finish());
-    let out = rows(&mut root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);
+    let out = rows(&mut root, watch, &[parts]);
     for request in &out {
         if let d::Request::Unlinked {
             request:

@@ -1,5 +1,6 @@
 //! Values of the forge's kinds and procedure waits
 //! (temper/docs/design/protocol/configuration/settings.md, 2 and 3).
+use temper_client_protocol_wire::v1::Record;
 use crate::settings::{
     Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, TemplateGoal, Value, judge, requires,
 };
@@ -857,7 +858,7 @@ fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
         .expect("bounded paths");
     gates.repositories[0].gates[0].ignored = paths.into_boxed();
     assert_eq!(gates_bytes(&gates), Some(CARRIER));
-    assert_eq!(gates_record(&gates).measure(), CARRIER, "judge counts the codec's bytes");
+    assert_eq!(gates_record(&gates).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"), CARRIER, "judge counts the codec's bytes");
     assert_eq!(
         judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates.clone())) }, &bounds),
         Ok(())

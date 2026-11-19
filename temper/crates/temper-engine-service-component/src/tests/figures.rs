@@ -285,12 +285,8 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     let mut service = started(None);
     fixtures::restart(&mut service);
     let mut parts = crate::stock::agents().into_parts();
-    parts.profile = List::from_boxed(Box::new([s::AgentFigure::new(
-        &s::CEILINGS,
-        s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 901 },
-    )
-    .unwrap()]));
-    let first = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    parts.profile = List::from_boxed(Box::new([s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 901 }]));
+    let first = parts;
     let engine = service.engine.as_mut().unwrap();
     signed_in(engine);
     changed(engine, &first, 1);
@@ -315,13 +311,9 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     settle(engine);
     let mut parts = first.into_parts();
     parts.profile.get_mut(0).unwrap().clone_from(
-        &s::AgentFigure::new(
-            &s::CEILINGS,
-            s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 902 },
-        )
-        .unwrap(),
+        &s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 902 },
     );
-    let second = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    let second = parts;
     changed(engine, &second, 2);
     linked.settle(engine);
     let expected_second = expected(&second);
@@ -470,14 +462,10 @@ fn box_copy_follows_owner_changes_and_repairs_a_different_restore() {
     let mut parts = stock.clone().into_parts();
     for row in parts.profile.iter_mut() {
         if row.name() == b"policy.max_turns" {
-            *row = s::AgentFigure::new(
-                &s::CEILINGS,
-                s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 900 },
-            )
-            .unwrap();
+            *row = s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 900 };
         }
     }
-    let agents = s::AgentFigures::new(&s::CEILINGS, parts).unwrap();
+    let agents = parts;
     let engine = service.engine.as_mut().unwrap();
     signed_in(engine);
     changed(engine, &agents, 1);

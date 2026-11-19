@@ -11,17 +11,12 @@ fn root() -> Domain {
 }
 
 fn reached(id: u64, name: &[u8], private: bool) -> wire::Reached {
-    wire::Reached::new(
-        &wire::CEILINGS,
-        wire::ReachedParts {
+    wire::Reached {
             id,
-            owner: wire::Account::new(&wire::CEILINGS, wire::AccountParts { id: 3, login: b"acme".as_slice().into() })
-                .unwrap(),
+            owner: wire::Account { id: 3, login: b"acme".as_slice().into() },
             name: name.into(),
             private,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn tree(sheet: &sheet::Sheet) -> (Tree, Bindings) {

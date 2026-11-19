@@ -253,21 +253,17 @@ fn project_gates_refuse_unfinished_pieces_at_both_levels() {
     let mut cases = skein_lib::List::with_capacity(3);
     cases.push(Box::from([0, 0, 0, 5, 0].as_slice())).expect("three malformed pieces");
     for gates in [Box::from([0, 0, 0].as_slice()), Box::from([0, 0, 0, 7, 0].as_slice())] {
-        let repository = w::RepositoryGates::new(
-            limits,
-            w::RepositoryGatesParts { forge: 1, repository: 2, gates, tiers: Box::new([]) },
-        )
-        .expect("piece envelope");
-        let mut item = Writer::new(skein_lib::usize_of(repository.measure()));
-        repository.encode(&mut item).expect("measured repository");
-        let mut out = Writer::new(skein_lib::usize_of(repository.measure() + 4));
+        let repository = w::RepositoryGates { forge: 1, repository: 2, gates, tiers: Box::new([]) };
+        let mut item = Writer::new(skein_lib::usize_of(repository.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")));
+        repository.write(&temper_client_protocol_wire::v1::CEILINGS, &mut item).expect("measured repository");
+        let mut out = Writer::new(skein_lib::usize_of(repository.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings") + 4));
         skein_codec::piece::write(&mut out, &item.finish()).expect("measured piece");
         cases.push(out.finish()).expect("three malformed pieces");
     }
     for repositories in cases.into_boxed() {
-        let record = w::ProjectGates::new(limits, w::ProjectGatesParts { repositories }).expect("outer envelope");
-        let mut out = Writer::new(skein_lib::usize_of(record.measure()));
-        record.encode(&mut out).expect("measured project gates");
+        let record = w::ProjectGates { repositories };
+        let mut out = Writer::new(skein_lib::usize_of(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut out).expect("measured project gates");
         assert!(decode(5, &out.finish(), &BOUNDS).is_none(), "an unfinished repository or check piece is malformed");
     }
 }

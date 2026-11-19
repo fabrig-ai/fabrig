@@ -11,7 +11,7 @@ fn rows(state: &LimitSettings) -> Vec<w::LimitRow> {
         let answer = wire::decode_limits_answer(&encoded, &w::CEILINGS).unwrap();
         assert_eq!(answer.revision(), 7);
         assert!(answer.rows().len() <= 32);
-        let w::LimitsAnswerParts { rows: page, next, .. } = answer.into_parts();
+        let w::LimitsAnswer { rows: page, next, .. } = answer.into_parts();
         rows.extend(page.into_boxed());
         if next.is_none() {
             return rows;

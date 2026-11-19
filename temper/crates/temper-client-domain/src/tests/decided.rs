@@ -6,9 +6,7 @@ use skein_lib::List;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub(super) fn decision(number: u32, at: u64) -> w::Decision {
-    w::Decision::new(
-        &w::CEILINGS,
-        w::DecisionParts {
+    w::Decision {
             number,
             task: u64::from(number),
             at,
@@ -16,9 +14,7 @@ pub(super) fn decision(number: u32, at: u64) -> w::Decision {
             took: b"The smaller change".as_slice().into(),
             why: b"It fits the goal.".as_slice().into(),
             overturned: false,
-            reach: w::Reach::new(
-                &w::CEILINGS,
-                w::ReachParts {
+            reach: w::Reach {
                     kind: w::ReachKind::Wording,
                     class: w::ReachClass::Decide,
                     reason: w::ReachReason::Kind,
@@ -27,22 +23,14 @@ pub(super) fn decision(number: u32, at: u64) -> w::Decision {
                     matched: 0,
                     away: false,
                 },
-            )
-            .unwrap(),
-        },
-    )
-    .unwrap()
+        }
 }
 pub(super) fn record(values: &[w::Decision]) -> Family {
     let mut rows = List::with_capacity(64);
     for value in values {
         rows.push(value.clone()).unwrap();
     }
-    let document = w::Decisions::new(
-        &w::CEILINGS,
-        w::DecisionsParts { project: f::PROJECT, rows, asked: List::with_capacity(0), cut: false },
-    )
-    .unwrap();
+    let document = w::Decisions { project: f::PROJECT, rows, asked: List::with_capacity(0), cut: false };
     Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::decisions(&document) }
 }
 #[test]
@@ -50,8 +38,8 @@ fn a_document_decodes() {
     let value = decision(3, 100);
     let valid = record(core::slice::from_ref(&value));
     let document = decided::document(&valid, f::limits().forge).unwrap();
-    assert_eq!(document.project(), f::PROJECT);
-    assert_eq!(document.rows().as_slice(), &[value]);
+    assert_eq!(document.project, f::PROJECT);
+    assert_eq!(document.rows.as_slice(), &[value]);
     let valid_document = valid.clone();
     for invalid in [
         Family { family: wire::FORGE + 1, ..valid.clone() },
@@ -66,11 +54,11 @@ fn a_document_decodes() {
     };
     assert_eq!(scope, c::Scope::Project(f::PROJECT));
     assert_eq!(window, c::Window { rows: 0, after: None });
-    let w::Watch::Decided(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().into_parts().watch
+    let w::Watch::Decided(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
     else {
         panic!("decided watch")
     };
-    assert_eq!(subject.project(), f::PROJECT);
+    assert_eq!(subject.project, f::PROJECT);
     let mut limits = f::limits().forge;
     limits.field_bytes = u32::MAX;
     assert!(decided::watch(f::PROJECT, &limits).is_none());

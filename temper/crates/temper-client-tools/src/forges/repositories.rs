@@ -1,4 +1,5 @@
 //! The picker's one fresh page (client/ctl/areas.md).
+use temper_client_protocol_wire::v1::Record;
 use super::{Forges, REPOSITORIES, domain, finish};
 use crate::{
     jig::{
@@ -32,11 +33,11 @@ pub(super) fn owns(call: &jig::call::Call) -> bool {
 fn request(forge: u16, installation: Option<u64>, page: u32, limits: &Limits) -> Option<Ask> {
     let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let request =
-        w::Request::Reachable(w::Reachable::new(&bounds, w::ReachableParts { forge, installation, page }).ok()?);
-    let request = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
+        w::Request::Reachable(w::Reachable { forge, installation, page });
+    let request = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&request) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: request.encode(&bounds).ok()? },
     })
 }
 pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
@@ -66,8 +67,8 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 return false;
             };
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return false };
-            let w::Request::Reachable(request) = request.into_parts().request else { return false };
-            let request = request.into_parts();
+            let w::Request::Reachable(request) = request.request else { return false };
+
             state.pages.insert(
                 *key,
                 Pending { forge: request.forge, installation: request.installation, page: request.page, called: None },
@@ -174,7 +175,7 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
             if !reader.is_empty() {
                 return render::failure(b"repositories decoding failed", structured, 1);
             }
-            value.into_parts().outcome
+            value.outcome
         }
         Outcome::Answered(Answered::Jig(c::Answer::Refused { refusal, .. })) => {
             let mut measure = Text::measure();
@@ -203,9 +204,9 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
     };
     let page = match value {
         w::Outcome::Page(page) => family::page(page),
-        w::Outcome::ConnectRefused(why) => return render::failure(domain::connect_refusal(why.why()).1, structured, 2),
+        w::Outcome::ConnectRefused(why) => return render::failure(domain::connect_refusal(&why.why).1, structured, 2),
         w::Outcome::ForgeRefused(why) => {
-            let why = match why.into_parts().reason {
+            let why = match why.reason {
                 w::ForgeReason::NoSuchForge => b"no such forge".as_slice(),
                 w::ForgeReason::NotFound => b"not found",
                 w::ForgeReason::NoAccess => b"no access",

@@ -4,6 +4,7 @@ mod change;
 mod landing;
 mod landings;
 mod merges;
+use temper_client_protocol_wire::v1::Record;
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall, Writer};
@@ -49,18 +50,14 @@ impl Domain {
             w::PUBLIC_CHANGE => {
                 let row = self.public_change(ask, ask.task?)?;
                 let record = self.make_change(ask, row, limits, &mut names)?;
-                let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
-                record.encode(&mut writer).ok()?;
-                writer.finish()
+                record.encode(&w::CEILINGS).ok()?
             }
             w::PUBLIC_LANDINGS => {
                 if ask.task.is_some() {
                     return None;
                 }
                 let record = self.make_landings(ask, limits, &mut names)?;
-                let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
-                record.encode(&mut writer).ok()?;
-                writer.finish()
+                record.encode(&w::CEILINGS).ok()?
             }
             w::PUBLIC_LANDING => {
                 let row = self.public_change(ask, ask.task?)?;
@@ -73,9 +70,7 @@ impl Domain {
                     }
                     None => self.make_merge(ask, row, &mut names)?,
                 };
-                let mut writer = Writer::new(usize::try_from(record.measure()).ok()?);
-                record.encode(&mut writer).ok()?;
-                writer.finish()
+                record.encode(&w::CEILINGS).ok()?
             }
             _ => return None,
         };

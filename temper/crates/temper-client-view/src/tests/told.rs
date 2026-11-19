@@ -52,9 +52,7 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
                 let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
                 for number in 1..=count {
                     rows.push(
-                        w::DeviceRow::new(
-                            &w::CEILINGS,
-                            w::DeviceRowParts {
+                        w::DeviceRow {
                                 number,
                                 label: if number == 1 {
                                     b"Chrome on Android".as_slice().into()
@@ -68,12 +66,10 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
                                     b"https://updates.push.services.mozilla.com/sub/private".as_slice().into()
                                 },
                             },
-                        )
-                        .unwrap(),
                     )
                     .unwrap();
                 }
-                let document = w::Devices::new(&w::CEILINGS, w::DevicesParts { rows }).unwrap();
+                let document = w::Devices { rows };
                 append(
                     &mut out,
                     up(
@@ -92,16 +88,12 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
             Down::Read { read, what: jig_client::Readable::Family { record, .. } }
                 if *wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == w::Read::Deployment =>
             {
-                let answer = w::DeploymentAnswer::new(
-                    &w::CEILINGS,
-                    w::DeploymentAnswerParts {
+                let answer = w::DeploymentAnswer {
                         welcome: false,
                         owned: true,
                         program_login: None,
                         push: push.then_some([4; 65]),
-                    },
-                )
-                .unwrap();
+                    };
                 append(
                     &mut out,
                     up(

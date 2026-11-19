@@ -1,4 +1,5 @@
 //! The pages and forge share jig's receiving and request bounds.
+use temper_client_protocol_wire::v1::Record;
 use crate::forge;
 use temper_client_protocol_wire::v1 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

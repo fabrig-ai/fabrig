@@ -79,13 +79,13 @@ fn setup_watches_with(
         } = request
         {
             let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
-            if let w::Watch::Findings(subject) = watching.watch() {
-                assert_eq!(subject.state(), &Some(w::FindingState::New));
-                assert!(subject.mine());
-                watches.push((subject.project(), *watch)).unwrap();
+            if let w::Watch::Findings(subject) = &watching.watch {
+                assert_eq!(&subject.state, &Some(w::FindingState::New));
+                assert!(subject.mine);
+                watches.push((subject.project, *watch)).unwrap();
             }
-            if let w::Watch::Decided(subject) = watching.watch() {
-                decisions.push((subject.project(), *watch)).unwrap();
+            if let w::Watch::Decided(subject) = &watching.watch {
+                decisions.push((subject.project, *watch)).unwrap();
             }
         }
     }
@@ -94,9 +94,7 @@ fn setup_watches_with(
     (root, inbox, watches.into_boxed(), decisions.into_boxed())
 }
 fn row(number: u32, at: u64) -> w::FindingRow {
-    w::FindingRow::new(
-        &w::CEILINGS,
-        w::FindingRowParts {
+    w::FindingRow {
             number,
             at,
             kind: w::FindingKind::Feedback,
@@ -105,39 +103,29 @@ fn row(number: u32, at: u64) -> w::FindingRow {
             state: w::FindingState::New,
             title: b"The phone card is clipped".as_slice().into(),
             holder: w::Holder::Party(
-                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: f::PARTY }).unwrap(),
+                w::HolderParty { number: f::PARTY },
             ),
             why: Some(b"Your area owns the view".as_slice().into()),
-            hander: Some(w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap())),
-        },
-    )
-    .unwrap()
+            hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+        }
 }
 fn document(project: u32, rows: Box<[w::FindingRow]>, cut: bool) -> w::Findings {
-    let holder = row(1, 0).holder().clone();
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
+    let holder = row(1, 0).holder.clone();
+    w::Findings {
             project,
             rows: List::from_boxed(rows),
-            areas: List::from_boxed(Box::new([w::AreaRow::new(
-                &w::CEILINGS,
-                w::AreaRowParts {
+            areas: List::from_boxed(Box::new([w::AreaRow {
                     name: b"view".as_slice().into(),
                     words: b"What the person sees".as_slice().into(),
                     owner: w::AreaOwner::Party(
-                        w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: f::PARTY }).unwrap(),
+                        w::AreaParty { number: f::PARTY },
                     ),
                     holder: Some(holder.clone()),
-                },
-            )
-            .unwrap()])),
+                }])),
             triager: None,
             holder,
             cut,
-        },
-    )
-    .unwrap()
+        }
 }
 fn deliver(root: &mut Domain, watch: Token, document: w::Findings) -> Queue<Request> {
     event(
@@ -173,32 +161,32 @@ fn finding_why_uses_the_area_or_the_standing_person_triager_after_the_document()
     };
     let (mut root, _, watches) = setup(1);
     let (unread, _, _) = setup(1);
-    let mine = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: f::PARTY }).unwrap());
-    let other = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 99 }).unwrap());
+    let mine = w::AreaOwner::Party(w::AreaParty { number: f::PARTY });
+    let other = w::AreaOwner::Party(w::AreaParty { number: 99 });
     for (area, triager, expected) in [
         (Some(b"store".as_slice()), None, Holds::Area { name: b"store".as_slice().into() }),
         (None, Some(mine), Holds::Triager),
         (None, Some(other), Holds::Owner),
         (None, None, Holds::Owner),
     ] {
-        let mut row = row(7, 20).into_parts();
+        let mut row = row(7, 20);
         row.area = match area {
             Some(name) => Some(name.into()),
             None => None,
         };
-        let mut parts = document(1, Box::new([w::FindingRow::new(&w::CEILINGS, row).unwrap()]), false).into_parts();
+        let mut parts = document(1, Box::new([row]), false);
         parts.triager = triager;
-        deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+        deliver(&mut root, watches[0].1, parts);
         let cards = root.pages().needs().findings().cards();
         let need = Need::Finding(cards[0]);
         assert_eq!(why(&unread, need), None);
         assert_eq!(why(&root, need), Some(Why::Finding { project: 1, holds: expected }));
     }
-    let other = w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 99 }).unwrap());
-    let mut parts = document(1, Box::new([row(7, 20)]), false).into_parts();
+    let other = w::AreaOwner::Party(w::AreaParty { number: 99 });
+    let mut parts = document(1, Box::new([row(7, 20)]), false);
     parts.triager = Some(other);
-    parts.holder = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 99 }).unwrap());
-    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+    parts.holder = w::Holder::Party(w::HolderParty { number: 99 });
+    deliver(&mut root, watches[0].1, parts);
     let cards = root.pages().needs().findings().cards();
     assert_eq!(why(&root, Need::Finding(cards[0])), Some(Why::Finding { project: 1, holds: Holds::Owner }));
 }
@@ -208,32 +196,28 @@ fn team_areas_read_the_findings_document_and_its_triager() {
     use pages::team::{self, HeldArea, HeldAreas, Holder};
     let (mut root, _, watches) = setup(1);
     assert_eq!(team::areas(&root, 1), None, "unread is not empty");
-    let task = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 40 }).unwrap());
-    let person = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 2 }).unwrap());
-    let mut parts = document(1, Box::new([]), false).into_parts();
+    let task = w::Holder::Task(w::HolderTask { number: 40 });
+    let person = w::Holder::Party(w::HolderParty { number: 2 });
+    let mut parts = document(1, Box::new([]), false);
     parts.areas = List::with_capacity(3);
     for (name, holder) in [(b"tests".as_slice(), Some(task)), (b"core", Some(person)), (b"docs", None)] {
         parts
             .areas
             .push(
-                w::AreaRow::new(
-                    &w::CEILINGS,
-                    w::AreaRowParts {
+                w::AreaRow {
                         name: name.into(),
                         words: name.into(),
                         owner: w::AreaOwner::Task(
-                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 40 }).unwrap(),
+                            w::AreaTask { number: 40 },
                         ),
                         holder,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
-    parts.triager = Some(w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 41 }).unwrap()));
-    parts.holder = w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).unwrap());
-    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());
+    parts.triager = Some(w::AreaOwner::Task(w::AreaTask { number: 41 }));
+    parts.holder = w::Holder::Task(w::HolderTask { number: 41 });
+    deliver(&mut root, watches[0].1, parts.clone());
     assert_eq!(
         team::areas(&root, 1),
         Some(HeldAreas {
@@ -247,11 +231,11 @@ fn team_areas_read_the_findings_document_and_its_triager() {
     );
     assert_eq!(team::areas(&root, 2), None, "documents belong to their project");
     parts.triager = None;
-    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts.clone()).unwrap());
+    deliver(&mut root, watches[0].1, parts.clone());
     assert_eq!(team::areas(&root, 1).unwrap().triager, None, "no configured triager, despite fallback holder");
-    parts.triager = Some(w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number: 3 }).unwrap()));
-    parts.holder = w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 3 }).unwrap());
-    deliver(&mut root, watches[0].1, w::Findings::new(&w::CEILINGS, parts).unwrap());
+    parts.triager = Some(w::AreaOwner::Role(w::AreaRole { number: 3 }));
+    parts.holder = w::Holder::Role(w::HolderRole { number: 3 });
+    deliver(&mut root, watches[0].1, parts);
     assert_eq!(team::areas(&root, 1).unwrap().triager, Some(Holder::Role(3)));
 }
 
@@ -275,8 +259,8 @@ fn findings_watch_first_projects_count_and_leave_on_the_next_document() {
     assert_eq!(count.count, 2);
     assert!(count.cut);
     let cards = root.pages().needs().findings().cards();
-    assert_eq!(cards[0].row.hander(), row(7, 20).hander());
-    assert_eq!(cards[0].row.why(), row(7, 20).why());
+    assert_eq!(&cards[0].row.hander, &row(7, 20).hander);
+    assert_eq!(&cards[0].row.why, &row(7, 20).why);
     act(&mut root, Act::Open { id: ID });
     let Some(Need::Finding(card)) =
         root.pages().needs().shown_all(root.pages().inbox().unwrap(), root.forge().approvals())
@@ -300,9 +284,9 @@ fn findings_watch_first_projects_count_and_leave_on_the_next_document() {
                 },
         } = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
+            && let w::Watch::Findings(subject) = &watching.watch
         {
-            focused |= subject.project() == 5;
+            focused |= subject.project == 5;
         }
     }
     assert!(focused, "a filtered project past the first four is watched");
@@ -325,7 +309,7 @@ fn sent(out: Queue<Request>) -> w::Request {
         {
             assert_eq!(*scope, c::Scope::Project(ID.project));
             assert_eq!(record.family, wire::FORGE);
-            sent.push(wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request().clone()).unwrap();
+            sent.push(wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request.clone()).unwrap();
         }
     }
     assert_eq!(sent.len(), 1);
@@ -333,7 +317,7 @@ fn sent(out: Queue<Request>) -> w::Request {
 }
 fn answer(root: &mut Domain, outcome: w::Outcome) {
     let key = root.pages().needs().findings().cards()[0].pending.unwrap();
-    let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap();
+    let answer = w::Answer { outcome };
     crate::route::told(
         root,
         &f::env(&f::limits()),
@@ -361,14 +345,14 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
     let request = sent(act(&mut root, Act::Hand { id: ID }));
     let w::Request::HandFinding(request) = request else { panic!("hand request") };
     assert_eq!(
-        (request.project(), request.number(), request.area(), request.why()),
+        (request.project, request.number, request.area.as_ref(), request.why.as_ref()),
         (ID.project, ID.number, b"view".as_slice(), b"This is the view".as_slice())
     );
     assert!(act(&mut root, Act::Backlog { id: ID }).is_empty(), "one send per pending card");
     answer(
         &mut root,
         w::Outcome::FindingRefused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: w::FindingRefusal::NoGoal }).unwrap(),
+            w::FindingRefused { reason: w::FindingRefusal::NoGoal },
         ),
     );
     assert_eq!(root.pages().needs().findings().cards()[0].refusal, Some(w::FindingRefusal::NoGoal));
@@ -396,19 +380,19 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
     );
     act(&mut root, Act::Goal { id: ID, task: 41 });
     let w::Request::TriageFinding(route) = sent(act(&mut root, Act::Route { id: ID })) else { panic!("triage") };
-    let w::Triage::Route(goal) = route.act() else { panic!("route") };
-    assert_eq!(goal.task(), 41);
+    let w::Triage::Route(goal) = &route.act else { panic!("route") };
+    assert_eq!(goal.task, 41);
     answer(&mut root, w::Outcome::Triaged);
     assert_eq!(ids(&root).as_ref(), [ID], "the answer never removes the card before the subject");
     let w::Request::TriageFinding(backlog) = sent(act(&mut root, Act::Backlog { id: ID })) else { panic!("triage") };
-    assert_eq!(backlog.act(), &w::Triage::Backlog);
+    assert_eq!(&backlog.act, &w::Triage::Backlog);
     answer(&mut root, w::Outcome::Triaged);
     act(&mut root, Act::Reason { id: ID, words: Box::new([b'x'; 401]) });
     assert!(act(&mut root, Act::Drop { id: ID }).is_empty(), "a drop reason fits the forge's bound");
     act(&mut root, Act::Reason { id: ID, words: b"Duplicate of the same report".as_slice().into() });
     let w::Request::TriageFinding(drop) = sent(act(&mut root, Act::Drop { id: ID })) else { panic!("triage") };
-    let w::Triage::Drop(reason) = drop.act() else { panic!("drop") };
-    assert_eq!(reason.reason(), b"Duplicate of the same report");
+    let w::Triage::Drop(reason) = &drop.act else { panic!("drop") };
+    assert_eq!(reason.reason.as_ref(), b"Duplicate of the same report");
     answer(&mut root, w::Outcome::Triaged);
     deliver(&mut root, watch, document(ID.project, Box::new([]), false));
     assert!(ids(&root).is_empty());
@@ -440,9 +424,9 @@ fn open_cards_rank_severity_before_age_and_keep_later_last() {
         (3, NOW - 3 * HOUR, w::Severity::Medium),
     ]
     .map(|(number, at, severity)| {
-        let mut parts = row(number, at).into_parts();
+        let mut parts = row(number, at);
         parts.severity = severity;
-        w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+        parts
     });
     deliver(&mut root, watches[0].1, document(ID.project, Box::new(rows), false));
     event(
@@ -556,11 +540,11 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
                     down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                 },
         } = request
-            && let w::Watch::Findings(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch()
-            && !subject.mine()
+            && let w::Watch::Findings(subject) = &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
+            && !subject.mine
         {
-            assert_eq!(subject.project(), 2);
-            assert_eq!(subject.state(), &Some(w::FindingState::New));
+            assert_eq!(subject.project, 2);
+            assert_eq!(&subject.state, &Some(w::FindingState::New));
             assert!(found.is_none(), "one open findings watch per project");
             found = Some(*watch);
         }
@@ -570,11 +554,7 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
 fn group_inbox(limits: &crate::Limits) -> (Domain, Token, Token) {
     let (mut root, inbox, mine, decisions) = setup_watches_with(2, limits);
     for (project, watch) in decisions {
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false },
-        )
-        .unwrap();
+        let document = w::Decisions { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false };
         event(
             &mut root,
             Event::Client {
@@ -642,9 +622,9 @@ fn group_need(root: &Domain) -> Need<'_> {
     Need::Existing(pages::needs::Need::Card(root.pages().inbox().unwrap().cards.get(0).unwrap()))
 }
 fn severity_row(number: u32, at: u64, severity: w::Severity) -> w::FindingRow {
-    let mut parts = row(number, at).into_parts();
+    let mut parts = row(number, at);
     parts.severity = severity;
-    w::FindingRow::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 
 #[test]
@@ -673,7 +653,7 @@ fn groups_watch_whole_questions_hold_then_match_rows_in_line_order() {
         assert_eq!(&*group.noun, b"bugs");
         assert_eq!(&*group.phrase, b"in temper");
         let [first, second] = group.rows.as_ref() else { panic!("two named rows") };
-        assert_eq!((first.number(), second.number()), (2, 8));
+        assert_eq!((first.number, second.number), (2, 8));
         assert_eq!(group.severity(), w::Severity::High);
         assert_eq!(group.oldest(), Wall::from_nanos(10));
         assert_eq!(need.severity(store), Some(w::Severity::High));
@@ -828,7 +808,7 @@ fn standing_person_groups_read_whole_words_then_open_in_line_order() {
         assert_eq!(&*group.noun, b"bugs");
         assert_eq!(&*group.phrase, b"in temper");
         let [first, second] = group.rows.as_ref() else { panic!("two findings") };
-        assert_eq!((first.number(), second.number()), (2, 8));
+        assert_eq!((first.number, second.number), (2, 8));
         assert_eq!(need.severity(store), Some(w::Severity::High));
     }
 }
@@ -862,16 +842,16 @@ fn groups_end_or_refuse_to_plain_questions() {
 #[test]
 fn groups_ignore_other_projects_closed_and_missing_rows_and_allow_no_label() {
     let (mut root, _, _, open) = group_setup(false, b"Q?\nFindings: 2/8 1/2 2/10 2/2\nChoice: A");
-    let mut closed = row(8, 5).into_parts();
+    let mut closed = row(8, 5);
     closed.state = w::FindingState::Backlog;
     deliver(
         &mut root,
         open.unwrap(),
-        document(2, Box::new([w::FindingRow::new(&w::CEILINGS, closed).unwrap(), row(2, 30)]), true),
+        document(2, Box::new([closed, row(2, 30)]), true),
     );
     let group = root.pages().needs().findings().group(group_need(&root)).unwrap();
     assert_eq!(group.rows.len(), 1);
-    assert_eq!(group.rows[0].number(), 2);
+    assert_eq!(group.rows[0].number, 2);
     assert!(group.noun.is_empty());
     assert!(group.phrase.is_empty());
 }

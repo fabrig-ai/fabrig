@@ -92,22 +92,18 @@ impl Drawing {
                 .into_parts();
                 row.number = u32::try_from(number).expect("number");
                 row.source = format!("source-{number}").into_bytes().into_boxed_slice();
-                w::FollowView::new(limits, row).expect("random follow")
+                row
             })
             .collect();
         if follows.len() > 1 && rng.chance(500) {
             follows.reverse();
         }
         let panel = rng.chance(700).then(|| {
-            w::FollowsPanel::new(
-                limits,
-                w::FollowsPanelParts {
+            w::FollowsPanel {
                     project: 1,
                     follows: List::from_boxed(follows.into_boxed_slice()),
                     dependencies: List::with_capacity(0),
-                },
-            )
-            .expect("panel")
+                }
         });
         let route = rng.chance(700).then(|| super::path(&mut rng, limits)).filter(|path| !path.stops().is_empty());
         let members = rng.chance(500).then(|| -> Box<[c::ProjectMember]> {
@@ -139,23 +135,15 @@ impl Drawing {
                 ways_watch.expect("ways watch"),
                 route.map(|path| {
                     wire::ways_panel(
-                        &w::WaysPanel::new(
-                            limits,
-                            w::WaysPanelParts {
+                        &w::WaysPanel {
                                 project: 1,
                                 words: None,
                                 ways: List::with_capacity(0),
                                 current: None,
                                 own: path,
-                                rules: w::PathRules::new(
-                                    limits,
-                                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::default() },
-                                )
-                                .expect("empty rules"),
+                                rules: w::PathRules { rows: List::with_capacity(0), note: Box::default() },
                                 may_change: false,
                             },
-                        )
-                        .expect("own path"),
                     )
                 }),
             ),
@@ -252,52 +240,29 @@ fn text(bytes: &[u8]) -> c::DocumentText {
 }
 
 fn follow_row(paths: &[&[u8]], start: w::FollowStart, lag: u32, verdict: Option<w::FollowVerdict>) -> w::FollowView {
-    let repo = w::FollowRepository::new(&w::CEILINGS, w::FollowRepositoryParts { forge: 1, repository: 7 })
-        .expect("fuzzy follow");
-    let setting = w::Follow::new(
-        &w::CEILINGS,
-        w::FollowParts {
-            source: w::FollowSource::new(
-                &w::CEILINGS,
-                w::FollowSourceParts {
+    let repo = w::FollowRepository { forge: 1, repository: 7 };
+    let setting = w::Follow {
+            source: w::FollowSource {
                     repository: repo.clone(),
                     branch: b"main".as_slice().into(),
                     paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
                 },
-            )
-            .expect("fuzzy follow"),
-            target: w::FollowTarget::new(
-                &w::CEILINGS,
-                w::FollowTargetParts { repository: repo, branch: b"main".as_slice().into() },
-            )
-            .expect("fuzzy follow"),
+            target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
             owner: w::FollowOwner::Person(
-                w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).expect("fuzzy follow"),
+                w::FollowPerson { person: 4 },
             ),
             start,
             producer: None,
-            verification: w::FollowCheck::new(
-                &w::CEILINGS,
-                w::FollowCheckParts {
+            verification: w::FollowCheck {
                     workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
                     artifact: b"results".as_slice().into(),
                     format: w::FollowFormat::Junit,
                 },
-            )
-            .expect("fuzzy follow"),
-        },
-    )
-    .expect("fuzzy follow");
+        };
     let parity = verdict.map(|verdict| {
-        w::FollowParity::new(
-            &w::CEILINGS,
-            w::FollowParityParts { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() },
-        )
-        .expect("fuzzy follow")
+        w::FollowParity { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() }
     });
-    w::FollowView::new(
-        &w::CEILINGS,
-        w::FollowViewParts {
+    w::FollowView {
             number: 1,
             setting,
             source: b"cowsql/vsr".as_slice().into(),
@@ -310,7 +275,5 @@ fn follow_row(paths: &[&[u8]], start: w::FollowStart, lag: u32, verdict: Option<
             entries: List::with_capacity(0),
             skips: List::with_capacity(0),
             parity,
-        },
-    )
-    .expect("fuzzy follow")
+        }
 }

@@ -145,32 +145,24 @@ pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
 }
 fn making(new: bool) -> w::Making {
     if !new {
-        return w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 1 }).unwrap());
+        return w::Making::Kept(w::Kept { forge: 1 });
     }
-    let place = w::ManagedForge::new(
-        &w::CEILINGS,
-        w::ManagedForgeParts {
+    let place = w::ManagedForge {
             host: b"127.0.0.1".as_slice().into(),
             port: 9,
             tls: None,
             git: b"http://127.0.0.1:9".as_slice().into(),
             web: None,
             git_program: None,
-        },
-    )
-    .unwrap();
-    w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: w::ForgeAsk::Connected(place) }).unwrap())
+        };
+    w::Making::New(w::NewForge { forge: w::ForgeAsk::Connected(place) })
 }
 pub(super) fn http_connect(service: &mut crate::Service, bearer: &[u8], key: u8, new: bool, bundle: Secret) {
     let request = w::Request::Connect(
-        w::Connect::new(
-            &w::CEILINGS,
-            w::ConnectParts {
+        w::Connect {
                 forge: making(new),
-                how: w::How::ForgejoTokens(w::ForgejoTokens::new(&w::CEILINGS, w::ForgejoTokensParts {}).unwrap()),
+                how: w::How::ForgejoTokens(w::ForgejoTokens {}),
             },
-        )
-        .unwrap(),
     );
     fixtures::forge_connecting(service, bearer, key, request, bundle);
 }

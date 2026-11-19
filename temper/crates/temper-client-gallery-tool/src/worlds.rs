@@ -540,20 +540,16 @@ fn told_devices(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
         ),
     ] {
         rows.push(
-            w::DeviceRow::new(
-                &w::CEILINGS,
-                w::DeviceRowParts {
+            w::DeviceRow {
                     number,
                     label: label.into(),
                     at: now(Reference).as_nanos(),
                     endpoint: endpoint.into(),
                 },
-            )
-            .expect("device row"),
         )
         .expect("two devices");
     }
-    let document = w::Devices::new(&w::CEILINGS, w::DevicesParts { rows }).expect("devices");
+    let document = w::Devices { rows };
     step(
         root,
         Event::Client {
@@ -980,19 +976,11 @@ fn world_in_layout(
                             }
                         }
                         v1::Read::Limits(_) => {
-                            let answer = v1::LimitsAnswer::new(
-                                &v1::CEILINGS,
-                                v1::LimitsAnswerParts { rows: List::with_capacity(0), next: None, revision: 0 },
-                            )
-                            .expect("empty gallery limits");
+                            let answer = v1::LimitsAnswer { rows: List::with_capacity(0), next: None, revision: 0 };
                             family_page(&mut root, read, wire::limits_answer(&answer), &mut out);
                         }
                         v1::Read::LimitHolds(_) => {
-                            let answer = v1::LimitHoldsAnswer::new(
-                                &v1::CEILINGS,
-                                v1::LimitHoldsAnswerParts { rows: List::with_capacity(0), next: None },
-                            )
-                            .expect("empty gallery limit holds");
+                            let answer = v1::LimitHoldsAnswer { rows: List::with_capacity(0), next: None };
                             family_page(&mut root, read, wire::limit_holds_answer(&answer), &mut out);
                         }
                         v1::Read::Setting(setting) => {
@@ -1017,11 +1005,7 @@ fn world_in_layout(
                                     Some(settings_bytes(name, setting.kind()))
                                 }
                             });
-                            let value = v1::SettingAnswer::new(
-                                &v1::CEILINGS,
-                                v1::SettingAnswerParts { revision: None, value: bytes },
-                            )
-                            .expect("stock setting");
+                            let value = v1::SettingAnswer { revision: None, value: bytes };
                             step(
                                 &mut root,
                                 Event::Client {
@@ -1043,11 +1027,7 @@ fn world_in_layout(
                         }
                         v1::Read::ProgramEnvironment => {
                             if let Address::ConnectModel { .. } = root.pages().address() {
-                                let value = v1::ProgramEnvironmentAnswer::new(
-                                    &v1::CEILINGS,
-                                    v1::ProgramEnvironmentAnswerParts { environment: Box::new([]) },
-                                )
-                                .expect("default program environment");
+                                let value = v1::ProgramEnvironmentAnswer { environment: Box::new([]) };
                                 step(
                                     &mut root,
                                     Event::Client {
@@ -1110,11 +1090,7 @@ fn world_in_layout(
                         }
                         w::Watch::Dismissed if to_begin => {
                             let bytes = wire::dismissals(
-                                &w::Dismissals::new(
-                                    &w::CEILINGS,
-                                    w::DismissalsParts { dismissed: List::with_capacity(0) },
-                                )
-                                .expect("unfinished To begin"),
+                                &w::Dismissals { dismissed: List::with_capacity(0) },
                             );
                             step(
                                 &mut root,
@@ -1138,21 +1114,16 @@ fn world_in_layout(
                             let mut dismissed = List::with_capacity(1);
                             dismissed
                                 .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom::new(
-                                        &w::CEILINGS,
-                                        w::GoalFromParts {
+                                    w::GoalFrom {
                                             project: PROJECT,
                                             chat: 1,
                                             goal: 2,
                                             at: offset(w, -1).as_nanos(),
                                         },
-                                    )
-                                    .expect("goal start"),
                                 ))
                                 .expect("one start");
                             let bytes = wire::dismissals(
-                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed })
-                                    .expect("person facts"),
+                                &w::Dismissals { dismissed },
                             );
                             step(
                                 &mut root,
@@ -1288,12 +1259,12 @@ fn to_begin_forges_watched(root: &mut Domain, world: World, watch: Token, out: &
     let repository = forge.repositories.get_mut(0).expect("Ask repository");
     let mut adoption = repository.clone().into_parts();
     adoption.project = PROJECT;
-    *repository = w::Adoption::new(&w::CEILINGS, adoption).expect("Ask adoption");
-    *row = w::ForgeRow::new(&w::CEILINGS, forge).expect("Ask forge");
+    *repository = adoption;
+    *row = forge;
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, parts).expect("Ask forges")),
+        bytes: wire::forges(&parts),
     };
     step(
         root,
@@ -1315,44 +1286,31 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
     parts
         .makings
         .push(
-            w::RepositoryMaking::new(
-                &w::CEILINGS,
-                w::RepositoryMakingParts {
+            w::RepositoryMaking {
                     org: b"octo".as_slice().into(),
                     name: b"vsr".as_slice().into(),
                     from: w::MakeFrom::Copy(
-                        w::MakeCopy::new(
-                            &w::CEILINGS,
-                            w::MakeCopyParts { address: b"https://github.com/octo/vsr".as_slice().into() },
-                        )
-                        .expect("failed source"),
+                        w::MakeCopy { address: b"https://github.com/octo/vsr".as_slice().into() },
                     ),
                     into: Some(
-                        w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: PROJECT, home: false })
-                            .expect("failed project"),
+                        w::MakeInto { project: PROJECT, home: false },
                     ),
                     state: w::MakingState::Failed(
-                        w::MakingFailed::new(
-                            &w::CEILINGS,
-                            w::MakingFailedParts {
+                        w::MakingFailed {
                                 step: w::MakeStep::Repository,
                                 reason: w::MakeFailure::NotAllowed,
                                 words: b"You can not import from disallowed hosts.".as_slice().into(),
                             },
-                        )
-                        .expect("forge words"),
                     ),
                 },
-            )
-            .expect("failed making"),
         )
         .expect("failed row room");
-    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("making fixture");
+    *row = parts;
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
         bytes: wire::forges(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("making rows"),
+            &w::Forges { forges: rows, linked: false },
         ),
     };
     step(
@@ -1374,14 +1332,14 @@ fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
         addresses.push(address.into()).expect("two copies");
     }
     parts.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).expect("Ready copies"),
+        w::CopyAddresses { addresses },
     );
-    *row = w::ForgeRow::new(&w::CEILINGS, parts).expect("Ready forge");
+    *row = parts;
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
         bytes: wire::forges(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).expect("Ready rows"),
+            &w::Forges { forges: rows, linked: false },
         ),
     };
     step(
@@ -1400,9 +1358,7 @@ fn forges(world: World) -> Box<[u8]> {
     let mut rows = List::with_capacity(3);
     if has_playground(world) && world != (FirstRun { step: 7 }) {
         rows.push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
+            w::ForgeRow {
                     starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
@@ -1410,8 +1366,7 @@ fn forges(world: World) -> Box<[u8]> {
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
                     connection: w::Connection::Connected(
-                        w::Connected::new(&limits, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                            .expect("demo login"),
+                        w::Connected { id: 1, login: b"temper".as_slice().into() },
                     ),
                     offer: w::Offer::NotOffered,
                     first: None,
@@ -1425,8 +1380,6 @@ fn forges(world: World) -> Box<[u8]> {
                     read_only: false,
                     ended_stop: None,
                 },
-            )
-            .expect("demo forge"),
         )
         .expect("one forge");
     }
@@ -1434,17 +1387,11 @@ fn forges(world: World) -> Box<[u8]> {
         let mut installations = List::with_capacity(1);
         installations
             .push(
-                w::Installation::new(
-                    &limits,
-                    w::InstallationParts { id: 1, account: None, suspended: false, stray: false },
-                )
-                .expect("accepted installation"),
+                w::Installation { id: 1, account: None, suspended: false, stray: false },
             )
             .expect("installation room");
         rows.push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
+            w::ForgeRow {
                     starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
@@ -1452,8 +1399,7 @@ fn forges(world: World) -> Box<[u8]> {
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
                     connection: w::Connection::Connected(
-                        w::Connected::new(&limits, w::ConnectedParts { id: 2, login: b"temper".as_slice().into() })
-                            .expect("connected forge"),
+                        w::Connected { id: 2, login: b"temper".as_slice().into() },
                     ),
                     offer: w::Offer::NotOffered,
                     first: None,
@@ -1465,15 +1411,11 @@ fn forges(world: World) -> Box<[u8]> {
                         let mut repositories = List::with_capacity(1);
                         repositories
                             .push(
-                                w::Adoption::new(
-                                    &limits,
-                                    w::AdoptionParts {
+                                w::Adoption {
                                         owner: b"robin".as_slice().into(),
                                         name: b"tally".as_slice().into(),
                                         project: PROJECT,
                                     },
-                                )
-                                .expect("solo's adopted repository"),
                             )
                             .expect("one repository");
                         repositories
@@ -1485,8 +1427,6 @@ fn forges(world: World) -> Box<[u8]> {
                     read_only: false,
                     ended_stop: None,
                 },
-            )
-            .expect("personal forge"),
         )
         .expect("forge row");
     }
@@ -1495,66 +1435,46 @@ fn forges(world: World) -> Box<[u8]> {
         if step == 7 {
             repositories
                 .push(
-                    w::Adoption::new(
-                        &limits,
-                        w::AdoptionParts {
+                    w::Adoption {
                             owner: b"work".as_slice().into(),
                             name: b"hello".as_slice().into(),
                             project: 2,
                         },
-                    )
-                    .expect("first adoption"),
                 )
                 .expect("one repository");
         }
         let connection = match step {
             9 => w::Connection::SetUpFailed(
-                w::SetUpFailed::new(
-                    &limits,
-                    w::SetUpFailedParts {
+                w::SetUpFailed {
                         why: "its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest."
                             .as_bytes()
                             .into(),
                         at: Some(w::FailedStep::Prepare),
                     },
-                )
-                .expect("failed preparation"),
             ),
             6 => w::Connection::SettingUp(
-                w::SettingUp::new(&limits, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
-                    .expect("preparing"),
+                w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
             ),
             24 | 25 => w::Connection::SettingUp(
-                w::SettingUp::new(
-                    &limits,
-                    w::SettingUpParts {
+                w::SettingUp {
                         step: Some(w::SetUpStep::Fetch),
                         fetched: Some(
-                            w::SetUpFetched::new(
-                                &limits,
-                                w::SetUpFetchedParts {
+                            w::SetUpFetched {
                                     binary: w::SetUpBinary::Forgejo,
                                     done: if step == 24 { 42_000_000 } else { 41_000_000 },
                                     total: if step == 24 { Some(100_000_000) } else { None },
                                 },
-                            )
-                            .expect("fetch progress"),
                         ),
                     },
-                )
-                .expect("fetching"),
             ),
             7 => w::Connection::Connected(
-                w::Connected::new(&limits, w::ConnectedParts { id: 2, login: b"temper".as_slice().into() })
-                    .expect("connected"),
+                w::Connected { id: 2, login: b"temper".as_slice().into() },
             ),
             23 => w::Connection::NotConnected,
             _ => w::Connection::NotSetUp,
         };
         rows.push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
+            w::ForgeRow {
                     starts_with: w::StartsWith::Repository,
                     makings: List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
@@ -1565,23 +1485,19 @@ fn forges(world: World) -> Box<[u8]> {
                     offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
                     first: if matches!(step, 6 | 7 | 9 | 24 | 25) {
                         Some(
-                            w::FirstRepository::new(
-                                &limits,
-                                w::FirstRepositoryParts {
+                            w::FirstRepository {
                                     playground: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                     state: if step == 7 {
                                         w::FirstState::Made(
-                                            w::Made::new(&limits, w::MadeParts { id: 42 }).expect("made"),
+                                            w::Made { id: 42 },
                                         )
                                     } else {
                                         w::FirstState::Making
                                     },
                                     label: b"temper-host".as_slice().into(),
                                 },
-                            )
-                            .expect("first repository"),
                         )
                     } else {
                         None
@@ -1595,27 +1511,21 @@ fn forges(world: World) -> Box<[u8]> {
                         None
                     } else {
                         Some(
-                            w::OwnedForge::new(
-                                &limits,
-                                w::OwnedForgeParts {
+                            w::OwnedForge {
                                     forgejo: b"17.0.0".as_slice().into(),
                                     runner: Some(b"13.2.0".as_slice().into()),
                                     password: b"/fake/forge/person_password".as_slice().into(),
                                 },
-                            )
-                            .expect("owned pins"),
                         )
                     },
                     admin: step == 23,
                     read_only: false,
                     ended_stop: None,
                 },
-            )
-            .expect("owned Forgejo"),
         )
         .expect("forge row");
     }
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows, linked: false }).expect("gallery forges"))
+    wire::forges(&w::Forges { forges: rows, linked: false })
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;
@@ -1629,7 +1539,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 [0xc4, 0x0e, 0x9b, 0x20],
                 216,
                 b"https://github.com/acme/kit/pull/216".as_slice(),
-                w::Step::Queued(w::Queued::new(&l, w::QueuedParts { place: 2, ahead }).expect("queued")),
+                w::Step::Queued(w::Queued { place: 2, ahead }),
             )
         }
         (Reference, 24) => {
@@ -1640,7 +1550,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 [0x8b, 0x2d, 0x41, 0x00],
                 212,
                 b"https://github.com/acme/kit/pull/212".as_slice(),
-                w::Step::Landed(w::Landed::new(&l, w::LandedParts { merge }).expect("landed")),
+                w::Step::Landed(w::Landed { merge }),
             )
         }
         _ => return None,
@@ -1648,9 +1558,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
     let mut head = [0; 32];
     head[..4].copy_from_slice(&head_prefix);
     Some(
-        w::ChangePanel::new(
-            &l,
-            w::ChangePanelParts {
+        w::ChangePanel {
                 wait: None,
                 source: None,
                 way: w::Way::Queue,
@@ -1671,21 +1579,15 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
                 approvals: List::with_capacity(0),
                 unmapped_reviews: List::with_capacity(0),
                 gates: List::with_capacity(0),
-                repairs: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("repairs"),
-                resolutions: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("resolutions"),
-                updates: w::Used::new(&l, w::UsedParts { used: 0, limit: 3 }).expect("updates"),
-                questions: w::Questions::new(
-                    &w::CEILINGS,
-                    w::QuestionsParts {
+                repairs: w::Used { used: 0, limit: 3 },
+                resolutions: w::Used { used: 0, limit: 3 },
+                updates: w::Used { used: 0, limit: 3 },
+                questions: w::Questions {
                         route: w::Route::None,
-                        taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                        taken: w::Used { used: 0, limit: 4 },
                         open: List::with_capacity(0),
                     },
-                )
-                .expect("no questions"),
             },
-        )
-        .expect("change panel"),
     )
 }
 fn gallery_pull(
@@ -1694,7 +1596,7 @@ fn gallery_pull(
     address: &[u8],
 ) -> temper_client_protocol_wire::v1::Pull {
     use temper_client_protocol_wire::v1 as w;
-    w::Pull::new(limits, w::PullParts { number, address: Box::from(address) }).expect("pull")
+    w::Pull { number, address: Box::from(address) }
 }
 fn family_page(root: &mut Domain, read: Token, record: Box<[u8]>, out: &mut Queue<Request>) {
     step(
@@ -1712,11 +1614,7 @@ fn family_page(root: &mut Domain, read: Token, record: Box<[u8]>, out: &mut Queu
 }
 fn deployment_read(root: &mut Domain, read: Token, welcome: bool, push: bool, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};
-    let answer = v1::DeploymentAnswer::new(
-        &v1::CEILINGS,
-        v1::DeploymentAnswerParts { push: push.then_some([4; 65]), welcome, owned: true, program_login: None },
-    )
-    .expect("deployment answer");
+    let answer = v1::DeploymentAnswer { push: push.then_some([4; 65]), welcome, owned: true, program_login: None };
     step(
         root,
         Event::Client {
@@ -1740,9 +1638,7 @@ fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>
         for cue in ["Add CSV export to widget", "Add a dark theme to widget", "Fix widget’s empty search state"] {
             cues.push(Box::from(cue.as_bytes())).expect("cue");
         }
-        let value = v1::PlaygroundAnswer::new(
-            &v1::CEILINGS,
-            v1::PlaygroundAnswerParts {
+        let value = v1::PlaygroundAnswer {
                 state: if w == (FirstRun { step: 10 }) {
                     v1::PlaygroundState::Resetting
                 } else {
@@ -1754,9 +1650,7 @@ fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>
                 owner: Box::from(b"playground".as_slice()),
                 name: Box::from(b"widget".as_slice()),
                 cues,
-            },
-        )
-        .expect("checked demo");
+            };
         Some(wire::playground_answer(&value))
     } else {
         None
@@ -5015,7 +4909,7 @@ pub(super) fn sample_forge_answer(
         jig_client::Answered::Family(jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).expect("sample answer")),
+            bytes: wire::answer(&w::Answer { outcome }),
         }),
         out,
     );
@@ -5153,13 +5047,11 @@ pub(super) fn project_ways(
     out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let ways = v::ProjectWays::new(&v::CEILINGS, v::ProjectWaysParts { drafts, goals, changes, way: 0 })
-        .expect("gallery project ways");
+    let ways = v::ProjectWays { drafts, goals, changes, way: 0 };
     let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut writer).expect("measured ways");
     let value =
-        v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
-            .expect("gallery setting answer");
+        v::SettingAnswer { revision: None, value: Some(writer.finish()) };
     step(
         root,
         Event::Client {
@@ -5176,8 +5068,7 @@ pub(super) fn project_ways(
 
 pub(super) fn project_classes(root: &mut Domain, read: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
-    let value = v::SettingAnswer::new(&v::CEILINGS, v::SettingAnswerParts { revision: None, value: None })
-        .expect("stock project classes");
+    let value = v::SettingAnswer { revision: None, value: None };
     step(
         root,
         Event::Client {
@@ -5204,8 +5095,7 @@ fn changes_origin(
         107 => (false, 2, "chat"),
         _ => unreachable!("listed sample task"),
     };
-    let from = v::ChangeFrom::new(&v::CEILINGS, v::ChangeFromParts { task, title: title.as_bytes().into() })
-        .expect("sample origin");
+    let from = v::ChangeFrom { task, title: title.as_bytes().into() };
     if goal { (Some(from), None) } else { (None, Some(from)) }
 }
 
@@ -5223,9 +5113,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
             }
             changes
                 .push(
-                    v::ChangesQueued::new(
-                        &v::CEILINGS,
-                        v::ChangesQueuedParts {
+                    v::ChangesQueued {
                             goal: changes_origin(task).0,
                             chat: changes_origin(task).1,
                             milestone: None,
@@ -5234,16 +5122,12 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                             ready_since: offset(Reference, -179).as_nanos(),
                             checks_since: if task == 100 { Some(offset(Reference, -179).as_nanos()) } else { None },
                         },
-                    )
-                    .expect("queued change"),
                 )
                 .expect("three changes");
         }
         queues
             .push(
-                v::ChangesQueue::new(
-                    &v::CEILINGS,
-                    v::ChangesQueueParts {
+                v::ChangesQueue {
                         way: v::Way::Queue,
                         in_flight: None,
                         repository: b"jeremy/fabrig".as_slice().into(),
@@ -5251,8 +5135,6 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                         red: false,
                         changes,
                     },
-                )
-                .expect("queue"),
             )
             .expect("one queue");
     }
@@ -5266,9 +5148,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
         ] {
             landed
                 .push(
-                    v::ChangesLanded::new(
-                        &v::CEILINGS,
-                        v::ChangesLandedParts {
+                    v::ChangesLanded {
                             goal: changes_origin(task).0,
                             chat: changes_origin(task).1,
                             milestone: None,
@@ -5279,17 +5159,13 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                             title: title.as_bytes().into(),
                             at: offset(Reference, minute).as_nanos(),
                         },
-                    )
-                    .expect("landed change"),
                 )
                 .expect("four landings");
         }
     } else if name == "changes-landed-only" {
         landed
             .push(
-                v::ChangesLanded::new(
-                    &v::CEILINGS,
-                    v::ChangesLandedParts {
+                v::ChangesLanded {
                         goal: None,
                         chat: changes_origin(107).1,
                         milestone: None,
@@ -5300,14 +5176,10 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                         title: b"Hello in Rust".as_slice().into(),
                         at: offset(Reference, -58).as_nanos(),
                     },
-                )
-                .expect("landed change"),
             )
             .expect("one landing");
     }
-    v::ChangesPanel::new(
-        &v::CEILINGS,
-        v::ChangesPanelParts {
+    v::ChangesPanel {
             landed_default: List::with_capacity(0),
             landed_default_more: 0,
             project: PROJECT,
@@ -5316,9 +5188,7 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
             more: 0,
             landed,
             landed_more: 0,
-        },
-    )
-    .expect("changes panel")
+        }
 }
 
 /// Home's computed facts (client/pages/README.md), delivered by its status watch.
@@ -5335,9 +5205,7 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
     };
     let now = now(FirstRun { step: 7 });
     Some(
-        w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
+        w::ProjectStatus {
                 project: PROJECT,
                 landed,
                 seen,
@@ -5357,8 +5225,6 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
                 branch: b"main".as_slice().into(),
                 unpaid: false,
             },
-        )
-        .expect("Home status fits"),
     )
 }
 
@@ -5379,16 +5245,12 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
     } else if kind == 7 {
         let shown = name != "settings-all-hidden";
         let all = shown && name != "settings-goals";
-        let ways = v::ProjectWays::new(
-            &v::CEILINGS,
-            v::ProjectWaysParts {
+        let ways = v::ProjectWays {
                 drafts: all && name != "settings-drafts-off",
                 goals: shown && name != "settings-goals-off",
                 changes: all && name != "settings-changes-off",
                 way: if shown { 4 } else { 0 },
-            },
-        )
-        .expect("settings ways");
+            };
         let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
         ways.encode(&mut writer).expect("measured ways");
         writer.finish()
@@ -5396,7 +5258,7 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         assert_eq!(kind, 6);
         let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Up };
         let questions =
-            v::ProjectQuestions::new(&v::CEILINGS, v::ProjectQuestionsParts { route }).expect("settings questions");
+            v::ProjectQuestions { route };
         let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));
         questions.encode(&mut writer).expect("measured questions");
         writer.finish()
@@ -5518,18 +5380,12 @@ fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Requ
     let mut items = List::with_capacity(2);
     for kind in [7, 6] {
         let value =
-            v::SettingValue::new(&v::CEILINGS, v::SettingValueParts { value: settings_bytes("settings", kind) })
-                .expect("setting value");
-        let item = v::ProposalItem::new(
-            &v::CEILINGS,
-            v::ProposalItemParts { kind, scope: PROJECT, number: 1, edit: v::SettingEdit::Set(value) },
-        )
-        .expect("proposal item");
+            v::SettingValue { value: settings_bytes("settings", kind) };
+        let item = v::ProposalItem { kind, scope: PROJECT, number: 1, edit: v::SettingEdit::Set(value) };
         items.push(item).expect("proposal items");
     }
     let record =
-        v::ProposalItemsAnswer::new(&v::CEILINGS, v::ProposalItemsAnswerParts { items, owned_approval: false })
-            .expect("proposal values");
+        v::ProposalItemsAnswer { items, owned_approval: false };
     step(
         root,
         Event::Client {
@@ -5701,9 +5557,9 @@ fn worker_settings(since: Wall) -> List<c::WorkerState> {
 
 /// Home's copies share Ready's intent; the watch supplies progress and adoptions (client/pages/README.md).
 pub(super) fn home_copies(
-    mut row: temper_client_protocol_wire::v1::ForgeRowParts,
+    mut row: temper_client_protocol_wire::v1::ForgeRow,
     state: &str,
-) -> temper_client_protocol_wire::v1::ForgeRowParts {
+) -> temper_client_protocol_wire::v1::ForgeRow {
     use temper_client_protocol_wire::v1 as w;
     let addresses: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
     let addresses = if state == "home-copy-one" { &addresses[..1] } else { &addresses[..] };
@@ -5713,7 +5569,7 @@ pub(super) fn home_copies(
     }
     row.first = None;
     row.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: intent }).expect("copy intent"),
+        w::CopyAddresses { addresses: intent },
     );
     row.makings = List::with_capacity(2);
     row.repositories = List::with_capacity(2);
@@ -5726,40 +5582,28 @@ pub(super) fn home_copies(
         if matches!(state, "home-copied" | "home-copy-one") || state == "home-copy-failed" && *address == addresses[0] {
             row.repositories
                 .push(
-                    w::Adoption::new(&w::CEILINGS, w::AdoptionParts { owner: org, name, project: PROJECT })
-                        .expect("copy adopted"),
+                    w::Adoption { owner: org, name, project: PROJECT },
                 )
                 .expect("two copies");
         } else {
             row.makings
                 .push(
-                    w::RepositoryMaking::new(
-                        &w::CEILINGS,
-                        w::RepositoryMakingParts {
+                    w::RepositoryMaking {
                             org,
                             name,
                             from: w::MakeFrom::Copy(
-                                w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: (*address).into() })
-                                    .expect("copy source"),
+                                w::MakeCopy { address: (*address).into() },
                             ),
                             into: Some(
-                                w::MakeInto::new(
-                                    &w::CEILINGS,
-                                    w::MakeIntoParts { project: PROJECT, home: *address == addresses[0] },
-                                )
-                                .expect("copy into"),
+                                w::MakeInto { project: PROJECT, home: *address == addresses[0] },
                             ),
                             state: if state == "home-copy-failed" {
                                 w::MakingState::Failed(
-                                    w::MakingFailed::new(
-                                        &w::CEILINGS,
-                                        w::MakingFailedParts {
+                                    w::MakingFailed {
                                             step: w::MakeStep::Repository,
                                             reason: w::MakeFailure::Taken,
                                             words: b"name taken".as_slice().into(),
                                         },
-                                    )
-                                    .expect("copy failure"),
                                 )
                             } else if *address == addresses[0] {
                                 w::MakingState::Making
@@ -5767,8 +5611,6 @@ pub(super) fn home_copies(
                                 w::MakingState::Waiting
                             },
                         },
-                    )
-                    .expect("copy making"),
                 )
                 .expect("two copies");
         }
@@ -5880,19 +5722,15 @@ pub(super) fn away_record(on: bool) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let wall = sample_now(FirstRun { step: 7 }, "rail-away-on");
     let until = temper_client_domain::forge::away::next_eight(wall, 0);
-    let row = w::AwayRow::new(
-        &w::CEILINGS,
-        w::AwayRowParts {
+    let row = w::AwayRow {
             project: PROJECT,
             since: wall.as_nanos(),
             until: Some(until.as_nanos()),
             landed: 0,
             off: if on { None } else { Some(wall.as_nanos()) },
-        },
-    )
-    .expect("Away row");
+        };
     wire::aways(
-        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) }).expect("Away rows"),
+        &w::Aways { rows: List::from_boxed(Box::new([row])) },
     )
 }
 pub(super) fn rail_away_toggle(root: &mut Domain, watch: Token, on: bool) {
@@ -5937,34 +5775,27 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
     let minute = 60_000_000_000;
-    let row = w::AwayRow::new(
-        &w::CEILINGS,
-        w::AwayRowParts {
+    let row = w::AwayRow {
             project: PROJECT,
             since: now - 534 * minute,
             until: None,
             landed: 0,
             off: if name == "home-away-one" { Some(now - minute) } else { None },
-        },
-    )
-    .expect("Home away spell");
+        };
     if matches!(name, "home-decided" | "needs-decided" | "needs-decided-project") {
         return wire::aways(
-            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::with_capacity(0) }).expect("no Away spell"),
+            &w::Aways { rows: List::with_capacity(0) },
         );
     }
     wire::aways(
-        &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
-            .expect("Home away rows"),
+        &w::Aways { rows: List::from_boxed(Box::new([row])) },
     )
 }
 pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStatus {
     use temper_client_protocol_wire::v1 as w;
     let now = sample_now(FirstRun { step: 7 }, "home-away").as_nanos();
     let lede = "first-run-projects stopped at 05:50 for funds, which always wait for you. welcome-stall landed its fix in temper serve.";
-    w::ProjectStatus::new(
-        &w::CEILINGS,
-        w::ProjectStatusParts {
+    w::ProjectStatus {
             project: PROJECT,
             landed: 57,
             seen: 0,
@@ -5975,20 +5806,14 @@ pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStat
             branch: b"main".as_slice().into(),
             unpaid: false,
             brief: Some(
-                w::StatusBrief::new(
-                    &w::CEILINGS,
-                    w::StatusBriefParts {
+                w::StatusBrief {
                         sentence: b"57 changes landed.".as_slice().into(),
                         lede: lede.as_bytes().into(),
                         at: now - 9 * 60_000_000_000,
                         landed: 57,
                     },
-                )
-                .expect("Home away brief"),
             ),
-        },
-    )
-    .expect("Home away status")
+        }
 }
 fn home_away_task(name: &str, task: u64, project: u32) -> c::Task {
     let mut document = base_task(
@@ -6064,9 +5889,7 @@ pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
             continue;
         }
         rows.push(
-            w::Decision::new(
-                &w::CEILINGS,
-                w::DecisionParts {
+            w::Decision {
                     number,
                     task,
                     at: now - minutes * 60_000_000_000,
@@ -6074,9 +5897,7 @@ pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
                     took: took.as_bytes().into(),
                     why: why.as_bytes().into(),
                     overturned: name == "home-away-overturned" && number == 2,
-                    reach: w::Reach::new(
-                        &w::CEILINGS,
-                        w::ReachParts {
+                    reach: w::Reach {
                             kind: match number {
                                 3 => w::ReachKind::Retry,
                                 4 => w::ReachKind::Wording,
@@ -6089,20 +5910,12 @@ pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
                             matched: 0,
                             away: number != 4,
                         },
-                    )
-                    .expect("fixture reach fits"),
                 },
-            )
-            .expect("Home decision"),
         )
         .expect("four Home decisions");
     }
     wire::decisions(
-        &w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .expect("Home decisions"),
+        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
     )
 }
 

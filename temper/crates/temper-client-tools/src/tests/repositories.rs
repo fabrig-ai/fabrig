@@ -16,10 +16,10 @@ fn repositories_parses_bounds_defaults_and_the_requested_installation_and_page()
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
         let bounds = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
         let request = wire::decode_requesting(&record.bytes, &bounds).unwrap();
-        let w::Request::Reachable(request) = request.into_parts().request else { panic!("reachable") };
-        assert_eq!(request.forge(), 3);
-        assert_eq!(*request.installation(), if words.len() == 3 { None } else { Some(11) });
-        assert_eq!(request.page(), if words.len() == 3 { 1 } else { 2 });
+        let w::Request::Reachable(request) = request.request else { panic!("reachable") };
+        assert_eq!(request.forge, 3);
+        assert_eq!(request.installation, if words.len() == 3 { None } else { Some(11) });
+        assert_eq!(request.page, if words.len() == 3 { 1 } else { 2 });
     }
     for words in [
         &["forge", "repositories", "0"][..],
@@ -34,25 +34,20 @@ fn repositories_parses_bounds_defaults_and_the_requested_installation_and_page()
         .unwrap();
 }
 fn page(more: bool) -> w::Outcome {
-    let bounds = temper_client_domain_forge::forge::wire_limits(&f::limits_root().domain.forge).unwrap();
+
     let mut rows = List::with_capacity(2);
     for (id, name, private) in [(42, b"app".as_slice(), true), (43, b"public".as_slice(), false)] {
         rows.push(
-            w::Reached::new(
-                &bounds,
-                w::ReachedParts {
+            w::Reached {
                     id,
-                    owner: w::Account::new(&bounds, w::AccountParts { id: 10, login: b"acme".as_slice().into() })
-                        .unwrap(),
+                    owner: w::Account { id: 10, login: b"acme".as_slice().into() },
                     name: name.into(),
                     private,
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
     }
-    w::Outcome::Page(w::Page::new(&bounds, w::PageParts { rows, more }).unwrap())
+    w::Outcome::Page(w::Page { rows, more })
 }
 #[test]
 fn repositories_prints_rows_ids_privacy_and_the_next_call_or_no_more() {

@@ -360,15 +360,11 @@ fn forge_rows() -> List<w::ForgeRow> {
         for (project, owner, name) in repos {
             row.repositories
                 .push(
-                    w::Adoption::new(
-                        &w::CEILINGS,
-                        w::AdoptionParts { project, owner: owner.as_bytes().into(), name: name.as_bytes().into() },
-                    )
-                    .unwrap(),
+                    w::Adoption { project, owner: owner.as_bytes().into(), name: name.as_bytes().into() },
                 )
                 .unwrap();
         }
-        rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+        rows.push(row).unwrap();
     }
     rows
 }
@@ -1103,7 +1099,7 @@ fn no_project_draws_no_path() {
 
 const AWAY_TITLE: &str = "What reaches you";
 const EIGHT: &[u8] = b"08:00, the end of quiet hours";
-fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
+fn away_settings(row: Option<w::AwayRow>) -> (d::Domain, Token) {
     let (mut root, _, _, _, _, _, _, _, watch) = f::root_at_with_values(
         settings(),
         &f::domain_limits(),
@@ -1120,13 +1116,13 @@ fn away_settings(row: Option<w::AwayRowParts>) -> (d::Domain, Token) {
     away_deliver(&mut root, watch, row);
     (root, watch)
 }
-fn away_row(until: Option<u64>, off: Option<u64>) -> w::AwayRowParts {
-    w::AwayRowParts { project: f::PROJECT, since: 0, until, landed: 0, off }
+fn away_row(until: Option<u64>, off: Option<u64>) -> w::AwayRow {
+    w::AwayRow { project: f::PROJECT, since: 0, until, landed: 0, off }
 }
-fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRowParts>) {
+fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRow>) {
     let mut rows = List::with_capacity(1);
     if let Some(row) = row {
-        rows.push(w::AwayRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+        rows.push(row).unwrap();
     }
     drive(
         root,
@@ -1138,7 +1134,7 @@ fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRowParts>
                         family: f::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
                         bytes: temper_client_protocol_wire::aways(
-                            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).unwrap(),
+                            &w::Aways { rows },
                         ),
                     },
                 },
@@ -1156,7 +1152,7 @@ fn settings_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name:
     }
     out
 }
-fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u8]) -> (Token, w::SetAwayParts) {
+fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u8]) -> (Token, w::SetAway) {
     let out = settings_send(root, view, role, name);
     let sent: Vec<_> =
         out.iter()
@@ -1202,7 +1198,7 @@ fn settings_answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
                         family: f::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
                         bytes: temper_client_protocol_wire::answer(
-                            &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap(),
+                            &w::Answer { outcome },
                         ),
                     })),
                 },
@@ -1532,7 +1528,7 @@ fn the_select_writes_until() {
             let (mut root, _) = away_settings(Some(away_row(None, None)));
             let mut view = how_view(&root, browser);
             let (_, sent) = away_send(&mut root, &mut view, Role::Option, label);
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: true, until });
+            assert_eq!(sent, w::SetAway { project: f::PROJECT, on: true, until });
         }
     }
 }
@@ -1546,7 +1542,7 @@ fn it_works_while_off() {
             let (mut root, watch) = away_settings(Some(away_row(Some(28_800_000_000_000), Some(0))));
             let mut view = how_view(&root, browser);
             let (attempt, sent) = away_send(&mut root, &mut view, role, label);
-            assert_eq!(sent, w::SetAwayParts { project: f::PROJECT, on: false, until });
+            assert_eq!(sent, w::SetAway { project: f::PROJECT, on: false, until });
             away_answer(&mut root, attempt);
             away_deliver(&mut root, watch, Some(away_row(sent.until, Some(0))));
             let view = how_view(&root, browser);
@@ -1600,9 +1596,7 @@ fn making_rows(copy: bool, state: w::MakingState) -> List<w::ForgeRow> {
     for project in [Some(f::PROJECT), Some(f::SECOND_PROJECT), None] {
         row.makings
             .push(
-                w::RepositoryMaking::new(
-                    &w::CEILINGS,
-                    w::RepositoryMakingParts {
+                w::RepositoryMaking {
                         org: b"acme".as_slice().into(),
                         name: if project == Some(f::PROJECT) {
                             b"again".as_slice().into()
@@ -1611,42 +1605,32 @@ fn making_rows(copy: bool, state: w::MakingState) -> List<w::ForgeRow> {
                         },
                         from: if copy {
                             w::MakeFrom::Copy(
-                                w::MakeCopy::new(
-                                    &w::CEILINGS,
-                                    w::MakeCopyParts {
+                                w::MakeCopy {
                                         address: b"https://source.example/acme/again".as_slice().into(),
                                     },
-                                )
-                                .unwrap(),
                             )
                         } else {
                             w::MakeFrom::Empty
                         },
                         into: project.map(|project| {
-                            w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: false }).unwrap()
+                            w::MakeInto { project, home: false }
                         }),
                         state: state.clone(),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     rows
 }
 fn failed(reason: w::MakeFailure) -> w::MakingState {
     w::MakingState::Failed(
-        w::MakingFailed::new(
-            &w::CEILINGS,
-            w::MakingFailedParts {
+        w::MakingFailed {
                 step: w::MakeStep::Repository,
                 reason,
                 words: b"You can not import from disallowed hosts.".as_slice().into(),
             },
-        )
-        .unwrap(),
     )
 }
 #[test]
@@ -1749,7 +1733,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             | d::Request::Fact { .. } => None,
         })
         .unwrap();
-    let refused = w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why: w::MakeRefusal::NotFailed }).unwrap();
+    let refused = w::MakeRefused { why: w::MakeRefusal::NotFailed };
     settings_answer(&mut root, attempt, w::Outcome::MakeRefused(refused));
     for state in [failed(w::MakeFailure::Other), w::MakingState::Making] {
         let rows = making_rows(true, state);
@@ -1757,7 +1741,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
             family: f::FORGE,
             version: temper_client_protocol_wire::CLIENT_VERSION,
             bytes: temper_client_protocol_wire::forges(
-                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
+                &w::Forges { forges: rows, linked: false },
             ),
         };
         drive(
@@ -1783,9 +1767,7 @@ fn role_card(rule: bool) -> w::View {
             (b"Holds", b"the merge"),
         ]
     };
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
+    let card = w::Card {
             name: if rule { b"the project's rule 1".as_slice().into() } else { b"the reviewer".as_slice().into() },
             who: if rule {
                 "a landing rule · holds a merge until it is met".as_bytes().into()
@@ -1796,19 +1778,16 @@ fn role_card(rule: bool) -> w::View {
                 facts
                     .iter()
                     .map(|(label, value)| {
-                        w::Fact::new(&w::CEILINGS, w::FactParts { label: (*label).into(), value: (*value).into() })
-                            .unwrap()
+                        w::Fact { label: (*label).into(), value: (*value).into() }
                     })
                     .collect::<Vec<_>>()
                     .into_boxed_slice(),
             ),
-        },
-    )
-    .unwrap();
+        };
     if rule {
-        w::View::Rule(w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card }).unwrap())
+        w::View::Rule(w::RuleView { kind: 2, number: 1, card })
     } else {
-        w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 4, card }).unwrap())
+        w::View::Charter(w::CharterView { charter: 4, card })
     }
 }
 fn role_read(out: &Queue<d::Request>) -> Option<Token> {
@@ -1841,7 +1820,7 @@ fn role_pages_draw_their_card_or_the_read_state() {
     use temper_client_protocol_wire as wire;
     let refused = jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused));
     let not_drawn = w::View::NotDrawn(
-        w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"No view".as_slice().into() }).unwrap(),
+        w::NotDrawn { words: b"No view".as_slice().into() },
     );
     let rows = [
         (
@@ -1909,7 +1888,7 @@ fn role_pages_draw_their_card_or_the_read_state() {
             .map(|view| jig_client::Readout::Family {
                 family: wire::FORGE,
                 record: Some(wire::view_answer(
-                    &w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap(),
+                    &w::ViewAnswer { view },
                 )),
             })
             .or(refusal);
@@ -1947,7 +1926,7 @@ fn role_pages_draw_their_card_or_the_read_state() {
             assert_eq!(shown, card);
         }
         if pending {
-            let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: role_card(false) }).unwrap();
+            let answer = w::ViewAnswer { view: role_card(false) };
             let out = role_answer(
                 &mut root,
                 read,

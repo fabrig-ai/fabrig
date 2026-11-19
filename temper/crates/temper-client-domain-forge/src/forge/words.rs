@@ -1648,7 +1648,7 @@ pub fn sheet_adoption(answer: &super::Answer) -> Box<[u8]> {
 pub fn sheet_outcome(outcome: &temper_client_protocol_wire::v1::Outcome) -> Box<[u8]> {
     use temper_client_protocol_wire::v1::{MakeRefusal, Outcome};
     copy_of(match outcome {
-        Outcome::MakeRefused(why) => match why.why() {
+        Outcome::MakeRefused(why) => match &why.why {
             MakeRefusal::NoSuchForge => b"No such forge is configured.",
             MakeRefusal::NotOffered => b"This forge does not make repositories.",
             MakeRefusal::NotOwner => b"Only the deployment's owner makes repositories.",

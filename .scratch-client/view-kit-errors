@@ -1,0 +1,45 @@
+temper/testing/temper-client-view-kit/src/public_records.rs:95 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:96 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:130 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:131 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:147 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:148 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:171 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:95 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:172 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:96 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:209 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:210 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:130 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:244 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:131 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:245 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:147 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:148 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:171 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:172 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:209 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:210 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:244 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:245 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1768 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/testing/temper-client-view-kit/src/roots.rs:1768 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1769 E0308 mismatched types
+temper/testing/temper-client-view-kit/src/roots.rs:1768 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1768 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/testing/temper-client-view-kit/src/roots.rs:1775 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/testing/temper-client-view-kit/src/roots.rs:1775 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1768 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1776 E0308 mismatched types
+temper/testing/temper-client-view-kit/src/roots.rs:1775 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1769 E0308 mismatched types
+temper/testing/temper-client-view-kit/src/roots.rs:1768 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1775 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/testing/temper-client-view-kit/src/roots.rs:1775 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1776 E0308 mismatched types
+temper/testing/temper-client-view-kit/src/roots.rs:1775 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/panel.rs:58 unused_variables unused variable: `limits`
+temper/testing/temper-client-view-kit/src/panel.rs:58 unused_variables unused variable: `limits`
+temper/testing/temper-client-view-kit/src/roots.rs:558 unused_variables unused variable: `wire_limits`
+temper/testing/temper-client-view-kit/src/roots.rs:558 unused_variables unused variable: `wire_limits`
+diagnostics 44

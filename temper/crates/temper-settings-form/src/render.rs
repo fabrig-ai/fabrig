@@ -1,4 +1,5 @@
 //! Deployment settings and retained revision documents (client/ctl/tools.md, 2).
+use temper_client_protocol_wire::v1::Record;
 use crate::Limits;
 use crate::view as c;
 use crate::{Text, values};

@@ -48,13 +48,13 @@ fn record(projects: &[u32]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
         dismissed
-            .push(w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap()))
+            .push(w::PersonFact::ToBegin(w::ToBegin { project: *project }))
             .unwrap();
     }
     Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+        bytes: wire::dismissals(&w::Dismissals { dismissed }),
     }
 }
 fn fact_record(facts: &[PersonFact]) -> Family {
@@ -65,32 +65,31 @@ fn fact_record(facts: &[PersonFact]) -> Family {
     Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+        bytes: wire::dismissals(&w::Dismissals { dismissed }),
     }
 }
 fn wire_fact(fact: PersonFact) -> w::PersonFact {
     match fact {
         PersonFact::ToBegin { project } => {
-            w::PersonFact::ToBegin(w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).unwrap())
+            w::PersonFact::ToBegin(w::ToBegin { project })
         }
         PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
-            w::GoalFrom::new(&w::CEILINGS, w::GoalFromParts { project, chat, goal, at }).unwrap(),
+            w::GoalFrom { project, chat, goal, at },
         ),
         PersonFact::KeepAsking { project, subject, at } => {
             let subject = match subject {
                 Subject::Kind(kind) => {
                     assert_eq!(kind, Kind::Implementation, "fixture's kind");
                     w::ClassSubject::Kind(
-                        w::ReachKindOf::new(&w::CEILINGS, w::ReachKindOfParts { kind: w::ReachKind::Implementation })
-                            .unwrap(),
+                        w::ReachKindOf { kind: w::ReachKind::Implementation },
                     )
                 }
                 Subject::Set(number) => {
-                    w::ClassSubject::Set(w::ReachSet::new(&w::CEILINGS, w::ReachSetParts { number }).unwrap())
+                    w::ClassSubject::Set(w::ReachSet { number })
                 }
             };
             w::PersonFact::KeepAsking(
-                w::KeepAsking::new(&w::CEILINGS, w::KeepAskingParts { project, subject, at: at.as_nanos() }).unwrap(),
+                w::KeepAsking { project, subject, at: at.as_nanos() },
             )
         }
     }
@@ -130,7 +129,7 @@ fn the_watch_opens_once_the_link_is_live_without_me() {
     assert_eq!(scope, c::Scope::Own);
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Dismissed);
+    assert_eq!(&wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch, &w::Watch::Dismissed);
     assert_eq!(dismissed::handle().asker, f::FORGE_ASKER);
     assert_eq!(dismissed::handle().number, 2);
     assert!(root.pages().me(root.client()).is_none());
@@ -270,11 +269,11 @@ fn ask_is_of_the_projects_scope() {
             assert_eq!(scope, c::Scope::Project(project));
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
             let w::Request::Dismiss(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("dismiss request")
             };
-            assert_eq!(value.what(), &wire_fact(fact));
+            assert_eq!(&value.what, &wire_fact(fact));
         }
     }
 }
@@ -305,18 +304,14 @@ fn goal_record(facts: &[(u32, u64, u64, u64)]) -> Family {
     for (project, chat, goal, at) in facts {
         dismissed
             .push(w::PersonFact::GoalFrom(
-                w::GoalFrom::new(
-                    &w::CEILINGS,
-                    w::GoalFromParts { project: *project, chat: *chat, goal: *goal, at: *at },
-                )
-                .unwrap(),
+                w::GoalFrom { project: *project, chat: *chat, goal: *goal, at: *at },
             ))
             .unwrap();
     }
     Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+        bytes: wire::dismissals(&w::Dismissals { dismissed }),
     }
 }
 

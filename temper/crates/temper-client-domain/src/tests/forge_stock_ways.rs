@@ -132,11 +132,7 @@ fn document(f: &mut Fixture, newest: u32, configured: bool) {
     );
 }
 fn path(branch: &[u8]) -> w::BranchPath {
-    w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: Some(b"owner/repo".as_slice().into()), branch: branch.into(), stops: stops() },
-    )
-    .unwrap()
+    w::BranchPath { repository: Some(b"owner/repo".as_slice().into()), branch: branch.into(), stops: stops() }
 }
 fn stops() -> List<w::Stop> {
     let mut stops = List::with_capacity(STOPS);
@@ -147,27 +143,19 @@ fn stops() -> List<w::Stop> {
     ] {
         stops
             .push(
-                w::Stop::new(
-                    &w::CEILINGS,
-                    w::StopParts {
+                w::Stop {
                         needed: false,
                         over: Box::default(),
                         actor,
                         step,
                         words: words.into(),
                         opens: w::Opens::Nothing,
-                        card: w::Card::new(
-                            &w::CEILINGS,
-                            w::CardParts {
+                        card: w::Card {
                                 who: b"The actor".as_slice().into(),
                                 name: Box::default(),
                                 facts: List::with_capacity(0),
                             },
-                        )
-                        .unwrap(),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
@@ -186,25 +174,18 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
                 7,
                 1,
                 w::SettingEdit::Set(
-                    w::SettingValue::new(
-                        &w::CEILINGS,
-                        w::SettingValueParts { value: b"whole value".as_slice().into() },
-                    )
-                    .unwrap(),
+                    w::SettingValue { value: b"whole value".as_slice().into() },
                 ),
             ),
         ] {
             items
                 .push(
-                    w::ProposalItem::new(&w::CEILINGS, w::ProposalItemParts { kind, scope: project, number, edit })
-                        .unwrap(),
+                    w::ProposalItem { kind, scope: project, number, edit },
                 )
                 .unwrap();
         }
         ways.push(
-            w::StockWay::new(
-                &w::CEILINGS,
-                w::StockWayParts {
+            w::StockWay {
                     headline: (*headline).into(),
                     name: (*name).into(),
                     line: (*line).into(),
@@ -213,28 +194,18 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
                     delegation,
                     roles: List::with_capacity(0),
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
     }
-    w::WaysPanel::new(
-        &w::CEILINGS,
-        w::WaysPanelParts {
-            rules: w::PathRules::new(
-                &w::CEILINGS,
-                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-            )
-            .unwrap(),
+    w::WaysPanel {
+            rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
             words: None,
             project,
             ways,
             current,
             own: path(b"own"),
             may_change,
-        },
-    )
-    .unwrap()
+        }
 }
 fn show(f: &mut Fixture, panel: &w::WaysPanel) -> Queue<Request> {
     family(f, wire::FORGE, wire::CLIENT_VERSION, wire::ways_panel(panel))
@@ -380,8 +351,8 @@ fn ways_watch_has_project_scope_and_the_pages_lifetime() {
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
     assert_eq!(
-        wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(),
-        &w::Watch::Ways(w::WaysSubject::new(&w::CEILINGS, w::WaysSubjectParts { project: f::PROJECT }).unwrap())
+        &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch,
+        &w::Watch::Ways(w::WaysSubject { project: f::PROJECT })
     );
     for address in [Address::Ask { project: f::PROJECT }, Address::Settings { project: f::PROJECT }] {
         for input in [
@@ -438,20 +409,16 @@ fn tabs_preserve_the_reads_order_and_append_yours() {
     ] {
         let mut f = fixture();
         assert_eq!(f.root.pages().stock_ways().unwrap().words(), None);
-        let mut parts = panel(f::PROJECT, current, true).into_parts();
+        let mut parts = panel(f::PROJECT, current, true);
         parts.words = match words {
             Some((headline, lede)) => Some(
-                w::ProjectWords::new(
-                    &w::CEILINGS,
-                    w::ProjectWordsParts { headline: headline.into(), lede: lede.into() },
-                )
-                .unwrap(),
+                w::ProjectWords { headline: headline.into(), lede: lede.into() },
             ),
             None => None,
         };
-        let panel = w::WaysPanel::new(&w::CEILINGS, parts).unwrap();
+        let panel = parts;
         show(&mut f, &panel);
-        assert_eq!(f.root.pages().stock_ways().unwrap().words(), panel.words().as_ref());
+        assert_eq!(f.root.pages().stock_ways().unwrap().words(), panel.words.as_ref());
         assert_eq!(f.root.pages().stock_ways().unwrap().shown(), Some(shown));
         assert_eq!(f.root.pages().stock_ways().unwrap().open(), None);
         let tabs = f.root.pages().stock_ways().unwrap().tabs();
@@ -536,11 +503,11 @@ fn use_and_keep_send_one_ordered_decision_at_newest() {
         let retried = sends(answer(&mut f, sent.first().unwrap().0, refused(stale())));
         let key = retried.first().unwrap().0;
         assert!(f.root.pages().stock_ways().unwrap().sending());
-        let mut refreshed = panel(f::PROJECT, None, true).into_parts();
-        let mut renamed = refreshed.ways.get(1).unwrap().clone().into_parts();
+        let mut refreshed = panel(f::PROJECT, None, true);
+        let mut renamed = refreshed.ways.get(1).unwrap().clone();
         renamed.name = b"A newer name".as_slice().into();
-        *refreshed.ways.get_mut(1).unwrap() = w::StockWay::new(&w::CEILINGS, renamed).unwrap();
-        show(&mut f, &w::WaysPanel::new(&w::CEILINGS, refreshed).unwrap());
+        *refreshed.ways.get_mut(1).unwrap() = renamed;
+        show(&mut f, &refreshed);
         answer(&mut f, key, c::Answer::Done(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: NEXT })));
         assert!(!f.root.pages().stock_ways().unwrap().sending());
         assert_eq!(
@@ -808,8 +775,8 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
         let tab = if let Refresh::WayGone | Refresh::WayKept = change { 1 } else { 2 };
         act(&mut f, pages::Act::WayTab { project: f::PROJECT, tab });
         act(&mut f, pages::Act::WayStop { project: f::PROJECT, stop: 0 });
-        let mut next = first.into_parts();
-        let mut path = next.own.into_parts();
+        let mut next = first;
+        let mut path = next.own;
         match change {
             Refresh::Same => {}
             Refresh::MoreWays => {
@@ -827,14 +794,14 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
                 next.current = Some(0);
             }
             Refresh::Words | Refresh::Actor | Refresh::Card => {
-                let mut stop = path.stops.get(1).unwrap().clone().into_parts();
+                let mut stop = path.stops.get(1).unwrap().clone();
                 match change {
                     Refresh::Words => stop.words = b"changed words".as_slice().into(),
                     Refresh::Actor => stop.actor = w::Actor::Code,
                     Refresh::Card => {
                         let mut card = stop.card.into_parts();
                         card.who = b"New details".as_slice().into();
-                        stop.card = w::Card::new(&w::CEILINGS, card).unwrap();
+                        stop.card = card;
                     }
                     Refresh::Same
                     | Refresh::MoreWays
@@ -845,26 +812,22 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
                     | Refresh::FewerStops
                     | Refresh::OtherPath => unreachable!(),
                 }
-                *path.stops.get_mut(1).unwrap() = w::Stop::new(&w::CEILINGS, stop).unwrap();
+                *path.stops.get_mut(1).unwrap() = stop;
             }
             Refresh::Branch => path.branch = b"new branch".as_slice().into(),
             Refresh::FewerStops => path.stops = List::from_boxed(Box::new([path.stops.get(0).unwrap().clone()])),
             Refresh::OtherPath => {
-                let mut way = next.ways.get(0).unwrap().clone().into_parts();
-                way.path = w::BranchPath::new(
-                    &w::CEILINGS,
-                    w::BranchPathParts {
+                let mut way = next.ways.get(0).unwrap().clone();
+                way.path = w::BranchPath {
                         repository: None,
                         branch: b"elsewhere".as_slice().into(),
                         stops: List::with_capacity(0),
-                    },
-                )
-                .unwrap();
-                *next.ways.get_mut(0).unwrap() = w::StockWay::new(&w::CEILINGS, way).unwrap();
+                    };
+                *next.ways.get_mut(0).unwrap() = way;
             }
         }
-        next.own = w::BranchPath::new(&w::CEILINGS, path).unwrap();
-        show(&mut f, &w::WaysPanel::new(&w::CEILINGS, next).unwrap());
+        next.own = path;
+        show(&mut f, &next);
         let page = f.root.pages().stock_ways().unwrap();
         assert_eq!((page.shown(), page.open()), (Some(shown), open), "{change:?}");
     }
@@ -904,14 +867,10 @@ fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_re
     for running in [false, true] {
         let identity = role_me();
         let mut f = fixture_me(identity.clone());
-        let mut parts = panel(f::PROJECT, Some(0), true).into_parts();
-        let mut way = parts.ways.get(1).unwrap().clone().into_parts();
+        let mut parts = panel(f::PROJECT, Some(0), true);
+        let mut way = parts.ways.get(1).unwrap().clone();
         way.name = b"Draft first".as_slice().into();
-        let role = w::WayRole::new(
-            &w::CEILINGS,
-            w::WayRoleParts { charter: 14, words: WORDS.into(), budget: 25_000, running },
-        )
-        .unwrap();
+        let role = w::WayRole { charter: 14, words: WORDS.into(), budget: 25_000, running };
         way.roles = List::from_boxed(Box::new([role]));
         let triager = br#"{"owner":{"charter":14}}"#;
         let mut items = List::with_capacity(3);
@@ -920,27 +879,19 @@ fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_re
         }
         items
             .push(
-                w::ProposalItem::new(
-                    &w::CEILINGS,
-                    w::ProposalItemParts {
+                w::ProposalItem {
                         kind: 15,
                         scope: f::PROJECT,
                         number: 1,
                         edit: w::SettingEdit::Set(
-                            w::SettingValue::new(
-                                &w::CEILINGS,
-                                w::SettingValueParts { value: triager.as_slice().into() },
-                            )
-                            .unwrap(),
+                            w::SettingValue { value: triager.as_slice().into() },
                         ),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
         way.items = items;
-        *parts.ways.get_mut(1).unwrap() = w::StockWay::new(&w::CEILINGS, way).unwrap();
-        show(&mut f, &w::WaysPanel::new(&w::CEILINGS, parts).unwrap());
+        *parts.ways.get_mut(1).unwrap() = way;
+        show(&mut f, &parts);
         let (key, settings) = use_way(&mut f);
         let mut expected_items = way_items(None);
         expected_items

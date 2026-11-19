@@ -1,5 +1,6 @@
 //! A milestone's totals (temper/docs/design/client/forge/records.md).
-use super::{forge, w, wire};
+use temper_client_protocol_wire::v1::Record;
+use super::{forge, w};
 use alloc::boxed::Box;
 
 pub(super) fn answer(value: Option<forge::MilestoneTotals>, limits: &w::Limits) -> Option<Box<[u8]>> {
@@ -7,6 +8,6 @@ pub(super) fn answer(value: Option<forge::MilestoneTotals>, limits: &w::Limits) 
         None => w::MilestoneResult::NotMilestone,
         Some(value) => w::MilestoneResult::Totals(forge::parts::totals(&value, limits)?),
     };
-    let answer = w::MilestoneAnswer::new(limits, w::MilestoneAnswerParts { result }).ok()?;
-    Some(wire::milestone_answer(&answer))
+    let answer = w::MilestoneAnswer { result };
+    answer.encode(limits).ok()
 }

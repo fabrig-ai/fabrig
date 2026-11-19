@@ -317,14 +317,10 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
         }
     }
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
-    let forges_doc = v::Forges::new(
-        &v::CEILINGS,
-        v::ForgesParts {
+    let forges_doc = v::Forges {
             forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
             linked: false,
-        },
-    )
-    .unwrap();
+        };
     up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -353,14 +349,10 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     (root, trials, accounts)
 }
 pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(
-        &v::CEILINGS,
-        v::TrialRowParts { run_wait: None, account: 1, task: Some(91), took: None, step, state },
-    )
-    .unwrap()
+    v::TrialRow { run_wait: None, account: 1, task: Some(91), took: None, step, state }
 }
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
-    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
+    let doc = v::Trials { rows: List::from_boxed(rows.into()) };
     let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
     doc.encode(&mut writer).unwrap();
     up(
@@ -372,7 +364,7 @@ pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> 
     )
 }
 pub(crate) fn failed(why: v::TrialWhy) -> v::TrialState {
-    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+    v::TrialState::Failed(v::TrialFailed { why })
 }
 pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
     let mut b = Builder::new(&f::tree_limits());
@@ -432,7 +424,7 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
             &[row(
                 v::TrialStep::Answers,
                 v::TrialState::Answered(
-                    v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 7 }).unwrap(),
+                    v::TrialAnswered { seconds: 7 },
                 ),
             )],
         );
@@ -453,7 +445,7 @@ fn wait_delivery(root: &mut d::Domain, watch: Token, wait: Option<jig_client_pro
         wait.encode(&mut writer).unwrap();
         writer.finish()
     });
-    rows(root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);
+    rows(root, watch, &[parts]);
 }
 fn source(state: jig_client_protocol_wire::TaskSourceState) -> jig_client_protocol_wire::TaskWaitWhy {
     use jig_client_protocol_wire as j;
@@ -652,7 +644,7 @@ fn took_names_the_account_that_answered_and_the_newest_row_wins() {
     rows(
         &mut root,
         watch,
-        &[v::TrialRow::new(&v::CEILINGS, took).unwrap(), v::TrialRow::new(&v::CEILINGS, older).unwrap()],
+        &[took, older],
     );
     for w in [f::words(), f::browser_words()] {
         let (tree, _) = from_root(&root, &w);
@@ -679,7 +671,7 @@ fn sign_in_again_follows_the_place_and_the_selected_source() {
         account.sources = List::from_boxed(Box::new([unused, source]));
         f::accounts::deliver(&mut root, accounts, doc);
         let why = v::TrialWhy::Ended(
-            v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: v::TrialClass::Permanent }).unwrap(),
+            v::TrialEnded { class: v::TrialClass::Permanent },
         );
         rows(&mut root, watch, &[row(v::TrialStep::Answers, failed(why))]);
         for w in [f::words(), f::browser_words()] {

@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use jig_client::{self as client, contract as c};
 use skein_lib::{Reader, RequestEnvelope, Secret};
@@ -24,13 +25,13 @@ fn request(root: &f::Harness, call: u32) -> w::Request {
     assert_eq!(record.version, wire::CLIENT_VERSION);
     let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("wire limits");
     let mut reader = Reader::new(&record.bytes);
-    let request = w::Requesting::decode(&limits, &mut reader).expect("request").into_parts().request;
+    let request = w::Requesting::decode(&limits, &mut reader).expect("request").request;
     assert!(reader.is_empty());
     request
 }
 fn link() -> w::Outcome {
-    let limits = temper_client_domain_forge::forge::wire_limits(&f::limits_root().domain.forge).expect("wire limits");
-    w::Outcome::Link(w::Link::new(&limits, w::LinkParts { address: ADDRESS.into() }).expect("link"))
+
+    w::Outcome::Link(w::Link { address: ADDRESS.into() })
 }
 
 #[test]
@@ -65,10 +66,10 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(CONNECT, Some(Secret::new(pem.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        assert_eq!(connect.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
-        let w::How::GithubApp(app) = connect.into_parts().how else { panic!("pasted App") };
-        assert_eq!(app.id(), 4242);
-        assert_eq!(*app.read_only(), Some(false));
+        assert_eq!(&connect.forge, &w::Making::Kept(w::Kept { forge: 3 }));
+        let w::How::GithubApp(app) = connect.how else { panic!("pasted App") };
+        assert_eq!(app.id, 4242);
+        assert_eq!(app.read_only, Some(false));
         assert_eq!(root.sent_name(call), Some(f::named("app")));
         let mut expected = skein_lib::Writer::new(pem.len().checked_add(4096 - PASTED_PAYLOAD).expect("bundle length"));
         expected.put(&[0, 1, 0, 0, 0, 1, 10]).expect("header");
@@ -90,8 +91,8 @@ fn read_only_connect_carries_the_hook_policy_for_new_and_kept_forges() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(words, Some(Secret::new(PEM.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::How::GithubApp(app) = connect.how() else { panic!("pasted App") };
-        assert_eq!(*app.read_only(), Some(true));
+        let w::How::GithubApp(app) = &connect.how else { panic!("pasted App") };
+        assert_eq!(app.read_only, Some(true));
         root.adoption_answer(call, w::Outcome::Connecting);
         let printed = root.answer(call).expect("connecting");
         assert_eq!(printed.status, 0);
@@ -117,8 +118,8 @@ fn install_sends_no_back_or_value_and_accepts_an_optional_key() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(words);
         let w::Request::Install(install) = request(&root, call) else { panic!("install") };
-        assert_eq!(install.forge(), 3);
-        assert!(install.back().is_none());
+        assert_eq!(install.forge, 3);
+        assert!(install.back.is_none());
         assert!(root.carried.is_empty());
         if words.len() > INSTALL.len() {
             assert_eq!(root.sent_name(call), Some(f::named("install")));
@@ -171,11 +172,11 @@ fn every_forge_refusal_prints_words_json_and_exit_two() {
                     None
                 };
                 let call = root.submit_prepared(f::call(words), json, value);
-                let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+
                 root.adoption_answer(
                     call,
                     w::Outcome::ConnectRefused(
-                        w::ConnectRefused::new(&limits, w::ConnectRefusedParts { why: why.clone() }).expect("refusal"),
+                        w::ConnectRefused { why: why.clone() },
                     ),
                 );
                 let printed = root.answer(call).expect("refused");
@@ -280,9 +281,9 @@ fn manifest_connect_sends_no_back_or_carried_value() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(MANIFEST);
     let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-    assert_eq!(connect.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
-    let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
-    assert_eq!(manifest.back(), &None);
+    assert_eq!(&connect.forge, &w::Making::Kept(w::Kept { forge: 3 }));
+    let w::How::GithubManifest(manifest) = &connect.how else { panic!("manifest") };
+    assert_eq!(&manifest.back, &None);
     assert!(root.carried.is_empty());
     assert_eq!(root.sent_name(call), Some(f::named("app")));
     assert!(root.saved.contains_key(&call));
@@ -305,8 +306,8 @@ fn admin_connect_carries_item_one_with_the_file_bytes_unchanged() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(ADMIN, Some(Secret::new(token.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
-        assert!(admin.first().is_none());
+        let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin") };
+        assert!(admin.first.is_none());
         let mut expected = skein_lib::Writer::new(token.len() + (4096 - PASTED_PAYLOAD));
         expected.put(&[0, 1, 0, 0, 0, 1, 0]).unwrap();
         expected.put(&u32::try_from(token.len()).expect("bounded token").to_be_bytes()).unwrap();
@@ -343,11 +344,11 @@ fn admin_first_repository_sends_labels_with_local_project_arguments() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
-        let first = admin.first().as_ref().expect("first repository");
-        assert_eq!(first.org(), b"work");
-        assert_eq!(first.repository(), b"hello");
-        assert_eq!(first.label(), label);
+        let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin") };
+        let first = admin.first.as_ref().expect("first repository");
+        assert_eq!(first.org.as_ref(), b"work");
+        assert_eq!(first.repository.as_ref(), b"hello");
+        assert_eq!(first.label.as_ref(), label);
         root.adoption_answer(call, w::Outcome::Connecting);
         assert!(root.answer(call).is_none(), "waits for creation and adoption");
         assert_eq!(root.progress.as_slice(), &[Box::<[u8]>::from(b"connecting\n".as_slice())]);
@@ -361,8 +362,8 @@ fn admin_first_repository_sends_the_same_fields_with_existing_project_arguments(
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
-        assert_eq!(admin.first().as_ref().expect("first").repository(), b"hello");
+        let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin") };
+        assert_eq!(admin.first.as_ref().expect("first").repository.as_ref(), b"hello");
     }
 }
 #[test]
@@ -417,23 +418,17 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
 }
 
 fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstState, stop: Option<w::AdminStop>) {
-    let l = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
-    let first = w::FirstRepository::new(
-        &l,
-        w::FirstRepositoryParts {
+
+    let first = w::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             label: b"docker".as_slice().into(),
             state,
-        },
-    )
-    .unwrap();
+        };
     let mut rows = skein_lib::List::with_capacity(1);
     rows.push(
-        w::ForgeRow::new(
-            &l,
-            w::ForgeRowParts {
+        w::ForgeRow {
                 starts_with: w::StartsWith::Repository,
                 makings: skein_lib::List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -453,8 +448,6 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
                 read_only: false,
                 ended_stop: stop,
             },
-        )
-        .unwrap(),
     )
     .unwrap();
     let subject = temper_client_domain_forge::forge::forges::watch(&root.limits.domain.forge).unwrap();
@@ -465,18 +458,17 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&l, w::ForgesParts { forges: rows, linked: false }).unwrap()),
+                bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
             },
         },
     });
 }
 fn made() -> w::FirstState {
-    w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap())
+    w::FirstState::Made(w::Made { id: 42 })
 }
 fn connected() -> w::Connection {
     w::Connection::Connected(
-        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 5, login: b"elsewhere-bot".as_slice().into() })
-            .unwrap(),
+        w::Connected { id: 5, login: b"elsewhere-bot".as_slice().into() },
     )
 }
 #[test]
@@ -597,15 +589,13 @@ fn admin_first_stop_and_failed_create_exit_one_without_the_token() {
             (
                 made(),
                 Some(w::AdminStop::Refused(
-                    w::AdminRefused::new(&w::CEILINGS, w::AdminRefusedParts { status: 403, stage: w::SetupStage::Org })
-                        .unwrap(),
+                    w::AdminRefused { status: 403, stage: w::SetupStage::Org },
                 )),
                 b"403 at organization",
             ),
             (
                 w::FirstState::Failed(
-                    w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository })
-                        .unwrap(),
+                    w::CreateFailed { step: w::CreateStep::Repository },
                 ),
                 None,
                 b"making the repository",
@@ -632,13 +622,13 @@ fn admin_first_refused_as_the_bot_s_login_exits_two_naming_the_remedy() {
         let words = f::extended(ADMIN, &["--first", "temper-bot/hello"]);
         let call = root.submit_prepared(f::call(words.as_slice()), json, Some(Secret::new(TOKEN.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin connect") };
-        assert_eq!(admin.first().as_ref().unwrap().org(), b"temper-bot");
-        let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
+        let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin connect") };
+        assert_eq!(admin.first.as_ref().unwrap().org.as_ref(), b"temper-bot");
+
         root.adoption_answer(
             call,
             w::Outcome::ConnectRefused(
-                w::ConnectRefused::new(&limits, w::ConnectRefusedParts { why: w::ForgeRefusal::FirstIsBot }).unwrap(),
+                w::ConnectRefused { why: w::ForgeRefusal::FirstIsBot },
             ),
         );
         let printed = root.answer(call).unwrap();
@@ -665,14 +655,13 @@ fn accept_sends_the_existing_id_without_a_value_and_prints_its_next_call() {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(words), json, None);
             let w::Request::Accept(accept) = request(&root, call) else { panic!("accept") };
-            assert_eq!((accept.forge(), accept.installation()), (3, 22));
+            assert_eq!((accept.forge, accept.installation), (3, 22));
             assert!(root.carried.is_empty());
-            let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+
             root.adoption_answer(
                 call,
                 w::Outcome::Accepted(
-                    w::AcceptedInstallation::new(&limits, w::AcceptedInstallationParts { installation: 22 })
-                        .expect("accepted"),
+                    w::AcceptedInstallation { installation: 22 },
                 ),
             );
             let printed = root.answer(call).expect("accepted");
@@ -728,11 +717,11 @@ fn a_stopped_accept_prints_its_reason_and_keeps_the_json_reason() {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(ACCEPT), json, None);
-            let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+
             root.adoption_answer(
                 call,
                 w::Outcome::ForgeRefused(
-                    w::ForgeRefused::new(&limits, w::ForgeRefusedParts { reason: why.clone() }).expect("refusal"),
+                    w::ForgeRefused { reason: why.clone() },
                 ),
             );
             let printed = root.answer(call).expect("refused");
@@ -759,12 +748,11 @@ fn an_accept_recovers_its_durable_answer_with_its_own_operation_name() {
         record.request.request = root.adoption_bytes(call).clone();
         let mut root = f::started_with(records, f::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
-        let limits = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).expect("limits");
+
         root.adoption_answer(
             0,
             w::Outcome::Accepted(
-                w::AcceptedInstallation::new(&limits, w::AcceptedInstallationParts { installation: 22 })
-                    .expect("accepted"),
+                w::AcceptedInstallation { installation: 22 },
             ),
         );
         let expected = if json {
@@ -815,16 +803,16 @@ fn forge_connect_admin_with_an_api_sends_a_new_managed_forge() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(words.as_slice(), Some(Secret::new(TOKEN.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::Making::New(new) = connect.forge() else { panic!("new forge") };
-        let w::ForgeAsk::Managed(managed) = new.forge() else { panic!("managed forge") };
-        assert_eq!(managed.host(), b"forge.invalid");
-        assert_eq!(managed.port(), 3000);
-        assert_eq!(managed.git_program().as_deref(), optional.then_some(b"/data/bin/git".as_slice()));
-        assert_eq!(managed.git(), b"https://forge.invalid/git");
-        assert_eq!(managed.tls().as_deref(), optional.then_some(b"forge.invalid".as_slice()));
-        assert_eq!(managed.web().as_deref(), optional.then_some(b"https://forge.invalid".as_slice()));
-        let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
-        assert_eq!(admin.first().is_some(), optional);
+        let w::Making::New(new) = &connect.forge else { panic!("new forge") };
+        let w::ForgeAsk::Managed(managed) = &new.forge else { panic!("managed forge") };
+        assert_eq!(managed.host.as_ref(), b"forge.invalid");
+        assert_eq!(managed.port, 3000);
+        assert_eq!(managed.git_program.as_deref(), optional.then_some(b"/data/bin/git".as_slice()));
+        assert_eq!(managed.git.as_ref(), b"https://forge.invalid/git");
+        assert_eq!(managed.tls.as_deref(), optional.then_some(b"forge.invalid".as_slice()));
+        assert_eq!(managed.web.as_deref(), optional.then_some(b"https://forge.invalid".as_slice()));
+        let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin") };
+        assert_eq!(admin.first.is_some(), optional);
     }
 }
 #[test]
@@ -837,10 +825,10 @@ fn github_forms_without_a_number_send_a_new_github_forge() {
         let value = if words.contains(&"github-app") { Some(Secret::new(PEM.into())) } else { None };
         let call = root.submit_value(words, value);
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        let w::Making::New(new) = connect.forge() else { panic!("new forge") };
-        assert_eq!(new.forge(), &w::ForgeAsk::Github);
-        match connect.how() {
-            w::How::GithubApp(app) => assert_eq!(app.id(), 4242),
+        let w::Making::New(new) = &connect.forge else { panic!("new forge") };
+        assert_eq!(&new.forge, &w::ForgeAsk::Github);
+        match &connect.how {
+            w::How::GithubApp(app) => assert_eq!(app.id, 4242),
             w::How::GithubManifest(_) => assert!(words.contains(&"github")),
             other @ (w::How::ForgejoAdmin(_) | w::How::ForgejoTokens(_)) => panic!("unexpected {other:?}"),
         }
@@ -969,17 +957,17 @@ fn tokens_connect_carries_the_items_for_kept_and_new_connected_forges() {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(words), json, Some(Secret::new(file.clone())));
             let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-            let w::How::ForgejoTokens(_) = connect.how() else { panic!("tokens connect") };
-            match connect.forge() {
-                w::Making::Kept(kept) => assert_eq!(kept.forge(), 3),
+            let w::How::ForgejoTokens(_) = &connect.how else { panic!("tokens connect") };
+            match &connect.forge {
+                w::Making::Kept(kept) => assert_eq!(kept.forge, 3),
                 w::Making::New(new) => {
-                    let w::ForgeAsk::Connected(forge) = new.forge() else { panic!("connected forge") };
-                    assert_eq!(forge.host(), b"forge.invalid");
-                    assert_eq!(forge.port(), 3000);
-                    assert_eq!(forge.git(), b"https://forge.invalid/git");
-                    assert!(forge.tls().is_none());
-                    assert!(forge.web().is_none());
-                    assert!(forge.git_program().is_none());
+                    let w::ForgeAsk::Connected(forge) = &new.forge else { panic!("connected forge") };
+                    assert_eq!(forge.host.as_ref(), b"forge.invalid");
+                    assert_eq!(forge.port, 3000);
+                    assert_eq!(forge.git.as_ref(), b"https://forge.invalid/git");
+                    assert!(forge.tls.is_none());
+                    assert!(forge.web.is_none());
+                    assert!(forge.git_program.is_none());
                 }
             }
             assert!(root.carried[&call].expose() == expected.expose());
@@ -1011,11 +999,11 @@ fn new_tokens_connect_preserves_optional_addresses_and_git_program() {
     );
     let call = root.submit_value(words.as_slice(), Some(Secret::new(tokens_file(&token_items()))));
     let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-    let w::Making::New(new) = connect.forge() else { panic!("new forge") };
-    let w::ForgeAsk::Connected(forge) = new.forge() else { panic!("connected forge") };
-    assert_eq!(forge.tls().as_deref(), Some(b"forge.invalid".as_slice()));
-    assert_eq!(forge.web().as_deref(), Some(b"https://forge.invalid".as_slice()));
-    assert_eq!(forge.git_program().as_deref(), Some(b"/data/bin/git".as_slice()));
+    let w::Making::New(new) = &connect.forge else { panic!("new forge") };
+    let w::ForgeAsk::Connected(forge) = &new.forge else { panic!("connected forge") };
+    assert_eq!(forge.tls.as_deref(), Some(b"forge.invalid".as_slice()));
+    assert_eq!(forge.web.as_deref(), Some(b"https://forge.invalid".as_slice()));
+    assert_eq!(forge.git_program.as_deref(), Some(b"/data/bin/git".as_slice()));
 }
 #[test]
 fn broken_tokens_files_send_nothing_and_name_the_line_without_values() {
@@ -1088,7 +1076,7 @@ fn replace_carries_one_key_or_the_given_tokens_then_prints_the_wait() {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(REPLACE), json, Some(Secret::new(file.into())));
             let w::Request::Replace(replace) = request(&root, call) else { panic!("replace") };
-            assert_eq!(replace.forge(), 3);
+            assert_eq!(replace.forge, 3);
             assert!(root.carried[&call].expose() == expected.expose());
             assert!(root.saved.is_empty());
             assert!(root.answer(call).is_none());
@@ -1130,11 +1118,11 @@ fn tokens_connect_and_replace_print_engine_refusals_with_exit_two() {
                 let items = token_items();
                 let mut root = f::signed_in(f::PARTY);
                 let call = root.submit_prepared(f::call(words), json, Some(Secret::new(tokens_file(&items))));
-                let bounds = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
+
                 root.adoption_answer(
                     call,
                     w::Outcome::ConnectRefused(
-                        w::ConnectRefused::new(&bounds, w::ConnectRefusedParts { why: why.clone() }).unwrap(),
+                        w::ConnectRefused { why: why.clone() },
                     ),
                 );
                 let printed = root.answer(call).unwrap();

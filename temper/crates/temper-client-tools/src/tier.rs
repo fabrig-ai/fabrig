@@ -1,4 +1,5 @@
 //! A person's tier controls (temper/docs/design/client/ctl/tools.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -95,19 +96,18 @@ fn prepare(call: &Call, project: u32) -> Option<w::TierActRequest> {
         let Some(Value::Text(owner)) = value(call, 1) else { return None };
         let Some(Value::Text(name)) = value(call, 2) else { return None };
         Some(
-            w::DraftRepository::new(&w::CEILINGS, w::DraftRepositoryParts { owner: owner.clone(), name: name.clone() })
-                .ok()?,
+            w::DraftRepository { owner: owner.clone(), name: name.clone() },
         )
     };
     let Some(Value::Text(tier)) = value(call, 3) else { return None };
     let name = crate::table::TOOLS.get(usize::from(call.tool))?.name;
     let act = if name == HOLD.name {
         let Some(Value::Text(reason)) = value(call, 4) else { return None };
-        w::TierAct::Hold(w::TierHoldAct::new(&w::CEILINGS, w::TierHoldActParts { reason: reason.clone() }).ok()?)
+        w::TierAct::Hold(w::TierHoldAct { reason: reason.clone() })
     } else {
         w::TierAct::Release
     };
-    w::TierActRequest::new(&w::CEILINGS, w::TierActRequestParts { project, repository, tier: tier.clone(), act }).ok()
+    { let value = w::TierActRequest { project, repository, tier: tier.clone(), act }; value.measure(&w::CEILINGS).ok()?; Some(value) }
 }
 fn send(state: &mut Tiers, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     let me = crate::forge::me(client).expect("live me");
@@ -144,7 +144,7 @@ fn restored(request: &Ask) -> bool {
         return false;
     }
     let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
-    match request.into_parts().request {
+    match request.request {
         w::Request::TierAct(_) => true,
         w::Request::OpenChange(_)
         | w::Request::FollowAct(_)
@@ -184,11 +184,11 @@ pub(crate) fn told(state: &mut Tiers, env: &Env<Limits>, told: &Told, out: &mut 
         Told::Answered { key, outcome } => {
             let Some(pending) = state.pending.remove(key) else { return };
             let request = decoded(&pending.request).expect("tier request");
-            if request.repository().is_none() && has_tier_answer(outcome) {
+            if request.repository.is_none() && has_tier_answer(outcome) {
                 state.next_read = state.next_read.checked_add(1).expect("tier home read sequence");
                 let handle = Handle { asker: Owner::Forge.asker(), number: (state.next_read << 32) | 0x74 };
                 out.push(Out::Client {
-                    event: Event::Read { handle, read: Readable::Jig(c::Read::Project { project: request.project() }) },
+                    event: Event::Read { handle, read: Readable::Jig(c::Read::Project { project: request.project }) },
                 });
                 state.reading.insert(handle, (pending, outcome.clone()));
             } else {
@@ -214,7 +214,7 @@ fn has_tier_answer(outcome: &Outcome) -> bool {
         return false;
     }
     let Some(answer) = decode_answer(&record.bytes) else { return false };
-    let w::Outcome::Tier(_) = answer.into_parts().outcome else { return false };
+    let w::Outcome::Tier(_) = answer.outcome else { return false };
     true
 }
 fn home(result: &Readout) -> Option<w::DraftRepository> {
@@ -228,11 +228,7 @@ fn home(result: &Readout) -> Option<w::DraftRepository> {
                 if let [prefix, _host, owner, name] = path.as_slice()
                     && prefix.as_ref() == b"forge"
                 {
-                    return w::DraftRepository::new(
-                        &w::CEILINGS,
-                        w::DraftRepositoryParts { owner: owner.clone(), name: name.clone() },
-                    )
-                    .ok();
+                    return { let value = w::DraftRepository { owner: owner.clone(), name: name.clone() }; value.measure(&w::CEILINGS).ok()?; Some(value) };
                 }
             }
             c::PartKey::Number(_) => {}
@@ -260,7 +256,7 @@ fn finish(
 }
 fn decoded(request: &Ask) -> Option<w::TierActRequest> {
     let Ask::Family { record, .. } = request else { return None };
-    let w::Request::TierAct(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)?.into_parts().request
+    let w::Request::TierAct(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)?.request
     else {
         return None;
     };
@@ -272,19 +268,19 @@ fn words(
     refusal: Option<&w::TierRefusal>,
     out: &mut Text,
 ) {
-    let repository = request.repository().as_ref().or(home);
+    let repository = request.repository.as_ref().or(home);
     let mut measure = Text::measure();
-    repository_words(repository, request.project(), &mut measure);
+    repository_words(repository, request.project, &mut measure);
     let mut repo = Text::writing_exact(measure);
-    repository_words(repository, request.project(), &mut repo);
+    repository_words(repository, request.project, &mut repo);
     let repo = repo.finish();
     match refusal {
         None => {
-            out.put(match request.act() {
+            out.put(match &request.act {
                 w::TierAct::Hold(_) => b"held: ",
                 w::TierAct::Release => b"released: ",
             });
-            out.put(request.tier());
+            out.put(&request.tier);
             out.put(b" of ");
             out.put(&repo);
         }
@@ -294,21 +290,21 @@ fn words(
         }
         Some(w::TierRefusal::NoTier) => {
             out.put(b"no tier ");
-            out.put(request.tier());
+            out.put(&request.tier);
             out.put(b" on ");
             out.put(&repo);
         }
         Some(w::TierRefusal::Held(held)) => {
-            out.put(request.tier());
+            out.put(&request.tier);
             out.put(b" of ");
             out.put(&repo);
             out.put(b" is held already by party ");
-            out.number(held.party());
+            out.number(held.party);
             out.put(b": ");
-            out.put(held.reason());
+            out.put(&held.reason);
         }
         Some(w::TierRefusal::NotHeld) => {
-            out.put(request.tier());
+            out.put(&request.tier);
             out.put(b" of ");
             out.put(&repo);
             out.put(b" is not held");
@@ -318,9 +314,9 @@ fn words(
 }
 fn repository_words(repository: Option<&w::DraftRepository>, project: u32, out: &mut Text) {
     if let Some(repository) = repository {
-        out.put(repository.owner());
+        out.put(&repository.owner);
         out.put(b"/");
-        out.put(repository.name());
+        out.put(&repository.name);
     } else {
         out.put(b"project ");
         out.number(u64::from(project));
@@ -338,15 +334,15 @@ fn print(
         if record.family == wire::FORGE
             && record.version == wire::CLIENT_VERSION
             && let Some(answer) = decode_answer(&record.bytes)
-            && let w::Outcome::Tier(answer) = answer.into_parts().outcome
+            && let w::Outcome::Tier(answer) = answer.outcome
         {
             let request = decoded(request).expect("tier request");
             let mut measure = Text::measure();
-            words(&request, home, answer.refusal().as_ref(), &mut measure);
+            words(&request, home, answer.refusal.as_ref(), &mut measure);
             let mut out = Text::writing_exact(measure);
-            words(&request, home, answer.refusal().as_ref(), &mut out);
+            words(&request, home, answer.refusal.as_ref(), &mut out);
             let bytes = out.finish();
-            if answer.refusal().is_some() {
+            if answer.refusal.is_some() {
                 return render::failure(&bytes, json, 2);
             }
             return jig::Printed {

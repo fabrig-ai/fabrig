@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use crate::pages::work::{self, Belongs, Card, Change, Chat, Facts, Filters, Goal, Item, Landing, Where};
 use skein_lib::{List, Set, Wall};
 
@@ -641,7 +642,7 @@ impl Fixture {
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
         let panel =
-            w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: list(rows) }).unwrap();
+            w::DraftsPanel { project: f::PROJECT, drafts: list(rows) };
         self.up(Up::FamilyDelivered {
             watch: self.drafts,
             record: jig_client::Family {
@@ -656,9 +657,7 @@ impl Fixture {
         for task in 11..=14 {
             queued
                 .push(
-                    w::ChangesQueued::new(
-                        &w::CEILINGS,
-                        w::ChangesQueuedParts {
+                    w::ChangesQueued {
                             goal: if task == 11 { Some(origin(1)) } else { None },
                             chat: if task == 12 { Some(origin(3)) } else { None },
                             milestone: None,
@@ -667,34 +666,24 @@ impl Fixture {
                             ready_since: wall(40).as_nanos(),
                             checks_since: None,
                         },
-                    )
-                    .unwrap(),
                 )
                 .unwrap();
         }
-        let panel = w::ChangesPanel::new(
-            &w::CEILINGS,
-            w::ChangesPanelParts {
+        let panel = w::ChangesPanel {
                 landed_default: List::with_capacity(0),
                 landed_default_more: 0,
                 project: f::PROJECT,
                 landing: b"main".as_slice().into(),
-                queues: list(&[w::ChangesQueue::new(
-                    &w::CEILINGS,
-                    w::ChangesQueueParts {
+                queues: list(&[w::ChangesQueue {
                         way: w::Way::Queue,
                         in_flight: None,
                         repository: b"owner/repo".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: false,
                         changes: queued,
-                    },
-                )
-                .unwrap()]),
+                    }]),
                 more: 0,
-                landed: list(&[w::ChangesLanded::new(
-                    &w::CEILINGS,
-                    w::ChangesLandedParts {
+                landed: list(&[w::ChangesLanded {
                         goal: Some(origin(1)),
                         chat: None,
                         milestone: None,
@@ -704,13 +693,9 @@ impl Fixture {
                         task: 15,
                         title: b"Landed".as_slice().into(),
                         at: wall(NOW).as_nanos(),
-                    },
-                )
-                .unwrap()]),
+                    }]),
                 landed_more: 0,
-            },
-        )
-        .unwrap();
+            };
         self.up(Up::FamilyDelivered {
             watch: self.changes,
             record: jig_client::Family {
@@ -813,8 +798,8 @@ fn only_read_hidden_settings_override_filters() {
                 request:
                     jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
             } = request
-                && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                && setting.kind() == 7
+                && let w::Read::Setting(setting) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+                && setting.kind == 7
             {
                 kind7 = Some(*read);
             }
@@ -824,18 +809,13 @@ fn only_read_hidden_settings_override_filters() {
                 None => Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)),
                 Some([goals, changes]) => {
                     let ways =
-                        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts: true, goals, changes, way: 0 })
-                            .unwrap();
-                    let mut bytes = Writer::new(usize::try_from(ways.measure()).unwrap());
-                    ways.encode(&mut bytes).unwrap();
+                        w::ProjectWays { drafts: true, goals, changes, way: 0 };
+                    let mut bytes = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).unwrap();
                     Readout::Family {
                         family: wire::FORGE,
                         record: Some(wire::setting_answer(
-                            &w::SettingAnswer::new(
-                                &w::CEILINGS,
-                                w::SettingAnswerParts { revision: None, value: Some(bytes.finish()) },
-                            )
-                            .unwrap(),
+                            &w::SettingAnswer { revision: None, value: Some(bytes.finish()) },
                         )),
                     }
                 }
@@ -860,9 +840,7 @@ fn work_limits() -> crate::Limits {
 }
 
 fn draft(path: &[u8], ready: bool, goal: Option<u64>, at: u64) -> w::LandedDraft {
-    w::LandedDraft::new(
-        &w::CEILINGS,
-        w::LandedDraftParts {
+    w::LandedDraft {
             forge: 1,
             owner: b"owner".as_slice().into(),
             name: b"repo".as_slice().into(),
@@ -875,9 +853,7 @@ fn draft(path: &[u8], ready: bool, goal: Option<u64>, at: u64) -> w::LandedDraft
             chat: Some(8),
             goal,
             ready,
-        },
-    )
-    .unwrap()
+        }
 }
 #[test]
 fn landed_drafts_place_only_when_listed_and_mix_newest_first_with_chats() {
@@ -1172,19 +1148,15 @@ fn facts_name_signers_from_rows_independently_of_the_rails_project_read() {
         let mut fixture = Fixture::new();
         fixture.lists();
         fixture.drafts(&[]);
-        let mut panel = fixture.panel().into_parts();
-        let mut row = panel.landed.get(0).unwrap().clone().into_parts();
+        let mut panel = fixture.panel();
+        let mut row = panel.landed.get(0).unwrap().clone();
         row.goal = Some(origin(1));
         row.milestone = Some(origin(100));
-        row.signed = list(&[w::ChangesSigned::new(
-            &w::CEILINGS,
-            w::ChangesSignedParts { name: Some(b"Sam".as_slice().into()), party: 5, head: [1; 32], at: 0 },
-        )
-        .unwrap()]);
-        let row = w::ChangesLanded::new(&w::CEILINGS, row).unwrap();
+        row.signed = list(&[w::ChangesSigned { name: Some(b"Sam".as_slice().into()), party: 5, head: [1; 32], at: 0 }]);
+        let row = row;
         panel.landed = list(core::slice::from_ref(&row));
         panel.landed_default = list(&[row]);
-        let panel = w::ChangesPanel::new(&w::CEILINGS, panel).unwrap();
+        let panel = panel;
         fixture.up(Up::FamilyDelivered {
             watch: fixture.changes,
             record: jig_client::Family {
@@ -1232,12 +1204,10 @@ fn facts_name_signers_from_rows_independently_of_the_rails_project_read() {
 }
 
 fn origin(task: u64) -> w::ChangeFrom {
-    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: b"Store shape".as_slice().into() }).unwrap()
+    w::ChangeFrom { task, title: b"Store shape".as_slice().into() }
 }
 fn signer(party: u64, name: Option<&[u8]>) -> w::ChangesSigned {
-    w::ChangesSigned::new(
-        &w::CEILINGS,
-        w::ChangesSignedParts {
+    w::ChangesSigned {
             party,
             name: match name {
                 Some(name) => Some(name.into()),
@@ -1245,9 +1215,7 @@ fn signer(party: u64, name: Option<&[u8]>) -> w::ChangesSigned {
             },
             head: [1; 32],
             at: 0,
-        },
-    )
-    .unwrap()
+        }
 }
 
 #[test]
@@ -1293,9 +1261,7 @@ fn busy_live_goals_use_the_same_milestone_as_goals_groups() {
     let mut milestone = super::goals::line(100, wall(10));
     milestone.parts = list(&[temper_fixtures::milestones::part(
         None,
-        w::MilestoneTotals::new(
-            &w::CEILINGS,
-            w::MilestoneTotalsParts {
+        w::MilestoneTotals {
                 task: 100,
                 done: 0,
                 failed: 0,
@@ -1305,8 +1271,6 @@ fn busy_live_goals_use_the_same_milestone_as_goals_groups() {
                 last_landing: None,
                 spent: 0,
             },
-        )
-        .unwrap(),
         &[(child.clone(), None)],
         0,
     )]);

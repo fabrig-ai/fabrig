@@ -98,14 +98,10 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
     let mut agents = crate::stock::agents().into_parts();
     for figure in agents.profile.iter_mut() {
         if figure.name() == b"declared.tool_payload" {
-            *figure = w::AgentFigure::new(
-                &w::CEILINGS,
-                w::AgentFigureParts { name: b"declared.tool_payload".as_slice().into(), value: 8192 },
-            )
-            .unwrap();
+            *figure = w::AgentFigure { name: b"declared.tool_payload".as_slice().into(), value: 8192 };
         }
     }
-    let agents = w::AgentFigures::new(&w::CEILINGS, agents).unwrap();
+    let agents = agents;
     let declaration = agent.declaration();
     let (mut jig, own) =
         crate::limits::base(40, 4096, temper_service_core::derived::Sources::agent(&declaration)).unwrap();

@@ -187,11 +187,7 @@ fn no_project_reads_the_same_in_the_terminal() {
             } if wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read()
                 == &w::Read::Deployment =>
             {
-                let answer = w::DeploymentAnswer::new(
-                    &w::CEILINGS,
-                    w::DeploymentAnswerParts { push: None, welcome: false, owned: false, program_login: None },
-                )
-                .expect("deployment answer");
+                let answer = w::DeploymentAnswer { push: None, welcome: false, owned: false, program_login: None };
                 Some(jig_client::Up::ReadDone {
                     read,
                     result: jig_client::Readout::Family {

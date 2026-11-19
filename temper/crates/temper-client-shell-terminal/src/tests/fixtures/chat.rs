@@ -280,16 +280,12 @@ fn first_run_words(
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
                         record: Some(wire::deployment_answer(
-                            &w::DeploymentAnswer::new(
-                                &w::CEILINGS,
-                                w::DeploymentAnswerParts {
+                            &w::DeploymentAnswer {
                                     push: None,
                                     welcome: true,
                                     owned: true,
                                     program_login: None,
                                 },
-                            )
-                            .expect("deployment answer"),
                         )),
                     },
                 })
@@ -326,11 +322,7 @@ fn first_run_words(
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
                             record: Some(wire::setting_answer(
-                                &w::SettingAnswer::new(
-                                    &w::CEILINGS,
-                                    w::SettingAnswerParts { revision: None, value: None },
-                                )
-                                .unwrap(),
+                                &w::SettingAnswer { revision: None, value: None },
                             )),
                         },
                     })
@@ -393,15 +385,11 @@ fn first_run_words(
 fn settings_ways() -> Box<[u8]> {
     use skein_lib::List;
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
+    let card = w::Card {
             who: b"an agent".as_slice().into(),
             name: b"the reviewer".as_slice().into(),
             facts: List::with_capacity(0),
-        },
-    )
-    .unwrap();
+        };
     let stops = [
         (w::Actor::Person, w::PathStep::Ask, "you ask"),
         (w::Actor::Agent, w::PathStep::Produce, "produce"),
@@ -410,9 +398,7 @@ fn settings_ways() -> Box<[u8]> {
     ]
     .into_iter()
     .map(|(actor, step, words)| {
-        w::Stop::new(
-            &w::CEILINGS,
-            w::StopParts {
+        w::Stop {
                 actor,
                 step,
                 words: words.as_bytes().into(),
@@ -420,20 +406,14 @@ fn settings_ways() -> Box<[u8]> {
                 over: Box::new([]),
                 opens: w::Opens::Nothing,
                 card: card.clone(),
-            },
-        )
-        .unwrap()
+            }
     })
     .collect();
-    let path = w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts {
+    let path = w::BranchPath {
             repository: Some(b"playground/widget".as_slice().into()),
             branch: b"main".as_slice().into(),
             stops: List::from_boxed(stops),
-        },
-    )
-    .unwrap();
+        };
     let ways = [
         ("You approve", "You approve every change", "You approve each change before code lands it."),
         (
@@ -445,9 +425,7 @@ fn settings_ways() -> Box<[u8]> {
     ]
     .into_iter()
     .map(|(name, headline, line)| {
-        w::StockWay::new(
-            &w::CEILINGS,
-            w::StockWayParts {
+        w::StockWay {
                 name: name.as_bytes().into(),
                 headline: headline.as_bytes().into(),
                 line: line.as_bytes().into(),
@@ -455,29 +433,19 @@ fn settings_ways() -> Box<[u8]> {
                 items: List::with_capacity(0),
                 delegation: false,
                 roles: List::with_capacity(0),
-            },
-        )
-        .unwrap()
+            }
     })
     .collect();
     wire::ways_panel(
-        &w::WaysPanel::new(
-            &w::CEILINGS,
-            w::WaysPanelParts {
+        &w::WaysPanel {
                 project: 1,
                 ways: List::from_boxed(ways),
                 current: Some(1),
                 own: path,
                 words: None,
                 may_change: true,
-                rules: w::PathRules::new(
-                    &w::CEILINGS,
-                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-                )
-                .unwrap(),
+                rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
             },
-        )
-        .unwrap(),
     )
 }
 
@@ -633,9 +601,7 @@ fn demo_answer() -> Box<[u8]> {
         cues.push(cue.into()).expect("three demo cues");
     }
     wire::playground_answer(
-        &w::PlaygroundAnswer::new(
-            &wire_limits(),
-            w::PlaygroundAnswerParts {
+        &w::PlaygroundAnswer {
                 state: w::PlaygroundState::Running,
                 project: Some(1),
                 forge: 1,
@@ -644,8 +610,6 @@ fn demo_answer() -> Box<[u8]> {
                 name: b"widget".as_slice().into(),
                 cues,
             },
-        )
-        .expect("demo answer fits"),
     )
 }
 
@@ -655,9 +619,7 @@ fn demo_forges() -> Box<[u8]> {
     let mut forges = skein_lib::List::with_capacity(1);
     forges
         .push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
+            w::ForgeRow {
                     starts_with: w::StartsWith::Repository,
                     makings: skein_lib::List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
@@ -665,8 +627,7 @@ fn demo_forges() -> Box<[u8]> {
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
                     connection: w::Connection::Connected(
-                        w::Connected::new(&limits, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                            .expect("demo account"),
+                        w::Connected { id: 1, login: b"temper".as_slice().into() },
                     ),
                     offer: w::Offer::NotOffered,
                     first: None,
@@ -680,11 +641,9 @@ fn demo_forges() -> Box<[u8]> {
                     read_only: false,
                     ended_stop: None,
                 },
-            )
-            .expect("demo forge"),
         )
         .expect("one demo forge");
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).expect("demo forges"))
+    wire::forges(&w::Forges { forges, linked: false })
 }
 
 pub fn composer_over_page(words: &[u8]) -> skein_ui::Tree {

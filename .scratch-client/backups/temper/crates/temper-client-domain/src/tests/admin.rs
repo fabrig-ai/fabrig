@@ -1,0 +1,425 @@
+use super::{connect, fixtures as f};
+use crate::{
+    Choice, Event, Request,
+    forge::{self, admin::Field, connect::Shown},
+};
+use jig_client::{Down, Up, contract as c};
+use skein_lib::{List, Queue, Secret, Token};
+use temper_client_protocol_wire::{self as wire, v1 as w};
+const FORGE: u16 = 3;
+const TOKEN: &[u8] = b"admin-token-placeholder-0123";
+fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    crate::step(root, &f::env(&f::limits()), event, &mut out);
+    out
+}
+fn act(root: &mut crate::Domain, act: forge::Act) -> Queue<Request> {
+    event(root, Event::Forge(forge::Event::Act { act }))
+}
+fn token(root: &mut crate::Domain, bytes: &[u8]) {
+    event(root, Event::Forge(forge::Event::AdminToken { value: Secret::new(bytes.into()) }));
+}
+fn row(
+    admin: bool,
+    connection: w::Connection,
+    stop: Option<w::AdminStop>,
+    first: Option<w::FirstRepository>,
+) -> w::ForgeRow {
+    w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: FORGE,
+            kind: w::Kind::Forgejo,
+            mode: w::Mode::Managed,
+            connection,
+            offer: w::Offer::NotOffered,
+            first,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin,
+            read_only: false,
+            ended_stop: stop,
+        }
+}
+fn deliver(root: &mut crate::Domain, watch: Token, row: w::ForgeRow) -> Queue<Request> {
+    let mut rows = List::with_capacity(1);
+    rows.push(row).unwrap();
+    event(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::forges(
+                            &w::Forges { forges: rows, linked: false },
+                        ),
+                    },
+                },
+            },
+        },
+    )
+}
+fn opened() -> (crate::Domain, Token) {
+    let (mut root, _, watch) = connect::opened(true);
+    deliver(&mut root, watch, row(true, w::Connection::NotConnected, None, None));
+    (root, watch)
+}
+fn send(root: &mut crate::Domain) -> Queue<Request> {
+    act(root, forge::Act::ConnectAdmin { forge: FORGE })
+}
+fn write(root: &mut crate::Domain, field: Field, bytes: &[u8]) {
+    act(root, forge::Act::AdminWrite { field, text: bytes.into() });
+}
+#[test]
+fn empty_tokens_and_names_and_invalid_labels_send_nothing() {
+    let (mut root, _) = opened();
+    assert!(send(&mut root).is_empty());
+    assert!(root.forge().admin_form().checked);
+    for field in [Field::Organization, Field::Repository] {
+        let (mut root, _) = opened();
+        token(&mut root, TOKEN);
+        write(&mut root, field, b"");
+        assert!(send(&mut root).is_empty());
+    }
+    for label in [b"".as_slice(), b"a b", b"a/b", b"a:b", b"a\n", "é".as_bytes(), &[b'a'; 65]] {
+        let (mut root, _) = opened();
+        token(&mut root, TOKEN);
+        write(&mut root, Field::Label, label);
+        assert!(send(&mut root).is_empty());
+        assert!(!root.forge().admin_form().valid_label());
+    }
+}
+#[test]
+fn the_bundle_bound_includes_its_framing() {
+    for (bytes, accepted) in
+        [(&[b'x'; forge::forges::PASTED_PAYLOAD][..], true), (&[b'x'; forge::forges::PASTED_PAYLOAD + 1][..], false)]
+    {
+        let (mut root, _) = opened();
+        token(&mut root, bytes);
+        write(&mut root, Field::Label, &[b'a'; 64]);
+        assert_eq!(root.forge().admin_form().too_long, !accepted);
+        assert_eq!(send(&mut root).is_empty(), !accepted);
+    }
+}
+#[test]
+#[expect(clippy::disallowed_macros, reason = "capture Debug to check secret redaction")]
+fn the_token_is_secret_and_carried_once_with_the_first_ask() {
+    let (mut root, _) = opened();
+    write(&mut root, Field::Repository, b"widget");
+    assert_eq!(root.forge().admin_form().fields[1].as_ref(), b"widget");
+    write(&mut root, Field::Repository, b"app");
+    write(&mut root, Field::Organization, b"team");
+    write(&mut root, Field::Label, b"linux.arm_64-1");
+    let input = forge::Event::AdminToken { value: Secret::new(TOKEN.into()) };
+    assert!(skein_lib::bytes::find(format!("{input:?}").as_bytes(), TOKEN).is_none());
+    event(&mut root, Event::Forge(input));
+    assert!(skein_lib::bytes::find(format!("{root:?}").as_bytes(), TOKEN).is_none());
+    let mut out = send(&mut root);
+    let mut count = 0_u32;
+    while let Some(request) = out.pop() {
+        assert!(skein_lib::bytes::find(format!("{request:?}").as_bytes(), TOKEN).is_none());
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request, value: Some(value), .. } },
+        } = request
+        {
+            count += 1;
+            let mut expected = vec![0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 28];
+            expected.extend_from_slice(TOKEN);
+            assert_eq!(value.expose(), expected);
+            let jig_client::Ask::Family { record, .. } = request else { panic!("family") };
+            assert!(skein_lib::bytes::find(&record.bytes, TOKEN).is_none());
+            let w::Request::Connect(connect) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            else {
+                panic!("connect")
+            };
+            let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin") };
+            let first = admin.first.as_ref().unwrap();
+            assert_eq!(
+                (first.org(), first.repository(), first.label()),
+                (b"team".as_slice(), b"app".as_slice(), b"linux.arm_64-1".as_slice())
+            );
+        }
+    }
+    assert_eq!(count, 1);
+    assert!(!root.forge().admin_form().has_token());
+    assert!(send(&mut root).is_empty());
+}
+#[test]
+fn each_stop_returns_to_details_and_erases_only_the_token() {
+    for stop in [
+        w::AdminStop::NotAdmin,
+        w::AdminStop::Unmarked,
+        w::AdminStop::Other,
+        w::AdminStop::Refused(
+            w::AdminRefused { status: 401, stage: w::SetupStage::Admin },
+        ),
+        w::AdminStop::Refused(
+            w::AdminRefused { status: 403, stage: w::SetupStage::Bot },
+        ),
+    ] {
+        let (mut root, watch) = opened();
+        write(&mut root, Field::Organization, b"team");
+        write(&mut root, Field::Repository, b"widget");
+        write(&mut root, Field::Label, b"linux-arm");
+        token(&mut root, TOKEN);
+        deliver(&mut root, watch, row(true, w::Connection::NotConnected, Some(stop), None));
+        assert_eq!(
+            forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
+            Shown::Details(Choice::Forge(FORGE))
+        );
+        assert!(!root.forge().admin_form().has_token());
+        for (field, expected) in
+            [(Field::Organization, b"team".as_slice()), (Field::Repository, b"widget"), (Field::Label, b"linux-arm")]
+        {
+            assert_eq!(root.forge().admin_form().fields[field.index()].as_ref(), expected);
+        }
+    }
+}
+fn connected() -> w::Connection {
+    w::Connection::Connected(
+        w::Connected { id: 7, login: b"temper".as_slice().into() },
+    )
+}
+fn first() -> w::FirstRepository {
+    w::FirstRepository {
+            playground: false,
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            state: w::FirstState::Made(w::Made { id: 42 }),
+            label: b"docker".as_slice().into(),
+        }
+}
+#[test]
+fn connecting_then_ready_makes_no_project_and_adopts_nothing() {
+    let (mut root, watch) = opened();
+    token(&mut root, TOKEN);
+    send(&mut root);
+    deliver(&mut root, watch, row(true, w::Connection::Connecting, None, None));
+    assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true), Shown::SettingUp(FORGE));
+    let mut out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
+    let mut projects = 0_u32;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request: jig_client::UnlinkedRequest::Down { down: Down::Send { request: jig_client::Ask::Jig(ask), .. } },
+        } = request
+        {
+            let c::Ask::MakeProject { name, policy } = *ask else { panic!("MakeProject") };
+            assert_eq!(name.bytes(), b"hello");
+            assert_eq!(policy, 1);
+            projects += 1;
+        }
+    }
+    assert_eq!(projects, 0);
+    assert_eq!(forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true), Shown::Ready(FORGE));
+    assert!(deliver(&mut root, watch, row(true, connected(), None, Some(first()))).is_empty());
+}
+#[test]
+fn signing_out_erases_the_admin_draft() {
+    let (mut root, _) = opened();
+    token(&mut root, TOKEN);
+    write(&mut root, Field::Repository, b"widget");
+    event(&mut root, Event::SignedOut);
+    assert!(!root.forge().admin_form().has_token());
+    assert_eq!(root.forge().admin_form().fields[1].as_ref(), b"hello");
+}
+
+#[test]
+fn a_stop_before_its_acceptance_answer_allows_a_fresh_paste() {
+    let (mut root, watch) = opened();
+    write(&mut root, Field::Organization, b"team");
+    token(&mut root, TOKEN);
+    send(&mut root);
+    deliver(&mut root, watch, row(true, w::Connection::NotConnected, Some(w::AdminStop::NotAdmin), None));
+    token(&mut root, TOKEN);
+    assert!(root.forge().admin_form().has_token());
+    assert_eq!(root.forge().admin_form().fields[0].as_ref(), b"team");
+    assert!(!send(&mut root).is_empty());
+}
+#[test]
+fn create_stops_keep_the_fields_and_empty_the_token() {
+    for step in [w::CreateStep::Admin, w::CreateStep::Org, w::CreateStep::Repository, w::CreateStep::File] {
+        let (mut root, watch) = opened();
+        token(&mut root, TOKEN);
+        let mut parts = first();
+        parts.state = w::FirstState::Failed(w::CreateFailed { step });
+        deliver(
+            &mut root,
+            watch,
+            row(true, w::Connection::NotConnected, None, Some(parts)),
+        );
+        assert!(!root.forge().admin_form().has_token());
+        assert_eq!(
+            forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
+            Shown::Details(Choice::Forge(FORGE))
+        );
+        assert_eq!(root.forge().admin_form().fields[1].as_ref(), b"hello");
+    }
+}
+
+#[test]
+fn an_admin_connection_advances_only_the_named_welcome_forge() {
+    for welcome in [true, false] {
+        let (mut root, watch) = opened();
+        let address = if welcome {
+            crate::Address::Welcome { step: crate::Step::Forge { forge: Some(Choice::Forge(FORGE)) } }
+        } else {
+            crate::Address::ConnectForge { forge: Some(Choice::Forge(FORGE)) }
+        };
+        event(&mut root, Event::Went { place: crate::Place::Address(address) });
+        token(&mut root, TOKEN);
+        send(&mut root);
+        let out = deliver(&mut root, watch, row(true, connected(), None, Some(first())));
+        let mut moves = 0_u32;
+        for request in &out {
+            if let Request::Show { address, replace } = request {
+                assert_eq!(
+                    address,
+                    &if welcome {
+                        crate::Address::Welcome { step: crate::Step::Model { way: None } }
+                    } else {
+                        crate::Address::Forges
+                    }
+                );
+                assert!(*replace);
+                moves += 1;
+            }
+            if let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down: Down::Send { .. } } } =
+                request
+            {
+                panic!("connecting a forge sends no adoption or project request");
+            }
+        }
+        assert_eq!(moves, 1);
+    }
+}
+#[test]
+fn a_managed_forgejo_sends_connect_new_managed_with_its_place() {
+    let (mut root, _, _) = connect::opened(true);
+    token(&mut root, TOKEN);
+    let place = forge::forges::Managed {
+        host: b"forge.example".as_slice().into(),
+        port: 443,
+        tls: Some(b"forge.example".as_slice().into()),
+        git: b"https://forge.example/".as_slice().into(),
+        web: Some(b"https://forge.example".as_slice().into()),
+    };
+    let mut out = act(&mut root, forge::Act::Forges(forge::forges::Act::Managed { place: place.clone() }));
+    let mut found = false;
+    while let Some(request) = out.pop() {
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
+                },
+        } = request
+        {
+            let w::Request::Connect(connect) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            else {
+                panic!("connect")
+            };
+            let w::Making::New(new) = &connect.forge else { panic!("new") };
+            let w::ForgeAsk::Managed(managed) = &new.forge else { panic!("managed") };
+            assert_eq!(
+                (&managed.host, managed.port, &managed.tls, &managed.git, &managed.web),
+                (place.host.as_ref(), place.port, &place.tls, place.git.as_ref(), &place.web)
+            );
+            found = true;
+        }
+    }
+    assert!(found);
+}
+#[test]
+fn a_managed_place_requires_a_host_and_nonzero_port() {
+    for (host, port) in [(b"".as_slice(), 443), (b"forge.example".as_slice(), 0)] {
+        let (mut root, _, _) = connect::opened(true);
+        token(&mut root, TOKEN);
+        let place = forge::forges::Managed { host: host.into(), port, tls: None, git: Box::default(), web: None };
+        assert!(act(&mut root, forge::Act::Forges(forge::forges::Act::Managed { place })).is_empty());
+        assert!(root.forge().admin_form().has_token());
+    }
+}
+
+#[test]
+fn the_managed_address_draft_validates_ports_at_both_bounds() {
+    use forge::admin::PlaceField;
+    let (mut root, _, _) = connect::opened(true);
+    for (bytes, expected) in [
+        (b"0".as_slice(), None),
+        (b"1", Some(1)),
+        (b"65535", Some(u16::MAX)),
+        (b"65536", None),
+        (b"", None),
+        (b"-1", None),
+        (b" 443", None),
+    ] {
+        act(
+            &mut root,
+            forge::Act::Forges(forge::forges::Act::PlaceWrite { field: PlaceField::Port, text: bytes.into() }),
+        );
+        assert_eq!(root.forge().admin_form().place.port(), expected);
+    }
+    act(
+        &mut root,
+        forge::Act::Forges(forge::forges::Act::PlaceWrite { field: PlaceField::Port, text: b"443".as_slice().into() }),
+    );
+    assert!(root.forge().admin_form().place.place().is_none());
+    act(
+        &mut root,
+        forge::Act::Forges(forge::forges::Act::PlaceWrite {
+            field: PlaceField::Host,
+            text: b"forge.example".as_slice().into(),
+        }),
+    );
+    assert_eq!(root.forge().admin_form().place.place().unwrap().host.as_ref(), b"forge.example");
+}
+
+#[test]
+fn switching_connect_ways_keeps_each_draft_and_the_shared_address() {
+    use forge::admin::{PlaceField, Way};
+    let (mut root, _) = opened();
+    token(&mut root, TOKEN);
+    write(&mut root, Field::Organization, b"our-work");
+    write(&mut root, Field::Repository, b"our-repo");
+    write(&mut root, Field::Label, b"our-runner");
+    act(
+        &mut root,
+        forge::Act::Forges(forge::forges::Act::PlaceWrite {
+            field: PlaceField::Host,
+            text: b"https://forge.example".as_slice().into(),
+        }),
+    );
+    act(&mut root, forge::Act::AdminWay(Way::Tokens));
+    for field in [forge::tokens::Field::Api, forge::tokens::Field::Git, forge::tokens::Field::Webhook] {
+        event(
+            &mut root,
+            Event::Forge(forge::Event::ForgejoToken {
+                field,
+                value: Secret::new(b"bot-token-placeholder".as_slice().into()),
+            }),
+        );
+    }
+    act(&mut root, forge::Act::AdminWay(Way::Admin));
+    let draft = root.forge().admin_form();
+    assert_eq!(draft.way, Way::Admin);
+    assert!(draft.has_token());
+    assert_eq!(
+        draft.fields,
+        [Box::from(b"our-work".as_slice()), Box::from(b"our-repo".as_slice()), Box::from(b"our-runner".as_slice())]
+    );
+    act(&mut root, forge::Act::AdminWay(Way::Tokens));
+    assert_eq!(root.forge().admin_form().way, Way::Tokens);
+    assert_eq!(root.forge().admin_form().place.fields[PlaceField::Host.index()].as_ref(), b"https://forge.example");
+    for field in [forge::tokens::Field::Api, forge::tokens::Field::Git, forge::tokens::Field::Webhook] {
+        assert!(root.forge().tokens_form().has(field));
+    }
+}

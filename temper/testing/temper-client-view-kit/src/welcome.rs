@@ -10,23 +10,19 @@ pub fn model_address(kind: d::WayKind) -> Address {
 #[must_use]
 pub fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     let mut rows = forge::first_rows(forge::connected(), forge::made());
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.repositories = skein_lib::List::with_capacity(1);
     parts
         .repositories
         .push(
-            w::Adoption::new(
-                &w::CEILINGS,
-                w::AdoptionParts {
+            w::Adoption {
                     owner: b"work".as_slice().into(),
                     name: b"hello".as_slice().into(),
                     project: f::PROJECT,
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
-    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    *rows.get_mut(0).unwrap() = parts;
     rows
 }
 

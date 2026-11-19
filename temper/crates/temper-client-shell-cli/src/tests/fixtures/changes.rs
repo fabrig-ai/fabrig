@@ -16,10 +16,8 @@ impl Frame {
         frame
     }
     pub(super) fn deliver_change(&mut self) {
-        let used = f::Used::new(&f::CEILINGS, f::UsedParts { used: 0, limit: 3 }).expect("repair limit");
-        let panel = f::ChangePanel::new(
-            &f::CEILINGS,
-            f::ChangePanelParts {
+        let used = f::Used { used: 0, limit: 3 };
+        let panel = f::ChangePanel {
                 wait: None,
                 source: None,
                 way: f::Way::Queue,
@@ -43,18 +41,12 @@ impl Frame {
                 repairs: used.clone(),
                 resolutions: used.clone(),
                 updates: used,
-                questions: f::Questions::new(
-                    &f::CEILINGS,
-                    f::QuestionsParts {
+                questions: f::Questions {
                         route: f::Route::None,
-                        taken: f::Used::new(&f::CEILINGS, f::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                        taken: f::Used { used: 0, limit: 4 },
                         open: skein_lib::List::with_capacity(0),
                     },
-                )
-                .expect("no questions"),
-            },
-        )
-        .expect("held panel");
+            };
         let document = w::Owned::new(
             &w::CEILINGS,
             w::OwnedParts {

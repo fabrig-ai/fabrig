@@ -9,10 +9,9 @@ fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
     let refusal = jig::Refusal::NotWaiting;
     let mut writer = Writer::new(usize::try_from(refusal.measure()).expect("measured length"));
     refusal.encode(&mut writer).expect("measured room");
-    let carried = v1::CoreRefused::new(&v1::CEILINGS, v1::CoreRefusedParts { refusal: writer.finish() })
-        .expect("within the ceiling");
-    let parts = v1::AnswerParts { outcome: v1::Outcome::CoreRefused(carried) };
-    let answer = v1::Answer::new(&v1::CEILINGS, parts).expect("an answer");
+    let carried = v1::CoreRefused { refusal: writer.finish() };
+    let parts = v1::Answer { outcome: v1::Outcome::CoreRefused(carried) };
+    let answer = parts;
     let bytes = temper_client_protocol_wire::answer(&answer);
     let decoded = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).expect("decodes");
     let v1::Outcome::CoreRefused(kept) = decoded.into_parts().outcome else { panic!("a core refusal") };
@@ -47,17 +46,13 @@ fn current_request_answer_and_forges_goldens_round_trip() {
 }
 
 fn first(state: v1::FirstState) -> v1::FirstRepository {
-    v1::FirstRepository::new(
-        &v1::CEILINGS,
-        v1::FirstRepositoryParts {
+    v1::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,
             label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .expect("record within schema ceilings")
+        }
 }
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
@@ -68,28 +63,22 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
     for state in [
         v1::FirstState::Making,
         v1::FirstState::Made(
-            v1::Made::new(&v1::CEILINGS, v1::MadeParts { id: u64::MAX }).expect("record within schema ceilings"),
+            v1::Made { id: u64::MAX },
         ),
         v1::FirstState::Failed(
-            v1::CreateFailed::new(&v1::CEILINGS, v1::CreateFailedParts { step: v1::CreateStep::Admin })
-                .expect("record within schema ceilings"),
+            v1::CreateFailed { step: v1::CreateStep::Admin },
         ),
         v1::FirstState::Failed(
-            v1::CreateFailed::new(&v1::CEILINGS, v1::CreateFailedParts { step: v1::CreateStep::Org })
-                .expect("record within schema ceilings"),
+            v1::CreateFailed { step: v1::CreateStep::Org },
         ),
         v1::FirstState::Failed(
-            v1::CreateFailed::new(&v1::CEILINGS, v1::CreateFailedParts { step: v1::CreateStep::Repository })
-                .expect("record within schema ceilings"),
+            v1::CreateFailed { step: v1::CreateStep::Repository },
         ),
         v1::FirstState::Failed(
-            v1::CreateFailed::new(&v1::CEILINGS, v1::CreateFailedParts { step: v1::CreateStep::File })
-                .expect("record within schema ceilings"),
+            v1::CreateFailed { step: v1::CreateStep::File },
         ),
     ] {
-        let row = v1::ForgeRow::new(
-            &v1::CEILINGS,
-            v1::ForgeRowParts {
+        let row = v1::ForgeRow {
                 starts_with: v1::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -108,46 +97,31 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
                 admin: false,
                 read_only: false,
                 ended_stop: None,
-            },
-        )
-        .expect("record within schema ceilings");
+            };
         let mut rows = skein_lib::List::with_capacity(1);
         rows.push(row).expect("one row capacity");
-        let rows = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges: rows, linked: false })
-            .expect("record within schema ceilings");
+        let rows = v1::Forges { forges: rows, linked: false };
         assert_eq!(wire::decode_forges(&wire::forges(&rows), &v1::CEILINGS), Some(rows));
     }
 }
 
 fn setup_request() -> v1::Requesting {
-    v1::Requesting::new(
-        &v1::CEILINGS,
-        v1::RequestingParts {
+    v1::Requesting {
             request: v1::Request::SetUp(
-                v1::SetUp::new(
-                    &v1::CEILINGS,
-                    v1::SetUpParts {
+                v1::SetUp {
                         forge: v1::Making::Kept(
-                            v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge"),
+                            v1::Kept { forge: 3 },
                         ),
                         first: v1::SetUpFirst::Empty(
-                            v1::FirstEmpty::new(
-                                &v1::CEILINGS,
-                                v1::FirstEmptyParts {
+                            v1::FirstEmpty {
                                     playground: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                 },
-                            )
-                            .expect("setup names fit wire ceilings"),
                         ),
                     },
-                )
-                .expect("record within schema ceilings"),
             ),
-        },
-    )
-    .expect("record within schema ceilings")
+        }
 }
 
 #[test]
@@ -161,13 +135,13 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         limits.first_repository_org = 2;
         limits.first_repository_repository = 2;
         for field in 0..2 {
-            let parts = v1::FirstEmptyParts {
+            let parts = v1::FirstEmpty {
                 playground: false,
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
             };
-            assert_eq!(v1::FirstEmpty::new(&limits, parts.clone()).is_ok(), size == 2, "setup field {field}");
-            let record = v1::FirstEmpty::new(&v1::CEILINGS, parts).expect("record within schema ceilings");
+            assert_eq!((parts.clone()).encode(&limits).is_ok(), size == 2, "setup field {field}");
+            let record = parts;
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             assert_eq!(
@@ -177,15 +151,15 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
             );
         }
         for field in 0..2 {
-            let parts = v1::FirstRepositoryParts {
+            let parts = v1::FirstRepository {
                 playground: false,
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
                 state: v1::FirstState::Making,
                 label: Box::from(b"temper-host".as_slice()),
             };
-            assert_eq!(v1::FirstRepository::new(&limits, parts.clone()).is_ok(), size == 2, "row field {field}");
-            let record = v1::FirstRepository::new(&v1::CEILINGS, parts).expect("record within schema ceilings");
+            assert_eq!((parts.clone()).encode(&limits).is_ok(), size == 2, "row field {field}");
+            let record = parts;
             let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
             record.encode(&mut writer).expect("measured room");
             assert_eq!(
@@ -198,20 +172,20 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
     for size in [1024, 1025] {
         let name = vec![b'x'; size].into_boxed_slice();
         for org in [true, false] {
-            let parts = v1::FirstEmptyParts {
+            let parts = v1::FirstEmpty {
                 playground: false,
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
             };
-            assert_eq!(v1::FirstEmpty::new(&v1::CEILINGS, parts).is_ok(), size == 1024);
-            let parts = v1::FirstRepositoryParts {
+            assert_eq!((parts).encode(&v1::CEILINGS).is_ok(), size == 1024);
+            let parts = v1::FirstRepository {
                 playground: false,
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
                 state: v1::FirstState::Making,
                 label: Box::from(b"temper-host".as_slice()),
             };
-            assert_eq!(v1::FirstRepository::new(&v1::CEILINGS, parts).is_ok(), size == 1024);
+            assert_eq!((parts).encode(&v1::CEILINGS).is_ok(), size == 1024);
         }
     }
 }
@@ -223,8 +197,7 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
     for outcome in [
         v1::Outcome::Running,
         v1::Outcome::StartRefused(
-            v1::StartRefused::new(&limits, v1::StartRefusedParts { why: v1::StartRefusal::NotOffered })
-                .expect("refusal"),
+            v1::StartRefused { why: v1::StartRefusal::NotOffered },
         ),
     ] {
         outcomes.push(outcome).expect("outcome room");
@@ -232,41 +205,34 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
     for why in [v1::StartFailure::Account, v1::StartFailure::Adoption, v1::StartFailure::NotConnected] {
         outcomes
             .push(v1::Outcome::StartFailed(
-                v1::StartFailed::new(&limits, v1::StartFailedParts { why }).expect("failure"),
+                v1::StartFailed { why },
             ))
             .expect("outcome room");
     }
     for length in [0, 1, 256] {
-        let group = v1::GroupFailed::new(&limits, v1::GroupFailedParts { why: skein_lib::bytes::zeroed(length) })
-            .expect("bounded why");
+        let group = v1::GroupFailed { why: skein_lib::bytes::zeroed(length) };
         outcomes
             .push(v1::Outcome::StartFailed(
-                v1::StartFailed::new(&limits, v1::StartFailedParts { why: v1::StartFailure::Group(group) })
-                    .expect("group failure"),
+                v1::StartFailed { why: v1::StartFailure::Group(group) },
             ))
             .expect("outcome room");
     }
     for outcome in outcomes.into_boxed() {
-        let record = v1::Answer::new(&limits, v1::AnswerParts { outcome }).expect("answer");
+        let record = v1::Answer { outcome };
         let bytes = temper_client_protocol_wire::answer(&record);
         let mut reader = Reader::new(&bytes);
         assert_eq!(v1::Answer::decode(&limits, &mut reader), Ok(record));
         assert!(reader.is_empty());
     }
-    v1::GroupFailed::new(&limits, v1::GroupFailedParts { why: skein_lib::bytes::zeroed(257) })
+    (v1::GroupFailed { why: skein_lib::bytes::zeroed(257) }).encode(&limits)
         .expect_err("past ceiling");
     let group =
-        v1::GroupFailed::new(&limits, v1::GroupFailedParts { why: skein_lib::bytes::zeroed(256) }).expect("ceiling");
-    let record = v1::Answer::new(
-        &limits,
-        v1::AnswerParts {
+        v1::GroupFailed { why: skein_lib::bytes::zeroed(256) };
+    let record = v1::Answer {
             outcome: v1::Outcome::StartFailed(
-                v1::StartFailed::new(&limits, v1::StartFailedParts { why: v1::StartFailure::Group(group) })
-                    .expect("failure"),
+                v1::StartFailed { why: v1::StartFailure::Group(group) },
             ),
-        },
-    )
-    .expect("answer");
+        };
     let bytes = temper_client_protocol_wire::answer(&record);
     // Version (2), Outcome (1), StartFailure (1), then WHY's u32 length.
     let mut writer = skein_lib::Writer::new(bytes.len().checked_add(1).expect("extra byte"));
@@ -302,7 +268,7 @@ fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
         let mut writer = Writer::new(bytes.len());
         outcome.encode(&mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
-        let answer = v1::Answer::new(&v1::CEILINGS, v1::AnswerParts { outcome }).expect("answer");
+        let answer = v1::Answer { outcome };
         let encoded = wire::answer(&answer);
         assert_eq!(v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(&encoded)), Ok(answer));
     }

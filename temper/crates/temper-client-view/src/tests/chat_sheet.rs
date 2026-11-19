@@ -108,11 +108,7 @@ impl Case {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
                     let w::Read::Setting(setting) = reading.read() else { continue };
                     let value = if setting.kind() == 7 {
-                        let value = w::ProjectWays::new(
-                            &w::CEILINGS,
-                            w::ProjectWaysParts { drafts: self.offered, goals: true, changes: false, way: 2 },
-                        )
-                        .unwrap();
+                        let value = w::ProjectWays { drafts: self.offered, goals: true, changes: false, way: 2 };
                         let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
                         value.encode(&mut writer).unwrap();
                         Some(writer.finish())
@@ -120,7 +116,7 @@ impl Case {
                         None
                     };
                     let answer =
-                        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap();
+                        w::SettingAnswer { revision: None, value };
                     Up::ReadDone {
                         read,
                         result: jig_client::Readout::Family {
@@ -147,27 +143,19 @@ impl Case {
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                     let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
                         w::Watch::Forges => wire::forges(
-                            &w::Forges::new(
-                                &w::CEILINGS,
-                                w::ForgesParts { forges: forges(self.repository), linked: false },
-                            )
-                            .unwrap(),
+                            &w::Forges { forges: forges(self.repository), linked: false },
                         ),
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);
                             if let Some(at) = self.linked {
                                 dismissed
                                     .push(w::PersonFact::GoalFrom(
-                                        w::GoalFrom::new(
-                                            &w::CEILINGS,
-                                            w::GoalFromParts { project: f::PROJECT, chat: CHAT, goal: GOAL, at },
-                                        )
-                                        .unwrap(),
+                                        w::GoalFrom { project: f::PROJECT, chat: CHAT, goal: GOAL, at },
                                     ))
                                     .unwrap();
                             }
                             wire::dismissals(
-                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
+                                &w::Dismissals { dismissed },
                             )
                         }
                         w::Watch::Change(_)
@@ -247,18 +235,14 @@ fn forges(repository: bool) -> List<w::ForgeRow> {
         row.repositories = List::with_capacity(1);
         row.repositories
             .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts {
+                w::Adoption {
                         owner: b"work".as_slice().into(),
                         name: b"shop".as_slice().into(),
                         project: f::PROJECT,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
-        *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, row).unwrap();
+        *rows.get_mut(0).unwrap() = row;
     }
     rows
 }

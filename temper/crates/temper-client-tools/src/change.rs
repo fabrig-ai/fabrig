@@ -1,6 +1,7 @@
 //! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
 mod history;
 pub(crate) mod open;
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -129,7 +130,7 @@ impl Holds {
         };
     }
     fn any(&self, panel: &w::ChangePanel) -> bool {
-        self.own.is_some() || self.run.is_some() || panel.hold().is_some()
+        self.own.is_some() || self.run.is_some() || panel.hold.is_some()
     }
 }
 impl Changes {
@@ -280,15 +281,15 @@ fn open_panel(watch: &mut Watching, env: &Env<Limits>, out: &mut Queue<Out>) {
 }
 pub(crate) fn subject(task: u64, project: u32, limits: &Limits) -> Watchable {
     let limits = forge::wire_limits(&limits.domain.forge).expect("checked forge limits");
-    let change = w::ChangeSubject::new(&limits, w::ChangeSubjectParts { task }).expect("task fits");
-    let record = w::Watching::new(&limits, w::WatchingParts { watch: w::Watch::Change(change) }).expect("watch fits");
+    let change = w::ChangeSubject { task };
+    let record = w::Watching { watch: w::Watch::Change(change) };
     Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::watching(&record),
+            bytes: record.encode(&limits).expect("watch fits"),
         },
     }
 }
@@ -473,7 +474,7 @@ fn continue_panel(watch: &mut Watching, env: &Env<Limits>, out: &mut Queue<Out>)
         return None;
     }
     if let Some(panel) = watch.last.as_deref() {
-        if let Some(run) = panel.runs() {
+        if let Some(run) = &panel.runs {
             read_run(watch, *run, out);
         } else {
             return delivered(watch, env);
@@ -580,7 +581,7 @@ fn read_page(
         return Some(render::failure(b"unexpected task document", watch.called.json, 1));
     }
     let latest = match &watch.last {
-        Some(panel) => *panel.runs(),
+        Some(panel) => panel.runs,
         None => None,
     };
     if let Some(latest) = latest
@@ -624,7 +625,7 @@ fn panel_changed(
         _ => None,
     };
     match panel {
-        Some(panel) if panel.task() == watch.task => {
+        Some(panel) if panel.task == watch.task => {
             if let Some(page) = watch.task_absent.take() {
                 return Some(render::read(
                     &page,
@@ -639,12 +640,12 @@ fn panel_changed(
             watch.panel_state = PanelState::Expected;
             watch.holds.run = None;
             if let Some((_, task)) = watch.run_watch
-                && Some(task) != *watch.last.as_ref().expect("delivered panel").runs()
+                && Some(task) != watch.last.as_ref().expect("delivered panel").runs
             {
                 let (handle, _) = watch.run_watch.take().expect("old run watch");
                 out.push(Out::Client { event: Event::Unwatch { handle } });
             }
-            if let Some(run) = watch.last.as_ref().expect("delivered panel").runs() {
+            if let Some(run) = &watch.last.as_ref().expect("delivered panel").runs {
                 let run = *run;
                 read_run(watch, run, out);
             } else {
@@ -814,13 +815,13 @@ fn delivered(watch: &mut Watching, env: &Env<Limits>) -> Option<jig::Printed> {
     };
     let holds = match condition {
         Some(b"changed") => Some(watch.first.is_some() && jig::wait::met(watch.since, watch.first, digest, None)),
-        Some(b"pull") => Some(panel.pull().is_some()),
-        Some(b"ci:pending") => Some(*panel.ci() == w::Ci::Pending),
-        Some(b"ci:passed") => Some(*panel.ci() == w::Ci::Passed),
-        Some(b"ci:failed") => Some(*panel.ci() == w::Ci::Failed),
+        Some(b"pull") => Some(panel.pull.is_some()),
+        Some(b"ci:pending") => Some(panel.ci == w::Ci::Pending),
+        Some(b"ci:passed") => Some(panel.ci == w::Ci::Passed),
+        Some(b"ci:failed") => Some(panel.ci == w::Ci::Failed),
         Some(b"held") => Some(watch.holds.any(panel)),
-        Some(b"landed") => Some(landed(panel.step()).is_some()),
-        Some(b"cleared") => Some(progress(panel.step()) == Progress::Cleared),
+        Some(b"landed") => Some(landed(&panel.step).is_some()),
+        Some(b"cleared") => Some(progress(&panel.step) == Progress::Cleared),
         None => None,
         _ => unreachable!("checked condition"),
     };
@@ -834,7 +835,7 @@ fn delivered(watch: &mut Watching, env: &Env<Limits>) -> Option<jig::Printed> {
     }
     if met
         || watch.final_panel
-        || (progress(panel.step()) == Progress::Ended || progress(panel.step()) == Progress::Cleared)
+        || (progress(&panel.step) == Progress::Ended || progress(&panel.step) == Progress::Cleared)
     {
         Some(print(Some(panel), watch.called.json, Some(met), b"ended", &env.limits, &watch.holds))
     } else {
@@ -879,10 +880,10 @@ pub(crate) fn fire(state: &mut Changes, env: &Env<Limits>, out: &mut Queue<Out>)
 use skein_json::writer::Encoder;
 fn landed(step: &w::Step) -> Option<&[u8; 32]> {
     match step {
-        w::Step::Landed(landed) => Some(landed.merge()),
-        w::Step::Verifying(value) => Some(value.merge()),
-        w::Step::Red(value) => Some(value.merge()),
-        w::Step::Cleared(value) => Some(value.merge()),
+        w::Step::Landed(landed) => Some(&landed.merge),
+        w::Step::Verifying(value) => Some(&value.merge),
+        w::Step::Red(value) => Some(&value.merge),
+        w::Step::Cleared(value) => Some(&value.merge),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
         | w::Step::Taking
@@ -956,12 +957,12 @@ fn hold(hold: &w::Hold) -> &[u8] {
         w::Hold::Failed => b"failed",
         w::Hold::Flake => b"flake",
         w::Hold::Rejected => b"rejected",
-        w::Hold::Authority(value) => value.reason(),
+        w::Hold::Authority(value) => &value.reason,
     }
 }
 fn repair(step: &w::Step) -> Option<&'static [u8]> {
     match step {
-        w::Step::Repairing(repair) => Some(match repair.reason() {
+        w::Step::Repairing(repair) => Some(match &repair.reason {
             w::Reason::Ci => b"ci",
             w::Reason::Gate(_) => b"gate",
             w::Reason::Landing(_) => b"landing",
@@ -1016,38 +1017,38 @@ fn hex(bytes: &[u8; 32]) -> [u8; 40] {
 fn used_json(used: &w::Used, out: &mut Encoder) {
     out.object_start();
     out.key(b"used");
-    out.unsigned(u64::from(used.used()));
+    out.unsigned(u64::from(used.used));
     out.key(b"limit");
-    out.unsigned(u64::from(used.limit()));
+    out.unsigned(u64::from(used.limit));
     out.object_end();
 }
 fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &mut Encoder) {
     out.object_start();
     out.key(b"task");
-    out.unsigned(panel.task());
+    out.unsigned(panel.task);
     out.key(b"forge");
-    out.unsigned(u64::from(panel.forge()));
+    out.unsigned(u64::from(panel.forge));
     for (key, value) in [
-        (b"owner".as_slice(), panel.owner()),
-        (b"name", panel.name()),
-        (b"branch", panel.branch()),
-        (b"landing", panel.landing()),
+        (b"owner".as_slice(), &panel.owner),
+        (b"name", &panel.name),
+        (b"branch", &panel.branch),
+        (b"landing", &panel.landing),
     ] {
         out.key(key);
         out.string(value);
     }
     out.key(b"head");
-    match panel.head() {
+    match &panel.head {
         Some(head) => out.string(&hex(head)),
         None => out.null(),
     }
     out.key(b"source");
-    match panel.source() {
+    match &panel.source {
         Some(source) => {
             out.object_start();
             out.key(b"branch");
-            out.string(source.branch());
-            for (key, commit) in [(b"at".as_slice(), source.at()), (b"kept", source.kept())] {
+            out.string(&source.branch);
+            for (key, commit) in [(b"at".as_slice(), &source.at), (b"kept", &source.kept)] {
                 out.key(key);
                 match commit {
                     Some(commit) => out.string(&words::source_commit(commit)),
@@ -1059,31 +1060,31 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
         None => out.null(),
     }
     out.key(b"pull");
-    match panel.pull() {
+    match &panel.pull {
         Some(pull) => {
             out.object_start();
             out.key(b"number");
-            out.unsigned(pull.number());
+            out.unsigned(pull.number);
             out.key(b"address");
-            out.string(pull.address());
+            out.string(&pull.address);
             out.object_end();
         }
         None => out.null(),
     }
     encode_progress(panel, out);
     out.key(b"ci_required");
-    out.boolean(panel.ci_required());
+    out.boolean(panel.ci_required);
     out.key(b"ci");
-    out.string(ci(panel.ci()));
+    out.string(ci(&panel.ci));
     encode_gates(panel, out);
     encode_approvals(panel, out);
     for (key, used) in
-        [(b"repairs".as_slice(), panel.repairs()), (b"resolutions", panel.resolutions()), (b"updates", panel.updates())]
+        [(b"repairs".as_slice(), &panel.repairs), (b"resolutions", &panel.resolutions), (b"updates", &panel.updates)]
     {
         out.key(key);
         used_json(used, out);
     }
-    encode_questions(panel.questions(), out);
+    encode_questions(&panel.questions, out);
     encode_holds(holds, out);
     if let Some(digest) = digest {
         out.key(b"digest");
@@ -1093,22 +1094,22 @@ fn encode(panel: &w::ChangePanel, digest: Option<Digest>, holds: &Holds, out: &m
 }
 fn encode_progress(panel: &w::ChangePanel, out: &mut Encoder) {
     out.key(b"step");
-    out.string(step(panel.step()));
+    out.string(step(&panel.step));
     out.key(b"merge");
-    match landed(panel.step()) {
+    match landed(&panel.step) {
         Some(merge) => out.string(&hex(merge)),
         None => out.null(),
     }
-    if progress(panel.step()) == Progress::Verifying || progress(panel.step()) == Progress::Cleared {
+    if progress(&panel.step) == Progress::Verifying || progress(&panel.step) == Progress::Cleared {
         out.key(b"tiers");
         out.array_start();
-        for line in tier_lines(panel.step()) {
+        for line in tier_lines(&panel.step) {
             out.string(line);
         }
         out.array_end();
     }
     out.key(b"queue");
-    match words::queue(panel.step()) {
+    match words::queue(&panel.step) {
         Some(queue) => {
             out.object_start();
             out.key(b"place");
@@ -1124,17 +1125,17 @@ fn encode_progress(panel: &w::ChangePanel, out: &mut Encoder) {
         None => out.null(),
     }
     out.key(b"repair");
-    match repair(panel.step()) {
+    match repair(&panel.step) {
         Some(reason) => out.string(reason),
         None => out.null(),
     }
     out.key(b"hold");
-    match panel.hold() {
+    match &panel.hold {
         Some(why) => out.string(hold(why)),
         None => out.null(),
     }
     out.key(b"runs");
-    match panel.runs() {
+    match &panel.runs {
         Some(task) => out.unsigned(*task),
         None => out.null(),
     }
@@ -1143,16 +1144,16 @@ fn encode_progress(panel: &w::ChangePanel, out: &mut Encoder) {
 fn encode_gates(panel: &w::ChangePanel, out: &mut Encoder) {
     out.key(b"gates");
     out.array_start();
-    for gate in panel.gates() {
+    for gate in &panel.gates {
         out.object_start();
         out.key(b"number");
-        out.unsigned(gate.number());
+        out.unsigned(gate.number);
         out.key(b"kind");
-        out.string(gate_kind(gate.kind()));
+        out.string(gate_kind(&gate.kind));
         out.key(b"blocks");
-        out.boolean(gate.blocks());
+        out.boolean(gate.blocks);
         out.key(b"verdict");
-        out.string(verdict(gate.verdict()));
+        out.string(verdict(&gate.verdict));
         out.object_end();
     }
     out.array_end();
@@ -1173,36 +1174,36 @@ fn freshness(freshness: &w::RuleFreshness) -> &'static [u8] {
 fn encode_approvals(panel: &w::ChangePanel, out: &mut Encoder) {
     out.key(b"approvals");
     out.array_start();
-    for line in panel.approvals() {
+    for line in &panel.approvals {
         out.object_start();
         for (key, value) in [
-            (b"scope".as_slice(), line.scope()),
-            (b"rule", line.number()),
-            (b"role", line.role()),
-            (b"required", line.required()),
+            (b"scope".as_slice(), line.scope),
+            (b"rule", line.number),
+            (b"role", line.role),
+            (b"required", line.required),
         ] {
             out.key(key);
             out.unsigned(u64::from(value));
         }
         out.key(b"freshness");
-        out.string(freshness(line.freshness()));
+        out.string(freshness(&line.freshness));
         out.key(b"read");
-        out.string(review_read(line.read()));
+        out.string(review_read(&line.read));
         out.key(b"remaining");
-        match line.remaining() {
+        match &line.remaining {
             Some(count) => out.unsigned(u64::from(*count)),
             None => out.null(),
         }
         out.key(b"refused");
-        out.boolean(line.refused());
+        out.boolean(line.refused);
         out.key(b"counted");
         out.array_start();
-        for review in line.counted() {
+        for review in &line.counted {
             out.object_start();
             out.key(b"person");
-            out.unsigned(review.person());
+            out.unsigned(review.person);
             out.key(b"head");
-            out.string(&hex(review.head()));
+            out.string(&hex(&review.head));
             out.object_end();
         }
         out.array_end();
@@ -1211,14 +1212,14 @@ fn encode_approvals(panel: &w::ChangePanel, out: &mut Encoder) {
     out.array_end();
     out.key(b"unmapped_reviews");
     out.array_start();
-    for review in panel.unmapped_reviews() {
+    for review in &panel.unmapped_reviews {
         out.object_start();
         out.key(b"account");
-        out.unsigned(review.account());
+        out.unsigned(review.account);
         out.key(b"head");
-        out.string(&hex(review.head()));
+        out.string(&hex(&review.head));
         out.key(b"verdict");
-        out.string(verdict(review.verdict()));
+        out.string(verdict(&review.verdict));
         out.key(b"reason");
         out.string(b"forge account mapped to no person");
         out.object_end();
@@ -1285,7 +1286,7 @@ fn text(
         }
         text_state(panel, holds, out);
         text_checks(panel, out);
-        text_questions(panel.questions(), out);
+        text_questions(&panel.questions, out);
         if let Some(digest) = digest {
             out.put(b"digest: ");
             out.put(&digest.hex());
@@ -1304,8 +1305,8 @@ fn text(
     }
 }
 fn approval_wait(panel: &w::ChangePanel) -> bool {
-    for line in panel.approvals() {
-        if *line.read() != w::ReviewRead::Complete || *line.remaining() != Some(0) || line.refused() {
+    for line in &panel.approvals {
+        if line.read != w::ReviewRead::Complete || line.remaining != Some(0) || line.refused {
             return true;
         }
     }
@@ -1313,50 +1314,50 @@ fn approval_wait(panel: &w::ChangePanel) -> bool {
 }
 fn text_heading(panel: &w::ChangePanel, out: &mut Text) {
     out.put(b"change ");
-    out.number(panel.task());
+    out.number(panel.task);
     out.put(b" \xc2\xb7 ");
-    out.put(panel.owner());
+    out.put(&panel.owner);
     out.put(b"/");
-    out.put(panel.name());
+    out.put(&panel.name);
     out.put(b" on forge ");
-    out.number(u64::from(panel.forge()));
+    out.number(u64::from(panel.forge));
     out.put(b" \xc2\xb7 ");
-    out.put(panel.branch());
+    out.put(&panel.branch);
     out.put(b" into ");
-    out.put(panel.landing());
+    out.put(&panel.landing);
     out.put(b"\n");
     text_pull(panel, out);
     out.put(b"step: ");
-    out.put(step(panel.step()));
-    if *panel.step() == w::Step::Taking
-        && let Some(source) = panel.source()
+    out.put(step(&panel.step));
+    if panel.step == w::Step::Taking
+        && let Some(source) = &panel.source
     {
         out.put(b" ");
-        out.put(source.branch());
-        if let Some(kept) = source.kept() {
+        out.put(&source.branch);
+        if let Some(kept) = &source.kept {
             out.put(b" ");
             out.put(&words::source_commit(kept));
         }
     }
-    if let w::Step::Landed(landed) = panel.step() {
+    if let w::Step::Landed(landed) = &panel.step {
         out.put(b" \xc2\xb7 merge commit ");
-        out.put(&hex(landed.merge()));
+        out.put(&hex(&landed.merge));
     }
-    let uncleared = if let w::Step::Cleared(value) = panel.step() { value.uncleared() } else { false };
+    let uncleared = if let w::Step::Cleared(value) = &panel.step { value.uncleared } else { false };
     if !uncleared {
-        for line in tier_lines(panel.step()) {
+        for line in tier_lines(&panel.step) {
             out.put(b" \xc2\xb7 ");
             out.put(line);
         }
     }
     out.put(b"\n");
-    if progress(panel.step()) == Progress::Verifying || progress(panel.step()) == Progress::Cleared {
+    if progress(&panel.step) == Progress::Verifying || progress(&panel.step) == Progress::Cleared {
         out.put(b"merge commit ");
-        out.put(&hex(landed(panel.step()).expect("landed step")));
+        out.put(&hex(landed(&panel.step).expect("landed step")));
         out.put(b"\n");
     }
     if uncleared {
-        for line in tier_lines(panel.step()) {
+        for line in tier_lines(&panel.step) {
             out.put(b"tier: ");
             out.put(line);
             out.put(b"\n");
@@ -1365,12 +1366,12 @@ fn text_heading(panel: &w::ChangePanel, out: &mut Text) {
 }
 
 fn text_pull(panel: &w::ChangePanel, out: &mut Text) {
-    if let Some(pull) = panel.pull() {
+    if let Some(pull) = &panel.pull {
         out.put(b"pull request #");
-        out.number(pull.number());
-        if !pull.address().is_empty() {
+        out.number(pull.number);
+        if !pull.address.is_empty() {
             out.put(b" \xc2\xb7 ");
-            out.put(pull.address());
+            out.put(&pull.address);
         }
         out.put(b"\n");
     }
@@ -1378,19 +1379,19 @@ fn text_pull(panel: &w::ChangePanel, out: &mut Text) {
 
 fn text_state(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
     text_way(panel, out);
-    if let Some(hold) = panel.hold() {
+    if let Some(hold) = &panel.hold {
         out.put(b"held: ");
         if let w::Hold::Authority(value) = hold {
-            out.put(value.reason());
+            out.put(&value.reason);
         } else {
             out.put(phrase(words::hold(hold)));
         }
         out.put(b" at ");
-        out.put(step(panel.step()));
+        out.put(step(&panel.step));
         out.put(b"\n");
     }
     text_holds(panel, holds, out);
-    if let Some(queue) = words::queue(panel.step()) {
+    if let Some(queue) = words::queue(&panel.step) {
         out.put(b"queued: place ");
         out.number(u64::from(queue.place));
         for (i, task) in queue.ahead.iter().enumerate() {
@@ -1399,7 +1400,7 @@ fn text_state(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
         }
         out.put(b"\n");
     }
-    if let w::Step::Repairing(_) = panel.step() {
+    if let w::Step::Repairing(_) = &panel.step {
         let (word, arguments) = words::line(panel);
         out.put(b"repair: ");
         for (candidate, literals, _) in &forge::words::CHANGES {
@@ -1413,86 +1414,86 @@ fn text_state(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
 }
 
 fn text_next(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
-    let ended = holds.completion == Completion::NoChange || *panel.step() == w::Step::Ended;
+    let ended = holds.completion == Completion::NoChange || panel.step == w::Step::Ended;
     if ended || holds.own.is_some() || holds.run.is_some() {
-        let task = if ended || holds.own.is_some() { panel.task() } else { panel.runs().expect("held delegate") };
+        let task = if ended || holds.own.is_some() { panel.task } else { panel.runs.expect("held delegate") };
         out.put(b"next: temper ctl DIR task show ");
         out.number(task);
         out.put(b"\n");
-    } else if approval_wait(panel) && progress(panel.step()) == Progress::Before {
+    } else if approval_wait(panel) && progress(&panel.step) == Progress::Before {
         out.put(b"next: review the pull request");
-        if let Some(pull) = panel.pull() {
+        if let Some(pull) = &panel.pull {
             out.put(b" ");
-            out.put(pull.address());
+            out.put(&pull.address);
         }
         out.put(b" for the required role; only a mapped project person counts\n");
-    } else if progress(panel.step()) == Progress::Verifying {
+    } else if progress(&panel.step) == Progress::Verifying {
         out.put(b"next: temper ctl DIR change show ");
-        out.number(panel.task());
+        out.number(panel.task);
         out.put(b" --until cleared\n");
-    } else if landed(panel.step()).is_none() && *panel.step() != w::Step::Ended {
+    } else if landed(&panel.step).is_none() && panel.step != w::Step::Ended {
         out.put(b"next: temper ctl DIR change show ");
-        out.number(panel.task());
+        out.number(panel.task);
         out.put(b" --until landed\n");
     }
 }
 fn text_approvals(panel: &w::ChangePanel, out: &mut Text) {
-    for line in panel.approvals() {
+    for line in &panel.approvals {
         out.put(b"approval: scope ");
-        out.number(u64::from(line.scope()));
+        out.number(u64::from(line.scope));
         out.put(b" rule ");
-        out.number(u64::from(line.number()));
+        out.number(u64::from(line.number));
         out.put(b" role ");
-        out.number(u64::from(line.role()));
+        out.number(u64::from(line.role));
         out.put(b" ");
-        out.put(freshness(line.freshness()));
+        out.put(freshness(&line.freshness));
         out.put(b" required ");
-        out.number(u64::from(line.required()));
+        out.number(u64::from(line.required));
         out.put(b"; ");
-        match line.read() {
+        match &line.read {
             w::ReviewRead::Unread => out.put(b"reviews not read yet"),
             w::ReviewRead::Incomplete => out.put(b"reviews incomplete"),
             w::ReviewRead::Complete => out.put(b"reviews complete"),
         }
-        if let Some(remaining) = line.remaining() {
+        if let Some(remaining) = &line.remaining {
             out.put(b"; counted ");
-            out.number(u64::from(line.counted().len()));
+            out.number(u64::from(line.counted.len()));
             out.put(b"; remaining ");
             out.number(u64::from(*remaining));
         }
-        if line.refused() {
+        if line.refused {
             out.put(b"; changes requested");
         }
         out.put(b"\n");
-        for review in line.counted() {
+        for review in &line.counted {
             out.put(b"  counted person ");
-            out.number(review.person());
+            out.number(review.person);
             out.put(b" at head ");
-            out.put(&hex(review.head()));
+            out.put(&hex(&review.head));
             out.put(b"\n");
         }
     }
-    for review in panel.unmapped_reviews() {
+    for review in &panel.unmapped_reviews {
         out.put(b"uncounted review: forge account ");
-        out.number(review.account());
+        out.number(review.account);
         out.put(b" at head ");
-        out.put(&hex(review.head()));
+        out.put(&hex(&review.head));
         out.put(b" ");
-        out.put(verdict(review.verdict()));
+        out.put(verdict(&review.verdict));
         out.put(b"; mapped to no person\n");
     }
 }
 fn text_holds(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
     if let Some(held) = &holds.own {
         out.put(b"held: task ");
-        out.number(panel.task());
+        out.number(panel.task);
         out.put(b" (");
         out.put(&held.reason);
         out.put(b")\nway out: ");
         out.put(&held.way_out);
         out.put(b"\n");
     }
-    if let Some(task) = panel.runs() {
+    if let Some(task) = &panel.runs {
         out.put(if holds.run.is_some() { b"held: task " } else { b"running: task " });
         out.number(*task);
         if let Some(reason) = holds.run.as_deref() {
@@ -1504,10 +1505,10 @@ fn text_holds(panel: &w::ChangePanel, holds: &Holds, out: &mut Text) {
     }
 }
 fn text_way(panel: &w::ChangePanel, out: &mut Text) {
-    match panel.way() {
+    match &panel.way {
         w::Way::Turn => {
             out.put(b"way: turn");
-            if let Some(task) = panel.in_landing() {
+            if let Some(task) = &panel.in_landing {
                 out.put(b" \xc2\xb7 landing task ");
                 out.number(*task);
             }
@@ -1518,45 +1519,45 @@ fn text_way(panel: &w::ChangePanel, out: &mut Text) {
 }
 fn text_checks(panel: &w::ChangePanel, out: &mut Text) {
     out.put(b"head ");
-    match panel.head() {
+    match &panel.head {
         Some(head) => out.put(&hex(head)),
         None => out.put(b"unknown"),
     }
     out.put(b" \xc2\xb7 CI ");
-    out.put(if panel.ci_required() { ci(panel.ci()) } else { b"not required" });
+    out.put(if panel.ci_required { ci(&panel.ci) } else { b"not required" });
     out.put(b"\n");
-    if let Some(source) = panel.source() {
+    if let Some(source) = &panel.source {
         out.put(b"source: ");
-        out.put(source.branch());
+        out.put(&source.branch);
         out.put(b" at ");
-        match source.at() {
+        match &source.at {
             Some(at) => out.put(&words::source_commit(at)),
             None => out.put(b"its head"),
         }
-        if let Some(kept) = source.kept() {
+        if let Some(kept) = &source.kept {
             out.put(b" \xc2\xb7 kept ");
             out.put(&words::source_commit(kept));
         }
         out.put(b"\n");
     }
-    if panel.gates().is_empty() {
+    if panel.gates.is_empty() {
         out.put(b"gates: none\n");
     }
-    for gate in panel.gates() {
+    for gate in &panel.gates {
         out.put(b"gate ");
-        out.number(gate.number());
+        out.number(gate.number);
         out.put(b" \xc2\xb7 ");
-        out.put(gate_kind(gate.kind()));
-        out.put(if gate.blocks() { b" \xc2\xb7 blocking" } else { b" \xc2\xb7 advisory" });
+        out.put(gate_kind(&gate.kind));
+        out.put(if gate.blocks { b" \xc2\xb7 blocking" } else { b" \xc2\xb7 advisory" });
         out.put(b" \xc2\xb7 ");
-        out.put(verdict(gate.verdict()));
+        out.put(verdict(&gate.verdict));
         out.put(b"\n");
     }
     text_approvals(panel, out);
     for (i, (label, used)) in [
-        (b"repairs ".as_slice(), panel.repairs()),
-        (b"resolutions ", panel.resolutions()),
-        (b"updates ", panel.updates()),
+        (b"repairs ".as_slice(), &panel.repairs),
+        (b"resolutions ", &panel.resolutions),
+        (b"updates ", &panel.updates),
     ]
     .iter()
     .enumerate()
@@ -1565,9 +1566,9 @@ fn text_checks(panel: &w::ChangePanel, out: &mut Text) {
             out.put(b" \xc2\xb7 ");
         }
         out.put(label);
-        out.number(u64::from(used.used()));
+        out.number(u64::from(used.used));
         out.put(b" of ");
-        out.number(u64::from(used.limit()));
+        out.number(u64::from(used.limit));
     }
     out.put(b"\n");
 }
@@ -1622,9 +1623,9 @@ pub(crate) fn print(
 
 fn tier_lines(step: &w::Step) -> &[Box<[u8]>] {
     match step {
-        w::Step::Verifying(value) => value.tiers().as_slice(),
-        w::Step::Red(value) => value.tiers().as_slice(),
-        w::Step::Cleared(value) => value.tiers().as_slice(),
+        w::Step::Verifying(value) => value.tiers.as_slice(),
+        w::Step::Red(value) => value.tiers.as_slice(),
+        w::Step::Cleared(value) => value.tiers.as_slice(),
         w::Step::Ready(_)
         | w::Step::Preparing(_)
         | w::Step::Taking
@@ -1692,23 +1693,23 @@ fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
     out.key(b"questions");
     out.object_start();
     out.key(b"route");
-    out.string(route(questions.route()));
+    out.string(route(&questions.route));
     out.key(b"taken");
-    out.unsigned(u64::from(questions.taken().used()));
+    out.unsigned(u64::from(questions.taken.used));
     out.key(b"limit");
-    out.unsigned(u64::from(questions.taken().limit()));
+    out.unsigned(u64::from(questions.taken.limit));
     out.key(b"open");
     out.array_start();
-    for question in questions.open() {
+    for question in &questions.open {
         out.object_start();
         out.key(b"asker");
-        out.unsigned(question.asker());
+        out.unsigned(question.asker);
         out.key(b"number");
-        out.unsigned(question.number());
+        out.unsigned(question.number);
         out.key(b"line");
-        out.string(question.line());
+        out.string(&question.line);
         out.key(b"stands");
-        out.string(stands(question.stands()));
+        out.string(stands(&question.stands));
         out.object_end();
     }
     out.array_end();
@@ -1716,33 +1717,33 @@ fn encode_questions(questions: &w::Questions, out: &mut Encoder) {
 }
 fn text_questions(questions: &w::Questions, out: &mut Text) {
     out.put(b"questions: ");
-    out.put(route(questions.route()));
-    if *questions.route() != w::Route::None || questions.taken().used() != 0 {
+    out.put(route(&questions.route));
+    if questions.route != w::Route::None || questions.taken.used != 0 {
         out.put(b" \xc2\xb7 ");
-        out.number(u64::from(questions.taken().used()));
+        out.number(u64::from(questions.taken.used));
         out.put(b" of ");
-        out.number(u64::from(questions.taken().limit()));
+        out.number(u64::from(questions.taken.limit));
         out.put(b" taken");
     }
     out.put(b"\n");
-    if !questions.open().is_empty() {
+    if !questions.open.is_empty() {
         out.put(
             b"  Answer numbers: use read_task on this change; producer numbers identify the questions relayed below.\n",
         );
     }
-    for question in questions.open() {
+    for question in &questions.open {
         out.put(b"  producer question ");
-        out.number(question.number());
+        out.number(question.number);
         out.put(b" of task ");
-        out.number(question.asker());
+        out.number(question.asker);
         out.put(b" \xc2\xb7 ");
-        match question.stands() {
+        match &question.stands {
             w::Stands::Taken => out.put(b"taken"),
             w::Stands::Asked => out.put(b"asked of requester"),
             w::Stands::Held => out.put(b"answered, held"),
         }
         out.put(b" \xc2\xb7 ");
-        out.put(question.line());
+        out.put(&question.line);
         out.put(b"\n");
     }
 }

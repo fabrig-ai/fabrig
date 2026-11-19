@@ -1,4 +1,5 @@
 //! Ask temper's stock ways and immediate acts (temper/docs/design/client/forge/records.md and temper/docs/design/client/pages/settings.md, 2).
+use temper_client_protocol_wire::v1::Record;
 use crate::forge::{Limits, wire_limits};
 use crate::{
     owner::Owner,
@@ -64,12 +65,12 @@ struct Receipt {
 #[must_use]
 pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::WaysSubject::new(&bounds, w::WaysSubjectParts { project }).ok()?;
-    let watching = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Ways(subject) }).ok()?;
+    let subject = w::WaysSubject { project };
+    let watching = w::Watching { watch: w::Watch::Ways(subject) };
     Some(Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&watching) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(&bounds).ok()? },
     })
 }
 impl StockWays {
@@ -120,12 +121,12 @@ impl StockWays {
         let panel = self.panel()?;
         match self.shown {
             Some(index) => {
-                panel.ways().get(index)?;
+                panel.ways.get(index)?;
                 Some(index)
             }
             None => {
-                if panel.current().is_none() {
-                    Some(panel.ways().len())
+                if panel.current.is_none() {
+                    Some(panel.ways.len())
                 } else {
                     None
                 }
@@ -160,8 +161,8 @@ impl StockWays {
         let Some(shown) = self.shown() else { return };
         let tabs = self.tabs();
         let Some(tab) = tabs.get(shown) else { return };
-        let Some(stop) = tab.path.stops().get(index) else { return };
-        match stop.actor() {
+        let Some(stop) = tab.path.stops.get(index) else { return };
+        match &stop.actor {
             w::Actor::Bar => {}
             w::Actor::Person | w::Actor::Agent | w::Actor::Code => {
                 self.open = if self.open == Some(index) { None } else { Some(index) };
@@ -205,15 +206,15 @@ impl StockWays {
     /// The project's rules, only while its `ways` read is shown.
     #[must_use]
     pub fn rules(&self) -> Option<&w::PathRules> {
-        Some(self.panel()?.rules())
+        Some(&self.panel()?.rules)
     }
     /// The running path (client/pages/settings.md, 2, *What follows a landing*).
     #[must_use]
     pub fn current_path(&self) -> Option<&w::BranchPath> {
         let panel = self.panel()?;
-        match panel.current() {
-            Some(index) => Some(panel.ways().get(*index)?.path()),
-            None => Some(panel.own()),
+        match &panel.current {
+            Some(index) => Some(&panel.ways.get(*index)?.path),
+            None => Some(&panel.own),
         }
     }
     fn panel(&self) -> Option<&w::WaysPanel> {
@@ -226,25 +227,25 @@ impl StockWays {
     pub fn tabs(&self) -> List<Tab> {
         let mut tabs = List::uncapped();
         if let Some(panel) = self.panel() {
-            for (index, way) in panel.ways().iter().enumerate() {
+            for (index, way) in panel.ways.iter().enumerate() {
                 let index = u32::try_from(index).expect("wire bounds ways");
                 tabs.push(Tab {
                     index: Some(index),
-                    name: way.name().into(),
-                    headline: way.headline().into(),
-                    line: way.line().into(),
-                    path: way.path().clone(),
-                    current: *panel.current() == Some(index),
+                    name: way.name.clone(),
+                    headline: way.headline.clone(),
+                    line: way.line.clone(),
+                    path: way.path.clone(),
+                    current: panel.current == Some(index),
                 })
                 .expect("wire bounds tabs");
             }
-            if panel.current().is_none() {
+            if panel.current.is_none() {
                 tabs.push(Tab {
                     index: None,
                     name: b"Yours".as_slice().into(),
                     headline: Box::default(),
                     line: Box::default(),
-                    path: panel.own().clone(),
+                    path: panel.own.clone(),
                     current: true,
                 })
                 .expect("one own tab");
@@ -255,16 +256,16 @@ impl StockWays {
     /// The project's words the read carries, kind 10 (client/forge/records.md).
     #[must_use]
     pub fn words(&self) -> Option<&w::ProjectWords> {
-        self.panel()?.words().as_ref()
+        self.panel()?.words.as_ref()
     }
     #[must_use]
     pub fn act(&self, index: u32) -> Option<WayAct> {
         let panel = self.panel()?;
-        panel.ways().get(index)?;
-        if !panel.may_change() {
+        panel.ways.get(index)?;
+        if !panel.may_change {
             return None;
         }
-        if *panel.current() != Some(index) {
+        if panel.current != Some(index) {
             return Some(WayAct::Use);
         }
         if self.configured { None } else { Some(WayAct::Keep) }
@@ -282,7 +283,7 @@ impl StockWays {
             return;
         }
         let Some(panel) = self.panel() else { return };
-        let Some(index) = index.or(*panel.current()) else { return };
+        let Some(index) = index.or(panel.current) else { return };
         if self.act(index) != Some(act) {
             return;
         }
@@ -291,31 +292,31 @@ impl StockWays {
             return;
         }
         let Some(Latest::Jig(c::Delivery::Settings(settings))) = document.latest else { return };
-        let Some(way) = panel.ways().get(index) else { return };
+        let Some(way) = panel.ways.get(index) else { return };
         let mut items = List::uncapped();
-        for item in way.items() {
-            let edit = match item.edit() {
+        for item in &way.items {
+            let edit = match &item.edit {
                 w::SettingEdit::Set(value) => {
-                    c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(value.value().into()) })
+                    c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(value.value.clone()) })
                 }
                 w::SettingEdit::Removed => c::SettingEdit::Removed,
                 w::SettingEdit::Reset => return,
             };
             items
                 .push(c::SettingItem {
-                    setting: c::Setting::Application { kind: item.kind(), scope: item.scope(), number: item.number() },
+                    setting: c::Setting::Application { kind: item.kind, scope: item.scope, number: item.number },
                     edit,
                 })
                 .expect("wire bounds way items");
         }
         let mut roles = Queue::uncapped();
-        for role in way.roles() {
-            if !role.running() {
+        for role in &way.roles {
+            if !role.running {
                 roles.push(role.clone());
             }
         }
-        let receipt = Receipt { name: way.name().into(), kept: act == WayAct::Keep, roles };
-        let delegation = way.delegation();
+        let receipt = Receipt { name: way.name.clone(), kept: act == WayAct::Keep, roles };
+        let delegation = way.delegation;
         self.refused = None;
         if delegation {
             self.pending = Some(Pending::Policy { against: settings.newest, items, receipt });
@@ -383,7 +384,7 @@ impl StockWays {
                     None => return true,
                 };
                 match panel {
-                    Some(panel) if panel.project() == self.project => {
+                    Some(panel) if panel.project == self.project => {
                         self.refused = None;
                         self.show(panel);
                     }
@@ -537,9 +538,9 @@ impl StockWays {
             return;
         };
         let draft = GoalDraft {
-            words: c::Text::new(role.words().into(), w::CEILINGS.way_role_words).expect("wire bounds role words"),
-            executor: c::Executor::Agent { charter: role.charter() },
-            budget: role.budget(),
+            words: c::Text::new(role.words, w::CEILINGS.way_role_words).expect("wire bounds role words"),
+            executor: c::Executor::Agent { charter: role.charter },
+            budget: role.budget,
             deadline: None,
             priority: None,
             llm: None,
@@ -640,11 +641,11 @@ fn panel(record: &Family, limits: Limits) -> Option<w::WaysPanel> {
 }
 
 fn same_stops(old: &Tab, shown: &Tab) -> bool {
-    if old.index != shown.index || old.path.stops().len() != shown.path.stops().len() {
+    if old.index != shown.index || old.path.stops.len() != shown.path.stops.len() {
         return false;
     }
-    for (old, shown) in old.path.stops().iter().zip(shown.path.stops()) {
-        if old.actor() != shown.actor() || old.words() != shown.words() {
+    for (old, shown) in old.path.stops.iter().zip(&shown.path.stops) {
+        if old.actor != shown.actor || old.words != shown.words {
             return false;
         }
     }

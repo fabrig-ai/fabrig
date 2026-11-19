@@ -82,16 +82,12 @@ fn random_rules(rng: &mut Rng) -> List<w::PathRule> {
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
         rows.push(
-            w::PathRule::new(
-                &w::CEILINGS,
-                w::PathRuleParts {
+            w::PathRule {
                     paths: pattern(rng),
                     review: if rng.chance(500) { b"an agent".as_slice().into() } else { Box::default() },
                     sign_off: if rng.chance(500) { b"two of you".as_slice().into() } else { Box::default() },
                     lands: b"the read's words".as_slice().into(),
                 },
-            )
-            .expect("short rule words"),
         )
         .expect("bounded rows");
     }
@@ -142,16 +138,10 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
             _ => (w::Actor::Bar, w::PathStep::Branch),
         };
         let words = rng.next_u64().to_string().into_bytes().into_boxed_slice();
-        let card = w::Card::new(
-            limits,
-            w::CardParts { who: Box::new([]), name: words.clone(), facts: List::with_capacity(0) },
-        )
-        .expect("short card within fixture limits");
+        let card = w::Card { who: Box::new([]), name: words.clone(), facts: List::with_capacity(0) };
         stops
             .push(
-                w::Stop::new(
-                    limits,
-                    w::StopParts {
+                w::Stop {
                         needed: actor != w::Actor::Bar && index % 2 == 0,
                         over: if actor == w::Actor::Agent {
                             b"tests, review".as_slice().into()
@@ -163,21 +153,17 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
                         words,
                         opens: if rng.chance(500) {
                             w::Opens::Tier(
-                                w::OpensTier::new(limits, w::OpensTierParts { name: b"tier".as_slice().into() })
-                                    .expect("tier"),
+                                w::OpensTier { name: b"tier".as_slice().into() },
                             )
                         } else {
                             w::Opens::Nothing
                         },
                         card,
                     },
-                )
-                .expect("stop within fixture limits"),
             )
             .expect("one stop per draw");
     }
-    w::BranchPath::new(limits, w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops })
-        .expect("path within fixture limits")
+    w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops }
 }
 
 fn check_drawing(path: &w::BranchPath, bounds: &skein_ui::Limits, seed: u64, step: u32) {

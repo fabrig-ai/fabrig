@@ -1,3 +1,4 @@
+use crate::v1::Record;
 use crate::{Bounds, v1};
 use alloc::boxed::Box;
 use skein_lib::List;
@@ -15,9 +16,9 @@ pub const BOUNDS: Bounds = Bounds {
 
 // Encode deliberately unchecked rules in the final fields of a smallest panel.
 // The panel's suffix is PathRules (two counts, both zero), then may_change (one byte).
-pub fn ways_with_unchecked_rules(panel: &v1::WaysPanel, rows: u32, row: &v1::PathRuleParts, note: &[u8]) -> Box<[u8]> {
-    assert!(panel.rules().rows().is_empty());
-    assert_eq!((panel.rules().note()).len(), 0);
+pub fn ways_with_unchecked_rules(panel: &v1::WaysPanel, rows: u32, row: &v1::PathRule, note: &[u8]) -> Box<[u8]> {
+    assert!(panel.rules.rows.is_empty());
+    assert_eq!(panel.rules.note.len(), 0);
     let bytes = crate::ways_panel(panel);
     let prefix = bytes.get(..bytes.len().checked_sub(9).expect("rules and permission suffix")).expect("prefix");
     let fields = [&row.paths, &row.review, &row.sign_off, &row.lands];
@@ -46,22 +47,21 @@ pub fn ways_with_unchecked_rules(panel: &v1::WaysPanel, rows: u32, row: &v1::Pat
     }
     writer.put(&u32::try_from(note.len()).unwrap().to_be_bytes()).expect("note length");
     writer.put(note).expect("note bytes");
-    writer.put(&[u8::from(panel.may_change())]).expect("permission");
+    writer.put(&[u8::from(panel.may_change)]).expect("permission");
     writer.finish()
 }
 
 pub fn path_rules(
     limits: &v1::Limits,
     rows: u32,
-    row: v1::PathRuleParts,
+    row: v1::PathRule,
     note: Box<[u8]>,
 ) -> Result<v1::PathRules, v1::Problem> {
-    let row = v1::PathRule::new(limits, row)?;
     let mut items = List::with_capacity(rows);
     for _ in 0..rows {
         items.push(row.clone()).expect("room for rows");
     }
-    v1::PathRules::new(limits, v1::PathRulesParts { rows: items, note })
+    { let value = v1::PathRules { rows: items, note }; match value.encode(limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
 }
 
 pub fn limits() -> v1::Limits {
@@ -69,9 +69,7 @@ pub fn limits() -> v1::Limits {
 }
 
 pub fn adopt() -> v1::Adopt {
-    v1::Adopt::new(
-        &limits(),
-        v1::AdoptParts {
+    v1::Adopt {
             project: 1,
             home: true,
             forge: crate::FORGE,
@@ -82,16 +80,12 @@ pub fn adopt() -> v1::Adopt {
             landing: Box::from(&b"main"[..]),
             ci: true,
             checks: List::with_capacity(2),
-        },
-    )
-    .expect("default adoption")
+        }
 }
 
 pub fn adopted() -> v1::Adopted {
-    let limits = limits();
-    let kinds = v1::Kinds::new(
-        &limits,
-        v1::KindsParts {
+
+    let kinds = v1::Kinds {
             read: true,
             push: true,
             open: true,
@@ -101,12 +95,8 @@ pub fn adopted() -> v1::Adopted {
             comment: true,
             issue: true,
             branch: true,
-        },
-    )
-    .expect("observed capabilities");
-    v1::Adopted::new(
-        &limits,
-        v1::AdoptedParts {
+        };
+    v1::Adopted {
             landing: b"main".as_slice().into(),
             forge: crate::FORGE,
             repository: 7,
@@ -116,27 +106,18 @@ pub fn adopted() -> v1::Adopted {
             home: true,
             kinds,
             protection: v1::Protection::Unknown,
-        },
-    )
-    .expect("adopted repository")
+        }
 }
 
 pub fn outcome_rows() -> [v1::Outcome; 20] {
-    let limits = limits();
-    let original = adopted().into_parts();
+
+    let original = adopted();
     let mut contexts = List::with_capacity(1);
     contexts.push(Box::from(&b"build"[..])).expect("one context");
-    let rule = v1::Rule::new(
-        &limits,
-        v1::RuleParts { branch: Box::from(&b"main"[..]), contexts, approvals: 1, dismiss_stale: true },
-    )
-    .expect("protection rule");
-    let absent = v1::Adopted::new(&limits, v1::AdoptedParts { protection: v1::Protection::Absent, ..original.clone() })
-        .expect("no protection");
-    let protected = v1::Adopted::new(&limits, v1::AdoptedParts { protection: v1::Protection::Rule(rule), ..original })
-        .expect("protection observed");
-    let refusal = v1::CoreRefused::new(&limits, v1::CoreRefusedParts { refusal: Box::from(&b"core refusal"[..]) })
-        .expect("core refusal");
+    let rule = v1::Rule { branch: Box::from(&b"main"[..]), contexts, approvals: 1, dismiss_stale: true };
+    let absent = v1::Adopted { protection: v1::Protection::Absent, ..original.clone() };
+    let protected = v1::Adopted { protection: v1::Protection::Rule(rule), ..original };
+    let refusal = v1::CoreRefused { refusal: Box::from(&b"core refusal"[..]) };
     [
         v1::Outcome::Adopted(adopted()),
         v1::Outcome::Adopted(absent),
@@ -163,21 +144,20 @@ pub fn outcome_rows() -> [v1::Outcome; 20] {
 
 fn forge_refused(reason: v1::ForgeReason) -> v1::Outcome {
     v1::Outcome::ForgeRefused(
-        v1::ForgeRefused::new(&limits(), v1::ForgeRefusedParts { reason }).expect("forge refusal"),
+        v1::ForgeRefused { reason },
     )
 }
 
-pub fn pull(address_bytes: u32, limits: &v1::Limits) -> v1::Pull {
-    v1::Pull::new(limits, v1::PullParts { number: 23, address: field_bytes(address_bytes) })
-        .expect("pull within limits")
+pub fn pull(address_bytes: u32, _limits: &v1::Limits) -> v1::Pull {
+    v1::Pull { number: 23, address: field_bytes(address_bytes) }
 }
 
-pub fn queued(place: u32, count: u32, limits: &v1::Limits) -> v1::Queued {
+pub fn queued(place: u32, count: u32, _limits: &v1::Limits) -> v1::Queued {
     let mut ahead = List::with_capacity(count);
     for task in 1..=count {
         ahead.push(u64::from(task)).expect("counted tasks");
     }
-    v1::Queued::new(limits, v1::QueuedParts { place, ahead }).expect("queue within limits")
+    v1::Queued { place, ahead }
 }
 
 pub fn gates(count: u32) -> List<v1::Gate> {
@@ -185,25 +165,21 @@ pub fn gates(count: u32) -> List<v1::Gate> {
     for number in 0..count {
         gates
             .push(
-                v1::Gate::new(
-                    &limits(),
-                    v1::GateParts {
+                v1::Gate {
                         number: u64::from(number) + 1,
                         kind: v1::GateKind::Review,
                         blocks: true,
                         verdict: v1::Verdict::Pending,
                     },
-                )
-                .expect("gate"),
             )
             .expect("counted gates");
     }
     gates
 }
 
-pub fn panel_parts() -> v1::ChangePanelParts {
-    let limits = limits();
-    v1::ChangePanelParts {
+pub fn panel_parts() -> v1::ChangePanel {
+
+    v1::ChangePanel {
         wait: None,
         source: None,
         way: v1::Way::Queue,
@@ -224,9 +200,9 @@ pub fn panel_parts() -> v1::ChangePanelParts {
         approvals: List::with_capacity(0),
         unmapped_reviews: List::with_capacity(0),
         gates: gates(0),
-        repairs: v1::Used::new(&limits, v1::UsedParts { used: 1, limit: 2 }).expect("repairs"),
-        resolutions: v1::Used::new(&limits, v1::UsedParts { used: 3, limit: 4 }).expect("resolutions"),
-        updates: v1::Used::new(&limits, v1::UsedParts { used: 5, limit: 6 }).expect("updates"),
+        repairs: v1::Used { used: 1, limit: 2 },
+        resolutions: v1::Used { used: 3, limit: 4 },
+        updates: v1::Used { used: 5, limit: 6 },
         questions: questions(),
     }
 }
@@ -235,23 +211,23 @@ pub fn panel_parts() -> v1::ChangePanelParts {
 pub fn panel_rows() -> List<v1::ChangePanel> {
     use v1::{Ci, Hold, Reason, Step};
     let limits = limits();
-    let gate = Reason::Gate(v1::GateReason::new(&limits, v1::GateReasonParts { gate: 9 }).expect("gate reason"));
+    let gate = Reason::Gate(v1::GateReason { gate: 9 });
     let mut panels = List::uncapped();
     for (step, hold, ci, [head, pull, runs]) in [
         (
-            Step::Ready(v1::InLanding::new(&limits, v1::InLandingParts { landing: None }).unwrap()),
+            Step::Ready(v1::InLanding { landing: None }),
             None,
             Ci::Passed,
             [true, true, true],
         ),
         (
-            Step::Ready(v1::InLanding::new(&limits, v1::InLandingParts { landing: Some(61) }).unwrap()),
+            Step::Ready(v1::InLanding { landing: Some(61) }),
             None,
             Ci::Passed,
             [true, true, true],
         ),
         (
-            Step::Preparing(v1::InLanding::new(&limits, v1::InLandingParts { landing: Some(61) }).unwrap()),
+            Step::Preparing(v1::InLanding { landing: Some(61) }),
             None,
             Ci::Passed,
             [true, true, true],
@@ -268,20 +244,20 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         (Step::Updating, Some(Hold::Retargeted), Ci::Unknown, [true, true, true]),
         (Step::Resolving, Some(Hold::Failed), Ci::Pending, [true, true, true]),
         (
-            Step::Repairing(v1::Repairing::new(&limits, v1::RepairingParts { reason: Reason::Ci }).expect("CI repair")),
+            Step::Repairing(v1::Repairing { reason: Reason::Ci }),
             Some(Hold::Rejected),
             Ci::Failed,
             [true, true, true],
         ),
         (
-            Step::Repairing(v1::Repairing::new(&limits, v1::RepairingParts { reason: gate }).expect("gate repair")),
+            Step::Repairing(v1::Repairing { reason: gate }),
             None,
             Ci::Passed,
             [true, true, true],
         ),
         (
             Step::Repairing(
-                v1::Repairing::new(&limits, v1::RepairingParts { reason: Reason::Semantic }).expect("semantic repair"),
+                v1::Repairing { reason: Reason::Semantic },
             ),
             None,
             Ci::Passed,
@@ -289,7 +265,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         ),
         (
             Step::Repairing(
-                v1::Repairing::new(&limits, v1::RepairingParts { reason: Reason::Review }).expect("review repair"),
+                v1::Repairing { reason: Reason::Review },
             ),
             None,
             Ci::Passed,
@@ -298,23 +274,21 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         (Step::Landing, None, Ci::Passed, [true, true, true]),
         (
             Step::Verifying(
-                v1::Verifying::new(&limits, v1::VerifyingParts { merge: [8; 32], tiers: tier_lines() })
-                    .expect("verifying"),
+                v1::Verifying { merge: [8; 32], tiers: tier_lines() },
             ),
             None,
             Ci::Passed,
             [true; 3],
         ),
         (
-            Step::Red(v1::Red::new(&limits, v1::RedParts { merge: [8; 32], tiers: tier_lines() }).expect("red")),
+            Step::Red(v1::Red { merge: [8; 32], tiers: tier_lines() }),
             None,
             Ci::Passed,
             [true; 3],
         ),
         (
             Step::Cleared(
-                v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers: tier_lines(), uncleared: false })
-                    .expect("cleared"),
+                v1::Cleared { merge: [8; 32], tiers: tier_lines(), uncleared: false },
             ),
             None,
             Ci::Passed,
@@ -322,15 +296,14 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         ),
         (
             Step::Cleared(
-                v1::Cleared::new(&limits, v1::ClearedParts { merge: [8; 32], tiers: tier_lines(), uncleared: true })
-                    .expect("uncleared"),
+                v1::Cleared { merge: [8; 32], tiers: tier_lines(), uncleared: true },
             ),
             None,
             Ci::Passed,
             [true; 3],
         ),
         (
-            Step::Landed(v1::Landed::new(&limits, v1::LandedParts { merge: [0x47; 32] }).expect("merge")),
+            Step::Landed(v1::Landed { merge: [0x47; 32] }),
             None,
             Ci::Passed,
             [true, true, true],
@@ -340,7 +313,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         match &step {
             Step::Ready(member) | Step::Preparing(member) => {
                 parts.way = v1::Way::Turn;
-                parts.in_landing = *member.landing();
+                parts.in_landing = member.landing;
             }
             Step::Taking
             | Step::Producing
@@ -380,21 +353,17 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
                 parts
                     .gates
                     .push(
-                        v1::Gate::new(
-                            &limits,
-                            v1::GateParts {
+                        v1::Gate {
                                 number: u64::from(parts.gates.len()) + 1,
                                 kind: kind.clone(),
                                 blocks: verdict == v1::Verdict::Approved,
                                 verdict,
                             },
-                        )
-                        .expect("gate"),
                     )
                     .expect("twelve gates");
             }
         }
-        panels.push(v1::ChangePanel::new(&limits, parts).expect("panel row")).expect("panel rows");
+        panels.push(parts).expect("panel rows");
     }
     panels
 }
@@ -404,30 +373,27 @@ pub fn panel_at_bound(field: PanelBound, count: u32) -> Result<v1::ChangePanel, 
     let mut parts = panel_parts();
     match field {
         PanelBound::Address => {
-            parts.pull = Some(v1::Pull::new(&limits, v1::PullParts { number: 23, address: field_bytes(count) })?);
+            parts.pull = Some(v1::Pull { number: 23, address: field_bytes(count) });
         }
         PanelBound::Ahead => {
             let mut ahead = List::with_capacity(count);
             for task in 1..=count {
                 ahead.push(u64::from(task)).expect("counted tasks");
             }
-            parts.step = v1::Step::Queued(v1::Queued::new(&limits, v1::QueuedParts { place: 1, ahead })?);
+            parts.step = v1::Step::Queued(v1::Queued { place: 1, ahead });
         }
         PanelBound::Gates => parts.gates = gates(count),
-        PanelBound::Approvals | PanelBound::Counted => parts.approvals = approval_lines(field, count)?,
+        PanelBound::Approvals | PanelBound::Counted => parts.approvals = approval_lines(field, count),
         PanelBound::Unmapped => {
             parts.unmapped_reviews = List::with_capacity(count);
             for account in 0..count {
                 parts
                     .unmapped_reviews
-                    .push(v1::UnmappedReview::new(
-                        &limits,
-                        v1::UnmappedReviewParts {
+                    .push(v1::UnmappedReview {
                             account: u64::from(account),
                             head: [1; 32],
                             verdict: v1::Verdict::Approved,
-                        },
-                    )?)
+                        })
                     .expect("review slots");
             }
         }
@@ -444,7 +410,7 @@ pub fn panel_at_bound(field: PanelBound, count: u32) -> Result<v1::ChangePanel, 
             parts.landing = field_bytes(count);
         }
     }
-    v1::ChangePanel::new(&limits, parts)
+    { let value = parts; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -475,7 +441,7 @@ pub fn trailing(bytes: &[u8]) -> Box<[u8]> {
 }
 
 fn set_up_refused(why: v1::SetUpRefusal) -> v1::Outcome {
-    v1::Outcome::SetUpRefused(v1::SetUpRefused::new(&limits(), v1::SetUpRefusedParts { why }).expect("setup refusal"))
+    v1::Outcome::SetUpRefused(v1::SetUpRefused { why })
 }
 
 fn tier_lines() -> List<Box<[u8]>> {
@@ -485,63 +451,55 @@ fn tier_lines() -> List<Box<[u8]>> {
 }
 
 pub fn questions() -> v1::Questions {
-    let limits = limits();
+
     let mut open = List::with_capacity(5);
     for (index, stands) in [v1::Stands::Taken, v1::Stands::Asked, v1::Stands::Held].into_iter().enumerate() {
         open.push(
-            v1::Question::new(
-                &limits,
-                v1::QuestionParts {
+            v1::Question {
                     asker: 71,
                     number: u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number"),
                     line: Box::from(b"Which branch?".as_slice()),
                     stands,
                 },
-            )
-            .expect("question"),
         )
         .expect("five stands fit");
     }
-    v1::Questions::new(
-        &limits,
-        v1::QuestionsParts {
+    v1::Questions {
             route: v1::Route::Up,
-            taken: v1::Used::new(&limits, v1::UsedParts { used: 2, limit: 4 }).expect("questions taken"),
+            taken: v1::Used { used: 2, limit: 4 },
             open,
-        },
-    )
-    .expect("questions")
+        }
 }
 
 #[test]
 fn question_bounds_accept_at_and_refuse_one_past() {
     let limits = limits();
-    let base = v1::QuestionParts { asker: 7, number: 1, line: Box::new([b'q'; 256]), stands: v1::Stands::Taken };
-    let at = v1::Question::new(&limits, base.clone()).expect("line at bound");
-    let past = v1::Question::new(&limits, v1::QuestionParts { line: Box::new([b'q'; 257]), ..base });
+    let base = v1::Question { asker: 7, number: 1, line: Box::new([b'q'; 256]), stands: v1::Stands::Taken };
+    let at = base.clone();
+    let past = { let value = v1::Question { line: Box::new([b'q'; 257]), ..base }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
     assert_eq!(
         past.expect_err("line past bound"),
-        v1::Problem { path: v1::Path::QuestionLine, reason: skein_codec::Reason::Bound }
+        v1::Problem { path: v1::paths::QUESTION_LINE, reason: skein_codec::Reason::Bound }
     );
     for count in [8, 9] {
         let mut open = List::with_capacity(count);
         for _ in 0..count {
             open.push(at.clone()).expect("counted questions");
         }
-        let made = v1::Questions::new(&limits, v1::QuestionsParts { open, ..questions().into_parts() });
+        let made = { let value = v1::Questions { open, ..questions() }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
         if count == 8 {
             made.expect("open questions at bound");
         } else {
             assert_eq!(
                 made.expect_err("one question past bound"),
-                v1::Problem { path: v1::Path::QuestionsOpen, reason: skein_codec::Reason::Bound }
+                v1::Problem { path: v1::paths::QUESTIONS_OPEN, reason: skein_codec::Reason::Bound }
             );
         }
     }
 }
 
-fn approval_lines(field: PanelBound, count: u32) -> Result<List<v1::Approval>, v1::Problem> {
-    let limits = limits();
+fn approval_lines(field: PanelBound, count: u32) -> List<v1::Approval> {
+
     let (lines, reviews) = match field {
         PanelBound::Counted => (1, count),
         PanelBound::Address
@@ -559,16 +517,11 @@ fn approval_lines(field: PanelBound, count: u32) -> Result<List<v1::Approval>, v
         let mut counted = List::with_capacity(reviews);
         for person in 0..reviews {
             counted
-                .push(v1::CountedReview::new(
-                    &limits,
-                    v1::CountedReviewParts { person: u64::from(person), head: [1; 32] },
-                )?)
+                .push(v1::CountedReview { person: u64::from(person), head: [1; 32] })
                 .expect("person slots");
         }
         approvals
-            .push(v1::Approval::new(
-                &limits,
-                v1::ApprovalParts {
+            .push(v1::Approval {
                     scope: 0,
                     number,
                     role: 0,
@@ -578,9 +531,8 @@ fn approval_lines(field: PanelBound, count: u32) -> Result<List<v1::Approval>, v
                     counted,
                     remaining: Some(1),
                     refused: false,
-                },
-            )?)
+                })
             .expect("rule slots");
     }
-    Ok(approvals)
+    approvals
 }

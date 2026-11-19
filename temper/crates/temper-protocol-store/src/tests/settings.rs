@@ -477,37 +477,25 @@ fn agents_setting_round_trips_and_accounts_for_owned_bytes() {
     let mut profile = skein_lib::List::with_capacity(1);
     profile
         .push(
-            v1::AgentFigure::new(
-                &v1::CEILINGS,
-                v1::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 900 },
-            )
-            .unwrap(),
+            v1::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 900 },
         )
         .unwrap();
-    let limits = v1::AgentLimits::new(
-        &v1::CEILINGS,
-        v1::AgentLimitsParts {
+    let limits = v1::AgentLimits {
             window: u32::MAX,
             output: 1,
             reasoning_item: 1,
             head_ms: u64::MAX,
             idle_ms: 1,
             oversized: v1::Oversized::Drop,
-        },
-    )
-    .unwrap();
+        };
     let mut endpoints = skein_lib::List::with_capacity(1);
     endpoints
         .push(
-            v1::AgentEndpointLimits::new(
-                &v1::CEILINGS,
-                v1::AgentEndpointLimitsParts { endpoint: b"openai".as_slice().into(), limits: limits.clone() },
-            )
-            .unwrap(),
+            v1::AgentEndpointLimits { endpoint: b"openai".as_slice().into(), limits: limits.clone() },
         )
         .unwrap();
     let value =
-        v1::AgentFigures::new(&v1::CEILINGS, v1::AgentFiguresParts { profile, endpoints, fallback: limits }).unwrap();
+        v1::AgentFigures { profile, endpoints, fallback: limits };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for slot in
         [d::SettingSlot::Default, d::SettingSlot::Change, d::SettingSlot::Proposal(7), d::SettingSlot::Replaced(2)]

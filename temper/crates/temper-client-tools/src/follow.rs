@@ -182,11 +182,11 @@ pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told
                 {
                     let limits = forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
                     match wire::decode_follows_panel(&record.bytes, &limits) {
-                        Some(panel) if Some(panel.project()) == watch.project => {
+                        Some(panel) if Some(panel.project) == watch.project => {
                             let mut row = None;
                             if let Some(number) = watch.follow {
-                                for follow in panel.follows() {
-                                    if follow.number() == number {
+                                for follow in &panel.follows {
+                                    if follow.number == number {
                                         row = Some(follow);
                                         break;
                                     }
@@ -211,15 +211,11 @@ pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told
                 if watch.follow.is_some() {
                     missing(watch)
                 } else {
-                    let panel = w::FollowsPanel::new(
-                        &w::CEILINGS,
-                        w::FollowsPanelParts {
+                    let panel = w::FollowsPanel {
                             project: watch.project.expect("project"),
                             follows: skein_lib::List::with_capacity(0),
                             dependencies: skein_lib::List::with_capacity(0),
-                        },
-                    )
-                    .expect("empty follows");
+                        };
                     print::print(&panel, None, projects, watch.called.json, &env.limits)
                 }
             }

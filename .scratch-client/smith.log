@@ -1,0 +1,3 @@
+    Checking temper-engine-smith v0.0.0 (/home/free/src/fabrig/temper-worker/data/workspaces/workspaces/0/fabrig/temper/crates/temper-engine-smith)
+    Checking temper-engine-service-stock v0.0.0 (/home/free/src/fabrig/temper-worker/data/workspaces/workspaces/0/fabrig/temper/crates/temper-engine-service-stock)
+error: could not compile `temper-engine-service-stock` (lib) due to 17 previous errors

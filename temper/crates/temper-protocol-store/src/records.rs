@@ -411,8 +411,8 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
 
 fn encode_subject(subject: temper_protocol_reaches::Subject) -> w::ClassSubject {
     let record = temper_protocol_reaches::subject_record(subject);
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("subject measure"));
-    record.encode(&mut writer).expect("measured subject room");
+    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings")).expect("subject measure"));
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured subject room");
     w::ClassSubject::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect("matching subject records")
 }
 fn decode_subject(record: &w::ClassSubject) -> Result<temper_protocol_reaches::Subject, Undecodable> {

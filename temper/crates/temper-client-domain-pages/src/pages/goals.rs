@@ -443,11 +443,11 @@ impl Goals {
                     }
                     continue;
                 };
-                let part = part.into_parts();
+
                 let milestone = part.milestone;
                 let report = match part.report {
                     Some(report) => {
-                        let report = report.into_parts();
+
                         Some(report::Report {
                             headline: report.headline,
                             at: Some(Wall::from_nanos(report.at)),

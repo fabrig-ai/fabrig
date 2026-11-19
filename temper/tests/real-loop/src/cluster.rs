@@ -342,14 +342,10 @@ fn prepare_agents(data: &Path, mut agent: serde_json::Value) {
         for (name, value) in agent["profile"][group].as_object().expect("profile") {
             profile
                 .push(
-                    w::AgentFigure::new(
-                        &w::CEILINGS,
-                        w::AgentFigureParts {
+                    w::AgentFigure {
                             name: format!("{group}.{name}").into_bytes().into(),
                             value: value.as_u64().expect("scalar"),
                         },
-                    )
-                    .expect("profile figure"),
                 )
                 .expect("profile room");
         }
@@ -357,34 +353,26 @@ fn prepare_agents(data: &Path, mut agent: serde_json::Value) {
     let mut endpoints = skein_lib::List::with_capacity(w::CEILINGS.agent_figures_endpoints);
     for endpoint in agent["endpoints"].as_array().expect("endpoints") {
         let limits = &endpoint["limits"];
-        let limits = w::AgentLimits::new(
-            &w::CEILINGS,
-            w::AgentLimitsParts {
+        let limits = w::AgentLimits {
                 window: u32::try_from(limits["window"].as_u64().expect("window")).expect("u32"),
                 output: u32::try_from(limits["output"].as_u64().expect("output")).expect("u32"),
                 reasoning_item: u32::try_from(limits["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
                 head_ms: limits["head"].as_u64().expect("head"),
                 idle_ms: limits["idle"].as_u64().expect("idle"),
                 oversized: w::Oversized::Fail,
-            },
-        )
-        .expect("endpoint limits");
+            };
         endpoints
             .push(
-                w::AgentEndpointLimits::new(
-                    &w::CEILINGS,
-                    w::AgentEndpointLimitsParts {
+                w::AgentEndpointLimits {
                         endpoint: endpoint["name"].as_str().expect("endpoint").as_bytes().into(),
                         limits,
                     },
-                )
-                .expect("endpoint figures"),
             )
             .expect("endpoint room");
     }
     let fallback = endpoints.get(0).expect("one endpoint").limits().clone();
     let value =
-        w::AgentFigures::new(&w::CEILINGS, w::AgentFiguresParts { profile, endpoints, fallback }).expect("figures");
+        w::AgentFigures { profile, endpoints, fallback };
     let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
     value.encode(&mut bytes).expect("agent figures bytes");
     fixtures::private(&data.join("agents.setting"), &bytes.finish()).expect("initial agent figures");

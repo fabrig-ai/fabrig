@@ -1,0 +1,244 @@
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 4]`
+   --> temper/crates/temper-client-domain-forge/src/forge/family.rs:635:13
+    |
+635 |             assert_eq!(&request.org, b"orgx");
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `std::boxed::Box<[u8]> == [u8; 4]`
+    |
+help: the trait `PartialEq<[u8; 4]>` is not implemented for `std::boxed::Box<[u8]>`
+      but trait `PartialEq<std::boxed::Box<[u8]>>` is implemented for it
+   --> /rustc/19833af7224424e8b53e288097d56b6af43d5bcf/library/alloc/src/boxed.rs:2312:0
+    = help: for that trait implementation, expected `std::boxed::Box<[u8]>`, found `[u8; 4]`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 4]>`
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 4]`
+   --> temper/crates/temper-client-domain-forge/src/forge/family.rs:636:13
+    |
+636 |             assert_eq!(&request.name, b"repo");
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `std::boxed::Box<[u8]> == [u8; 4]`
+    |
+help: the trait `PartialEq<[u8; 4]>` is not implemented for `std::boxed::Box<[u8]>`
+      but trait `PartialEq<std::boxed::Box<[u8]>>` is implemented for it
+   --> /rustc/19833af7224424e8b53e288097d56b6af43d5bcf/library/alloc/src/boxed.rs:2312:0
+    = help: for that trait implementation, expected `std::boxed::Box<[u8]>`, found `[u8; 4]`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 4]>`
+
+
+error[E0599]: no method named `project` found for reference `&temper_client_protocol_wire::v1::MakeRepository` in the current scope
+   --> temper/crates/temper-client-domain-forge/src/forge.rs:576:65
+    |
+576 |         Some(into) => jig_client::contract::Scope::Project(into.project()),
+    |                                                                 ^^^^^^^ method not found in `&temper_client_protocol_wire::v1::MakeRepository`
+
+
+error[E0599]: no method named `task` found for reference `&temper_client_protocol_wire::public_v1::PublicQueued` in the current scope
+   --> temper/crates/temper-client-domain-forge/src/public/document.rs:190:70
+    |
+190 | ...                   application.tasks().get(u32::from(change.task()))?;
+    |                                                                ^^^^-- help: remove the arguments
+    |                                                                |
+    |                                                                field, not a method
+
+
+error[E0599]: no method named `goal` found for reference `&temper_client_protocol_wire::public_v1::PublicQueued` in the current scope
+   --> temper/crates/temper-client-domain-forge/src/public/document.rs:191:70
+    |
+191 | ...                   application.tasks().get(u32::from(change.goal()))?;
+    |                                                                ^^^^-- help: remove the arguments
+    |                                                                |
+    |                                                                field, not a method
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 4]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/making.rs:180:9
+    |
+180 |         assert_eq!(&request.org, b"team");
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `std::boxed::Box<[u8]> == [u8; 4]`
+    |
+help: the trait `PartialEq<[u8; 4]>` is not implemented for `std::boxed::Box<[u8]>`
+      but trait `PartialEq<std::boxed::Box<[u8]>>` is implemented for it
+   --> /rustc/19833af7224424e8b53e288097d56b6af43d5bcf/library/alloc/src/boxed.rs:2312:0
+    = help: for that trait implementation, expected `std::boxed::Box<[u8]>`, found `[u8; 4]`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 4]>`
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 7]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/making.rs:181:9
+    |
+181 |         assert_eq!(&request.name, b"renamed");
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ no implementation for `std::boxed::Box<[u8]> == [u8; 7]`
+    |
+help: the trait `PartialEq<[u8; 7]>` is not implemented for `std::boxed::Box<[u8]>`
+      but trait `PartialEq<std::boxed::Box<[u8]>>` is implemented for it
+   --> /rustc/19833af7224424e8b53e288097d56b6af43d5bcf/library/alloc/src/boxed.rs:2312:0
+    = help: for that trait implementation, expected `std::boxed::Box<[u8]>`, found `[u8; 7]`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 7]>`
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 6]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:410:36
+    |
+410 |         !adopt.home && &adopt.name == b"repo-1"
+    |                                    ^^ no implementation for `std::boxed::Box<[u8]> == [u8; 6]`
+    |
+    = help: the trait `std::cmp::PartialEq<[u8; 6]>` is not implemented for `std::boxed::Box<[u8]>`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 6]>`
+help: consider dereferencing both sides of the expression
+    |
+410 -         !adopt.home && &adopt.name == b"repo-1"
+410 +         !adopt.home && *adopt.name == *b"repo-1"
+    |
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 6]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:418:36
+    |
+418 |         !adopt.home && &adopt.name == b"repo-2"
+    |                                    ^^ no implementation for `std::boxed::Box<[u8]> == [u8; 6]`
+    |
+    = help: the trait `std::cmp::PartialEq<[u8; 6]>` is not implemented for `std::boxed::Box<[u8]>`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 6]>`
+help: consider dereferencing both sides of the expression
+    |
+418 -         !adopt.home && &adopt.name == b"repo-2"
+418 +         !adopt.home && *adopt.name == *b"repo-2"
+    |
+
+
+error[E0282]: type annotations needed
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:475:9
+    |
+475 |         w::MakeRepository::into(make).as_ref().unwrap().home() && &make.name == b"one"
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ cannot infer type for type parameter `T` declared on the trait `Into`
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 3]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:475:78
+    |
+475 |         w::MakeRepository::into(make).as_ref().unwrap().home() && &make.name == b"one"
+    |                                                                              ^^ no implementation for `std::boxed::Box<[u8]> == [u8; 3]`
+    |
+    = help: the trait `std::cmp::PartialEq<[u8; 3]>` is not implemented for `std::boxed::Box<[u8]>`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 3]>`
+help: consider dereferencing both sides of the expression
+    |
+475 -         w::MakeRepository::into(make).as_ref().unwrap().home() && &make.name == b"one"
+475 +         w::MakeRepository::into(make).as_ref().unwrap().home() && *make.name == *b"one"
+    |
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 3]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:483:79
+    |
+483 |         !w::MakeRepository::into(make).as_ref().unwrap().home() && &make.name == b"two"
+    |                                                                               ^^ no implementation for `std::boxed::Box<[u8]> == [u8; 3]`
+    |
+    = help: the trait `std::cmp::PartialEq<[u8; 3]>` is not implemented for `std::boxed::Box<[u8]>`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 3]>`
+help: consider dereferencing both sides of the expression
+    |
+483 -         !w::MakeRepository::into(make).as_ref().unwrap().home() && &make.name == b"two"
+483 +         !w::MakeRepository::into(make).as_ref().unwrap().home() && *make.name == *b"two"
+    |
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 4]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:527:19
+    |
+527 |         &make.org == b"work"
+    |                   ^^ no implementation for `std::boxed::Box<[u8]> == [u8; 4]`
+    |
+    = help: the trait `std::cmp::PartialEq<[u8; 4]>` is not implemented for `std::boxed::Box<[u8]>`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 4]>`
+help: consider dereferencing both sides of the expression
+    |
+527 -         &make.org == b"work"
+527 +         *make.org == *b"work"
+    |
+
+
+error[E0277]: can't compare `std::boxed::Box<[u8]>` with `[u8; 3]`
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:528:27
+    |
+528 |             && &make.name == b"new"
+    |                           ^^ no implementation for `std::boxed::Box<[u8]> == [u8; 3]`
+    |
+    = help: the trait `std::cmp::PartialEq<[u8; 3]>` is not implemented for `std::boxed::Box<[u8]>`
+    = note: required for `&std::boxed::Box<[u8]>` to implement `std::cmp::PartialEq<&[u8; 3]>`
+help: consider dereferencing both sides of the expression
+    |
+528 -             && &make.name == b"new"
+528 +             && *make.name == *b"new"
+    |
+
+
+error[E0308]: mismatched types
+   --> temper/crates/temper-client-domain-forge/src/forge/../tests/sheet.rs:800:62
+    |
+800 |     assert_eq!((request.forge, &request.org, &request.name), (FORGEJO, b"acme".as_slice(), b"again".as_slice()));
+    |                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `(u16, &Box<[u8]>, &Box<[u8]>)`, found `(u16, &[u8], &[u8])`
+    |
+    = note: expected tuple `(_, &std::boxed::Box<[u8]>, &std::boxed::Box<[u8]>)`
+               found tuple `(_, &[u8], &[u8])`
+
+
+error[E0599]: no method named `project` found for reference `&temper_client_protocol_wire::v1::MakeRepository` in the current scope
+   --> temper/crates/temper-client-domain-forge/src/forge.rs:576:65
+    |
+576 |         Some(into) => jig_client::contract::Scope::Project(into.project()),
+    |                                                                 ^^^^^^^ method not found in `&temper_client_protocol_wire::v1::MakeRepository`
+
+
+error[E0599]: no method named `task` found for reference `&temper_client_protocol_wire::public_v1::PublicQueued` in the current scope
+   --> temper/crates/temper-client-domain-forge/src/public/document.rs:190:70
+    |
+190 | ...                   application.tasks().get(u32::from(change.task()))?;
+    |                                                                ^^^^-- help: remove the arguments
+    |                                                                |
+    |                                                                field, not a method
+
+
+error[E0599]: no method named `goal` found for reference `&temper_client_protocol_wire::public_v1::PublicQueued` in the current scope
+   --> temper/crates/temper-client-domain-forge/src/public/document.rs:191:70
+    |
+191 | ...                   application.tasks().get(u32::from(change.goal()))?;
+    |                                                                ^^^^-- help: remove the arguments
+    |                                                                |
+    |                                                                field, not a method
+
+
+error[E0308]: mismatched types
+  --> temper/crates/temper-client-domain-forge/src/tests/change.rs:78:52
+   |
+78 |             Box::new([Hole::Number(65), Hole::Name(Box::from(&panel.landing))])
+   |                                         ---------- ^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Box<[u8]>`, found `Box<&Box<[u8]>>`
+   |                                         |
+   |                                         arguments to this enum variant are incorrect
+   |
+   = note: expected struct `Box<[u8]>`
+              found struct `Box<&std::boxed::Box<[u8]>>`
+note: tuple variant defined here
+  --> skein/crates/skein-ui/src/phrases.rs:54:5
+   |
+54 |     Name(Box<[u8]>),
+   |     ^^^^
+
+
+error[E0308]: mismatched types
+  --> temper/crates/temper-client-domain-forge/src/tests/change.rs:80:34
+   |
+80 |             Box::new([Hole::Name(Box::from(&panel.landing))])
+   |                       ---------- ^^^^^^^^^^^^^^^^^^^^^^^^^ expected `Box<[u8]>`, found `Box<&Box<[u8]>>`
+   |                       |
+   |                       arguments to this enum variant are incorrect
+   |
+   = note: expected struct `Box<[u8]>`
+              found struct `Box<&std::boxed::Box<[u8]>>`
+note: tuple variant defined here
+  --> skein/crates/skein-ui/src/phrases.rs:54:5
+   |
+54 |     Name(Box<[u8]>),
+   |     ^^^^
+
+
+diagnostics 20

@@ -43,30 +43,26 @@ fn address_lines_keep_independent_validation_and_repairs() {
 }
 
 fn copy(address: &[u8]) -> w::MakeFrom {
-    w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap())
+    w::MakeFrom::Copy(w::MakeCopy { address: address.into() })
 }
 
 fn into() -> w::MakeInto {
-    w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: 7, home: true }).unwrap()
+    w::MakeInto { project: 7, home: true }
 }
 
 fn made() -> w::MakingMade {
-    w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 42, branch: b"trunk".as_slice().into() }).unwrap()
+    w::MakingMade { id: 42, branch: b"trunk".as_slice().into() }
 }
 
 fn failed(step: w::MakeStep) -> w::MakingState {
     w::MakingState::Failed(
-        w::MakingFailed::new(
-            &w::CEILINGS,
-            w::MakingFailedParts { step, reason: w::MakeFailure::Taken, words: b"name taken".as_slice().into() },
-        )
-        .unwrap(),
+        w::MakingFailed { step, reason: w::MakeFailure::Taken, words: b"name taken".as_slice().into() },
     )
 }
 
 #[test]
 fn a_rows_makings_are_delivered_in_order() {
-    let limits = forge::wire_limits(&fixtures::limits().forge).unwrap();
+
     let expected = [
         Making {
             org: b"a".as_slice().into(),
@@ -108,17 +104,13 @@ fn a_rows_makings_are_delivered_in_order() {
     for row in &expected {
         makings
             .push(
-                w::RepositoryMaking::new(
-                    &limits,
-                    w::RepositoryMakingParts {
+                w::RepositoryMaking {
                         org: row.org.clone(),
                         name: row.name.clone(),
                         from: row.from.clone(),
                         into: row.into.clone(),
                         state: row.state.clone(),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
@@ -126,9 +118,7 @@ fn a_rows_makings_are_delivered_in_order() {
     for (number, makings) in [(3, makings), (4, List::with_capacity(0))] {
         forges
             .push(
-                w::ForgeRow::new(
-                    &limits,
-                    w::ForgeRowParts {
+                w::ForgeRow {
                         starts_with: w::StartsWith::Repository,
                         number,
                         host: b"git.example:3000".as_slice().into(),
@@ -148,15 +138,13 @@ fn a_rows_makings_are_delivered_in_order() {
                         ended_stop: None,
                         makings,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
+        bytes: wire::forges(&w::Forges { forges, linked: false }),
     };
     let rows = forge::forges::rows(&record, &fixtures::limits().forge).unwrap();
     assert_eq!(rows.len(), 2);
@@ -171,7 +159,7 @@ fn a_copys_target_is_its_sources_owner_and_name() {
         let (org, name) = copy_target(&source);
         assert_eq!(org.as_ref(), b"team");
         assert_eq!(name.as_ref(), b"widget");
-        let request = ask(3, &org, &name, Some(address), Some(into())).unwrap().into_parts();
+        let request = ask(3, &org, &name, Some(address), Some(into())).unwrap();
         assert_eq!(request.forge, 3);
         assert_eq!(request.org, org);
         assert_eq!(request.name, name);
@@ -189,9 +177,9 @@ fn an_owner_that_is_no_org_needs_as() {
         let (org, name) = copy_target(&source);
         assert_eq!(ask(3, &org, &name, Some(address), None), Err(Refused::Org));
         let request = ask(3, b"team", b"renamed", Some(address), None).unwrap();
-        assert_eq!(request.org(), b"team");
-        assert_eq!(request.name(), b"renamed");
-        assert_eq!(request.from(), &copy(&source::address(&source)));
+        assert_eq!(request.org.as_ref(), b"team");
+        assert_eq!(request.name.as_ref(), b"renamed");
+        assert_eq!(&request.from, &copy(&source::address(&source)));
     }
 }
 
@@ -211,8 +199,8 @@ fn a_request_checks_names_and_the_source_before_it_is_formed() {
         );
     }
     let request = ask(3, b"team", b"widget", None, None).unwrap();
-    assert_eq!(request.from(), &w::MakeFrom::Empty);
-    assert_eq!(request.into_parts().into, None);
+    assert_eq!(&request.from, &w::MakeFrom::Empty);
+    assert_eq!(request.into, None);
 }
 
 #[test]

@@ -222,7 +222,7 @@ fn flow(
                 temper_client_domain::pages::findings::Need::Existing(need) => {
                     Some(crate::shared::need_line(need, w).words)
                 }
-                temper_client_domain::pages::findings::Need::Finding(card) => Some(card.row.title().into()),
+                temper_client_domain::pages::findings::Need::Finding(card) => Some(card.row.title.clone()),
                 temper_client_domain::pages::findings::Need::Row(_) => None,
             };
             if let Some(question) = question {
@@ -345,7 +345,7 @@ pub(super) fn limit_hold(
         held,
         limit_settings::owner(root.pages().me(root.client())),
         state.ready() && card.key.is_none(),
-        state.refused(held.task()),
+        state.refused(held.task),
     );
 }
 fn limit_details(
@@ -363,18 +363,18 @@ fn limit_details(
         Role::Paragraph,
         &w.say(
             Word::NeedsLimit,
-            &[Hole::Name(held.limit().into()), Hole::Number(held.configured()), Hole::Number(held.needed())],
+            &[Hole::Name(held.limit.clone()), Hole::Number(held.configured), Hole::Number(held.needed)],
         ),
         look::SETTINGS_DETAIL,
     );
     if owner {
-        if let Some(figure) = limit_settings::raise_figure(held.configured(), held.needed()) {
-            let label = w.say(Word::NeedsLimitRaise, &[Hole::Name(held.limit().into()), Hole::Number(figure)]);
+        if let Some(figure) = limit_settings::raise_figure(held.configured, held.needed) {
+            let label = w.say(Word::NeedsLimitRaise, &[Hole::Name(held.limit.clone()), Hole::Number(figure)]);
             b.open(Role::Button);
             b.name(&label);
             b.bind(bindings.insert(Act::LimitSettings(limit_settings::Act::Raise {
-                task: held.task(),
-                revision: held.revision(),
+                task: held.task,
+                revision: held.revision,
             })));
             if !ready {
                 b.state(State::Disabled);

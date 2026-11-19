@@ -395,8 +395,7 @@ fn chat_views() -> crate::view::chat::Chat {
     let pieces = (0..temper_client_domain::Limits::chat_views())
         .map(|_| {
             Piece::View(Printed::Drawn(Box::new(w::View::Proposal(
-                w::ProposalView::new(&w::CEILINGS, w::ProposalViewParts { before: path.clone(), after: path.clone() })
-                    .unwrap(),
+                w::ProposalView { before: path.clone(), after: path.clone() },
             ))))
         })
         .collect();

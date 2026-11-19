@@ -121,45 +121,33 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
                 if charter != 2 {
                     facts.insert(0, ("Model", "The model · high"));
                 }
-                w::CharterView::new(
-                    &w::CEILINGS,
-                    w::CharterViewParts {
+                w::CharterView {
                         charter,
-                        card: w::Card::new(
-                            &w::CEILINGS,
-                            w::CardParts {
+                        card: w::Card {
                                 name: name.as_bytes().into(),
                                 who: who.as_bytes().into(),
                                 facts: List::from_boxed(
                                     facts
                                         .into_iter()
                                         .map(|(label, value)| {
-                                            w::Fact::new(
-                                                &w::CEILINGS,
-                                                w::FactParts {
+                                            w::Fact {
                                                     label: label.as_bytes().into(),
                                                     value: value.as_bytes().into(),
-                                                },
-                                            )
-                                            .unwrap()
+                                                }
                                         })
                                         .collect(),
                                 ),
                             },
-                        )
-                        .unwrap(),
-                    },
-                )
-                .unwrap()
+                    }
             })
             .collect()
         } else {
             Box::default()
         };
         let view = w::View::Roles(
-            w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: List::from_boxed(roles) }).unwrap(),
+            w::RolesView { roles: List::from_boxed(roles) },
         );
-        let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+        let answer = w::ViewAnswer { view };
         up(
             &mut root,
             Up::ReadDone {
@@ -215,53 +203,33 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
             .zip(LINES)
             .enumerate()
             .map(|(index, (name, line))| {
-                w::StockWay::new(
-                    &w::CEILINGS,
-                    w::StockWayParts {
+                w::StockWay {
                         headline: HEADLINES[index].into(),
                         name: name.into(),
                         line: line.into(),
                         path: path(index == 2),
-                        items: List::from_boxed(Box::new([w::ProposalItem::new(
-                            &w::CEILINGS,
-                            w::ProposalItemParts {
+                        items: List::from_boxed(Box::new([w::ProposalItem {
                                 kind: 7,
                                 scope: f::PROJECT,
                                 number: 1,
                                 edit: w::SettingEdit::Removed,
-                            },
-                        )
-                        .unwrap()])),
+                            }])),
                         delegation: false,
                         roles: List::with_capacity(0),
-                    },
-                )
-                .unwrap()
+                    }
             })
             .collect();
-        let panel = w::WaysPanel::new(
-            &w::CEILINGS,
-            w::WaysPanelParts {
-                rules: w::PathRules::new(
-                    &w::CEILINGS,
-                    w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-                )
-                .unwrap(),
+        let panel = w::WaysPanel {
+                rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
                 words: case.words.map(|(headline, lede)| {
-                    w::ProjectWords::new(
-                        &w::CEILINGS,
-                        w::ProjectWordsParts { headline: headline.into(), lede: lede.into() },
-                    )
-                    .unwrap()
+                    w::ProjectWords { headline: headline.into(), lede: lede.into() }
                 }),
                 project: f::PROJECT,
                 ways: List::from_boxed(ways),
                 current: case.current,
                 own: path(false),
                 may_change: case.may_change,
-            },
-        )
-        .unwrap();
+            };
         up(
             &mut root,
             Up::FamilyDelivered {
@@ -305,26 +273,16 @@ fn path(draft: bool) -> w::BranchPath {
         .into_iter()
         .map(|(actor, step, words, name)| {
             let opens = if step == S::Review {
-                w::Opens::Gate(w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1, charter: 4 }).unwrap())
+                w::Opens::Gate(w::OpensGate { number: 1, charter: 4 })
             } else {
                 w::Opens::Nothing
             };
-            let card = w::Card::new(
-                &w::CEILINGS,
-                w::CardParts {
+            let card = w::Card {
                     who: b"from the engine".as_slice().into(),
                     name: name.as_bytes().into(),
-                    facts: List::from_boxed(Box::new([w::Fact::new(
-                        &w::CEILINGS,
-                        w::FactParts { label: b"Can".as_slice().into(), value: b"read, never merge".as_slice().into() },
-                    )
-                    .unwrap()])),
-                },
-            )
-            .unwrap();
-            w::Stop::new(
-                &w::CEILINGS,
-                w::StopParts {
+                    facts: List::from_boxed(Box::new([w::Fact { label: b"Can".as_slice().into(), value: b"read, never merge".as_slice().into() }])),
+                };
+            w::Stop {
                     needed: step == S::Repair || step == S::Conflict,
                     over: if step == S::Repair { b"tests, review".as_slice().into() } else { Box::default() },
                     actor,
@@ -332,16 +290,10 @@ fn path(draft: bool) -> w::BranchPath {
                     words: words.as_bytes().into(),
                     opens,
                     card,
-                },
-            )
-            .unwrap()
+                }
         })
         .collect();
-    w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(stops) },
-    )
-    .unwrap()
+    w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(stops) }
 }
 fn view(root: &d::Domain, browser: bool) -> crate::View {
     let words = if browser { f::browser_words() } else { f::words() };
@@ -888,16 +840,12 @@ fn pending_head_acts_disable_and_refuse_under_the_legend() {
 #[test]
 fn rules_draw_the_reads_words_between_reaches_and_roles() {
     let row = |paths: &[u8], review: &[u8], sign_off: &[u8], lands: &[u8]| {
-        w::PathRule::new(
-            &w::CEILINGS,
-            w::PathRuleParts {
+        w::PathRule {
                 paths: paths.into(),
                 review: review.into(),
                 sign_off: sign_off.into(),
                 lands: lands.into(),
-            },
-        )
-        .unwrap()
+            }
     };
     let payments = row(b"payments/**", b"an agent", b"two of you", b"once two have signed this head");
     let bare = row(b"src/**", b"", b"", b"on its own");
@@ -924,26 +872,18 @@ fn rules_draw_the_reads_words_between_reaches_and_roles() {
             (vec![bare.clone()], b"".as_slice(), false),
             (vec![bare.clone(), payments.clone()], b"The engine's note, unchanged.".as_slice(), true),
         ] {
-            let panel = w::WaysPanel::new(
-                &w::CEILINGS,
-                w::WaysPanelParts {
+            let panel = w::WaysPanel {
                     project: f::PROJECT,
                     ways: List::with_capacity(0),
                     current: None,
                     own: path(false),
                     words: None,
                     may_change: false,
-                    rules: w::PathRules::new(
-                        &w::CEILINGS,
-                        w::PathRulesParts {
+                    rules: w::PathRules {
                             rows: List::from_boxed(rows.clone().into_boxed_slice()),
                             note: note.into(),
                         },
-                    )
-                    .unwrap(),
-                },
-            )
-            .unwrap();
+                };
             up(
                 &mut root,
                 Up::FamilyDelivered {
@@ -1184,25 +1124,17 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
     let mut path = path(false).into_parts();
     let mut stop = path.stops.get(7).unwrap().clone().into_parts();
     stop.opens =
-        w::Opens::Tier(w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap());
-    *path.stops.get_mut(7).unwrap() = w::Stop::new(&w::CEILINGS, stop).unwrap();
-    let panel = w::WaysPanel::new(
-        &w::CEILINGS,
-        w::WaysPanelParts {
+        w::Opens::Tier(w::OpensTier { name: b"slow".as_slice().into() });
+    *path.stops.get_mut(7).unwrap() = stop;
+    let panel = w::WaysPanel {
             project: f::PROJECT,
             words: None,
             ways: List::with_capacity(0),
             current: None,
-            own: w::BranchPath::new(&w::CEILINGS, path).unwrap(),
-            rules: w::PathRules::new(
-                &w::CEILINGS,
-                w::PathRulesParts { rows: List::with_capacity(0), note: Box::default() },
-            )
-            .unwrap(),
+            own: path,
+            rules: w::PathRules { rows: List::with_capacity(0), note: Box::default() },
             may_change: false,
-        },
-    )
-    .unwrap();
+        };
     up(
         &mut root,
         Up::FamilyDelivered {

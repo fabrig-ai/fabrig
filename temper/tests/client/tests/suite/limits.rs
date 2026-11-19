@@ -43,23 +43,17 @@ fn see(role: Role, name: &[u8]) -> Step<Address> {
 fn page() -> w::LimitsAnswer {
     let mut rows = List::with_capacity(1);
     rows.push(
-        w::LimitRow::new(
-            &w::CEILINGS,
-            w::LimitRowParts {
+        w::LimitRow {
                 name: b"forge.entries".as_slice().into(),
                 line: b"Bounds the forge outbox.".as_slice().into(),
                 unit: w::LimitUnit::Count,
                 stock: Some(8),
                 setting: Some(
-                    w::LimitSetting::new(
-                        &w::CEILINGS,
-                        w::LimitSettingParts {
+                    w::LimitSetting {
                             kind: w::LimitKind::Temper,
                             value: 32,
                             reason: b"dev's outbox".as_slice().into(),
                         },
-                    )
-                    .expect("limits fixture"),
                 ),
                 in_force: Some(16),
                 applies: w::LimitApplies::AtOnce,
@@ -67,11 +61,9 @@ fn page() -> w::LimitsAnswer {
                 left_out: false,
                 held: None,
             },
-        )
-        .expect("limits fixture"),
     )
     .expect("limits fixture");
-    w::LimitsAnswer::new(&w::CEILINGS, w::LimitsAnswerParts { rows, next: None, revision: 1 }).expect("limits fixture")
+    w::LimitsAnswer { rows, next: None, revision: 1 }
 }
 #[test]
 fn how_work_runs_links_to_limits_with_settings_and_existing_capacity_facts() {
@@ -162,7 +154,7 @@ fn a_limit_held_card_sends_one_whole_list_at_the_current_revision_and_stays_runn
     let c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(encoded) }) = &item.edit else {
         panic!("one limits list")
     };
-    let value = w::TemperLimits::decode(&w::CEILINGS, &mut skein_lib::Reader::new(encoded)).expect("limits fixture");
+    let value = w::LimitOverrides::decode(&w::CEILINGS, &mut skein_lib::Reader::new(encoded)).expect("limits fixture");
     assert_eq!(value.overrides().len(), 1);
     let raised = value.overrides().get(0).expect("limits fixture");
     assert_eq!(raised.name(), row.limit());

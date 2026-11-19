@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::{Event, Request, forge};
 use skein_lib::{Queue, RequestEnvelope};
@@ -78,12 +79,12 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
     assert_eq!(record.request.key.asker, fixtures::FORGE_ASKER);
     assert_eq!(family.family, temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge));
     assert_eq!(family.version, temper_client_protocol_wire::CLIENT_VERSION);
-    let adoption = (match temper_client_protocol_wire::v1::Requesting::decode(
+    let adoption = match temper_client_protocol_wire::v1::Requesting::decode(
         &forge::wire_limits(&fixtures::limits().forge).expect("wire bounds"),
         &mut skein_lib::Reader::new(&family.bytes),
     )
     .expect("adoption bytes")
-    .into_parts()
+    
     .request
     {
         temper_client_protocol_wire::v1::Request::Adopt(adopt) => adopt,
@@ -115,8 +116,8 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         | temper_client_protocol_wire::v1::Request::Install(_) => {
             panic!("expected adoption")
         }
-    })
-    .into_parts();
+    }
+    ;
     assert_eq!(
         (adoption.project, adoption.forge, &*adoption.owner, &*adoption.name),
         (1, 1, &b"acme"[..], &b"shop"[..])
@@ -209,12 +210,12 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
     assert_eq!(record.request.key.asker, fixtures::FORGE_ASKER);
     let jig_client::Ask::Family { record, .. } = record.request.request else { panic!("opaque family") };
     let mut reader = skein_lib::Reader::new(&record.bytes);
-    let adoption = (match temper_client_protocol_wire::v1::Requesting::decode(
+    let adoption = match temper_client_protocol_wire::v1::Requesting::decode(
         &forge::wire_limits(&fixtures::limits().forge).expect("wire bounds"),
         &mut reader,
     )
     .expect("family adoption")
-    .into_parts()
+    
     .request
     {
         temper_client_protocol_wire::v1::Request::Adopt(adopt) => adopt,
@@ -246,8 +247,8 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         | temper_client_protocol_wire::v1::Request::Install(_) => {
             panic!("expected adoption")
         }
-    })
-    .into_parts();
+    }
+    ;
     assert!(reader.is_empty());
     assert_eq!(
         (record.family, record.version, adoption.project, adoption.owner.as_ref(), adoption.name.as_ref()),
@@ -440,9 +441,7 @@ fn first_rows(
     let mut rows = skein_lib::List::with_capacity(3);
     for (number, mode) in [(1, w::Mode::Fake), (2, w::Mode::Owned), (3, w::Mode::Owned)] {
         rows.push(
-            w::ForgeRow::new(
-                &w::CEILINGS,
-                w::ForgeRowParts {
+            w::ForgeRow {
                     starts_with: w::StartsWith::Repository,
                     makings: skein_lib::List::with_capacity(0),
                     host: b"git.example:3000".as_slice().into(),
@@ -452,17 +451,13 @@ fn first_rows(
                     connection: w::Connection::NotConnected,
                     offer: w::Offer::NotOffered,
                     first: Some(
-                        w::FirstRepository::new(
-                            &w::CEILINGS,
-                            w::FirstRepositoryParts {
+                        w::FirstRepository {
                                 playground: number == 1,
                                 org: b"work".as_slice().into(),
                                 repository: b"hello".as_slice().into(),
                                 state: state.clone(),
                                 label: b"docker".as_slice().into(),
                             },
-                        )
-                        .unwrap(),
                     ),
                     installations: skein_lib::List::with_capacity(0),
                     ended: None,
@@ -474,8 +469,6 @@ fn first_rows(
                     read_only: false,
                     ended_stop: None,
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
     }
@@ -483,7 +476,7 @@ fn first_rows(
 }
 fn made() -> temper_client_protocol_wire::v1::FirstState {
     use temper_client_protocol_wire::v1 as w;
-    w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 7 }).unwrap())
+    w::FirstState::Made(w::Made { id: 7 })
 }
 fn deliver_first(
     root: &mut crate::Domain,
@@ -502,7 +495,7 @@ fn deliver_first(
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
                         bytes: wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
+                            &w::Forges { forges: rows, linked: false },
                         ),
                     },
                 },
@@ -544,22 +537,18 @@ fn the_form_opens_filled_for_the_lowest_real_unadopted_first_repository() {
 fn the_form_leaves_defaults_for_adopted_unmade_and_fake_first_repositories() {
     use temper_client_protocol_wire::v1 as w;
     let mut adopted = first_rows(made());
-    let mut parts = adopted.get(0).unwrap().clone().into_parts();
+    let mut parts = adopted.get(0).unwrap().clone();
     parts
         .repositories
         .push(
-            w::Adoption::new(
-                &w::CEILINGS,
-                w::AdoptionParts { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 99 },
-            )
-            .unwrap(),
+            w::Adoption { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 99 },
         )
         .unwrap();
-    *adopted.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    *adopted.get_mut(0).unwrap() = parts;
     let mut fake = first_rows(made());
     fake.truncate(1);
     let failed = w::FirstState::Failed(
-        w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository }).unwrap(),
+        w::CreateFailed { step: w::CreateStep::Repository },
     );
     for (case, rows) in [
         ("adopted", adopted),

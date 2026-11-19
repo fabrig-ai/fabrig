@@ -1,6 +1,7 @@
 //! Values and edits of the forge's kinds of settings
 //! (temper/docs/design/protocol/configuration/settings.md, 2 and 3;
 //! temper/docs/design/domain/forge/change/gates.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::{Override, OverrideFault, check_overrides};
 mod limits;
@@ -286,26 +287,21 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
     match kind {
         6 => {
             let record =
-                v1::ProjectQuestions::new(&v1::CEILINGS, v1::ProjectQuestionsParts { route: v1::QuestionsRoute::None })
-                    .expect("fixed route field");
+                v1::ProjectQuestions { route: v1::QuestionsRoute::None };
             Some(SizedValue {
                 value: Value::Questions(temper_engine_domain_forge_change::Route::None),
-                size: record.measure(),
+                size: record.measure(&v1::CEILINGS).expect("stock value within ceilings"),
             })
         }
         7 => {
             let ways = ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
-            let record = v1::ProjectWays::new(
-                &v1::CEILINGS,
-                v1::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
-            )
-            .expect("fixed ways fields");
-            Some(SizedValue { value: Value::Ways(ways), size: record.measure() })
+            let record = v1::ProjectWays { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way };
+            Some(SizedValue { value: Value::Ways(ways), size: record.measure(&v1::CEILINGS).expect("stock value within ceilings") })
         }
         8 => {
             let classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
             let record = temper_protocol_reaches::classes_record(&classes).expect("stock table fits the record");
-            Some(SizedValue { value: Value::Classes(classes), size: record.measure() })
+            Some(SizedValue { value: Value::Classes(classes), size: record.measure(&v1::CEILINGS).expect("stock value within ceilings") })
         }
         _ => None,
     }

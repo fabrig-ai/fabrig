@@ -66,18 +66,14 @@ fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
     );
 }
 
-fn parts(step: w::Step) -> w::ChangePanelParts {
+fn parts(step: w::Step) -> w::ChangePanel {
     let mut parts = p::panel(TASK, step).into_parts();
     parts.owner = Box::from(*b"acme");
     parts.name = Box::from(*b"shop");
     parts.branch = Box::from(*b"temper/9");
     parts.landing = Box::from(*b"main");
     parts.pull = Some(
-        w::Pull::new(
-            &w::CEILINGS,
-            w::PullParts { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") },
-        )
-        .unwrap(),
+        w::Pull { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") },
     );
     parts.hold = None;
     parts.runs = None;
@@ -85,8 +81,8 @@ fn parts(step: w::Step) -> w::ChangePanelParts {
     parts
 }
 
-fn panel(parts: w::ChangePanelParts) -> w::ChangePanel {
-    w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
+fn panel(parts: w::ChangePanel) -> w::ChangePanel {
+    parts
 }
 
 fn page_view(root: &Domain) -> crate::View {
@@ -142,7 +138,7 @@ fn queued(place: u32, names: &[u64]) -> w::Step {
     for n in names {
         ahead.push(*n).unwrap();
     }
-    w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead }).unwrap())
+    w::Step::Queued(w::Queued { place, ahead })
 }
 
 #[test]
@@ -219,10 +215,10 @@ fn the_queue_offers_each_task_ahead_as_a_terminal_command() {
 #[test]
 fn a_change_panel_names_its_way_and_retained_landing() {
     let (mut root, watch) = opened();
-    let mut value = parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [9; 32] }).unwrap()));
+    let mut value = parts(w::Step::Landed(w::Landed { merge: [9; 32] }));
     value.way = w::Way::Turn;
     value.in_landing = Some(61);
-    deliver(&mut root, watch, &w::ChangePanel::new(&w::CEILINGS, value).unwrap());
+    deliver(&mut root, watch, &value);
     let text = f::main_text(page_view(&root).tree());
     assert!(skein_lib::bytes::find(&text, b"Way: turn.").is_some());
     assert!(skein_lib::bytes::find(&text, b"Landing: task 61.").is_some());

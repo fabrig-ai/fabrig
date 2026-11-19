@@ -1,4 +1,5 @@
 //! Maximal visitor answers and entrance refusals (temper/docs/design/client/forge/README.md, 9.4).
+use crate::v1::Record;
 use crate::{Bounds, public_bounds, public_limits, public_v1 as w};
 use skein_lib::{List, Reader, Writer};
 
@@ -14,20 +15,16 @@ const BOUNDS: Bounds = Bounds {
 };
 
 fn gate() -> w::PublicGate {
-    w::PublicGate::new(
-        &w::CEILINGS,
-        w::PublicGateParts {
+    w::PublicGate {
             number: u64::MAX,
             kind: w::PublicGateKind::Check,
             blocks: true,
             verdict: w::PublicVerdict::Changes,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn used() -> w::PublicUsed {
-    w::PublicUsed::new(&w::CEILINGS, w::PublicUsedParts { used: u32::MAX, limit: u32::MAX }).unwrap()
+    w::PublicUsed { used: u32::MAX, limit: u32::MAX }
 }
 
 fn change(limits: &w::Limits) -> w::PublicChange {
@@ -35,14 +32,12 @@ fn change(limits: &w::Limits) -> w::PublicChange {
     for _ in 0..limits.public_change_gates {
         gates.push(gate()).unwrap();
     }
-    w::PublicChange::new(
-        limits,
-        w::PublicChangeParts {
+    w::PublicChange {
             task: u16::MAX,
             head: Some([255; 32]),
             step: w::PublicStep::Repairing,
             repair: Some(w::PublicRepair::Gate(
-                w::PublicGateNumber::new(limits, w::PublicGateNumberParts { gate: u64::MAX }).unwrap(),
+                w::PublicGateNumber { gate: u64::MAX },
             )),
             merge: Some([255; 32]),
             tiers: u32::MAX,
@@ -54,9 +49,7 @@ fn change(limits: &w::Limits) -> w::PublicChange {
             updates: used(),
             way: w::PublicWay::Turn,
             in_landing: true,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn line(limits: &w::Limits) -> w::PublicLandingLine {
@@ -68,16 +61,11 @@ fn line(limits: &w::Limits) -> w::PublicLandingLine {
     for _ in 0..limits.public_landing_line_landed {
         landed.push([255; 32]).unwrap();
     }
-    w::PublicLandingLine::new(
-        limits,
-        w::PublicLandingLineParts { members, phase: w::PublicLandingPhase::Landed, landed },
-    )
-    .unwrap()
+    w::PublicLandingLine { members, phase: w::PublicLandingPhase::Landed, landed }
 }
 
 fn queued() -> w::PublicQueued {
-    w::PublicQueued::new(&w::CEILINGS, w::PublicQueuedParts { task: u16::MAX, goal: u16::MAX, ready_since: u64::MAX })
-        .unwrap()
+    w::PublicQueued { task: u16::MAX, goal: u16::MAX, ready_since: u64::MAX }
 }
 
 fn queue(limits: &w::Limits) -> w::PublicQueue {
@@ -85,7 +73,7 @@ fn queue(limits: &w::Limits) -> w::PublicQueue {
     for _ in 0..limits.public_queue_changes {
         changes.push(queued()).unwrap();
     }
-    w::PublicQueue::new(limits, w::PublicQueueParts { changes }).unwrap()
+    w::PublicQueue { changes }
 }
 
 fn landings(limits: &w::Limits) -> w::PublicLandings {
@@ -97,21 +85,17 @@ fn landings(limits: &w::Limits) -> w::PublicLandings {
     for _ in 0..limits.public_landings_queues {
         queues.push(queue(limits)).unwrap();
     }
-    w::PublicLandings::new(limits, w::PublicLandingsParts { turn: Some(u16::MAX), landings, queues }).unwrap()
+    w::PublicLandings { turn: Some(u16::MAX), landings, queues }
 }
 
 fn proof() -> w::PublicGateProof {
-    w::PublicGateProof::new(
-        &w::CEILINGS,
-        w::PublicGateProofParts {
+    w::PublicGateProof {
             faults: 0,
             number: u64::MAX,
             kind: w::PublicGateKind::Check,
             blocks: true,
             proof: w::PublicProof::Failed,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn judgement(limits: &w::Limits) -> w::PublicJudgement {
@@ -119,21 +103,17 @@ fn judgement(limits: &w::Limits) -> w::PublicJudgement {
     for _ in 0..limits.public_judgement_gates {
         gates.push(gate()).unwrap();
     }
-    w::PublicJudgement::new(limits, w::PublicJudgementParts { prefix: [255; 32], verdict: w::PublicCi::Failed, gates })
-        .unwrap()
+    w::PublicJudgement { prefix: [255; 32], verdict: w::PublicCi::Failed, gates }
 }
 fn member(limits: &w::Limits) -> w::PublicMember {
     let mut gates = List::with_capacity(limits.public_member_gates);
     for _ in 0..limits.public_member_gates {
         gates.push(proof()).unwrap();
     }
-    w::PublicMember::new(
-        limits,
-        w::PublicMemberParts {
+    w::PublicMember {
             head: Some([255; 32]),
             left: Some(w::PublicLeave::Blamed(
-                w::PublicBlamed::new(limits, w::PublicBlamedParts { gate: u64::MAX, red: [255; 32], green: [255; 32] })
-                    .unwrap(),
+                w::PublicBlamed { gate: u64::MAX, red: [255; 32], green: [255; 32] },
             )),
             judgement: Some(judgement(limits)),
             task: u16::MAX,
@@ -141,9 +121,7 @@ fn member(limits: &w::Limits) -> w::PublicMember {
             candidate: Some([255; 32]),
             landed: Some([255; 32]),
             gates,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn landing(limits: &w::Limits) -> w::PublicLanding {
@@ -151,27 +129,13 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
     for _ in 0..limits.public_landing_members {
         members.push(member(limits)).unwrap();
     }
-    w::PublicLanding::new(
-        limits,
-        w::PublicLandingParts {
+    w::PublicLanding {
             search: Some(
-                w::PublicSearch::new(
-                    limits,
-                    w::PublicSearchParts {
-                        green: w::PublicSearchBound::new(
-                            limits,
-                            w::PublicSearchBoundParts { member: 0, prefix: [255; 32] },
-                        )
-                        .unwrap(),
-                        red: w::PublicSearchBound::new(
-                            limits,
-                            w::PublicSearchBoundParts { member: u16::MAX, prefix: [255; 32] },
-                        )
-                        .unwrap(),
+                w::PublicSearch {
+                        green: w::PublicSearchBound { member: 0, prefix: [255; 32] },
+                        red: w::PublicSearchBound { member: u16::MAX, prefix: [255; 32] },
                         probe: Some([255; 32]),
                     },
-                )
-                .unwrap(),
             ),
             combined: Some(w::PublicCombined::Squash),
             step: Some(w::PublicLandingStep::Held),
@@ -181,9 +145,7 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
             members,
             stale_proofs: u32::MAX,
             holds_turn: true,
-        },
-    )
-    .unwrap()
+        }
 }
 
 pub(super) fn largest_answers() {
@@ -191,7 +153,7 @@ pub(super) fn largest_answers() {
     let [first_bound, list_bound, detail_bound] = public_bounds(&BOUNDS);
     let change = change(&limits);
     let mut writer = Writer::new(usize::try_from(first_bound).unwrap());
-    change.encode(&mut writer).unwrap();
+    change.write(&w::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     assert_eq!(bytes.len(), usize::try_from(first_bound).unwrap());
     assert_eq!(w::PublicChange::decode(&limits, &mut Reader::new(&bytes)), Ok(change.clone()));
@@ -199,7 +161,7 @@ pub(super) fn largest_answers() {
 
     let landings = landings(&limits);
     let mut writer = Writer::new(usize::try_from(list_bound).unwrap());
-    landings.encode(&mut writer).unwrap();
+    landings.write(&w::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     assert_eq!(bytes.len(), usize::try_from(list_bound).unwrap());
     assert_eq!(w::PublicLandings::decode(&limits, &mut Reader::new(&bytes)), Ok(landings.clone()));
@@ -207,7 +169,7 @@ pub(super) fn largest_answers() {
 
     let landing = landing(&limits);
     let mut writer = Writer::new(usize::try_from(detail_bound).unwrap());
-    landing.encode(&mut writer).unwrap();
+    landing.write(&w::CEILINGS, &mut writer).unwrap();
     let bytes = writer.finish();
     assert_eq!(bytes.len(), usize::try_from(detail_bound).unwrap());
     assert_eq!(w::PublicLanding::decode(&limits, &mut Reader::new(&bytes)), Ok(landing.clone()));
@@ -218,7 +180,7 @@ pub(super) fn largest_answers() {
 fn refuse_change_overages(value: &w::PublicChange, bytes: &[u8], limits: w::Limits) {
     let smaller = w::Limits { public_change_gates: limits.public_change_gates.checked_sub(1).unwrap(), ..limits };
     assert_eq!(
-        w::PublicChange::new(&smaller, value.clone().into_parts()).unwrap_err().reason,
+        (value.clone()).encode(&smaller).unwrap_err().reason,
         skein_codec::Reason::Bound
     );
     assert_eq!(
@@ -236,7 +198,7 @@ fn refuse_landings_overages(value: &w::PublicLandings, bytes: &[u8], limits: w::
         w::Limits { public_landings_queues: limits.public_landings_queues.checked_sub(1).unwrap(), ..limits },
     ] {
         assert_eq!(
-            w::PublicLandings::new(&smaller, value.clone().into_parts()).unwrap_err().reason,
+            (value.clone()).encode(&smaller).unwrap_err().reason,
             skein_codec::Reason::Bound
         );
         assert_eq!(
@@ -253,7 +215,7 @@ fn refuse_landing_overages(value: &w::PublicLanding, bytes: &[u8], limits: w::Li
         w::Limits { public_landing_members: limits.public_landing_members.checked_sub(1).unwrap(), ..limits },
     ] {
         assert_eq!(
-            w::PublicLanding::new(&smaller, value.clone().into_parts()).unwrap_err().reason,
+            (value.clone()).encode(&smaller).unwrap_err().reason,
             skein_codec::Reason::Bound
         );
         assert_eq!(

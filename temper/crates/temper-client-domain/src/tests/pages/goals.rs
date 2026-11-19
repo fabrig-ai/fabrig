@@ -473,9 +473,9 @@ fn goal_parts_require_the_forge_version_and_a_complete_record() {
     use temper_client_domain_forge::parts;
     let part = report_part(Some(b"Written"));
     let c::RowPart::Value(value) = &part else { unreachable!() };
-    let decoded = parts::goal(&with_part(GOAL, part.clone())).unwrap().into_parts();
+    let decoded = parts::goal(&with_part(GOAL, part.clone())).unwrap();
     assert_eq!(decoded.milestone, Some(42));
-    assert_eq!(decoded.report.unwrap().headline(), b"Written");
+    assert_eq!(decoded.report.unwrap().headline.as_ref(), b"Written");
     let mut trailing = List::uncapped();
     for byte in value.bytes.iter().copied() {
         trailing.push(byte).unwrap();

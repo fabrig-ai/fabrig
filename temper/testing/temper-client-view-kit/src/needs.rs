@@ -311,22 +311,17 @@ pub fn deliver_asked_for(
     if let Some(reach) = reach {
         asked
             .push(
-                w::Asked::new(
-                    &w::CEILINGS,
-                    w::AskedParts {
+                w::Asked {
                         number: 1,
                         task: f::INBOX_TASK,
                         at: 0,
                         reach: temper_protocol_reaches::reach_record(&reach),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
     let document =
-        w::Decisions::new(&w::CEILINGS, w::DecisionsParts { project, rows: List::with_capacity(0), asked, cut: false })
-            .unwrap();
+        w::Decisions { project, rows: List::with_capacity(0), asked, cut: false };
     event(
         root,
         Event::Client {
@@ -359,9 +354,7 @@ pub fn decisions_delivered(
             continue;
         }
         rows.push(
-            w::Decision::new(
-                &w::CEILINGS,
-                w::DecisionParts {
+            w::Decision {
                     number,
                     task: 90 + u64::from(number),
                     at: 3_900_000_000_000,
@@ -369,9 +362,7 @@ pub fn decisions_delivered(
                     took: b"Fixed the harness.".as_slice().into(),
                     why: b"Tests are its area.".as_slice().into(),
                     overturned: false,
-                    reach: w::Reach::new(
-                        &w::CEILINGS,
-                        w::ReachParts {
+                    reach: w::Reach {
                             kind: w::ReachKind::Tests,
                             class: w::ReachClass::Decide,
                             reason: w::ReachReason::Kind,
@@ -380,20 +371,12 @@ pub fn decisions_delivered(
                             matched: 0,
                             away: false,
                         },
-                    )
-                    .expect("decision reach"),
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
     }
     let bytes = wire::decisions(
-        &w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .unwrap(),
+        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
     );
     event(
         root,
@@ -627,10 +610,7 @@ pub fn settings_owned(page: c::ReadValue, owned: Option<bool>) -> d::Domain {
     kinds_owned(&[(c::ObjectKey::Proposal(key), c::Read::Proposal { proposal: key }, page)], None, owned)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "the fixture delivers the inbox, decision document and each card read together"
-)]
+
 pub fn kinds_owned(
     values: &[(c::ObjectKey, c::Read, c::ReadValue)],
     whole: Option<c::ReadResult>,
@@ -713,14 +693,10 @@ pub fn kinds_owned(
             && let Some(owned_approval) = owned
             && let Some(reading) =
                 temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-            && let temper_client_protocol_wire::v1::Read::ProposalItems(_) = reading.read()
+            && let temper_client_protocol_wire::v1::Read::ProposalItems(_) = &reading.read
         {
             use temper_client_protocol_wire::{self as wire, v1 as w};
-            let answer = w::ProposalItemsAnswer::new(
-                &w::CEILINGS,
-                w::ProposalItemsAnswerParts { items: List::with_capacity(0), owned_approval },
-            )
-            .unwrap();
+            let answer = w::ProposalItemsAnswer { items: List::with_capacity(0), owned_approval };
             event(
                 &mut root,
                 Event::Client {

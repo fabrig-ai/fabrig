@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::{
     Address,
@@ -145,13 +146,13 @@ fn create_sends_and_goes_to_its_goal() {
     let request =
         temper_client_protocol_wire::decode_requesting(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
             .unwrap();
-    let temper_client_protocol_wire::v1::Request::Dismiss(dismiss) = request.into_parts().request else {
+    let temper_client_protocol_wire::v1::Request::Dismiss(dismiss) = request.request else {
         panic!("dismiss fact")
     };
-    let temper_client_protocol_wire::v1::PersonFact::GoalFrom(fact) = dismiss.into_parts().what else {
+    let temper_client_protocol_wire::v1::PersonFact::GoalFrom(fact) = dismiss.what else {
         panic!("goal fact")
     };
-    assert_eq!((fact.project(), fact.chat(), fact.goal(), fact.at()), (fixtures::PROJECT, CHAT, GOAL, FACT_AT));
+    assert_eq!((fact.project, fact.chat, fact.goal, fact.at), (fixtures::PROJECT, CHAT, GOAL, FACT_AT));
     assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
     let mut chosen = self::me();
     let member = chosen.projects.get_mut(0).unwrap();
@@ -557,16 +558,16 @@ fn another_way_holds_the_landed_path_and_create_marks_it_started_after_the_sheet
     assert_ne!(key, started);
     assert_eq!(scope, c::Scope::Project(fixtures::PROJECT));
     let w::Request::SetDraft(value) =
-        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
     else {
         panic!("SetDraft")
     };
-    assert_eq!(value.project(), fixtures::PROJECT);
-    assert_eq!(value.repository().as_ref().unwrap().owner(), b"author");
-    assert_eq!(value.repository().as_ref().unwrap().name(), b"project");
-    assert_eq!(value.path(), PATH);
-    let w::DraftChange::Started(value) = value.change() else { panic!("started") };
-    assert_eq!(value.goal(), GOAL);
+    assert_eq!(value.project, fixtures::PROJECT);
+    assert_eq!(value.repository.as_ref().unwrap().owner.as_ref(), b"author");
+    assert_eq!(value.repository.as_ref().unwrap().name.as_ref(), b"project");
+    assert_eq!(value.path.as_ref(), PATH);
+    let w::DraftChange::Started(value) = &value.change else { panic!("started") };
+    assert_eq!(value.goal, GOAL);
     assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
     assert!(h.pages.start().is_none());
     h.event(Event::Went { address: Address::Task { task: GOAL } });
@@ -648,20 +649,18 @@ fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
         } = request
-            && let w::Read::Setting(key) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-            && key.kind() == 7
+            && let w::Read::Setting(key) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+            && key.kind == 7
         {
             setting = Some(*read);
         }
     }
     let ways =
-        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts: true, goals: true, changes: true, way: 9 })
-            .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).unwrap());
-    ways.encode(&mut writer).unwrap();
+        w::ProjectWays { drafts: true, goals: true, changes: true, way: 9 };
+    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     let answer =
-        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
-            .unwrap();
+        w::SettingAnswer { revision: None, value: Some(writer.finish()) };
     root_event(
         &mut root,
         &limits,

@@ -233,9 +233,7 @@ impl Fixture {
             ] {
                 queued
                     .push(
-                        w::ChangesQueued::new(
-                            &w::CEILINGS,
-                            w::ChangesQueuedParts {
+                        w::ChangesQueued {
                                 goal: if task == QUEUED_GOAL { Some(origin(GOAL, goal_title)) } else { None },
                                 chat: if task == QUEUED_CHAT { Some(origin(CHAT, b"chat")) } else { None },
                                 milestone: None,
@@ -244,16 +242,12 @@ impl Fixture {
                                 ready_since: RECENT,
                                 checks_since: None,
                             },
-                        )
-                        .unwrap(),
                     )
                     .unwrap();
             }
         }
         let landed = if full {
-            list(&[w::ChangesLanded::new(
-                &w::CEILINGS,
-                w::ChangesLandedParts {
+            list(&[w::ChangesLanded {
                     goal: Some(origin(GOAL, goal_title)),
                     chat: None,
                     milestone: None,
@@ -263,37 +257,27 @@ impl Fixture {
                     task: LANDED,
                     title: title.unwrap_or(b"Handoff states").into(),
                     at: RECENT,
-                },
-            )
-            .unwrap()])
+                }])
         } else {
             List::with_capacity(0)
         };
-        let panel = w::ChangesPanel::new(
-            &w::CEILINGS,
-            w::ChangesPanelParts {
+        let panel = w::ChangesPanel {
                 landed_default: landed.clone(),
                 landed_default_more: 0,
                 project: f::PROJECT,
                 landing: b"main".as_slice().into(),
-                queues: list(&[w::ChangesQueue::new(
-                    &w::CEILINGS,
-                    w::ChangesQueueParts {
+                queues: list(&[w::ChangesQueue {
                         way: w::Way::Queue,
                         in_flight: None,
                         repository: b"owner/repo".as_slice().into(),
                         branch: b"main".as_slice().into(),
                         red: full,
                         changes: queued,
-                    },
-                )
-                .unwrap()]),
+                    }]),
                 more: 0,
                 landed,
                 landed_more: 0,
-            },
-        )
-        .unwrap();
+            };
         self.up(Up::FamilyDelivered {
             watch: self.changes,
             record: jig_client::Family {
@@ -305,7 +289,7 @@ impl Fixture {
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
         let panel =
-            w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: list(rows) }).unwrap();
+            w::DraftsPanel { project: f::PROJECT, drafts: list(rows) };
         self.up(Up::FamilyDelivered {
             watch: self.drafts,
             record: jig_client::Family {
@@ -422,9 +406,7 @@ fn styled(tree: &Tree, style: skein_ui::Style) -> Box<[&skein_ui::Node]> {
 fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let mut page = Fixture::new(None, false);
     page.populate(false);
-    let branch = w::ChangesLanded::new(
-        &w::CEILINGS,
-        w::ChangesLandedParts {
+    let branch = w::ChangesLanded {
             goal: Some(origin(GOAL, b"The whole goal")),
             chat: None,
             milestone: None,
@@ -434,12 +416,8 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
             at: RECENT,
             commit: [0x12; 32],
             default_branch: false,
-        },
-    )
-    .unwrap();
-    let landing = w::ChangesLanded::new(
-        &w::CEILINGS,
-        w::ChangesLandedParts {
+        };
+    let landing = w::ChangesLanded {
             goal: Some(origin(GOAL, b"The whole goal")),
             chat: None,
             milestone: None,
@@ -449,12 +427,8 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
             at: RECENT + 1,
             commit: [0xab; 32],
             default_branch: true,
-        },
-    )
-    .unwrap();
-    let panel = w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
+        };
+    let panel = w::ChangesPanel {
             project: f::PROJECT,
             landing: b"main".as_slice().into(),
             queues: List::with_capacity(0),
@@ -463,9 +437,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
             landed_more: 0,
             landed_default: list(&[landing]),
             landed_default_more: 0,
-        },
-    )
-    .unwrap();
+        };
     page.up(Up::FamilyDelivered {
         watch: page.changes,
         record: jig_client::Family {
@@ -501,7 +473,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     for row in parts.landed.into_boxed() {
         let mut row = row.into_parts();
         row.default_branch = false;
-        branches.push(w::ChangesLanded::new(&w::CEILINGS, row).unwrap()).unwrap();
+        branches.push(row).unwrap();
     }
     parts.landed = branches;
     let mut defaults = List::with_capacity(3);
@@ -509,9 +481,7 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     {
         defaults
             .push(
-                w::ChangesLanded::new(
-                    &w::CEILINGS,
-                    w::ChangesLandedParts {
+                w::ChangesLanded {
                         goal: None,
                         chat: if task == 30 { Some(origin(CHAT, b"chat")) } else { None },
                         milestone: None,
@@ -522,13 +492,11 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
                         commit: [commit; 32],
                         default_branch: true,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
     parts.landed_default = defaults;
-    let panel = w::ChangesPanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     page.up(Up::FamilyDelivered {
         watch: page.changes,
         record: jig_client::Family {
@@ -726,9 +694,7 @@ fn work_rows_draw_signers_after_the_title_in_the_byline_style() {
 const READY: u64 = 1_792_159_800_000_000_000;
 // Friday 14:10 in the clock's preceding week.
 fn landed_draft(path: &[u8], title: &[u8]) -> w::LandedDraft {
-    w::LandedDraft::new(
-        &w::CEILINGS,
-        w::LandedDraftParts {
+    w::LandedDraft {
             forge: 3,
             owner: b"author".as_slice().into(),
             name: b"NAME".as_slice().into(),
@@ -741,9 +707,7 @@ fn landed_draft(path: &[u8], title: &[u8]) -> w::LandedDraft {
             chat: Some(99),
             goal: None,
             ready: true,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn subtree_text(tree: &Tree, node: &skein_ui::Node) -> Box<[u8]> {
@@ -858,7 +822,7 @@ fn landed_and_chat_drafts_share_the_headings_count_and_newest_first_order() {
     let row = landed_draft(b"catch-up.md", b"Catch up");
     let mut parts = row.into_parts();
     parts.at = RECENT.checked_add(1).unwrap();
-    page.drafts(&[w::LandedDraft::new(&w::CEILINGS, parts).unwrap()]);
+    page.drafts(&[parts]);
     page.go(Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts });
     let (tree, _) = page.tree(&f::browser_words());
     assert!(has(&tree, "Three in flight, two drafts, one landed this week."));
@@ -885,11 +849,7 @@ fn ended_page(rows: &[c::TaskLine]) -> c::ReadValue {
     }))
 }
 fn milestone_totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
-    w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts { task: M, done, failed, live, closed: 0, spent: 212, ended: None, last_landing: None },
-    )
-    .unwrap()
+    w::MilestoneTotals { task: M, done, failed, live, closed: 0, spent: 212, ended: None, last_landing: None }
 }
 fn milestone_goal(task: u64, title: &[u8]) -> c::TaskLine {
     let mut line = line(task, title);
@@ -908,9 +868,7 @@ fn ended_goal(task: u64, title: &[u8], ending: c::ChipEnding, at: u64) -> c::Tas
     line
 }
 fn queued_change(task: u64) -> w::ChangesQueued {
-    w::ChangesQueued::new(
-        &w::CEILINGS,
-        w::ChangesQueuedParts {
+    w::ChangesQueued {
             goal: Some(origin(3, b"C4 running")),
             chat: None,
             milestone: Some(origin(M, b"Store shape")),
@@ -918,36 +876,26 @@ fn queued_change(task: u64) -> w::ChangesQueued {
             title: b"Move the reader".as_slice().into(),
             ready_since: RECENT,
             checks_since: None,
-        },
-    )
-    .unwrap()
+        }
 }
 fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::ChangesLanded]) {
-    let panel = w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
+    let panel = w::ChangesPanel {
             project: f::PROJECT,
             landing: b"main".as_slice().into(),
             more: 0,
             landed_more: 0,
             landed_default_more: 0,
-            queues: list(&[w::ChangesQueue::new(
-                &w::CEILINGS,
-                w::ChangesQueueParts {
+            queues: list(&[w::ChangesQueue {
                     way: w::Way::Queue,
                     repository: b"owner/repo".as_slice().into(),
                     branch: b"main".as_slice().into(),
                     in_flight: None,
                     red: false,
                     changes: list(queued),
-                },
-            )
-            .unwrap()]),
+                }]),
             landed: list(landed),
             landed_default: list(landed),
-        },
-    )
-    .unwrap();
+        };
     page.up(Up::FamilyDelivered {
         watch: page.changes,
         record: jig_client::Family {
@@ -1132,7 +1080,7 @@ fn a_milestone_part_draws_goals_outside_the_shared_window_and_the_newest_report(
     totals.closed = 11;
     own.parts = list(&[f::milestones::part(
         Some(NOW),
-        w::MilestoneTotals::new(&w::CEILINGS, totals).unwrap(),
+        totals,
         goals.as_slice(),
         3,
     )]);
@@ -1171,16 +1119,10 @@ fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change()
         let mut totals = milestone_totals(1, failed, 0).into_parts();
         totals.ended = Some(completed);
         totals.last_landing = Some(
-            w::MilestoneLanding::new(
-                &w::CEILINGS,
-                w::MilestoneLandingParts { at: RECENT, goal: 3, change: last_change },
-            )
-            .unwrap(),
+            w::MilestoneLanding { at: RECENT, goal: 3, change: last_change },
         );
-        let totals = w::MilestoneTotals::new(&w::CEILINGS, totals).unwrap();
-        let landing = w::ChangesLanded::new(
-            &w::CEILINGS,
-            w::ChangesLandedParts {
+        let totals = totals;
+        let landing = w::ChangesLanded {
                 goal: Some(origin(3, b"C4 running")),
                 chat: None,
                 milestone: Some(origin(M, b"Store shape")),
@@ -1190,9 +1132,7 @@ fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change()
                 commit: [0xab; 32],
                 default_branch: true,
                 signed: List::with_capacity(8),
-            },
-        )
-        .unwrap();
+            };
         send_panel(&mut page, &[], &[landing]);
         page.serve_milestone(&own, &[], &[], true, if read { Some(&totals) } else { None });
         let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();
@@ -1276,7 +1216,7 @@ fn a_placed_goal_uses_the_shared_live_row_while_the_milestones_read_catches_up()
 }
 
 fn origin(task: u64, title: &[u8]) -> w::ChangeFrom {
-    w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: title.into() }).unwrap()
+    w::ChangeFrom { task, title: title.into() }
 }
 
 #[test]

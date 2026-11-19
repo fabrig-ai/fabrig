@@ -5,73 +5,53 @@ use team::follows::Owner;
 const AFTER: [u8; 32] =
     [0x9c, 0x04, 0xd7, 0xe1, 0xa2, 0xb3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 fn row(owner: Owner, lag: u32) -> w::FollowView {
-    let mut row = super::super::how::follow_row(&[], w::FollowStart::Owner, lag, None).into_parts();
-    let mut setting = row.setting.into_parts();
+    let mut row = super::super::how::follow_row(&[], w::FollowStart::Owner, lag, None);
+    let mut setting = row.setting;
     setting.owner = match owner {
         Owner::Task(task) => {
-            w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task }).unwrap())
+            w::FollowOwner::Task(w::FollowOwnerTask { task })
         }
         Owner::Person(person) => {
-            w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person }).unwrap())
+            w::FollowOwner::Person(w::FollowPerson { person })
         }
     };
-    row.setting = w::Follow::new(&w::CEILINGS, setting).unwrap();
+    row.setting = setting;
     row.source =
         if owner == Owner::Task(52) { b"acme/upstream".as_slice().into() } else { b"acme/tools".as_slice().into() };
     if lag > 0 {
         row.parity = Some(
-            w::FollowParity::new(
-                &w::CEILINGS,
-                w::FollowParityParts {
+            w::FollowParity {
                     source: AFTER,
                     head: [0; 32],
                     verdict: w::FollowVerdict::Passed,
                     run: b"check".as_slice().into(),
                 },
-            )
-            .unwrap(),
         );
         row.entries = List::from_boxed(Box::new([
-            w::FollowEntry::new(
-                &w::CEILINGS,
-                w::FollowEntryParts {
+            w::FollowEntry {
                     after: AFTER,
                     change: None,
                     state: w::FollowState::HeldByOwner(
-                        w::FollowWords::new(
-                            &w::CEILINGS,
-                            w::FollowWordsParts { words: b"waits for the handoff fix".as_slice().into() },
-                        )
-                        .unwrap(),
+                        w::FollowWords { words: b"waits for the handoff fix".as_slice().into() },
                     ),
                 },
-            )
-            .unwrap(),
-            w::FollowEntry::new(
-                &w::CEILINGS,
-                w::FollowEntryParts {
+            w::FollowEntry {
                     after: [0xab; 32],
                     change: Some(812),
                     state: w::FollowState::WaitsFor(
-                        w::FollowWait::new(&w::CEILINGS, w::FollowWaitParts { change: 812 }).unwrap(),
+                        w::FollowWait { change: 812 },
                     ),
                 },
-            )
-            .unwrap(),
         ]));
     }
-    w::FollowView::new(&w::CEILINGS, row).unwrap()
+    row
 }
 fn panel(rows: &[w::FollowView]) -> w::FollowsPanel {
-    w::FollowsPanel::new(
-        &w::CEILINGS,
-        w::FollowsPanelParts {
+    w::FollowsPanel {
             project: PROJECT,
             follows: List::from_boxed(rows.into()),
             dependencies: List::with_capacity(0),
-        },
-    )
-    .unwrap()
+        }
 }
 fn facts() -> Facts {
     let mut facts = team::gather(&read_people(&[YOU]), YOU, None, &[], None, Wall::EPOCH);
@@ -117,34 +97,30 @@ fn follows_join_only_listed_owners_and_the_selected_card() {
 fn follows_card_caps_entries_at_eight_and_keeps_caught_up_and_stopped_lines() {
     let mut facts = facts();
     for count in [0, 8, 10] {
-        let mut follow = row(Owner::Task(52), 2).into_parts();
+        let mut follow = row(Owner::Task(52), 2);
         follow.lag = count;
         follow.entries = List::with_capacity(count);
         for n in 0..count {
             follow
                 .entries
                 .push(
-                    w::FollowEntry::new(
-                        &w::CEILINGS,
-                        w::FollowEntryParts {
+                    w::FollowEntry {
                             after: AFTER,
                             change: Some(u64::from(n)),
                             state: w::FollowState::NotMade,
                         },
-                    )
-                    .unwrap(),
                 )
                 .unwrap();
         }
-        facts.follows = team::follows::gather(Some(&panel(&[w::FollowView::new(&w::CEILINGS, follow).unwrap()])));
+        facts.follows = team::follows::gather(Some(&panel(&[follow])));
         let parts = team::parts(&facts);
         let follow = parts.card_follows.get(0).unwrap();
         assert_eq!(follow.entries.len(), count.min(8));
         assert_eq!(follow.more, count.saturating_sub(8));
     }
-    let mut stopped = row(Owner::Task(52), 2).into_parts();
+    let mut stopped = row(Owner::Task(52), 2);
     stopped.stopped = Some(b"source unavailable".as_slice().into());
-    facts.follows = team::follows::gather(Some(&panel(&[w::FollowView::new(&w::CEILINGS, stopped).unwrap()])));
+    facts.follows = team::follows::gather(Some(&panel(&[stopped])));
     assert_eq!(team::parts(&facts).follows.get(0).unwrap().line.as_ref(), b"Follows acme/upstream \xc2\xb7 stopped");
 }
 

@@ -90,9 +90,7 @@ fn page(rows: &[c::TaskLine], active: bool, more: bool) -> c::ReadValue {
     }))
 }
 fn totals() -> Readout {
-    let totals = w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts {
+    let totals = w::MilestoneTotals {
             task: TASK,
             done: 7,
             failed: 0,
@@ -101,12 +99,9 @@ fn totals() -> Readout {
             ended: None,
             last_landing: None,
             spent: 212,
-        },
-    )
-    .unwrap();
+        };
     let answer =
-        w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result: w::MilestoneResult::Totals(totals) })
-            .unwrap();
+        w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
     Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
 struct Harness {

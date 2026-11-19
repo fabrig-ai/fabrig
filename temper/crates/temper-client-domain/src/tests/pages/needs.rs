@@ -1,4 +1,5 @@
 //! What the client keeps (temper/docs/design/client/pages/README.md).
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     Address, ChatsFilter,
     pages::{
@@ -1399,24 +1400,16 @@ fn why_root(state: &str, rows: &[(u64, u64, temper_protocol_reaches::Reach)]) ->
         for (index, (task, at, reach)) in rows.iter().enumerate() {
             asked
                 .push(
-                    w::Asked::new(
-                        &w::CEILINGS,
-                        w::AskedParts {
+                    w::Asked {
                             number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
                             task: *task,
                             at: *at,
                             reach: temper_protocol_reaches::reach_record(reach),
                         },
-                    )
-                    .unwrap(),
                 )
                 .unwrap();
         }
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: state == "cut" },
-        )
-        .unwrap();
+        let document = w::Decisions { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: state == "cut" };
         jig_client::Up::FamilyDelivered {
             watch,
             record: jig_client::Family {
@@ -1674,8 +1667,8 @@ fn stop_classes_read(out: &Queue<crate::Request>) -> Option<skein_lib::Token> {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-            && setting.kind() == 8
+            && let w::Read::Setting(setting) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+            && setting.kind == 8
         {
             return Some(*read);
         }
@@ -1723,14 +1716,10 @@ fn stop_fixture(
     );
     if read {
         let record = temper_protocol_reaches::classes_record(&Classes::stock(Way::YouApprove)).unwrap();
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut writer).unwrap();
+        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
         let bytes = wire::setting_answer(
-            &w::SettingAnswer::new(
-                &w::CEILINGS,
-                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
-            )
-            .unwrap(),
+            &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
         );
         super::welcome::up(
             &mut root,
@@ -1743,18 +1732,10 @@ fn stop_fixture(
     let mut asked = List::with_capacity(1);
     asked
         .push(
-            w::Asked::new(
-                &w::CEILINGS,
-                w::AskedParts { number: 1, task: f::TASK, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
-            )
-            .unwrap(),
+            w::Asked { number: 1, task: f::TASK, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
         )
         .unwrap();
-    let decisions = w::Decisions::new(
-        &w::CEILINGS,
-        w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
-    )
-    .unwrap();
+    let decisions = w::Decisions { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false };
     super::welcome::up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -1780,19 +1761,15 @@ fn stop_dismissals(fixture: &mut StopFixture, keep: Option<(temper_protocol_reac
     if let Some((subject, at)) = keep {
         dismissed
             .push(w::PersonFact::KeepAsking(
-                w::KeepAsking::new(
-                    &w::CEILINGS,
-                    w::KeepAskingParts {
+                w::KeepAsking {
                         project: fixtures::PROJECT,
                         subject: temper_protocol_reaches::subject_record(subject),
                         at,
                     },
-                )
-                .unwrap(),
             ))
             .unwrap();
     }
-    let document = w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap();
+    let document = w::Dismissals { dismissed };
     super::welcome::up(
         &mut fixture.root,
         jig_client::Up::FamilyDelivered {
@@ -1858,18 +1835,17 @@ fn stop_show_elsewhere(root: &mut crate::Domain) {
                 },
         } = request
             && *project == fixtures::PROJECT
-            && let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-            && setting.kind() == 8
+            && let w::Read::Setting(setting) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+            && setting.kind == 8
         {
             shown = Some(*handle);
         }
     }
     let classes = temper_protocol_reaches::classes_record(&temper_protocol_reaches::Classes::default()).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).unwrap());
-    classes.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    classes.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     let record = wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
-            .unwrap(),
+        &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
     );
     ways::told(
         &mut root.forge,
@@ -1885,8 +1861,8 @@ fn stop_show_elsewhere(root: &mut crate::Domain) {
 }
 fn stop_item(classes: &temper_protocol_reaches::Classes) -> c::SettingItem {
     let record = temper_protocol_reaches::classes_record(classes).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     c::SettingItem {
         setting: c::Setting::Application { kind: 8, scope: fixtures::PROJECT, number: 1 },
         edit: c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(writer.finish()) }),
@@ -2095,7 +2071,7 @@ fn stop_asking_offers_closes_and_sends_the_narrowed_change_or_person_fact() {
     let dismissed = Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Dismissed }).unwrap()),
+        bytes: wire::answer(&w::Answer { outcome: w::Outcome::Dismissed }),
     }));
     let refused =
         Outcome::Answered(jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }));
@@ -2164,19 +2140,11 @@ fn keep_asking_uses_its_own_open_card_and_suppresses_its_subject_at_once() {
         for (number, task, reach) in [(1, f::TASK, first_reach), (2, 42, second_reach)] {
             asked
                 .push(
-                    w::Asked::new(
-                        &w::CEILINGS,
-                        w::AskedParts { number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
-                    )
-                    .unwrap(),
+                    w::Asked { number, task, at: 0, reach: temper_protocol_reaches::reach_record(&reach) },
                 )
                 .unwrap();
         }
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false },
-        )
-        .unwrap();
+        let document = w::Decisions { project: fixtures::PROJECT, rows: List::with_capacity(0), asked, cut: false };
         super::welcome::up(
             &mut fixture.root,
             jig_client::Up::FamilyDelivered {

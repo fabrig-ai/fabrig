@@ -1,4 +1,5 @@
 //! Own-scope devices reader (temper/docs/design/client/forge/records.md, devices).
+use temper_client_protocol_wire::v1::Record;
 use super::{Limits, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Family, Watchable, contract as c};
@@ -23,11 +24,11 @@ impl core::fmt::Debug for Row {
 }
 #[must_use]
 pub fn watch(limits: Limits) -> Option<Watchable> {
-    let record = w::Watching::new(&wire_limits(&limits)?, w::WatchingParts { watch: w::Watch::Devices }).ok()?;
+    let record = w::Watching { watch: w::Watch::Devices };
     Some(Watchable::Family {
         scope: c::Scope::Own,
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&wire_limits(&limits)?).ok()? },
     })
 }
 #[must_use]
@@ -37,8 +38,8 @@ pub fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
     }
     let document = wire::decode_devices(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::uncapped();
-    for row in document.into_parts().rows.into_boxed() {
-        let row = row.into_parts();
+    for row in document.rows.into_boxed() {
+
         rows.push(Row { number: row.number, label: row.label, at: Wall::from_nanos(row.at), endpoint: row.endpoint })
             .expect("uncapped devices");
     }

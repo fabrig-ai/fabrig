@@ -193,42 +193,26 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
         .zip(LINES)
         .enumerate()
         .map(|(index, (name, line))| {
-            w::StockWay::new(
-                &w::CEILINGS,
-                w::StockWayParts {
+            w::StockWay {
                     headline: b"".as_slice().into(),
                     name: name.into(),
                     line: line.into(),
                     path: path(index),
-                    items: List::from_boxed(Box::new([w::ProposalItem::new(
-                        &w::CEILINGS,
-                        w::ProposalItemParts { kind: 7, scope: f::PROJECT, number: 1, edit: w::SettingEdit::Removed },
-                    )
-                    .unwrap()])),
+                    items: List::from_boxed(Box::new([w::ProposalItem { kind: 7, scope: f::PROJECT, number: 1, edit: w::SettingEdit::Removed }])),
                     delegation: false,
                     roles: List::with_capacity(0),
-                },
-            )
-            .unwrap()
+                }
         })
         .collect();
-    w::WaysPanel::new(
-        &w::CEILINGS,
-        w::WaysPanelParts {
-            rules: w::PathRules::new(
-                &w::CEILINGS,
-                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-            )
-            .unwrap(),
+    w::WaysPanel {
+            rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
             words: None,
             project: f::PROJECT,
             ways: List::from_boxed(ways),
             current,
             own: path(0),
             may_change,
-        },
-    )
-    .unwrap()
+        }
 }
 #[expect(clippy::too_many_lines, reason = "the three paths keep their stops and supplied cards in one fixture")]
 fn path(index: usize) -> w::BranchPath {
@@ -291,7 +275,7 @@ fn path(index: usize) -> w::BranchPath {
                 )),
                 S::Check if index == 2 && at == 4 => Some((
                     w::Opens::Tier(
-                        w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap(),
+                        w::OpensTier { name: b"slow".as_slice().into() },
                     ),
                     "code · checks the goal's branch",
                     "slow",
@@ -300,7 +284,7 @@ fn path(index: usize) -> w::BranchPath {
                 )),
                 S::Check => Some((
                     w::Opens::Rule(
-                        w::OpensRule::new(&w::CEILINGS, w::OpensRuleParts { kind: 1, scope: 0, number: 1 }).unwrap(),
+                        w::OpensRule { kind: 1, scope: 0, number: 1 },
                     ),
                     "code · holds a change until CI passes",
                     "CI",
@@ -319,7 +303,7 @@ fn path(index: usize) -> w::BranchPath {
                 )),
                 S::Verify => Some((
                     w::Opens::Tier(
-                        w::OpensTier::new(&w::CEILINGS, w::OpensTierParts { name: b"slow".as_slice().into() }).unwrap(),
+                        w::OpensTier { name: b"slow".as_slice().into() },
                     ),
                     "code · checks what landed",
                     "slow",
@@ -343,9 +327,7 @@ fn path(index: usize) -> w::BranchPath {
                 | S::CloseOut => None,
             };
             let code = if *actor == Code { code } else { None };
-            w::Stop::new(
-                &w::CEILINGS,
-                w::StopParts {
+            w::Stop {
                     needed: false,
                     over: Box::default(),
                     actor: actor.clone(),
@@ -355,50 +337,32 @@ fn path(index: usize) -> w::BranchPath {
                         opens.clone()
                     } else if *step == S::Review {
                         w::Opens::Gate(
-                            w::OpensGate::new(&w::CEILINGS, w::OpensGateParts { number: 1, charter: 4 }).unwrap(),
+                            w::OpensGate { number: 1, charter: 4 },
                         )
                     } else if *step == S::Produce {
                         w::Opens::Charter(
-                            w::OpensCharter::new(&w::CEILINGS, w::OpensCharterParts { charter: 3 }).unwrap(),
+                            w::OpensCharter { charter: 3 },
                         )
                     } else {
                         w::Opens::Nothing
                     },
                     card: if let Some((_, who, name, label, value)) = code {
-                        w::Card::new(
-                            &w::CEILINGS,
-                            w::CardParts {
+                        w::Card {
                                 who: who.as_bytes().into(),
                                 name: name.as_bytes().into(),
-                                facts: List::from_boxed(Box::new([w::Fact::new(
-                                    &w::CEILINGS,
-                                    w::FactParts { label: label.as_bytes().into(), value: value.as_bytes().into() },
-                                )
-                                .unwrap()])),
-                            },
-                        )
-                        .unwrap()
+                                facts: List::from_boxed(Box::new([w::Fact { label: label.as_bytes().into(), value: value.as_bytes().into() }])),
+                            }
                     } else if *actor == Person {
-                        w::Card::new(
-                            &w::CEILINGS,
-                            w::CardParts {
+                        w::Card {
                                 who: "a person · decides whether it lands".as_bytes().into(),
                                 name: b"owner".as_slice().into(),
-                                facts: List::from_boxed(Box::new([w::Fact::new(
-                                    &w::CEILINGS,
-                                    w::FactParts {
+                                facts: List::from_boxed(Box::new([w::Fact {
                                         label: b"Role".as_slice().into(),
                                         value: b"owner".as_slice().into(),
-                                    },
-                                )
-                                .unwrap()])),
-                            },
-                        )
-                        .unwrap()
+                                    }])),
+                            }
                     } else {
-                        w::Card::new(
-                            &w::CEILINGS,
-                            w::CardParts {
+                        w::Card {
                                 who: "an agent · holds a change until it approves".as_bytes().into(),
                                 name: if *step == S::Produce {
                                     b"the producer".as_slice().into()
@@ -413,28 +377,16 @@ fn path(index: usize) -> w::BranchPath {
                                     ]
                                     .into_iter()
                                     .map(|(label, value)| {
-                                        w::Fact::new(
-                                            &w::CEILINGS,
-                                            w::FactParts { label: label.into(), value: value.into() },
-                                        )
-                                        .unwrap()
+                                        w::Fact { label: label.into(), value: value.into() }
                                     })
                                     .collect(),
                                 ),
-                            },
-                        )
-                        .unwrap()
+                            }
                     },
-                },
-            )
-            .unwrap()
+                }
         })
         .collect();
-    w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(stops) },
-    )
-    .unwrap()
+    w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(stops) }
 }
 fn way_item(tree: &Tree, index: usize) -> &Node {
     styled(tree, look::WAY_MENU)
@@ -717,13 +669,9 @@ fn own_way_uses_project_lede_or_named_fallback_and_back_returns_to_it() {
             f::deliver_me(&mut f.root, f.me, me);
             let mut parts = panel(None, true).into_parts();
             parts.words = lede.map(|lede| {
-                w::ProjectWords::new(
-                    &w::CEILINGS,
-                    w::ProjectWordsParts { headline: b"Not the line".as_slice().into(), lede: lede.into() },
-                )
-                .unwrap()
+                w::ProjectWords { headline: b"Not the line".as_slice().into(), lede: lede.into() }
             });
-            show(&mut f, &w::WaysPanel::new(&w::CEILINGS, parts).unwrap());
+            show(&mut f, &parts);
             for browser in [false, true] {
                 let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
                 let fallback = format!("{} runs settings of its own.", core::str::from_utf8(name).unwrap());

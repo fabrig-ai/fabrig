@@ -27,32 +27,20 @@ const HEADED: &[u8] = b"# Heading\n\nBefore the picture.\n\n```view\nway Free\n`
 const FENCED: &[u8] = b"````text\n```view\nway Free\n```\n````";
 
 fn card() -> w::Card {
-    w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
+    w::Card {
             name: b"The coding agent".as_slice().into(),
             who: "an agent · makes the change".as_bytes().into(),
             facts: List::from_boxed(
                 vec![
-                    w::Fact::new(
-                        &w::CEILINGS,
-                        w::FactParts { label: b"Model".as_slice().into(), value: "A model · high".as_bytes().into() },
-                    )
-                    .unwrap(),
-                    w::Fact::new(
-                        &w::CEILINGS,
-                        w::FactParts {
+                    w::Fact { label: b"Model".as_slice().into(), value: "A model · high".as_bytes().into() },
+                    w::Fact {
                             label: b"Can".as_slice().into(),
                             value: b"change and push its branch; never merge".as_slice().into(),
                         },
-                    )
-                    .unwrap(),
                 ]
                 .into_boxed_slice(),
             ),
-        },
-    )
-    .unwrap()
+        }
 }
 fn path(repository: bool) -> w::BranchPath {
     let stops = [
@@ -61,18 +49,14 @@ fn path(repository: bool) -> w::BranchPath {
         (w::Actor::Code, w::PathStep::Merge, b"merge"),
         (w::Actor::Bar, w::PathStep::Branch, b"main"),
     ];
-    w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts {
+    w::BranchPath {
             repository: repository.then(|| b"acme/shop".as_slice().into()),
             branch: b"main".as_slice().into(),
             stops: List::from_boxed(
                 stops
                     .into_iter()
                     .map(|(actor, step, words)| {
-                        w::Stop::new(
-                            &w::CEILINGS,
-                            w::StopParts {
+                        w::Stop {
                                 needed: false,
                                 over: Box::default(),
                                 actor,
@@ -80,28 +64,20 @@ fn path(repository: bool) -> w::BranchPath {
                                 words: words.into(),
                                 opens: w::Opens::Nothing,
                                 card: card(),
-                            },
-                        )
-                        .unwrap()
+                            }
                     })
                     .collect(),
             ),
-        },
-    )
-    .unwrap()
+        }
 }
 fn way(current: bool) -> Shown {
     Shown::Drawn(Box::new(w::View::Way(
-        w::WayView::new(
-            &w::CEILINGS,
-            w::WayViewParts {
+        w::WayView {
                 name: b"Free".as_slice().into(),
                 line: b"Agents make the change.".as_slice().into(),
                 path: path(true),
                 current,
             },
-        )
-        .unwrap(),
     )))
 }
 fn activity(text: &[u8]) -> c::ActivityPage {
@@ -214,7 +190,7 @@ fn root(text: &[u8], shown: &Shown, document: bool) -> d::Domain {
                         Shown::Failed => Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused))),
                         Shown::Drawn(value) => {
                             let answer =
-                                w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *value.clone() }).unwrap();
+                                w::ViewAnswer { view: *value.clone() };
                             Some(jig_client::Readout::Family {
                                 family: wire::FORGE,
                                 record: Some(wire::view_answer(&answer)),
@@ -294,8 +270,7 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
         Row {
             name: "proposal",
             shown: Shown::Drawn(Box::new(w::View::Proposal(
-                w::ProposalView::new(&w::CEILINGS, w::ProposalViewParts { before: path(true), after: path(false) })
-                    .unwrap(),
+                w::ProposalView { before: path(true), after: path(false) },
             ))),
             groups: &[b"Before", b"After"],
             labels: &[b"Before", b"After"],
@@ -304,7 +279,7 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
         Row {
             name: "charter",
             shown: Shown::Drawn(Box::new(w::View::Charter(
-                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 1, card: card() }).unwrap(),
+                w::CharterView { charter: 1, card: card() },
             ))),
             groups: &[b"The coding agent"],
             labels: &[],
@@ -313,39 +288,22 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
         Row {
             name: "roles",
             shown: Shown::Drawn(Box::new(w::View::Roles(
-                w::RolesView::new(
-                    &w::CEILINGS,
-                    w::RolesViewParts {
+                w::RolesView {
                         roles: List::from_boxed(Box::new([
-                            w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 1, card: card() })
-                                .unwrap(),
-                            w::CharterView::new(
-                                &w::CEILINGS,
-                                w::CharterViewParts {
+                            w::CharterView { charter: 1, card: card() },
+                            w::CharterView {
                                     charter: 9,
-                                    card: w::Card::new(
-                                        &w::CEILINGS,
-                                        w::CardParts {
+                                    card: w::Card {
                                             name: b"Status agent".as_slice().into(),
                                             who: b"When you look at Home after landings or findings".as_slice().into(),
-                                            facts: List::from_boxed(Box::new([w::Fact::new(
-                                                &w::CEILINGS,
-                                                w::FactParts {
+                                            facts: List::from_boxed(Box::new([w::Fact {
                                                     label: b"Can".as_slice().into(),
                                                     value: b"read the facts in its task; never merge".as_slice().into(),
-                                                },
-                                            )
-                                            .unwrap()])),
+                                                }])),
                                         },
-                                    )
-                                    .unwrap(),
                                 },
-                            )
-                            .unwrap(),
                         ])),
                     },
-                )
-                .unwrap(),
             ))),
             groups: &[b"The coding agent", b"Status agent"],
             labels: &[],
@@ -354,30 +312,18 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
         Row {
             name: "rule",
             shown: Shown::Drawn(Box::new(w::View::Rule(
-                w::RuleView::new(
-                    &w::CEILINGS,
-                    w::RuleViewParts {
+                w::RuleView {
                         kind: 2,
                         number: 1,
-                        card: w::Card::new(
-                            &w::CEILINGS,
-                            w::CardParts {
+                        card: w::Card {
                                 who: "a landing rule · holds a merge until it is met".as_bytes().into(),
                                 name: b"the project's rule 1".as_slice().into(),
-                                facts: List::from_boxed(Box::new([w::Fact::new(
-                                    &w::CEILINGS,
-                                    w::FactParts {
+                                facts: List::from_boxed(Box::new([w::Fact {
                                         label: b"Covers".as_slice().into(),
                                         value: b"every branch".as_slice().into(),
-                                    },
-                                )
-                                .unwrap()])),
+                                    }])),
                             },
-                        )
-                        .unwrap(),
                     },
-                )
-                .unwrap(),
             ))),
             groups: &[b"the project's rule 1"],
             labels: &[],
@@ -386,11 +332,7 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
         Row {
             name: "not drawn",
             shown: Shown::Drawn(Box::new(w::View::NotDrawn(
-                w::NotDrawn::new(
-                    &w::CEILINGS,
-                    w::NotDrawnParts { words: b"This revision isn't drawn yet.".as_slice().into() },
-                )
-                .unwrap(),
+                w::NotDrawn { words: b"This revision isn't drawn yet.".as_slice().into() },
             ))),
             groups: &[],
             labels: &[],

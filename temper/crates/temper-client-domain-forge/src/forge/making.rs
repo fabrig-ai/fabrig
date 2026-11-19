@@ -1,5 +1,6 @@
 //! Repository making facts and the client's checks (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md;
 //! temper/docs/design/draft/repository-copies.md, 5.2 to 5.4).
+use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 use temper_client_protocol_wire::{source, v1 as w};
@@ -185,7 +186,7 @@ pub fn is_target(making: &Making, address: &[u8]) -> bool {
         return false;
     }
     match &making.from {
-        w::MakeFrom::Copy(copy) => copy.address() == address,
+        w::MakeFrom::Copy(copy) => copy.address.as_ref() == address,
         w::MakeFrom::Empty => false,
     }
 }
@@ -235,7 +236,7 @@ pub fn ask(
                 Ok(source) => source,
                 Err(why) => return Err(Refused::Source(why)),
             };
-            let copy = w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: source::address(&source) });
+            let copy = { let value = w::MakeCopy { address: source::address(&source) }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
             match copy {
                 Ok(copy) => w::MakeFrom::Copy(copy),
                 Err(_) => return Err(Refused::TooLong),
@@ -243,11 +244,9 @@ pub fn ask(
         }
         None => w::MakeFrom::Empty,
     };
-    match w::MakeRepository::new(
-        &w::CEILINGS,
-        w::MakeRepositoryParts { forge, org: bytes::copy_of(org), name: bytes::copy_of(name), from, into },
-    ) {
-        Ok(request) => Ok(request),
+    let request = w::MakeRepository { forge, org: bytes::copy_of(org), name: bytes::copy_of(name), from, into };
+    match request.encode(&w::CEILINGS) {
+        Ok(_) => Ok(request),
         Err(_) => Err(Refused::TooLong),
     }
 }
@@ -262,22 +261,22 @@ pub fn copy_target(source: &source::Source<'_>) -> (Box<[u8]>, Box<[u8]>) {
 #[must_use]
 pub fn phrase(row: &Making) -> Box<[u8]> {
     let org = super::words::lossy(&row.org);
-    let name = super::words::lossy(&row.name);
+    let name = super::words::lossy(row.name.as_ref());
     match &row.state {
         w::MakingState::Failed(failed) => bytes::concat(&[
             &org,
             b"/",
             &name,
             b" failed at ",
-            step(failed.step()),
+            step(&failed.step),
             b": ",
-            &super::words::lossy(failed.words()),
+            &super::words::lossy(&failed.words),
         ]),
         w::MakingState::Waiting | w::MakingState::Making | w::MakingState::Made(_) | w::MakingState::Adopting(_) => {
             match &row.from {
                 w::MakeFrom::Empty => bytes::concat(&[b"Making ", &org, b"/", &name]),
                 w::MakeFrom::Copy(copy) => {
-                    let host = match source::parse(copy.address()) {
+                    let host = match source::parse(copy.address.as_ref()) {
                         Ok(source) => source.host,
                         Err(_) => b"?",
                     };

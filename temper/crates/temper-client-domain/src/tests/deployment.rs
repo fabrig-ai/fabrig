@@ -8,11 +8,7 @@ fn page(welcome: bool, owned: bool) -> Readout {
     Readout::Family {
         family: wire::FORGE,
         record: Some(wire::deployment_answer(
-            &w::DeploymentAnswer::new(
-                &w::CEILINGS,
-                w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
-            )
-            .unwrap(),
+            &w::DeploymentAnswer { push: None, welcome, owned, program_login: None },
         )),
     }
 }
@@ -29,7 +25,7 @@ fn read(side: &mut forge::Side) -> Handle {
     assert_eq!(scope, c::Scope::Deployment);
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(), &w::Read::Deployment);
+    assert_eq!(&wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read, &w::Read::Deployment);
     assert_ne!(handle.number, 0);
     assert!(out.is_empty());
     handle
@@ -176,7 +172,7 @@ fn reads(out: &Queue<crate::Request>, expected: &w::Read) -> List<Token> {
                 },
         } = request
             && record.family == wire::FORGE
-            && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == expected
+            && &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == expected
         {
             assert_eq!(*scope, c::Scope::Deployment);
             found.push(*read).unwrap();
@@ -286,9 +282,7 @@ fn the_deployment_command_survives_a_gap_and_changes_with_the_answer() {
     let mut out = Queue::uncapped();
     for line in [Some(b"'/box/temper' program-login".as_slice()), None] {
         let handle = read(&mut side);
-        let answer = w::DeploymentAnswer::new(
-            &w::CEILINGS,
-            w::DeploymentAnswerParts {
+        let answer = w::DeploymentAnswer {
                 push: None,
                 welcome: true,
                 owned: false,
@@ -296,9 +290,7 @@ fn the_deployment_command_survives_a_gap_and_changes_with_the_answer() {
                     Some(line) => Some(line.into()),
                     None => None,
                 },
-            },
-        )
-        .unwrap();
+            };
         let before = forge::shown(&side);
         tell(
             &mut side,

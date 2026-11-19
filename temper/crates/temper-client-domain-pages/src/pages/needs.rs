@@ -80,14 +80,14 @@ pub fn why(root: &dyn Root, need: Need<'_>) -> Option<Why> {
         let project = card.project?;
         let super::decided::Document::Delivered(document) = root.pages().decisions(project) else { return None };
         let mut newest: Option<&temper_client_protocol_wire::v1::Asked> = None;
-        for row in document.asked() {
-            if Some(row.task()) == task
+        for row in &document.asked {
+            if Some(row.task) == task
                 && match since {
-                    Some(at) => row.at() <= at.as_nanos(),
+                    Some(at) => row.at <= at.as_nanos(),
                     None => true,
                 }
                 && match newest {
-                    Some(at) => row.at() > at.at(),
+                    Some(at) => row.at > at.at,
                     None => true,
                 }
             {
@@ -95,12 +95,12 @@ pub fn why(root: &dyn Root, need: Need<'_>) -> Option<Why> {
             }
         }
         if let Some(row) = newest
-            && let Some(reach) = temper_protocol_reaches::reach_from(row.reach())
+            && let Some(reach) = temper_protocol_reaches::reach_from(&row.reach)
             && !reach.decided()
         {
             return Some(Why::Reach { project, reach });
         }
-        return if document.cut() { None } else { Some(Why::Direct) };
+        return if document.cut { None } else { Some(Why::Direct) };
     }
     match card.group {
         contract::InboxGroup::Proposals => Some(Why::Proposal),

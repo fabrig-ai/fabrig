@@ -1,0 +1,4 @@
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:530 clippy::redundant_locals redundant redefinition of a binding `rule`
+temper/crates/temper-engine-service-vocabulary/src/tests/milestones.rs:63 clippy::redundant_locals redundant redefinition of a binding `totals`
+temper/crates/temper-engine-service-vocabulary/src/tests/family.rs:2309 unfulfilled_lint_expectations this lint expectation is unfulfilled
+diagnostics 3

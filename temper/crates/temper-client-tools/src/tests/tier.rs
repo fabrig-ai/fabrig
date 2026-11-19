@@ -26,11 +26,7 @@ fn tier_commands_send_keyed_home_or_named_requests_and_print_every_outcome() {
                 (Some(w::TierRefusal::NoTier), "no tier browser on acme/site\n"),
                 (
                     Some(w::TierRefusal::Held(
-                        w::TierHeldBy::new(
-                            &w::CEILINGS,
-                            w::TierHeldByParts { party: 19, reason: b"maintenance".as_slice().into() },
-                        )
-                        .unwrap(),
+                        w::TierHeldBy { party: 19, reason: b"maintenance".as_slice().into() },
                     )),
                     "browser of acme/site is held already by party 19: maintenance\n",
                 ),
@@ -57,26 +53,26 @@ fn tier_commands_send_keyed_home_or_named_requests_and_print_every_outcome() {
                 assert_eq!(record.version, wire::CLIENT_VERSION);
                 assert!(root.sent_name(call).is_some());
                 let w::Request::TierAct(request) =
-                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
                 else {
                     panic!("tier request")
                 };
-                assert_eq!((request.project(), request.tier()), (f::PROJECT, b"browser".as_slice()));
-                assert_eq!(request.repository().is_some(), named);
-                if let Some(repository) = request.repository() {
-                    assert_eq!((repository.owner(), repository.name()), (b"acme".as_slice(), b"site".as_slice()));
+                assert_eq!((request.project, request.tier.as_ref()), (f::PROJECT, b"browser".as_slice()));
+                assert_eq!(request.repository.is_some(), named);
+                if let Some(repository) = &request.repository {
+                    assert_eq!((repository.owner.as_ref(), repository.name.as_ref()), (b"acme".as_slice(), b"site".as_slice()));
                 }
-                match request.act() {
+                match &request.act {
                     w::TierAct::Hold(value) => {
                         assert_eq!(verb, "hold");
-                        assert_eq!(value.reason(), b"maintenance");
+                        assert_eq!(value.reason.as_ref(), b"maintenance");
                     }
                     w::TierAct::Release => assert_eq!(verb, "release"),
                 }
                 let refused = refusal.is_some();
                 root.adoption_answer(
                     call,
-                    w::Outcome::Tier(w::TierOutcome::new(&w::CEILINGS, w::TierOutcomeParts { refusal }).unwrap()),
+                    w::Outcome::Tier(w::TierOutcome { refusal }),
                 );
                 if !named {
                     assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Project { project: f::PROJECT });

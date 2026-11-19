@@ -1,4 +1,5 @@
 //! Public wire records used by the anonymous view (temper/docs/design/client/web/public.md, 4).
+use temper_client_protocol_wire::v1::Record;
 use self as records;
 use jig_client_protocol_wire::public_v1 as j;
 use skein_lib::{List, Queue, Time, Writer};
@@ -62,7 +63,7 @@ pub fn card_line(own: j::PublicLine) -> Box<[u8]> {
 }
 #[must_use]
 pub fn used() -> f::PublicUsed {
-    f::PublicUsed::new(&f::CEILINGS, f::PublicUsedParts { used: 0, limit: 2 }).expect("counters")
+    f::PublicUsed { used: 0, limit: 2 }
 }
 #[must_use]
 pub fn change() -> Box<[u8]> {
@@ -70,19 +71,13 @@ pub fn change() -> Box<[u8]> {
 }
 #[must_use]
 pub fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u8]> {
-    let gate = f::PublicGate::new(
-        &f::CEILINGS,
-        f::PublicGateParts {
+    let gate = f::PublicGate {
             number: 3,
             kind: f::PublicGateKind::Review,
             blocks: true,
             verdict: f::PublicVerdict::Approved,
-        },
-    )
-    .expect("gate");
-    let change = f::PublicChange::new(
-        &f::CEILINGS,
-        f::PublicChangeParts {
+        };
+    let change = f::PublicChange {
             task: 0,
             head,
             step: f::PublicStep::Checking,
@@ -97,11 +92,9 @@ pub fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u
             updates: used(),
             way: f::PublicWay::Queue,
             in_landing: false,
-        },
-    )
-    .expect("change");
-    let mut writer = Writer::new(usize::try_from(change.measure()).expect("small change"));
-    change.encode(&mut writer).expect("change");
+        };
+    let mut writer = Writer::new(usize::try_from(change.measure(&f::CEILINGS).expect("within ceilings")).expect("small change"));
+    change.write(&f::CEILINGS, &mut writer).expect("change");
     application(writer.finish())
 }
 #[must_use]
@@ -122,59 +115,40 @@ pub fn landings() -> Box<[u8]> {
 #[must_use]
 pub fn landings_with(queue_present: bool, landed: bool) -> Box<[u8]> {
     let queued =
-        f::PublicQueued::new(&f::CEILINGS, f::PublicQueuedParts { task: 0, goal: 1, ready_since: 0 }).expect("queued");
+        f::PublicQueued { task: 0, goal: 1, ready_since: 0 };
     let queue =
-        f::PublicQueue::new(&f::CEILINGS, f::PublicQueueParts { changes: List::from_boxed(Box::new([queued])) })
-            .expect("queue");
-    let line = f::PublicLandingLine::new(
-        &f::CEILINGS,
-        f::PublicLandingLineParts {
+        f::PublicQueue { changes: List::from_boxed(Box::new([queued])) };
+    let line = f::PublicLandingLine {
             members: List::from_boxed(Box::new([0])),
             phase: f::PublicLandingPhase::Landed,
             landed: List::from_boxed(Box::new([HEAD])),
-        },
-    )
-    .expect("landing line");
-    let landings = f::PublicLandings::new(
-        &f::CEILINGS,
-        f::PublicLandingsParts {
+        };
+    let landings = f::PublicLandings {
             turn: if landed { Some(0) } else { None },
             landings: if landed { List::from_boxed(Box::new([line])) } else { List::with_capacity(0) },
             queues: if queue_present { List::from_boxed(Box::new([queue])) } else { List::with_capacity(0) },
-        },
-    )
-    .expect("landings");
-    let mut writer = Writer::new(usize::try_from(landings.measure()).expect("small landings"));
-    landings.encode(&mut writer).expect("landings");
+        };
+    let mut writer = Writer::new(usize::try_from(landings.measure(&f::CEILINGS).expect("within ceilings")).expect("small landings"));
+    landings.write(&f::CEILINGS, &mut writer).expect("landings");
     application(writer.finish())
 }
 // A stock queue merge has no turn, preparation, candidates or gate proofs.
 #[must_use]
 pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
-    let line = f::PublicLandingLine::new(
-        &f::CEILINGS,
-        f::PublicLandingLineParts {
+    let line = f::PublicLandingLine {
             members: List::from_boxed(Box::new([1])),
             phase: f::PublicLandingPhase::Landed,
             landed: List::from_boxed(Box::new([HEAD])),
-        },
-    )
-    .expect("queue merge line");
-    let landings = f::PublicLandings::new(
-        &f::CEILINGS,
-        f::PublicLandingsParts {
+        };
+    let landings = f::PublicLandings {
             turn: None,
             landings: List::from_boxed(Box::new([line])),
             queues: List::with_capacity(0),
-        },
-    )
-    .expect("queue merge list");
-    let mut writer = Writer::new(usize::try_from(landings.measure()).expect("small landings"));
-    landings.encode(&mut writer).expect("landings");
+        };
+    let mut writer = Writer::new(usize::try_from(landings.measure(&f::CEILINGS).expect("within ceilings")).expect("small landings"));
+    landings.write(&f::CEILINGS, &mut writer).expect("landings");
     let list = application(writer.finish());
-    let member = f::PublicMember::new(
-        &f::CEILINGS,
-        f::PublicMemberParts {
+    let member = f::PublicMember {
             head: None,
             left: None,
             judgement: None,
@@ -183,12 +157,8 @@ pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
             candidate: None,
             landed: Some(HEAD),
             gates: List::with_capacity(0),
-        },
-    )
-    .expect("queue merge member");
-    let landing = f::PublicLanding::new(
-        &f::CEILINGS,
-        f::PublicLandingParts {
+        };
+    let landing = f::PublicLanding {
             search: None,
             combined: None,
             step: None,
@@ -198,11 +168,9 @@ pub fn queue_merge() -> (Box<[u8]>, Box<[u8]>) {
             members: List::from_boxed(Box::new([member])),
             stale_proofs: 0,
             holds_turn: false,
-        },
-    )
-    .expect("queue merge landing");
-    let mut writer = Writer::new(usize::try_from(landing.measure()).expect("small landing"));
-    landing.encode(&mut writer).expect("landing");
+        };
+    let mut writer = Writer::new(usize::try_from(landing.measure(&f::CEILINGS).expect("within ceilings")).expect("small landing"));
+    landing.write(&f::CEILINGS, &mut writer).expect("landing");
     (list, application(writer.finish()))
 }
 #[must_use]
@@ -211,20 +179,14 @@ pub fn landing() -> Box<[u8]> {
 }
 #[must_use]
 pub fn landing_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, landed: Option<[u8; 32]>) -> Box<[u8]> {
-    let gate = f::PublicGateProof::new(
-        &f::CEILINGS,
-        f::PublicGateProofParts {
+    let gate = f::PublicGateProof {
             faults: 0,
             number: 3,
             kind: f::PublicGateKind::Check,
             blocks: false,
             proof: f::PublicProof::Passed,
-        },
-    )
-    .expect("proof");
-    let member = f::PublicMember::new(
-        &f::CEILINGS,
-        f::PublicMemberParts {
+        };
+    let member = f::PublicMember {
             head: None,
             left: None,
             judgement: None,
@@ -233,12 +195,8 @@ pub fn landing_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, land
             candidate,
             landed,
             gates: List::from_boxed(Box::new([gate])),
-        },
-    )
-    .expect("member");
-    let landing = f::PublicLanding::new(
-        &f::CEILINGS,
-        f::PublicLandingParts {
+        };
+    let landing = f::PublicLanding {
             search: None,
             combined: None,
             step: None,
@@ -248,18 +206,14 @@ pub fn landing_commits(base: Option<[u8; 32]>, candidate: Option<[u8; 32]>, land
             members: List::from_boxed(Box::new([member])),
             stale_proofs: 2,
             holds_turn: true,
-        },
-    )
-    .expect("landing");
-    let mut writer = Writer::new(usize::try_from(landing.measure()).expect("small landing"));
-    landing.encode(&mut writer).expect("landing");
+        };
+    let mut writer = Writer::new(usize::try_from(landing.measure(&f::CEILINGS).expect("within ceilings")).expect("small landing"));
+    landing.write(&f::CEILINGS, &mut writer).expect("landing");
     application(writer.finish())
 }
 #[must_use]
 pub fn searching_landing() -> Box<[u8]> {
-    let member = f::PublicMember::new(
-        &f::CEILINGS,
-        f::PublicMemberParts {
+    let member = f::PublicMember {
             task: 0,
             head: None,
             base: None,
@@ -268,18 +222,10 @@ pub fn searching_landing() -> Box<[u8]> {
             gates: List::with_capacity(0),
             judgement: None,
             left: Some(f::PublicLeave::Blamed(
-                f::PublicBlamed::new(
-                    &f::CEILINGS,
-                    f::PublicBlamedParts { gate: 3, red: [0x33; 32], green: [0x22; 32] },
-                )
-                .unwrap(),
+                f::PublicBlamed { gate: 3, red: [0x33; 32], green: [0x22; 32] },
             )),
-        },
-    )
-    .unwrap();
-    let landing = f::PublicLanding::new(
-        &f::CEILINGS,
-        f::PublicLandingParts {
+        };
+    let landing = f::PublicLanding {
             phase: f::PublicLandingPhase::Proving,
             hold: None,
             preparation: 1,
@@ -289,29 +235,15 @@ pub fn searching_landing() -> Box<[u8]> {
             combined: None,
             step: Some(f::PublicLandingStep::Probing),
             search: Some(
-                f::PublicSearch::new(
-                    &f::CEILINGS,
-                    f::PublicSearchParts {
-                        green: f::PublicSearchBound::new(
-                            &f::CEILINGS,
-                            f::PublicSearchBoundParts { member: 0, prefix: [0x22; 32] },
-                        )
-                        .unwrap(),
-                        red: f::PublicSearchBound::new(
-                            &f::CEILINGS,
-                            f::PublicSearchBoundParts { member: 3, prefix: [0x33; 32] },
-                        )
-                        .unwrap(),
+                f::PublicSearch {
+                        green: f::PublicSearchBound { member: 0, prefix: [0x22; 32] },
+                        red: f::PublicSearchBound { member: 3, prefix: [0x33; 32] },
                         probe: Some([0x11; 32]),
                     },
-                )
-                .unwrap(),
             ),
-        },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(landing.measure()).unwrap());
-    landing.encode(&mut writer).unwrap();
+        };
+    let mut writer = Writer::new(usize::try_from(landing.measure(&f::CEILINGS).expect("within ceilings")).unwrap());
+    landing.write(&f::CEILINGS, &mut writer).unwrap();
     application(writer.finish())
 }
 #[must_use]

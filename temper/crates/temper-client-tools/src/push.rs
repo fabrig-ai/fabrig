@@ -1,4 +1,5 @@
 //! Push subscriptions (temper/docs/design/client/ctl/tools.md, 2, 3).
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -78,16 +79,12 @@ pub fn subscription(bytes: &[u8], label: &[u8]) -> Option<w::AddDevice> {
     if endpoint.is_empty() {
         return None;
     }
-    w::AddDevice::new(
-        &w::CEILINGS,
-        w::AddDeviceParts {
+    { let value = w::AddDevice {
             endpoint: endpoint.into(),
             p256dh: p256dh.as_ref().try_into().ok()?,
             auth: auth.as_ref().try_into().ok()?,
             label: label.into(),
-        },
-    )
-    .ok()
+        }; value.measure(&w::CEILINGS).ok()?; Some(value) }
 }
 fn string(doc: &skein_json::Document, at: u32) -> Option<&[u8]> {
     let token = doc.token(at)?;
@@ -152,7 +149,7 @@ pub(crate) fn ready(state: &mut Devices, client: &Client, env: &Env<Limits>, out
         if name == LIST.name {
             let handle = Handle { asker: Owner::Forge.asker(), number: serial };
             let watching =
-                w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Devices }).expect("devices watch");
+                w::Watching { watch: w::Watch::Devices };
             state.watching.insert(handle, called);
             out.push(Out::Client {
                 event: Event::Watch {
@@ -163,7 +160,7 @@ pub(crate) fn ready(state: &mut Devices, client: &Client, env: &Env<Limits>, out
                         record: Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::watching(&watching),
+                            bytes: watching.encode(&bounds).expect("devices watch"),
                         },
                     },
                 },
@@ -188,13 +185,13 @@ pub(crate) fn ready(state: &mut Devices, client: &Client, env: &Env<Limits>, out
                 w::Request::AddDevice(record)
             } else {
                 w::Request::RemoveDevice(
-                    w::RemoveDevice::new(&bounds, w::RemoveDeviceParts { number }).expect("number"),
+                    w::RemoveDevice { number },
                 )
             };
-            let record = w::Requesting::new(&bounds, w::RequestingParts { request }).expect("checked subscription");
+            let record = w::Requesting { request };
             let request = Ask::Family {
                 scope: c::Scope::Own,
-                record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+                record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).expect("checked subscription") },
             };
             let key = Key { asker: Owner::Forge.asker(), number: serial };
             let name = match &called.call.key {
@@ -217,9 +214,9 @@ pub(crate) fn told(state: &mut Devices, client: &Client, env: &Env<Limits>, told
             let Some(decoded) = wire::decode_requesting(&record.bytes, &bounds) else {
                 return;
             };
-            let number = match decoded.request() {
+            let number = match &decoded.request {
                 w::Request::AddDevice(_) => 0,
-                w::Request::RemoveDevice(row) => row.number(),
+                w::Request::RemoveDevice(row) => row.number,
                 w::Request::TryAccount(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
@@ -341,11 +338,11 @@ fn answer(request: &Ask, outcome: &Outcome, number: u32, json: bool, limits: &Li
     let Some(answer) = answer else {
         return render::failure(b"push request not answered", json, 1);
     };
-    let (number, word) = match answer.outcome() {
-        w::Outcome::DeviceAdded(row) => (row.number(), b"added".as_slice()),
+    let (number, word) = match &answer.outcome {
+        w::Outcome::DeviceAdded(row) => (row.number, b"added".as_slice()),
         w::Outcome::DeviceRemoved => (number, b"removed".as_slice()),
         w::Outcome::DeviceRefused(row) => {
-            let why = match row.reason() {
+            let why = match &row.reason {
                 w::DeviceRefusal::Person => b"Only a person is pushed to.".as_slice(),
                 w::DeviceRefusal::Off => b"This deployment doesn't push.",
                 w::DeviceRefusal::Service => b"That push service isn't one this deployment sends to.",
@@ -463,16 +460,16 @@ fn encode_rows(rows: &w::Devices, e: &mut skein_json::writer::Encoder) {
     e.object_start();
     e.key(b"devices");
     e.array_start();
-    for row in rows.rows() {
+    for row in &rows.rows {
         e.object_start();
         e.key(b"number");
-        e.unsigned(u64::from(row.number()));
+        e.unsigned(u64::from(row.number));
         e.key(b"label");
-        e.string(row.label());
+        e.string(&row.label);
         e.key(b"at");
-        e.unsigned(row.at());
+        e.unsigned(row.at);
         e.key(b"service");
-        match skein_push::Endpoint::parse(row.endpoint()) {
+        match skein_push::Endpoint::parse(&row.endpoint) {
             Some(endpoint) => e.string(endpoint.origin()),
             None => e.null(),
         }
@@ -482,15 +479,15 @@ fn encode_rows(rows: &w::Devices, e: &mut skein_json::writer::Encoder) {
     e.object_end();
 }
 fn rows_text(rows: &w::Devices, text: &mut Text) {
-    for row in rows.rows() {
+    for row in &rows.rows {
         text.put(b"device ");
-        text.number(u64::from(row.number()));
+        text.number(u64::from(row.number));
         text.put(b": ");
-        text.put(row.label());
+        text.put(&row.label);
         text.put(b" ");
-        text.number(row.at());
+        text.number(row.at);
         text.put(b" ");
-        if let Some(endpoint) = skein_push::Endpoint::parse(row.endpoint()) {
+        if let Some(endpoint) = skein_push::Endpoint::parse(&row.endpoint) {
             text.put(endpoint.origin());
         }
         text.put(b"\n");

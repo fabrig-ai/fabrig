@@ -1,4 +1,5 @@
 //! Public landings and queues (temper/docs/design/client/forge/README.md, 9.2–9.3).
+use temper_client_protocol_wire::v1::Record;
 use super::{Names, PublicAsk, phase, w};
 use crate::{Domain, Limits};
 use alloc::boxed::Box;
@@ -47,11 +48,7 @@ impl Domain {
             }
             landings
                 .push(
-                    w::PublicLandingLine::new(
-                        l,
-                        w::PublicLandingLineParts { members, phase: phase(&row.phase), landed },
-                    )
-                    .ok()?,
+                    w::PublicLandingLine { members, phase: phase(&row.phase), landed },
                 )
                 .ok()?;
         }
@@ -91,21 +88,17 @@ impl Domain {
                 let goal = names.name(goal)?;
                 changes
                     .push(
-                        w::PublicQueued::new(
-                            l,
-                            w::PublicQueuedParts {
+                        w::PublicQueued {
                                 task,
                                 goal,
                                 ready_since: entry.since.as_nanos().checked_div(1_000_000_000)?,
                             },
-                        )
-                        .ok()?,
                     )
                     .ok()?;
             }
-            made.push(w::PublicQueue::new(l, w::PublicQueueParts { changes }).ok()?).ok()?;
+            made.push(w::PublicQueue { changes }).ok()?;
         }
-        w::PublicLandings::new(l, w::PublicLandingsParts { turn, landings, queues: made }).ok()
+        { let value = w::PublicLandings { turn, landings, queues: made }; value.measure(l).ok()?; Some(value) }
     }
     fn public_queues(&self, ask: &PublicAsk<'_>, limits: &Limits) -> Option<List<Queue>> {
         let mut queues = List::with_capacity(limits.changes);

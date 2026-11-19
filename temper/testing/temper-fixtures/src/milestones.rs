@@ -1,4 +1,5 @@
 //! Milestone row fixtures for the client's grouped lists (client/forge/parts.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use jig_client::contract as c;
 use jig_client_protocol_wire as j;
 use jig_client_test_records as records;
@@ -14,21 +15,13 @@ pub fn part(
     let mut rows = List::with_capacity(u32::try_from(goals.len()).expect("fixture goals"));
     for (line, headline) in goals {
         rows.push(
-            w::MilestoneGoal::new(
-                &w::CEILINGS,
-                w::MilestoneGoalParts { line: line_bytes(line), headline: headline.map(Into::into) },
-            )
-            .expect("fixture goal"),
+            w::MilestoneGoal { line: line_bytes(line), headline: headline.map(Into::into) },
         )
         .expect("fixture goals");
     }
-    let part = w::MilestonePart::new(
-        &w::CEILINGS,
-        w::MilestonePartParts { whole: whole.map(Wall::as_nanos), totals, goals: rows, more },
-    )
-    .expect("fixture milestone part");
-    let mut writer = Writer::new(usize::try_from(part.measure()).expect("fixture size"));
-    part.encode(&mut writer).expect("fixture encoding");
+    let part = w::MilestonePart { whole: whole.map(Wall::as_nanos), totals, goals: rows, more };
+    let mut writer = Writer::new(usize::try_from(part.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("fixture size"));
+    part.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("fixture encoding");
     c::RowPart::Value(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() })
 }
 

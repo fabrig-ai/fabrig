@@ -76,8 +76,8 @@ fn family_open(out: &mut Queue<Request>, task: u64) -> Option<Token> {
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
             let watching =
                 wire::decode_watching(&record.bytes, &forge::wire_limits(&f::limits().forge).unwrap()).unwrap();
-            let w::Watch::Change(subject) = watching.watch() else { panic!("change watch") };
-            assert_eq!(subject.task(), task);
+            let w::Watch::Change(subject) = &watching.watch else { panic!("change watch") };
+            assert_eq!(subject.task, task);
             found = Some(watch);
         }
     }
@@ -211,7 +211,7 @@ fn deliveries_replace_the_whole_decoded_panel() {
     for step in [
         w::Step::Producing,
         p::queued(),
-        w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0x47; 32] }).unwrap()),
+        w::Step::Landed(w::Landed { merge: [0x47; 32] }),
     ] {
         let panel = p::panel(TASK, step);
         let before = forge::shown(root.forge());
@@ -352,7 +352,7 @@ fn a_panel_falling_behind_before_its_first_record_retries_and_shows_the_landed_c
         assert_ne!(fresh, first);
         let landed = p::panel(
             TASK,
-            w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0x47; 32] }).unwrap()),
+            w::Step::Landed(w::Landed { merge: [0x47; 32] }),
         );
         for up in [
             Up::Watched { watch: fresh, event: c::WatchEvent::Opened },
@@ -386,7 +386,7 @@ fn a_late_panel_ending_after_the_last_task_document_reopens_the_panel() {
     assert_eq!(root.forge().panel().unwrap().state, State::Loading);
     assert!(root.forge().panel().unwrap().handle.is_some());
     let landed =
-        p::panel(TASK, w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0x47; 32] }).unwrap()));
+        p::panel(TASK, w::Step::Landed(w::Landed { merge: [0x47; 32] }));
     assert!(deliver(&mut root, fresh, &landed).is_empty());
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(landed)));
 }
@@ -509,7 +509,7 @@ fn a_task_page_recovers_its_ended_panel_when_the_change_is_made_and_landed() {
         assert_eq!(crate::pages::delegation::facts(document).state, crate::pages::delegation::State::Landed);
         let landed = p::panel(
             TASK,
-            w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0x47; 32] }).unwrap()),
+            w::Step::Landed(w::Landed { merge: [0x47; 32] }),
         );
         assert!(deliver(&mut root, panel_watch, &landed).is_empty());
         assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(landed)));
@@ -637,16 +637,16 @@ fn output_bounds_cover_replacement_and_a_full_panel() {
     };
     assert_ne!(handle, first);
     let (mut root, watch, _) = opened();
-    let mut parts = p::panel(TASK, p::queued()).into_parts();
+    let mut parts = p::panel(TASK, p::queued());
     parts.hold = Some(w::Hold::Authority(
-        w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: Box::from([b'a'; 512]) }).unwrap(),
+        w::AuthorityHold { reason: Box::from([b'a'; 512]) },
     ));
-    let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     deliver(&mut root, watch, &panel);
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(panel.clone())));
-    let mut replacement = panel.clone().into_parts();
+    let mut replacement = panel.clone();
     replacement.step = w::Step::Producing;
-    let replacement = w::ChangePanel::new(&w::CEILINGS, replacement).unwrap();
+    let replacement = replacement;
     assert!(deliver(&mut root, watch, &replacement).is_empty());
     assert_eq!(root.forge().panel().unwrap().state, State::Shown(Box::new(replacement)));
     let peak = meter.end().peak();

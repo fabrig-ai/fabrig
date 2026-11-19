@@ -183,7 +183,7 @@ impl Shown<'_> {
         {
             items
                 .push(
-                    words.say(Word::MsSpent, &[Hole::Number(totals.spent()), Hole::Number(line.budget.numbers.budget)]),
+                    words.say(Word::MsSpent, &[Hole::Number(totals.spent), Hole::Number(line.budget.numbers.budget)]),
                 )
                 .expect("meta fits");
         }

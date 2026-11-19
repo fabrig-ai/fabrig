@@ -10,10 +10,10 @@ use temper_client_domain::{
 use temper_client_protocol_wire::v1 as w;
 
 fn holder_party(number: u64) -> w::Holder {
-    w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number }).unwrap())
+    w::Holder::Party(w::HolderParty { number })
 }
 fn holder_role(number: u32) -> w::Holder {
-    w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number }).unwrap())
+    w::Holder::Role(w::HolderRole { number })
 }
 
 fn subtree(nodes: &[Node], style: skein_ui::Style) -> &[Node] {
@@ -235,11 +235,11 @@ fn team_names_routing_holders_and_owners_that_do_not_stand() {
         for (owner, name) in [
             (owner_task(61), "Task 61, ended"),
             (
-                w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 7 }).unwrap()),
+                w::AreaOwner::Party(w::AreaParty { number: 7 }),
                 "Party 7, not of vsr",
             ),
             (
-                w::AreaOwner::Charter(w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 15 }).unwrap()),
+                w::AreaOwner::Charter(w::AreaCharter { number: 15 }),
                 "Charter 15's role, not started",
             ),
         ] {

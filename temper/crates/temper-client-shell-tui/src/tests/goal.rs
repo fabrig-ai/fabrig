@@ -95,19 +95,11 @@ fn one(
             if let f::Read::Setting(setting) = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap().read()
                 && setting.kind() == 7
             {
-                let value = f::ProjectWays::new(
-                    &f::CEILINGS,
-                    f::ProjectWaysParts { drafts: true, goals: true, changes: false, way: 4 },
-                )
-                .unwrap();
+                let value = f::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };
                 let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
                 value.encode(&mut writer).unwrap();
                 let record = wire::setting_answer(
-                    &f::SettingAnswer::new(
-                        &f::CEILINGS,
-                        f::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
-                    )
-                    .unwrap(),
+                    &f::SettingAnswer { revision: None, value: Some(writer.finish()) },
                 );
                 let answer = w::ReadAnswer::Value(family(record));
                 let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
@@ -259,16 +251,13 @@ fn document(scope: w::NoteScope) -> w::ReadValue {
     )
 }
 pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
-    let row = f::ForgeRow::new(
-        &f::CEILINGS,
-        f::ForgeRowParts {
+    let row = f::ForgeRow {
             number: 2,
             host: b"git.example".as_slice().into(),
             kind: f::Kind::Forgejo,
             mode,
             connection: f::Connection::Connected(
-                f::Connected::new(&f::CEILINGS, f::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                    .unwrap(),
+                f::Connected { id: 1, login: b"temper".as_slice().into() },
             ),
             offer: f::Offer::NotOffered,
             first: None,
@@ -277,22 +266,15 @@ pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
             ended: None,
             app: None,
             web: None,
-            repositories: List::from_boxed(Box::new([f::Adoption::new(
-                &f::CEILINGS,
-                f::AdoptionParts { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 3 },
-            )
-            .unwrap()])),
+            repositories: List::from_boxed(Box::new([f::Adoption { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 3 }])),
             owned: None,
             admin: false,
             ended_stop: None,
             read_only: false,
             makings: List::with_capacity(0),
-        },
-    )
-    .unwrap();
+        };
     wire::forges(
-        &f::Forges::new(&f::CEILINGS, f::ForgesParts { forges: List::from_boxed(Box::new([row])), linked: false })
-            .unwrap(),
+        &f::Forges { forges: List::from_boxed(Box::new([row])), linked: false },
     )
 }
 fn dismissed(linked: bool) -> Box<[u8]> {
@@ -300,11 +282,11 @@ fn dismissed(linked: bool) -> Box<[u8]> {
     if linked {
         dismissed
             .push(f::PersonFact::GoalFrom(
-                f::GoalFrom::new(&f::CEILINGS, f::GoalFromParts { project: 3, chat: 9, goal: 25, at: 1 }).unwrap(),
+                f::GoalFrom { project: 3, chat: 9, goal: 25, at: 1 },
             ))
             .unwrap();
     }
-    wire::dismissals(&f::Dismissals::new(&f::CEILINGS, f::DismissalsParts { dismissed }).unwrap())
+    wire::dismissals(&f::Dismissals { dismissed })
 }
 
 #[test]

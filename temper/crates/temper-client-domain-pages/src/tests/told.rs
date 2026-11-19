@@ -73,11 +73,11 @@ fn asked(out: &mut Queue<Request>) -> (Key, w::Request) {
     assert_eq!(scope, jig_client::contract::Scope::Own);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
     let record = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
-    (key, record.into_parts().request)
+    (key, record.request)
 }
 fn answered(page: &mut Told, key: Key, outcome: w::Outcome, out: &mut Queue<Request>) {
     let client = Client::unlinked(&f::limits().client, f::SEED).expect("client");
-    let record = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap();
+    let record = w::Answer { outcome };
     assert!(page.told(
         &client,
         &Tell::Answered {
@@ -112,7 +112,7 @@ fn subscription_acts_send_keys_and_drop_only_after_removal_answers() {
     );
     let (key, request) = asked(&mut out);
     let w::Request::AddDevice(value) = request else { panic!("add device") };
-    let value = value.into_parts();
+
     assert_eq!(&*value.endpoint, ENDPOINT);
     assert_eq!(value.p256dh, KEY);
     assert_eq!(value.auth, [8; 16]);
@@ -120,13 +120,13 @@ fn subscription_acts_send_keys_and_drop_only_after_removal_answers() {
     answered(
         &mut page,
         key,
-        w::Outcome::DeviceAdded(w::DeviceAdded::new(&w::CEILINGS, w::DeviceAddedParts { number: 7 }).unwrap()),
+        w::Outcome::DeviceAdded(w::DeviceAdded { number: 7 }),
         &mut out,
     );
     page.act(Act::TurnOff, Some(KEY), &mut serial, f::limits().forge, &mut out);
     let (key, request) = asked(&mut out);
     let w::Request::RemoveDevice(value) = request else { panic!("remove") };
-    assert_eq!(value.number(), 7);
+    assert_eq!(value.number, 7);
     assert!(out.is_empty(), "do not drop before the answer");
     answered(&mut page, key, w::Outcome::DeviceRemoved, &mut out);
     assert_eq!(out.pop(), Some(Request::Push(Duty::Drop { token: key.number })));
@@ -158,7 +158,7 @@ fn subscription_acts_send_keys_and_drop_only_after_removal_answers() {
         answered(
             &mut page,
             key,
-            w::Outcome::DeviceRefused(w::DeviceRefused::new(&w::CEILINGS, w::DeviceRefusedParts { reason }).unwrap()),
+            w::Outcome::DeviceRefused(w::DeviceRefused { reason }),
             &mut out,
         );
         assert_eq!(page.refusal(), Some(expected));

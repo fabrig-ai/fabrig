@@ -61,7 +61,7 @@ fn no_drawn_reads(down: &[Down]) {
         match request {
             Down::Read { what: Readable::Family { record, .. }, .. } => {
                 if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
-                    && let w::Read::Milestone(_) = reading.read()
+                    && let w::Read::Milestone(_) = &reading.read
                 {
                     panic!("no milestone totals read");
                 }
@@ -110,11 +110,7 @@ fn closed(task: u64) -> c::TaskLine {
     )
 }
 fn totals(done: u32, failed: u32, live: u32) -> w::MilestoneTotals {
-    w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts { task: M, done, failed, live, closed: 50, ended: None, last_landing: None, spent: 0 },
-    )
-    .unwrap()
+    w::MilestoneTotals { task: M, done, failed, live, closed: 50, ended: None, last_landing: None, spent: 0 }
 }
 fn page(rows: &[c::TaskLine], more: bool) -> Readout {
     page_at(rows, more, 0)
@@ -445,7 +441,7 @@ fn drawn_milestones_take_their_facts_totals_and_sixteen_goals_only_from_the_row(
     assert_eq!(drawn.facts.as_ref().unwrap().whole, Some(WALL));
     assert_eq!(drawn.facts.as_ref().unwrap().maker, own.requester);
     assert_eq!(drawn.facts.as_ref().unwrap().name.as_ref(), own.chip.title.bytes());
-    assert_eq!(drawn.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(drawn.totals.as_ref().unwrap().done, 2);
     assert_eq!(drawn.more, 3);
     assert_eq!(drawn.goals.iter().map(|goal| goal.chip.task).collect::<Vec<_>>(), (1..=16).collect::<Vec<_>>());
     assert_eq!(drawn.headline(16), Some(b"Part report headline.".as_slice()));
@@ -455,7 +451,7 @@ fn drawn_milestones_take_their_facts_totals_and_sixteen_goals_only_from_the_row(
     h.live(listed, &[lost]);
     no_drawn_reads(&h.down());
     let drawn = h.reads().milestone(M).unwrap();
-    assert_eq!(drawn.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(drawn.totals.as_ref().unwrap().done, 2);
     assert_eq!(drawn.more, 3);
     assert_eq!(drawn.goals.len(), 16);
     assert_eq!(drawn.headline(16), Some(b"Part report headline.".as_slice()));
@@ -935,7 +931,7 @@ fn ended_milestone_parts_stand_through_a_mark_refresh_and_leave_with_the_list() 
     lost.parts = List::from_boxed(Box::new([c::RowPart::Failed(c::PartFailure::Busy)]));
     h.answer(refresh, page_at(core::slice::from_ref(&lost), false, 6));
     let drawn = h.reads().milestone(M).unwrap();
-    assert_eq!(drawn.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(drawn.totals.as_ref().unwrap().done, 2);
     assert_eq!(drawn.goals.len(), 1);
     assert_eq!(drawn.headline(200), Some(b"Part report headline.".as_slice()));
     assert_eq!(drawn.more, 2);
@@ -973,7 +969,7 @@ fn own_reads(out: &Queue<Request>) -> (jig_client::Handle, jig_client::Handle, j
                 Readable::Jig(c::Read::Tasks { query, .. }) if query.parent.is_none() => own_line = Some(*handle),
                 Readable::Family { record, .. } => {
                     if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
-                        && let w::Read::Milestone(_) = reading.read()
+                        && let w::Read::Milestone(_) = &reading.read
                     {
                         totals = Some(*handle);
                     }
@@ -1065,9 +1061,7 @@ fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers(
         Readout::Jig(c::ReadResult::Value(c::ReadValue::Task(Box::new(task.clone())))),
         &mut out,
     );
-    let totals = w::MilestoneTotals::new(
-        &w::CEILINGS,
-        w::MilestoneTotalsParts {
+    let totals = w::MilestoneTotals {
             task: f::chat::TASK,
             done: 2,
             failed: 0,
@@ -1076,12 +1070,9 @@ fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers(
             ended: None,
             last_landing: None,
             spent: 0,
-        },
-    )
-    .unwrap();
+        };
     let totals =
-        w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result: w::MilestoneResult::Totals(totals) })
-            .unwrap();
+        w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
     answer(
         &mut task_page,
         &h,
@@ -1146,7 +1137,7 @@ fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers(
         Some(task.changed.as_nanos())
     );
     assert!(page.milestone.facts.is_some());
-    assert_eq!(page.milestone.totals.as_ref().unwrap().done(), 2);
+    assert_eq!(page.milestone.totals.as_ref().unwrap().done, 2);
     assert_eq!(page.line.as_ref().unwrap(), &own);
 }
 

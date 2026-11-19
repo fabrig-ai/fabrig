@@ -1,0 +1,222 @@
+temper/crates/temper-engine-service-vocabulary/src/family.rs:85 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::DraftRepository` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/family.rs:117 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::DraftRepository` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/family.rs:146 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::DraftRepository` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/family.rs:227 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::FirstAsk` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/family.rs:406 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::MakeInto` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2324 E0308 `match` arms have incompatible types
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2394 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2394 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2395 E0308 mismatched types
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2394 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:22 E0599 no method named `profile` found for reference `&temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:52 E0599 no method named `profile` found for reference `&temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:53 E0599 no method named `profile` found for reference `&temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:59 E0599 no method named `fallback` found for reference `&temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:60 E0599 no method named `endpoints` found for reference `&temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:103 E0599 no method named `window` found for reference `&temper_engine_domain_forge::settings::AgentLimits` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:104 E0599 no method named `output` found for reference `&temper_engine_domain_forge::settings::AgentLimits` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:105 E0599 no method named `reasoning_item` found for reference `&temper_engine_domain_forge::settings::AgentLimits` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:106 E0599 no method named `head_ms` found for reference `&temper_engine_domain_forge::settings::AgentLimits` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:107 E0599 no method named `idle_ms` found for reference `&temper_engine_domain_forge::settings::AgentLimits` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/figures.rs:108 E0599 no method named `oversized` found for reference `&temper_engine_domain_forge::settings::AgentLimits` in the current scope
+temper/crates/temper-engine-service-vocabulary/src/family/findings.rs:129 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family/findings.rs:139 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family/findings.rs:272 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family/landing_views.rs:40 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family/landing_views.rs:70 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family/landing_views.rs:155 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:805 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:917 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:1269 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:1489 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:1585 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:1642 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2013 unused_variables unused variable: `limits`
+temper/crates/temper-engine-service-vocabulary/src/family.rs:2483 unused_variables unused variable: `limits`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:15 E0422 cannot find struct, variant or union type `ForgeRowParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:51 E0422 cannot find struct, variant or union type `ConnectedParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:169 E0422 cannot find struct, variant or union type `AnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:181 E0422 cannot find struct, variant or union type `FirstRepositoryParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:194 E0422 cannot find struct, variant or union type `ForgeRowParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:232 E0422 cannot find struct, variant or union type `ForgesParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:243 E0422 cannot find struct, variant or union type `MadeParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:253 E0422 cannot find struct, variant or union type `ConnectedParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:260 E0422 cannot find struct, variant or union type `ConnectStoppedParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:269 E0422 cannot find struct, variant or union type `InstallationParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:272 E0422 cannot find struct, variant or union type `AccountParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:286 E0422 cannot find struct, variant or union type `InstallationParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:314 E0422 cannot find struct, variant or union type `SetUpFailedParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:351 E0422 cannot find struct, variant or union type `CreateFailedParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:403 E0422 cannot find struct, variant or union type `OwnedForgeParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_model.rs:262 E0422 cannot find struct, variant or union type `ProgramEnvironmentAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_model.rs:379 E0422 cannot find struct, variant or union type `DeploymentAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/groups.rs:28 E0422 cannot find struct, variant or union type `FindingRowParts` in module `w`
+temper/testing/temper-client-view-kit/src/groups.rs:36 E0422 cannot find struct, variant or union type `HolderTaskParts` in module `w`
+temper/testing/temper-client-view-kit/src/groups.rs:226 E0422 cannot find struct, variant or union type `HolderPartyParts` in module `w`
+temper/testing/temper-client-view-kit/src/groups.rs:231 E0422 cannot find struct, variant or union type `FindingsParts` in module `w`
+temper/testing/temper-client-view-kit/src/groups.rs:252 E0422 cannot find struct, variant or union type `DecisionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:87 E0422 cannot find struct, variant or union type `AwaysParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:353 E0422 cannot find struct, variant or union type `DecisionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:377 E0422 cannot find struct, variant or union type `AwaysParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:384 E0422 cannot find struct, variant or union type `DecisionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:450 E0422 cannot find struct, variant or union type `AnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:683 E0422 cannot find struct, variant or union type `AdoptionParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:702 E0425 cannot find type `ProjectStatusParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:703 E0422 cannot find struct, variant or union type `ProjectStatusParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:733 E0422 cannot find struct, variant or union type `DecisionParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:743 E0422 cannot find struct, variant or union type `ReachParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:765 E0422 cannot find struct, variant or union type `AwayRowParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:785 E0425 cannot find type `ProjectStatusParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:795 E0425 cannot find type `ProjectStatusParts` in module `w`
+temper/testing/temper-client-view-kit/src/home.rs:884 E0422 cannot find struct, variant or union type `AnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/needs.rs:316 E0422 cannot find struct, variant or union type `AskedParts` in module `w`
+temper/testing/temper-client-view-kit/src/needs.rs:328 E0422 cannot find struct, variant or union type `DecisionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/needs.rs:364 E0422 cannot find struct, variant or union type `DecisionParts` in module `w`
+temper/testing/temper-client-view-kit/src/needs.rs:374 E0422 cannot find struct, variant or union type `ReachParts` in module `w`
+temper/testing/temper-client-view-kit/src/needs.rs:394 E0422 cannot find struct, variant or union type `DecisionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/needs.rs:721 E0422 cannot find struct, variant or union type `ProposalItemsAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:16 E0422 cannot find struct, variant or union type `GateParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:29 E0422 cannot find struct, variant or union type `ChangePanelParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:42 E0422 cannot find struct, variant or union type `PullParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:53 E0422 cannot find struct, variant or union type `UsedParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:54 E0422 cannot find struct, variant or union type `UsedParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:55 E0422 cannot find struct, variant or union type `UsedParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:58 E0422 cannot find struct, variant or union type `QuestionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:60 E0422 cannot find struct, variant or union type `UsedParts` in module `w`
+temper/testing/temper-client-view-kit/src/panel.rs:76 E0422 cannot find struct, variant or union type `QueuedParts` in module `w`
+temper/testing/temper-client-view-kit/src/public_records.rs:65 E0422 cannot find struct, variant or union type `PublicUsedParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:75 E0422 cannot find struct, variant or union type `PublicGateParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:85 E0422 cannot find struct, variant or union type `PublicChangeParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:125 E0422 cannot find struct, variant or union type `PublicQueuedParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:127 E0422 cannot find struct, variant or union type `PublicQueueParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:131 E0422 cannot find struct, variant or union type `PublicLandingLineParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:140 E0422 cannot find struct, variant or union type `PublicLandingsParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:156 E0422 cannot find struct, variant or union type `PublicLandingLineParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:165 E0422 cannot find struct, variant or union type `PublicLandingsParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:177 E0422 cannot find struct, variant or union type `PublicMemberParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:191 E0422 cannot find struct, variant or union type `PublicLandingParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:216 E0422 cannot find struct, variant or union type `PublicGateProofParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:227 E0422 cannot find struct, variant or union type `PublicMemberParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:241 E0422 cannot find struct, variant or union type `PublicLandingParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:262 E0422 cannot find struct, variant or union type `PublicMemberParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:273 E0422 cannot find struct, variant or union type `PublicBlamedParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:282 E0422 cannot find struct, variant or union type `PublicLandingParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:294 E0422 cannot find struct, variant or union type `PublicSearchParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:297 E0422 cannot find struct, variant or union type `PublicSearchBoundParts` in module `f`
+temper/testing/temper-client-view-kit/src/public_records.rs:302 E0422 cannot find struct, variant or union type `PublicSearchBoundParts` in module `f`
+temper/testing/temper-client-view-kit/src/roots.rs:531 E0422 cannot find struct, variant or union type `ToBeginParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:545 E0422 cannot find struct, variant or union type `DismissalsParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:570 E0422 cannot find struct, variant or union type `ForgesParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:647 E0422 cannot find struct, variant or union type `SettingAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:670 E0422 cannot find struct, variant or union type `LimitsAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:678 E0422 cannot find struct, variant or union type `LimitHoldsAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:978 E0422 cannot find struct, variant or union type `DecisionsParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1500 E0422 cannot find struct, variant or union type `PlaygroundAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1516 E0422 cannot find struct, variant or union type `DeploymentAnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1673 E0422 cannot find struct, variant or union type `AnswerParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1797 E0422 cannot find struct, variant or union type `ProjectWaysParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1826 E0422 cannot find struct, variant or union type `AwayRowParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1852 E0422 cannot find struct, variant or union type `AwaysParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:1949 E0422 cannot find struct, variant or union type `ForgesParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:2139 E0422 cannot find struct, variant or union type `AdoptionParts` in module `w`
+temper/testing/temper-client-view-kit/src/roots.rs:2144 E0422 cannot find struct, variant or union type `RepositoryMakingParts` in module `w`
+temper/testing/temper-client-view-kit/src/team.rs:20 E0422 cannot find struct, variant or union type `HolderTaskParts` in module `w`
+temper/testing/temper-client-view-kit/src/team.rs:25 E0422 cannot find struct, variant or union type `AreaTaskParts` in module `w`
+temper/testing/temper-client-view-kit/src/welcome.rs:20 E0422 cannot find struct, variant or union type `AdoptionParts` in module `w`
+temper/testing/temper-client-view-kit/src/connect_forge.rs:13 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:51 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Connected` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:169 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:179 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::FirstRepository` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:192 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:232 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Forges` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:243 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Made` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:253 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Connected` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:260 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ConnectStopped` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:267 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Installation` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:272 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Account` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:286 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Installation` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:292 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:312 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::SetUpFailed` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:351 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::CreateFailed` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:401 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::OwnedForge` in the current scope
+temper/testing/temper-client-view-kit/src/connect_forge.rs:413 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/testing/temper-client-view-kit/src/connect_model.rs:262 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ProgramEnvironmentAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/connect_model.rs:377 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::DeploymentAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/groups.rs:26 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::FindingRow` in the current scope
+temper/testing/temper-client-view-kit/src/groups.rs:36 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::HolderTask` in the current scope
+temper/testing/temper-client-view-kit/src/groups.rs:226 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::HolderParty` in the current scope
+temper/testing/temper-client-view-kit/src/groups.rs:229 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Findings` in the current scope
+temper/testing/temper-client-view-kit/src/groups.rs:250 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decisions` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:85 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Aways` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:351 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decisions` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:377 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Aways` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:382 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decisions` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:450 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:681 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Adoption` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:692 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:731 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decision` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:741 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Reach` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:763 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::AwayRow` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:798 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ProjectStatus` in the current scope
+temper/testing/temper-client-view-kit/src/home.rs:884 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/testing/temper-client-view-kit/src/needs.rs:314 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Asked` in the current scope
+temper/testing/temper-client-view-kit/src/needs.rs:328 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decisions` in the current scope
+temper/testing/temper-client-view-kit/src/needs.rs:362 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decision` in the current scope
+temper/testing/temper-client-view-kit/src/needs.rs:372 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Reach` in the current scope
+temper/testing/temper-client-view-kit/src/needs.rs:392 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decisions` in the current scope
+temper/testing/temper-client-view-kit/src/needs.rs:719 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ProposalItemsAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:14 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Gate` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:27 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ChangePanel` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:42 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Pull` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:53 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Used` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:54 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Used` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:55 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Used` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:56 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Questions` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:60 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Used` in the current scope
+temper/testing/temper-client-view-kit/src/panel.rs:76 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Queued` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:65 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicUsed` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:73 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicGate` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:83 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:125 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicQueued` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:127 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicQueue` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:129 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLandingLine` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:138 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:154 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLandingLine` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:163 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:175 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicMember` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:189 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:214 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicGateProof` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:225 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicMember` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:239 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:260 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicMember` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:271 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicBlamed` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:280 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:292 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicSearch` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:295 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicSearchBound` in the current scope
+temper/testing/temper-client-view-kit/src/public_records.rs:300 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::public_v1::PublicSearchBound` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:531 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ToBegin` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:545 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Dismissals` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:570 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Forges` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:647 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::SettingAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:668 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::LimitsAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:676 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::LimitHoldsAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:976 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Decisions` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1498 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1514 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::DeploymentAnswer` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1673 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1789 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/testing/temper-client-view-kit/src/roots.rs:1789 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1790 E0308 mismatched types
+temper/testing/temper-client-view-kit/src/roots.rs:1789 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/testing/temper-client-view-kit/src/roots.rs:1795 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ProjectWays` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1824 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::AwayRow` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1852 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Aways` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:1949 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Forges` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:2137 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Adoption` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:2142 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::RepositoryMaking` in the current scope
+temper/testing/temper-client-view-kit/src/roots.rs:2153 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/testing/temper-client-view-kit/src/team.rs:20 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::HolderTask` in the current scope
+temper/testing/temper-client-view-kit/src/team.rs:25 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::AreaTask` in the current scope
+temper/testing/temper-client-view-kit/src/welcome.rs:18 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Adoption` in the current scope
+temper/testing/temper-client-view-kit/src/welcome.rs:29 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+diagnostics 221

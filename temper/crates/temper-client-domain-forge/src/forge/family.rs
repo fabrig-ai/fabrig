@@ -7,6 +7,7 @@
     clippy::panic,
     clippy::wildcard_enum_match_arm
 )]
+use temper_client_protocol_wire::v1::Record;
 use crate::forge;
 use alloc::boxed::Box;
 use jig_client_protocol_link as link;
@@ -20,9 +21,7 @@ pub fn request(a: &forge::Adoption, limits: &w::Limits) -> Option<jig_client::Fa
             return None;
         }
     }
-    let record = w::Adopt::new(
-        limits,
-        w::AdoptParts {
+    let record = w::Adopt {
             project: a.project,
             home: a.home,
             forge: a.forge,
@@ -33,29 +32,25 @@ pub fn request(a: &forge::Adoption, limits: &w::Limits) -> Option<jig_client::Fa
             landing: a.landing.clone(),
             ci: a.ci,
             checks,
-        },
-    )
-    .ok()?;
+        };
     Some(jig_client::Family {
         family: wire::number(wire::Owner::Forge),
         version: wire::CLIENT_VERSION,
-        bytes: wire::requesting(
-            &w::Requesting::new(limits, w::RequestingParts { request: w::Request::Adopt(record) }).ok()?,
-        ),
+        bytes: (w::Requesting { request: w::Request::Adopt(record) }).encode(limits).ok()?,
     })
 }
 #[must_use]
 pub fn make_repository(request: &w::MakeRepository, limits: &w::Limits) -> Option<jig_client::Family> {
     let record =
-        w::Requesting::new(limits, w::RequestingParts { request: w::Request::MakeRepository(request.clone()) }).ok()?;
-    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+        w::Requesting { request: w::Request::MakeRepository(request.clone()) };
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(limits).ok()? })
 }
 /// Read one picker page (temper/docs/design/client/forge/repositories.md, 1).
 #[must_use]
 pub fn reachable(forge: u16, installation: Option<u64>, page: u32, limits: &w::Limits) -> Option<jig_client::Family> {
-    let request = w::Reachable::new(limits, w::ReachableParts { forge, installation, page }).ok()?;
-    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::Reachable(request) }).ok()?;
-    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+    let request = w::Reachable { forge, installation, page };
+    let record = w::Requesting { request: w::Request::Reachable(request) };
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(limits).ok()? })
 }
 
 /// Dismiss a failed making by name (temper/docs/design/client/forge/records.md).
@@ -67,17 +62,12 @@ pub fn dismiss_making(
     into: Option<u32>,
     limits: &w::Limits,
 ) -> Option<jig_client::Family> {
-    let request = w::DismissMaking::new(
-        limits,
-        w::DismissMakingParts { forge, org: Box::from(org), name: Box::from(name), into },
-    )
-    .ok()?;
-    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::DismissMaking(request) }).ok()?;
-    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+    let request = w::DismissMaking { forge, org: Box::from(org), name: Box::from(name), into };
+    let record = w::Requesting { request: w::Request::DismissMaking(request) };
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(limits).ok()? })
 }
 
 #[must_use]
-#[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher refuses outcomes of other family requests")]
 pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limits) -> Option<forge::Answer> {
     if record.family != wire::number(wire::Owner::Forge) {
         return None;
@@ -86,13 +76,13 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         return None;
     }
     let mut reader = Reader::new(&record.bytes);
-    let a = w::Answer::decode(limits, &mut reader).ok()?.into_parts();
+    let a = w::Answer::decode(limits, &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
     }
     Some(match a.outcome {
         w::Outcome::Adopted(a) => {
-            let a = a.into_parts();
+
             forge::Answer::Adopted(forge::Adopted {
                 forge: a.forge,
                 repository: a.repository,
@@ -102,21 +92,21 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
                 role: role_from(&a.role),
                 home: a.home,
                 kinds: forge::Kinds {
-                    read: a.kinds.read(),
-                    push: a.kinds.push(),
-                    open: a.kinds.open(),
-                    land: a.kinds.land(),
-                    review: a.kinds.review(),
-                    status: a.kinds.status(),
-                    comment: a.kinds.comment(),
-                    issue: a.kinds.issue(),
-                    branch: a.kinds.branch(),
+                    read: a.kinds.read,
+                    push: a.kinds.push,
+                    open: a.kinds.open,
+                    land: a.kinds.land,
+                    review: a.kinds.review,
+                    status: a.kinds.status,
+                    comment: a.kinds.comment,
+                    issue: a.kinds.issue,
+                    branch: a.kinds.branch,
                 },
                 protection: match a.protection {
                     w::Protection::Unknown => forge::Protection::Unknown,
                     w::Protection::Absent => forge::Protection::Absent,
                     w::Protection::Rule(rule) => {
-                        let rule = rule.into_parts();
+
                         forge::Protection::Rule(forge::Rule {
                             branch: rule.branch,
                             contexts: rule.contexts.into_boxed(),
@@ -127,8 +117,8 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
                 },
             })
         }
-        w::Outcome::CoreRefused(a) => forge::Answer::CoreRefused(core_refusal(a.refusal(), link)?),
-        w::Outcome::ForgeRefused(a) => forge::Answer::ForgeRefused(match a.into_parts().reason {
+        w::Outcome::CoreRefused(a) => forge::Answer::CoreRefused(core_refusal(&a.refusal, link)?),
+        w::Outcome::ForgeRefused(a) => forge::Answer::ForgeRefused(match a.reason {
             w::ForgeReason::NoSuchForge => forge::Reason::NoSuchForge,
             w::ForgeReason::NotFound => forge::Reason::NotFound,
             w::ForgeReason::NoAccess => forge::Reason::NoAccess,
@@ -228,18 +218,14 @@ pub fn set_up(
     playground: bool,
     limits: &w::Limits,
 ) -> Option<jig_client::Family> {
-    let request = w::SetUp::new(
-        limits,
-        w::SetUpParts {
+    let request = w::SetUp {
             first: w::SetUpFirst::Empty(
-                w::FirstEmpty::new(limits, w::FirstEmptyParts { org, repository, playground }).ok()?,
+                w::FirstEmpty { org, repository, playground },
             ),
-            forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
-        },
-    )
-    .ok()?;
-    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::SetUp(request) }).ok()?;
-    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
+            forge: w::Making::Kept(w::Kept { forge }),
+        };
+    let record = w::Requesting { request: w::Request::SetUp(request) };
+    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(limits).ok()? })
 }
 #[must_use]
 pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<forge::forges::SetUpOutcome> {
@@ -252,9 +238,9 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
     if !reader.is_empty() {
         return None;
     }
-    Some(match answer.into_parts().outcome {
+    Some(match answer.outcome {
         w::Outcome::SettingUp => O::SettingUp,
-        w::Outcome::SetUpRefused(why) => O::Refused(match why.into_parts().why {
+        w::Outcome::SetUpRefused(why) => O::Refused(match why.why {
             w::SetUpRefusal::NotOffered => R::NotOffered,
             w::SetUpRefusal::NotUnderTheBox => R::NotUnderTheBox,
             w::SetUpRefusal::Busy => R::Busy,
@@ -311,15 +297,15 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
 #[must_use]
 pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<(Box<[forge::forges::Row]>, bool)> {
     use forge::forges::{Kind, Mode, Offer, Row};
-    let record = wire::decode_forges(bytes, limits)?.into_parts();
+    let record = wire::decode_forges(bytes, limits)?;
     let mut rows = List::with_capacity(record.forges.len());
     for row in record.forges.into_boxed() {
-        let row = row.into_parts();
+
         let fetched = fetched_from(&row.connection);
         let connection = connection_from(row.connection);
         let mut makings = List::with_capacity(row.makings.len());
         for making in row.makings.into_boxed() {
-            let making = making.into_parts();
+
             makings
                 .push(forge::making::Making {
                     org: making.org,
@@ -359,13 +345,13 @@ pub fn forges_document(bytes: &[u8], limits: &w::Limits) -> Option<(Box<[forge::
             starts_with: match row.starts_with {
                 w::StartsWith::Repository => super::forges::StartsWith::Repository,
                 w::StartsWith::Copies(copies) => {
-                    super::forges::StartsWith::Copies { addresses: copies.into_parts().addresses.into_boxed() }
+                    super::forges::StartsWith::Copies { addresses: copies.addresses.into_boxed() }
                 }
                 w::StartsWith::Nothing => super::forges::StartsWith::Nothing,
             },
             installations: installations_from(row.installations)?,
             ended: match row.ended {
-                Some(ended) => Some(ended.into_parts().why),
+                Some(ended) => Some(ended.why),
                 None => None,
             },
             app: match row.app {
@@ -394,13 +380,13 @@ fn installations_from(values: List<w::Installation>) -> Option<Box<[forge::forge
     use forge::forges::{Account, Installation};
     let mut installations = List::with_capacity(values.len());
     for installation in values.into_boxed() {
-        let installation = installation.into_parts();
+
         installations
             .push(Installation {
                 id: installation.id,
                 account: match installation.account {
                     Some(account) => {
-                        let account = account.into_parts();
+
                         Some(Account { id: account.id, login: account.login })
                     }
                     None => None,
@@ -415,7 +401,7 @@ fn installations_from(values: List<w::Installation>) -> Option<Box<[forge::forge
 fn adoptions_from(values: List<w::Adoption>) -> Option<Box<[forge::forges::Adoption]>> {
     let mut repositories = List::with_capacity(values.len());
     for adopted in values.into_boxed() {
-        let adopted = adopted.into_parts();
+
         repositories
             .push(forge::forges::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project })
             .ok()?;
@@ -434,23 +420,23 @@ fn fetched_from(connection: &w::Connection) -> Option<forge::forges::Fetched> {
         | w::Connection::Connected(_)
         | w::Connection::Stopped(_) => return None,
     };
-    match value.step() {
+    match &value.step {
         Some(w::SetUpStep::Fetch) => {}
         Some(w::SetUpStep::Prepare | w::SetUpStep::Run | w::SetUpStep::Source) | None => return None,
     }
-    let fetched = value.fetched().as_ref()?;
-    if let Some(total) = fetched.total()
-        && (*total == 0 || fetched.done() > *total)
+    let fetched = value.fetched.as_ref()?;
+    if let Some(total) = &fetched.total
+        && (*total == 0 || fetched.done > *total)
     {
         return None;
     }
     Some(Fetched {
-        binary: match fetched.binary() {
+        binary: match &fetched.binary {
             w::SetUpBinary::Forgejo => Binary::Forgejo,
             w::SetUpBinary::Runner => Binary::Runner,
         },
-        done: fetched.done(),
-        total: *fetched.total(),
+        done: fetched.done,
+        total: fetched.total,
     })
 }
 
@@ -460,7 +446,7 @@ fn connection_from(connection: w::Connection) -> forge::forges::Connection {
         w::Connection::NotConnected => C::NotConnected,
         w::Connection::NotSetUp => C::NotSetUp,
         w::Connection::SettingUp(value) => C::SettingUp {
-            step: match value.into_parts().step {
+            step: match value.step {
                 Some(w::SetUpStep::Fetch) => Some(Step::Fetch),
                 Some(w::SetUpStep::Prepare) => Some(Step::Prepare),
                 Some(w::SetUpStep::Run) => Some(Step::Run),
@@ -469,7 +455,7 @@ fn connection_from(connection: w::Connection) -> forge::forges::Connection {
             },
         },
         w::Connection::SetUpFailed(value) => {
-            let value = value.into_parts();
+
             C::SetUpFailed {
                 why: value.why,
                 at: match value.at {
@@ -483,30 +469,30 @@ fn connection_from(connection: w::Connection) -> forge::forges::Connection {
         }
         w::Connection::Connecting => C::Connecting,
         w::Connection::Connected(value) => {
-            let value = value.into_parts();
+
             C::Connected { id: value.id, login: value.login }
         }
-        w::Connection::Stopped(value) => C::Stopped { reason: value.into_parts().reason },
+        w::Connection::Stopped(value) => C::Stopped { reason: value.reason },
     }
 }
 
 fn owned_from(owned: w::OwnedForge) -> forge::forges::Owned {
-    let owned = owned.into_parts();
+
     forge::forges::Owned { forgejo: owned.forgejo, runner: owned.runner, password: owned.password }
 }
 
 fn first_from(first: w::FirstRepository) -> forge::forges::First {
     use forge::forges::{CreateStep, First, FirstState};
-    let first = first.into_parts();
+
     First {
         playground: first.playground,
         org: first.org,
         repository: first.repository,
         state: match first.state {
             w::FirstState::Making => FirstState::Making,
-            w::FirstState::Made(value) => FirstState::Made { id: value.id() },
+            w::FirstState::Made(value) => FirstState::Made { id: value.id },
             w::FirstState::Failed(value) => FirstState::Failed {
-                step: match value.step() {
+                step: match &value.step {
                     w::CreateStep::Admin => CreateStep::Admin,
                     w::CreateStep::Org => CreateStep::Org,
                     w::CreateStep::Repository => CreateStep::Repository,
@@ -533,11 +519,11 @@ pub struct Reached {
 }
 #[must_use]
 pub fn page(value: w::Page) -> Page {
-    let value = value.into_parts();
+
     let mut rows = List::with_capacity(value.rows.len());
     for row in value.rows.into_boxed() {
-        let row = row.into_parts();
-        let owner = row.owner.into_parts();
+
+        let owner = row.owner;
         rows.push(Reached {
             id: row.id,
             owner: forge::forges::Account { id: owner.id, login: owner.login },
@@ -556,8 +542,8 @@ fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
         w::AdminStop::Unmarked => AdminStop::Unmarked,
         w::AdminStop::Other => AdminStop::Other,
         w::AdminStop::Refused(refused) => AdminStop::Refused {
-            status: refused.status(),
-            stage: match refused.stage() {
+            status: refused.status,
+            stage: match &refused.stage {
                 w::SetupStage::Admin => SetupStage::Admin,
                 w::SetupStage::Bot => SetupStage::Bot,
                 w::SetupStage::Token => SetupStage::Token,
@@ -575,7 +561,7 @@ fn admin_stop(stop: w::AdminStop) -> forge::forges::AdminStop {
 /// Decode the playground's complete record (temper/docs/design/client/forge/family.md, 7).
 #[must_use]
 pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground> {
-    let answer = wire::decode_playground_answer(record, limits)?.into_parts();
+    let answer = wire::decode_playground_answer(record, limits)?;
     Some(forge::Playground {
         state: match answer.state {
             w::PlaygroundState::Starting => forge::PlaygroundState::Starting,
@@ -594,14 +580,14 @@ pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Playground
 /// The forge's keyed follow act (temper/docs/design/domain/forge/follows.md, 5).
 #[must_use]
 pub fn follow_act(value: w::FollowActRequest, limits: &w::Limits) -> Option<jig_client::Ask> {
-    let project = value.project();
-    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::FollowAct(value) }).ok()?;
+    let project = value.project;
+    let record = w::Requesting { request: w::Request::FollowAct(value) };
     Some(jig_client::Ask::Family {
         scope: jig_client::contract::Scope::Project(project),
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::requesting(&record),
+            bytes: record.encode(limits).ok()?,
         },
     })
 }
@@ -609,14 +595,14 @@ pub fn follow_act(value: w::FollowActRequest, limits: &w::Limits) -> Option<jig_
 /// A keyed tier hold or release (temper/docs/design/domain/after-landing.md, 3).
 #[must_use]
 pub fn tier_act(value: w::TierActRequest, limits: &w::Limits) -> Option<jig_client::Ask> {
-    let project = value.project();
-    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::TierAct(value) }).ok()?;
+    let project = value.project;
+    let record = w::Requesting { request: w::Request::TierAct(value) };
     Some(jig_client::Ask::Family {
         scope: jig_client::contract::Scope::Project(project),
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::requesting(&record),
+            bytes: record.encode(limits).ok()?,
         },
     })
 }
@@ -643,11 +629,11 @@ mod tests {
             assert_eq!(family.family, wire::FORGE);
             assert_eq!(family.version, wire::CLIENT_VERSION);
             let record = wire::decode_requesting(&family.bytes, &limits).expect("dismissal decodes");
-            let w::Request::DismissMaking(request) = record.into_parts().request else { panic!("dismissal request") };
-            assert_eq!(request.forge(), 7);
-            assert_eq!(request.org(), b"orgx");
-            assert_eq!(request.name(), b"repo");
-            assert_eq!(request.into_parts().into, into);
+            let w::Request::DismissMaking(request) = record.request else { panic!("dismissal request") };
+            assert_eq!(request.forge, 7);
+            assert_eq!(request.org.as_ref(), b"orgx");
+            assert_eq!(request.name.as_ref(), b"repo");
+            assert_eq!(request.into, into);
         }
         assert!(dismiss_making(7, b"orgxx", b"repo", None, &limits).is_none());
         assert!(dismiss_making(7, b"org", b"repox", None, &limits).is_none());

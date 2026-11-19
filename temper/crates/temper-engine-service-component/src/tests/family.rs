@@ -12,7 +12,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
+        record: wire::reading(&w::Reading { read: w::Read::Playground }),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }
@@ -21,7 +21,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
 fn playground_read(row: Option<&forge::Playground>, demo: Option<&crate::settings::Demo>) -> Option<Box<[u8]>> {
     let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, .. } = &mut input {
-        *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap());
+        *record = wire::reading(&w::Reading { read: w::Read::Playground });
     }
     let Err(answer) = family::to_root(
         &jig_protocol_config::Directories::working(),
@@ -88,7 +88,7 @@ fn the_deployment_read_stays_answered_before_any_party() {
             if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
                 *sign_in = 0;
                 *record = wire::reading(
-                    &w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap(),
+                    &w::Reading { read: w::Read::Deployment },
                 );
             }
             let Err(answer) = family::to_root(
@@ -120,7 +120,7 @@ fn deployment_welcome(service: &mut crate::Service) -> bool {
     let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
         *sign_in = 0;
-        *record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment }).unwrap());
+        *record = wire::reading(&w::Reading { read: w::Read::Deployment });
     }
     let Err(answer) = family::to_root(
         &jig_protocol_config::Directories::working(),

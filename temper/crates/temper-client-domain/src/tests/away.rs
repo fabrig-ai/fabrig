@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use crate::{
     Domain, Event, Request,
@@ -62,24 +63,20 @@ fn row_record(values: &[AwayRow]) -> Family {
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in values {
         rows.push(
-            w::AwayRow::new(
-                &w::CEILINGS,
-                w::AwayRowParts {
+            w::AwayRow {
                     project: row.project,
                     since: row.since.as_nanos(),
                     until: nanos(row.until),
                     landed: row.landed,
                     off: nanos(row.off),
                 },
-            )
-            .unwrap(),
         )
         .unwrap();
     }
     Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).unwrap()),
+        bytes: wire::aways(&w::Aways { rows }),
     }
 }
 
@@ -118,7 +115,7 @@ fn the_watch_opens_once_for_a_live_link() {
     assert_eq!(scope, c::Scope::Own);
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), &w::Watch::Away);
+    assert_eq!(&wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch, &w::Watch::Away);
     assert_eq!(away::handle().asker, f::FORGE_ASKER);
     assert_eq!(away::handle().number, 4);
     f::confirm(&mut root, frame, f::PARTY, &mut out);
@@ -279,7 +276,7 @@ fn act(root: &mut Domain, act: A, wall: Wall) -> Queue<Request> {
     crate::step(root, &env, Event::Act { action: crate::Action::Pages(crate::pages::Act::Away(act)) }, &mut out);
     out
 }
-fn sent(out: &Queue<Request>) -> w::SetAwayParts {
+fn sent(out: &Queue<Request>) -> w::SetAway {
     let sends = sends(out);
     assert_eq!(sends.len(), 1, "one SetAway");
     sends.get(0).expect("SetAway sent").clone()
@@ -292,7 +289,7 @@ fn answer(outcome: w::Outcome) -> Outcome {
     Outcome::Answered(jig_client::Answered::Family(Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+        bytes: wire::answer(&w::Answer { outcome }),
     }))
 }
 fn told(root: &mut Domain, key: Key, outcome: Outcome) -> Queue<Request> {
@@ -305,7 +302,7 @@ fn toggle_on_sends_defaults_and_the_next_eight() {
     let mut root = ready(&[]);
     root.set_zone_minutes(120);
     let send = sent(&act(&mut root, A::Toggle { project: f::PROJECT }, minute(359)));
-    assert_eq!(send, w::SetAwayParts { project: f::PROJECT, on: true, until: Some(minute(360).as_nanos()) });
+    assert_eq!(send, w::SetAway { project: f::PROJECT, on: true, until: Some(minute(360).as_nanos()) });
     assert!(root.pages().away_busy());
     assert_eq!(root.pages().needs().toast(), None, "toast waits for the answer");
     assert!(!root.away_on(f::PROJECT, minute(359)), "no optimistic row");
@@ -381,7 +378,7 @@ fn the_toast_follows_the_answer() {
         (
             Box::from([]),
             answer(w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+                w::ForgeRefused { reason: w::ForgeReason::TooLarge },
             )),
             Toasted::AwayRefused,
         ),
@@ -443,8 +440,8 @@ fn shown_by_classes_or_an_on_row() {
                     }
                     Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                         if let w::Read::Setting(setting) =
-                            wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                            && setting.kind() == 8
+                            &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+                            && setting.kind == 8
                         {
                             classes_read = Some(*read);
                         }
@@ -461,14 +458,10 @@ fn shown_by_classes_or_an_on_row() {
         }
         if let Some(table) = table {
             let record = temper_protocol_reaches::classes_record(&table).unwrap();
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-            record.encode(&mut writer).unwrap();
+            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+            record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
             let record = wire::setting_answer(
-                &w::SettingAnswer::new(
-                    &w::CEILINGS,
-                    w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
-                )
-                .unwrap(),
+                &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
             );
             up(
                 &mut root,
@@ -551,7 +544,7 @@ fn three_projects(rows: &[AwayRow]) -> Domain {
     up(&mut root, Up::FamilyDelivered { watch, record: row_record(rows) });
     root
 }
-fn sends(out: &Queue<Request>) -> List<w::SetAwayParts> {
+fn sends(out: &Queue<Request>) -> List<w::SetAway> {
     let mut found = List::uncapped();
     for request in out {
         if let Request::Unlinked {
@@ -562,14 +555,14 @@ fn sends(out: &Queue<Request>) -> List<w::SetAwayParts> {
         } = request
         {
             let w::Request::SetAway(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 continue;
             };
             assert!(payload.is_none());
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-            assert_eq!(*scope, c::Scope::Project(value.project()));
-            found.push(value.into_parts()).expect("sent requests grow");
+            assert_eq!(*scope, c::Scope::Project(value.project));
+            found.push(value).expect("sent requests grow");
         }
     }
     found
@@ -621,7 +614,7 @@ fn toggle_all_sets_each_project_that_differs() {
     }
     let refused = || {
         answer(w::Outcome::ForgeRefused(
-            w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
+            w::ForgeRefused { reason: w::ForgeReason::TooLarge },
         ))
     };
     for (name, rows, projects, state, outcomes, expected) in [

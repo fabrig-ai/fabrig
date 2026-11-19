@@ -201,25 +201,17 @@ fn random_rules(rng: &mut Rng) -> Option<team::Rules> {
     use temper_client_domain::pages::roles::Read;
     use temper_client_protocol_wire::v1 as w;
     let state = rng.below(6);
-    let fact = w::Fact::new(
-        &w::CEILINGS,
-        w::FactParts {
+    let fact = w::Fact {
             label: if state == 3 { b"Model".as_slice() } else { b"Asked to" }.into(),
             value: if state == 4 { b"".as_slice() } else { b"Reproduce before routing." }.into(),
-        },
-    )
-    .expect("bounded charter view");
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
+        };
+    let card = w::Card {
             name: b"Prover".as_slice().into(),
             who: b"an agent".as_slice().into(),
             facts: List::from_boxed(Box::new([fact])),
-        },
-    )
-    .expect("bounded charter view");
+        };
     let view = w::View::Charter(
-        w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 13, card }).expect("bounded charter view"),
+        w::CharterView { charter: 13, card },
     );
     let read = match state {
         0 => Read::Reading,
@@ -425,33 +417,33 @@ fn random_owner(rng: &mut Rng) -> (w::AreaOwner, Option<w::Holder>) {
     let number = rng.between(1, 20);
     let (owner, holder) = match rng.below(4) {
         0 => (
-            w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("task in 1..=20")),
-            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
+            w::AreaOwner::Task(w::AreaTask { number }),
+            w::Holder::Task(w::HolderTask { number }),
         ),
         1 => (
             w::AreaOwner::Party(
-                w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).expect("party in 1..=20"),
+                w::AreaParty { number },
             ),
             w::Holder::Party(
-                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number }).expect("party in 1..=20"),
+                w::HolderParty { number },
             ),
         ),
         2 => {
             let number = u32::try_from(number).expect("number in 1..=20");
             (
                 w::AreaOwner::Role(
-                    w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number }).expect("role in 1..=20"),
+                    w::AreaRole { number },
                 ),
                 w::Holder::Role(
-                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number }).expect("role in 1..=20"),
+                    w::HolderRole { number },
                 ),
             )
         }
         _ => (
             w::AreaOwner::Charter(
-                w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 15 }).expect("charter 15"),
+                w::AreaCharter { number: 15 },
             ),
-            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("task in 1..=20")),
+            w::Holder::Task(w::HolderTask { number }),
         ),
     };
     let standing = matches!(owner, w::AreaOwner::Role(_)) || rng.chance(750);
@@ -477,7 +469,7 @@ fn random_areas(rng: &mut Rng) -> Option<team::Areas> {
         rows,
         triager: if rng.chance(750) { Some(owner) } else { None },
         holder: holder.unwrap_or_else(|| {
-            w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("built-in role"))
+            w::Holder::Role(w::HolderRole { number: 0 })
         }),
     })
 }
@@ -569,24 +561,18 @@ fn random_changes(rng: &mut Rng) -> Option<w::ChangesPanel> {
         for _ in 0..rng.between(0, 8) {
             signed
                 .push(
-                    w::ChangesSigned::new(
-                        &w::CEILINGS,
-                        w::ChangesSignedParts {
+                    w::ChangesSigned {
                             name: None,
                             party: rng.between(1, READER_PARTIES),
                             head: [1; 32],
                             at: 0,
                         },
-                    )
-                    .expect("signer"),
                 )
                 .expect("eight signers");
         }
         let at = if rng.chance(200) { WALL.as_nanos() + 1 } else { WALL.as_nanos() - rng.between(0, 9) * DAY };
         rows.push(
-            w::ChangesLanded::new(
-                &w::CEILINGS,
-                w::ChangesLandedParts {
+            w::ChangesLanded {
                     goal: None,
                     chat: None,
                     milestone: None,
@@ -597,15 +583,11 @@ fn random_changes(rng: &mut Rng) -> Option<w::ChangesPanel> {
                     default_branch: true,
                     signed,
                 },
-            )
-            .expect("landing"),
         )
         .expect("eight rows");
     }
     Some(
-        w::ChangesPanel::new(
-            &w::CEILINGS,
-            w::ChangesPanelParts {
+        w::ChangesPanel {
                 project: 1,
                 landing: b"main".as_slice().into(),
                 queues: List::with_capacity(0),
@@ -615,8 +597,6 @@ fn random_changes(rng: &mut Rng) -> Option<w::ChangesPanel> {
                 landed_default: rows,
                 landed_default_more: u32::from(rng.chance(500)),
             },
-        )
-        .expect("changes"),
     )
 }
 fn signed_oracle(changes: Option<&w::ChangesPanel>, party: u64) -> Option<team::Signed> {

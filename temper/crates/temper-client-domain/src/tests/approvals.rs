@@ -12,9 +12,7 @@ pub(super) const GOAL: u64 = 9;
 const ONE: u32 = 1;
 const MORE: u32 = 2;
 pub(super) fn row(task: u64, project: u32, goal: Option<u64>) -> w::ApprovalRow {
-    w::ApprovalRow::new(
-        &w::CEILINGS,
-        w::ApprovalRowParts {
+    w::ApprovalRow {
             task,
             project,
             goal,
@@ -31,28 +29,14 @@ pub(super) fn row(task: u64, project: u32, goal: Option<u64>) -> w::ApprovalRow 
             role: 5,
             required: 2,
             counted: 1,
-            sets: List::from_boxed(Box::new([w::ApprovalSet::new(
-                &w::CEILINGS,
-                w::ApprovalSetParts { number: 1, name: b"vsr's protocol core".as_slice().into() },
-            )
-            .unwrap()])),
+            sets: List::from_boxed(Box::new([w::ApprovalSet { number: 1, name: b"vsr's protocol core".as_slice().into() }])),
             whole: true,
             yours: w::ApprovalYours::Counts,
-            signed: List::from_boxed(Box::new([w::ApprovalPerson::new(
-                &w::CEILINGS,
-                w::ApprovalPersonParts { person: 2, name: b"Sam".as_slice().into() },
-            )
-            .unwrap()])),
-            can_sign: List::from_boxed(Box::new([w::ApprovalPerson::new(
-                &w::CEILINGS,
-                w::ApprovalPersonParts { person: f::PARTY, name: b"Ann".as_slice().into() },
-            )
-            .unwrap()])),
+            signed: List::from_boxed(Box::new([w::ApprovalPerson { person: 2, name: b"Sam".as_slice().into() }])),
+            can_sign: List::from_boxed(Box::new([w::ApprovalPerson { person: f::PARTY, name: b"Ann".as_slice().into() }])),
             can_sign_more: 3,
             size: None,
-        },
-    )
-    .unwrap()
+        }
 }
 pub(super) fn opening(out: &Queue<Request>) -> Option<Token> {
     let expected = approvals::watch(&f::limits().forge).unwrap();
@@ -78,7 +62,7 @@ fn up(root: &mut Domain, up: Up) -> Queue<Request> {
 }
 pub(super) fn deliver(root: &mut Domain, watch: Token, rows: &[w::ApprovalRow], more: u32) -> Queue<Request> {
     let document =
-        w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows: List::from_boxed(rows.into()), more }).unwrap();
+        w::Approvals { rows: List::from_boxed(rows.into()), more };
     bytes(root, watch, wire::approvals(&document))
 }
 fn bytes(root: &mut Domain, watch: Token, bytes: Box<[u8]>) -> Queue<Request> {
@@ -116,23 +100,19 @@ fn approval_sizes_follow_the_wire_including_none_and_cut() {
         Some(approvals::Size { files: u32::MAX, additions: 10, deletions: 2, cut: true }),
         None,
     ] {
-        let mut parts = row(CHANGE, f::PROJECT, None).into_parts();
+        let mut parts = row(CHANGE, f::PROJECT, None);
         parts.size = match size {
             Some(size) => Some(
-                w::ApprovalSize::new(
-                    &w::CEILINGS,
-                    w::ApprovalSizeParts {
+                w::ApprovalSize {
                         files: size.files,
                         additions: size.additions,
                         deletions: size.deletions,
                         cut: size.cut,
                     },
-                )
-                .unwrap(),
             ),
             None => None,
         };
-        deliver(&mut root, watch, &[w::ApprovalRow::new(&w::CEILINGS, parts).unwrap()], 0);
+        deliver(&mut root, watch, &[parts], 0);
         assert_eq!(root.forge().approvals().rows().first().unwrap().size, size);
     }
 }
@@ -155,7 +135,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
         assert_eq!(scope, c::Scope::Own);
         assert_eq!(window, c::Window { rows: 0, after: None });
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        assert_eq!(*wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(), w::Watch::Approvals);
+        assert_eq!(wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch, w::Watch::Approvals);
         deliver(&mut root, watch, &[row(CHANGE, f::PROJECT, Some(GOAL))], MORE);
         assert_eq!(
             root.forge().approvals().rows(),
@@ -187,7 +167,7 @@ fn approvals_are_watched_once_for_the_session_and_end_with_it() {
         );
         assert_eq!(root.forge().approvals().more(), MORE);
         let document =
-            w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows: List::with_capacity(0), more: 0 }).unwrap();
+            w::Approvals { rows: List::with_capacity(0), more: 0 };
         let bytes = wire::approvals(&document);
         let mut trailing = Writer::new(bytes.len().checked_add(1).unwrap());
         trailing.put(&bytes).unwrap();

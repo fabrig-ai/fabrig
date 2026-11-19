@@ -1,4 +1,5 @@
 //! Open a person's pushed branch (temper/docs/design/client/ctl/areas.md, area 6).
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -90,7 +91,7 @@ fn repository(bytes: &[u8]) -> Option<w::DraftRepository> {
     if owner.is_empty() || name.is_empty() || name.contains(&b'/') {
         return None;
     }
-    w::DraftRepository::new(&w::CEILINGS, w::DraftRepositoryParts { owner: owner.into(), name: name.into() }).ok()
+    { let value = w::DraftRepository { owner: owner.into(), name: name.into() }; value.measure(&w::CEILINGS).ok()?; Some(value) }
 }
 fn hexadecimal(bytes: &[u8]) -> bool {
     for byte in bytes {
@@ -173,13 +174,13 @@ fn lowercase(bytes: Option<&[u8]>) -> Option<Box<[u8]>> {
 fn ask(request: &w::OpenChange, limits: &Limits) -> Option<Ask> {
     let bounds = forge::wire_limits(&limits.domain.forge)?;
     let record =
-        w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::OpenChange(request.clone()) }).ok()?;
+        w::Requesting { request: w::Request::OpenChange(request.clone()) };
     Some(Ask::Family {
-        scope: c::Scope::Project(request.project()),
+        scope: c::Scope::Project(request.project),
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::requesting(&record),
+            bytes: record.encode(&bounds).ok()?,
         },
     })
 }
@@ -198,13 +199,11 @@ pub(crate) fn ready(state: &mut Opens, client: &Client, env: &Env<Limits>, out: 
         };
         let budget = match number(call, 7) {
             Some(amount) => w::OpenBudget::Amount(
-                w::OpenAmount::new(&w::CEILINGS, w::OpenAmountParts { amount }).expect("amount fits"),
+                w::OpenAmount { amount },
             ),
             None => w::OpenBudget::AsAllowed,
         };
-        let request = w::OpenChange::new(
-            &w::CEILINGS,
-            w::OpenChangeParts {
+        let request = w::OpenChange {
                 project,
                 repository,
                 branch: text(call, 2).expect("required branch").into(),
@@ -213,9 +212,7 @@ pub(crate) fn ready(state: &mut Opens, client: &Client, env: &Env<Limits>, out: 
                 title: text(call, 5).expect("required title").into(),
                 body: owned(text(call, 6)),
                 budget,
-            },
-        )
-        .expect("checked open controls");
+            };
         let Some(sent) = ask(&request, &env.limits) else {
             fail(called, b"change open past the forge's bounds", out);
             continue;
@@ -240,7 +237,7 @@ pub(crate) fn told(state: &mut Opens, client: &Client, env: &Env<Limits>, told: 
             }
             let bounds = forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
             let Some(request) = wire::decode_requesting(&record.bytes, &bounds) else { return };
-            let w::Request::OpenChange(request) = request.into_parts().request else { return };
+            let w::Request::OpenChange(request) = request.request else { return };
             state.pending.insert(*key, Pending { request, project: None, called: None });
         }
         Told::Answered { key, outcome } => {
@@ -270,7 +267,7 @@ fn project_name<'a>(p: &'a Pending, client: &'a Client) -> &'a [u8] {
     }
     if let Some(me) = crate::forge::me(client) {
         for project in &me.projects {
-            if project.project == p.request.project() {
+            if project.project == p.request.project {
                 return project.name.bytes();
             }
         }
@@ -283,11 +280,11 @@ fn refusal(p: &Pending, project: &[u8], why: &w::OpenRefusal, out: &mut Text) {
             out.put(b"project ");
             out.put(project);
             out.put(b" has several repositories");
-            for repository in rows.repositories() {
+            for repository in &rows.repositories {
                 out.put(b", ");
-                out.put(repository.owner());
+                out.put(&repository.owner);
                 out.put(b"/");
-                out.put(repository.name());
+                out.put(&repository.name);
             }
             out.put(b": name one with --repository");
         }
@@ -297,33 +294,33 @@ fn refusal(p: &Pending, project: &[u8], why: &w::OpenRefusal, out: &mut Text) {
             out.put(b" has no repository a change lands into");
         }
         w::OpenRefusal::NotARepository => {
-            if let Some(repository) = p.request.repository() {
-                out.put(repository.owner());
+            if let Some(repository) = &p.request.repository {
+                out.put(&repository.owner);
                 out.put(b"/");
-                out.put(repository.name());
+                out.put(&repository.name);
             }
             out.put(b" is not a repository of project ");
             out.put(project);
         }
         w::OpenRefusal::UnderPrefix(row) => {
-            out.put(w::OpenChange::into(&p.request).as_deref().unwrap_or(p.request.branch()));
+            out.put(p.request.into.as_deref().unwrap_or(&p.request.branch));
             out.put(b" is under ");
-            out.put(row.owner());
+            out.put(&row.owner);
             out.put(b"/");
-            out.put(row.name());
+            out.put(&row.name);
             out.put(b"'s prefix ");
-            out.put(row.prefix());
+            out.put(&row.prefix);
             out.put(b": a change lands into one of its landing branches");
         }
         w::OpenRefusal::NamePast(row) => {
-            let branch = if u64::try_from(p.request.branch().len()).expect("bounded branch") > u64::from(row.bound()) {
-                p.request.branch()
+            let branch = if u64::try_from(p.request.branch.len()).expect("bounded branch") > u64::from(row.bound) {
+                &p.request.branch
             } else {
-                w::OpenChange::into(&p.request).as_deref().unwrap_or(p.request.branch())
+                p.request.into.as_deref().unwrap_or(&p.request.branch)
             };
             out.put(branch);
             out.put(b" is past the forge's ");
-            out.number(u64::from(row.bound()));
+            out.number(u64::from(row.bound));
             out.put(b"-byte name bound");
         }
     }
@@ -392,18 +389,18 @@ fn print(p: &Pending, client: &Client, outcome: &Outcome, json: bool, limits: &L
         if !reader.is_empty() {
             return render::failure(b"change open answer decoding failed", json, 1);
         }
-        if let w::Outcome::Opened(row) = answer.outcome() {
-            return opened(row.task(), json, limits);
+        if let w::Outcome::Opened(row) = &answer.outcome {
+            return opened(row.task, json, limits);
         }
-        if let w::Outcome::OpenRefused(why) = answer.outcome() {
-            return refused(p, client, why.reason(), json);
+        if let w::Outcome::OpenRefused(why) = &answer.outcome {
+            return refused(p, client, &why.reason, json);
         }
         if let Some(forge::Answer::CoreRefused(why)) =
             forge::answer(&limits.domain, &jig_client::Answered::Family(record.clone()))
         {
             return core_refused(&why, json, limits);
         }
-        if let w::Outcome::Unknown = answer.outcome() {
+        if let w::Outcome::Unknown = &answer.outcome {
             return render::outcome::print(
                 &operation,
                 &Outcome::Unknown,

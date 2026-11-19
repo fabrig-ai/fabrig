@@ -144,21 +144,16 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
     assert!(out.is_empty(), "rail, Work and Deployment sample settled");
 }
 fn project_ways(root: &mut Domain, read: Token, drafts: bool, work: Work, out: &mut Queue<Request>) {
-    let ways = w::ProjectWays::new(
-        &w::CEILINGS,
-        w::ProjectWaysParts {
+    let ways = w::ProjectWays {
             drafts,
             goals: true,
             changes: true,
             way: if matches!(work, Work::Whole) { 2 } else { 0 },
-        },
-    )
-    .expect("Work ways");
+        };
     let mut bytes = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
     ways.encode(&mut bytes).expect("measured ways");
     let value =
-        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(bytes.finish()) })
-            .expect("setting answer");
+        w::SettingAnswer { revision: None, value: Some(bytes.finish()) };
     step(
         root,
         Event::Client {
@@ -188,11 +183,7 @@ fn family(root: &mut Domain, watch: Token, bytes: Box<[u8]>, out: &mut Queue<Req
 }
 fn decisions(project: u32) -> Box<[u8]> {
     wire::decisions(
-        &w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false },
-        )
-        .expect("no decisions"),
+        &w::Decisions { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false },
     )
 }
 fn inbox_page(name: &str, group: c::InboxReadGroup) -> c::InboxPage {
@@ -365,9 +356,7 @@ fn drafts(work: Work) -> w::DraftsPanel {
     if matches!(work, Work::Whole) {
         drafts
             .push(
-                w::LandedDraft::new(
-                    &w::CEILINGS,
-                    w::LandedDraftParts {
+                w::LandedDraft {
                         forge: 1,
                         owner: b"work".as_slice().into(),
                         name: b"vsr".as_slice().into(),
@@ -383,12 +372,10 @@ fn drafts(work: Work) -> w::DraftsPanel {
                         goal: None,
                         ready: true,
                     },
-                )
-                .expect("landed witness draft"),
             )
             .expect("one landed draft");
     }
-    w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: 1, drafts }).expect("drafts panel")
+    w::DraftsPanel { project: 1, drafts }
 }
 type ChangeRows = &'static [(u64, &'static str)];
 #[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
@@ -412,9 +399,7 @@ fn changes(work: Work) -> w::ChangesPanel {
         for (task, title) in pending {
             changes
                 .push(
-                    w::ChangesQueued::new(
-                        &w::CEILINGS,
-                        w::ChangesQueuedParts {
+                    w::ChangesQueued {
                             goal: change_origin(work, *task).0,
                             chat: change_origin(work, *task).1,
                             milestone: None,
@@ -423,16 +408,12 @@ fn changes(work: Work) -> w::ChangesPanel {
                             ready_since: at(-90).as_nanos(),
                             checks_since: (*task == 100).then(|| at(-4).as_nanos()),
                         },
-                    )
-                    .expect("queued change"),
                 )
                 .expect("queued rows");
         }
         queues
             .push(
-                w::ChangesQueue::new(
-                    &w::CEILINGS,
-                    w::ChangesQueueParts {
+                w::ChangesQueue {
                         way: w::Way::Queue,
                         in_flight: None,
                         repository: b"work/project".as_slice().into(),
@@ -440,17 +421,13 @@ fn changes(work: Work) -> w::ChangesPanel {
                         red: false,
                         changes,
                     },
-                )
-                .expect("queue"),
             )
             .expect("one queue");
     }
     let mut rows = List::with_capacity(u32::try_from(landed.len()).expect("few landings"));
     for (index, (task, title)) in landed.iter().enumerate() {
         rows.push(
-            w::ChangesLanded::new(
-                &w::CEILINGS,
-                w::ChangesLandedParts {
+            w::ChangesLanded {
                     goal: change_origin(work, *task).0,
                     chat: change_origin(work, *task).1,
                     milestone: None,
@@ -475,14 +452,10 @@ fn changes(work: Work) -> w::ChangesPanel {
                     })
                     .as_nanos(),
                 },
-            )
-            .expect("landed change"),
         )
         .expect("landed rows");
     }
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
+    w::ChangesPanel {
             landed_default: rows.clone(),
             landed_default_more: 0,
             project: 1,
@@ -491,9 +464,7 @@ fn changes(work: Work) -> w::ChangesPanel {
             more: 0,
             landed: rows,
             landed_more: 0,
-        },
-    )
-    .expect("changes panel")
+        }
 }
 fn change_origin(work: Work, number: u64) -> (Option<w::ChangeFrom>, Option<w::ChangeFrom>) {
     let origin = match work {
@@ -507,8 +478,7 @@ fn change_origin(work: Work, number: u64) -> (Option<w::ChangeFrom>, Option<w::C
     };
     match origin {
         Some((goal, task, title)) => {
-            let from = w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task, title: title.as_bytes().into() })
-                .expect("change origin");
+            let from = w::ChangeFrom { task, title: title.as_bytes().into() };
             if goal { (Some(from), None) } else { (None, Some(from)) }
         }
         None => (None, None),

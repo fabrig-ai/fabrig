@@ -77,7 +77,7 @@ fn an_owned_forge_keeps_its_access_when_stopped() {
     let root = root(
         Address::Forges,
         w::Connection::Stopped(
-            w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"token refused".as_slice().into() }).unwrap(),
+            w::Stopped { reason: b"token refused".as_slice().into() },
         ),
     );
     let view = f::page_view(&root);
@@ -97,8 +97,7 @@ fn the_playground_forge_has_no_access_line() {
 #[test]
 fn a_forge_row_opened_offers_its_action() {
     let failed = w::Connection::SetUpFailed(
-        w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
-            .unwrap(),
+        w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None },
     );
     let root = root(Address::Forges, failed);
     assert_eq!(action(&root, Role::Button, b"Try again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
@@ -119,7 +118,7 @@ fn a_forge_row_opened_offers_its_action() {
     let root = self::root(
         Address::Forges,
         w::Connection::Stopped(
-            w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"token refused".as_slice().into() }).unwrap(),
+            w::Stopped { reason: b"token refused".as_slice().into() },
         ),
     );
     let view = f::page_view(&root);
@@ -139,7 +138,7 @@ fn the_navigation_has_forges_with_its_dot_and_words() {
     for (connection, style, text) in [
         (w::Connection::Connecting, look::NAV_LIMITED, b"a forge is setting up".as_slice()),
         (
-            w::Connection::Stopped(w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::default() }).unwrap()),
+            w::Connection::Stopped(w::Stopped { reason: Box::default() }),
             look::NAV_NEEDS,
             b"a forge needs you",
         ),
@@ -186,8 +185,7 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
 #[test]
 fn set_up_again_waits_for_an_offer() {
     let failed = w::Connection::SetUpFailed(
-        w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
-            .unwrap(),
+        w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None },
     );
     let root = f::forge_root(Address::Forges, cf::rows(failed, w::Offer::NotOffered));
     assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Try again").is_none());
@@ -197,11 +195,10 @@ fn set_up_again_waits_for_an_offer() {
 fn a_full_forge_reason_and_login_fit_after_utf8_replacement() {
     for connection in [
         w::Connection::Stopped(
-            w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::from([255_u8; 256]) }).unwrap(),
+            w::Stopped { reason: Box::from([255_u8; 256]) },
         ),
         w::Connection::Connected(
-            w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: u64::MAX, login: Box::from([255_u8; 256]) })
-                .unwrap(),
+            w::Connected { id: u64::MAX, login: Box::from([255_u8; 256]) },
         ),
     ] {
         let root = root(Address::Forges, connection);
@@ -269,23 +266,18 @@ fn all_sixty_four_installations_fit_without_shortening_their_logins() {
     for id in 1..=u64::from(d::forge::forges::INSTALLATIONS) {
         row.installations
             .push(
-                w::Installation::new(
-                    &w::CEILINGS,
-                    w::InstallationParts {
+                w::Installation {
                         id,
                         account: Some(
-                            w::Account::new(&w::CEILINGS, w::AccountParts { id, login: Box::from([255_u8; 256]) })
-                                .unwrap(),
+                            w::Account { id, login: Box::from([255_u8; 256]) },
                         ),
                         suspended: true,
                         stray: true,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     let root = f::forge_root(Address::Forges, rows);
     let domain = f::limits();
     let words = f::browser_words();
@@ -336,18 +328,14 @@ fn owned_row(mode: w::Mode, connection: w::Connection, runner: Option<&[u8]>) ->
     let mut parts = cf::row(HERE, w::Kind::Forgejo, mode, connection, w::Offer::Offered).into_parts();
     if parts.mode == w::Mode::Owned {
         parts.owned = Some(
-            w::OwnedForge::new(
-                &w::CEILINGS,
-                w::OwnedForgeParts {
+            w::OwnedForge {
                     forgejo: b"17.0.0".as_slice().into(),
                     runner: runner.map(Into::into),
                     password: b"/fake/forge/person_password".as_slice().into(),
                 },
-            )
-            .unwrap(),
         );
     }
-    w::ForgeRow::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 fn slot_has(tree: &skein_ui::Tree, label: &[u8], words: &[u8]) -> bool {
     tree.nodes().iter().enumerate().any(|(index, node)| {
@@ -372,7 +360,7 @@ fn owned_ready_rows_say_the_versions_and_first_password_path_in_slots() {
             cf::connected(),
             w::Connection::Connecting,
             w::Connection::Stopped(
-                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+                w::Stopped { reason: b"stopped".as_slice().into() },
             ),
         ] {
             let mut rows = List::with_capacity(1);
@@ -396,14 +384,13 @@ fn unprepared_owned_rows_and_managed_rows_have_no_runs_or_password_lines() {
         (
             w::Mode::Owned,
             w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None, fetched: None }).unwrap(),
+                w::SettingUp { step: None, fetched: None },
             ),
         ),
         (
             w::Mode::Owned,
             w::Connection::SetUpFailed(
-                w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"failed".as_slice().into(), at: None })
-                    .unwrap(),
+                w::SetUpFailed { why: b"failed".as_slice().into(), at: None },
             ),
         ),
         (w::Mode::Managed, cf::connected()),
@@ -434,7 +421,7 @@ fn the_github_app_line_names_an_empty_installation_set_only_when_empty() {
             parts.installations.clear();
         }
         let mut rows = List::with_capacity(1);
-        rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+        rows.push(parts).unwrap();
         let root = f::forge_root(Address::Forges, rows);
         let view = f::browser_page_view(&root);
         assert!(f::find(view.tree(), Role::Term, "temper’s App".as_bytes()).is_some());
@@ -450,7 +437,7 @@ fn the_github_rows_install_block_follows_the_apps_way_and_acceptance() {
             let mut parts = cf::github_rows(accepted).get(0).unwrap().clone().into_parts();
             parts.app = app.clone();
             let mut rows = List::with_capacity(1);
-            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            rows.push(parts).unwrap();
             let root = f::forge_root(Address::Forges, rows);
             let view = f::browser_page_view(&root);
             let manifest = "my-app is made on GitHub, under your account, and installed nowhere yet. Install it, and choose the repositories temper may use.";
@@ -490,7 +477,7 @@ fn the_github_row_opens_its_configured_web_address_only_when_carried() {
             parts.kind = kind.clone();
             parts.web = web.map(Into::into);
             let mut rows = List::with_capacity(1);
-            rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+            rows.push(parts).unwrap();
             let root = f::forge_root(Address::Forges, rows);
             let view = f::browser_page_view(&root);
             let link = f::find(view.tree(), Role::Link, "Open on GitHub ↗".as_bytes());
@@ -507,11 +494,11 @@ fn the_github_row_opens_its_configured_web_address_only_when_carried() {
 fn a_stopped_github_row_has_no_app_or_install_block() {
     let mut parts = cf::github_rows(false).get(0).unwrap().clone().into_parts();
     parts.connection = w::Connection::Stopped(
-        w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"fixture stopped".as_slice().into() }).unwrap(),
+        w::Stopped { reason: b"fixture stopped".as_slice().into() },
     );
     parts.installations.clear();
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    rows.push(parts).unwrap();
     let root = f::forge_root(Address::Forges, rows);
     let view = f::browser_page_view(&root);
     assert!(f::find(view.tree(), Role::Term, "temper’s App".as_bytes()).is_none());
@@ -541,7 +528,7 @@ fn a_repository_making_or_failed_keeps_its_existing_body() {
         (w::FirstState::Making, "Making work/hello"),
         (
             w::FirstState::Failed(
-                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository }).unwrap(),
+                w::CreateFailed { step: w::CreateStep::Repository },
             ),
             "Making work/hello failed: making the repository",
         ),
@@ -583,7 +570,7 @@ fn remove_confirms_with_the_kinds_words_then_sends() {
         let mut rows = List::with_capacity(1);
         let mut row = cf::row(HERE, kind.clone(), mode, cf::connected(), w::Offer::NotOffered).into_parts();
         row.web = Some(b"https://forge.example/".as_slice().into());
-        rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+        rows.push(row).unwrap();
         let mut root = f::forge_root(Address::Forges, rows);
         let first = action(&root, Role::Button, b"Remove");
         assert_eq!(first, d::Action::Forge(d::forge::Act::Forges(d::forge::forges::Act::Remove { forge: HERE })));
@@ -610,7 +597,7 @@ fn a_disconnected_connected_mode_forgejo_links_to_its_tokens_form() {
         (w::Connection::NotConnected, true),
         (
             w::Connection::Stopped(
-                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+                w::Stopped { reason: b"stopped".as_slice().into() },
             ),
             true,
         ),
@@ -641,7 +628,7 @@ fn replace_act(root: &mut d::Domain, act: d::forge::forges::Act) {
 }
 fn stopped() -> w::Connection {
     w::Connection::Stopped(
-        w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+        w::Stopped { reason: b"stopped".as_slice().into() },
     )
 }
 #[test]
@@ -768,7 +755,7 @@ fn replacement_answer(outcome: w::Outcome) -> d::Domain {
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                        bytes: wire::answer(&w::Answer { outcome }),
                     })),
                 },
             },
@@ -779,7 +766,7 @@ fn replacement_answer(outcome: w::Outcome) -> d::Domain {
 #[test]
 fn a_replacement_refusal_is_under_its_button_in_forge_words() {
     let root = replacement_answer(w::Outcome::ConnectRefused(
-        w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NotConnected }).unwrap(),
+        w::ConnectRefused { why: w::ForgeRefusal::NotConnected },
     ));
     cf::words_in_order(f::browser_page_view(&root).tree(), &["Replace the tokens", "Connect it first."]);
 }
@@ -936,12 +923,10 @@ fn the_old_chrome_is_gone() {
         w::Connection::NotConnected,
         w::Connection::NotSetUp,
         w::Connection::SettingUp(
-            w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
-                .unwrap(),
+            w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
         ),
         w::Connection::SetUpFailed(
-            w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
-                .unwrap(),
+            w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None },
         ),
         stopped(),
         w::Connection::Connecting,
@@ -962,7 +947,7 @@ fn the_old_chrome_is_gone() {
         cf::first_rows(
             cf::connected(),
             w::FirstState::Failed(
-                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::Repository }).unwrap(),
+                w::CreateFailed { step: w::CreateStep::Repository },
             ),
         ),
     ] {
@@ -990,7 +975,7 @@ fn only_the_forges_row_named_by_the_off_fact_says_its_password_is_needed_in_the_
 #[test]
 fn the_source_stage_says_it_is_connecting_sign_in_after_forgejo_has_started() {
     let connection = w::Connection::SettingUp(
-        w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Source), fetched: None }).unwrap(),
+        w::SettingUp { step: Some(w::SetUpStep::Source), fetched: None },
     );
     for address in [
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
@@ -1013,7 +998,7 @@ fn a_settings_connection_lives_in_its_row_and_confirms_only_this_visit() {
     parts.mode = w::Mode::Managed;
     parts.admin = true;
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts.clone()).unwrap()).unwrap();
+    rows.push(parts.clone()).unwrap();
     let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(2)) }, rows);
     assert_eq!(root.pages().address(), &Address::Forges);
     for view in [f::browser_page_view(&root), f::page_view(&root)] {
@@ -1040,9 +1025,9 @@ fn a_settings_connection_lives_in_its_row_and_confirms_only_this_visit() {
     }
     let mut first = parts.first.take().unwrap().into_parts();
     first.state = cf::made();
-    parts.first = Some(w::FirstRepository::new(&w::CEILINGS, first).unwrap());
+    parts.first = Some(first);
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    rows.push(parts).unwrap();
     let connected = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(2)) }, rows.clone());
     let view = f::browser_page_view(&connected);
     let confirm = styled(view.tree(), look::CONNECT_CONFIRM);

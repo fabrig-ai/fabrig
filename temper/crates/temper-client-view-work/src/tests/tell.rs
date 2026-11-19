@@ -46,33 +46,25 @@ fn findings() -> w::Findings {
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52)] {
         areas
             .push(
-                w::AreaRow::new(
-                    &w::CEILINGS,
-                    w::AreaRowParts {
+                w::AreaRow {
                         name: name.into(),
                         words: name.into(),
-                        owner: w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap()),
+                        owner: w::AreaOwner::Task(w::AreaTask { number }),
                         holder: Some(w::Holder::Task(
-                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap(),
+                            w::HolderTask { number },
                         )),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
+    w::Findings {
             project: 1,
             areas,
             rows: List::with_capacity(0),
             cut: false,
-            triager: Some(w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).unwrap())),
-            holder: w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap()),
-        },
-    )
-    .unwrap()
+            triager: Some(w::AreaOwner::Task(w::AreaTask { number: 52 })),
+            holder: w::Holder::Task(w::HolderTask { number: 52 }),
+        }
 }
 
 fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
@@ -133,9 +125,7 @@ fn fill_named(root: &mut d::Domain, mut out: Queue<Request>, title: &[u8]) {
                 match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch().clone()) {
                     Some(w::Watch::Findings(_)) => family(root, watch, wire::findings(&findings())),
                     Some(w::Watch::Decided(_)) => {
-                        let row = w::Decision::new(
-                            &w::CEILINGS,
-                            w::DecisionParts {
+                        let row = w::Decision {
                                 number: 1,
                                 task: 99,
                                 at: 0,
@@ -152,23 +142,17 @@ fn fill_named(root: &mut d::Domain, mut out: Queue<Request>, title: &[u8]) {
                                     matched: 0,
                                     away: false,
                                 }),
-                            },
-                        )
-                        .unwrap();
+                            };
                         family(
                             root,
                             watch,
                             wire::decisions(
-                                &w::Decisions::new(
-                                    &w::CEILINGS,
-                                    w::DecisionsParts {
+                                &w::Decisions {
                                         project: 1,
                                         rows: List::from_boxed(Box::new([row])),
                                         asked: List::with_capacity(0),
                                         cut: false,
                                     },
-                                )
-                                .unwrap(),
                             ),
                         )
                     }

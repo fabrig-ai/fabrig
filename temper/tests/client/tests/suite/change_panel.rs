@@ -615,9 +615,7 @@ fn playground_change_page(playground_forge: u16) {
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
     world.front().playground = Some(
-        w::PlaygroundAnswer::new(
-            &w::CEILINGS,
-            w::PlaygroundAnswerParts {
+        w::PlaygroundAnswer {
                 state: w::PlaygroundState::Running,
                 project: Some(1),
                 forge: playground_forge,
@@ -626,8 +624,6 @@ fn playground_change_page(playground_forge: u16) {
                 name: b"shop".as_slice().into(),
                 cues,
             },
-        )
-        .expect("scripted playground read beside the real engine"),
     );
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     let on_playground = playground_forge == REPOSITORY.forge;

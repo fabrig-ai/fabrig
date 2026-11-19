@@ -272,12 +272,11 @@ pub fn draft_setting(drafts: bool) -> Box<[u8]> {
 fn ways_setting(drafts: bool, way: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let value =
-        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts, goals: false, changes: false, way }).unwrap();
+        w::ProjectWays { drafts, goals: false, changes: false, way };
     let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
     value.encode(&mut writer).unwrap();
     wire::setting_answer(
-        &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: Some(writer.finish()) })
-            .unwrap(),
+        &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
     )
 }
 
@@ -412,27 +411,19 @@ impl GoalCase {
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                     let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
                         w::Watch::Forges => wire::forges(
-                            &w::Forges::new(
-                                &w::CEILINGS,
-                                w::ForgesParts { forges: goal_forges(self.repository), linked: false },
-                            )
-                            .unwrap(),
+                            &w::Forges { forges: goal_forges(self.repository), linked: false },
                         ),
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);
                             if self.linked {
                                 dismissed
                                     .push(w::PersonFact::GoalFrom(
-                                        w::GoalFrom::new(
-                                            &w::CEILINGS,
-                                            w::GoalFromParts { project: 1, chat: 9, goal: 25, at: 1 },
-                                        )
-                                        .unwrap(),
+                                        w::GoalFrom { project: 1, chat: 9, goal: 25, at: 1 },
                                     ))
                                     .unwrap();
                             }
                             wire::dismissals(
-                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
+                                &w::Dismissals { dismissed },
                             )
                         }
                         w::Watch::Change(_)
@@ -521,24 +512,17 @@ pub(super) fn goal_forges(repository: bool) -> List<temper_client_protocol_wire:
     if repository {
         repositories
             .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 1 },
-                )
-                .unwrap(),
+                w::Adoption { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 1 },
             )
             .unwrap();
     }
-    List::from_boxed(Box::new([w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
+    List::from_boxed(Box::new([w::ForgeRow {
             number: 2,
             host: b"git.example".as_slice().into(),
             kind: w::Kind::Forgejo,
             mode: w::Mode::Owned,
             connection: w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                    .unwrap(),
+                w::Connected { id: 1, login: b"temper".as_slice().into() },
             ),
             offer: w::Offer::NotOffered,
             first: None,
@@ -553,7 +537,5 @@ pub(super) fn goal_forges(repository: bool) -> List<temper_client_protocol_wire:
             ended_stop: None,
             read_only: false,
             makings: List::with_capacity(0),
-        },
-    )
-    .unwrap()]))
+        }]))
 }

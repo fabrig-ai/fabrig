@@ -1,4 +1,5 @@
 //! Deployment facts (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md).
+use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
@@ -64,7 +65,7 @@ pub fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue<Reques
     }
 }
 fn decode(record: &[u8], limits: Limits) -> Option<Answer> {
-    let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?.into_parts();
+    let answer = wire::decode_deployment_answer(record, &wire_limits(&limits)?)?;
     Some(Answer {
         welcome: answer.welcome,
         owned: answer.owned,
@@ -76,8 +77,7 @@ fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
     let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
     side.deployment.pending = Some(handle);
-    let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Deployment })
-        .expect("fieldless deployment read");
+    let record = w::Reading { read: w::Read::Deployment };
     out.push(Request::Client {
         asked: jig_client::Event::Read {
             handle,
@@ -87,7 +87,7 @@ fn read(side: &mut Side, out: &mut Queue<Request>) {
                 record: jig_client::Family {
                     family: wire::FORGE,
                     version: wire::CLIENT_VERSION,
-                    bytes: wire::reading(&record),
+                    bytes: record.encode(&w::CEILINGS).expect("fieldless deployment read"),
                 },
             },
         },

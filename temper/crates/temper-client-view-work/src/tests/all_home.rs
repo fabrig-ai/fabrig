@@ -48,9 +48,7 @@ fn status(
     brief: Option<w::StatusBrief>,
 ) -> Status {
     Status::Shown(Box::new(
-        w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
+        w::ProjectStatus {
                 project,
                 landed,
                 seen,
@@ -62,8 +60,6 @@ fn status(
                 unpaid: false,
                 brief,
             },
-        )
-        .unwrap(),
     ))
 }
 
@@ -215,16 +211,12 @@ fn briefs_join_four_sentences_with_strong_project_names() {
             .enumerate()
             .map(|(i, name)| {
                 let mut project = project(u32::try_from(i).unwrap(), name, 1, 0);
-                let brief = w::StatusBrief::new(
-                    &w::CEILINGS,
-                    w::StatusBriefParts {
+                let brief = w::StatusBrief {
                         at: BRIEF_AT - u64::try_from(i).unwrap() * MINUTE,
                         landed: 1,
                         sentence: b"Never the headline.".as_slice().into(),
                         lede: b"First sentence. Second sentence!".as_slice().into(),
-                    },
-                )
-                .unwrap();
+                    };
                 project.status =
                     status(project.project, 1, 0, Some(NOW - 9 * 60 * MINUTE), Some(NOW), false, Some(brief));
                 project
@@ -234,7 +226,7 @@ fn briefs_join_four_sentences_with_strong_project_names() {
         let Status::Shown(document) = unpaid.status else { panic!("shown status") };
         let mut parts = document.into_parts();
         parts.unpaid = true;
-        unpaid.status = Status::Shown(Box::new(w::ProjectStatus::new(&w::CEILINGS, parts).unwrap()));
+        unpaid.status = Status::Shown(Box::new(parts));
         projects.push(unpaid);
         for words in [f::words(), f::browser_words()] {
             let (tree, _) = drawn(&facts(projects_for_briefs(&projects)), &words);
@@ -440,16 +432,12 @@ fn main_tree(root: &d::Domain, words: &Words) -> (Tree, Bindings) {
 fn the_shared_headline_and_joined_brief_are_the_pages_words() {
     let mut projects = vec![project(1, "Hello", 3, 0), project(2, "shop", 1, 0)];
     for project in &mut projects {
-        let brief = w::StatusBrief::new(
-            &w::CEILINGS,
-            w::StatusBriefParts {
+        let brief = w::StatusBrief {
                 at: BRIEF_AT - u64::from(project.project) * MINUTE,
                 landed: 1,
                 sentence: b"A change landed.".as_slice().into(),
                 lede: b"Ready for review. More details.".as_slice().into(),
-            },
-        )
-        .unwrap();
+            };
         project.status = status(project.project, 1, 0, Some(0), Some(NOW), false, Some(brief));
     }
     let all = facts(projects);

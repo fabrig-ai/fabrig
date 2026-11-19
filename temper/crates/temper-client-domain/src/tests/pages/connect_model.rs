@@ -760,7 +760,7 @@ fn the_program_environment_is_read_in_the_live_step_without_me() {
                         UnlinkedRequest::Down { down: Down::Read { what: Readable::Family { scope, record, .. }, .. } },
                 } = request
                     && record.family == wire::FORGE
-                    && *wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == w::Read::ProgramEnvironment
+                    && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::ProgramEnvironment
                 {
                     assert_eq!(*scope, c::Scope::Deployment);
                     count += 1;
@@ -788,7 +788,7 @@ fn a_programs_way_reads_the_environment_once() {
         assert_eq!(scope, c::Scope::Deployment);
         assert_eq!(window, c::Window { rows: 0, after: None });
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        assert_eq!(wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(), &w::Read::ProgramEnvironment);
+        assert_eq!(&wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read, &w::Read::ProgramEnvironment);
         assert!(out.is_empty());
         assert!(environment_read(&mut page, &address, Link::Live, &mut serial).is_empty());
     }
@@ -932,8 +932,7 @@ fn an_empty_environment_answer_confirms_the_default_directories() {
     let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
     let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
     let answer =
-        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: Box::new([]) })
-            .unwrap();
+        w::ProgramEnvironmentAnswer { environment: Box::new([]) };
     assert!(page.environment_told(&Told::Page {
         handle,
         page: Readout::Family { family: wire::FORGE, record: Some(wire::program_environment_answer(&answer)) },

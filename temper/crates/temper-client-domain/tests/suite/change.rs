@@ -191,7 +191,7 @@ mod tests {
             return None;
         };
         let watching = wire::decode_watching(&record.bytes, &w::CEILINGS)?;
-        let w::Watch::Change(_) = watching.watch() else { return None };
+        let w::Watch::Change(_) = &watching.watch else { return None };
         Some(*watch)
     }
     fn tree(document: &c::Task) -> c::Delivery {
@@ -204,10 +204,10 @@ mod tests {
         }))
     }
     fn used(used: u32, limit: u32) -> w::Used {
-        w::Used::new(&w::CEILINGS, w::UsedParts { used, limit }).expect("wire numbers")
+        w::Used { used, limit }
     }
-    fn panel_parts(step: w::Step) -> w::ChangePanelParts {
-        w::ChangePanelParts {
+    fn panel_parts(step: w::Step) -> w::ChangePanel {
+        w::ChangePanel {
             wait: None,
             source: None,
             way: w::Way::Queue,
@@ -220,8 +220,7 @@ mod tests {
             landing: b"main".as_slice().into(),
             head: Some([0xab; 32]),
             pull: Some(
-                w::Pull::new(&w::CEILINGS, w::PullParts { number: 216, address: Box::new([]) })
-                    .expect("empty address is valid"),
+                w::Pull { number: 216, address: Box::new([]) },
             ),
             step,
             hold: None,
@@ -234,11 +233,7 @@ mod tests {
             repairs: used(0, 3),
             resolutions: used(0, 3),
             updates: used(0, 3),
-            questions: w::Questions::new(
-                &w::CEILINGS,
-                w::QuestionsParts { route: w::Route::None, taken: used(0, 4), open: List::with_capacity(0) },
-            )
-            .expect("no questions"),
+            questions: w::Questions { route: w::Route::None, taken: used(0, 4), open: List::with_capacity(0) },
         }
     }
     fn queued(place: u32, ahead: &[u64]) -> w::Step {
@@ -246,16 +241,16 @@ mod tests {
         for task in ahead {
             tasks.push(*task).expect("bounded tasks ahead");
         }
-        w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead: tasks }).expect("queued"))
+        w::Step::Queued(w::Queued { place, ahead: tasks })
     }
     fn repairing(reason: w::Reason) -> w::Step {
-        w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).expect("repair"))
+        w::Step::Repairing(w::Repairing { reason })
     }
     fn gate_reason() -> w::Reason {
-        w::Reason::Gate(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::MAX }).expect("gate reason"))
+        w::Reason::Gate(w::GateReason { gate: u64::MAX })
     }
     fn landed() -> w::Step {
-        w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).expect("merge"))
+        w::Step::Landed(w::Landed { merge: [0xab; 32] })
     }
     fn steps() -> Vec<w::Step> {
         vec![
@@ -343,7 +338,7 @@ mod tests {
         let state = forge::panel::Panel {
             subject: forge::panel::Subject { task: 88, project: 1 },
             state: forge::panel::State::Shown(Box::new(
-                w::ChangePanel::new(&w::CEILINGS, panel_parts(w::Step::Checking)).expect("panel"),
+                panel_parts(w::Step::Checking),
             )),
             handle: None,
         };
@@ -522,7 +517,7 @@ mod tests {
             requests.contains(&jig_client::Down::Close { watch }),
             "native acknowledgement finishes closing the abandoned watch"
         );
-        let panel = w::ChangePanel::new(&w::CEILINGS, panel_parts(w::Step::Gating)).expect("old panel");
+        let panel = panel_parts(w::Step::Gating);
         drop(up(
             &mut root,
             jig_client::Up::FamilyDelivered {

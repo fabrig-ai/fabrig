@@ -6,26 +6,27 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::List;
 use temper_client_protocol_wire::v1;
+use v1::Record;
 
 /// Every record decodes to a table; `Classes::check` judges it.
 #[must_use]
 pub fn classes_from(record: &v1::ProjectClasses) -> Classes {
-    let mut items = List::with_capacity(record.items().len());
-    for item in record.items() {
+    let mut items = List::with_capacity(record.items.len());
+    for item in &record.items {
         items
             .push(Item {
-                subject: subject_from(item.subject()),
-                words: item.words().into(),
-                class: class_from(item.class()),
+                subject: subject_from(&item.subject),
+                words: item.words.clone(),
+                class: class_from(&item.class),
             })
             .expect("same item count");
     }
-    let mut sets = List::with_capacity(record.sets().len());
-    for set in record.sets() {
+    let mut sets = List::with_capacity(record.sets.len());
+    for set in &record.sets {
         sets.push(PathSet {
-            number: set.number(),
-            name: set.name().into(),
-            patterns: set.patterns().clone().into_boxed(),
+            number: set.number,
+            name: set.name.clone(),
+            patterns: set.patterns.clone().into_boxed(),
         })
         .expect("same set count");
     }
@@ -39,15 +40,11 @@ pub fn classes_record(classes: &Classes) -> Option<v1::ProjectClasses> {
     for item in &classes.items {
         items
             .push(
-                v1::ClassItem::new(
-                    &v1::CEILINGS,
-                    v1::ClassItemParts {
+                v1::ClassItem {
                         subject: subject_record(item.subject),
                         words: item.words.clone(),
                         class: class_record(item.class),
                     },
-                )
-                .ok()?,
             )
             .ok()?;
     }
@@ -58,19 +55,18 @@ pub fn classes_record(classes: &Classes) -> Option<v1::ProjectClasses> {
             patterns.push(pattern.clone()).ok()?;
         }
         sets.push(
-            v1::PathSet::new(&v1::CEILINGS, v1::PathSetParts { number: set.number, name: set.name.clone(), patterns })
-                .ok()?,
+            v1::PathSet { number: set.number, name: set.name.clone(), patterns },
         )
         .ok()?;
     }
-    v1::ProjectClasses::new(&v1::CEILINGS, v1::ProjectClassesParts { items, sets }).ok()
+    { let record = v1::ProjectClasses { items, sets }; record.measure(&v1::CEILINGS).ok()?; Some(record) }
 }
 
 #[must_use]
 pub fn subject_from(record: &v1::ClassSubject) -> Subject {
     match record {
-        v1::ClassSubject::Kind(kind) => Subject::Kind(kind_from(kind.kind())),
-        v1::ClassSubject::Set(set) => Subject::Set(set.number()),
+        v1::ClassSubject::Kind(kind) => Subject::Kind(kind_from(&kind.kind)),
+        v1::ClassSubject::Set(set) => Subject::Set(set.number),
     }
 }
 
@@ -78,38 +74,37 @@ pub fn subject_from(record: &v1::ClassSubject) -> Subject {
 pub fn subject_record(subject: Subject) -> v1::ClassSubject {
     match subject {
         Subject::Kind(kind) => v1::ClassSubject::Kind(
-            v1::ReachKindOf::new(&v1::CEILINGS, v1::ReachKindOfParts { kind: kind_record(kind) })
-                .expect("fixed kind field"),
+            v1::ReachKindOf { kind: kind_record(kind) },
         ),
         Subject::Set(number) => v1::ClassSubject::Set(set_record(number)),
     }
 }
 
 fn set_record(number: u8) -> v1::ReachSet {
-    v1::ReachSet::new(&v1::CEILINGS, v1::ReachSetParts { number }).expect("fixed set field")
+    v1::ReachSet { number }
 }
 
 /// None for a reason naming set 0 or a set past `SETS`.
 #[must_use]
 pub fn reach_from(record: &v1::Reach) -> Option<Reach> {
-    let reason = match record.reason() {
+    let reason = match &record.reason {
         v1::ReachReason::Kind => Reason::Kind,
         v1::ReachReason::Always => Reason::Always,
         v1::ReachReason::Set(set) => {
-            if set.number() == 0 || usize::from(set.number()) > SETS {
+            if set.number == 0 || usize::from(set.number) > SETS {
                 return None;
             }
-            Reason::Set(set.number())
+            Reason::Set(set.number)
         }
     };
     Some(Reach {
-        kind: kind_from(record.kind()),
-        class: class_from(record.class()),
+        kind: kind_from(&record.kind),
+        class: class_from(&record.class),
         reason,
-        under: record.under(),
-        sets: record.sets(),
-        matched: record.matched(),
-        away: record.away(),
+        under: record.under,
+        sets: record.sets,
+        matched: record.matched,
+        away: record.away,
     })
 }
 
@@ -120,9 +115,7 @@ pub fn reach_record(reach: &Reach) -> v1::Reach {
         Reason::Set(number) => v1::ReachReason::Set(set_record(number)),
         Reason::Always => v1::ReachReason::Always,
     };
-    v1::Reach::new(
-        &v1::CEILINGS,
-        v1::ReachParts {
+    v1::Reach {
             kind: kind_record(reach.kind),
             class: class_record(reach.class),
             reason,
@@ -130,9 +123,7 @@ pub fn reach_record(reach: &Reach) -> v1::Reach {
             sets: reach.sets,
             matched: reach.matched,
             away: reach.away,
-        },
-    )
-    .expect("fixed reach fields")
+        }
 }
 
 /// A checked table full at every record bound.

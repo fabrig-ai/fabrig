@@ -98,8 +98,7 @@ impl World {
                                 family: wire::FORGE,
                                 version: wire::CLIENT_VERSION,
                                 bytes: wire::answer(
-                                    &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
-                                        .expect("bounded density fixture"),
+                                    &w::Answer { outcome: w::Outcome::Looked },
                                 ),
                             })),
                         });
@@ -149,20 +148,16 @@ impl World {
     }
 
     fn findings(&mut self, project: u32) {
-        let document = w::Findings::new(
-            &w::CEILINGS,
-            w::FindingsParts {
+        let document = w::Findings {
                 project,
                 rows: List::with_capacity(0),
                 areas: List::with_capacity(0),
                 triager: None,
                 holder: w::Holder::Role(
-                    w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).expect("owners"),
+                    w::HolderRole { number: 0 },
                 ),
                 cut: false,
-            },
-        )
-        .expect("density findings");
+            };
         self.family(forge::findings::watch(project, &self.env.limits.forge), wire::findings(&document));
     }
 
@@ -396,26 +391,18 @@ impl World {
                 wire::decode_reading(&record.bytes, &w::CEILINGS).expect("bounded density fixture").into_parts().read
             && setting.kind() == 7
         {
-            let value = w::ProjectWays::new(
-                &w::CEILINGS,
-                w::ProjectWaysParts {
+            let value = w::ProjectWays {
                     drafts: true,
                     goals: false,
                     changes: true,
                     way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
-                },
-            )
-            .expect("bounded density fixture");
+                };
             let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded density fixture"));
             value.encode(&mut writer).expect("bounded density fixture");
             return Some(Readout::Family {
                 family: wire::FORGE,
                 record: Some(wire::setting_answer(
-                    &w::SettingAnswer::new(
-                        &w::CEILINGS,
-                        w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
-                    )
-                    .expect("bounded density fixture"),
+                    &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
                 )),
             });
         }
@@ -431,20 +418,14 @@ impl World {
         let seen = self.rng.below(4);
         let previous = (self.rng.below(3) != 0).then_some(2 * SECOND);
         let brief = (self.rng.below(3) != 0).then(|| {
-            w::StatusBrief::new(
-                &w::CEILINGS,
-                w::StatusBriefParts {
+            w::StatusBrief {
                     sentence: b"A change landed.".as_slice().into(),
                     lede: b"The change is ready. More follows.".as_slice().into(),
                     at: self.rng.below(5) * SECOND,
                     landed,
-                },
-            )
-            .expect("bounded density fixture")
+                }
         });
-        let document = w::ProjectStatus::new(
-            &w::CEILINGS,
-            w::ProjectStatusParts {
+        let document = w::ProjectStatus {
                 project,
                 landed,
                 seen,
@@ -455,9 +436,7 @@ impl World {
                 red: false,
                 branch: b"main".as_slice().into(),
                 unpaid: self.rng.below(2) == 0,
-            },
-        )
-        .expect("bounded density fixture");
+            };
         self.family(forge::status::watch(project, &self.env.limits.forge), wire::project_status(&document));
     }
 
@@ -465,12 +444,8 @@ impl World {
         let mut rows = List::with_capacity(3);
         for number in 1..=self.rng.below(4) {
             rows.push(
-                w::Decision::new(
-                    &w::CEILINGS,
-                    w::DecisionParts {
-                        reach: w::Reach::new(
-                            &w::CEILINGS,
-                            w::ReachParts {
+                w::Decision {
+                        reach: w::Reach {
                                 kind: w::ReachKind::Tests,
                                 class: w::ReachClass::Decide,
                                 reason: w::ReachReason::Kind,
@@ -479,8 +454,6 @@ impl World {
                                 matched: 0,
                                 away: false,
                             },
-                        )
-                        .expect("density reach"),
                         number: u32::try_from(number).expect("bounded density fixture"),
                         task: 100 + number,
                         at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
@@ -494,8 +467,6 @@ impl World {
                         why: b"Within the landing rule.".as_slice().into(),
                         overturned: false,
                     },
-                )
-                .expect("bounded density fixture"),
             )
             .expect("bounded density fixture");
         }
@@ -505,11 +476,7 @@ impl World {
             self.decision_rows.retain(|(held, _, _)| *held != watch);
             self.decision_rows.push((watch, project, rows.iter().map(w::Decision::at).collect()));
         }
-        let document = w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .expect("bounded density fixture");
+        let document = w::Decisions { project, rows, asked: List::with_capacity(0), cut: false };
         self.family(forge::decided::watch(project, &self.env.limits.forge), wire::decisions(&document));
         self.drain();
     }
@@ -520,7 +487,7 @@ impl World {
             if self.rng.below(2) == 0 {
                 dismissed
                     .push(w::PersonFact::ToBegin(
-                        w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project }).expect("bounded density fixture"),
+                        w::ToBegin { project },
                     ))
                     .expect("bounded density fixture");
             }
@@ -528,17 +495,13 @@ impl World {
         self.family(
             forge::dismissed::watch(&self.env.limits.forge),
             wire::dismissals(
-                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).expect("bounded density fixture"),
+                &w::Dismissals { dismissed },
             ),
         );
     }
 
     fn approval_rows(&mut self) {
-        let document = w::Approvals::new(
-            &w::CEILINGS,
-            w::ApprovalsParts { rows: List::from_boxed(self.approvals.clone().into_boxed_slice()), more: 0 },
-        )
-        .expect("bounded density fixture");
+        let document = w::Approvals { rows: List::from_boxed(self.approvals.clone().into_boxed_slice()), more: 0 };
         self.family(forge::approvals::watch(&self.env.limits.forge), wire::approvals(&document));
     }
 
@@ -613,18 +576,14 @@ impl World {
         let count = u32::try_from(self.rng.below(3)).expect("at most two relations");
         let dependencies = (1..=count)
             .map(|number| {
-                w::DependencyView::new(&w::CEILINGS, w::DependencyViewParts { number, project: 7 }).expect("dependency")
+                w::DependencyView { number, project: 7 }
             })
             .collect::<Vec<_>>();
-        let panel = w::FollowsPanel::new(
-            &w::CEILINGS,
-            w::FollowsPanelParts {
+        let panel = w::FollowsPanel {
                 project,
                 follows: List::with_capacity(0),
                 dependencies: List::from_boxed(dependencies.into_boxed_slice()),
-            },
-        )
-        .expect("relations");
+            };
         self.relation_rows.retain(|(held, _)| *held != watch);
         self.relation_rows.push((watch, count));
         self.family(Some(subject), wire::follows_panel(&panel));
@@ -977,8 +936,7 @@ fn generate(seed: u64) -> World {
     world.family(
         forge::forges::watch(&limits.forge),
         wire::forges(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0), linked: false })
-                .expect("bounded density fixture"),
+            &w::Forges { forges: List::with_capacity(0), linked: false },
         ),
     );
     world.dismissals();
@@ -1230,22 +1188,16 @@ fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
                 counts[usize::try_from(rng.below(3)).expect("three counts")] = u32::MAX;
             }
             Some(
-                w::ApprovalSize::new(
-                    &w::CEILINGS,
-                    w::ApprovalSizeParts {
+                w::ApprovalSize {
                         files: counts[0],
                         additions: counts[1],
                         deletions: counts[2],
                         cut: kind == 2,
                     },
-                )
-                .expect("size"),
             )
         }
     };
-    w::ApprovalRow::new(
-        &w::CEILINGS,
-        w::ApprovalRowParts {
+    w::ApprovalRow {
             task: 200 + u64::from(project),
             project,
             goal: None,
@@ -1269,9 +1221,7 @@ fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
             can_sign: List::with_capacity(0),
             can_sign_more: 0,
             size,
-        },
-    )
-    .expect("bounded density fixture")
+        }
 }
 fn budget() -> c::Budget {
     c::Budget {

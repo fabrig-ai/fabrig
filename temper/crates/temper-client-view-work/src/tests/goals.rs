@@ -957,9 +957,7 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
     milestone.chip.title = fixtures::goal::text(b"Store shape");
     let mut empty = milestone.clone();
     empty.chip.task = m + 1;
-    let totals = temper_client_protocol_wire::v1::MilestoneTotals::new(
-        &temper_client_protocol_wire::v1::CEILINGS,
-        temper_client_protocol_wire::v1::MilestoneTotalsParts {
+    let totals = temper_client_protocol_wire::v1::MilestoneTotals {
             task: m,
             done: 1,
             failed: 0,
@@ -968,9 +966,7 @@ fn each_filter_groups_only_its_shown_goals_at_the_first_goal() {
             ended: None,
             last_landing: None,
             spent: 0,
-        },
-    )
-    .unwrap();
+        };
     milestone.parts = List::from_boxed(Box::new([fixtures::milestones::part(None, totals, &[], 0)]));
     fixtures::milestones::live(&mut page.root, &page.limits, listed, &[milestone, empty], false);
     page.up(jig_client::Up::ReadDone {

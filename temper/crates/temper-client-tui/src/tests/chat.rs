@@ -310,31 +310,23 @@ fn root(input: &Input) -> Domain {
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
                 if let w::Watch::Findings(_) = watching.watch() {
                     let holder =
-                        w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: TASK }).unwrap());
+                        w::Holder::Task(w::HolderTask { number: TASK });
                     let owner =
-                        w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: TASK }).unwrap());
-                    let areas = List::from_boxed(Box::new([w::AreaRow::new(
-                        &w::CEILINGS,
-                        w::AreaRowParts {
+                        w::AreaOwner::Task(w::AreaTask { number: TASK });
+                    let areas = List::from_boxed(Box::new([w::AreaRow {
                             name: b"vsr-rs".as_slice().into(),
                             words: b"The port".as_slice().into(),
                             owner: owner.clone(),
                             holder: Some(holder.clone()),
-                        },
-                    )
-                    .unwrap()]));
-                    let value = w::Findings::new(
-                        &w::CEILINGS,
-                        w::FindingsParts {
+                        }]));
+                    let value = w::Findings {
                             project: 1,
                             rows: List::with_capacity(0),
                             areas,
                             triager: if input.weekly { None } else { Some(owner) },
                             holder,
                             cut: false,
-                        },
-                    )
-                    .unwrap();
+                        };
                     Some(jig_client::Up::FamilyDelivered {
                         watch,
                         record: jig_client::Family {
@@ -522,23 +514,18 @@ fn root(input: &Input) -> Domain {
             } if input.goal.is_some() => {
                 let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
                     w::Watch::Forges => wire::forges(
-                        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: f::goal_forges(true), linked: false })
-                            .unwrap(),
+                        &w::Forges { forges: f::goal_forges(true), linked: false },
                     ),
                     w::Watch::Dismissed => {
                         let mut dismissed = List::with_capacity(wire::DISMISSED);
                         if input.goal == Some(true) {
                             dismissed
                                 .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom::new(
-                                        &w::CEILINGS,
-                                        w::GoalFromParts { project: 1, chat: TASK, goal: 25, at: 1 },
-                                    )
-                                    .unwrap(),
+                                    w::GoalFrom { project: 1, chat: TASK, goal: 25, at: 1 },
                                 ))
                                 .unwrap();
                         }
-                        wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap())
+                        wire::dismissals(&w::Dismissals { dismissed })
                     }
                     _ => continue,
                 };
@@ -581,8 +568,7 @@ fn root(input: &Input) -> Domain {
                             }
                             Some(Shown::Drawn(view)) => {
                                 let answer =
-                                    w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: *view.clone() })
-                                        .unwrap();
+                                    w::ViewAnswer { view: *view.clone() };
                                 Some(jig_client::Readout::Family {
                                     family: wire::FORGE,
                                     record: Some(wire::view_answer(&answer)),

@@ -70,13 +70,13 @@ impl LandedDraft {
     #[must_use]
     pub fn row(row: &temper_client_protocol_wire::v1::LandedDraft) -> Self {
         Self {
-            forge: row.forge(),
-            owner: row.owner().into(),
-            name: row.name().into(),
-            path: row.path().into(),
-            at: Wall::from_nanos(row.at()),
-            title: row.title().into(),
-            listed: row.ready() && row.goal().is_none(),
+            forge: row.forge,
+            owner: row.owner.clone(),
+            name: row.name.clone(),
+            path: row.path.clone(),
+            at: Wall::from_nanos(row.at),
+            title: row.title.clone(),
+            listed: row.ready && row.goal.is_none(),
         }
     }
 }
@@ -615,17 +615,17 @@ pub fn signed(reader: u64, signers: &[w::ChangesSigned]) -> Option<Box<[u8]>> {
     use super::signing::{count, join};
     let mut names: List<Box<[u8]>> = List::uncapped();
     for signer in signers {
-        if signer.party() == reader {
+        if signer.party == reader {
             names.push(b"you".as_slice().into()).expect("one name for the reader");
             break;
         }
     }
     let mut others = 0_u32;
     for signer in signers {
-        if signer.party() == reader {
+        if signer.party == reader {
             continue;
         }
-        match signer.name() {
+        match &signer.name {
             Some(name) => names.push(name.clone()).expect("one name per signer"),
             None => others = others.saturating_add(1),
         }
@@ -690,7 +690,7 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
     let reader = root.pages().me(root.client())?.party.number;
     match drafts.state() {
         super::drafts::State::Shown(panel) => {
-            for row in panel.drafts() {
+            for row in &panel.drafts {
                 facts.landed.push(LandedDraft::row(row)).expect("one fact per landed draft");
             }
         }
@@ -722,58 +722,58 @@ pub fn facts(root: &dyn Root, project: u32) -> Option<Facts> {
         }
     }
     if let Some(panel) = panel {
-        for queue in panel.queues() {
-            if let Some(flight) = queue.in_flight() {
+        for queue in &panel.queues {
+            if let Some(flight) = &queue.in_flight {
                 facts
                     .changes
                     .push(Change {
                         signed: None,
-                        task: flight.member(),
-                        at: Where::Queued { place: 1, since: Wall::from_nanos(flight.ready_since()) },
-                        belongs: belongs(root, flight.member()),
+                        task: flight.member,
+                        at: Where::Queued { place: 1, since: Wall::from_nanos(flight.ready_since) },
+                        belongs: belongs(root, flight.member),
                     })
                     .expect("one fact per train member");
             }
-            for (index, row) in queue.changes().iter().enumerate() {
+            for (index, row) in queue.changes.iter().enumerate() {
                 facts
                     .changes
                     .push(Change {
-                        task: row.task(),
+                        task: row.task,
                         signed: None,
                         at: Where::Queued {
                             place: u32::try_from(index)
                                 .expect("wire queue fits")
                                 .checked_add(1)
                                 .expect("wire queue fits")
-                                .checked_add(u32::from(queue.in_flight().is_some()))
+                                .checked_add(u32::from(queue.in_flight.is_some()))
                                 .expect("wire queue fits"),
-                            since: Wall::from_nanos(row.ready_since()),
+                            since: Wall::from_nanos(row.ready_since),
                         },
-                        belongs: belongs(root, row.task()),
+                        belongs: belongs(root, row.task),
                     })
                     .expect("one fact per change row");
             }
         }
-        for row in panel.landed() {
+        for row in &panel.landed {
             facts
                 .changes
                 .push(Change {
-                    task: row.task(),
-                    at: Where::Landed { at: Wall::from_nanos(row.at()), default_branch: row.default_branch() },
-                    belongs: belongs(root, row.task()),
-                    signed: signed(reader, row.signed().as_slice()),
+                    task: row.task,
+                    at: Where::Landed { at: Wall::from_nanos(row.at), default_branch: row.default_branch },
+                    belongs: belongs(root, row.task),
+                    signed: signed(reader, row.signed.as_slice()),
                 })
                 .expect("one fact per change row");
         }
-        for row in panel.landed_default() {
+        for row in &panel.landed_default {
             facts
                 .landed_default
                 .push(Landing {
-                    task: row.task(),
-                    commit: *row.commit(),
-                    at: Wall::from_nanos(row.at()),
-                    belongs: belongs(root, row.task()),
-                    signed: signed(reader, row.signed().as_slice()),
+                    task: row.task,
+                    commit: row.commit,
+                    at: Wall::from_nanos(row.at),
+                    belongs: belongs(root, row.task),
+                    signed: signed(reader, row.signed.as_slice()),
                     milestone: landed_milestone(root, row),
                 })
                 .expect("one fact per default-branch landing");
@@ -826,23 +826,23 @@ fn gather_goal_in(facts: &mut Facts, row: &c::TaskLine, live: bool, milestone: O
 }
 
 fn landed_milestone(root: &dyn Root, row: &w::ChangesLanded) -> Option<LandedMilestone> {
-    row.goal().as_ref()?;
-    let from = row.milestone().as_ref()?;
+    row.goal.as_ref()?;
+    let from = row.milestone.as_ref()?;
     let mut completed = None;
-    if let Some(milestone) = root.pages().milestones()?.milestone(from.task())
+    if let Some(milestone) = root.pages().milestones()?.milestone(from.task)
         && let Some(totals) = &milestone.totals
-        && let Some(ended) = totals.ended()
-        && let Some(landing) = totals.last_landing()
+        && let Some(ended) = &totals.ended
+        && let Some(landing) = &totals.last_landing
         && let Some(line) = milestone_line(root, milestone.task)
     {
         let complete = super::milestones::state(line, milestone.goals.as_slice(), Some(totals), false)
             == super::milestones::State::Complete
-            && landing.change() == row.task();
+            && landing.change == row.task;
         if complete {
             completed = Some(Wall::from_nanos(*ended));
         }
     }
-    Some(LandedMilestone { name: from.title().into(), completed })
+    Some(LandedMilestone { name: from.title.clone(), completed })
 }
 
 #[expect(clippy::manual_find, reason = "step code uses no closures")]

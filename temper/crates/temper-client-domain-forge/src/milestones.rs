@@ -71,5 +71,5 @@ pub fn facts(task: &contract::Task) -> Facts {
 
 #[must_use]
 pub fn of(line: &contract::TaskLine) -> Option<u64> {
-    *crate::parts::goal(line)?.milestone()
+    crate::parts::goal(line)?.milestone
 }

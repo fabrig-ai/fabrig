@@ -187,8 +187,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
     for (why, expected) in [
         (
             w::StartFailure::Group(
-                w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: b"fetch failed".as_slice().into() })
-                    .unwrap(),
+                w::GroupFailed { why: b"fetch failed".as_slice().into() },
             ),
             "The playground did not start: its fakes did not start (fetch failed).",
         ),
@@ -203,7 +202,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         let read = f::playground_start_answer(
             &mut root,
             attempt,
-            w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
+            w::Outcome::StartFailed(w::StartFailed { why }),
         )
         .expect("failure rereads the playground");
         f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
@@ -234,12 +233,12 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
     let mut root = start_root();
     let attempt = f::playground_start_attempt(&mut root);
     let why = w::StartFailure::Group(
-        w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: Box::from([255_u8; 256]) }).unwrap(),
+        w::GroupFailed { why: Box::from([255_u8; 256]) },
     );
     let read = f::playground_start_answer(
         &mut root,
         attempt,
-        w::Outcome::StartFailed(w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why }).unwrap()),
+        w::Outcome::StartFailed(w::StartFailed { why }),
     )
     .expect("failure rereads the playground");
     f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);

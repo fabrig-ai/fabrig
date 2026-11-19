@@ -1,0 +1,931 @@
+//! Values of the forge's kinds and procedure waits
+//! (temper/docs/design/protocol/configuration/settings.md, 2 and 3).
+use crate::settings::{
+    Bounds, Held, Item, Kind, LandingRule, Refusal, RuleApproval, RuleGate, TemplateGoal, Value, judge, requires,
+};
+use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
+use alloc::boxed::Box;
+use skein_lib::List;
+
+// Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
+const BOUNDS: Bounds = Bounds {
+    landing_members: 4,
+    repositories: 2,
+    landing_gates: 2,
+    tiers: 2,
+    ignored_paths: 4,
+    landing_rules: 4,
+    gates: 2,
+    roles: 2,
+    segments: 5,
+    segment_bytes: 8,
+    follows: 2,
+    dependencies: 4,
+    follow_paths: 2,
+    name_bytes: 32,
+};
+const PROJECT: u32 = 1;
+const FIRST_RULE: u32 = 1;
+const GATE: RuleGate = RuleGate { number: 1, blocking: true, freshness: JudgeFreshness::Exact };
+const APPROVAL: RuleApproval = RuleApproval { role: 0, people: 1, freshness: JudgeFreshness::Clean };
+const BOTH: Requires = Requires { ci: true, up_to_date: true };
+const NEITHER: Requires = Requires { ci: false, up_to_date: false };
+const CI: Requires = Requires { ci: true, up_to_date: false };
+
+fn rule(pattern: GatePattern, asks: Requires) -> LandingRule {
+    LandingRule {
+        sets: Box::new([]),
+        pattern,
+        enforce: true,
+        ci: asks.ci,
+        up_to_date: asks.up_to_date,
+        gates: Box::new([]),
+        approvals: Box::new([]),
+    }
+}
+
+fn branch_pattern(repository: &[u8], last: GateLast) -> GatePattern {
+    GatePattern {
+        segments: Box::new([
+            Box::from(b"forge".as_slice()),
+            Box::from(b"host".as_slice()),
+            Box::from(b"owner".as_slice()),
+            Box::from(repository),
+            Box::from(b"branch".as_slice()),
+        ]),
+        last,
+    }
+}
+
+fn bounded_item() -> Item {
+    let pattern = branch_pattern(b"12345678", GateLast::Exact(Box::from(b"12345678".as_slice())));
+    let mut rule = rule(pattern, BOTH);
+    rule.gates = Box::new([GATE, RuleGate { number: 2, blocking: false, freshness: JudgeFreshness::Clean }]);
+    rule.approvals = Box::new([APPROVAL, RuleApproval { role: 1, freshness: JudgeFreshness::Exact, ..APPROVAL }]);
+    Item { kind: Kind::DeploymentRules.number(), scope: 0, number: FIRST_RULE, value: Some(Value::Rule(rule)) }
+}
+
+fn with_rule(rule: LandingRule) -> Item {
+    Item { value: Some(Value::Rule(rule)), ..bounded_item() }
+}
+
+fn held(scope: u32, number: u32, rule: LandingRule) -> Held {
+    Held { scope, number, rule }
+}
+
+fn main_rule() -> LandingRule {
+    rule(branch_pattern(b"name", GateLast::Exact(Box::from(b"main".as_slice()))), BOTH)
+}
+
+fn goal_rule() -> LandingRule {
+    rule(branch_pattern(b"name", GateLast::Open(Box::from(b"temper".as_slice()))), NEITHER)
+}
+
+fn main_name() -> Box<[u8]> {
+    b"main".as_slice().into()
+}
+
+fn goal_name() -> Box<[u8]> {
+    b"temper/1/g1".as_slice().into()
+}
+
+fn repository() -> crate::Repository {
+    crate::Repository {
+        host: b"host".as_slice().into(),
+        owner: b"owner".as_slice().into(),
+        name: b"name".as_slice().into(),
+        ..super::adopted()
+    }
+}
+
+#[test]
+fn judge_accepts_rules_within_their_bounds() {
+    let base = bounded_item();
+    let rows = [
+        ("deployment first", base.clone(), Ok(())),
+        (
+            "project sets without classes",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([1, 3]), ..main_rule() }) },
+            Ok(()),
+        ),
+        (
+            "project all sets in supplied order",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(LandingRule { sets: Box::new([6, 5, 4, 3, 2, 1]), ..main_rule() })
+            },
+            Ok(()),
+        ),
+        (
+            "project branch exact",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(rule(
+                    GatePattern {
+                        segments: Box::new([Box::from(b"branch".as_slice())]),
+                        last: GateLast::Exact(b"main".as_slice().into()),
+                    },
+                    BOTH,
+                ))
+            },
+            Ok(()),
+        ),
+        (
+            "project branch open",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(rule(
+                    GatePattern {
+                        segments: Box::new([Box::from(b"branch".as_slice())]),
+                        last: GateLast::Open(Box::new([])),
+                    },
+                    BOTH,
+                ))
+            },
+            Ok(()),
+        ),
+        ("deployment last", Item { number: BOUNDS.landing_rules, ..base.clone() }, Ok(())),
+        ("project first", Item { kind: Kind::ProjectRules.number(), scope: PROJECT, ..base.clone() }, Ok(())),
+        (
+            "project last",
+            Item { kind: Kind::ProjectRules.number(), scope: PROJECT, number: BOUNDS.landing_rules, ..base.clone() },
+            Ok(()),
+        ),
+        ("remove deployment", Item { value: None, ..base.clone() }, Ok(())),
+        ("remove project", Item { kind: 2, scope: PROJECT, value: None, ..base }, Ok(())),
+    ];
+    for (label, item, expected) in rows {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+    for (number, expected) in [
+        (0, None),
+        (1, Some(Kind::DeploymentRules)),
+        (2, Some(Kind::ProjectRules)),
+        (3, Some(Kind::Charters)),
+        (4, Some(Kind::ProjectLanding)),
+        (5, Some(Kind::ProjectGates)),
+        (11, Some(Kind::TemplateGoal)),
+        (u32::MAX, None),
+    ] {
+        assert_eq!(Kind::of(number), expected, "kind {number}");
+    }
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "each admission fault is a row of the required single table test")]
+fn judge_refuses_each_fault_by_name() {
+    let base = bounded_item();
+    let Some(Value::Rule(valid)) = base.value.clone() else { panic!("rule fixture") };
+    let mut wrong_first = valid.pattern.clone();
+    wrong_first.segments[0] = Box::from(b"branch".as_slice());
+    let mut long_segment = valid.pattern.clone();
+    long_segment.segments[1] = Box::from(b"123456789".as_slice());
+    let mut extra_segments = List::with_capacity(BOUNDS.segments + 1);
+    for segment in &valid.pattern.segments {
+        extra_segments.push(segment.clone()).expect("base segments fit fixture");
+    }
+    extra_segments.push(Box::from(b"extra".as_slice())).expect("one past bound fits fixture");
+    let rows = [
+        ("unknown kind", Item { kind: u32::MAX, ..base.clone() }, Err(Refusal::Kind)),
+        (
+            "deployment set",
+            with_rule(LandingRule { sets: Box::new([1]), ..valid.clone() }),
+            Err(Refusal::DeploymentSets),
+        ),
+        (
+            "project set twice",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([2, 2]), ..valid.clone() }) },
+            Err(Refusal::SetTwice),
+        ),
+        (
+            "project set zero",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([0]), ..valid.clone() }) },
+            Err(Refusal::SetNumber),
+        ),
+        (
+            "project set seven",
+            Item { kind: 2, scope: PROJECT, ..with_rule(LandingRule { sets: Box::new([7]), ..valid.clone() }) },
+            Err(Refusal::SetNumber),
+        ),
+        (
+            "project sets past bound",
+            Item {
+                kind: 2,
+                scope: PROJECT,
+                ..with_rule(LandingRule { sets: Box::new([1, 2, 3, 4, 5, 6, 1]), ..valid.clone() })
+            },
+            Err(Refusal::Sets),
+        ),
+        (
+            "deployment branch exact",
+            with_rule(rule(
+                GatePattern {
+                    segments: Box::new([Box::from(b"branch".as_slice())]),
+                    last: GateLast::Exact(b"main".as_slice().into()),
+                },
+                BOTH,
+            )),
+            Err(Refusal::Pattern),
+        ),
+        (
+            "deployment branch open",
+            with_rule(rule(
+                GatePattern {
+                    segments: Box::new([Box::from(b"branch".as_slice())]),
+                    last: GateLast::Open(Box::new([])),
+                },
+                BOTH,
+            )),
+            Err(Refusal::Pattern),
+        ),
+        ("deployment scope", Item { scope: 2, ..base.clone() }, Err(Refusal::Scope)),
+        ("project scope", Item { kind: 2, ..base.clone() }, Err(Refusal::Scope)),
+        ("number zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
+        ("number past bound", Item { number: BOUNDS.landing_rules + 1, ..base.clone() }, Err(Refusal::Number)),
+        ("first segment", with_rule(LandingRule { pattern: wrong_first, ..valid.clone() }), Err(Refusal::Pattern)),
+        (
+            "empty pattern",
+            with_rule(LandingRule {
+                pattern: GatePattern { segments: Box::new([]), last: valid.pattern.last.clone() },
+                ..valid.clone()
+            }),
+            Err(Refusal::Pattern),
+        ),
+        (
+            "segments past bound",
+            with_rule(LandingRule {
+                pattern: GatePattern { segments: extra_segments.into_boxed(), last: valid.pattern.last.clone() },
+                ..valid.clone()
+            }),
+            Err(Refusal::Pattern),
+        ),
+        ("segment bytes", with_rule(LandingRule { pattern: long_segment, ..valid.clone() }), Err(Refusal::Pattern)),
+        (
+            "exact last bytes",
+            with_rule(LandingRule {
+                pattern: GatePattern {
+                    last: GateLast::Exact(Box::from(b"123456789".as_slice())),
+                    ..valid.pattern.clone()
+                },
+                ..valid.clone()
+            }),
+            Err(Refusal::Pattern),
+        ),
+        (
+            "open last bytes",
+            with_rule(LandingRule {
+                pattern: GatePattern {
+                    last: GateLast::Open(Box::from(b"123456789".as_slice())),
+                    ..valid.pattern.clone()
+                },
+                ..valid.clone()
+            }),
+            Err(Refusal::Pattern),
+        ),
+        (
+            "gates past bound",
+            with_rule(LandingRule {
+                gates: Box::new([GATE, RuleGate { number: 2, ..GATE }, RuleGate { number: 3, ..GATE }]),
+                ..valid.clone()
+            }),
+            Err(Refusal::Gates),
+        ),
+        ("gate twice", with_rule(LandingRule { gates: Box::new([GATE, GATE]), ..valid.clone() }), Err(Refusal::Gates)),
+        (
+            "approval no people",
+            with_rule(LandingRule { approvals: Box::new([RuleApproval { people: 0, ..APPROVAL }]), ..valid.clone() }),
+            Err(Refusal::Approvals),
+        ),
+        (
+            "role at bound",
+            with_rule(LandingRule {
+                approvals: Box::new([RuleApproval { role: BOUNDS.roles, ..APPROVAL }]),
+                ..valid.clone()
+            }),
+            Err(Refusal::Approvals),
+        ),
+        (
+            "role twice",
+            with_rule(LandingRule { approvals: Box::new([APPROVAL, APPROVAL]), ..valid.clone() }),
+            Err(Refusal::Approvals),
+        ),
+        (
+            "approvals past bound",
+            with_rule(LandingRule {
+                approvals: Box::new([
+                    APPROVAL,
+                    RuleApproval { role: 1, ..APPROVAL },
+                    RuleApproval { role: 2, ..APPROVAL },
+                ]),
+                ..valid
+            }),
+            Err(Refusal::Approvals),
+        ),
+        ("removal kind", Item { kind: u32::MAX, value: None, ..base.clone() }, Err(Refusal::Kind)),
+        ("removal scope", Item { scope: PROJECT, value: None, ..base.clone() }, Err(Refusal::Scope)),
+        ("removal number", Item { number: 0, value: None, ..base }, Err(Refusal::Number)),
+    ];
+    for (label, item, expected) in rows {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+}
+
+#[test]
+fn judge_reads_the_forge_charters() {
+    let goal = Item { kind: Kind::TemplateGoal.number(), scope: 0, number: 1, value: None };
+    for (design, close_out) in [(false, false), (false, true), (true, false), (true, true)] {
+        for number in [1, 33, 64] {
+            let item = Item { number, value: Some(Value::Goal(TemplateGoal { design, close_out })), ..goal.clone() };
+            assert_eq!(judge(&item, &BOUNDS), Ok(()), "{item:?}");
+        }
+    }
+    for (label, item, expected) in [
+        ("goal project scope", Item { scope: PROJECT, ..goal.clone() }, Err(Refusal::Scope)),
+        ("goal number zero", Item { number: 0, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal number past numbers", Item { number: 65, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal wrong value", Item { value: Some(Value::Charter(1)), ..goal.clone() }, Err(Refusal::Value)),
+        ("goal removal or reset", goal, Ok(())),
+    ] {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+    assert_eq!(Refusal::Charter.words().as_ref(), b"a charter outside 1 to 64, or the forge's charter removed");
+    let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
+    for number in [1, 2] {
+        let rows = [
+            ("first charter", base.clone(), Ok(())),
+            ("own charter", Item { value: Some(Value::Charter(33)), ..base.clone() }, Ok(())),
+            ("last charter", Item { value: Some(Value::Charter(64)), ..base.clone() }, Ok(())),
+            ("charter zero", Item { value: Some(Value::Charter(0)), ..base.clone() }, Err(Refusal::Charter)),
+            ("charter past bound", Item { value: Some(Value::Charter(65)), ..base.clone() }, Err(Refusal::Charter)),
+            ("remove charter", Item { value: None, ..base.clone() }, Err(Refusal::Charter)),
+            ("scope", Item { scope: 1, ..base.clone() }, Err(Refusal::Scope)),
+        ];
+        for (label, item, expected) in rows {
+            assert_eq!(judge(&Item { number, ..item }, &BOUNDS), expected, "{label}, number {number}");
+        }
+    }
+    let rows = [
+        ("number zero", Item { number: 0, ..base.clone() }, Refusal::Number),
+        ("number three", Item { number: 3, ..base.clone() }, Refusal::Number),
+        ("scope before number", Item { scope: 1, number: 0, ..base.clone() }, Refusal::Scope),
+        ("number before removal", Item { number: 3, value: None, ..base.clone() }, Refusal::Number),
+        ("number before value", Item { number: 0, value: Some(Value::Rule(main_rule())), ..base }, Refusal::Number),
+    ];
+    for (label, item, refusal) in rows {
+        assert_eq!(judge(&item, &BOUNDS), Err(refusal), "{label}");
+    }
+}
+
+#[test]
+fn judge_refuses_a_value_of_another_kind() {
+    let rows = [
+        Item { kind: 1, scope: 0, number: 1, value: Some(Value::Charter(1)) },
+        Item { kind: 2, scope: PROJECT, number: 1, value: Some(Value::Charter(1)) },
+        Item { kind: 3, scope: 0, number: 1, value: Some(Value::Rule(main_rule())) },
+    ];
+    for item in rows {
+        assert_eq!(judge(&item, &BOUNDS), Err(Refusal::Value), "{item:?}");
+    }
+}
+
+#[test]
+fn refusal_words_are_distinct() {
+    let refusals = [
+        Refusal::Kind,
+        Refusal::Scope,
+        Refusal::Number,
+        Refusal::Pattern,
+        Refusal::Gates,
+        Refusal::Approvals,
+        Refusal::Sets,
+        Refusal::SetNumber,
+        Refusal::SetTwice,
+        Refusal::DeploymentSets,
+        Refusal::Charter,
+        Refusal::Value,
+        Refusal::Words,
+    ];
+    for (at, refusal) in refusals.iter().enumerate() {
+        assert!(!refusal.words().is_empty(), "{refusal:?}");
+        for prior in refusals.iter().take(at) {
+            assert_ne!(refusal.words(), prior.words(), "{refusal:?} and {prior:?}");
+        }
+    }
+}
+
+#[test]
+fn requires_is_the_union_of_covering_rules() {
+    let rules = [held(PROJECT, FIRST_RULE, main_rule()), held(PROJECT, BOUNDS.landing_rules, goal_rule())];
+    let deployment = held(
+        0,
+        FIRST_RULE,
+        rule(
+            GatePattern { segments: Box::new([Box::from(b"forge".as_slice())]), last: GateLast::Open(Box::new([])) },
+            CI,
+        ),
+    );
+    let rows = [
+        ("main", Box::<[Held]>::from(rules.clone()), main_name(), BOTH),
+        ("goal", Box::from(rules.clone()), goal_name(), NEITHER),
+        ("deployment adds CI", Box::new([rules[0].clone(), rules[1].clone(), deployment]), goal_name(), CI),
+        (
+            "covering rules add up to date",
+            Box::new([
+                held(0, FIRST_RULE, LandingRule { ci: false, up_to_date: true, ..main_rule() }),
+                held(PROJECT, FIRST_RULE, LandingRule { ci: true, up_to_date: false, ..main_rule() }),
+            ]),
+            main_name(),
+            BOTH,
+        ),
+    ];
+    for (label, held, name, expected) in rows {
+        assert_eq!(requires(&held, &repository(), &name, crate::Touched::UNKNOWN), expected, "{label}");
+    }
+}
+
+#[test]
+fn requires_asks_both_where_no_rule_covers() {
+    let other = rule(branch_pattern(b"other", GateLast::Open(Box::new([]))), NEITHER);
+    let rows: [(&str, Box<[Held]>, Requires); 2] =
+        [("no rules", Box::new([]), BOTH), ("another repository", Box::new([held(PROJECT, FIRST_RULE, other)]), BOTH)];
+    for (label, held, expected) in rows {
+        assert_eq!(requires(&held, &repository(), &main_name(), crate::Touched::UNKNOWN), expected, "{label}");
+    }
+}
+
+#[test]
+fn requires_reads_rules_that_do_not_enforce() {
+    let rows = [
+        ("CI advice", LandingRule { enforce: false, ci: true, up_to_date: false, ..main_rule() }, CI),
+        (
+            "update advice",
+            LandingRule { enforce: false, ci: false, up_to_date: true, ..main_rule() },
+            Requires { ci: false, up_to_date: true },
+        ),
+        ("neither advice", LandingRule { enforce: false, ci: false, up_to_date: false, ..main_rule() }, NEITHER),
+    ];
+    for (label, rule, expected) in rows {
+        assert_eq!(
+            requires(&[held(PROJECT, FIRST_RULE, rule)], &repository(), &main_name(), crate::Touched::UNKNOWN),
+            expected,
+            "{label}"
+        );
+    }
+}
+
+#[test]
+fn a_projects_kinds_are_judged() {
+    use crate::settings::{ProjectWays, ProjectWords};
+    use temper_engine_domain_forge_change::Route;
+    use temper_protocol_reaches::{self as reaches, Classes, Way};
+    for (kind, expected) in [
+        (6, Value::Questions(Route::None)),
+        (8, Value::Classes(Classes::stock(Way::AgentsReview))),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, way: 0 })),
+    ] {
+        assert_eq!(crate::settings::project_stock(kind).unwrap().value, expected, "stock {kind}");
+    }
+    let invalid = Classes {
+        items: Box::new([reaches::Item {
+            subject: reaches::Subject::Kind(reaches::Kind::Money),
+            words: Box::new([]),
+            class: reaches::Class::Ask,
+        }]),
+        sets: Box::new([]),
+    };
+    let values = [
+        (6, Value::Questions(Route::None), Ok(())),
+        (6, Value::Questions(Route::Up), Ok(())),
+        (7, Value::Ways(ProjectWays { drafts: true, goals: false, changes: true, way: u32::MAX }), Ok(())),
+        (8, Value::Classes(Classes::stock(Way::AgentsReview)), Ok(())),
+        (8, Value::Classes(invalid), Err(Refusal::Classes(reaches::Refusal::Fixed { item: 1 }))),
+        (
+            10,
+            Value::ProjectWords(ProjectWords { headline: Box::new([b'h'; 120]), lede: Box::new([b'l'; 480]) }),
+            Ok(()),
+        ),
+    ];
+    for (kind, value, set_result) in values {
+        assert_eq!(Kind::of(kind).unwrap().number(), kind);
+        let base = Item { kind, scope: PROJECT, number: 1, value: Some(value) };
+        for (label, item, expected) in [
+            ("set", base.clone(), set_result),
+            ("scope", Item { scope: 0, ..base.clone() }, Err(Refusal::Scope)),
+            ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
+            ("two", Item { number: 2, ..base.clone() }, Err(Refusal::Number)),
+            ("charter", Item { value: Some(Value::Charter(1)), ..base.clone() }, Err(Refusal::Value)),
+            ("rule", Item { value: Some(Value::Rule(main_rule())), ..base.clone() }, Err(Refusal::Value)),
+            ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
+        ] {
+            assert_eq!(judge(&item, &BOUNDS), expected, "{kind}: {label}");
+        }
+        let other = if kind == 6 || kind == 8 {
+            Value::Ways(ProjectWays { drafts: false, goals: false, changes: false, way: 0 })
+        } else {
+            Value::Questions(Route::None)
+        };
+        assert_eq!(judge(&Item { value: Some(other), ..base }, &BOUNDS), Err(Refusal::Value));
+    }
+    let ways = Value::Ways(ProjectWays { drafts: true, goals: false, changes: false, way: 0 });
+    for (line, expected) in [
+        (Box::from([b'x'; 120].as_slice()), Ok(())),
+        (Box::from([b'x'; 121].as_slice()), Err(Refusal::Words)),
+        (Box::from(b"".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"line\nbreak".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"tab\t".as_slice()), Err(Refusal::Words)),
+        (Box::from("é\u{0085}".as_bytes()), Err(Refusal::Words)),
+        (Box::from(b"\xff".as_slice()), Err(Refusal::Words)),
+        (Box::from("é".as_bytes()), Ok(())),
+    ] {
+        let item = Item { kind: 9, scope: 0, number: 1, value: Some(Value::CharterWords(line)) };
+        assert_eq!(judge(&item, &BOUNDS), expected, "line {item:?}");
+    }
+    let base = Item { kind: 9, scope: 0, number: 1, value: Some(Value::CharterWords(Box::from(b"line".as_slice()))) };
+    assert_eq!(Kind::of(9).unwrap().number(), 9);
+    for (label, item, expected) in [
+        ("scope", Item { scope: PROJECT, ..base.clone() }, Err(Refusal::Scope)),
+        ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
+        ("own charter", Item { number: 33, ..base.clone() }, Ok(())),
+        ("last charter", Item { number: 64, ..base.clone() }, Ok(())),
+        ("past charters", Item { number: 65, ..base.clone() }, Err(Refusal::Number)),
+        ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
+        ("ways", Item { value: Some(ways.clone()), ..base }, Err(Refusal::Value)),
+        ("project ways", Item { kind: 10, scope: PROJECT, number: 1, value: Some(ways) }, Err(Refusal::Value)),
+    ] {
+        assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
+    }
+    for (headline, lede, expected) in [
+        (Box::from([b'h'; 120].as_slice()), Box::from([b'l'; 480].as_slice()), Ok(())),
+        (Box::from([b'h'; 121].as_slice()), Box::from(b"lede".as_slice()), Err(Refusal::Words)),
+        (Box::from(b"headline".as_slice()), Box::from([b'l'; 481].as_slice()), Err(Refusal::Words)),
+    ] {
+        let item = Item {
+            kind: 10,
+            scope: PROJECT,
+            number: 1,
+            value: Some(Value::ProjectWords(ProjectWords { headline, lede })),
+        };
+        assert_eq!(judge(&item, &BOUNDS), expected, "project words {item:?}");
+    }
+}
+
+pub(super) fn follow() -> crate::settings::Follow {
+    use crate::settings::{Follow, FollowCheck, FollowOwner, FollowSource, FollowStart, FollowTarget};
+    Follow {
+        source: FollowSource {
+            repository: skein_forge::api::Repository { forge: 1, repository: 13 },
+            branch: b"main".as_slice().into(),
+            paths: Box::new([b"src".as_slice().into(), b"include".as_slice().into()]),
+        },
+        target: FollowTarget {
+            repository: skein_forge::api::Repository { forge: 1, repository: 12 },
+            branch: b"main".as_slice().into(),
+        },
+        owner: FollowOwner::Person(4),
+        start: FollowStart::Owner,
+        producer: None,
+        check: FollowCheck {
+            workflow: b".forgejo/workflows/tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: temper_engine_domain_forge_tiers::Format::Junit,
+        },
+    }
+}
+
+#[test]
+fn follows_judge_numbers_paths_producers_and_checks_at_their_bounds() {
+    use crate::settings::FollowStart;
+    let base = follow();
+    let item = Item { kind: 12, scope: PROJECT, number: 1, value: Some(Value::Follow(base.clone())) };
+    assert_eq!(Kind::of(12), Some(Kind::Follow));
+    assert_eq!(Kind::Follow.number(), 12);
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { number: BOUNDS.follows, ..item.clone() }, &BOUNDS), Ok(()));
+    for number in [0, BOUNDS.follows + 1] {
+        assert_eq!(judge(&Item { number, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    }
+    assert_eq!(judge(&Item { scope: 0, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    assert_eq!(judge(&Item { value: Some(Value::Charter(1)), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    assert_eq!(judge(&Item { value: None, ..item.clone() }, &BOUNDS), Ok(()));
+    for (paths, expected) in [
+        (Box::<[Box<[u8]>]>::default(), Ok(())),
+        (Box::new([Box::<[u8]>::from([b'a'; 256])]), Ok(())),
+        (Box::new([Box::<[u8]>::from([b'a'; 257])]), Err(Refusal::FollowPath)),
+        (Box::new([b"a".as_slice().into(), b"b".as_slice().into(), b"c".as_slice().into()]), Err(Refusal::FollowPaths)),
+    ] {
+        let mut value = base.clone();
+        value.source.paths = paths;
+        assert_eq!(judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS), expected);
+    }
+    for path in [b"/src".as_slice(), b"src/", b"a//b", b""] {
+        let mut value = base.clone();
+        value.source.paths = Box::new([path.into()]);
+        assert_eq!(
+            judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS),
+            Err(Refusal::FollowPath),
+            "{path:?}"
+        );
+    }
+    for (producer, good) in [
+        (b"".as_slice(), true),
+        (b";;", true),
+        (b"6;3.1 0.0 2;3.0", true),
+        (b"6;3.1;", true),
+        (b"6", false),
+        (b"0;;", false),
+        (b"6;256;", false),
+        (b"6;3.256;", false),
+        (b"6;3  ;", false),
+        (b"6;;;", false),
+    ] {
+        let mut value = base.clone();
+        value.producer = Some(producer.into());
+        value.start = FollowStart::Code;
+        assert_eq!(
+            judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS),
+            if good { Ok(()) } else { Err(Refusal::FollowProducer) },
+            "{producer:?}"
+        );
+    }
+    for workflow in [true, false] {
+        for (length, good) in [(0, false), (256, true), (257, false)] {
+            let mut value = base.clone();
+            let member = if workflow { &mut value.check.workflow } else { &mut value.check.artifact };
+            *member = vec![b'x'; length].into_boxed_slice();
+            assert_eq!(
+                judge(&Item { value: Some(Value::Follow(value)), ..item.clone() }, &BOUNDS),
+                if good { Ok(()) } else { Err(Refusal::FollowCheck) }
+            );
+        }
+    }
+}
+
+#[test]
+fn dependencies_judge_the_scope_number_and_value_and_allow_no_value() {
+    let value = Value::Dependency(crate::settings::Dependency { project: 2 });
+    let item = Item { kind: 13, scope: PROJECT, number: 1, value: Some(value.clone()) };
+    assert_eq!(Kind::of(13), Some(Kind::Dependency));
+    assert_eq!(Kind::Dependency.number(), 13);
+    for (dependencies, accepted) in [(0, false), (1, true), (256, true), (257, false)] {
+        assert_eq!(crate::valid(&crate::Limits { dependencies, ..super::LIMITS }), accepted);
+    }
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { scope: 0, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    for number in [0, BOUNDS.dependencies + 1] {
+        assert_eq!(judge(&Item { number, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    }
+    assert_eq!(judge(&Item { number: BOUNDS.dependencies, ..item.clone() }, &BOUNDS), Ok(()));
+    for value in [Value::Dependency(crate::settings::Dependency { project: 0 }), Value::Charter(1)] {
+        assert_eq!(judge(&Item { value: Some(value), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    }
+    assert_eq!(judge(&Item { value: None, ..item }, &BOUNDS), Ok(()));
+}
+#[test]
+fn areas_are_judged_at_their_bounds_and_kept_removed_and_reset() {
+    use crate::settings::{Area, AreaOwner, Asked, Edit, Judged, ProjectAreas, ProjectTriager, SizedValue};
+    use skein_lib::Queue;
+    let good =
+        Area { name: b"tests".as_slice().into(), words: b"vsr's C tests".as_slice().into(), owner: AreaOwner::Role(0) };
+    let mut largest = List::with_capacity(16);
+    for n in 0_u8..16 {
+        let mut name = vec![b'a'; 32];
+        name[31] = b'a' + n;
+        largest
+            .push(Area { name: name.into_boxed_slice(), words: vec![b'w'; 480].into_boxed_slice(), ..good.clone() })
+            .expect("16 areas");
+    }
+    let mut twice = vec![good.clone(); 2];
+    twice[1].words = b"other words".as_slice().into();
+    let bad = [
+        vec![Area { name: b"Tests".as_slice().into(), ..good.clone() }],
+        vec![Area { name: vec![b'a'; 33].into_boxed_slice(), ..good.clone() }],
+        vec![Area { name: b"1tests".as_slice().into(), ..good.clone() }],
+        vec![Area { name: Box::new([]), ..good.clone() }],
+        twice,
+        vec![Area { words: Box::new([]), ..good.clone() }],
+        vec![Area { words: vec![b'w'; 481].into_boxed_slice(), ..good.clone() }],
+        vec![Area { words: b"a\nb".as_slice().into(), ..good.clone() }],
+        vec![good.clone(); 17],
+    ];
+    for areas in bad {
+        let named = areas[0].name.clone();
+        let item = Item {
+            kind: 14,
+            scope: PROJECT,
+            number: 1,
+            value: Some(Value::ProjectAreas(ProjectAreas { areas: areas.into_boxed_slice() })),
+        };
+        let refusal = judge(&item, &BOUNDS).expect_err("bad area");
+        let words = refusal.words();
+        assert!(words.starts_with(b"area "), "{words:?}");
+        if !named.is_empty() {
+            let mut found = false;
+            for window in words.windows(named.len()) {
+                found |= window == named.as_ref();
+            }
+            assert!(found);
+        }
+    }
+    let env = super::env();
+    let mut domain = super::domain();
+    let mut out = Queue::uncapped();
+    for (kind, value) in [
+        (14, Value::ProjectAreas(ProjectAreas { areas: largest.into_boxed() })),
+        (15, Value::ProjectTriager(ProjectTriager { owner: AreaOwner::Charter(14) })),
+    ] {
+        let value = SizedValue { value, size: 8468 };
+        let asked = Asked { kind, scope: PROJECT, number: 1, edit: Edit::Set(value.clone()) };
+        assert!(matches!(domain.judge_settings(&BOUNDS, core::slice::from_ref(&asked))[0], Judged::Accept { .. }));
+        domain.keep_settings(&env, 2, None, core::slice::from_ref(&asked), &mut out);
+        assert_eq!(domain.setting(kind, PROJECT, 1), Some(&value));
+        for edit in [Edit::Remove, Edit::Reset] {
+            let asked = Asked { edit, ..asked.clone() };
+            assert!(matches!(domain.judge_settings(&BOUNDS, core::slice::from_ref(&asked))[0], Judged::Accept { .. }));
+            domain.keep_settings(&env, 3, None, &[asked], &mut out);
+            assert_eq!(domain.setting(kind, PROJECT, 1), None);
+        }
+    }
+}
+
+#[path = "settings_agents.rs"]
+mod agents;
+fn landing_gates() -> crate::settings::ProjectGates {
+    crate::settings::ProjectGates {
+        repositories: Box::new([crate::RepositoryGates {
+            repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+            gates: Box::new([temper_engine_domain_forge_landing::Gate {
+                name: b"gate".as_slice().into(),
+                workflow: b"gate.yml".as_slice().into(),
+                ignored: Box::new([]),
+                blocking: true,
+                base: false,
+                report: Some(temper_engine_domain_forge_landing::GateReport {
+                    artifact: b"report".as_slice().into(),
+                    format: temper_engine_domain_forge_tiers::Format::Lines,
+                    fuzzy: Some(b"fuzzy_".as_slice().into()),
+                }),
+            }]),
+            tiers: Box::new([crate::Tier {
+                name: b"slow".as_slice().into(),
+                workflow: b"slow.yml".as_slice().into(),
+                ignored: Box::new([]),
+                artifact: b"report".as_slice().into(),
+                format: temper_engine_domain_forge_tiers::Format::Junit,
+                follows: crate::Follows::Goals,
+                span: Some(skein_lib::Duration::from_millis(5000)),
+                description: b"slow tests".as_slice().into(),
+            }]),
+        }]),
+    }
+}
+#[test]
+fn landing_fields_and_gate_names_are_judged() {
+    use crate::settings::{ProjectGates, ProjectLanding};
+    let default = ProjectLanding::default();
+    let mut batch_zero = default.clone();
+    batch_zero.batch = 0;
+    let mut batch_past = default.clone();
+    batch_past.batch = u16::try_from(BOUNDS.landing_members + 1).expect("tiny bound");
+    let mut timeout_low = default.clone();
+    timeout_low.check_timeout_ms = Some(999);
+    let mut timeout_high = default.clone();
+    timeout_high.check_timeout_ms = Some(86_400_001);
+    let mut gate_low = default.clone();
+    gate_low.gate_timeout_ms = 59_999;
+    let mut gate_high = default.clone();
+    gate_high.gate_timeout_ms = 86_400_001;
+    let mut attempts = default.clone();
+    attempts.landing_attempts = 0;
+    let mut job = default.clone();
+    job.merge_job = Some(b"tools/../merge".as_slice().into());
+    for (value, field) in [
+        (batch_zero, b"batch".as_slice()),
+        (batch_past, b"batch"),
+        (timeout_low, b"check_timeout_ms"),
+        (timeout_high, b"check_timeout_ms"),
+        (gate_low, b"gate_timeout_ms"),
+        (gate_high, b"gate_timeout_ms"),
+        (attempts, b"landing_attempts"),
+        (job, b"merge_job"),
+    ] {
+        let refusal = judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(value)) }, &BOUNDS)
+            .expect_err("invalid landing");
+        assert!(skein_lib::bytes::find(&refusal.words(), field).is_some());
+    }
+    assert_eq!(
+        judge(&Item { kind: 4, scope: PROJECT, number: 1, value: Some(Value::Landing(default)) }, &BOUNDS),
+        Ok(())
+    );
+    let valid = landing_gates();
+    let mut bad_name = valid.clone();
+    bad_name.repositories[0].gates[0].name = b"bad name".as_slice().into();
+    let duplicate =
+        ProjectGates { repositories: Box::new([valid.repositories[0].clone(), valid.repositories[0].clone()]) };
+    let mut tiers = valid.clone();
+    tiers.repositories[0].tiers =
+        Box::new([tiers.repositories[0].tiers[0].clone(), tiers.repositories[0].tiers[0].clone()]);
+    for (value, field) in [(bad_name, b"name".as_slice()), (duplicate, b"repository"), (tiers, b"tiers.name")] {
+        let refusal = judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(value)) }, &BOUNDS)
+            .expect_err("invalid gates");
+        assert!(skein_lib::bytes::find(&refusal.words(), field).is_some());
+    }
+    assert_eq!(judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(valid)) }, &BOUNDS), Ok(()));
+    for kind in [4, 5] {
+        assert_eq!(judge(&Item { kind, scope: PROJECT, number: 1, value: None }, &BOUNDS), Ok(()));
+    }
+}
+#[test]
+fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
+    use crate::settings::{CARRIER, gates_bytes, gates_record};
+    let bounds = Bounds { ignored_paths: 2000, name_bytes: 1024, ..BOUNDS };
+    let mut gates = landing_gates();
+    gates.repositories[0].tiers = Box::new([]);
+    gates.repositories[0].gates[0].report = None;
+    let before = gates_bytes(&gates).expect("small shape");
+    let remaining = CARRIER - before;
+    let mut paths = List::with_capacity(bounds.ignored_paths);
+    for _ in 0..remaining / 1028 {
+        paths.push(alloc::vec![b'x'; 1024].into_boxed_slice()).expect("bounded paths");
+    }
+    let remainder = remaining % 1028;
+    assert!(remainder > 4);
+    paths
+        .push(alloc::vec![b'x'; usize::try_from(remainder - 4).expect("small remainder")].into_boxed_slice())
+        .expect("bounded paths");
+    gates.repositories[0].gates[0].ignored = paths.into_boxed();
+    assert_eq!(gates_bytes(&gates), Some(CARRIER));
+    assert_eq!(gates_record(&gates).measure(), CARRIER, "judge counts the codec's bytes");
+    assert_eq!(
+        judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates.clone())) }, &bounds),
+        Ok(())
+    );
+    let path = gates.repositories[0].gates[0].ignored.last_mut().expect("tail path");
+    let mut bytes = skein_lib::Writer::new(path.len() + 1);
+    bytes.put(path).expect("tail path");
+    bytes.put(b"x").expect("one extra byte");
+    *path = bytes.finish();
+    let refusal = judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates)) }, &bounds)
+        .expect_err("carrier cap");
+    assert_eq!(refusal, Refusal::LandingCarrier);
+    assert!(skein_lib::bytes::find(&refusal.words(), b"repositories").is_some());
+    assert!(skein_lib::bytes::find(&refusal.words(), skein_lib::Decimal::of(u64::from(CARRIER)).as_bytes()).is_some());
+}
+
+fn limit_override(name: &[u8], reason: &[u8]) -> jig_domain_core_vocabulary::settings::Override {
+    jig_domain_core_vocabulary::settings::Override { name: name.into(), value: 16, reason: reason.into() }
+}
+fn limits_item(values: Box<[jig_domain_core_vocabulary::settings::Override]>) -> Item {
+    Item { kind: 22, scope: 0, number: 1, value: Some(Value::Limits(values)) }
+}
+#[test]
+fn limits_refuse_count() {
+    let item = limits_item(vec![limit_override(b"forge.entries", b"dev"); 257].into_boxed_slice());
+    let why = judge(&item, &BOUNDS).unwrap_err();
+    assert_eq!(why.words().as_ref(), b"more than 256 overrides");
+}
+#[test]
+fn limits_refuse_name_at_its_position() {
+    for name in [b"".as_slice(), b"Forge.entries", &[b'a'; 65]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: name must be 1 to 64 bytes of a-z, 0-9, _ or ."
+        );
+    }
+}
+#[test]
+fn limits_refuse_order_at_its_position() {
+    for name in [b"a".as_slice(), b"b"] {
+        let item = limits_item(Box::new([limit_override(b"b", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(judge(&item, &BOUNDS).unwrap_err().words().as_ref(), b"override 2: names must ascend");
+    }
+}
+#[test]
+fn limits_refuse_reason_at_its_position() {
+    for reason in [b"".as_slice(), b"\xff", &[b'a'; 121]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(b"b", reason)]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: reason must be 1 to 120 UTF-8 bytes"
+        );
+    }
+}
+#[test]
+fn limits_have_one_deployment_value_and_judge_shape_not_names_or_figures() {
+    assert_eq!(Kind::of(22), Some(Kind::Limits));
+    assert_eq!(Kind::Limits.number(), 22);
+    let item = limits_item(Box::new([limit_override(b"not.a.known.limit", "développement".as_bytes())]));
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { scope: 1, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    assert_eq!(judge(&Item { number: 2, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    assert_eq!(judge(&Item { value: Some(Value::Charter(1)), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    assert_eq!(judge(&Item { value: None, ..item }, &BOUNDS), Ok(()));
+    let mut values = List::with_capacity(256);
+    for n in 0_u32..256 {
+        values.push(limit_override(format!("limit.{n:03}").as_bytes(), &[b'r'; 120])).unwrap();
+    }
+    assert_eq!(judge(&limits_item(values.into_boxed()), &BOUNDS), Ok(()));
+}

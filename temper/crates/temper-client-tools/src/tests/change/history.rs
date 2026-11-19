@@ -21,36 +21,31 @@ fn query(root: &f::Harness, call: u32) -> w::HistoryRead {
         panic!("family read")
     };
     assert_eq!(*scope, c::Scope::Project(1));
-    let w::Read::History(query) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read else {
+    let w::Read::History(query) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read else {
         panic!("history read")
     };
-    assert_eq!(query.project(), 1);
-    let w::HistoryOf::Change(task) = query.of() else { panic!("change filter") };
-    assert_eq!(task.task(), 2);
-    assert_eq!(*query.since(), None);
-    assert_eq!(*query.until(), None);
+    assert_eq!(query.project, 1);
+    let w::HistoryOf::Change(task) = &query.of else { panic!("change filter") };
+    assert_eq!(task.task, 2);
+    assert_eq!(query.since, None);
+    assert_eq!(query.until, None);
     query
 }
 fn event(number: u64) -> w::HistoryEvent {
-    w::HistoryEvent::new(
-        &w::CEILINGS,
-        w::HistoryEventParts {
+    w::HistoryEvent {
             project: 1,
             number,
             at: 60_000_000_000,
             source_at: None,
             change: 2,
-            repository: w::HistoryRepository::new(&w::CEILINGS, w::HistoryRepositoryParts { forge: 3, repository: 4 })
-                .unwrap(),
+            repository: w::HistoryRepository { forge: 3, repository: 4 },
             landing: None,
             head: None,
             base: None,
             operation: number,
             attempt: 0,
             what: w::HistoryWhat::Ready,
-        },
-    )
-    .unwrap()
+        }
 }
 fn cursor(number: u64) -> [u8; 17] {
     let mut bytes = skein_lib::Writer::new(17);
@@ -60,7 +55,7 @@ fn cursor(number: u64) -> [u8; 17] {
     bytes.finish().as_ref().try_into().unwrap()
 }
 fn reply(root: &mut f::Harness, call: u32, result: w::HistoryReply) {
-    let answer = w::HistoryAnswer::new(&w::CEILINGS, w::HistoryAnswerParts { result }).unwrap();
+    let answer = w::HistoryAnswer { result };
     root.serve_readout(
         call,
         client::Readout::Family { family: wire::FORGE, record: Some(wire::history_answer(&answer)) },
@@ -75,17 +70,16 @@ fn page(root: &mut f::Harness, call: u32, numbers: core::ops::Range<u64>, after:
         root,
         call,
         w::HistoryReply::Page(
-            w::HistoryPage::new(&w::CEILINGS, w::HistoryPageParts { events, after, upper: 20, whole_since: None })
-                .unwrap(),
+            w::HistoryPage { events, after, upper: 20, whole_since: None },
         ),
     );
 }
 fn eleven(json: bool) -> crate::jig::Printed {
     let (mut root, call) = missing(json);
-    assert_eq!(*query(&root, call).after(), None);
+    assert_eq!(query(&root, call).after, None);
     page(&mut root, call, 1..6, Some(cursor(5)));
     assert!(root.answer(call).is_none(), "read every page, not only the first");
-    assert_eq!(*query(&root, call).after(), Some(cursor(5)));
+    assert_eq!(query(&root, call).after, Some(cursor(5)));
     page(&mut root, call, 6..12, None);
     assert!(root.family_reads.is_empty());
     root.answer(call).expect("history ends the read")
@@ -159,7 +153,7 @@ fn sixteen_pages_stop_the_read_and_name_the_remaining_history_before_the_command
     page(&mut root, call, 0..0, Some(cursor(1)));
     assert!(root.answer(call).is_none());
     for number in 2..=16 {
-        assert_eq!(*query(&root, call).after(), Some(cursor(number - 1)));
+        assert_eq!(query(&root, call).after, Some(cursor(number - 1)));
         page(&mut root, call, number..number + 1, Some(cursor(number)));
     }
     let answer = root.answer(call).expect("bounded at sixteen pages");

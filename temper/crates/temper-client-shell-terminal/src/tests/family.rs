@@ -68,9 +68,7 @@ fn an_adoption_round_trips_through_the_family_record() {
 fn adopted(protection: w::Protection) -> w::Outcome {
     let limits = fixtures::wire_limits();
     w::Outcome::Adopted(
-        w::Adopted::new(
-            &limits,
-            w::AdoptedParts {
+        w::Adopted {
                 landing: b"main".as_slice().into(),
                 forge: 1,
                 repository: 7,
@@ -78,9 +76,7 @@ fn adopted(protection: w::Protection) -> w::Outcome {
                 name: Box::from(*b"shop"),
                 role: w::Role::Owned,
                 home: true,
-                kinds: w::Kinds::new(
-                    &limits,
-                    w::KindsParts {
+                kinds: w::Kinds {
                         read: true,
                         push: false,
                         open: true,
@@ -91,12 +87,8 @@ fn adopted(protection: w::Protection) -> w::Outcome {
                         issue: false,
                         branch: true,
                     },
-                )
-                .expect("kinds fit"),
                 protection,
             },
-        )
-        .expect("adopted fits"),
     )
 }
 fn protection_rule() -> w::Protection {
@@ -104,26 +96,21 @@ fn protection_rule() -> w::Protection {
     let mut contexts = skein_lib::List::with_capacity(1);
     contexts.push(Box::from(*b"check")).expect("one context");
     w::Protection::Rule(
-        w::Rule::new(
-            &limits,
-            w::RuleParts { branch: Box::from(*b"main"), contexts, approvals: 2, dismiss_stale: true },
-        )
-        .expect("rule fits"),
+        w::Rule { branch: Box::from(*b"main"), contexts, approvals: 2, dismiss_stale: true },
     )
 }
 fn answer(outcome: w::Outcome) -> jig_client::Family {
-    let record = w::Answer::new(&fixtures::wire_limits(), w::AnswerParts { outcome }).expect("outcome fits");
+    let record = w::Answer { outcome };
     jig_client::Family { family: FORGE, version: CLIENT_VERSION, bytes: wire::answer(&record) }
 }
 fn refused(reason: w::ForgeReason) -> w::Outcome {
     w::Outcome::ForgeRefused(
-        w::ForgeRefused::new(&fixtures::wire_limits(), w::ForgeRefusedParts { reason }).expect("reason fits"),
+        w::ForgeRefused { reason },
     )
 }
 fn outcome_rows() -> [(&'static str, w::Outcome, forge::Answer); 13] {
     let core = w::Outcome::CoreRefused(
-        w::CoreRefused::new(&fixtures::wire_limits(), w::CoreRefusedParts { refusal: fixtures::core_refusal() })
-            .expect("core refusal fits"),
+        w::CoreRefused { refusal: fixtures::core_refusal() },
     );
     [
         (
@@ -181,7 +168,7 @@ fn setup_outcomes_are_undecodable_for_an_adoption() {
     for outcome in [
         w::Outcome::SettingUp,
         w::Outcome::SetUpRefused(
-            w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).expect("refusal"),
+            w::SetUpRefused { why: w::SetUpRefusal::Busy },
         ),
     ] {
         assert_eq!(family::answer(&answer(outcome), &limits, &fixtures::link_limits()), None);

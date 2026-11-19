@@ -317,28 +317,20 @@ fn shared_finding_refusal_says_full_and_context_free_owners_and_areas() {
     use temper_client_protocol_wire::v1 as w;
     let words = Words::english(1, 4096, crate::words::Shell::Browser).expect("English");
     let full =
-        w::FindingRefusal::Full(w::FindingsFull::new(&w::CEILINGS, w::FindingsFullParts { count: 128 }).expect("full"));
+        w::FindingRefusal::Full(w::FindingsFull { count: 128 });
     assert_eq!(shared::finding_refusal(&words, &full).as_ref(), b"the project's findings are full: 128 new");
     let areas = w::FindingRefusal::NoArea(
-        w::FindingAreas::new(
-            &w::CEILINGS,
-            w::FindingAreasParts {
+        w::FindingAreas {
                 areas: List::from_boxed(Box::new([b"tests".as_slice().into(), b"core".as_slice().into()])),
             },
-        )
-        .expect("areas"),
     );
     assert_eq!(shared::finding_refusal(&words, &areas).as_ref(), b"No such area; its areas: tests, core");
     let held = w::FindingRefusal::NotYours(
-        w::FindingNotYours::new(
-            &w::CEILINGS,
-            w::FindingNotYoursParts {
+        w::FindingNotYours {
                 holder: w::Holder::Task(
-                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 41 }).expect("task"),
+                    w::HolderTask { number: 41 },
                 ),
             },
-        )
-        .expect("holder"),
     );
     assert_eq!(shared::finding_refusal(&words, &held).as_ref(), b"Not yours: its owner is task 41");
 }

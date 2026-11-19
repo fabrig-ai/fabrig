@@ -115,16 +115,12 @@ fn project_rows(count: u32, repository: &[u8]) -> List<temper_client_protocol_wi
     for _ in 0..count {
         row.repositories
             .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts { owner: b"work".as_slice().into(), name: repository.into(), project: f::PROJECT },
-                )
-                .unwrap(),
+                w::Adoption { owner: b"work".as_slice().into(), name: repository.into(), project: f::PROJECT },
             )
             .unwrap();
     }
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     rows
 }
 
@@ -898,7 +894,7 @@ fn settings_carries_both_forge_and_account_marks() {
             b"an account is limited".as_slice(),
         ),
         (
-            w::Connection::Stopped(w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: Box::default() }).unwrap()),
+            w::Connection::Stopped(w::Stopped { reason: Box::default() }),
             AccountState::SignInAgain,
             look::NAV_NEEDS,
             b"a forge needs you".as_slice(),
@@ -1339,7 +1335,7 @@ fn linked_rows() -> List<temper_client_protocol_wire::v1::ForgeRow> {
     let adopted = project_rows(1, b"hello");
     row.repositories = adopted.get(0).unwrap().clone().into_parts().repositories;
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     rows
 }
 #[test]

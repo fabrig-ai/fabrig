@@ -1,4 +1,5 @@
 //! Public reader steps (temper/docs/design/client/web/public.md, 4).
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     address::Public,
     public::{Doc, Heard, PublicEvent, PublicLimits, PublicRead, Reader, Shown},
@@ -176,13 +177,9 @@ fn board() -> Box<[u8]> {
     writer.finish()
 }
 fn landings() -> Box<[u8]> {
-    let record = forge::PublicLandings::new(
-        &forge::CEILINGS,
-        forge::PublicLandingsParts { turn: None, landings: List::with_capacity(0), queues: List::with_capacity(0) },
-    )
-    .expect("landings");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("small record"));
-    record.encode(&mut writer).expect("record");
+    let record = forge::PublicLandings { turn: None, landings: List::with_capacity(0), queues: List::with_capacity(0) };
+    let mut writer = Writer::new(usize::try_from(record.measure(&forge::CEILINGS).expect("within ceilings")).expect("small record"));
+    record.write(&forge::CEILINGS, &mut writer).expect("record");
     let record = jig::PublicApplication::new(
         &jig::CEILINGS,
         jig::PublicApplicationParts { tasks: List::with_capacity(0), record: writer.finish() },

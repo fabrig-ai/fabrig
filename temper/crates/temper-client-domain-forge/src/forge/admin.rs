@@ -1,4 +1,5 @@
 //! A managed forge, its one-shot admin token and first repository (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
+use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
@@ -255,10 +256,10 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     let bounds = super::wire_limits(&limits).expect("checked limits");
     let target = if let Some(place) = place {
         let forges::Managed { host, port, tls, git, web } = place;
-        let provided = w::ManagedForgeParts { host, port, tls, git, web, git_program: None };
-        let value = w::ManagedForge::new(&bounds, provided);
+        let provided = w::ManagedForge { host, port, tls, git, web, git_program: None };
+        let value = { let value = provided; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
         let Ok(value) = value else { return };
-        let Ok(new) = w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Managed(value) }) else {
+        let Ok(new) = ({ let value = w::NewForge { forge: w::ForgeAsk::Managed(value) }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
             return;
         };
         forges::new_record(side, forges::Kind::Forgejo, forges::Mode::Managed);
@@ -268,27 +269,24 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         target
     };
     let draft = &mut side.admin_form;
-    let first = w::FirstAsk::new(
-        &bounds,
-        w::FirstAskParts {
+    let first = { let value = w::FirstAsk {
             org: draft.fields[0].clone(),
             repository: draft.fields[1].clone(),
             label: draft.fields[2].clone(),
-        },
-    );
+        }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
     let Ok(first) = first else {
         side.changed();
         return;
     };
     let how = w::How::ForgejoAdmin(
-        w::ForgejoAdmin::new(&bounds, w::ForgejoAdminParts { first: Some(first) }).expect("first fits"),
+        w::ForgejoAdmin { first: Some(first) },
     );
     let request =
-        w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge: target, how }).expect("connect fits"));
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).expect("request fits");
+        w::Request::Connect(w::Connect { forge: target, how });
+    let record = w::Requesting { request };
     let request = Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).expect("request fits") },
     };
     let token = draft.token.take().expect("validated token");
     let value = forges::pasted_admin_token(token.expose()).expect("validated token fits pasted record");
@@ -301,15 +299,11 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     );
     side.set_up = Some(Box::new(forges::SetUp {
         first: w::SetUpFirst::Empty(
-            w::FirstEmpty::new(
-                &bounds,
-                w::FirstEmptyParts {
+            w::FirstEmpty {
                     playground: false,
                     org: draft.fields[0].clone(),
                     repository: draft.fields[1].clone(),
                 },
-            )
-            .expect("validated first repository"),
         ),
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         request: skein_lib::Token::new(side.serial),

@@ -1,4 +1,5 @@
 //! The rail's rules and domain facts (temper/docs/design/client/view.md, 3).
+use temper_client_protocol_wire::v1::Record;
 use super::{
     fixtures as f,
     welcome::{deliver, event, up},
@@ -165,24 +166,16 @@ fn project_domain(second: Option<c::PartyKind>) -> Domain {
                 jig_client::UnlinkedRequest::Down { down: Down::Read { read, what: Readable::Family { record, .. } } },
         } = request
             && let w::Read::Setting(setting) =
-                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("reading").read()
-            && (setting.kind() == 7 || setting.kind() == 8)
+                &wire::decode_reading(&record.bytes, &w::CEILINGS).expect("reading").read
+            && (setting.kind == 7 || setting.kind == 8)
         {
-            let ways = w::ProjectWays::new(
-                &w::CEILINGS,
-                w::ProjectWaysParts { drafts: true, goals: false, changes: false, way: 0 },
-            )
-            .expect("ways");
-            let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways size"));
-            ways.encode(&mut writer).expect("ways bytes");
-            let answer = w::SettingAnswer::new(
-                &w::CEILINGS,
-                w::SettingAnswerParts {
+            let ways = w::ProjectWays { drafts: true, goals: false, changes: false, way: 0 };
+            let mut writer = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways size"));
+            ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("ways bytes");
+            let answer = w::SettingAnswer {
                     revision: None,
-                    value: if setting.kind() == 7 { Some(writer.finish()) } else { None },
-                },
-            )
-            .expect("answer");
+                    value: if setting.kind == 7 { Some(writer.finish()) } else { None },
+                };
             up(
                 &mut root,
                 Up::ReadDone {

@@ -20,22 +20,16 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
     for number in 1..=wire::GATES {
         gates
             .push(
-                w::Gate::new(
-                    &limits,
-                    w::GateParts {
+                w::Gate {
                         number: u64::from(number),
                         kind: w::GateKind::Review,
                         blocks: true,
                         verdict: w::Verdict::Approved,
                     },
-                )
-                .expect("gate"),
             )
             .expect("bounded gates");
     }
-    w::ChangePanel::new(
-        &limits,
-        w::ChangePanelParts {
+    w::ChangePanel {
             wait: None,
             source: None,
             way: w::Way::Queue,
@@ -48,8 +42,7 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
             landing: field(b'l', limits.change_panel_landing),
             head: Some([0x39; 32]),
             pull: Some(
-                w::Pull::new(&limits, w::PullParts { number: 23, address: field(b'a', limits.pull_address) })
-                    .expect("pull"),
+                w::Pull { number: 23, address: field(b'a', limits.pull_address) },
             ),
             step,
             hold: Some(w::Hold::Moved),
@@ -59,29 +52,23 @@ pub fn panel(task: u64, step: w::Step) -> w::ChangePanel {
             approvals: List::with_capacity(0),
             unmapped_reviews: List::with_capacity(0),
             gates,
-            repairs: w::Used::new(&limits, w::UsedParts { used: 1, limit: 2 }).expect("repairs"),
-            resolutions: w::Used::new(&limits, w::UsedParts { used: 3, limit: 4 }).expect("resolutions"),
-            updates: w::Used::new(&limits, w::UsedParts { used: 5, limit: 6 }).expect("updates"),
-            questions: w::Questions::new(
-                &limits,
-                w::QuestionsParts {
+            repairs: w::Used { used: 1, limit: 2 },
+            resolutions: w::Used { used: 3, limit: 4 },
+            updates: w::Used { used: 5, limit: 6 },
+            questions: w::Questions {
                     route: w::Route::None,
-                    taken: w::Used::new(&limits, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
+                    taken: w::Used { used: 0, limit: 4 },
                     open: List::with_capacity(0),
                 },
-            )
-            .expect("no questions"),
-        },
-    )
-    .expect("panel")
+        }
 }
 pub fn queued() -> w::Step {
-    let limits = forge::wire_limits(&limits().forge).expect("wire limits");
+
     let mut ahead = List::with_capacity(wire::TASKS_AHEAD);
     for task in 1..=wire::TASKS_AHEAD {
         ahead.push(u64::from(task)).expect("tasks ahead");
     }
-    w::Step::Queued(w::Queued::new(&limits, w::QueuedParts { place: 65, ahead }).expect("queued"))
+    w::Step::Queued(w::Queued { place: 65, ahead })
 }
 
 fn field(byte: u8, count: u32) -> Box<[u8]> {

@@ -1172,9 +1172,9 @@ fn another_partys_home_shows_nothing() {
     assert!(story.facts(other).decided.is_none(), "another member sees no decision form");
     story.probes[other.0].answers.clear();
     let bounds = &w::CEILINGS;
-    let overturn = w::Overturn::new(bounds, w::OverturnParts { project: PROJECT, number: 1 }).expect("overturn");
+    let overturn = w::Overturn { project: PROJECT, number: 1 };
     let requesting =
-        w::Requesting::new(bounds, w::RequestingParts { request: w::Request::Overturn(overturn) }).expect("request");
+        w::Requesting { request: w::Request::Overturn(overturn) };
     story.event(
         other,
         Event::Client {

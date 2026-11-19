@@ -10,9 +10,7 @@ pub const GITHUB: u16 = 2;
 
 #[must_use]
 pub fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, offer: w::Offer) -> w::ForgeRow {
-    w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
+    w::ForgeRow {
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -31,9 +29,7 @@ pub fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection,
             admin: false,
             read_only: false,
             ended_stop: None,
-        },
-    )
-    .unwrap()
+        }
 }
 
 #[must_use]
@@ -48,7 +44,7 @@ pub fn rows(connection: w::Connection, offer: w::Offer) -> List<w::ForgeRow> {
 #[must_use]
 pub fn connected() -> w::Connection {
     w::Connection::Connected(
-        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
+        w::Connected { id: 42, login: b"temper".as_slice().into() },
     )
 }
 
@@ -116,8 +112,8 @@ pub fn reread_deployment(root: &mut d::Domain, me: skein_lib::Token, owned: bool
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                == &w::Read::Deployment
+            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+                == w::Read::Deployment
         {
             f::deliver_deployment(root, read, true, owned);
             return;
@@ -166,7 +162,7 @@ pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event 
                     family: temper_client_protocol_wire::FORGE,
                     version: temper_client_protocol_wire::CLIENT_VERSION,
                     bytes: temper_client_protocol_wire::answer(
-                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap(),
+                        &w::Answer { outcome },
                     ),
                 })),
             },
@@ -176,22 +172,16 @@ pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event 
 
 #[must_use]
 pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::ForgeRow> {
-    let first = w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
+    let first = w::FirstRepository {
             playground: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,
             label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .unwrap();
+        };
     let mut rows = List::with_capacity(1);
     rows.push(
-        w::ForgeRow::new(
-            &w::CEILINGS,
-            w::ForgeRowParts {
+        w::ForgeRow {
                 starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
                 host: b"git.example:3000".as_slice().into(),
@@ -211,8 +201,6 @@ pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::Fo
                 read_only: false,
                 ended_stop: None,
             },
-        )
-        .unwrap(),
     )
     .unwrap();
     rows
@@ -229,7 +217,7 @@ pub fn deliver(root: &mut d::Domain, watch: skein_lib::Token, rows: List<w::Forg
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
                         bytes: temper_client_protocol_wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
+                            &w::Forges { forges: rows, linked: false },
                         ),
                     },
                 },
@@ -240,7 +228,7 @@ pub fn deliver(root: &mut d::Domain, watch: skein_lib::Token, rows: List<w::Forg
 
 #[must_use]
 pub fn made() -> w::FirstState {
-    w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap())
+    w::FirstState::Made(w::Made { id: 42 })
 }
 
 #[must_use]
@@ -250,46 +238,38 @@ pub fn github_rows(accepted: bool) -> List<w::ForgeRow> {
         w::Kind::Github,
         w::Mode::Connected,
         w::Connection::Connected(
-            w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 9, login: b"my-app[bot]".as_slice().into() })
-                .unwrap(),
+            w::Connected { id: 9, login: b"my-app[bot]".as_slice().into() },
         ),
         w::Offer::NotOffered,
     )
-    .into_parts();
+    ;
     row.ended = Some(
-        w::ConnectStopped::new(&w::CEILINGS, w::ConnectStoppedParts { why: b"fixture stopped".as_slice().into() })
-            .unwrap(),
+        w::ConnectStopped { why: b"fixture stopped".as_slice().into() },
     );
     row.installations = List::with_capacity(3);
     if accepted {
         row.installations
             .push(
-                w::Installation::new(
-                    &w::CEILINGS,
-                    w::InstallationParts {
+                w::Installation {
                         id: 1,
                         account: Some(
-                            w::Account::new(&w::CEILINGS, w::AccountParts { id: 10, login: b"acme".as_slice().into() })
-                                .unwrap(),
+                            w::Account { id: 10, login: b"acme".as_slice().into() },
                         ),
                         suspended: false,
                         stray: false,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
     for (id, suspended, stray) in [(2, true, !accepted), (3, false, true)] {
         row.installations
             .push(
-                w::Installation::new(&w::CEILINGS, w::InstallationParts { id, account: None, suspended, stray })
-                    .unwrap(),
+                w::Installation { id, account: None, suspended, stray },
             )
             .unwrap();
     }
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+    rows.push(row).unwrap();
     rows
 }
 
@@ -309,16 +289,12 @@ pub fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static str); 6] 
     let rows = |at| {
         first_rows(
             w::Connection::SetUpFailed(
-                w::SetUpFailed::new(
-                    &w::CEILINGS,
-                    w::SetUpFailedParts {
+                w::SetUpFailed {
                         why: "its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest."
                             .as_bytes()
                             .into(),
                         at,
                     },
-                )
-                .unwrap(),
             ),
             w::FirstState::Making,
         )
@@ -348,7 +324,7 @@ pub fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static str); 6] 
             first_rows(
                 w::Connection::Connecting,
                 w::FirstState::Failed(
-                    w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::File }).unwrap(),
+                    w::CreateFailed { step: w::CreateStep::File },
                 ),
             ),
             Some(4),
@@ -395,21 +371,17 @@ pub fn failed_progress(tree: &skein_ui::Tree, failed: Option<usize>, why: &str) 
 
 #[must_use]
 pub fn pinned_rows(connection: w::Connection, pins: bool, runner: bool) -> List<w::ForgeRow> {
-    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
+    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered);
     if pins {
         parts.owned = Some(
-            w::OwnedForge::new(
-                &w::CEILINGS,
-                w::OwnedForgeParts {
+            w::OwnedForge {
                     forgejo: b"17.0.0".as_slice().into(),
                     runner: runner.then(|| b"11.2.1".as_slice().into()),
                     password: b"/fake/first-password".as_slice().into(),
                 },
-            )
-            .unwrap(),
         );
     }
     let mut rows = List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    rows.push(parts).unwrap();
     rows
 }

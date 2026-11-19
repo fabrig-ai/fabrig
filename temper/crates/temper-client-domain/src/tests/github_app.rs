@@ -80,14 +80,14 @@ fn carried(pem: &[u8]) -> Secret {
             assert!(skein_lib::bytes::find(&record.bytes, pem).is_none());
             let bounds = forge::wire_limits(&f::limits().forge).unwrap();
             let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &bounds).unwrap().into_parts().request
+                wire::decode_requesting(&record.bytes, &bounds).unwrap().request
             else {
                 panic!("Connect")
             };
-            let w::Making::Kept(kept) = connect.forge() else { panic!("kept forge") };
-            assert_eq!(kept.forge(), 2);
-            let w::How::GithubApp(app) = connect.how() else { panic!("pasted App") };
-            assert_eq!(app.id(), 7);
+            let w::Making::Kept(kept) = &connect.forge else { panic!("kept forge") };
+            assert_eq!(kept.forge, 2);
+            let w::How::GithubApp(app) = &connect.how else { panic!("pasted App") };
+            assert_eq!(app.id, 7);
             carried = Some(value);
         }
     }
@@ -201,15 +201,11 @@ fn each_forge_refusal_is_said_in_forge_md_words() {
                 attempt = Some(sent);
             }
         }
-        let record = w::Answer::new(
-            &w::CEILINGS,
-            w::AnswerParts {
+        let record = w::Answer {
                 outcome: w::Outcome::ConnectRefused(
-                    w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why }).unwrap(),
+                    w::ConnectRefused { why },
                 ),
-            },
-        )
-        .unwrap();
+            };
         event(
             &mut root,
             Event::Client {
@@ -341,11 +337,11 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
             assert!(value.is_none());
             let jig_client::Ask::Family { record, .. } = request else { panic!("family") };
             let w::Request::Install(install) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("Install")
             };
-            assert_eq!(install.back().as_deref(), Some(b"/forges/connect?forge=2".as_slice()));
+            assert_eq!(install.back.as_deref(), Some(b"/forges/connect?forge=2".as_slice()));
         }
     }
     let attempt = attempt.unwrap();
@@ -353,19 +349,11 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
         bytes: wire::answer(
-            &w::Answer::new(
-                &w::CEILINGS,
-                w::AnswerParts {
+            &w::Answer {
                     outcome: w::Outcome::Link(
-                        w::Link::new(
-                            &w::CEILINGS,
-                            w::LinkParts { address: b"https://fake.invalid/install".as_slice().into() },
-                        )
-                        .unwrap(),
+                        w::Link { address: b"https://fake.invalid/install".as_slice().into() },
                     ),
                 },
-            )
-            .unwrap(),
         ),
     });
     let up = jig_client::Up::Answer {

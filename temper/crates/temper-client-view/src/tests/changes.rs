@@ -28,9 +28,7 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
     for index in 0..count {
         changes
             .push(
-                w::ChangesQueued::new(
-                    &w::CEILINGS,
-                    w::ChangesQueuedParts {
+                w::ChangesQueued {
                         goal: None,
                         chat: None,
                         milestone: None,
@@ -43,23 +41,17 @@ fn queue(repository: &[u8], branch: &[u8], count: u32, red: bool) -> w::ChangesQ
                         ready_since: SIX_MIN_AGO,
                         checks_since: if index == 0 { Some(SIX_MIN_AGO) } else { None },
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
-    w::ChangesQueue::new(
-        &w::CEILINGS,
-        w::ChangesQueueParts {
+    w::ChangesQueue {
             way: w::Way::Queue,
             in_flight: None,
             repository: repository.into(),
             branch: branch.into(),
             red,
             changes,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) -> w::ChangesPanel {
@@ -71,9 +63,7 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
     if landed {
         recent
             .push(
-                w::ChangesLanded::new(
-                    &w::CEILINGS,
-                    w::ChangesLandedParts {
+                w::ChangesLanded {
                         goal: None,
                         chat: None,
                         milestone: None,
@@ -84,14 +74,10 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
                         title: b"A landed change".as_slice().into(),
                         at: SIX_MIN_AGO,
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
+    w::ChangesPanel {
             landed_default: List::with_capacity(0),
             landed_default_more: 0,
             project: f::PROJECT,
@@ -100,9 +86,7 @@ fn panel(queues: &[w::ChangesQueue], more: u32, landed: bool, landing: &[u8]) ->
             more,
             landed: recent,
             landed_more: 14,
-        },
-    )
-    .unwrap()
+        }
 }
 
 fn event(root: &mut Domain, event: Event) -> Queue<Request> {
@@ -302,21 +286,17 @@ fn rows_link_to_tasks_show_arriving_origins_and_put_more_last_without_a_link() {
     for row in queue_parts.changes.into_boxed() {
         let mut row = row.into_parts();
         row.chat = Some(
-            w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task: 6, title: b"chat".as_slice().into() }).unwrap(),
+            w::ChangeFrom { task: 6, title: b"chat".as_slice().into() },
         );
         if row.task == FIRST {
             row.goal = Some(
-                w::ChangeFrom::new(
-                    &w::CEILINGS,
-                    w::ChangeFromParts { task: 7, title: b"first-run-projects".as_slice().into() },
-                )
-                .unwrap(),
+                w::ChangeFrom { task: 7, title: b"first-run-projects".as_slice().into() },
             );
         }
-        changes.push(w::ChangesQueued::new(&w::CEILINGS, row).unwrap()).unwrap();
+        changes.push(row).unwrap();
     }
     queue_parts.changes = changes;
-    show(&mut root, watch, &panel(&[w::ChangesQueue::new(&w::CEILINGS, queue_parts).unwrap()], 5, true, b"main"));
+    show(&mut root, watch, &panel(&[queue_parts], 5, true, b"main"));
     let mut view = view(&root, true);
     assert_eq!(skein_ui::outline::check(view.tree()), None);
     let text = f::main_text(view.tree());
@@ -450,9 +430,7 @@ fn a_searching_train_shows_probing_at_its_prefix() {
         let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
         busy.way = w::Way::Turn;
         busy.in_flight = Some(
-            w::TrainLanding::new(
-                &w::CEILINGS,
-                w::TrainLandingParts {
+            w::TrainLanding {
                     goal: None,
                     chat: None,
                     milestone: None,
@@ -464,10 +442,8 @@ fn a_searching_train_shows_probing_at_its_prefix() {
                     title: b"In flight".as_slice().into(),
                     ready_since: SIX_MIN_AGO,
                 },
-            )
-            .unwrap(),
         );
-        let value = panel(&[w::ChangesQueue::new(&w::CEILINGS, busy).unwrap()], 0, false, b"main");
+        let value = panel(&[busy], 0, false, b"main");
         let (mut root, watch) = opened();
         show(&mut root, watch, &value);
         let text = main_words(&root);
@@ -481,9 +457,7 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
     let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
     busy.way = w::Way::Turn;
     busy.in_flight = Some(
-        w::TrainLanding::new(
-            &w::CEILINGS,
-            w::TrainLandingParts {
+        w::TrainLanding {
                 goal: None,
                 chat: None,
                 milestone: None,
@@ -495,13 +469,11 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
                 title: b"In flight".as_slice().into(),
                 ready_since: SIX_MIN_AGO,
             },
-        )
-        .unwrap(),
     );
     let mut waiting = busy.changes.get(0).unwrap().clone().into_parts();
     waiting.title = b"Waiting behind".as_slice().into();
     waiting.checks_since = None;
-    busy.changes = List::from_boxed(Box::new([w::ChangesQueued::new(&w::CEILINGS, waiting).unwrap()]));
+    busy.changes = List::from_boxed(Box::new([waiting]));
     let mut free = queue(b"work/hello", b"release", 2, false).into_parts();
     free.way = w::Way::Turn;
     for (index, title) in [(0, b"First waiting".as_slice()), (1, b"Second waiting".as_slice())] {
@@ -509,10 +481,10 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
         row.title = title.into();
         row.task = 71 + u64::from(index);
         row.checks_since = None;
-        *free.changes.get_mut(index).unwrap() = w::ChangesQueued::new(&w::CEILINGS, row).unwrap();
+        *free.changes.get_mut(index).unwrap() = row;
     }
     let value = panel(
-        &[w::ChangesQueue::new(&w::CEILINGS, busy).unwrap(), w::ChangesQueue::new(&w::CEILINGS, free).unwrap()],
+        &[busy, free],
         0,
         false,
         b"main",

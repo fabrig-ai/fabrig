@@ -119,11 +119,7 @@ impl DraftsPage {
                         for (chat, goal, at) in [(TASK, 40, 1), (TASK, 41, 2), (TASK, DRAFT_GOAL, 2), (99, 43, 3)] {
                             dismissed
                                 .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom::new(
-                                        &w::CEILINGS,
-                                        w::GoalFromParts { project: fixtures::PROJECT, chat, goal, at },
-                                    )
-                                    .unwrap(),
+                                    w::GoalFrom { project: fixtures::PROJECT, chat, goal, at },
                                 ))
                                 .unwrap();
                         }
@@ -134,7 +130,7 @@ impl DraftsPage {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::dismissals(
-                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
+                                &w::Dismissals { dismissed },
                             ),
                         },
                     }
@@ -143,11 +139,7 @@ impl DraftsPage {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
                     let w::Read::Setting(setting) = reading.read() else { continue };
                     let value = if setting.kind() == 7 {
-                        let value = w::ProjectWays::new(
-                            &w::CEILINGS,
-                            w::ProjectWaysParts { drafts: offered, goals: false, changes: false, way: 0 },
-                        )
-                        .unwrap();
+                        let value = w::ProjectWays { drafts: offered, goals: false, changes: false, way: 0 };
                         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
                         value.encode(&mut writer).unwrap();
                         Some(writer.finish())
@@ -159,8 +151,7 @@ impl DraftsPage {
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
                             record: Some(wire::setting_answer(
-                                &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value })
-                                    .unwrap(),
+                                &w::SettingAnswer { revision: None, value },
                             )),
                         },
                     }

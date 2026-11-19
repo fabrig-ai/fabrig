@@ -127,7 +127,7 @@ fn ready() -> (Clients, ClientId, w::LandedDraft) {
     else {
         panic!("main head")
     };
-    let ready = w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: None }).expect("ready change");
+    let ready = w::ReadyDraft { chat: None };
     let answer = set(&mut world, person, 120, w::DraftChange::Ready(ready));
     assert_eq!(answer.commit(), temper_engine_domain_forge::commit_text(&head).as_ref());
     assert_eq!(answer.branch(), b"main");

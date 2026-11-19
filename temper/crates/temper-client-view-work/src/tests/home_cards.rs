@@ -622,12 +622,10 @@ fn finding_root_with(count: u32, kind: temper_client_protocol_wire::v1::FindingK
             && let w::Watch::Findings(subject) = watching.watch()
         {
             let holder =
-                w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap());
+                w::Holder::Party(w::HolderParty { number: 1 });
             let rows = (1..=count)
                 .map(|number| {
-                    w::FindingRow::new(
-                        &w::CEILINGS,
-                        w::FindingRowParts {
+                    w::FindingRow {
                             number,
                             at: 0,
                             kind: kind.clone(),
@@ -638,25 +636,19 @@ fn finding_root_with(count: u32, kind: temper_client_protocol_wire::v1::FindingK
                             holder: holder.clone(),
                             why: Some(b"Your area owns the view".as_slice().into()),
                             hander: Some(w::Filer::Task(
-                                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 55 }).unwrap(),
+                                w::HolderTask { number: 55 },
                             )),
-                        },
-                    )
-                    .unwrap()
+                        }
                 })
                 .collect::<Vec<_>>();
-            let document = w::Findings::new(
-                &w::CEILINGS,
-                w::FindingsParts {
+            let document = w::Findings {
                     project: subject.project(),
                     rows: List::from_boxed(rows.into_boxed_slice()),
                     areas: List::with_capacity(0),
                     triager: None,
                     holder,
                     cut: false,
-                },
-            )
-            .unwrap();
+                };
             f::root_event(
                 &mut root,
                 d::Event::Client {

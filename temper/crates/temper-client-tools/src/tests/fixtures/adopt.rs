@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::*;
 use temper_client_domain_forge::forge;
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -19,11 +20,9 @@ pub(crate) fn adopt_root(extra: &[&str]) -> (Harness, u32) {
     (root, call)
 }
 pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
-    let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
+
     w::Outcome::Adopted(
-        w::Adopted::new(
-            &limits,
-            w::AdoptedParts {
+        w::Adopted {
                 landing: b"staging".as_slice().into(),
                 forge: 1,
                 repository: REPOSITORY,
@@ -32,9 +31,7 @@ pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
                 role: w::Role::Owned,
                 home: true,
                 // All nine capabilities exercise the forge's specified output order.
-                kinds: w::Kinds::new(
-                    &limits,
-                    w::KindsParts {
+                kinds: w::Kinds {
                         read: true,
                         push: true,
                         open: true,
@@ -45,25 +42,21 @@ pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
                         issue: true,
                         branch: true,
                     },
-                )
-                .expect("kinds"),
                 protection: w::Protection::Unknown,
             },
-        )
-        .expect("adopted"),
     )
 }
 pub(crate) fn forge_refused(reason: w::ForgeReason) -> w::Outcome {
-    let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
-    w::Outcome::ForgeRefused(w::ForgeRefused::new(&limits, w::ForgeRefusedParts { reason }).expect("forge refusal"))
+
+    w::Outcome::ForgeRefused(w::ForgeRefused { reason })
 }
 pub(crate) fn family_answer(outcome: w::Outcome) -> client::Answered {
     let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
-    let answer = w::Answer::new(&limits, w::AnswerParts { outcome }).expect("adoption answer");
+    let answer = w::Answer { outcome };
     client::Answered::Family(client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&answer),
+        bytes: answer.encode(&limits).expect("adoption answer"),
     })
 }
 impl Harness {
@@ -85,14 +78,14 @@ impl Harness {
         });
         self.serving = previous;
     }
-    pub(crate) fn sent_adoption(&self, call: u32) -> w::AdoptParts {
+    pub(crate) fn sent_adoption(&self, call: u32) -> w::Adopt {
         let (_, _, client::Ask::Family { record, .. }) = self.sends.get(&call).expect("adopt sent") else {
             panic!("forge ask")
         };
         let limits = forge::wire_limits(&self.limits.domain.forge).expect("forge limits");
-        (match w::Requesting::decode(&limits, &mut skein_lib::Reader::new(&record.bytes))
+        match w::Requesting::decode(&limits, &mut skein_lib::Reader::new(&record.bytes))
             .expect("valid adopt")
-            .into_parts()
+            
             .request
         {
             w::Request::Adopt(adopt) => adopt,
@@ -124,8 +117,8 @@ impl Harness {
             | w::Request::Install(_) => {
                 panic!("expected adoption")
             }
-        })
-        .into_parts()
+        }
+        
     }
     pub(crate) fn adoption_bytes(&self, call: u32) -> &client::Ask {
         &self.sends.get(&call).expect("adopt sent").2
@@ -210,12 +203,12 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
     records
 }
 pub(crate) fn core_key_conflict() -> w::Outcome {
-    let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
+
     let refusal = jig_client_protocol_wire::Refusal::KeyConflict;
     let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
     refusal.encode(&mut bytes).expect("refusal encoding");
     w::Outcome::CoreRefused(
-        w::CoreRefused::new(&limits, w::CoreRefusedParts { refusal: bytes.finish() }).expect("core refusal"),
+        w::CoreRefused { refusal: bytes.finish() },
     )
 }
 pub(crate) fn malformed_adoption_answer() -> client::Outcome {

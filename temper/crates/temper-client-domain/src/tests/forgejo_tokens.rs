@@ -30,11 +30,9 @@ fn bytes(seed: u64, length: usize) -> Box<[u8]> {
 fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: Option<&[u8]>) -> w::ForgeRow {
     let mut stopped = None;
     if let Some(why) = ended {
-        stopped = Some(w::ConnectStopped::new(&w::CEILINGS, w::ConnectStoppedParts { why: why.into() }).unwrap());
+        stopped = Some(w::ConnectStopped { why: why.into() });
     }
-    w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
+    w::ForgeRow {
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
             host: b"git.example:3000".as_slice().into(),
@@ -53,9 +51,7 @@ fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, end
             admin: false,
             read_only: false,
             ended_stop: None,
-        },
-    )
-    .unwrap()
+        }
 }
 fn deliver(root: &mut Domain, watch: Token, delivered: &[w::ForgeRow]) {
     let mut rows = List::with_capacity(u32::try_from(delivered.len()).unwrap());
@@ -72,7 +68,7 @@ fn deliver(root: &mut Domain, watch: Token, delivered: &[w::ForgeRow]) {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
                         bytes: wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
+                            &w::Forges { forges: rows, linked: false },
                         ),
                     },
                 },
@@ -123,13 +119,13 @@ fn tokens_are_bundled_carried_once_and_cleared_at_send() {
                     assert!(secret.expose() == values[index].as_ref());
                 }
                 let w::Request::Connect(connect) =
-                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
                 else {
                     panic!("connect")
                 };
-                let w::How::ForgejoTokens(_) = connect.how() else { panic!("tokens") };
-                let w::Making::Kept(kept) = connect.forge() else { panic!("kept") };
-                assert_eq!(kept.forge(), FORGE);
+                let w::How::ForgejoTokens(_) = &connect.how else { panic!("tokens") };
+                let w::Making::Kept(kept) = &connect.forge else { panic!("kept") };
+                assert_eq!(kept.forge, FORGE);
                 sent += 1;
             }
         }
@@ -176,7 +172,7 @@ fn only_disconnected_forgejos_of_the_connected_mode_send() {
             w::Kind::Forgejo,
             w::Mode::Connected,
             w::Connection::Stopped(
-                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+                w::Stopped { reason: b"stopped".as_slice().into() },
             ),
             true,
         ),
@@ -185,7 +181,7 @@ fn only_disconnected_forgejos_of_the_connected_mode_send() {
             w::Kind::Forgejo,
             w::Mode::Connected,
             w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 7, login: b"bot".as_slice().into() }).unwrap(),
+                w::Connected { id: 7, login: b"bot".as_slice().into() },
             ),
             false,
         ),
@@ -263,7 +259,7 @@ fn a_stopped_row_redelivered_keeps_a_fresh_paste() {
         (w::Connection::NotConnected, Some(b"tokens refused".as_slice())),
         (
             w::Connection::Stopped(
-                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+                w::Stopped { reason: b"stopped".as_slice().into() },
             ),
             None,
         ),
@@ -292,7 +288,7 @@ fn an_unrelated_stopped_forgejo_leaves_a_new_forges_draft() {
         (w::Connection::NotConnected, Some(b"tokens refused".as_slice())),
         (
             w::Connection::Stopped(
-                w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
+                w::Stopped { reason: b"stopped".as_slice().into() },
             ),
             None,
         ),
@@ -332,12 +328,12 @@ fn an_unrelated_stopped_forgejo_leaves_a_new_forges_draft() {
             } = request
             {
                 let w::Request::Connect(connect) =
-                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                    wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
                 else {
                     panic!("connect")
                 };
-                let w::Making::New(_) = connect.forge() else { panic!("new") };
-                let w::How::ForgejoTokens(_) = connect.how() else { panic!("tokens") };
+                let w::Making::New(_) = &connect.forge else { panic!("new") };
+                let w::How::ForgejoTokens(_) = &connect.how else { panic!("tokens") };
                 sent += 1;
             }
         }
@@ -358,7 +354,7 @@ fn a_stop_of_another_forge_leaves_the_sent_connects_draft() {
             attempt = Some(*value);
         }
     }
-    let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Connecting }).unwrap();
+    let answer = w::Answer { outcome: w::Outcome::Connecting };
     event(
         &mut root,
         Event::Client {
@@ -427,14 +423,14 @@ fn new_connected_forgejo_uses_the_shared_place_and_needs_an_address() {
         } = request
         {
             let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("connect")
             };
-            let w::Making::New(new) = connect.forge() else { panic!("new") };
-            let w::ForgeAsk::Connected(place) = new.forge() else { panic!("connected forge") };
-            assert_eq!(place.host(), b"forge.example");
-            assert_eq!(place.port(), 443);
+            let w::Making::New(new) = &connect.forge else { panic!("new") };
+            let w::ForgeAsk::Connected(place) = &new.forge else { panic!("connected forge") };
+            assert_eq!(place.host.as_ref(), b"forge.example");
+            assert_eq!(place.port, 443);
             sent += 1;
         }
     }
@@ -475,7 +471,7 @@ fn the_new_forge_follows_its_number_in_either_watch_answer_order() {
                 &[row(FORGE, w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, None)],
             );
         }
-        let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Connecting }).unwrap();
+        let answer = w::Answer { outcome: w::Outcome::Connecting };
         let out = event(
             &mut root,
             Event::Client {

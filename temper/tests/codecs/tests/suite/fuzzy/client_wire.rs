@@ -56,35 +56,26 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
     let mut rng = Rng::new(0x7e3d_0302);
     let goldens = values::client();
     for _ in 0..2_000 {
-        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: drawn_request(&mut rng) })
-            .expect("bounded request");
+        let request = v1::Requesting { request: drawn_request(&mut rng) };
         let bytes = temper_client_protocol_wire::requesting(&request);
         assert_eq!(temper_client_protocol_wire::decode_requesting(&bytes, &v1::CEILINGS), Some(request));
         requesting(&bytes);
         let why = match rng.below(4) {
             0 => v1::StartFailure::Group(
-                v1::GroupFailed::new(
-                    &v1::CEILINGS,
-                    v1::GroupFailedParts { why: temper_codecs_world::drawn(&mut rng, 256).into_boxed_slice() },
-                )
-                .expect("bounded why"),
+                v1::GroupFailed { why: temper_codecs_world::drawn(&mut rng, 256).into_boxed_slice() },
             ),
             1 => v1::StartFailure::Account,
             2 => v1::StartFailure::Adoption,
             _ => v1::StartFailure::NotConnected,
         };
-        let record = v1::Answer::new(
-            &v1::CEILINGS,
-            v1::AnswerParts {
+        let record = v1::Answer {
                 outcome: match rng.below(3) {
                     0 => v1::Outcome::StartFailed(
-                        v1::StartFailed::new(&v1::CEILINGS, v1::StartFailedParts { why }).expect("failure"),
+                        v1::StartFailed { why },
                     ),
                     1 => v1::Outcome::MakeKept,
                     _ => v1::Outcome::MakeRefused(
-                        v1::MakeRefused::new(
-                            &v1::CEILINGS,
-                            v1::MakeRefusedParts {
+                        v1::MakeRefused {
                                 why: match rng.below(7) {
                                     0 => v1::MakeRefusal::NoSuchForge,
                                     1 => v1::MakeRefusal::NotOffered,
@@ -95,13 +86,9 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
                                     _ => v1::MakeRefusal::NotFailed,
                                 },
                             },
-                        )
-                        .expect("drawn fields fit the schema ceilings"),
                     ),
                 },
-            },
-        )
-        .expect("answer");
+            };
         let encoded = temper_client_protocol_wire::answer(&record);
         answer(&encoded);
         answer(&temper_codecs_world::mutated(&mut rng, &encoded));
@@ -115,19 +102,13 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         let encoded = writer.finish();
         landing_rule(&encoded);
         landing_rule(&temper_codecs_world::mutated(&mut rng, &encoded));
-        let charter = v1::ForgeCharter::new(
-            &v1::CEILINGS,
-            v1::ForgeCharterParts { charter: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw") },
-        )
-        .expect("charter");
+        let charter = v1::ForgeCharter { charter: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw") };
         let mut writer = Writer::new(usize::try_from(charter.measure()).expect("measured length"));
         charter.encode(&mut writer).expect("measured room");
         let encoded = writer.finish();
         forge_charter(&encoded);
         forge_charter(&temper_codecs_world::mutated(&mut rng, &encoded));
-        let record = v1::SettingAnswer::new(
-            &v1::CEILINGS,
-            v1::SettingAnswerParts {
+        let record = v1::SettingAnswer {
                 value: if rng.chance(500) {
                     Some(temper_codecs_world::drawn(&mut rng, 64).into_boxed_slice())
                 } else {
@@ -138,9 +119,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
                 } else {
                     None
                 },
-            },
-        )
-        .expect("bounded setting answer");
+            };
         let encoded = temper_client_protocol_wire::setting_answer(&record);
         assert_eq!(temper_client_protocol_wire::decode_setting_answer(&encoded, &v1::CEILINGS), Some(record));
         setting_answer(&encoded);
@@ -200,24 +179,20 @@ fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
     }
     let value = temper_codecs_world::drawn(rng, 16).into_boxed_slice();
     let last = if rng.chance(500) {
-        v1::LandingLast::Exact(v1::LandingExact::new(limits, v1::LandingExactParts { value }).expect("exact last"))
+        v1::LandingLast::Exact(v1::LandingExact { value })
     } else {
-        v1::LandingLast::Open(v1::LandingOpen::new(limits, v1::LandingOpenParts { value }).expect("open last"))
+        v1::LandingLast::Open(v1::LandingOpen { value })
     };
-    let pattern = v1::LandingPattern::new(limits, v1::LandingPatternParts { segments, last }).expect("pattern");
+    let pattern = v1::LandingPattern { segments, last };
     let mut gates = List::with_capacity(3);
     for _ in 0..rng.below(4) {
         gates
             .push(
-                v1::RuleGate::new(
-                    limits,
-                    v1::RuleGateParts {
+                v1::RuleGate {
                         number: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                         blocking: rng.chance(500),
                         freshness: drawn_freshness(rng),
                     },
-                )
-                .expect("gate"),
             )
             .expect("bounded gates");
     }
@@ -225,15 +200,11 @@ fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
     for _ in 0..rng.below(4) {
         approvals
             .push(
-                v1::RuleApproval::new(
-                    limits,
-                    v1::RuleApprovalParts {
+                v1::RuleApproval {
                         role: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                         people: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                         freshness: drawn_freshness(rng),
                     },
-                )
-                .expect("approval"),
             )
             .expect("bounded approvals");
     }
@@ -241,9 +212,7 @@ fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
     for _ in 0..rng.below(7) {
         sets.push(u8::try_from(rng.below(256)).expect("u8 draw")).expect("bounded sets");
     }
-    v1::LandingRule::new(
-        limits,
-        v1::LandingRuleParts {
+    v1::LandingRule {
             pattern,
             enforce: rng.chance(500),
             ci: rng.chance(500),
@@ -251,9 +220,7 @@ fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
             gates,
             approvals,
             sets,
-        },
-    )
-    .expect("bounded rule")
+        }
 }
 
 fn watching(bytes: &[u8]) {
@@ -288,11 +255,7 @@ fn drawn_make_from(rng: &mut Rng) -> v1::MakeFrom {
         v1::MakeFrom::Empty
     } else {
         v1::MakeFrom::Copy(
-            v1::MakeCopy::new(
-                &v1::CEILINGS,
-                v1::MakeCopyParts { address: temper_codecs_world::drawn(rng, 512).into_boxed_slice() },
-            )
-            .expect("drawn fields fit the schema ceilings"),
+            v1::MakeCopy { address: temper_codecs_world::drawn(rng, 512).into_boxed_slice() },
         )
     }
 }
@@ -301,14 +264,10 @@ fn drawn_make_into(rng: &mut Rng) -> Option<v1::MakeInto> {
         None
     } else {
         Some(
-            v1::MakeInto::new(
-                &v1::CEILINGS,
-                v1::MakeIntoParts {
+            v1::MakeInto {
                     project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                     home: rng.chance(500),
                 },
-            )
-            .expect("drawn fields fit the schema ceilings"),
         )
     }
 }
@@ -319,9 +278,7 @@ fn drawn_making_state(rng: &mut Rng) -> v1::MakingState {
         2 => v1::MakingState::Made(drawn_made(rng)),
         3 => v1::MakingState::Adopting(drawn_made(rng)),
         _ => v1::MakingState::Failed(
-            v1::MakingFailed::new(
-                &v1::CEILINGS,
-                v1::MakingFailedParts {
+            v1::MakingFailed {
                     step: match rng.below(5) {
                         0 => v1::MakeStep::Admin,
                         1 => v1::MakeStep::Org,
@@ -334,28 +291,18 @@ fn drawn_making_state(rng: &mut Rng) -> v1::MakingState {
                         1 => v1::MakeFailure::Empty,
                         2 => v1::MakeFailure::TimedOut,
                         3 => v1::MakeFailure::Refused(
-                            v1::Refused::new(
-                                &v1::CEILINGS,
-                                v1::RefusedParts { status: u16::try_from(rng.below(65_536)).expect("u16 draw") },
-                            )
-                            .expect("drawn fields fit the schema ceilings"),
+                            v1::Refused { status: u16::try_from(rng.below(65_536)).expect("u16 draw") },
                         ),
                         4 => v1::MakeFailure::NotAllowed,
                         _ => v1::MakeFailure::Other,
                     },
                     words: temper_codecs_world::drawn(rng, 256).into_boxed_slice(),
                 },
-            )
-            .expect("drawn fields fit the schema ceilings"),
         ),
     }
 }
 fn drawn_made(rng: &mut Rng) -> v1::MakingMade {
-    v1::MakingMade::new(
-        &v1::CEILINGS,
-        v1::MakingMadeParts { id: rng.next_u64(), branch: temper_codecs_world::drawn(rng, 1024).into_boxed_slice() },
-    )
-    .expect("drawn fields fit the schema ceilings")
+    v1::MakingMade { id: rng.next_u64(), branch: temper_codecs_world::drawn(rng, 1024).into_boxed_slice() }
 }
 fn drawn_makings(rng: &mut Rng) -> v1::Forges {
     // All unrelated fields stay at the generated smallest row's values.
@@ -369,34 +316,27 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
     parts
         .makings
         .push(
-            v1::RepositoryMaking::new(
-                &v1::CEILINGS,
-                v1::RepositoryMakingParts {
+            v1::RepositoryMaking {
                     org: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                     name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                     from: drawn_make_from(rng),
                     into: drawn_make_into(rng),
                     state: drawn_making_state(rng),
                 },
-            )
-            .expect("drawn fields fit the schema ceilings"),
         )
         .expect("drawn fields fit the schema ceilings");
     let mut forges = List::with_capacity(1);
     forges
-        .push(v1::ForgeRow::new(&v1::CEILINGS, parts).expect("drawn fields fit the schema ceilings"))
+        .push(parts)
         .expect("drawn fields fit the schema ceilings");
-    v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges, linked: false })
-        .expect("drawn fields fit the schema ceilings")
+    v1::Forges { forges, linked: false }
 }
 
 fn drawn_request(rng: &mut Rng) -> v1::Request {
     match rng.below(6) {
         0 => v1::Request::StartPlayground,
         1 => v1::Request::DismissMaking(
-            v1::DismissMaking::new(
-                &v1::CEILINGS,
-                v1::DismissMakingParts {
+            v1::DismissMaking {
                     into: if rng.chance(500) {
                         Some(u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"))
                     } else {
@@ -406,26 +346,18 @@ fn drawn_request(rng: &mut Rng) -> v1::Request {
                     org: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                     name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                 },
-            )
-            .expect("bounded dismissal"),
         ),
         2 => v1::Request::MakeRepository(
-            v1::MakeRepository::new(
-                &v1::CEILINGS,
-                v1::MakeRepositoryParts {
+            v1::MakeRepository {
                     forge: u16::try_from(rng.below(65_536)).expect("u16 draw"),
                     org: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                     name: temper_codecs_world::drawn(rng, 1024).into_boxed_slice(),
                     from: drawn_make_from(rng),
                     into: drawn_make_into(rng),
                 },
-            )
-            .expect("bounded make request"),
         ),
         3 => v1::Request::FileFinding(
-            v1::FileFinding::new(
-                &v1::CEILINGS,
-                v1::FileFindingParts {
+            v1::FileFinding {
                     project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                     kind: match rng.below(5) {
                         0 => v1::FindingKind::Qa,
@@ -443,41 +375,29 @@ fn drawn_request(rng: &mut Rng) -> v1::Request {
                     title: drawn_words(rng, 200),
                     body: drawn_words(rng, 4096),
                 },
-            )
-            .expect("bounded finding"),
         ),
         4 => v1::Request::HandFinding(
-            v1::HandFinding::new(
-                &v1::CEILINGS,
-                v1::HandFindingParts {
+            v1::HandFinding {
                     project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                     number: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                     area: drawn_words(rng, 32),
                     why: drawn_words(rng, 200),
                 },
-            )
-            .expect("bounded hand"),
         ),
         _ => v1::Request::TriageFinding(
-            v1::TriageFinding::new(
-                &v1::CEILINGS,
-                v1::TriageFindingParts {
+            v1::TriageFinding {
                     project: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                     number: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw"),
                     act: match rng.below(3) {
                         0 => v1::Triage::Route(
-                            v1::FindingRoute::new(&v1::CEILINGS, v1::FindingRouteParts { task: rng.below(u64::MAX) })
-                                .expect("route"),
+                            v1::FindingRoute { task: rng.below(u64::MAX) },
                         ),
                         1 => v1::Triage::Backlog,
                         _ => v1::Triage::Drop(
-                            v1::FindingDrop::new(&v1::CEILINGS, v1::FindingDropParts { reason: drawn_words(rng, 400) })
-                                .expect("drop"),
+                            v1::FindingDrop { reason: drawn_words(rng, 400) },
                         ),
                     },
                 },
-            )
-            .expect("bounded triage"),
         ),
     }
 }

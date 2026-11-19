@@ -20,7 +20,7 @@ fn request(duties: &Duties) -> Option<(skein_lib::Token, f::FileFinding)> {
     None
 }
 fn answer(host: &mut Host, exchange: skein_lib::Token, outcome: f::Outcome) {
-    let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).unwrap();
+    let answer = f::Answer { outcome };
     let document = w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {
@@ -86,7 +86,7 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
         answer(
             &mut host,
             exchange,
-            f::Outcome::Filed(f::Filed::new(&f::CEILINGS, f::FiledParts { number: 12 }).unwrap()),
+            f::Outcome::Filed(f::Filed { number: 12 }),
         );
         assert_eq!(host.state().place(), None);
         assert_eq!(host.state().tell_serial(), 1);
@@ -125,7 +125,7 @@ fn tell_restores_refused_lost_and_long_words_until_send_or_screen() {
                     &mut host,
                     sent.unwrap().0,
                     f::Outcome::FindingRefused(
-                        f::FindingRefused::new(&f::CEILINGS, f::FindingRefusedParts { reason: refusal }).unwrap(),
+                        f::FindingRefused { reason: refusal },
                     ),
                 );
                 expected

@@ -466,11 +466,10 @@ pub(crate) fn proposed_values(
         }
     }
     let ways =
-        w::ProjectWays::new(&w::CEILINGS, w::ProjectWaysParts { drafts, goals: drafts, changes: drafts, way: 0 })
-            .unwrap();
+        w::ProjectWays { drafts, goals: drafts, changes: drafts, way: 0 };
     let mut writer = Writer::new(usize::try_from(ways.measure()).unwrap());
     ways.encode(&mut writer).unwrap();
-    let questions = w::ProjectQuestions::new(&w::CEILINGS, w::ProjectQuestionsParts { route }).unwrap();
+    let questions = w::ProjectQuestions { route };
     let mut q = Writer::new(usize::try_from(questions.measure()).unwrap());
     questions.encode(&mut q).unwrap();
     let mut classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
@@ -512,23 +511,19 @@ pub(crate) fn proposed_values(
     for (kind, value) in [(7, writer.finish()), (6, q.finish()), (8, classes_value.finish())] {
         items
             .push(
-                w::ProposalItem::new(
-                    &w::CEILINGS,
-                    w::ProposalItemParts {
+                w::ProposalItem {
                         kind,
                         scope: fixtures::PROJECT,
                         number: 1,
                         edit: w::SettingEdit::Set(
-                            w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value }).unwrap(),
+                            w::SettingValue { value },
                         ),
                     },
-                )
-                .unwrap(),
             )
             .unwrap();
     }
     let answer =
-        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval }).unwrap();
+        w::ProposalItemsAnswer { items, owned_approval };
     settings_up(
         root,
         jig_client::Up::ReadDone {

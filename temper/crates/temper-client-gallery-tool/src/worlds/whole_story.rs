@@ -129,9 +129,7 @@ fn status(name: &str, project: u32) -> w::ProjectStatus {
     } else {
         6
     };
-    w::ProjectStatus::new(
-        &w::CEILINGS,
-        w::ProjectStatusParts {
+    w::ProjectStatus {
             project,
             landed,
             seen: if nothing_new { landed } else { 0 },
@@ -142,20 +140,14 @@ fn status(name: &str, project: u32) -> w::ProjectStatus {
             unpaid: false,
             red: across(name) && project == 4,
             brief: (!lede.is_empty()).then(|| {
-                w::StatusBrief::new(
-                    &w::CEILINGS,
-                    w::StatusBriefParts {
+                w::StatusBrief {
                         sentence: sentence.as_bytes().into(),
                         lede: lede.as_bytes().into(),
                         at: since(name, if nothing_new { 601 } else { age }).as_nanos(),
                         landed,
-                    },
-                )
-                .expect("whole-story brief")
+                    }
             }),
-        },
-    )
-    .expect("whole-story status")
+        }
 }
 fn question(name: &str) -> c::Question {
     let (title, words) = match name {
@@ -199,9 +191,7 @@ fn approvals(name: &str) -> Box<[u8]> {
             [(81, 24, "Monthly totals by category", 34), (82, 25, "Dark mode for the dashboard", 1440)]
         {
             rows.push(
-                w::ApprovalRow::new(
-                    &w::CEILINGS,
-                    w::ApprovalRowParts {
+                w::ApprovalRow {
                         task,
                         project: 1,
                         goal: None,
@@ -225,20 +215,14 @@ fn approvals(name: &str) -> Box<[u8]> {
                         can_sign: List::with_capacity(0),
                         can_sign_more: 0,
                         size: Some(
-                            w::ApprovalSize::new(
-                                &w::CEILINGS,
-                                w::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false },
-                            )
-                            .expect("Pair approval size"),
+                            w::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false },
                         ),
                     },
-                )
-                .expect("Pair approval"),
             )
             .expect("two approvals");
         }
     }
-    wire::approvals(&w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows, more: 0 }).expect("approvals"))
+    wire::approvals(&w::Approvals { rows, more: 0 })
 }
 
 /// The mockup's decisions name tasks, not standing-role records the client cannot read.
@@ -281,9 +265,7 @@ fn decision(task: u64) -> (u32, &'static str, u64, &'static str, &'static str, &
 }
 fn decision_row(task: u64, wall: Wall) -> w::Decision {
     let (_, _, age, question, took, why) = decision(task);
-    w::Decision::new(
-        &w::CEILINGS,
-        w::DecisionParts {
+    w::Decision {
             number: u32::try_from(task).expect("decision number"),
             task,
             at: wall.as_nanos() - age * MINUTE,
@@ -291,9 +273,7 @@ fn decision_row(task: u64, wall: Wall) -> w::Decision {
             took: took.as_bytes().into(),
             why: why.as_bytes().into(),
             overturned: false,
-            reach: w::Reach::new(
-                &w::CEILINGS,
-                w::ReachParts {
+            reach: w::Reach {
                     kind: w::ReachKind::Tests,
                     class: w::ReachClass::Decide,
                     reason: w::ReachReason::Kind,
@@ -302,11 +282,7 @@ fn decision_row(task: u64, wall: Wall) -> w::Decision {
                     matched: 0,
                     away: false,
                 },
-            )
-            .expect("decision reach"),
-        },
-    )
-    .expect("whole-story decision")
+        }
 }
 pub(crate) fn needs_decisions(project: u32) -> Box<[u8]> {
     let tasks: &[u64] = match project {
@@ -319,11 +295,7 @@ pub(crate) fn needs_decisions(project: u32) -> Box<[u8]> {
         rows.push(decision_row(*task, super::now(World::Solo))).expect("Needs you decisions");
     }
     wire::decisions(
-        &w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .expect("decisions"),
+        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
     )
 }
 pub(crate) fn needs_task(task: u64) -> c::Task {
@@ -345,9 +317,7 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
         }
     } else if matches!(name, "home-step-team" | "home-step-stock" | "home-step-scale") {
         let row = if name == "home-step-team" {
-            w::Decision::new(
-                &w::CEILINGS,
-                w::DecisionParts {
+            w::Decision {
                     number: 103,
                     task: 103,
                     at: since(name, 94).as_nanos(),
@@ -355,9 +325,7 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
                     took: b"Split it in two.".as_slice().into(),
                     why: b"Retrying or splitting a task is decided and listed.".as_slice().into(),
                     overturned: false,
-                    reach: w::Reach::new(
-                        &w::CEILINGS,
-                        w::ReachParts {
+                    reach: w::Reach {
                             kind: w::ReachKind::Tests,
                             class: w::ReachClass::Decide,
                             reason: w::ReachReason::Kind,
@@ -366,22 +334,14 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
                             matched: 0,
                             away: false,
                         },
-                    )
-                    .expect("decision reach"),
-                },
-            )
-            .expect("Team decision")
+                }
         } else {
             decision_row(101, now(name))
         };
         rows.push(row).expect("step decision");
     }
     wire::decisions(
-        &w::Decisions::new(
-            &w::CEILINGS,
-            w::DecisionsParts { project, rows, asked: List::with_capacity(0), cut: false },
-        )
-        .expect("decisions"),
+        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
     )
 }
 fn task(name: &str, number: u64) -> c::Task {
@@ -405,28 +365,20 @@ fn forges(name: &str) -> Box<[u8]> {
             forge
                 .repositories
                 .push(
-                    w::Adoption::new(
-                        &w::CEILINGS,
-                        w::AdoptionParts {
+                    w::Adoption {
                             owner: b"work".as_slice().into(),
                             name: title.as_bytes().into(),
                             project: *project,
                         },
-                    )
-                    .expect("adoption"),
                 )
                 .expect("four repositories");
         }
     }
     wire::forges(
-        &w::Forges::new(
-            &w::CEILINGS,
-            w::ForgesParts {
-                forges: List::from_boxed(Box::new([w::ForgeRow::new(&w::CEILINGS, forge).expect("forge")])),
+        &w::Forges {
+                forges: List::from_boxed(Box::new([forge])),
                 linked: false,
             },
-        )
-        .expect("forges"),
     )
 }
 // These document fixtures exercise all four projects independently of the shipped watch room.
@@ -450,20 +402,18 @@ fn follows(name: &str, project: u32) -> Box<[u8]> {
         let mut source = [0; 32];
         source[..6].copy_from_slice(&[0x9c, 0x04, 0xd7, 0xe1, 0xa2, 0xb3]);
         parity.source = source;
-        row.parity = Some(w::FollowParity::new(&w::CEILINGS, parity).expect("passing check"));
-        follows.push(w::FollowView::new(&w::CEILINGS, row).expect("whole-story follow")).expect("one follow");
+        row.parity = Some(parity);
+        follows.push(row).expect("one follow");
     }
     if !quiet(name) && project == 4 {
         dependencies
             .push(
-                w::DependencyView::new(&w::CEILINGS, w::DependencyViewParts { number: 1, project: 2 })
-                    .expect("whole-story dependency"),
+                w::DependencyView { number: 1, project: 2 },
             )
             .expect("one dependency");
     }
     wire::follows_panel(
-        &w::FollowsPanel::new(&w::CEILINGS, w::FollowsPanelParts { project, follows, dependencies })
-            .expect("whole-story relations"),
+        &w::FollowsPanel { project, follows, dependencies },
     )
 }
 fn step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<Request>) {
@@ -585,13 +535,12 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     w::Watch::Follows(key) => follows(name, key.project()),
                     w::Watch::Approvals => approvals(name),
                     w::Watch::Dismissed => wire::dismissals(
-                        &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: List::with_capacity(0) })
-                            .expect("dismissals"),
+                        &w::Dismissals { dismissed: List::with_capacity(0) },
                     ),
                     w::Watch::Away => {
                         away_watch = Some(watch);
                         wire::aways(
-                            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: away_rows(name) }).expect("aways"),
+                            &w::Aways { rows: away_rows(name) },
                         )
                     }
                     _ => continue,
@@ -624,19 +573,11 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                 let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).expect("whole-story read");
                 let bytes = match reading.read() {
                     w::Read::Setting(setting) if setting.kind() == 7 => {
-                        let ways = w::ProjectWays::new(
-                            &w::CEILINGS,
-                            w::ProjectWaysParts { drafts: false, goals: false, changes: false, way: 0 },
-                        )
-                        .expect("project ways");
+                        let ways = w::ProjectWays { drafts: false, goals: false, changes: false, way: 0 };
                         let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways size"));
                         ways.encode(&mut writer).expect("ways bytes");
                         Some(wire::setting_answer(
-                            &w::SettingAnswer::new(
-                                &w::CEILINGS,
-                                w::SettingAnswerParts { revision: None, value: Some(writer.finish()) },
-                            )
-                            .expect("ways answer"),
+                            &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
                         ))
                     }
                     _ => None,
@@ -669,8 +610,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
                                     bytes: wire::answer(
-                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Looked })
-                                            .expect("look"),
+                                        &w::Answer { outcome: w::Outcome::Looked },
                                     ),
                                 })),
                             },
@@ -693,28 +633,20 @@ fn away_rows(name: &str) -> List<w::AwayRow> {
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     if across(name) && name != "all-home-nothing-new" {
         rows.push(
-            w::AwayRow::new(
-                &w::CEILINGS,
-                w::AwayRowParts {
+            w::AwayRow {
                     project: 1,
                     since: since(name, 534).as_nanos(),
                     until: None,
                     landed: 12,
                     off: Some(since(name, 4).as_nanos()),
                 },
-            )
-            .expect("Sunday's away spell"),
         )
         .expect("away spell");
     }
     if matches!(name, "all-home-away" | "all-home-away-on") {
         for project in [2, 3] {
             rows.push(
-                w::AwayRow::new(
-                    &w::CEILINGS,
-                    w::AwayRowParts { project, since: since(name, 30).as_nanos(), until: None, landed: 0, off: None },
-                )
-                .expect("project away"),
+                w::AwayRow { project, since: since(name, 30).as_nanos(), until: None, landed: 0, off: None },
             )
             .expect("away spell");
         }
@@ -756,17 +688,13 @@ fn toggle_all(root: &mut Domain, name: &str, watch: Token) {
     }
     for request in changed {
         rows.push(
-            w::AwayRow::new(
-                &w::CEILINGS,
-                w::AwayRowParts {
+            w::AwayRow {
                     project: request.project,
                     since: now(name).as_nanos(),
                     until: request.until,
                     landed: 0,
                     off: None,
                 },
-            )
-            .expect("changed Away"),
         )
         .expect("away spell");
     }
@@ -774,7 +702,7 @@ fn toggle_all(root: &mut Domain, name: &str, watch: Token) {
         root,
         name,
         watch,
-        wire::aways(&w::Aways::new(&w::CEILINGS, w::AwaysParts { rows }).expect("aways")),
+        wire::aways(&w::Aways { rows }),
         &mut out,
     );
 }
