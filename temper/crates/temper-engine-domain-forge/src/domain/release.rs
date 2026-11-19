@@ -283,6 +283,7 @@ fn outputs(
             | Request::CancelFollow { .. }
             | Request::TierRun { .. }
             | Request::FileRedFinding { .. }
+            | Request::FileVerdict { .. }
             | Request::TierDecision { .. }
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)

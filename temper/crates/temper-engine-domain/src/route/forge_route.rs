@@ -1159,6 +1159,20 @@ fn may_push(
     ) == authority::Answer::Allow
 }
 
+/// The first draft line retained for late blame (domain/red-findings.md, 3).
+fn goal_draft(words: &[u8]) -> Option<Box<[u8]>> {
+    let path = match words.strip_prefix(b"Draft: ") {
+        Some(path) => path,
+        None => {
+            let start = skein_lib::bytes::find(words, b"\nDraft: ")?.checked_add(b"\nDraft: ".len())?;
+            words.get(start..).expect("draft prefix within goal words")
+        }
+    };
+    let end = skein_lib::bytes::find(path, b"\n").unwrap_or(path.len());
+    let path = path.get(..end).expect("draft line within goal words");
+    Some(forge::text::fit(path.trim_ascii_end(), 256, "…".as_bytes()))
+}
+
 fn tracked_ancestor(domain: &Domain, requester: tasks::Party) -> Option<u64> {
     let mut next = requester;
     for _ in 0..=domain.limits.tasks.depth {
@@ -1996,6 +2010,19 @@ pub(super) fn start_recovered_change(
         drop_settled_change(domain, env, &mut out);
         let goal = tracked_ancestor(domain, context.requester);
         let milestone = milestones::of(domain, goal);
+        let mut person = None;
+        let mut goal_title = None;
+        let mut draft = None;
+        if let Some(goal) = goal {
+            person = super::decided::person(domain, goal);
+            if let Some(row) = domain.core.tasks.task(goal) {
+                let title = temper_engine_domain_forge_closer::first_line(&row.spec.words);
+                if !title.is_empty() {
+                    goal_title = Some(forge::text::fit(title, forge::LOGGED_TITLE_BYTES, "…".as_bytes()));
+                }
+                draft = goal_draft(&row.spec.words);
+            }
+        }
         let registration = forge::Event::Change {
             row: forge::ChangeRow {
                 room: None,
@@ -2063,6 +2090,9 @@ pub(super) fn start_recovered_change(
                 verdicts: Box::new([]),
                 goal,
                 milestone,
+                person,
+                goal_title,
+                draft,
                 ending: None,
                 repair_tasks: Box::new([]),
                 resolution_tasks: Box::new([]),
@@ -4417,6 +4447,10 @@ pub(crate) fn outputs(
                 }
                 // A full findings table never holds the tier's judgement.
                 let _answer = super::findings::file_finding(domain, env, decision, forge::Filer::Task(task), finding);
+            }
+            forge::Request::FileVerdict { task, filing } => {
+                // A full findings table never holds the tier's judgement.
+                let _answer = super::findings::file_verdict(domain, env, decision, task, filing);
             }
             forge::Request::News { task, subscription, news, class, .. } => {
                 let class = match class {

@@ -12,6 +12,10 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
         for change in &landing.changes {
             changes
                 .push(w::LoggedChange {
+                    fixes: encode_fixes(&change.fixes),
+                    person: change.person,
+                    goal_title: change.goal_title.clone(),
+                    draft: change.draft.clone(),
                     task: change.task,
                     pull: change.pull,
                     title: change.title.clone(),
@@ -41,9 +45,21 @@ pub(super) fn decode(row: w::LandingLog, tier_bound: u32) -> Result<d::LandingLo
         let w::LoggedLanding { commit, branch, at, changes, tiers } = landing;
         let mut members = List::with_capacity(changes.len());
         for change in changes.into_boxed() {
-            let w::LoggedChange { task, pull, title, signed, goal, milestone } = change;
+            let w::LoggedChange { task, pull, title, signed, goal, milestone, person, goal_title, draft, fixes } =
+                change;
             members
-                .push(d::LoggedChange { goal, milestone, task, pull, title, signed: decode_signed(signed) })
+                .push(d::LoggedChange {
+                    goal,
+                    milestone,
+                    person,
+                    goal_title,
+                    draft,
+                    fixes: fixes.into_boxed(),
+                    task,
+                    pull,
+                    title,
+                    signed: decode_signed(signed),
+                })
                 .expect(FITS);
         }
         let tiers = decode_tiers(tiers)?;
@@ -66,6 +82,14 @@ pub(super) fn decode(row: w::LandingLog, tier_bound: u32) -> Result<d::LandingLo
             .expect(FITS);
     }
     Ok(d::LandingLog { repository: names::decode_repository(repository), landings: decoded.into_boxed() })
+}
+
+fn encode_fixes(fixes: &[u32]) -> List<u32> {
+    let mut result = List::with_capacity(8);
+    for number in fixes {
+        result.push(*number).expect(FITS);
+    }
+    result
 }
 
 pub(super) fn encode_signed(signed: &[d::SignOff]) -> List<w::SignOff> {
