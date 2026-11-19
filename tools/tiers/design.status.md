@@ -4,6 +4,8 @@
 
 - **Not yet:** 10.2, 11.5, 11.6, 11.10: a starved pass in a one-process run unwinds (`skein_world::pass_starved`), libtest reports it failed, and the lanes read it starved by its last line whatever libtest's result, so a failure whose output ends with the line reads starved; a process a starved pass ends with exit 0 reads as a crash, and only a crash starts a fresh process; the fixture's starved case unwinds with `resume_unwind` [in flight: change 2711].
 - **Not yet:** 10.2: `summary`'s result has no `swings`, and its `warnings` name no test that swings alone at main (`tools/tiers/references.md`, 6) [in flight: change 8489].
+- **Not yet:** 1: `run` adds `--no-fail-fast` beside a caller's `--no-run`, which nextest refuses, so a pair's build alone (`tools/tiers/run TREE TIER -- --no-run`) fails before it builds [in flight: change 9932].
+- **Not yet:** 11.4: the lanes count CPUs with `os.sched_getaffinity` alone, which macOS's Python lacks, so a one-process run there fails before its tests start [in flight: change 9933].
 - **Not yet:** 7.3, 11.7: on macOS, which has no `/proc`, `cpu.py`'s `session_processes` cannot list a stopped command's session, so stopping one (a wall hard limit, an interrupt, a failed listing) raises `FileNotFoundError` in place of settling it. A run that ends by itself never reaches it, and the macOS workflow's parts set no wall hard limit, so nothing on their path reaches it before their tests run.
 
 The gate tables' form and figures, the summary by layer, the ledger, the
