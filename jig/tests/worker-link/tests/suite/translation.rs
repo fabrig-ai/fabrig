@@ -27,8 +27,8 @@ pub(super) fn limits() -> jig_protocol_worker_link::Limits {
     limits.sizes.turn = 1024;
     limits
 }
-pub(super) fn golden(text: &str, name: &str) -> Box<[u8]> {
-    skein_codegen::goldens(&skein_codegen::parse(text).expect("bounded translation fixture"))
+pub(super) fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+    skein_codegen::values(text).goldens.clone()
         .into_iter()
         .find(|g| g.name == format!("{name}.bin"))
         .expect("bounded translation fixture")

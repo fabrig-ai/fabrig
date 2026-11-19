@@ -3,6 +3,11 @@
 #![forbid(unsafe_code)]
 #![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 extern crate alloc;
+
+/// The current family schema text (skein data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/test-connector-v2.schema");
+
 use alloc::boxed::Box;
 use jig_test_connector as connector;
 pub mod keys;

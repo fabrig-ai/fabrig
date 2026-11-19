@@ -3,6 +3,10 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+/// The current view records schema text (skein data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the codec exposes its owner's schema without the UI")]
+pub const SCHEMA: &str = include_str!("../../jig-client-view/schema/records-v1.schema");
+
 #[rustfmt::skip]
 #[path = "generated/records.rs"]
 pub mod records_v1;

@@ -9,7 +9,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../examples/ops/client-protocol-wire/schema/ops-client-v1.schema"),
+        jig_ops_client_protocol_wire::SCHEMA,
         jig_ops_client_protocol_wire::v1, sealed,
         limits [
             infrastructure_service_environment,

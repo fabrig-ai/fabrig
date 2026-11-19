@@ -10,7 +10,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/temper-client-protocol-wire/schema/client-wire-v1.schema"),
+        temper_client_protocol_wire::CLIENT_SCHEMA,
         temper_client_protocol_wire::v1, sealed,
         limits [
             adopt_owner,
@@ -379,7 +379,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/temper-client-protocol-wire/schema/public-v1.schema"),
+        temper_client_protocol_wire::PUBLIC_SCHEMA,
         temper_client_protocol_wire::public_v1, sealed,
         limits [
             public_change_gates,
@@ -400,7 +400,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/temper-protocol-records/schema/secrets-v1.schema"),
+        temper_protocol_records::SCHEMA,
         temper_protocol_records::v1, sealed,
         limits [
             admin_token_value,
@@ -421,7 +421,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/temper-protocol-store/schema/store-v25.schema"),
+        temper_protocol_store::OWNER_SET.families.first().expect("store family").current,
         temper_protocol_store::v25, sealed,
         limits [
             segment_name,
@@ -783,7 +783,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/temper-protocol-worker-wire/schema/worker-wire-v1.schema"),
+        temper_protocol_worker_wire::SCHEMA,
         temper_protocol_worker_wire::v1, sealed,
         limits [
             merge_branch,

@@ -3,6 +3,11 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+/// The current family schema text (skein data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/worker-wire-v1.schema");
+
+
 #[rustfmt::skip]
 mod generated {
     #[path = "worker_wire.rs"]
@@ -217,8 +222,7 @@ pub mod wire {
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
 
     #[cfg(test)]
-    #[expect(clippy::disallowed_macros, reason = "the wire identity test embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/worker-wire-v1.schema");
+    const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

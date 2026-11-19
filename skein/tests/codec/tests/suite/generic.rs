@@ -42,11 +42,15 @@ mod tests {
         let mut count = 0_u32;
         let mut compared = 0_u32;
         for path in paths {
-            let text = std::fs::read_to_string(&path).expect("schema readable");
+            let current = generated::current_text(path.to_str().expect("schema path"));
+            let text = current.map_or_else(|| std::fs::read_to_string(&path).expect("schema readable"), str::to_owned);
             let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
-            let generated_schema = skein_codegen::parse(&text).expect("generator schema");
+            let goldens = current.map_or_else(
+                || skein_codegen::goldens(&skein_codegen::parse(&text).expect("generator schema")),
+                |text| skein_codegen::values(text).goldens.clone(),
+            );
             let family = generated::families().into_iter().find(|family| family.text == text);
-            for golden in skein_codegen::goldens(&generated_schema) {
+            for golden in goldens {
                 let root = generic::golden_root(&schema, &golden.name);
                 let node =
                     value.decode(&schema, root, golden.bytes.clone().into_boxed_slice()).expect("golden decodes");

@@ -5,12 +5,11 @@ use jig_domain_core_vocabulary::{documents, reads};
 use skein_lib::{Reader, Writer};
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the committed schema is a version test input")]
 fn cursor_version_equals_the_header_and_the_codec() {
     let schema =
-        skein_codec::schema::parse(include_bytes!("../../../schema/cursor-v2.schema")).expect("cursor family parses");
-    assert_eq!(schema.spelled(schema.family()), b"jig-engine-cursor");
-    assert_eq!(CURSOR_VERSION, schema.version());
+        &skein_codegen::values(crate::SCHEMA).schema;
+    assert_eq!(schema.family.as_bytes(), b"jig-engine-cursor");
+    assert_eq!(CURSOR_VERSION, schema.version);
 
     let cursor = reads::Cursor::Store { scope: reads::Scope::Task { task: 7 }, after: None };
     let bytes = encode(&cursor, 1024).expect("owner cursor");

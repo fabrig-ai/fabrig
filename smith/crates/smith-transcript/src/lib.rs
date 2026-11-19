@@ -8,6 +8,11 @@
 
 extern crate alloc;
 
+/// The current family schema text (skein data/codec/README.md, section 6).
+#[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
+pub const SCHEMA: &str = include_str!("../schema/transcript-v7.schema");
+
+
 #[rustfmt::skip]
 mod generated {
     /// Current bounded transcript codec, written from transcript-v7.schema.
@@ -84,8 +89,7 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;
 
-    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/transcript-v7.schema");
+    const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

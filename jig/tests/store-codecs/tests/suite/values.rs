@@ -1,11 +1,11 @@
 //! Schema texts for the fixed-rule values used by the store codec tests.
 
-pub(super) const NOTES: &str = include_str!("../../../../crates/jig-protocol-store/schema/notes-v1.schema");
-pub(super) const TASKS: &str = include_str!("../../../../crates/jig-protocol-store/schema/tasks-v13.schema");
-pub(super) const CORE: &str = include_str!("../../../../crates/jig-protocol-store/schema/core-v6.schema");
-pub(super) const PEOPLE: &str = include_str!("../../../../crates/jig-protocol-store/schema/people-v17.schema");
-pub(super) const COMPONENT: &str = include_str!("../../../../crates/jig-protocol-store/schema/component-v3.schema");
-pub(super) const ACCOUNTS: &str = include_str!("../../../../crates/jig-protocol-store/schema/accounts-v2.schema");
-pub(super) const SETTINGS: &str = include_str!("../../../../crates/jig-protocol-store/schema/settings-v3.schema");
+pub(super) const NOTES: &str = jig_protocol_store::STORE_FAMILIES[6].current;
+pub(super) const TASKS: &str = jig_protocol_store::STORE_FAMILIES[4].current;
+pub(super) const CORE: &str = jig_protocol_store::STORE_FAMILIES[3].current;
+pub(super) const PEOPLE: &str = jig_protocol_store::STORE_FAMILIES[5].current;
+pub(super) const COMPONENT: &str = jig_protocol_store::STORE_FAMILIES[0].current;
+pub(super) const ACCOUNTS: &str = jig_protocol_store::STORE_FAMILIES[7].current;
+pub(super) const SETTINGS: &str = jig_protocol_store::STORE_FAMILIES[8].current;
 pub(super) const TEST_CONNECTOR: &str =
-    include_str!("../../../../testing/jig-test-store/schema/test-connector-v2.schema");
+    jig_test_store::SCHEMA;

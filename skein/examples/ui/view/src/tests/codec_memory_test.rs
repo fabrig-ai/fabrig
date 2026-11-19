@@ -14,7 +14,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../schema/notes-v1.schema"),
+        skein_ui_example_view_codec::SCHEMA,
         crate::records, sealed,
         limits [
             note_title,

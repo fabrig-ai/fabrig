@@ -12,7 +12,7 @@ mod tests {
     fn families() -> (Family, Family) {
         let sealed = generated::families()
             .into_iter()
-            .find(|family| family.text == include_str!("../../schema/every-v3.schema"))
+            .find(|family| family.text == skein_codec_tests::EVERY_SCHEMA)
             .expect("sealed every-v3");
         (sealed, generated::every_lean())
     }

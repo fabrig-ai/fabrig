@@ -21,7 +21,7 @@ mod tests {
 
     #[test]
     fn every_v3_holds_every_construct() {
-        let missing = missing(include_str!("../../schema/every-v3.schema")).expect("every-v3 valid");
+        let missing = missing(skein_codec_tests::EVERY_SCHEMA).expect("every-v3 valid");
         assert!(missing.is_empty(), "every-v3 lacks constructs: {missing:?}");
     }
 
@@ -62,10 +62,11 @@ mod tests {
     fn check(schema_path: &str) {
         let (_, generated_path, golden_directory) =
             FAMILIES.into_iter().find(|row| row.0 == schema_path).expect("family registered");
-        let source = fs::read_to_string(schema_path).expect("schema readable");
+        let current = crate::support::generated::current_text(schema_path);
+        let source = current.map_or_else(|| fs::read_to_string(schema_path).expect("schema readable"), str::to_owned);
         let missing = unpinned(&source).expect("schema valid");
         assert!(missing.is_empty(), "{schema_path}: unpinned constructs: {missing:?}");
-        let schema = parse(&source).expect("schema valid");
+        let schema = current.map_or_else(|| parse(&source).expect("schema valid"), |text| skein_codegen::values(text).schema.clone());
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
         let form = form_of(Path::new(schema_path).parent().expect("schema directory"), &schema.family)
             .expect("owner's lean mark readable");
@@ -77,7 +78,7 @@ mod tests {
             check_text("src/growth/v1_lean.rs", &generate_as(&schema, Form::Lean).records, write);
         }
         if let Some(directory) = golden_directory {
-            check_goldens(directory, goldens(&schema), write);
+            check_goldens(directory, current.map_or_else(|| goldens(&schema), |text| skein_codegen::values(text).goldens.clone()), write);
         }
     }
 

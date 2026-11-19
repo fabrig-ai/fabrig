@@ -55,9 +55,11 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         ],
         frames: None,
     },
-    KeptFamily {
+    {
+        let core = include_str!("../schema/core-v6.schema");
+        KeptFamily {
         retired: &[],
-        current: include_str!("../schema/core-v6.schema"),
+        current: core,
         types: &[
             ValueType {
                 number: 0,
@@ -113,9 +115,10 @@ pub const STORE_FAMILIES: [KeptFamily; 10] = [
         keys: &[Keys { from: &[1, 0, 0], to: &[1, 0, 8], root: "Row" }],
         frames: Some(crate::Frames {
             root: "TurnRecord",
-            texts: &[include_str!("../schema/core-v6.schema")],
+            texts: &[core],
             patches: &[],
         }),
+        }
     },
     KeptFamily {
         retired: &[],

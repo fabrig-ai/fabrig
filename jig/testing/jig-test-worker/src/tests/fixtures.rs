@@ -393,12 +393,9 @@ pub fn encoded_turn() -> host::Turn {
     }
 }
 
-#[expect(clippy::disallowed_macros, reason = "the fixture embeds the current charter schema")]
 fn charter_fixture() -> Box<[u8]> {
-    let schema =
-        skein_codegen::parse(include_str!("../../../../../smith/crates/smith-charter/schema/charter-v5.schema"))
-            .expect("charter schema");
-    for value in skein_codegen::goldens(&schema) {
+    let values = skein_codegen::values(smith_charter::SCHEMA);
+    for value in values.goldens.clone() {
         if value.name == "record_charter_smallest.bin" {
             return value.bytes.into_boxed_slice();
         }

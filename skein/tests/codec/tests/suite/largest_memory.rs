@@ -12,7 +12,7 @@ macro_rules! every {
     ($module:path, $form:ident) => {
     family!(
         CAP,
-        include_str!("../../schema/every-v3.schema"),
+        skein_codec_tests::EVERY_SCHEMA,
         $module, $form,
         limits [
             texts_raw,
@@ -180,7 +180,7 @@ macro_rules! every {
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../schema/sample-v1.schema"),
+        skein_codec_tests::SAMPLE_SCHEMA,
         skein_codec_tests::v1, sealed,
         limits [
             field_name,

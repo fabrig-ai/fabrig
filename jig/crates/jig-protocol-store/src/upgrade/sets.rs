@@ -82,7 +82,6 @@ impl OwnerSets {
 }
 
 /// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening.md, 3).
-#[expect(clippy::disallowed_macros, reason = "the binary's current secrets schema")]
 pub const JIG: OwnerSet = OwnerSet {
     jobs: &[],
     owner: Owner::Jig,
@@ -90,7 +89,7 @@ pub const JIG: OwnerSet = OwnerSet {
     level: None,
     families: &[KeptFamily {
         retired: &[],
-        current: include_str!("../../schema/secrets-v1.schema"),
+        current: { let [.., secrets] = crate::STORE_FAMILIES; secrets.current },
         types: &[],
         name: "jig-store-secrets",
         map: KeptMap::Secrets,

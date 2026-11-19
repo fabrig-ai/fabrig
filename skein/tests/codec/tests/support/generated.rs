@@ -66,10 +66,24 @@ macro_rules! lean_roots {
     };
 }
 
+pub fn current_text(path: &str) -> Option<&'static str> {
+    use skein_codec_tests::{EVERY_SCHEMA, GROWTH_SCHEMA, LINTS_SCHEMA, SAMPLE_SCHEMA, SCALARS_SCHEMA, SECRETS_SCHEMA};
+    match path {
+        "schema/every-v3.schema" => Some(EVERY_SCHEMA),
+        "schema/growth-v1.schema" => Some(GROWTH_SCHEMA),
+        "schema/lints-v1.schema" => Some(LINTS_SCHEMA),
+        "schema/sample-v1.schema" => Some(SAMPLE_SCHEMA),
+        "schema/scalars-v1.schema" => Some(SCALARS_SCHEMA),
+        "schema/secrets-v1.schema" => Some(SECRETS_SCHEMA),
+        "../../examples/ui/view/schema/notes-v1.schema" => Some(skein_ui_example_view_codec::SCHEMA),
+        _ => None,
+    }
+}
+
 pub fn every_lean() -> Family {
     Family {
         name: "every",
-        text: include_str!("../../schema/every-v3.schema"),
+        text: skein_codec_tests::EVERY_SCHEMA,
         roots: lean_roots!(
             Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every, Kinds, Lists, Options, Grouped, Held, LongRecord
         ),
@@ -80,23 +94,23 @@ pub fn families() -> [Family; 7] {
     [
         Family {
             name: "sample",
-            text: include_str!("../../schema/sample-v1.schema"),
+            text: skein_codec_tests::SAMPLE_SCHEMA,
             roots: roots!(v1; Field, Effect, Report, Choice, Marker),
         },
         Family {
             name: "scalars",
-            text: include_str!("../../schema/scalars-v1.schema"),
+            text: skein_codec_tests::SCALARS_SCHEMA,
             roots: roots!(scalars; Empty, Flag, Scalars),
         },
         Family {
             name: "lint-fixture",
-            text: include_str!("../../schema/lints-v1.schema"),
+            text: skein_codec_tests::LINTS_SCHEMA,
             roots: roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
                 OptionalPayload, BoxedChoice, InlineChoice, FixedWidthItems, LongRecord),
         },
         Family {
             name: "secrets",
-            text: include_str!("../../schema/secrets-v1.schema"),
+            text: skein_codec_tests::SECRETS_SCHEMA,
             roots: roots!(secrets; Credential),
         },
         Family {
@@ -111,7 +125,7 @@ pub fn families() -> [Family; 7] {
         },
         Family {
             name: "every",
-            text: include_str!("../../schema/every-v3.schema"),
+            text: skein_codec_tests::EVERY_SCHEMA,
             roots: roots!(every_v3; Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every,
                 Kinds, Lists, Options, Grouped, Held, LongRecord),
         },

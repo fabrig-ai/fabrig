@@ -482,9 +482,8 @@ mod grants;
 pub use grants::{bearer, key, program};
 
 fn charter_fixture() -> Vec<u8> {
-    let schema = skein_codegen::parse(include_str!("../../../crates/smith-charter/schema/charter-v5.schema"))
-        .expect("charter schema");
-    skein_codegen::goldens(&schema)
+    let values = skein_codegen::values(smith_charter::SCHEMA);
+    values.goldens.clone()
         .into_iter()
         .find(|value| value.name == "record_charter_smallest.bin")
         .expect("smallest charter")

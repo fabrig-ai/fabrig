@@ -2,7 +2,7 @@
 
 use super::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned, without};
 
-const EVERY: &str = include_str!("../../../tests/codec/schema/every-v3.schema");
+const EVERY: &str = skein_codec_tests::EVERY_SCHEMA;
 
 fn found(declarations: &str) -> Vec<Construct> {
     constructs(&format!("family f 1\n{declarations}")).expect("valid construct fixture")
