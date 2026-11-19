@@ -379,11 +379,11 @@ mod settings_tests {
     fn inventory_counts_both_defaults_and_changes() {
         let mut limits = crate::stock();
         // Stock has 26 other slots per set and shared ranges of 64 models, 64 workers and 16 providers.
-        limits.core.tasks.charters = 159;
+        limits.core.tasks.charters = 158;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 160;
+        limits.core.tasks.charters = 159;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }
