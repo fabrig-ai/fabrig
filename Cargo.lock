@@ -6309,6 +6309,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-walk-world"
+version = "0.0.0"
+dependencies = [
+ "jig-client-shell-web",
+ "skein-fake-person",
+ "skein-lib",
+ "skein-playground",
+ "skein-sim-world",
+ "skein-ui",
+ "skein-ui-web",
+ "temper-client-domain",
+ "temper-client-shell-web",
+ "temper-client-view",
+ "temper-fake",
+ "temper-playground",
+]
+
+[[package]]
 name = "temper-client-web-page"
 version = "0.0.0"
 dependencies = [
@@ -7586,7 +7604,6 @@ dependencies = [
 name = "temper-playground-world"
 version = "0.0.0"
 dependencies = [
- "jig-client-shell-web",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "serde_json",
@@ -7603,7 +7620,7 @@ dependencies = [
  "skein-ui-web",
  "temper-client-domain",
  "temper-client-shell-web",
- "temper-client-view",
+ "temper-client-walk-world",
  "temper-playground",
  "temper-service",
  "temper-test-env",
