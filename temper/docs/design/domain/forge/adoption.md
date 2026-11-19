@@ -902,6 +902,16 @@ all.
   decided again: its connector no longer keeping the outcome, it is
   answered unknown, as one past its retention is. An opening sent again
   so opens nothing new.
+- **Seen where the store's tables are read:** the store's census
+  (jig's `protocol/store/README.md`, 6.3), in `temper ctl deployment
+  census` and the Limits page (`../../client/ctl/results.md`;
+  `../../client/pages/settings.md`, 1). Its `temper.applications` row,
+  the store's family 15, counts the kept answers as its rows; the root
+  sets its `pending` to the requests pending, `Domain::pending_applications`
+  of the forge's domain, as it hands the report to the core. jig's
+  client wire moves its version for the census's `pending`, with no
+  bridge (`../../draft/redeploys.md`, section 8); engine, workers and
+  the store move nothing.
 - **The figures stay:** `forge.applications` 32, `forge.adoptions` 2,
   and the request retention a day (`people.request_retention_ms`), in
   the standard profile (`../../protocol/configuration/limits.md`).
