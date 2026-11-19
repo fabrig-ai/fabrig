@@ -5,20 +5,20 @@ use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, Map};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum At {
     Decl(DeclIx),
     Type(TypeIx),
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Location {
     text: u32,
     at: At,
     variant: Option<VariantIx>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Key {
     old: Location,
     new: Location,
@@ -51,8 +51,10 @@ struct Builder {
     plan: Plan,
     policy: Policy,
     keys: List<Key>,
+    key_indices: Map<Key, u32>,
     places: List<Place>,
     read_keys: List<Location>,
+    read_indices: Map<Location, u32>,
     read_places: List<Place>,
     pairs: List<Pair>,
 }
@@ -142,24 +144,22 @@ impl Builder {
         at
     }
     fn request_read(&mut self, key: Location, place: Place) -> u32 {
-        for at in 0..self.read_keys.len() {
-            if self.read_keys.get(at) == Some(&key) {
-                return at;
-            }
+        if let Some(at) = self.read_indices.get(&key) {
+            return *at;
         }
         let at = self.read_keys.len();
+        self.read_indices.insert(key, at).expect("one index per reached reader");
         self.read_keys.push(key).expect("read nodes bounded by reached texts");
         self.read_places.push(place).expect("one place per reader");
         self.plan.reads.push(Read { kind: ReadKind::Pending, minimum: 0, depth: 0 }).expect("one reader per key");
         at
     }
     fn request(&mut self, key: Key, place: Place) -> u32 {
-        for at in 0..self.keys.len() {
-            if self.keys.get(at) == Some(&key) {
-                return at;
-            }
+        if let Some(at) = self.key_indices.get(&key) {
+            return *at;
         }
         let at = self.keys.len();
+        self.key_indices.insert(key, at).expect("one index per reached conversion");
         let read = self.request_read(key.old, place);
         self.keys.push(key).expect("conversion nodes bounded by reached texts");
         self.places.push(place).expect("one place per conversion");
@@ -715,8 +715,10 @@ pub(super) fn plan(
         },
         policy,
         keys: List::uncapped(),
+        key_indices: Map::uncapped(),
         places: List::uncapped(),
         read_keys: List::uncapped(),
+        read_indices: Map::uncapped(),
         read_places: List::uncapped(),
         pairs: List::uncapped(),
     };
