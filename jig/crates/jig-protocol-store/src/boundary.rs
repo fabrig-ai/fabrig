@@ -696,6 +696,8 @@ pub enum Event {
         owner: Token,
         wires: Option<Box<[KeptWire]>>,
         openings: Box<[WorkerOpening]>,
+        linked: u32,
+        copied: u32,
     },
     Decoded {
         owner: Token,

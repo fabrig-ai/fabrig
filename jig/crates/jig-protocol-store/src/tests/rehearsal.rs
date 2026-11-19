@@ -14,6 +14,11 @@ use skein_fake_machine::Item;
 use skein_io::kernel::Error;
 use skein_lib::{Token, Wall};
 
+// source() seals a snapshot and two segments, leaving its third segment writable.
+const LINKED_FILES: u32 = 3;
+// Refusing the snapshot leaves only the two sealed segments linked.
+const LINKS_AFTER_REFUSAL: u32 = 2;
+
 fn opening(name: &str) -> WorkerOpening {
     WorkerOpening {
         worker: name.into(),
@@ -238,12 +243,27 @@ fn openings_links_snapshot_and_sealed_segments_across_roots_and_pages() {
 
     let mut disk = paged_disk(&items);
     let events = rehearse(&mut disk, Reach::Openings);
-    let [Event::Rehearsing { wires, openings, .. }, Event::Closed { removed: true, .. }] = events.as_ref() else {
+    let [
+        Event::Rehearsing { wires, openings, linked: LINKED_FILES, copied: shallow_copied, .. },
+        Event::Closed { removed: true, .. },
+    ] = events.as_ref()
+    else {
         panic!("{events:?}")
     };
-    let Some(Event::Rehearsing { wires: whole_wires, openings: whole_openings, .. }) = whole_events.first() else {
+    let Some(Event::Rehearsing {
+        wires: whole_wires, openings: whole_openings, linked: 0, copied: whole_copied, ..
+    }) = whole_events.first()
+    else {
         panic!("{whole_events:?}")
     };
+    assert_eq!(
+        usize::try_from(*whole_copied).expect("fixture count fits"),
+        source_files(&items, Reach::Whole, None).len()
+    );
+    assert_eq!(
+        usize::try_from(*shallow_copied).expect("fixture count fits"),
+        source_files(&items, Reach::Openings, None).len()
+    );
     assert_eq!(wires, whole_wires);
     assert_eq!(openings, whole_openings);
     assert_eq!(
@@ -261,21 +281,21 @@ fn openings_copies_one_refused_link_and_still_self_closes() {
     let before = disk.contents();
     disk.refuse_link_once(b"snapshot", Error::Other(18)); // EXDEV
     let events = rehearse(&mut disk, Reach::Openings);
-    assert!(
-        {
-            if let [Event::Rehearsing { wires: Some(_), openings, .. }, Event::Closed { removed: true, .. }] =
-                events.as_ref()
-            {
-                openings.as_ref() == [opening("w1"), opening("w2")]
-            } else {
-                false
-            }
-        },
-        "{events:?}"
-    );
+    let [
+        Event::Rehearsing { wires: Some(_), openings, linked: LINKS_AFTER_REFUSAL, copied: count, .. },
+        Event::Closed { removed: true, .. },
+    ] = events.as_ref()
+    else {
+        panic!("{events:?}")
+    };
+    assert_eq!(openings.as_ref(), [opening("w1"), opening("w2")]);
     assert_eq!(
         linked(&disk),
         [b"log-00000000000000000001".as_slice(), b"log-00000000000000000002", b"snapshot"].map(Box::from)
+    );
+    assert_eq!(
+        usize::try_from(*count).expect("fixture count fits"),
+        source_files(&items, Reach::Openings, Some(b"snapshot")).len()
     );
     assert_eq!(copied(&disk), source_files(&items, Reach::Openings, Some(b"snapshot")));
     assert_eq!(disk.contents(), before, "fallback and close leave every source file unchanged");
