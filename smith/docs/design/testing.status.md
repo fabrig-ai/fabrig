@@ -20,11 +20,6 @@
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
-  - 6.1: the channel's and the transcript's drift tests and the channel
-    goldens' measured-length test are past the step tests' 0.04 s
-    reference. [in flight: change 8837]
-  - 6.1: the local shell's check of unsafe program directories is past
-    the step tests' 0.04 s reference. [in flight: change 8847]
 - **Departs:**
   - 2: domain worlds use domains and fakes only, never protocol crates,
     but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,
