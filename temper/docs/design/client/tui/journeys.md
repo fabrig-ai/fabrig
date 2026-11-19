@@ -549,9 +549,10 @@ ordinary Rust over skein's harness:
   (`../journey-clock.md`, 4.3). Its output is read and dropped.
 - **A setup,** where the journey's directory holds one: its `setup`
   file, in the browser's format and with its rules (`../web/journeys.md`,
-  8.2), its `after` naming a browser journey, read from the browser's
-  journeys' directory, as `project-landing`'s steps to a project with a
-  model. `again` walks it in the signed-in browser, its `reload` loaded
+  8.2), its `after`, where it has one, naming a browser journey not yet
+  moved, read from the browser's journeys' directory. The three that go
+  to a project with a model hold `project-landing`'s steps themselves,
+  since that journey is a walk (`../journey-walks.md`, 6). `again` walks it in the signed-in browser, its `reload` loaded
   last where it has one, before the TUI starts, so that the TUI opens on
   what the setup made; a `mark` in it is refused when it is read, since
   the TUI's `walk` marks its own frames. Its steps and their bounds are
@@ -612,9 +613,8 @@ which changes which requests the pages send and when (`../README.md`, 3.4;
 pages before it is stale (section 7, *The print*). `sign-in-approved`,
 `launchpad-chat`, `launchpad-drawn` and `design-session` are recorded on
 R4's pages with `again NAME` (8.2), on journey-clock's fixed start
-(`../journey-clock.md`, 4.4), the last three's `setup` following
-`project-landing`'s (`../web/journeys.md`, 9), as section 9's table has
-it. Their steps are a real `temper`'s in front of a real `temper box
+(`../journey-clock.md`, 4.4), the last three's `setup` holding
+`project-landing`'s steps (8.2), as section 9's table has it. Their steps are a real `temper`'s in front of a real `temper box
 --fake-backends`: a step that stalls under `again` is a fault of the
 client or the box, repaired where it is, never a walk's patience raised
 or its step dropped.
@@ -624,7 +624,7 @@ or its step dropped.
 | Name | The walk | Its pages |
 |---|---|---|
 | `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, 4 and 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
-| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages/README.md`); its `../../README.md` names each frame |
+| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `project-landing`'s steps, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages/README.md`); its `../../README.md` names each frame |
 | `launchpad-drawn` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello; then as `sign-in-approved` to the launchpad; `/change` and a change asked in words, which starts a chat; its fake model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count; `n` and the walk's prompt; its first choice taken; the walk's end; the end | `03`, the launchpad as drawn, with the chat, its need and Start (`pages/launchpad.md`); `05`, the walk's prompt under the box (*Walking what needs you*); `07`, the launchpad after the walk, its note, at the recording's end; `01`, `02`, `04` and `06`, the frames before the keys that act (3.3); its `../../README.md` names each frame |
 | `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at the recording's 80 columns goes first (`pages/design-session.md`, 1, *narrow*; the goal's part is the 110-column golden's); the end | `03`, the session at half with the drafter's choices under the box; `05`, the pane at all; `07`, folded; `10`, Open questions marked new; `12`, `/goal`'s ways prompt; `14` and `15`, the returned chat with its goal linked, marked and at the recording's end (`pages/design-session.md`, 1); `01`, Hello's launchpad; `02`, `04`, `06`, `08`, `09`, `11` and `13`, before the keys that act (3.3); its `../../README.md` names each frame |
 | `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`box.md`); its `../../README.md` names each frame |
