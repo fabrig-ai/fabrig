@@ -624,9 +624,8 @@ temper's:
 - **The printed link** (jig's `protocol/client/sign-in.md`): at
   start, `temper-box serve`, or `temper box` before it starts serve
   (`../protocol/setup/box.md`, 2), prints a sign-in link for the deployment's
-  first owner (`../protocol/binaries.md`), in the default
-  mapping's link route under temper's prefix,
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`. `temper-box open
+  first owner (`../protocol/binaries.md`), at the link's page (below),
+  `http://HOST:PORT/sign-in?secret=SECRET`. `temper-box open
   DIRECTORY LINK` checks that the link names the engine's address on
   loopback and that route or the link's page (below), and gives the secret to `jig-client` with the
   credential DIRECTORY holds, if any (`SignIn { with: Link { secret,
@@ -635,23 +634,46 @@ temper's:
   running engine also keeps a local link of its own at rest, never the
   printed one, for a TUI on the same machine (`tui/README.md`, 2, *The engine's link,
   kept at rest*).
-- **The link's page, `/sign-in`** (the user's request of 2026-11-18):
+- **The link's page, `/sign-in`** (the user's request of 2026-11-18,
+  "a more terse URL, e.g. http://127.0.0.1:8367/sign-in?secret=xxx"):
   temper gives jig's mapping its link page, `/sign-in`, beside its
   prefix, `/jig` (jig's `protocol/client/default-http.md`, 1), so the
-  same link also reads `http://HOST:PORT/sign-in?secret=SECRET`, the
-  same secret, spent by the same `POST` to the link's route. Every
-  client of temper takes a link in either form: the browser opening it
-  (`web/README.md`, 2.4), the TUI's paste and the engine's link file
-  (`tui/pages/README.md`), `temper ADDRESS` refusing it as an argument
-  (`tui/README.md`, section 1), `temper-box open` (`line.md`, 1),
-  `temper ctl DIRECTORY sign-in` (`ctl/README.md`, 6.1) and the TUI
-  journeys' redaction (`tui/journeys.md`, section 5); each reads it with
-  jig's mapping made with that page, whose path temper names once, in
-  `temper-client-domain-forge`'s `sign_in` module. temper still prints
-  the route's form, the box's block and serve's line and the TUI's
-  link line among them, and makes an asked link in it (`ctl/README.md`,
-  6.1), so that a client of the build before reads every link temper
-  gives (5.8).
+  link reads `http://HOST:PORT/sign-in?secret=SECRET`, its secret spent
+  by the `POST` to the link's route, `/jig/v1/sign-in/link`, as before.
+  - **Printed and shown at the page:** every link temper makes is in
+    the page's form, by jig's ends given that page
+    (`default-http.md`, 4): the box's block and every fresh link
+    (`../protocol/setup/box.md`, 2), serve's line, and at a public
+    origin `https://NAME/sign-in?secret=SECRET`; the engine's local
+    link at rest (`tui/README.md`, 2); the link the box hands the TUI
+    in front of it, which its welcome and `/web`'s note show as given
+    (`tui/box.md`, *The welcome*); ctl's asked link (`ctl/README.md`,
+    6.1); and the TUI's link field's placeholder
+    (`tui/pages/sign-in.md`, 1). The help that shows the link shows it
+    so, and the operator's journal search finds it so.
+  - **The route's form still taken** ("let's keep backward compat"):
+    a link in the route's form,
+    `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, printed by a
+    build before, still signs in wherever a link is taken, and its
+    `GET` still answers the page (`web/README.md`, 2.2), until the user
+    says otherwise (5.8). Every client of temper takes either form: the
+    browser opening it (`web/README.md`, 2.4), the TUI's paste and the
+    engine's link file (`tui/pages/README.md`), `temper ADDRESS`
+    refusing it as an argument (`tui/README.md`, section 1),
+    `temper-box open` (`line.md`, 1), `temper ctl DIRECTORY sign-in`
+    (`ctl/README.md`, 6.1) and the TUI journeys' redaction
+    (`tui/journeys.md`, section 5); each reads it with jig's mapping
+    made with that page.
+  - **Named once:** the page's path is `LINK_PAGE` in
+    `temper-client-protocol-wire`, the lowest crate both the engine,
+    which prints the link, and the clients, which read it, name;
+    `temper-client-domain-forge`'s `sign_in` module re-exports it, and
+    every client names it from there.
+  - **No version moves:** the link is no versioned wire, and every
+    client of temper since dev.fabrig.ai's 0.0.2 takes both forms. A
+    client of a build before that one says the page's form is no link;
+    it is a client of another build, which an engine refuses and tells
+    to upgrade (`../draft/redeploys.md`, section 8).
 - **A sign-in held is kept** (jig's `domain/people/README.md`, section 3): a
   person still signed in who opens a fresh link with the same DIRECTORY
   keeps their sign-in, its number and its expiry, and the deployment's
@@ -875,13 +897,13 @@ was answered with. A box enables it beside the printed link
   still signs in on a reload. Falling back to the transport is jig's
   client question (jig's `client/domain/client/README.md`, section 15).
   Default: no fallback; reload to use the cookie.
-- **The printed link in its page's form** (section 4; jig's
-  `protocol/client/default-http.md`, 7): `http://HOST:PORT/sign-in?secret=SECRET`
-  printed wherever temper prints or shows a link, the box's block, the
-  TUI's link line, `temper-box open` and ctl's `address` among them,
-  once the deployments run a build that takes both forms; the user's
-  request of 2026-11-18 asks it as a later landing. Default: the route's
-  form printed, both taken.
+- **The route's form retired** (section 4, *The route's form still
+  taken*; jig's `protocol/client/default-http.md`, 7): once every tool
+  and person has moved to the page's form, temper might stop taking a
+  link at the route and stop answering its `GET` with the page. The
+  user's request of 2026-11-18 keeps it "at first, then all tooling gets
+  migrated"; the user decides when. Default: both taken, the route's
+  page kept.
 
 - **The forge as people's sign-in provider:** temper's own routes on its
   clients' listener run the forge's OAuth flow, read who the person is,

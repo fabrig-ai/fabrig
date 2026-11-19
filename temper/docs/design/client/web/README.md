@@ -505,9 +505,10 @@ replay says the same clocks (`../view.md`, 6).
 
 ### 2.4 Signing in
 
-- **The printed link,**
-  `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, or the same
-  link at its page, `http://HOST:PORT/sign-in?secret=SECRET`, opened in a
+- **The printed link,** at its page,
+  `http://HOST:PORT/sign-in?secret=SECRET`, or the same link at the
+  route, `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, as a
+  build before printed it, opened in a
   browser on the engine's machine (`../README.md`, section 4): temper's
   server answers either's `GET` with the page, which spends nothing (2.2); jig's sign-in part,
   given the link's route and its page, takes

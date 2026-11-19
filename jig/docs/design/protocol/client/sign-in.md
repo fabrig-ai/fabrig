@@ -44,7 +44,8 @@
   draws a one-time secret, valid for the profile's `link_span`, and gives it
   to the application's startup, `Link { secret }`, which prints a URL carrying
   it. The URL is the application's; the default mapping's is its link
-  route (`default-http.md`, 1). Signing in with the secret signs that person in as the
+  route, or the application's link page where it gives one
+  (`default-http.md`, 1). Signing in with the secret signs that person in as the
   deployment's first owner it names, and spends it. Beside the asked
   links (below), two links are live
   at most, the printed link and the local link (below), each one at a

@@ -42,7 +42,10 @@ prefix; jig's test application mounts it at `/jig`.
   example guards' (`../browser/README.md`, 12.2).
 - **The printed link's URL** is `<prefix>/v1/sign-in/link?secret=…` on
   the loopback address the application's server listens on, which the
-  application's startup prints. A `GET` of it, a browser's opening the
+  application's startup prints; where the application gives the mapping
+  a link page (below), it is the same link at that page,
+  `<page>?secret=…`, the route's form still taken. A `GET` of the
+  route's form, a browser's opening the
   link, spends nothing and draws nothing, since any other site can make
   a person's browser send a `GET`: the engine end leaves it to the
   application's page, which the server answers there, with
@@ -62,8 +65,12 @@ prefix; jig's test application mounts it at `/jig`.
   with the link route's referrer policy, spending nothing. The secret is
   still spent by the link route's `POST`, as above. The client end takes
   a link in either form, as one link (4), and so does the browser's
-  sign-in part (`../browser/README.md`, section 11); each end makes the
-  route's form alone, the printed link's and an asked link's (7).
+  sign-in part (`../browser/README.md`, section 11). Where the
+  application gives a page, each end makes the page's form, the printed
+  link's (the engine end's) and an asked link's (the client end's), and
+  where it gives none, the route's (4); the route's form stays taken,
+  and its `GET` left to the application's page, so that a link made
+  before still signs in (7).
   - **Its path:** at most 64 bytes, beginning with `/` and not ending
     with one, holding no `?` or `#`, and neither the prefix nor a path
     under it, whose `GET` the engine end would answer `404` (above); any
@@ -194,8 +201,12 @@ prefix; jig's test application mounts it at `/jig`.
   and `Mapping::with_page(prefix, page)` one with it, refusing a page
   off 1's rule as `Unmapped::Page`. `printed(mapping, url)` takes the
   printed link's URL in the route's form and, with a page, in the
-  page's, the same `Printed { host, secret }` for both; `link_url`
-  makes the route's form whatever the page. The native shell
+  page's, the same `Printed { host, secret }` for both.
+  `link_url(mapping, host, secret)` makes an asked link's URL in the
+  page's form where the mapping has a page,
+  `http://HOST<page>?secret=SECRET`, and in the route's where it has
+  none, `http://HOST<prefix>/v1/sign-in/link?secret=SECRET`, SECRET in
+  unpadded base64url (1). The native shell
   (`jig-client-shell-native`) is given its application's mapping in its
   `Settings`, and keeps no prefix of its own: its exchanges' paths and
   every link it reads are that mapping's.
@@ -208,6 +219,17 @@ prefix; jig's test application mounts it at `/jig`.
   its body ended at `Done` (6); the stream written as events, `StreamTaken` said as their
   bytes are written. The application's server mounts it at a prefix of
   its listener and hands it the calls under that prefix.
+- **Its `Settings`** name that prefix, the public name (3), and the
+  link page where the application gives one, `page: Option<Box<[u8]>>`,
+  the same page its clients' `Mapping` is given, under 1's rule, which
+  the application keeps (a page off it is the application's bug,
+  asserted). The page changes no route the engine end answers: its `GET`
+  is the application's (1). `link_path(settings, secret)` makes the
+  printed link's path and query, `<page>?secret=SECRET` with a page and
+  `<prefix>/v1/sign-in/link?secret=SECRET` with none, and
+  `printed_link(address, path)` puts it on the listener's address,
+  `http://HOST:PORT` before it; an application printing at a public
+  origin puts the same path on that origin.
 - **The engine end's room** is its calls in flight, streams and batches among them
   (`README.md`, section 10), and it owns that bound alone. A batch is one call, held
   until its body has ended. It holds a call from its
@@ -376,8 +398,8 @@ Many of jig's messages in one exchange, each answered as it is ready
 
 ## 7. Later
 
-- **The printed link in its page's form:** the engine end making the
-  printed link's URL, and the client end an asked link's, at the
-  application's link page where it gives one (1), once every client of
-  the application's deployments takes that form. Until then each end
-  makes the route's form, which every client of every build reads.
+- **The route's form retired:** an application that prints its page's
+  form (1) might one day stop taking a link at the route and stop
+  answering the route's `GET` with its page. Each end keeps taking both
+  forms while any link made in the route's form may still be held; an
+  application decides when none is. Default: both taken.
