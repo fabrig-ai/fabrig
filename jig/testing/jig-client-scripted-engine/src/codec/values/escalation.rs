@@ -5,15 +5,8 @@ pub(in crate::codec) fn wire_escalation(
     value: &c::Escalation,
     limits: &w::Limits,
 ) -> Result<w::Escalation, w::Problem> {
-    w::Escalation::new(
-        limits,
-        w::EscalationParts {
-            acts: pieces(
-                value.acts.iter().map(|item| wire_offered(item, limits)),
-                w::Offered::measure,
-                w::Offered::encode,
-            )?,
+    Ok(w::Escalation {
+            acts: pieces(value.acts.iter().map(|item| wire_offered(item, limits)), limits)?,
             task: wire_task(&value.task, limits)?,
-        },
-    )
+        })
 }

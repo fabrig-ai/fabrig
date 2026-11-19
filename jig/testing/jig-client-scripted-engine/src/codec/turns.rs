@@ -1,17 +1,17 @@
 //! Committed turns use the engine's transcript codec (client/domain/contract/README.md, 8).
-use super::{List, bytes, c, encoded, problem, w};
+use super::{List, bytes, c, problem, w};
 use smith_transcript::v7 as t;
 
-pub(super) fn turn_bytes(value: &c::TurnRead, limits: &w::Limits) -> Result<w::TurnBytes, w::Problem> {
+pub(super) fn turn_bytes(value: &c::TurnRead, _limits: &w::Limits) -> Result<w::TurnBytes, w::Problem> {
     let bytes = match value {
         c::TurnRead::Decoded(value) => turn(value)?,
         c::TurnRead::Undecodable { why: c::TurnProblem::Version { found } } => found.to_be_bytes().into(),
         c::TurnRead::Undecodable { why: c::TurnProblem::Malformed } => Box::new([]),
         c::TurnRead::Undecodable { why: c::TurnProblem::TooLarge { bytes } } => {
-            return Ok(w::TurnBytes::TooLarge(w::TurnTooLarge::new(limits, w::TurnTooLargeParts { bytes: *bytes })?));
+            return Ok(w::TurnBytes::TooLarge(w::TurnTooLarge { bytes: *bytes }));
         }
     };
-    Ok(w::TurnBytes::Carried(w::TurnCarried::new(limits, w::TurnCarriedParts { bytes })?))
+    Ok(w::TurnBytes::Carried(w::TurnCarried { bytes }))
 }
 
 fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
@@ -52,7 +52,9 @@ fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
         },
     )
     .map_err(|_| problem())?;
-    encoded(&turn, t::Turn::measure, t::Turn::encode)
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(turn.measure()));
+    turn.encode(&mut writer).map_err(|_| problem())?;
+    Ok(writer.finish())
 }
 
 fn has_result(turn: &c::Turn, number: u64) -> bool {

@@ -7,9 +7,7 @@ pub(in crate::codec) fn wire_amendment_state(
     value: &c::AmendmentState,
     limits: &w::Limits,
 ) -> Result<w::AmendmentState, w::Problem> {
-    w::AmendmentState::new(
-        limits,
-        w::AmendmentStateParts {
+    Ok(w::AmendmentState {
             addressed: value.addressed.as_ref().map(|item| wire_person_address(item, limits)).transpose()?,
             taken_by: value.taken_by.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             instructions: value.instructions.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
@@ -18,6 +16,5 @@ pub(in crate::codec) fn wire_amendment_state(
             wake: wire_wake_policy(&value.wake, limits)?,
             dependencies: list(value.dependencies.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
             cut: value.cut,
-        },
-    )
+        })
 }

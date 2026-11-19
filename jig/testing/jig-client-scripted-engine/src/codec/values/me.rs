@@ -6,9 +6,7 @@ use super::{
     wire_task_flags, wire_template_budget, wire_template_deadline, wire_template_executor,
 };
 pub(in crate::codec) fn wire_template(value: &c::Template, limits: &w::Limits) -> Result<w::Template, w::Problem> {
-    w::Template::new(
-        limits,
-        w::TemplateParts {
+    Ok(w::Template {
             resources: skein_lib::List::with_capacity(0),
             number: value.number,
             name: wire_document_text(&value.name, limits)?,
@@ -22,17 +20,14 @@ pub(in crate::codec) fn wire_template(value: &c::Template, limits: &w::Limits) -
             label: value.label,
             grace: value.grace.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             llm: value.llm.as_ref().map(|item| wire_llm_choice(item, limits)).transpose()?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_bounds_create(
     value: &c::CreateBounds,
     limits: &w::Limits,
 ) -> Result<w::BoundsCreate, w::Problem> {
-    w::BoundsCreate::new(
-        limits,
-        w::BoundsCreateParts {
+    Ok(w::BoundsCreate {
             authority: wire_authority_document(&value.authority, limits)?,
             pool_left: value.pool_left,
             charters: list(value.charters.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
@@ -45,27 +40,20 @@ pub(in crate::codec) fn wire_bounds_create(
                 .as_ref()
                 .map(|item| Ok::<_, w::Problem>((item).as_nanos()))
                 .transpose()?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_create_procedure(
     value: &c::CreateProcedure,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::CreateProcedure, w::Problem> {
-    w::CreateProcedure::new(limits, w::CreateProcedureParts { connector: value.connector, code: value.code })
+    Ok(w::CreateProcedure { connector: value.connector, code: value.code })
 }
 
 pub(in crate::codec) fn wire_me(value: &c::Me, limits: &w::Limits) -> Result<w::Me, w::Problem> {
-    w::Me::new(
-        limits,
-        w::MeParts {
+    Ok(w::Me {
             party: wire_me_party(&value.party, limits)?,
-            projects: pieces(
-                value.projects.iter().map(|item| wire_me_project(item, limits)),
-                w::MeProject::measure,
-                w::MeProject::encode,
-            )?,
+            projects: pieces(value.projects.iter().map(|item| wire_me_project(item, limits)), limits)?,
             needs: wire_needs(&value.needs, limits)?,
             needs_total: value.needs_total,
             updates: wire_count(&value.updates, limits)?,
@@ -73,70 +61,49 @@ pub(in crate::codec) fn wire_me(value: &c::Me, limits: &w::Limits) -> Result<w::
             cut: value.cut,
             retention: value.retention,
             deployment_role: value.deployment_role.as_ref().map(|item| wire_held_role(item, limits)).transpose()?,
-            providers: pieces(
-                value.providers.iter().map(|item| wire_provider_offer(item, limits)),
-                w::ProviderOffer::measure,
-                w::ProviderOffer::encode,
-            )?,
+            providers: pieces(value.providers.iter().map(|item| wire_provider_offer(item, limits)), limits)?,
             providers_cut: value.providers_cut,
             key_bytes: value.key_bytes,
             redirect_bytes: value.redirect_bytes,
             words_bytes: value.words_bytes,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_me_party(value: &c::MeParty, limits: &w::Limits) -> Result<w::MeParty, w::Problem> {
-    w::MeParty::new(
-        limits,
-        w::MePartyParts {
+    Ok(w::MeParty {
             number: value.number,
             kind: wire_party_kind(&value.kind, limits)?,
             login: wire_document_text(&value.login, limits)?,
             name: wire_document_text(&value.name, limits)?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_me_project(value: &c::MeProject, limits: &w::Limits) -> Result<w::MeProject, w::Problem> {
-    w::MeProject::new(
-        limits,
-        w::MeProjectParts {
+    Ok(w::MeProject {
             left_out: value.left_out,
             public: None,
             project: value.project,
             name: wire_document_text(&value.name, limits)?,
             role: wire_held_role(&value.role, limits)?,
             pool: value.pool.as_ref().map(|item| wire_pool_ledger(item, limits)).transpose()?,
-            templates: pieces(
-                value.templates.iter().map(|item| wire_template(item, limits)),
-                w::Template::measure,
-                w::Template::encode,
-            )?,
+            templates: pieces(value.templates.iter().map(|item| wire_template(item, limits)), limits)?,
             creating: value.creating.as_ref().map(|item| wire_creating_bounds(item, limits)).transpose()?,
             models: list(value.models.iter().map(|item| wire_me_model(item, limits)))?,
             defaults: list(value.defaults.iter().map(|item| {
-                w::MeDefault::new(
-                    limits,
-                    w::MeDefaultParts {
+                Ok(w::MeDefault {
                         template: item.template,
                         choice: super::wire_llm_choice(&item.choice, limits)?,
-                    },
-                )
+                    })
             }))?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_creating_bounds(
     value: &c::Creating,
     limits: &w::Limits,
 ) -> Result<w::CreatingBounds, w::Problem> {
-    w::CreatingBounds::new(
-        limits,
-        w::CreatingBoundsParts {
+    Ok(w::CreatingBounds {
             within: wire_bounds_create(&value.within, limits)?,
             beyond: wire_beyond(&value.beyond, limits)?,
-        },
-    )
+        })
 }

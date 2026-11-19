@@ -9,17 +9,14 @@ pub(in crate::codec) fn wire_proposal_history(
     value: &c::ProposalHistory,
     limits: &w::Limits,
 ) -> Result<w::ProposalHistory, w::Problem> {
-    w::ProposalHistory::new(
-        limits,
-        w::ProposalHistoryParts {
+    Ok(w::ProposalHistory {
             reason: wire_document_text(&value.reason, limits)?,
             action: wire_retained_action(&value.action, limits)?,
             number: value.number,
             proposer: value.proposer,
             as_holder: value.as_holder,
             state: wire_proposal_history_state(&value.state, limits)?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_retained_action(
@@ -30,52 +27,30 @@ pub(in crate::codec) fn wire_retained_action(
         c::RetainedAction::Settings(value) => {
             w::RetainedAction::Settings(wire_retained_action_settings(value, limits)?)
         }
-        c::RetainedAction::Batch(value) => w::RetainedAction::Batch(w::RetainedActionBatch::new(
-            limits,
-            w::RetainedActionBatchParts {
-                value: pieces(
-                    (value).iter().map(|item| wire_proposed_task(item, limits)),
-                    w::ProposedTask::measure,
-                    w::ProposedTask::encode,
-                )?,
-            },
-        )?),
+        c::RetainedAction::Batch(value) => w::RetainedAction::Batch(w::RetainedActionBatch {
+                value: pieces((value).iter().map(|item| wire_proposed_task(item, limits)), limits)?,
+            }),
         c::RetainedAction::Effect { part, authority, attempt, completion, position, purpose } => {
-            w::RetainedAction::Effect(w::RetainedActionEffect::new(
-                limits,
-                w::RetainedActionEffectParts {
+            w::RetainedAction::Effect(w::RetainedActionEffect {
                     part: wire_part(part, limits)?,
                     authority: wire_authority_document(authority, limits)?,
                     attempt: *(attempt),
                     completion: *(completion),
                     position: *(position),
                     purpose: *(purpose),
-                },
-            )?)
+                })
         }
         c::RetainedAction::ProcedureEffect { part, authority, step, purpose } => {
-            w::RetainedAction::ProcedureEffect(w::RetainedActionProcedureEffect::new(
-                limits,
-                w::RetainedActionProcedureEffectParts {
+            w::RetainedAction::ProcedureEffect(w::RetainedActionProcedureEffect {
                     part: wire_part(part, limits)?,
                     authority: wire_authority_document(authority, limits)?,
                     step: *(step),
                     purpose: *(purpose),
-                },
-            )?)
+                })
         }
-        c::RetainedAction::Amend { task, change } => w::RetainedAction::Amend(Box::new(w::RetainedActionAmend::new(
-            limits,
-            w::RetainedActionAmendParts { task: *(task), change: wire_retained_amendment(change, limits)? },
-        )?)),
-        c::RetainedAction::Widen { task, authority } => w::RetainedAction::Widen(w::RetainedActionWiden::new(
-            limits,
-            w::RetainedActionWidenParts { task: *(task), authority: wire_authority_document(authority, limits)? },
-        )?),
-        c::RetainedAction::Release { task } => w::RetainedAction::Release(w::RetainedActionRelease::new(
-            limits,
-            w::RetainedActionReleaseParts { task: *(task) },
-        )?),
+        c::RetainedAction::Amend { task, change } => w::RetainedAction::Amend(Box::new(w::RetainedActionAmend { task: *(task), change: wire_retained_amendment(change, limits)? })),
+        c::RetainedAction::Widen { task, authority } => w::RetainedAction::Widen(w::RetainedActionWiden { task: *(task), authority: wire_authority_document(authority, limits)? }),
+        c::RetainedAction::Release { task } => w::RetainedAction::Release(w::RetainedActionRelease { task: *(task) }),
     })
 }
 
@@ -83,9 +58,7 @@ pub(in crate::codec) fn wire_retained_amendment(
     value: &c::RetainedAmendment,
     limits: &w::Limits,
 ) -> Result<w::RetainedAmendment, w::Problem> {
-    w::RetainedAmendment::new(
-        limits,
-        w::RetainedAmendmentParts {
+    Ok(w::RetainedAmendment {
             addressed: value.addressed.as_ref().map(|item| wire_address_change(item, limits)).transpose()?,
             instructions: value.instructions.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
             release: value.release.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
@@ -99,8 +72,7 @@ pub(in crate::codec) fn wire_retained_amendment(
                 .transpose()?,
             reason: wire_document_text(&value.reason, limits)?,
             cut: value.cut,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_proposal_history_state(
@@ -109,28 +81,19 @@ pub(in crate::codec) fn wire_proposal_history_state(
 ) -> Result<w::ProposalHistoryState, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::ProposalHistoryState::Pending { holder, since } => {
-            w::ProposalHistoryState::Pending(w::ProposalHistoryStatePending::new(
-                limits,
-                w::ProposalHistoryStatePendingParts {
+            w::ProposalHistoryState::Pending(w::ProposalHistoryStatePending {
                     holder: wire_history_holder(holder, limits)?,
                     since: (since).as_nanos(),
-                },
-            )?)
+                })
         }
         c::ProposalHistoryState::Accepted { by } => {
-            w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted::new(
-                limits,
-                w::ProposalHistoryStateAcceptedParts { by: wire_requester(by, limits)? },
-            )?)
+            w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted { by: wire_requester(by, limits)? })
         }
         c::ProposalHistoryState::Rejected { by, reason } => {
-            w::ProposalHistoryState::Rejected(w::ProposalHistoryStateRejected::new(
-                limits,
-                w::ProposalHistoryStateRejectedParts {
+            w::ProposalHistoryState::Rejected(w::ProposalHistoryStateRejected {
                     by: wire_requester(by, limits)?,
                     reason: wire_document_text(reason, limits)?,
-                },
-            )?)
+                })
         }
         c::ProposalHistoryState::Withdrawn => w::ProposalHistoryState::Withdrawn,
     })
@@ -142,16 +105,10 @@ pub(in crate::codec) fn wire_history_holder(
 ) -> Result<w::HistoryHolder, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::HistoryHolder::Task(value) => {
-            w::HistoryHolder::Task(w::HistoryHolderTask::new(limits, w::HistoryHolderTaskParts { value: *(value) })?)
+            w::HistoryHolder::Task(w::HistoryHolderTask { value: *(value) })
         }
-        c::HistoryHolder::Person(value) => w::HistoryHolder::Person(w::HistoryHolderPerson::new(
-            limits,
-            w::HistoryHolderPersonParts { value: *(value) },
-        )?),
-        c::HistoryHolder::Policy { project, kind } => w::HistoryHolder::Policy(w::HistoryHolderPolicy::new(
-            limits,
-            w::HistoryHolderPolicyParts { project: *(project), kind: wire_message_proposal_kind(kind, limits)? },
-        )?),
+        c::HistoryHolder::Person(value) => w::HistoryHolder::Person(w::HistoryHolderPerson { value: *(value) }),
+        c::HistoryHolder::Policy { project, kind } => w::HistoryHolder::Policy(w::HistoryHolderPolicy { project: *(project), kind: wire_message_proposal_kind(kind, limits)? }),
     })
 }
 
@@ -159,9 +116,7 @@ pub(in crate::codec) fn wire_history_line(
     value: &c::HistoryLine,
     limits: &w::Limits,
 ) -> Result<w::HistoryLine, w::Problem> {
-    w::HistoryLine::new(
-        limits,
-        w::HistoryLineParts {
+    Ok(w::HistoryLine {
             task: value.task,
             revision: value.revision,
             by: wire_requester(&value.by, limits)?,
@@ -172,18 +127,14 @@ pub(in crate::codec) fn wire_history_line(
                 .amendment
                 .as_ref()
                 .map(|item| {
-                    w::HistoryAmendment::new(
-                        limits,
-                        w::HistoryAmendmentParts {
+                    Ok(w::HistoryAmendment {
                             before: wire_amendment_state(&(item).0, limits)?,
                             after: wire_amendment_state(&(item).1, limits)?,
-                        },
-                    )
+                        })
                 })
                 .transpose()?,
             at: value.at.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_history_change(

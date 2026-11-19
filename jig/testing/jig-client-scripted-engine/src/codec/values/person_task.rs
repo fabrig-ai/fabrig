@@ -8,9 +8,7 @@ pub(in crate::codec) fn wire_person_task(
     value: &c::PersonTask,
     limits: &w::Limits,
 ) -> Result<w::PersonTask, w::Problem> {
-    w::PersonTask::new(
-        limits,
-        w::PersonTaskParts {
+    Ok(w::PersonTask {
             task: facts::chip(&value.task, limits)?,
             revision: wire_revision(&value.revision, limits)?,
             requester: wire_requester(&value.requester, limits)?,
@@ -21,30 +19,18 @@ pub(in crate::codec) fn wire_person_task(
             stall: value.stall.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             deadline: value.deadline.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
             contract: wire_task_contract_document(&value.contract, limits)?,
-            results: pieces(
-                value.results.iter().map(|item| wire_shown_result(item, limits)),
-                w::ShownResult::measure,
-                w::ShownResult::encode,
-            )?,
+            results: pieces(value.results.iter().map(|item| wire_shown_result(item, limits)), limits)?,
             cut: value.cut,
-            acts: pieces(
-                value.acts.iter().map(|item| wire_offered(item, limits)),
-                w::Offered::measure,
-                w::Offered::encode,
-            )?,
-        },
-    )
+            acts: pieces(value.acts.iter().map(|item| wire_offered(item, limits)), limits)?,
+        })
 }
 
 pub(in crate::codec) fn wire_shown_result(
     value: &c::ShownResult,
     limits: &w::Limits,
 ) -> Result<w::ShownResult, w::Problem> {
-    w::ShownResult::new(
-        limits,
-        w::ShownResultParts {
+    Ok(w::ShownResult {
             task: wire_task_link(&value.task, limits)?,
             result: value.result.as_ref().map(|item| wire_result_document(item, limits)).transpose()?,
-        },
-    )
+        })
 }

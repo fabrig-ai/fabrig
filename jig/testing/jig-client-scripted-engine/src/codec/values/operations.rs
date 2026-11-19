@@ -2,15 +2,12 @@
 use super::super::{c, w};
 use super::wire_malformed_settings;
 pub(in crate::codec) fn wire_task_flags(value: &c::TaskFlags, limits: &w::Limits) -> Result<w::TaskFlags, w::Problem> {
-    w::TaskFlags::new(
-        limits,
-        w::TaskFlagsParts {
+    Ok(w::TaskFlags {
             conversation: value.conversation,
             listed: value.listed,
             retention: wire_retention(&value.retention, limits)?,
             ended_by: wire_ended_by(&value.ended_by, limits)?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_retention(value: &c::Retention, _limits: &w::Limits) -> Result<w::Retention, w::Problem> {
@@ -20,15 +17,12 @@ pub(in crate::codec) fn wire_retention(value: &c::Retention, _limits: &w::Limits
     })
 }
 
-pub(in crate::codec) fn wire_ended_by(value: &c::EndedBy, limits: &w::Limits) -> Result<w::EndedBy, w::Problem> {
+pub(in crate::codec) fn wire_ended_by(value: &c::EndedBy, _limits: &w::Limits) -> Result<w::EndedBy, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::EndedBy::Result => w::EndedBy::Result,
         c::EndedBy::Requester => w::EndedBy::Requester,
         c::EndedBy::Standing => w::EndedBy::Standing,
-        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer::new(
-            limits,
-            w::CloserParts { connector: closer.connector, code: closer.code },
-        )?),
+        c::EndedBy::Closer(closer) => w::EndedBy::Closer(w::Closer { connector: closer.connector, code: closer.code }),
     })
 }
 
@@ -43,10 +37,7 @@ pub(in crate::codec) fn wire_malformed(value: &c::Malformed, limits: &w::Limits)
         c::Malformed::Cycle => w::Malformed::Cycle,
         c::Malformed::ProposedAsAllowed => w::Malformed::ProposedAsAllowed,
         c::Malformed::EndedBy => w::Malformed::EndedBy,
-        c::Malformed::Name(value) => w::Malformed::Name(w::MalformedName::new(
-            limits,
-            w::MalformedNameParts { rule: wire_name_rule(value, limits)? },
-        )?),
+        c::Malformed::Name(value) => w::Malformed::Name(w::MalformedName { rule: wire_name_rule(value, limits)? }),
     })
 }
 
@@ -62,19 +53,19 @@ pub(in crate::codec) fn wire_name_rule(value: &c::NameRule, _limits: &w::Limits)
 
 pub(in crate::codec) fn wire_new_deadline(
     value: &c::NewDeadline,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::NewDeadline, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::NewDeadline::Named => w::NewDeadline::Named,
         c::NewDeadline::Span(value) => {
-            w::NewDeadline::Span(w::DeadlineSpan::new(limits, w::DeadlineSpanParts { value: *(value) })?)
+            w::NewDeadline::Span(w::DeadlineSpan { value: *(value) })
         }
     })
 }
 
 pub(in crate::codec) fn wire_created_given(
     value: &c::CreatedGiven,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::CreatedGiven, w::Problem> {
-    w::CreatedGiven::new(limits, w::CreatedGivenParts { task: value.task, amount: value.amount })
+    Ok(w::CreatedGiven { task: value.task, amount: value.amount })
 }

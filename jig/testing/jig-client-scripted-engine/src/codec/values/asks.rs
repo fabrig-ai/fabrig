@@ -8,41 +8,29 @@ pub(in crate::codec) fn wire_address_change(
     value: &c::AddressChange,
     limits: &w::Limits,
 ) -> Result<w::AddressChange, w::Problem> {
-    w::AddressChange::new(
-        limits,
-        w::AddressChangeParts {
+    Ok(w::AddressChange {
             revision: wire_revision(&value.revision, limits)?,
             address: wire_person_address(&value.address, limits)?,
-        },
-    )
+        })
 }
 
 pub(in crate::codec) fn wire_seen_through(
     value: &c::SeenThrough,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::SeenThrough, w::Problem> {
     Ok::<_, w::Problem>(match value {
         c::SeenThrough::Results { through } => {
-            w::SeenThrough::Results(w::SeenResults::new(limits, w::SeenResultsParts { through: *(through) })?)
+            w::SeenThrough::Results(w::SeenResults { through: *(through) })
         }
-        c::SeenThrough::Conversation { task, through } => w::SeenThrough::Conversation(w::SeenConversation::new(
-            limits,
-            w::SeenConversationParts { task: *(task), through: *(through) },
-        )?),
+        c::SeenThrough::Conversation { task, through } => w::SeenThrough::Conversation(w::SeenConversation { task: *(task), through: *(through) }),
     })
 }
 
 pub(in crate::codec) fn wire_outcome(value: &c::Outcome, limits: &w::Limits) -> Result<w::Outcome, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Outcome::Account(c::AccountAnswer::Reading { count }) => w::Outcome::Account(w::OutcomeAccount::new(
-            limits,
-            w::OutcomeAccountParts {
-                answer: w::AccountAnswer::Reading(w::AccountReading::new(
-                    limits,
-                    w::AccountReadingParts { count: *count },
-                )?),
-            },
-        )?),
+        c::Outcome::Account(c::AccountAnswer::Reading { count }) => w::Outcome::Account(w::OutcomeAccount {
+                answer: w::AccountAnswer::Reading(w::AccountReading { count: *count }),
+            }),
         c::Outcome::SettingsChanged(value) => {
             w::Outcome::SettingsChanged(wire_outcome_settings_changed(value, limits)?)
         }
@@ -51,42 +39,24 @@ pub(in crate::codec) fn wire_outcome(value: &c::Outcome, limits: &w::Limits) -> 
             for setting in left_out {
                 settings.push(wire_setting(setting, limits)?).expect("same capacity");
             }
-            w::Outcome::Restored(w::OutcomeRestored::new(
-                limits,
-                w::OutcomeRestoredParts { proposal: *proposal, to: *to, left_out: settings },
-            )?)
+            w::Outcome::Restored(w::OutcomeRestored { proposal: *proposal, to: *to, left_out: settings })
         }
         c::Outcome::MovedToNewest(value) => w::Outcome::MovedToNewest(wire_outcome_moved_to_newest(value, limits)?),
-        c::Outcome::Document(value) => w::Outcome::Document(w::OutcomeDocument::new(
-            limits,
-            w::OutcomeDocumentParts { value: wire_document_outcome(value, limits)? },
-        )?),
+        c::Outcome::Document(value) => w::Outcome::Document(w::OutcomeDocument { value: wire_document_outcome(value, limits)? }),
         c::Outcome::Made { what } => {
-            w::Outcome::Made(w::OutcomeMade::new(limits, w::OutcomeMadeParts { what: wire_made(what, limits)? })?)
+            w::Outcome::Made(w::OutcomeMade { what: wire_made(what, limits)? })
         }
     })
 }
 
 pub(in crate::codec) fn wire_made(value: &c::Made, limits: &w::Limits) -> Result<w::Made, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Made::Tasks { tasks } => w::Made::Tasks(w::MadeTasks::new(
-            limits,
-            w::MadeTasksParts { tasks: list((tasks).iter().map(|item| Ok::<_, w::Problem>(*(item))))? },
-        )?),
-        c::Made::Service { party } => w::Made::Service(w::MadeService::new(
-            limits,
-            w::MadeServiceParts { party: *(party), credential: skein_lib::Secret::new(Box::new([])) },
-        )?),
+        c::Made::Tasks { tasks } => w::Made::Tasks(w::MadeTasks { tasks: list((tasks).iter().map(|item| Ok::<_, w::Problem>(*(item))))? }),
+        c::Made::Service { party } => w::Made::Service(w::MadeService { party: *(party), credential: skein_lib::Secret::new(Box::new([])) }),
         c::Made::PersonResult { task } => {
-            w::Made::PersonResult(w::MadePersonResult::new(limits, w::MadePersonResultParts { task: *(task) })?)
+            w::Made::PersonResult(w::MadePersonResult { task: *(task) })
         }
-        c::Made::Note { note, scope } => w::Made::Note(w::MadeNote::new(
-            limits,
-            w::MadeNoteParts { note: *(note), scope: wire_note_scope(scope, limits)? },
-        )?),
-        c::Made::MovingOut { account, number, record } => w::Made::MovingOut(w::MadeMovingOut::new(
-            limits,
-            w::MadeMovingOutParts { account: *(account), number: *(number), record: (record).clone() },
-        )?),
+        c::Made::Note { note, scope } => w::Made::Note(w::MadeNote { note: *(note), scope: wire_note_scope(scope, limits)? }),
+        c::Made::MovingOut { account, number, record } => w::Made::MovingOut(w::MadeMovingOut { account: *(account), number: *(number), record: (record).clone() }),
     })
 }

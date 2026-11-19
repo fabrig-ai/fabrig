@@ -2,11 +2,9 @@
 use super::super::{c, w};
 pub(in crate::codec) fn wire_phase_counts(
     value: &c::PhaseCounts,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::PhaseCounts, w::Problem> {
-    w::PhaseCounts::new(
-        limits,
-        w::PhaseCountsParts {
+    Ok(w::PhaseCounts {
             waiting: value.waiting,
             idle: value.idle,
             starting: value.starting,
@@ -17,6 +15,5 @@ pub(in crate::codec) fn wire_phase_counts(
             done: value.done,
             failed: value.failed,
             cancelled: value.cancelled,
-        },
-    )
+        })
 }

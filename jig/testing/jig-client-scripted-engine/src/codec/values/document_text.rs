@@ -2,7 +2,7 @@
 use super::super::{bytes, c, w};
 pub(in crate::codec) fn wire_document_text(
     value: &c::DocumentText,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::DocumentText, w::Problem> {
-    w::DocumentText::new(limits, w::DocumentTextParts { bytes: bytes::copy_of(value.bytes.bytes()), cut: value.cut })
+    Ok(w::DocumentText { bytes: bytes::copy_of(value.bytes.bytes()), cut: value.cut })
 }

@@ -2,10 +2,7 @@
 use super::super::{c, w};
 pub(in crate::codec) fn wire_kind_implication(
     value: &c::KindImplication,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<w::KindImplication, w::Problem> {
-    w::KindImplication::new(
-        limits,
-        w::KindImplicationParts { connector: value.connector, kind: value.kind, implies: value.implies },
-    )
+    Ok(w::KindImplication { connector: value.connector, kind: value.kind, implies: value.implies })
 }
