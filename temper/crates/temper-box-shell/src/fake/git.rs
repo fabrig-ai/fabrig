@@ -60,6 +60,7 @@ fn invocation(
     let at = working.strip_prefix(b"/").expect("absolute working directory");
     let at = if at.is_empty() { b"." } else { at };
     Spawn {
+        reach: None,
         program: program.into(),
         args: arguments.into(),
         env: environment.iter().map(|(key, value)| [key.as_ref(), b"=", value.as_ref()].concat().into()).collect(),

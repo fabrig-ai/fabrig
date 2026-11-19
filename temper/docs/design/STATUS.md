@@ -493,23 +493,23 @@ jig's `protocol/client/sign-in.md`;
 `draft/asked-link.status.md`).
 
 A journey's recording holds nonsecret placeholders for what varies
-between walks of the same screens: the TUI's build, every loopback port
-and approval code. `add` inserts them after its proof and checks by
-replay. A browser's print numbers skein-ui's ids afresh per page. Times
-stand; a framed field takes only a placeholder of the original's width
-(`client/journey-placeholders.md`;
+between walks: the TUI's build, loopback ports and approval codes,
+inserted by `add` and checked by replay; a framed field's is the
+original's width, and a browser's print numbers skein-ui's ids afresh
+per page (`client/journey-placeholders.md`;
 `draft/journey-placeholders.status.md`).
 
 `again` fixes start 2026-01-06T09:00:00Z, seed 7 for a journey's fake
-box engine, worker and fake peers, page and TUI; each clock moves only
-to its own deadlines. Two walks' recordings and prints match except
-where real processes decide. The box's TLS-fetching loop and agents
-keep the host's clock; hand-walked recordings keep their times (`client/journey-clock.md`;
-`draft/journey-clock.status.md`).
+box engine, worker, peers, page and TUI, each clock moving only to its
+own deadlines: two walks match but where real processes, the box's
+TLS-fetching loop and agents, keep the host's clock
+(`client/journey-clock.md`; `draft/journey-clock.status.md`).
 
-Main's journey files have one writer, run after each landing, one
-change at a time, ending `Printed: COMMIT`; no test or goal writes them
-(`client/journey-writer.md`).
+Main's journey files have one writer, run after each landing, ending
+`Printed: COMMIT`; no test or goal writes them
+(`client/journey-writer.md`). A journey whose `walk` is of version 2,
+`welcome-playground` first, prints in one process by
+`temper-client-walk` (`client/journey-walks.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
@@ -537,6 +537,7 @@ Design documents:
 - [`client/forge/served.md`](client/forge/served.status.md)
 - [`client/journey-clock.md`](client/journey-clock.status.md)
 - [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
+- [`client/journey-walks.md`](client/journey-walks.status.md)
 - [`client/journey-writer.md`](client/journey-writer.status.md)
 - [`client/line.md`](client/line.status.md)
 - [`client/pages/README.md`](client/pages/README.status.md)
@@ -755,9 +756,10 @@ Drafts:
 - [`draft/landed-qa.md`](draft/landed-qa.status.md)
 - [`draft/landing-history.md`](draft/landing-history.status.md)
 - [`draft/landing-update-loop.md`](draft/landing-update-loop.status.md) — a stale update replans instead of spinning: the client names a moved base apart from a moved head, a refusal before any send replans against the base the forge now has or backs off within `stall`, spending no update, and the history's update lines carry the forge's base beside the pin (`domain/forge/README.md`, 6; `domain/landing-history.md`, 2.2; skein's `forge/client.md`, 7.4).
-- [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — landed whole into main in pulls #157 and #181; plan complete, vision folded into design, read-only text retained pending proposed removal.
+- [`draft/long-text-pages.md`](draft/long-text-pages.status.md) — built whole, its vision in the design; the draft stays until its removal.
 - [`draft/look-requests.md`](draft/look-requests.status.md)
 - [`draft/macos.md`](draft/macos.status.md)
+- [`draft/macos-tiers.md`](draft/macos-tiers.status.md)
 - [`draft/mechanical-changes.md`](draft/mechanical-changes.status.md)
 - [`draft/merge-deletions.md`](draft/merge-deletions.status.md)
 - [`draft/merge-queue.md`](draft/merge-queue.status.md)

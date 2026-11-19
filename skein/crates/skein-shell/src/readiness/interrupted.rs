@@ -109,6 +109,7 @@ fn every_other_interrupted_operation_completes_eintr_after_one_call() {
         (
             Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: Box::from(*b"prog"),
                     args: Box::from([]),
                     env: Box::from([]),

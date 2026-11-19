@@ -32,12 +32,13 @@ mod cuts;
 mod files;
 mod locks;
 mod processes;
+pub mod reach;
 mod run;
 mod scenarios;
 
 use alloc::vec::Vec;
 
-use skein_io::kernel::{Complete, Error, Fd, Submit};
+use skein_io::kernel::{Complete, Error, Fd, Rule, Submit};
 use skein_lib::{Duration, Queue, Time};
 
 pub use cuts::{Cutting, cutting};
@@ -119,6 +120,31 @@ pub trait Backend {
     /// shell opens a root at startup (runtime/kernel.md, 6.1): a descriptor the
     /// scenario closes with a `Close`.
     fn root(&mut self, process: Self::Process, tree: &[Item]) -> Fd;
+
+    /// The real fixture selects the probe by a first-argument mode; the
+    /// simulator selects its program by name and needs no mode argument.
+    fn probe_mode(&self) -> Option<&'static [u8]> {
+        None
+    }
+
+    /// Configure the probe as this process's helper and return the machine's
+    /// library, fixture and proc rules beneath a new root on `/`. The simulator
+    /// needs no support rules. The caller closes each distinct returned root.
+    fn reach_rules(&mut self, process: Self::Process, executable: &[u8]) -> Vec<Rule>;
+
+    /// Keep this service descriptor inheritable across exec. The real backend
+    /// clears close-on-exec; the simulator needs no action. The caller keeps
+    /// it open across spawn and then releases it with a `Close`.
+    fn hold_inheritable(&mut self, process: Self::Process, fd: Fd);
+
+    /// Install an executable set-id copy at `path` beneath `root`. A reason
+    /// means that this machine cannot exercise that part of the scenario.
+    /// The simulator already models set-id execution and answers `Ok`.
+    fn set_id_copy(&mut self, process: Self::Process, root: Fd, executable: &[u8], path: &[u8]) -> Result<(), String>;
+
+    /// Set the simulated machine's Landlock state. Only simulator-only
+    /// scenarios call this; real kernels cannot change their Landlock ABI.
+    fn set_landlock(&mut self, state: skein_fake_machine::Landlock);
 
     /// A startup descriptor for appending beneath a root, released by a `Close`.
     fn append(&mut self, process: Self::Process, root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error>;

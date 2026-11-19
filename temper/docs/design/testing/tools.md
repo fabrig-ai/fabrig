@@ -46,6 +46,7 @@ transcripts' and playground-serve's are, it takes two lines of the page.
 |---|---|---|---|
 | `temper-client-gallery` | `temper/tools/gallery`, package and binary `temper-client-gallery` | the browser's pages in named states, printed for screenshots. | `../client/web/gallery.md` |
 | `temper-client-journeys` | `temper/tools/journeys`, package and binary `temper-client-journeys` | recorded walks, replayed through the shipped hosts and printed. | `../client/web/journeys.md`, 5.1; `../client/tui/journeys.md`, 6.1 |
+| `temper-client-walk` | new, the walks' | a journey's walk in a world, printed as its pages. | `../client/journey-walks.md`, 5 |
 | `temper-git-transcripts` | `temper/tools/git-transcripts`, package and binary `git-transcripts` | git's transcripts, recorded from real git against a throwaway Forgejo. | `../protocol/git.md`, 9 |
 | `temper-playground-serve` | binary `playground-serve` of `temper-client-browser-world`, `temper/tests/client-browser/src/bin/` | the browser tier's static host for the playground's bundle. | `../playground.md`, 7 |
 | `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks.md`, 5 |
@@ -61,6 +62,8 @@ Their forms are today's:
   `temper-client-journeys pages [--prepared DIR] [--within DURATION]`
   and `pages --check`, the journeys'
   writer's (`../client/journey-writer.md`, 3);
+- `temper-client-walk print [--out DIR] [NAME]...` and
+  `temper-client-walk pages` (`../client/journey-walks.md`, 5), new;
 - `temper-git-transcripts --git PATH --scratch DIR --out DIR`;
 - `temper-playground-serve OUT`;
 - `temper-stage-one obligations [--json]`, `collect` with its eight

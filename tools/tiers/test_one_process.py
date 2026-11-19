@@ -83,6 +83,52 @@ class ProtocolTests(unittest.TestCase):
                 self.assertIn('ok a' if scenario == 'pass' else 'failed a', logfile.read_text())
 
 
+class ConfigurationTests(unittest.TestCase):
+    def setUp(self):
+        temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-config-')
+        self.addCleanup(temporary.cleanup)
+        self.config = Path(temporary.name) / 'nextest.toml'
+        self.configuration = runpy.run_path(str(HERE / 'one_process.py'))['configuration']
+
+    def test_platform_overrides_are_skipped_without_compiling_filters(self):
+        rows = [('cfg(target_os = "macos")', 'slow-timeout="12s"'),
+                ('cfg(unix)', 'filter="all()"'),
+                ('cfg(unix)', 'filter="rdeps(x)"')]
+        for platform, settings in rows:
+            with self.subTest(platform=platform, settings=settings):
+                self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                                       f"platform='{platform}'\n" + settings + '\n')
+                _, overrides, _, _ = self.configuration(self.config, 'default', {}, {}, False)
+                self.assertEqual(overrides, [])
+
+    def test_platform_overrides_with_honoured_keys_are_refused(self):
+        for settings in ('priority=5', 'test-group="serial"'):
+            with self.subTest(settings=settings):
+                self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                                       'platform="cfg(unix)"\n' + settings + '\n')
+                with self.assertRaisesRegex(ValueError, 'unsupported override platform'):
+                    self.configuration(self.config, 'default', {}, {}, False)
+
+    def test_platform_overrides_keep_other_refusals(self):
+        for settings, message in (('retries=1', 'retries'),
+                                  ('slow-timeout={period="12s",terminate-after=2}', 'terminate-after'),
+                                  ('threads-required=2', 'threads-required'),
+                                  ('run-extra-args=[]', 'run-extra-args')):
+            with self.subTest(settings=settings):
+                self.config.write_text('[profile.default]\n[[profile.default.overrides]]\n'
+                                       'platform="cfg(unix)"\n' + settings + '\n')
+                with self.assertRaisesRegex(ValueError, message):
+                    self.configuration(self.config, 'default', {}, {}, False)
+
+    def test_repository_profiles_load(self):
+        for profile in ('default', 'fuzzy'):
+            with self.subTest(profile=profile):
+                _, overrides, _, _ = self.configuration(HERE.parents[1] / '.config/nextest.toml',
+                                                        profile, {}, {}, False)
+                self.assertTrue(overrides)
+                self.assertTrue(all('platform' not in settings for _, settings in overrides))
+
+
 class RunnerFixture(unittest.TestCase):
     def setUp(self):
         temporary = tempfile.TemporaryDirectory(dir=HERE.parents[1], prefix='tiers-one-test-')
@@ -1464,7 +1510,7 @@ class RunnerTests(RunnerFixture):
             ('inherits="fuzzy"', [], {}, {}),
             ('[[profile.default.overrides]]\nfilter="all()"\nthreads-required=2', [], {}, {}),
             ('[[profile.default.overrides]]\nfilter="all()"\nrun-extra-args=[]', [], {}, {}),
-            ('[[profile.default.overrides]]\nfilter="all()"\nplatform="cfg(unix)"', [], {}, {}),
+            ('[[profile.default.overrides]]\nfilter="all()"\nplatform="cfg(unix)"\npriority=5', [], {}, {}),
             ('', ['--no-run'], {}, {}), ('', ['--config-file', 'x'], {}, {}),
             ('', ['--tool-config-file=x'], {}, {}), ('', ['--profile', 'fuzzy'], {}, {}), ('', ['-Pfuzzy'], {}, {}),
             ('', ['--stress-count=2'], {}, {}), ('', ['--stress-duration=1s'], {}, {}),

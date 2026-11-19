@@ -265,6 +265,7 @@ pub fn seam_file(
 pub fn seam_spawn(root: skein_sim::Handle, program: &[u8]) -> skein_sim::Ask {
     skein_sim::Ask::Spawn {
         root,
+        reach: None,
         program: program.into(),
         args: Box::default(),
         env: Box::default(),

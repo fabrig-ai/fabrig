@@ -108,6 +108,7 @@ impl Parent {
         };
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: b"smith".as_slice().into(),
                 args: setup.arguments(),
                 env: Box::new([]),
@@ -576,6 +577,13 @@ impl skein_world::Machine for Machine {
     }
 
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if let skein_sim::Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(kernel::Error::Reach(kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if self.coding && coding::check(self, &call, answers) {
             return;
         }

@@ -40,5 +40,13 @@ pub mod every_v3;
 #[path = "every/v3_lean.rs"]
 pub mod every_v3_lean;
 
+#[rustfmt::skip]
+#[path = "growth/v1.rs"]
+pub mod growth;
+
+#[rustfmt::skip]
+#[path = "growth/v1_lean.rs"]
+pub mod growth_lean;
+
 #[path = "../patches/mod.rs"]
 pub mod patches;

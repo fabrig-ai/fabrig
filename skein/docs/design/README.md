@@ -44,6 +44,7 @@ this design.
 | processes | `skein-io` | spawning children, their pipes, signals and containment | [runtime/io/processes.md](runtime/io/processes.md) |
 | the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [runtime/shell.md](runtime/shell.md) |
 | the simulator | `skein-sim` | the simulated kernel and its faults; beside it, the conformance suite (`skein-conformance`) | [testing/simulator.md](testing/simulator.md) |
+| the conformance suite | `skein-conformance` | the scenarios that hold the simulator and each backend on the real kernel to the kernel boundary's contract | [testing/conformance.md](testing/conformance.md) |
 | the fake LLM | `skein-fake-llm-domain`, `skein-fake-llm-protocol` | shared bounded scripts and independent byte peers; application worlds supply tools and policy | [testing/fakes/llm.md](testing/fakes/llm.md) |
 | the key-value store | `skein-kv` | ordered byte keys and values in memory, made durable by a commit log and snapshots on io's files | [data/kv.md](data/kv.md) |
 | the fake push service | `skein-fake-push` | for tests: a push service that checks a Web Push request's form, token and seal, records it and answers by a script; its peer in `skein-fake-peers` | [testing/fakes/push.md](testing/fakes/push.md) |

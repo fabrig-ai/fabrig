@@ -414,7 +414,11 @@ impl Machine {
             out.push(Action::Answer(Answer { shown: vec![], failed: Some(why.into()) }));
             return;
         }
-        if let Some(why) = self.place.refuse_line(record, self.plan.options.ctl) {
+        let refused = match record {
+            Record::Web(Web::Mark) => Some("web mark is a journey's line"),
+            _ => self.place.refuse_line(record, self.plan.options.ctl),
+        };
+        if let Some(why) = refused {
             self.current = None;
             self.answer(Some(why.into()), out);
             return;
@@ -444,6 +448,7 @@ impl Machine {
                 }
                 Err(why) => self.answer(Some(why), out),
             },
+            Record::Web(Web::Mark) => unreachable!("journey line refused"),
             Record::Web(Web::Act { role, name, order, .. }) => {
                 let find = Find::exactly_named(*role, name).nth(*order);
                 self.wait(Phase::Finding, now, STEP);

@@ -8,8 +8,10 @@ use skein_lib::Duration;
 use skein_world::{Referee, real};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
+mod failure;
 pub mod rung;
 mod survivors;
+pub use failure::{keep_box_data, run_failure_lines};
 
 /// forge-setup's first repository goes into project 1, the first made
 /// (temper/docs/design/client/ctl/areas.md): work/hello is project 1's.

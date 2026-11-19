@@ -276,7 +276,8 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
   - **A request keeps the load that sent it.** One the leaving document
     sends as a navigation begins, even after the new document's
     request, is reported with the leaving document's `load`, as Chromium
-    tags it (a fact the real browser checks, section 9). So a test tells
+    tags it (a fact the real browser checks, section 9); one sent at
+    `pagehide` Chromium does not report at all. So a test tells
     the page's current document's requests from the one before by
     `load`, never by their order.
   - **What the kit keeps:** each request reported `Sent` whose
@@ -579,11 +580,15 @@ named scenario ceiling with headroom.
   it and cuts its opener, and which opens another at its start, with no press;
   and a page whose full-width heading measures 420 then 1440 CSS pixels
   after its viewport changes; and a page, opened with `requests`, whose
-  script fetches a streamed answer that stays open and sends a
-  `keepalive` request at `pagehide`, then is reloaded: its document and
-  its fetch reported `Sent` with its load, the streamed one `Answered`
-  while it stays open, and the leaving document's request with the old
-  load, after the new document's `Sent`.
+  script fetches a streamed answer that stays open, then is reloaded: its
+  document and its fetch reported `Sent` with its load, the streamed one
+  `Answered` while it stays open, and the leaving document's request with
+  the old load, after the new document's `Sent`. The leaving document
+  sends that request once the origin has seen the reload's document
+  request, signalled over its still-open stream, before the new document
+  commits; not at `pagehide`, which Chromium (147.0.7727.101) runs as the
+  new document commits and whose requests it reports on no event of the
+  page's session, though the origin receives them.
   These tests check the facts the fake browser assumes: the framing,
   flattened sessions, what the accessibility queries match, with a name and
   without one, boxes and the hit test, on an element and on a shape of an

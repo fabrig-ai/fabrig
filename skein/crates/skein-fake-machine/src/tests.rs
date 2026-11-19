@@ -4,6 +4,8 @@
 //! moved directory's `..`. What it answers, case by case, the suite holds
 //! to the real kernel (runtime/kernel.md, 8).
 
+mod reach;
+
 use alloc::vec::Vec;
 
 use crate::fs::{How, Is, Item, Machine, Refusal};
@@ -152,6 +154,7 @@ fn child_pipes_echo_at_chosen_descriptors_and_exit() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(laid.raw()));
     let spawn = Spawn {
+        reach: None,
         program: Box::from(&b"echo"[..]),
         args: Box::new([]),
         env: Box::new([]),
@@ -208,6 +211,7 @@ fn never_child_waits_until_killed() {
         op: Token::new(1),
         kind: Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: Box::from(&b"never"[..]),
                 args: Box::new([]),
                 env: Box::new([]),

@@ -1,3 +1,4 @@
+//! Walk lines and page printers (temper/docs/design/client/journey-walks.md, 3.1).
 //! A frame's text and linked page (temper/docs/design/client/tui/journeys.md, 6.2 to 6.4).
 use crate::print::Printed;
 use skein_ui_screen::{Frame, Paint, Position, Rgb};
@@ -9,7 +10,7 @@ use temper_client_tui::{
     theme::{palette, theme},
 };
 
-pub const SCRIPT: &str = include_str!("../../tui-journey.js");
+pub const SCRIPT: &str = include_str!("../tui-journey.js");
 
 #[must_use]
 pub fn pages(name: &str, scheme: Scheme, marks: &[Mark]) -> Vec<Printed> {

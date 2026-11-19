@@ -2,7 +2,8 @@
 //! (skein/docs/design/ui/web/testing.md, 1). The check reads `.config/nextest.toml`'s
 //! `[profile.NAME]` headers and every `--profile NAME` in the listed trees' `*.sh`. A
 //! `--profile` with no name after it is a failure, never a skip. Each profile's own
-//! wall is three times the gate's (`tools/tiers/design.md`, 11.7).
+//! wall is three times the gate's (`tools/tiers/design.md`, 11.7). Every profile doubles
+//! its slow timeouts on macOS (`temper/docs/design/testing/macos.md`, 7).
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -53,6 +54,103 @@ fn a_profiles_own_wall_is_three_times_the_gates() {
             wall.checked_mul(3),
             "profile {name}: gate wall {wall} s, own global-timeout {own} s; expected three times the gate wall"
         );
+    }
+}
+
+fn slow_timeout(value: &toml::Value, context: &str) -> (u64, Option<i64>) {
+    let period = value
+        .as_str()
+        .or_else(|| value.get("period").and_then(toml::Value::as_str))
+        .unwrap_or_else(|| panic!("{context}: slow-timeout needs a period"));
+    let milliseconds = [("ms", 1), ("s", 1000), ("m", 60_000), ("h", 3_600_000)]
+        .into_iter()
+        .find_map(|(suffix, scale)| period.strip_suffix(suffix).map(|number| (number, scale)))
+        .and_then(|(number, scale)| number.parse::<u64>().ok()?.checked_mul(scale))
+        .unwrap_or_else(|| panic!("{context}: unsupported slow-timeout period {period:?}"));
+    let terminate_after = value
+        .get("terminate-after")
+        .map(|count| count.as_integer().unwrap_or_else(|| panic!("{context}: terminate-after must be an integer")));
+    (milliseconds, terminate_after)
+}
+
+#[test]
+fn every_profiles_macos_overrides_double_its_linux_slow_timeouts() {
+    let root = skein_scratch::paths::workspace();
+    let config: toml::Value = toml::from_str(
+        &fs::read_to_string(root.join(".config/nextest.toml")).expect("the nextest configuration is readable"),
+    )
+    .expect("the nextest configuration is TOML");
+    let profiles = config.get("profile").and_then(toml::Value::as_table).expect("nextest defines profiles");
+    let default = profiles.get("default").expect("nextest defines the default profile");
+    let overrides =
+        |table: &toml::Value| table.get("overrides").and_then(toml::Value::as_array).cloned().unwrap_or_default();
+    let macos = "cfg(target_os = \"macos\")";
+    for (name, profile) in profiles {
+        let own = overrides(profile);
+        let inherited = if name == "default" { Vec::new() } else { overrides(default) };
+        let mut seen = BTreeSet::new();
+        let mut expected = Vec::new();
+        for entry in own.iter().chain(&inherited) {
+            if entry.get("platform").is_some() {
+                continue;
+            }
+            if let Some(timeout) = entry.get("slow-timeout") {
+                let filter = entry.get("filter").and_then(toml::Value::as_str);
+                if seen.insert(filter) {
+                    expected
+                        .push((filter, slow_timeout(timeout, &format!("profile {name}: Linux override {filter:?}"))));
+                }
+            }
+        }
+        let fallback = profile
+            .get("slow-timeout")
+            .or_else(|| default.get("slow-timeout"))
+            .unwrap_or_else(|| panic!("profile {name}: needs a slow-timeout fallback"));
+        expected.push((None, slow_timeout(fallback, &format!("profile {name}: fallback"))));
+        let leading =
+            own.iter().take_while(|entry| entry.get("platform").and_then(toml::Value::as_str) == Some(macos)).count();
+        assert_eq!(
+            leading,
+            expected.len(),
+            "profile {name}: macOS override prefix must cover every Linux slow-timeout override and fallback: {expected:?}"
+        );
+        for (index, (entry, (filter, (period, terminate_after)))) in own.iter().zip(expected).enumerate() {
+            let context = format!("profile {name}: macOS override {index}, expected filter {filter:?}");
+            let table = entry.as_table().unwrap_or_else(|| panic!("{context}: expected a table"));
+            assert!(
+                table.keys().all(|key| ["platform", "filter", "slow-timeout"].contains(&key.as_str())),
+                "{context}: unexpected key"
+            );
+            assert_eq!(entry.get("filter").and_then(toml::Value::as_str), filter, "{context}: filter or order differs");
+            let actual = slow_timeout(
+                entry.get("slow-timeout").unwrap_or_else(|| panic!("{context}: needs slow-timeout")),
+                &context,
+            );
+            assert_eq!(Some(actual.0), period.checked_mul(2), "{context}: period must double");
+            assert_eq!(actual.1, terminate_after, "{context}: terminate-after must stay unchanged");
+        }
+        assert!(
+            own.iter().skip(leading).all(|entry| entry.get("platform").and_then(toml::Value::as_str) != Some(macos)),
+            "profile {name}: macOS override must be in the prefix"
+        );
+    }
+}
+
+#[test]
+fn macos_nextest_profiles_name_their_junit_path() {
+    let root = skein_scratch::paths::workspace();
+    let config: toml::Value = toml::from_str(
+        &fs::read_to_string(root.join(".config/nextest.toml")).expect("the nextest configuration is readable"),
+    )
+    .expect("the nextest configuration is TOML");
+    for name in ["process-temper", "browser-temper", "browser-jig", "browser-skein", "live-temper", "live-skein"] {
+        let path = config
+            .get("profile")
+            .and_then(|profiles| profiles.get(name))
+            .and_then(|profile| profile.get("junit"))
+            .and_then(|junit| junit.get("path"))
+            .and_then(toml::Value::as_str);
+        assert_eq!(path, Some("junit.xml"), "profile {name}: macOS nextest runs need a JUnit path");
     }
 }
 

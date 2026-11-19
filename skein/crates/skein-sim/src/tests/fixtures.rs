@@ -35,6 +35,7 @@ pub fn hosted_input() -> HostedInput {
         SPAWN,
         Op::Spawn {
             spawn: Box::new(Spawn {
+                reach: None,
                 program: Box::from(&b"service"[..]),
                 args: Box::new([]),
                 env: Box::new([]),

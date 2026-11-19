@@ -5,8 +5,10 @@ applies to skein itself: which tiers skein has, what they run, the
 example services and the minimal fake machine they need, where the tests
 live, what skein supplies for a service's own tiers, and where things
 stand. How each part is tested in its own tier is in that part's
-document. The shared LLM, forge and checkout fakes are indexed in
-[`fakes/README.md`](fakes/README.md).
+document. The conformance suite, which holds the simulator and each
+backend to the kernel boundary's contract, is
+[`conformance.md`](conformance.md). The shared LLM, forge and checkout
+fakes are indexed in [`fakes/README.md`](fakes/README.md).
 
 ## 1. In one page
 
@@ -34,7 +36,7 @@ document. The shared LLM, forge and checkout fakes are indexed in
 | io worlds | io over the simulator, with a scripted owner | ../runtime/io/README.md, 5 |
 | simulated worlds | the examples' `iterate`, each a process of the simulator | section 3 |
 | real loop | the examples under the shell, on the real kernel | section 3 |
-| beside them | the conformance suite, against the simulator and the ring | ../runtime/kernel.md, 8 |
+| beside them | the conformance suite, against the simulator and the ring | conformance.md, 1 |
 | beside them | the simulator's own tests; the ring's own tests | simulator.md, 6; ../runtime/shell.md, 8 |
 | durable store | `skein-kv` step tests; `tests/kv` over the crashing fake disk and the real ring | ../data/kv.md, 9 |
 | browser tier | the browser kit against real Chromium; the UI example's bundle in Chromium, through the person's browser face and harness | browser.md, 9; ../ui/web/testing.md, 1 |
@@ -83,7 +85,9 @@ worlds need a minimal one:
 
 - a few files beneath a root;
 - a program that echoes its input, one that exits with a given status,
-  and one that never exits.
+  and one that never exits;
+- for a spawn's reach, the probe, which reports from inside a tree what
+  the tree may reach.
 
 It stays that small. A service's fake machine is the service's, built
 on it or beside it.
@@ -109,17 +113,79 @@ group, mode up to `0o7777`, times and attributes, and hard links, and
 lays FIFOs; it has no devices, no sockets and no btrfs. It answers every
 subvolume call `NotSupported`, and its status a filesystem that is not
 btrfs, as Linux does off btrfs, so skein's btrfs scenarios run on the
-ring alone (../runtime/kernel.md, 8). A service whose fake machine models btrfs,
+ring alone (conformance.md, 1). A service whose fake machine models btrfs,
 such as hearth's, holds that machine to those scenarios itself.
 
 For trees (../runtime/io/processes.md, 2 to 4; simulator.md, 3.4) its programs add: one
 that starts a descendant which leaves its group (`setsid`) and outlives
-it; one that forks a child each time it is signalled; and, on the ring,
-one that writes what it finds of itself, its ids and groups, its
-hostname, its network's interfaces, the processes in its `/proc`, its
-`no_new_privs`, its rlimits, and whether chosen paths can be read and
-written, so that a conformance scenario checks a contained tree from
-inside it (../runtime/kernel.md, 8).
+it; one that forks a child each time it is signalled; and the probe,
+which for a contained tree, on the ring, also writes its ids and groups,
+its hostname, its network's interfaces, the processes in its `/proc` and
+its rlimits, so that a conformance scenario checks a contained tree from
+inside it (conformance.md, 1).
+
+**The probe,** for a spawn's reach (../runtime/io/processes.md, 6), is
+the machine's program and a fixture of the real suite alike, and answers
+every question a scenario asks in one run. It reports on its output
+pipe, one answer for each question its arguments ask:
+
+- for each path its arguments name, relative to its working directory:
+  whether it can read the file, write it, list the directory and execute
+  the program, each asked by name;
+- its `no_new_privs`;
+- the ids a set-id program it runs has: its own kept, or others gained;
+- whether it can signal its parent;
+- the descriptors it holds;
+- and, asked to nest, the same report from a probe it starts beneath its
+  own reach with a narrower one: a rule relative to its working
+  directory with its rights, plus the machine's rules it was handed to
+  pass on, which on the ring let the nested probe run at all.
+
+An answer is `granted`, or the error the kernel answered (`Permission`,
+`NotFound`, or another by its number). One module,
+`skein_fake_machine::probe`, writes the probe's arguments and reads its
+report; the machine's probe, the real suite's fixture and the scenarios
+(conformance.md, 1) all use it, so the three agree on what was asked and
+answered. On the ring, the probe is a mode of `tests/conformance/real`'s
+`signal_sender_fixture` binary, chosen by its first argument,
+`reach-probe`. Its `main` hands its arguments to the helper's dispatch
+first, so it is also the helper (`Kernel::set_helper`) of the spawn that
+starts it and of the one it starts to nest (../runtime/kernel.md, 6.6).
+The machine selects its program by its name's last component,
+`reach_probe`, as it selects its other programs.
+
+**The machine honours a reach.** A world sets the machine's Landlock
+(`Machine::set_landlock`, taking `Landlock::Abi(u32)`, `Absent` or
+`Disabled`), ABI 6 unless it says otherwise. A spawn with a reach comes to
+the machine with each rule's root as the machine's handle (simulator.md,
+3.4), and the machine answers it as Linux would:
+
+- **Refused, naming the reach,** as the kernel refuses it, checked in
+  this order: `Absent`; `Disabled`; `Abi { found, needs }`; a rule whose
+  path does not resolve beneath its root, `Rule { index, errno }`, with
+  the error number of the machine's refusal (2 for `NotFound`). Nothing
+  runs.
+- **Otherwise run,** with the reach a layer of the child's: whatever the
+  child starts, the nested probe among them, holds its parent's layers
+  and its own.
+- **What a restricted program reaches:** an access to a node is granted
+  where every layer grants it, on the node or on a directory above it
+  that a rule names, along the node's ancestry beneath its root once its
+  path is resolved, links followed. The lookup's own refusals come
+  first, so a missing name is `NotFound`, as Linux tells; Landlock's
+  denial is `Permission`, and the owner's permissions still apply.
+  Reading a file takes `READ_FILE`; listing a directory, `READ_DIR`;
+  writing a file, `WRITE_FILE`; creating one, `MAKE_REG` on its
+  directory; executing a program, `EXECUTE` and the owner's execute bit.
+- **The rest of a reach:** its `no_new_privs` is set, so a set-id
+  program keeps the probe's ids (the machine keeps no set-id bit and
+  needs none for this); a signal to a process outside the tree, its
+  parent among them, is refused `Permission`; and it holds the
+  descriptors its spawn named and no other.
+- **Only the machine's programs are restricted.** A service the world
+  hosts is not the machine's program: it runs as the simulator plays it,
+  unrestricted, and the reach it was spawned with stays in its spawn's
+  call for the world to check (simulator.md, 3.4).
 
 A separate dependency-free kit, `skein-fake-checkout`, supplies generic
 byte-path files, scripted commands and local git mechanics for domain

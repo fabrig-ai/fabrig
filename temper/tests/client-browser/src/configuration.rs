@@ -10,6 +10,11 @@ use temper_playground::documents::turn_bounds;
 
 /// A closed loopback port: the forge's and the LLM endpoint's, which no story reaches.
 pub(crate) const UNREACHED: &str = "127.0.0.1:9";
+/// Keep the stock identities: stock's three endpoints and the box's one fill the agent's four slots.
+pub(crate) const PROVIDER: u16 = 1;
+pub(crate) const WELCOME_PROVIDER: u16 = 2;
+pub(crate) const ENDPOINT: u16 = 1;
+pub(crate) const WELCOME_ENDPOINT: u16 = 2;
 /// The paths the deployment names, each relative to its directory.
 const RELATIVE: &[&str] = &[
     "app.secret",
@@ -79,7 +84,13 @@ pub(crate) fn typed_documents(
     value.jig_over("hub.event_bytes", 2046);
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["dialect"] = 3.into();
-    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["number"] = 1.into();
+    let providers = temper_agent_fixtures::providers::input(&mut value);
+    providers["providers"][0]["number"] = PROVIDER.into();
+    providers["providers"][0]["name"] = "openai".into();
+    providers["providers"][0]["endpoint"] = "openai".into();
+    providers["endpoints"][0]["provider"] = "openai".into();
+    providers["endpoints"][0]["name"] = "openai".into();
+    temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["number"] = ENDPOINT.into();
     temper_agent_fixtures::providers::input(&mut value)["endpoints"][0]["address"] =
         serde_json::json!({"socket":UNREACHED});
     value.jig_over("core.load_slots", 8);
@@ -143,7 +154,13 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
         && document.get("world_providers").is_some()
     {
         let directory = path.parent().expect("fixture root");
-        temper_agent_fixtures::providers::keep(&mut document, directory);
+        let wanted = document.as_object_mut().expect("deployment").remove("world_providers").expect("providers");
+        let providers: Vec<_> =
+            temper_box_kit::provider_setup::items(&wanted).into_iter().map(|item| item["set"].clone()).collect();
+        private(
+            &directory.join("world-providers.json"),
+            &serde_json::to_vec(&serde_json::json!({"providers":providers})).expect("world inputs"),
+        );
         let settings = directory.join("browser-agents.json");
         if settings.is_file() {
             let mut value = serde_json::from_slice(&fs::read(&settings).expect("ctl settings")).expect("settings JSON");
@@ -176,14 +193,115 @@ pub(crate) fn write(directory: &Path, bundle: &Path) -> temper_playground::docum
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     let (agent, mut value) = typed_documents(directory, bundle);
     let agent = serde_json::from_slice(&agent).expect("agent JSON");
-    temper_agent_fixtures::apply(&mut value, directory, &agent);
-    let composed = temper_agent_fixtures::at(&value, directory);
-    turn_bounds::apply(&mut value, turn_bounds::turn_body(&composed));
-    let mut settings = agent_settings(&agent);
-    provider_settings(directory, &mut settings);
-    private(&directory.join("browser-agents.json"), &serde_json::to_vec(&settings).expect("agents and providers JSON"));
-    private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    turn_bounds::apply(&mut value, turn_bounds::turn_body(&agent));
+    let settings = agent_settings(&agent);
+    private(&directory.join("browser-agents.json"), &serde_json::to_vec(&settings).expect("agents JSON"));
+    persist(directory, &value);
     value
+}
+
+/// Keep the typed figures beside the document for the owner's setup sitting.
+pub(crate) fn persist(directory: &Path, value: &temper_playground::documents::Configuration) {
+    temper_box_kit::limit_settings::remember(directory, value);
+    private(&directory.join("temper.json"), &serde_json::to_vec(value).expect("deployment JSON"));
+}
+
+/// Commit the prospective settings in a no-task sitting, then let the browser's start take them.
+/// Providers and agent endpoints take effect at the next start, not at the decision.
+pub(crate) fn install(directory: &Path, program: &Path) {
+    use temper_box_kit::ctl::{Call, Step};
+    let settings = directory.join("browser-agents.json");
+    if !settings.is_file() || directory.join("browser-settings-applied").is_file() {
+        return;
+    }
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&settings).expect("settings")).expect("JSON");
+    let figures: serde_json::Value =
+        serde_json::from_slice(&fs::read(directory.join("fixture-limits.json")).expect("figures")).expect("JSON");
+    value["items"].as_array_mut().expect("items").extend(limit_items(&figures));
+    let client = directory.join("settings-client");
+    fs::create_dir(&client).expect("settings client");
+    fs::set_permissions(&client, fs::Permissions::from_mode(0o700)).expect("private client");
+    let mut steps = vec![Step::Run(Call::sign_in().by(program))];
+    // The seven numbered stock models keep their identities and figures; their endpoint bindings follow settings.
+    for number in 1..=7 {
+        steps.push(Step::Run(Call::new(&["settings", "show", "model", &number.to_string(), "--json"]).by(program)));
+    }
+    steps.push(Step::Run(Call::new(&["settings", "show", "--json"]).by(program)));
+    let file = settings.clone();
+    let executable = program.to_path_buf();
+    let wanted = temper_agent_fixtures::providers::read(directory);
+    steps.push(Step::Then(Box::new(move |calls| {
+        for call in &calls[1..8] {
+            let read = temper_box_kit::ctl::json(call);
+            let mut model = read["value"].clone();
+            bind_model(&mut model, &wanted);
+            value["items"]
+                .as_array_mut()
+                .expect("items")
+                .push(serde_json::json!({"setting":read["setting"],"set":model}));
+        }
+        private(&file, &serde_json::to_vec(&value).expect("settings JSON"));
+        temper_box_kit::ctl::settings_change(calls.last().expect("inventory"), &file, "browser-settings")
+            .by(&executable)
+    })));
+    steps.push(Step::Run(Call::new(&["sign-out"]).by(program)));
+    let flags = flags(directory).into_iter().map(|word| word.into_string().expect("flag")).collect();
+    let seen = temper_box_kit::boxed::run_ctl_from(program, directory, flags, &client, steps, |_| ());
+    for call in &seen.calls {
+        assert_eq!(
+            call.exit,
+            Some(skein_io::kernel::Exit::Code(0)),
+            "settings setup: {}",
+            String::from_utf8_lossy(&call.stderr)
+        );
+    }
+    assert_eq!(seen.exit, Some(skein_io::kernel::Exit::Code(0)), "{}", String::from_utf8_lossy(&seen.stderr));
+    assert_eq!(
+        seen.calls.len(),
+        11,
+        "sign in, read seven models and inventory, apply, sign out; {}",
+        String::from_utf8_lossy(&seen.stderr)
+    );
+    assert_eq!(seen.left, Some(Vec::new()), "settings sitting drained");
+    private(&directory.join("browser-settings-applied"), b"applied\n");
+}
+
+fn limit_items(figures: &serde_json::Value) -> Vec<serde_json::Value> {
+    ["limits", "temper-limits"]
+        .into_iter()
+        .map(|kind| {
+            let mut overrides: Vec<_> = figures[kind]
+                .as_array()
+                .expect("figures")
+                .iter()
+                .filter(|item| {
+                    // The start derives these carriers from its agent, not the composition's document.
+                    item["name"] != "core.call_answer_bytes" && item["name"] != "forge.client.answer_bytes"
+                })
+                .cloned()
+                .collect();
+            overrides.sort_by(|left, right| left["name"].as_str().cmp(&right["name"].as_str()));
+            serde_json::json!({"setting":{"kind":kind},"set":overrides})
+        })
+        .collect()
+}
+
+fn bind_model(value: &mut serde_json::Value, wanted: &serde_json::Value) {
+    let number = value["model"]["provider"].clone();
+    let Some(provider) =
+        wanted["providers"].as_array().expect("providers").iter().find(|provider| provider["number"] == number)
+    else {
+        return;
+    };
+    let endpoint = wanted["endpoints"]
+        .as_array()
+        .expect("endpoints")
+        .iter()
+        .find(|endpoint| endpoint["provider"] == provider["name"])
+        .expect("world endpoint");
+    value["model"]["endpoint"] = endpoint["number"].clone();
+    value["model"]["dialect"] = endpoint["dialect"].clone();
+    value["model"]["program"] = endpoint["program"].clone();
 }
 
 /// Keep ctl's prospective providers aligned with the world's kept inputs, including fixture edits.
@@ -211,6 +329,7 @@ fn agent_settings(agent: &serde_json::Value) -> serde_json::Value {
             let value = object.remove(from).expect("agent endpoint time");
             object.insert(to.into(), value);
         }
+        object.remove("oversized_reasoning");
         object.insert("oversized".into(), "fail".into());
         endpoints.insert(endpoint["name"].as_str().expect("endpoint name").into(), limits);
     }
@@ -277,14 +396,11 @@ fn own_demo_listeners(file: &mut temper_config_shell::File) {
 /// Replace the turns of exactly one request offered by the demo.
 pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) {
     temper_agent_fixtures::legacy_init(directory);
-    let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON"),
-    );
-    let scripts = value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts");
+    let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
+    let scripts = value["asked"].as_array_mut().expect("asked scripts");
     let script = scripts.iter_mut().find(|script| script["cue"] == cue).expect("offered demo request");
     script["turns"] = turns;
-    private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
+    crate::scripted::write(directory, &value);
 }
 
 /// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
@@ -292,11 +408,7 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
     temper_agent_fixtures::legacy_init(directory);
-    let path = directory.join("temper.json");
-    let mut value = temper_playground::documents::Configuration::from_jig(
-        serde_json::from_slice(&fs::read(&path).expect("public demo deployment")).expect("JSON"),
-    );
-    for (name, figure) in [
+    let figures = [
         ("clients.public.rate", 20),
         ("clients.public.rate_burst", 20),
         ("clients.public.bytes", 2_097_152),
@@ -310,11 +422,11 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("core.public.ended", 20),
         ("core.public.lines", 50),
         ("core.public.depth", 16),
-    ] {
-        value.jig_over(name, figure);
-    }
+    ];
+    crate::scripted::limits(directory, &figures);
+    let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
     let mut delegates = 0_u32;
-    for script in value["application"]["demo"]["llm"]["asked"].as_array_mut().expect("asked scripts") {
+    for script in value["asked"].as_array_mut().expect("asked scripts") {
         if script["cue"] != "Add CSV export to widget" {
             continue;
         }
@@ -331,7 +443,7 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         }
     }
     assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
-    private(&path, &serde_json::to_vec(&value).expect("public demo JSON"));
+    crate::scripted::write(directory, &value);
 }
 
 /// Derive the stock charters and their model bounds from the edited deployment.
@@ -370,6 +482,124 @@ mod tests {
     use super::stock_engine;
 
     #[test]
+    fn world_settings_preserve_stock_provider_identities() {
+        use jig_domain_core::settings::{Current, Edit, Item, Setting, Value};
+        let scratch = skein_scratch::Scratch::new("browser-stock-identities");
+        let mut value = super::write(scratch.path(), &scratch.path().join("bundle"));
+        let engine = stock_engine(&value);
+        let core = jig_protocol_config::core(&engine, [0; 16], 1);
+        let mut defaults = core.defaults;
+        defaults.providers = temper_service::stock::providers();
+        let current = Current::new(defaults, &engine.limits.core, &[]);
+        for accounts in [false, true] {
+            if accounts {
+                let sign_in = crate::account_registration("http://127.0.0.1:9");
+                crate::account_provider(&mut value, &sign_in);
+                crate::welcome_provider(&mut value, &sign_in);
+                super::persist(scratch.path(), &value);
+            }
+            let settings: serde_json::Value =
+                serde_json::from_slice(&std::fs::read(scratch.path().join("browser-agents.json")).expect("settings"))
+                    .expect("JSON");
+            let providers: Vec<_> = settings["items"]
+                .as_array()
+                .expect("items")
+                .iter()
+                .filter(|item| item["setting"]["kind"] == "provider")
+                .map(|item| item["set"].clone())
+                .collect();
+            let bytes = serde_json::to_vec(&serde_json::json!({"providers":providers})).expect("provider JSON");
+            let items: Vec<_> = temper_agent_fixtures::providers::parse(&bytes)
+                .into_vec()
+                .into_iter()
+                .map(|provider| Item {
+                    setting: Setting::Provider(provider.provider.number),
+                    edit: Edit::Set(Value::Provider(Box::new(provider))),
+                })
+                .collect();
+            jig_domain_core::settings::providers::check_change(&current, &items)
+                .expect("world providers must not rename stock numbers");
+        }
+        assert!(!scratch.path().join("providers.setting").exists(), "only the serving engine writes its kept copy");
+    }
+
+    #[test]
+    fn settings_file_uses_the_public_agents_form() {
+        let scratch = skein_scratch::Scratch::new("browser-agents-form");
+        super::write(scratch.path(), &scratch.path().join("bundle"));
+        let bytes = std::fs::read(scratch.path().join("browser-agents.json")).expect("settings");
+        settings_form::file::decode(&bytes, &settings_form::Limits::standard())
+            .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&why)));
+    }
+
+    #[test]
+    fn subprocess_figures_survive_document_edits() {
+        let scratch = skein_scratch::Scratch::new("browser-figures");
+        super::write(scratch.path(), &scratch.path().join("bundle"));
+        let mut value = temper_box_kit::limit_settings::configuration(scratch.path());
+        assert_eq!(value.jig.core.documents.lines, 11);
+        crate::account_provider(&mut value, &crate::account_registration("http://127.0.0.1:9"));
+        super::persist(scratch.path(), &value);
+        let restored = temper_box_kit::limit_settings::configuration(scratch.path());
+        assert_eq!(restored.jig, value.jig);
+        assert_eq!(restored.limits, value.limits);
+        assert_eq!(restored.limits.git_component.operations, 1);
+    }
+
+    #[test]
+    fn limit_settings_keep_ordered_small_figures_without_underived_carriers() {
+        let scratch = skein_scratch::Scratch::new("browser-limit-form");
+        super::write(scratch.path(), &scratch.path().join("bundle"));
+        let figures: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(scratch.path().join("fixture-limits.json")).expect("figures"))
+                .expect("JSON");
+        for item in super::limit_items(&figures) {
+            let overrides: Vec<_> = item["set"]
+                .as_array()
+                .expect("overrides")
+                .iter()
+                .map(|row| jig_domain_core::settings::Override {
+                    name: row["name"].as_str().expect("name").as_bytes().into(),
+                    value: row["value"].as_u64().expect("figure"),
+                    reason: row["reason"].as_str().expect("reason").as_bytes().into(),
+                })
+                .collect();
+            jig_domain_core::settings::check_overrides(&overrides).expect("limits form");
+            assert!(overrides.iter().all(|row| row.name.as_ref() != b"core.call_answer_bytes"
+                && row.name.as_ref() != b"forge.client.answer_bytes"));
+            for row in overrides {
+                assert!(
+                    figures[item["setting"]["kind"].as_str().expect("kind")]
+                        .as_array()
+                        .expect("figures")
+                        .iter()
+                        .any(|original| original["name"].as_str().expect("name").as_bytes() == row.name.as_ref()
+                            && original["value"] == row.value),
+                    "other small figures stay unchanged"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn stock_models_follow_the_world_endpoint_bindings() {
+        let mut value = super::typed_documents(std::path::Path::new("/fixture"), std::path::Path::new("/bundle")).1;
+        let mut model = serde_json::json!({"number":2,"model":{"provider":1,"endpoint":1,"dialect":2,"program":"claude_code","name":"stock-name","output":8192}});
+        super::bind_model(&mut model, &value["world_providers"]);
+        assert_eq!(
+            model,
+            serde_json::json!({"number":2,"model":{"provider":super::PROVIDER,"endpoint":super::ENDPOINT,"dialect":3,"program":null,"name":"stock-name","output":8192}})
+        );
+        let sign_in = crate::account_registration("http://127.0.0.1:9");
+        crate::account_provider(&mut value, &sign_in);
+        crate::welcome_provider(&mut value, &sign_in);
+        model["model"]["provider"] = 2.into();
+        super::bind_model(&mut model, &value["world_providers"]);
+        assert_eq!(model["model"]["provider"], super::WELCOME_PROVIDER);
+        assert_eq!(model["model"]["endpoint"], super::WELCOME_ENDPOINT);
+    }
+
+    #[test]
     fn ctl_settings_commit_the_world_providers_before_a_restart() {
         let scratch = skein_scratch::Scratch::new("browser-provider-settings");
         let directory = scratch.path();
@@ -382,7 +612,7 @@ mod tests {
         let wanted = temper_agent_fixtures::providers::read(directory);
         assert_eq!(providers, temper_box_kit::provider_setup::items(&wanted), "ctl must commit the kept providers");
         assert_eq!(providers.len(), 1, "the world has one non-scripted provider");
-        assert_eq!(providers[0]["setting"], serde_json::json!({"kind":"provider","number":1}));
+        assert_eq!(providers[0]["setting"], serde_json::json!({"kind":"provider","number":super::PROVIDER}));
         assert_eq!(providers[0]["set"]["endpoints"][0]["address"]["socket"], super::UNREACHED);
         assert!(providers.iter().all(|item| item["setting"]["number"] != 3), "the scripted provider is fixed");
         assert_eq!(items.iter().filter(|item| item["setting"]["kind"] == "agents").count(), 1);

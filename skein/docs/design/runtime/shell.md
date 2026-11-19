@@ -207,7 +207,9 @@ Startup is each service's `main`, step by step, with the kit's
 functions: the kit holds no startup function of its own.
 
 A service that starts trees also dispatches its helper before step 1,
-and opens its own cgroup before step 7 (6.4).
+and opens its own cgroup before step 7 (6.4); one whose spawns carry a
+reach dispatches its helper before step 1 too, and checks that it can
+restrict a tree once its kernel is open (6.4).
 
 A service that listens takes the listeners it was given, and opens
 the ones it holds for its children, before step 7 (6.6).
@@ -419,17 +421,30 @@ a terminal, so that the same stop rule holds on a terminal and on pipes.
 
 ### 6.4 Trees at startup
 
-A service that starts trees (io/processes.md, 2 to 4) does two more things
-at startup, with the kit:
+A service that starts trees (io/processes.md, 2 to 4), or whose spawns
+carry a reach (io/processes.md, 6), does more at startup, with the kit:
 
 - **The helper, first of all.** The first line of `main` hands its
-  arguments to `skein-contain`'s dispatch, before it reads any
-  configuration. It returns at once unless the first argument is the
-  helper's marker. With the marker, the process is a helper the service
-  started (kernel.md, 6.6): it sets up the tree and executes the command,
-  or reports its stage and exits, and never returns into `main`. A
-  service that starts no tree may leave the line out: without it, a
-  helper it never starts is never dispatched.
+  arguments to the helper's dispatch, `skein_shell::helper::dispatch()`,
+  before it reads any configuration. It returns at once unless the first
+  argument is the helper's marker. With the marker, the process is a
+  helper the service started (kernel.md, 6.6): it sets up the tree and
+  executes the command, or reports its stage and exits, and never
+  returns into `main`. A service that starts no tree and spawns with no
+  reach may leave the line out: without it, a helper it never starts is
+  never dispatched. One that needs it and leaves it out has every reached
+  spawn fail `Reach(Helper)`, never run unrestricted.
+- **Whether it can restrict a tree.** A service whose spawns carry a
+  reach (io/processes.md, 6) calls `Kernel::can_restrict` once its kernel
+  is open, before it serves: it spawns a restricted child (kernel.md,
+  6.6) and answers `Ok`, or the `Unenforced` a reach would meet, whose
+  words say what an operator can do. What follows is the service's: a
+  worker refuses the runs that rely on the fence, or runs them
+  unconfined only by its configuration's word
+  (`temper/docs/design/draft/confinement.md`, 6.5). Inside a container,
+  whether its seccomp profile admits Landlock's calls is this check's to
+  find. Under the simulator, the world gives the service the answer it
+  chooses, as it gives its own cgroup.
 - **Its own cgroup,** opened before step 7: the `0::` line of
   `/proc/self/cgroup`, beneath `/sys/fs/cgroup`, which must be a cgroup
   v2 mount (`statfs`) mounted with `nsdelegate` (`/proc/self/mountinfo`),
@@ -588,7 +603,7 @@ and changes no code above io:
   invariants it and the readiness backend assert, their guards'
   included, are untested (../../foundation/programming-model.md, 10.4).
 - **The conformance suite** runs against each backend the host has,
-  each scenario once (`tests/conformance/real`; kernel.md, 8): one test
+  each scenario once (`tests/conformance/real`; ../testing/conformance.md, 1): one test
   binary, a module for each backend over one list of cases, `ring`
   (Linux only, opened with `Backend::Ring`) and `readiness` (opened with
   `Backend::Readiness`, so epoll on Linux and kqueue on macOS).

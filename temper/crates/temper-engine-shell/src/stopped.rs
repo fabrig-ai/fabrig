@@ -54,7 +54,7 @@ pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Serv
         if let Some(held) = &held {
             eprintln!("{}", held.line);
         }
-        let service::startup::CheckedStart { engine, io, forges, .. } = service::startup::checked_start_with_limits(
+        let service::startup::CheckedStart { engine, io, forges, .. } = service::startup::checked_start_with_resolved(
             bytes,
             &jig_directories(directories),
             &files,
@@ -63,8 +63,7 @@ pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Serv
             skein_lib::List::with_capacity(0),
             None,
             &given,
-            &resolved.jig,
-            &resolved.temper,
+            &resolved,
         )
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
         let mut service = service::startup::restoring_prepared(engine, &seeds, Some(accounts), forges, io)

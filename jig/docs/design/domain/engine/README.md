@@ -429,6 +429,16 @@ answers to a run's reads.
   on the old record, and the later commit would undo the earlier.
 - **Bounded:** the loads in flight, and the bytes a load brings, are
   limits; a load past its bytes is cut, and says how much.
+- **Busy is a load that failed.** A load of an ended task
+  (`Now::EndedTask`) is answered with its row, with none, or busy: the
+  root or the store could not serve it. Room the root regains by itself
+  is no failure: a root with no slot to send that load keeps it until
+  one frees, sending it before any load asked after it, still held
+  behind every commit made before the core asked. Its waiting loads are
+  bounded by the core's read flights, which the core keeps within its
+  own limit (`briefs.md`, 1.1, `results: no read flight is free`). So a
+  run's preparation never fails for a slot, however many tasks a
+  restart makes due together (`briefs.md`, 1.1, *A dependency's result*).
 - **Parties' reads** are documents and pages the client's contract lists
   (`../../client/domain/contract/README.md`, section 4): from live state where the
   engine holds it, loaded otherwise, and answered once the last commit

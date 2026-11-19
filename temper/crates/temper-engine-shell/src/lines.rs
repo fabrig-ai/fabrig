@@ -884,7 +884,7 @@ fn listener_failed_line(
         Some(skein_io::Error::TimedOut) => "timed out",
         Some(skein_io::Error::Reset) => "reset",
         Some(skein_io::Error::Busy) => "busy",
-        Some(skein_io::Error::Other) => "other",
+        Some(skein_io::Error::Reach(_) | skein_io::Error::Other) => "other",
         None => "closed",
     };
     format!("{binary} serve: {name} listener {address} failed: {why}\n")

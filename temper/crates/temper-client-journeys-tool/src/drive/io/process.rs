@@ -36,6 +36,7 @@ impl Child {
         }
         pipes.extend([Pipe { child: 1, way: Way::Out, parent: None }, Pipe { child: 2, way: Way::Out, parent: None }]);
         let spawn = Spawn {
+            reach: None,
             program: program.program.as_os_str().as_bytes().into(),
             args: program.args.iter().map(|arg| arg.as_bytes().into()).collect(),
             env: program

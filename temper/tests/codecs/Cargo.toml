@@ -16,6 +16,7 @@ temper-protocol-reaches.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+skein-heap.workspace = true
 skein-scratch.workspace = true
 skein-codec.workspace = true
 temper-test-env.workspace = true

@@ -509,7 +509,14 @@ impl World {
                 self.recording_sync = None;
                 self.saved += 1;
             }
-            if let Ask::Spawn { program, args, .. } = &call.ask {
+            if let Ask::Spawn { program, args, reach, .. } = &call.ask {
+                if reach.is_some() {
+                    answers.push(Answer {
+                        ticket: call.ticket,
+                        result: Err(io::kernel::Error::Reach(io::kernel::Unenforced::Unsupported)),
+                    });
+                    continue;
+                }
                 if args.first().is_some_and(|arg| arg.as_ref() == b"program-login") && self.login_refused {
                     answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::NotFound) });
                     continue;

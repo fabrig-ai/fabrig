@@ -17,7 +17,9 @@ The journeys are the browser's (`web/journeys.md`) and the TUI's
   README, setup and walk stay sources, which any change edits.
 - **A command prints main's tip** (section 3): `temper-client-journeys
   pages` walks again each journey whose recording no longer replays, and
-  no other, then reprints every journey in place.
+  no other, then reprints every journey in place. A moved journey, one
+  whose `walk` is of version 2, is `temper-client-walk pages`' instead,
+  printed in a world (`journey-walks.md`, 5.2).
 - **A script runs it one at a time** (section 4): at each landing of
   main, `scripts/journey-pages.sh` prints the tip and offers what
   differs as one change, opened from a pushed branch, its message ending
@@ -46,7 +48,7 @@ Under `web/journeys/` and `tui/journeys/`:
 | Written by the writer alone | Sources, any change's |
 |---|---|
 | a journey's `recording` | a journey's `README.md` |
-| its pages: `NN.html`, and the TUI's `NN.txt`, NN two digits or more | a browser journey's `setup`; a TUI journey's `walk` and `setup` |
+| its pages: `NN.html`, and the TUI's `NN.txt`, NN two digits or more | a browser journey's `setup`, or its `walk` once it has moved; a TUI journey's `walk` and `setup` |
 | beside the browser's journeys, `skein-ui.css` and `journey.js`; beside the TUI's, `theme.css` and `tui-journey.js` | each root's `overlay.css`, empty on main; the `README.md` beside each root |
 
 - **A source changes with what a person does:** a change that renames a
@@ -63,9 +65,14 @@ Under `web/journeys/` and `tui/journeys/`:
 `cargo run -p temper-client-journeys -- pages [--prepared DIR]
 [--within DURATION]`, an internal command of
 `crates/temper-client-journeys-tool` (`web/journeys.md`, 5.1), on the
-checkout it is built from:
+checkout it is built from. A moved journey, a directory under either
+root whose `walk` is of version 2 (`journey-walks.md`, 3.1, `moved`),
+is none of its: no item below reads, walks, prints or removes a file of
+it, nor does the bare reprint, `again` or `add`, which refuse its name,
+naming `temper-client-walk`. Its pages are `temper-client-walk pages`'
+(`journey-walks.md`, 5.2), which removes its `recording`.
 
-1. **What is stale:** every journey of both clients, a directory under
+1. **What is stale:** every journey of both clients not moved, a directory under
    either root that holds a `recording`, the browser's then the TUI's,
    each in name order, replayed through the current build as the
    reprint replays it (`web/journeys.md`, 4.1; `tui/journeys.md`, 4.1).
@@ -96,8 +103,8 @@ checkout it is built from:
    files beside them, as the bare command reprints (`web/journeys.md`,
    5.1). A journey still stale keeps its pages.
 6. **Pages with no recording go:** a directory under either root that
-   holds pages and no `recording` loses its pages, and keeps its other
-   files.
+   holds pages, no `recording` and no `walk` of version 2 loses its
+   pages, and keeps its other files.
 7. **Its lines,** on stdout, one a journey, in item 1's order: `fresh
    NAME`, current and printed; `walked again NAME`, a walk that ended in
    a recording and printed; `stopped NAME: WHY`, a journey left
@@ -168,12 +175,16 @@ and needs no ctl directory and no way to push.
 3. **On main's tip:** a checkout with tracked changes, or a rebase, a
    merge or a cherry-pick in progress, is refused. The script fetches
    `main` from `origin` and checks out NAME at `origin/main`, TIP.
-4. **Prints:** `cargo run --locked -p temper-client-journeys -- pages`,
+4. **Prints:** first, where a directory under either root holds a
+   `walk` whose first line is `walk 2`, `cargo run --locked -p
+   temper-client-walk -- pages` (`journey-walks.md`, 5.2), unbounded;
+   then `cargo run --locked -p temper-client-journeys -- pages`,
    with `--prepared DIR` where given, `--within` the bound's rest where
-   one is given, and `TEMPER_INTERNAL_BUNDLE=none` (`AGENTS.md`, 5). It
-   passes the print's stdout on as it comes.
+   one is given; each with `TEMPER_INTERNAL_BUNDLE=none` (`AGENTS.md`,
+   5). It passes each print's stdout on as it comes, as one report:
+   step 7's paragraph takes the `stopped` lines of both.
 5. **Nothing differs:** its last line is `main's pages are TIP's
-   print`. A print that exits 2 or 3 ends the run, nothing written.
+   print`. Either print exiting 2 or 3 ends the run, nothing written.
 6. **Written files alone:** a changed path that is not section 2's
    written file ends the run, naming it, nothing committed.
 7. **Its commit,** on TIP, of the written files: the subject
@@ -217,9 +228,10 @@ and needs no ctl directory and no way to push.
 
 - **The delivery check** (`tools/pre-pr/design.md`, 4, check 8): a
   delivery whose own changes hold a written file and any other path is
-  refused, naming the reprint to compare with and how to restore the
-  files; so is a tree whose `overlay.css`, under either root, holds a
-  byte. A delivery of written files alone passes it.
+  refused, naming the reprint to compare with, and for a moved journey
+  `cargo run -p temper-client-walk -- print --out DIR`, and how to
+  restore the files; so is a tree whose `overlay.css`, under either
+  root, holds a byte. A delivery of written files alone passes it.
 - **The merge job** (`../protocol/tooling.md`, 4.1;
   `tools/merge/README.md`): a conflict at a written file's path is
   settled with the landing branch's copy, the commit merged in, with no
@@ -255,7 +267,10 @@ and needs no ctl directory and no way to push.
   the journeys' files to its base's: it commits no written file. A
   journey the reprint finds stale is the writer's to walk after the
   landing; its comparison is the render check's
-  (`web/look-requests.md`, 3).
+  (`web/look-requests.md`, 3). A moved journey is compared by a print
+  into scratch, `cargo run -p temper-client-walk -- print --out DIR
+  NAME`, DIR's pages against the request's (`journey-walks.md`, 6),
+  which is never stale.
 - **The render check follows the writer's change** that prints the
   landing (`web/look-requests.md`, 4).
 
@@ -278,7 +293,9 @@ Focused and native: no box, browser or terminal starts.
   pages; its lines are one a journey; `--check` names each journey
   fresh or stale and writes nothing; a bound already past stops each
   walk asked, naming it. The walk is `again`'s, compiled and never run
-  in a test.
+  in a test. A moved journey, with a `recording` left and with pages
+  alone: `pages`, `--check` and the bare reprint neither name it nor
+  touch a byte of it, and `again` and `add` refuse it.
 - **The run,** in the same crate's suite beside the refresh's tests, in
   scratch repositories with a fake `cargo` and a fake `temper` first on
   `PATH`: nothing to write, nothing pushed or opened; pages changed, one
@@ -290,7 +307,12 @@ Focused and native: no box, browser or terminal starts.
   elsewhere refused, and the next run waiting until main holds the
   print, merged or squashed; its last line in each case; a held lock
   refused, exit 2; a path outside the written files changed, nothing
-  pushed or opened, exit 1; a dirty checkout refused, exit 2.
+  pushed or opened, exit 1; a dirty checkout refused, exit 2. With a
+  `walk` of version 2 under a root, `temper-client-walk pages` asked
+  first, then the journeys tool, a `stopped` line of either in the
+  commit's paragraph, its removed `recording` committed, and either
+  exiting 2 or 3 writing nothing; with none, the walk's print never
+  asked.
 - **The refresh:** a request whose trailer is on main and not yet
   printed kept; dropped once a `Printed:` names a commit that contains
   it, the print reaching main as its own commit, a merge's second
@@ -303,6 +325,6 @@ Focused and native: no box, browser or terminal starts.
 
 - **temper runs the writer** (`../draft/journey-walks.md`, 11): the
   script then goes.
-- **A moved journey prints in a world:** `temper-client-walk pages`
-  becomes the engine for a journey whose `walk` is of version 2, and
-  `again` goes with the last one (`../draft/journey-walks.md`, 8.3).
+- **One engine:** `again`, the reprint and section 3's command go with
+  the last journey that moves, and the run prints with
+  `temper-client-walk pages` alone (`journey-walks.md`, 8).
