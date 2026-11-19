@@ -290,16 +290,16 @@ fn a_refused_main_completion_names_its_cause_in_the_run_end_and_channel_answer()
         &smith_charter::CEILINGS,
     )
     .expect("channel answer");
-    let smith_channel::RunResult::Failed(failed) = record.result() else {
+    let smith_channel::RunResult::Failed(failed) = &record.result else {
         panic!("failed answer");
     };
-    let smith_channel::RunFailure::Model(model) = failed.reason() else {
+    let smith_channel::RunFailure::Model(model) = &failed.reason else {
         panic!("model failure");
     };
-    let smith_channel::ModelFault::Completion(completion) = model.value() else {
+    let smith_channel::ModelFault::Completion(completion) = &model.value else {
         panic!("completion failure");
     };
-    assert_eq!(completion.code(), b"identifier");
+    assert_eq!(completion.code.as_ref(), b"identifier");
 }
 
 #[test]
