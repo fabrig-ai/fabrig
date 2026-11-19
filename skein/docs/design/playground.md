@@ -152,6 +152,19 @@ on the timer, or after a message:
   own and the page sees no cookie. A cookie of one name replaces the
   one it holds; one past the jar's bound of cookies or of a cookie's
   bytes is refused, and its answer is reported as any other.
+- **A tab,** `tab::Tab`, another `Host` of the world, for a page that
+  opens one and points it at an address, as a sign-in does (temper's
+  `docs/design/client/journey-walks.md`, 4.5): given an absolute
+  `http://` address, a `GET` on a connection of its own, its `Host` the
+  address's authority, with no cookie and no `Origin`, as a new tab
+  whose opener was cut sends it; a redirect, 301, 302, 303, 307 or 308,
+  followed to its `Location`, resolved against the address it answered,
+  at most 8; the last answer kept, `tab::Shown`, its address, status and
+  body up to the application's bound. A refused connection, a reset, an
+  answer past its bound or a ninth redirect ends the visit, kept as its
+  last answer, failed. Pointed again, it abandons a visit under way and
+  starts the new one; closed, it abandons it. The page never reads what
+  the tab holds; its tests and its walker do.
 
 ## 5. The bridge
 
