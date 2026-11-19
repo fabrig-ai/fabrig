@@ -64,6 +64,7 @@ struct World {
     identity: Identity,
     domain: checkout::Domain,
     hold: Option<Token>,
+    operations: Vec<git::Kind>,
 }
 
 impl World {
@@ -124,6 +125,11 @@ impl World {
             assert!(output.status.success(), "move run's {reference}: {:?}", output.stderr);
         }
         fs::write(run.join("MERGE_HEAD"), format!("{unrelated}\n")).expect("plant merge parent");
+        self.plant_run_drivers(directory);
+    }
+
+    fn plant_run_drivers(&self, directory: &str) {
+        let run = self.root.join(directory).join(".git");
         let hooks = self.root.join("planted-hooks");
         let markers = self.root.join("planted-markers");
         fs::create_dir_all(&hooks).expect("hook directory");
@@ -409,7 +415,7 @@ impl World {
         git::Done::Succeeded
     }
 
-    #[expect(clippy::too_many_lines, reason = "the real-git harness translates process and file steps together")]
+    #[expect(clippy::too_many_lines, reason = "the harness drives each git sequence step against real git and files")]
     fn perform(&self, mut op: git::Op) -> git::Done {
         if let git::Op::Make { workspace, .. } = &op {
             for tree in ["workspaces", "gitdirs"] {
@@ -419,6 +425,9 @@ impl World {
         }
         if let git::Op::Store { store, remote, .. } = &op {
             let directory = format!("stores/{}", store.raw());
+            if self.root.join(&directory).is_dir() {
+                return git::Done::Succeeded;
+            }
             fs::create_dir_all(self.root.join(&directory)).expect("store directory");
             let output = self.command(
                 &op,
@@ -448,6 +457,9 @@ impl World {
             git::Op::Store { .. } | git::Op::Make { .. } => unreachable!(),
         };
         let repository = String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory");
+        let run_config = self.root.join(&repository).join(".git/config");
+        let looked_config =
+            if matches!(op, git::Op::Look { .. }) { Some(fs::read(&run_config).expect("kept config")) } else { None };
         let git_directory = self.root.join(OsStr::from_bytes(&invocation::git_dir(at)));
         let mut index: Option<PathBuf> = None;
         let mut next = sequence::first(&op);
@@ -494,15 +506,34 @@ impl World {
                 Next::Reds { directory, content, marker, rerun } => {
                     return self.reds(&directory, content, marker, rerun);
                 }
+                Next::Look { directory } => {
+                    let path = self.root.join(OsStr::from_bytes(&directory));
+                    match fs::symlink_metadata(path) {
+                        Ok(metadata) if metadata.is_dir() => Next::Run(invocation::Command::Format),
+                        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                            Next::End(git::Done::Looked { holds: false })
+                        }
+                        Ok(_) | Err(_) => Next::End(git::Done::Failed { fault: git::Fault::Broken }),
+                    }
+                }
                 Next::Results { .. } => panic!("this delivery has no check results read"),
                 Next::End(done) => {
+                    if let Some(config) = &looked_config {
+                        assert_eq!(
+                            fs::read(&run_config).expect("run config after Look"),
+                            *config,
+                            "Look leaves the run's config unchanged"
+                        );
+                    }
                     if let Some(path) = index.take() {
                         fs::remove_file(path).expect("scan index removed on refusal");
                     }
                     return done;
                 }
                 Next::Alternates { format, run } => {
-                    let git::Op::Clone { at, store, remote } = &op else { unreachable!() };
+                    let (git::Op::Clone { at, store, remote } | git::Op::Look { at, store, remote }) = &op else {
+                        unreachable!()
+                    };
                     let directory = String::from_utf8(invocation::git_dir(at).into_vec()).expect("metadata path");
                     let (file, bytes, next) = if run {
                         (
@@ -572,6 +603,7 @@ impl World {
             while self.domain.pop_fact().is_some() {}
             self.domain.reclaim();
             let (owner, op) = pending.expect("one operation outstanding");
+            self.operations.push(op.kind());
             event = checkout::Event::Done { owner, done: self.perform(op) };
         }
         panic!("delivery settles")
@@ -621,6 +653,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
         },
         domain: checkout::Domain::new(&LIMITS),
         hold: None,
+        operations: Vec::new(),
     };
     let remote: Box<[u8]> = format!("{}/{}/{}.git", instance.base(), writer.login, repository.name).into_bytes().into();
     for design in [true, false] {
@@ -748,6 +781,148 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     instance.stop().expect("stopped");
 }
 
+/// A kept one-directory checkout crosses the two-directory redeploy without
+/// trusting the configuration that is now the run's (checkouts.md, Two git directories).
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one real-git scenario seeds the kept checkout, holds it and delivers its files"
+)]
+fn a_kept_one_directory_checkout_is_taken_on_without_running_its_filters() {
+    let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
+    let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
+    let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "take-on-checkout");
+    let mut settings = Settings::small();
+    settings.actions = false;
+    let mut instance = forgejo.start(&scratch.path().join("forge"), &settings).expect("started");
+    let writer = instance.admin().clone();
+    let repository = instance.create_repository(&writer, "specimen", Init::Readme).expect("repository");
+    let remote: Box<[u8]> = format!("{}/{}/{}.git", instance.base(), writer.login, repository.name).into_bytes().into();
+    let root = scratch.path().join("worker");
+    fs::create_dir_all(&root).expect("worker root");
+    let mut world = World {
+        root,
+        identity: Identity {
+            token: Secret::new(writer.token.value().as_bytes().into()),
+            login: writer.login.as_bytes().into(),
+            name: b"Writer".as_slice().into(),
+            email: b"writer@example.invalid".as_slice().into(),
+        },
+        domain: checkout::Domain::new(&LIMITS),
+        hold: None,
+        operations: Vec::new(),
+    };
+    world.domain.reuse_workspaces();
+    let store = store_token(&remote);
+    assert_eq!(
+        world.perform(git::Op::Store {
+            store,
+            aside: None,
+            remote: remote.clone(),
+            identity: 1,
+            account: None,
+            git: None,
+        }),
+        git::Done::Succeeded
+    );
+    let directory = "workspaces/0/specimen";
+    let work_tree = world.root.join(directory);
+    fs::create_dir_all(&work_tree).expect("kept work tree");
+    // These commands make the checkout the one-directory way, before planting
+    // the configuration. No worker command below discovers its directory here.
+    for args in [vec!["init", "--quiet"], vec!["remote", "add", "origin", std::str::from_utf8(&remote).expect("URL")]] {
+        let output = Command::new("/usr/bin/git")
+            .current_dir(&work_tree)
+            .env_clear()
+            .args(["--git-dir=.git", "--work-tree=."])
+            .args(args)
+            .output()
+            .expect("old checkout setup");
+        assert!(output.status.success(), "old checkout: {:?}", output.stderr);
+    }
+    fs::write(
+        work_tree.join(".git/objects/info/alternates"),
+        format!("../../../../../stores/{}/objects\n", store.raw()),
+    )
+    .expect("old alternates");
+    for args in [
+        vec!["fetch", "--quiet", "origin", "main"],
+        vec!["-c", "remote.origin.promisor=true", "checkout", "--quiet", "--detach", "FETCH_HEAD"],
+    ] {
+        let output = Command::new("/usr/bin/git")
+            .current_dir(&work_tree)
+            .env_clear()
+            .args(["--git-dir=.git", "--work-tree=."])
+            .args(args)
+            .output()
+            .expect("old checkout");
+        assert!(output.status.success(), "old checkout: {:?}", output.stderr);
+    }
+    let original = fs::read(work_tree.join("README.md")).expect("old checkout wrote README");
+    world.plant_run_drivers(directory);
+    // A new worker index must cause every tracked file to be written, even
+    // though the kept checkout's own index says that README is unchanged.
+    fs::write(work_tree.join("README.md"), b"dirty kept README\n").expect("dirty tracked file");
+    assert!(!world.root.join("gitdirs/0/specimen").exists());
+    let spec = checkout::Spec {
+        key: b"kept".as_slice().into(),
+        repositories: Box::new([checkout::Repository {
+            prefixes: Box::new([]),
+            name: b"specimen".as_slice().into(),
+            remote: remote.clone(),
+            git: None,
+            start: checkout::Start::Base { branch: b"main".as_slice().into() },
+            identity: 1,
+            account: None,
+            push: Some(b"change".as_slice().into()),
+            expected: None,
+            delivered: None,
+            landing: Some(b"main".as_slice().into()),
+            save: None,
+        }]),
+    };
+    assert!(matches!(world.finish(checkout::Event::Prepare { client: Token::new(1), spec }),
+        checkout::Request::Prepared { prepared: checkout::Prepared::Ready { workspace, .. }, .. } if workspace == Token::new(0)));
+    assert!(world.operations.contains(&git::Kind::Look));
+    assert!(!world.operations.contains(&git::Kind::Make));
+    assert!(!world.operations.contains(&git::Kind::Clone));
+    assert_eq!(fs::read(work_tree.join("README.md")).expect("fresh checkout"), original);
+    world.no_planted_program_ran();
+    fs::write(work_tree.join("delivered.txt"), b"work tree files\n").expect("run edit");
+    // The checkout removed the untracked attributes. Keep them for the delivery
+    // too, so staging files would run a planted clean driver if it read .git.
+    fs::write(work_tree.join(".gitattributes"), b"* filter=planted\n").expect("delivery attributes");
+    let answer = world.finish(checkout::Event::Push {
+        hold: world.hold.expect("held"),
+        message: checkout::Message { title: b"Kept checkout".as_slice().into(), body: Box::default() },
+    });
+    let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
+        panic!("push: {answer:?}")
+    };
+    let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("landed: {landings:?}") };
+    assert_eq!(
+        world.perform(git::Op::Fetch {
+            at: git::Place { workspace: Token::new(0), repository: b"specimen".as_slice().into(), git: None },
+            store,
+            remote,
+            want: git::Want::Branch { branch: b"change".as_slice().into() },
+            into: git::Into::Fetched,
+            identity: 1,
+            account: None,
+        }),
+        git::Done::Fetched { commit: *commit }
+    );
+    let delivered = String::from_utf8(invocation::hex(*commit).into_vec()).expect("id");
+    for name in ["README.md", ".gitattributes", "delivered.txt"] {
+        assert_eq!(
+            world.inspect(directory, &["show", &format!("{delivered}:{name}")]).as_bytes(),
+            fs::read(work_tree.join(name)).expect("work tree file")
+        );
+    }
+    world.no_planted_program_ran();
+    instance.stop().expect("stopped");
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one merge story holds preparation, resolution, delivery and its index oracle together"
@@ -774,6 +949,7 @@ fn merge_past_the_bound(marked: bool) {
         },
         domain: checkout::Domain::new(&LIMITS),
         hold: None,
+        operations: Vec::new(),
     };
     world.run_git("seed", &["init", "--initial-branch=main"]);
     let names: Vec<_> = (0..LIMITS.conflicts + 2).map(|n| format!("file{n}")).collect();

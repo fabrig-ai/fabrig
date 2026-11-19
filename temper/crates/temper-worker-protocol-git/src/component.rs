@@ -305,6 +305,7 @@ impl Component {
             | Next::Reds { .. }
             | Next::Run(_)
             | Next::Make
+            | Next::Look { .. }
             | Next::Store
             | Next::InstallStore { .. }
             | Next::Alternates { .. }
@@ -378,6 +379,7 @@ impl Component {
                 };
                 self.file_start(id, Task::make(*workspace, stores.clone()), out);
             }
+            Next::Look { directory } => self.file_start(id, Task::look(directory), out),
             Next::Store => {
                 let Some(git::Op::Store { store, aside, remote, .. }) = &self.slots.get(id).expect("live index").op
                 else {
@@ -396,7 +398,9 @@ impl Component {
                 self.file_start(id, task, out);
             }
             Next::Alternates { format, run } => {
-                let Some(git::Op::Clone { at, store, remote }) = &self.slots.get(id).expect("live index").op else {
+                let Some(git::Op::Clone { at, store, remote } | git::Op::Look { at, store, remote }) =
+                    &self.slots.get(id).expect("live index").op
+                else {
                     unreachable!("Clone sequence")
                 };
                 self.file_start(id, Task::alternates(at, *store, remote.clone(), format, run), out);

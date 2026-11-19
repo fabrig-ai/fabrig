@@ -213,7 +213,7 @@ pub fn operations() -> Vec<(&'static str, Scenario)> {
             let transcript = crate::transcripts::read("origin-matches");
             let remote = transcript.stdout.strip_suffix(b"\n").expect("origin URL").into();
             let mut query = scenario(
-                git::Op::Look { at: git::Place { workspace: Token::new(1), ..at() }, remote },
+                git::Op::Look { at: git::Place { workspace: Token::new(1), ..at() }, remote, store: Token::new(9) },
                 &["origin-matches"],
                 Expected::done(git::Done::Looked { holds: true }),
             );

@@ -299,10 +299,15 @@ fn a_look_without_a_program_ends_not_holding_the_clone() {
     started.empty_sweep();
     started.down(Request::Io {
         owner: fixtures::OWNER,
-        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) },
+        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: skein_lib::Token::new(9) },
         deadline: fixtures::DEADLINE,
         identity: None,
     });
+    let skein_io::kernel::Op::Open { how: skein_io::kernel::OpenHow::DirectoryNoFollow, .. } = started.file_operation()
+    else {
+        panic!("look for a kept work tree")
+    };
+    started.complete_err(skein_io::kernel::Error::NotFound);
     assert_eq!(started.done(), Some((fixtures::OWNER, git::Done::Looked { holds: false })));
     assert!(started.below.out.io.is_empty());
 }

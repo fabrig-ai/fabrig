@@ -185,6 +185,7 @@ fn perform(root: &Path, at: &git::Place, action: git::Reds, fail: bool) -> git::
             Next::Results { directory } => return file_steps(root, Task::results(directory), fail),
             Next::End(done) => return done,
             Next::Snapshot { .. }
+            | Next::Look { .. }
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }

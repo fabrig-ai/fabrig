@@ -8,7 +8,7 @@ mod index;
 mod objects;
 mod reds;
 mod results;
-use objects::{Alternates, Make, Store};
+use objects::{Alternates, Look, Make, Store};
 
 #[derive(Debug)]
 pub(crate) struct Directories {
@@ -53,6 +53,7 @@ pub(crate) enum Phase {
     Results(results::File),
     Layout(Layout),
     Make(Make),
+    Look(Look),
     Store(Store),
     Alternates(Alternates),
     Scan(Scan),
@@ -163,6 +164,9 @@ impl Task {
     pub fn make(workspace: Token, stores: Box<[Token]>) -> Task {
         Task { word: None, pending: Token::new(0), phase: Phase::Make(Make::new(workspace, stores)) }
     }
+    pub fn look(directory: Box<[u8]>) -> Task {
+        Task { word: Some(b"look"), pending: Token::new(0), phase: Phase::Look(Look::new(directory)) }
+    }
     pub fn store(store: Token, aside: Option<Token>, remote: Box<[u8]>) -> Task {
         Task { word: Some(b"store"), pending: Token::new(0), phase: Phase::Store(Store::new(store, aside, remote)) }
     }
@@ -231,6 +235,7 @@ impl Task {
             Phase::Results(file) => file.first(settings),
             Phase::Layout(_) => Action::Run(mkdir(settings.root, b"trash")),
             Phase::Make(make) => make.first(dirs),
+            Phase::Look(look) => look.first(settings),
             Phase::Store(store) => store.first(dirs),
             Phase::Alternates(alternates) => alternates.first(settings),
             Phase::Scan(scan) => scan.next(settings),
@@ -294,6 +299,7 @@ impl Task {
                 if stop { Action::Layout(Err(Error::Cancelled)) } else { action }
             }
             Phase::Make(make) => make.complete(complete.result, dirs, settings, stop),
+            Phase::Look(look) => look.complete(complete.result, stop),
             Phase::Store(store) => store.complete(complete.result, dirs, stop),
             Phase::Alternates(alternates) => alternates.complete(complete.result, stop),
             Phase::Scan(scan) => scan.complete(complete, settings, limits, stop),

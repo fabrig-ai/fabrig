@@ -15,6 +15,7 @@ pub enum Next {
     Results { directory: Box<[u8]> },
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
+    Look { directory: Box<[u8]> },
     Store,
     InstallStore { directory: Box<[u8]>, done: Box<git::Done> },
     Alternates { format: invocation::Format, run: bool },
@@ -97,11 +98,12 @@ pub fn after(
             return failed(git::Fault::Broken, tail, cut);
         }
         Command::Origin { .. } => match op {
-            git::Op::Look { remote, .. } => match code {
+            git::Op::Look { at, remote, .. } => match code {
                 0 => {
                     return Next::End(git::Done::Looked { holds: stdout.strip_suffix(b"\n") == Some(remote.as_ref()) });
                 }
-                1 | 128 => return Next::End(git::Done::Looked { holds: false }),
+                1 => return Next::End(git::Done::Looked { holds: false }),
+                128 => return Next::Look { directory: invocation::place(at) },
                 _ => {}
             },
             git::Op::Store { .. }
@@ -130,7 +132,9 @@ pub fn after(
                 }
             };
             if let Some(format) = format {
-                let git::Op::Clone { at, .. } = op else { unreachable!("format is a clone's first invocation") };
+                let (git::Op::Clone { at, .. } | git::Op::Look { at, .. }) = op else {
+                    unreachable!("format belongs to a worker's directory being made")
+                };
                 return Next::Run(Command::Clone { directory: invocation::git_dir(at), format, bare: true });
             }
         }
@@ -147,6 +151,9 @@ pub fn after(
         }
         Command::Clone { format, bare, .. } if code == 0 => return Next::Alternates { format: *format, run: !bare },
         Command::Remote { format, .. } if code == 0 => {
+            if let git::Op::Look { .. } = op {
+                return Next::End(git::Done::Looked { holds: true });
+            }
             let git::Op::Clone { at, .. } = op else { unreachable!("clone remote") };
             return Next::Run(Command::Clone { directory: invocation::place(at), format: *format, bare: false });
         }

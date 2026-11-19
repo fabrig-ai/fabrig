@@ -311,6 +311,7 @@ impl Operation {
                 | Next::Reds { .. }
                 | Next::Run(_)
                 | Next::Snapshot { .. }
+                | Next::Look { .. }
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }

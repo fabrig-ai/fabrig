@@ -244,6 +244,41 @@ impl Store {
         }
     }
 }
+/// A kept work tree is taken on without opening anything in its run's directory
+/// (protocol/git.status.md, Departs on 2, 4).
+#[derive(Debug)]
+pub(crate) struct Look {
+    directory: Box<[u8]>,
+    closing: bool,
+    stopped: bool,
+}
+impl Look {
+    pub fn new(directory: Box<[u8]>) -> Self {
+        Self { directory, closing: false, stopped: false }
+    }
+    pub fn first(&self, settings: &Settings) -> Action {
+        Action::Run(open(settings.root, self.directory.clone(), OpenHow::DirectoryNoFollow))
+    }
+    pub fn complete(&mut self, result: Result<Done, Error>, stop: bool) -> Action {
+        self.stopped |= stop;
+        if self.closing {
+            return if result.is_err() || self.stopped {
+                broken()
+            } else {
+                Action::Operation(Next::Run(Command::Format))
+            };
+        }
+        match fd(result) {
+            Ok(fd) => {
+                self.closing = true;
+                close(fd)
+            }
+            Err(Error::NotFound) if !self.stopped => Action::Operation(Next::End(git::Done::Looked { holds: false })),
+            Err(_) => broken(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct Alternates {
     path: Box<[u8]>,

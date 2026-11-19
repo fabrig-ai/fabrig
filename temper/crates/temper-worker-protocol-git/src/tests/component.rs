@@ -474,7 +474,7 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
     let mut component = fixtures::Started::new();
     component.down(Request::Io {
         owner: fixtures::OWNER,
-        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) },
+        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: skein_lib::Token::new(9) },
         deadline: fixtures::DEADLINE,
         identity: None,
     });

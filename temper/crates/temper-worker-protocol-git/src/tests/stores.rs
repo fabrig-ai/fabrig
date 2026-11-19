@@ -145,6 +145,120 @@ fn clone_reads_the_stores_format_and_writes_whole_relative_alternates_before_ori
         };
     }
 }
+fn look_without_worker_directory() -> Started {
+    let mut s = Started::new();
+    request(
+        &mut s,
+        git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: Token::new(9) },
+        false,
+    );
+    let (child, pipes) = s.spawned();
+    s.end(pipes[0]);
+    s.end(pipes[1]);
+    s.exited(child, 128);
+    s.closed(child, &pipes);
+    assert_eq!(
+        s.file_operation(),
+        Op::Open { root: Fd::new(3), path: Box::from(b"workspaces/7/app".as_slice()), how: OpenHow::DirectoryNoFollow }
+    );
+    s
+}
+
+#[test]
+fn a_look_takes_on_a_kept_work_tree_without_touching_its_git_directory() {
+    for format in [Format::Sha1, Format::Sha256] {
+        let mut s = look_without_worker_directory();
+        s.complete_ok();
+        let Op::Close { .. } = s.file_operation() else { panic!("directory or file closed") };
+        s.complete_ok();
+        invocation(&mut s, &Command::Format, b"stores/9", false, false, &invocation::joined(&[format.name(), b"\n"]));
+        invocation(
+            &mut s,
+            &Command::Clone { directory: Box::from(b"gitdirs/7/app".as_slice()), format, bare: true },
+            b"",
+            false,
+            false,
+            b"",
+        );
+        assert_eq!(
+            s.file_operation(),
+            Op::Open {
+                root: Fd::new(3),
+                path: Box::from(b"gitdirs/7/app/objects/info/alternates".as_slice()),
+                how: OpenHow::CreateNoFollow { mode: Some(0o600) },
+            }
+        );
+        s.complete_ok();
+        let Op::Write { bytes, from: 0, at: 0, .. } = s.file_operation() else { panic!("worker alternates") };
+        assert_eq!(bytes.as_ref(), b"../../../../stores/9/objects\n");
+        s.complete_ok();
+        let Op::Close { .. } = s.file_operation() else { panic!("directory or file closed") };
+        s.complete_ok();
+        invocation(
+            &mut s,
+            &Command::Remote { remote: Box::from(fixtures::REMOTE), format },
+            b"workspaces/7/app",
+            false,
+            false,
+            b"",
+        );
+        assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Looked { holds: true })));
+        assert!(s.below.out.io.is_empty(), "no init of the run's directory");
+    }
+}
+
+fn assert_broken(s: &mut Started) {
+    let Some((
+        _,
+        git::Done::Failed { fault: git::Fault::Broken } | git::Done::FailedWithOutput { fault: git::Fault::Broken, .. },
+    )) = s.done()
+    else {
+        panic!("take-on must fail Broken")
+    };
+}
+
+#[test]
+fn a_missing_work_tree_is_not_held_and_a_failed_take_on_is_broken() {
+    for error in [Error::NotFound, Error::TooManyLinks, Error::Permission] {
+        let mut s = look_without_worker_directory();
+        s.complete_err(error);
+        if error == Error::NotFound {
+            assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Looked { holds: false })));
+        } else {
+            assert_broken(&mut s);
+        }
+    }
+    // Every fallible step after the directory opened refuses the take-on.
+    for failed in 0_u8..7 {
+        let mut s = look_without_worker_directory();
+        s.complete_ok();
+        for step in 0..=failed {
+            if step == 1 || step == 2 || step == 6 {
+                let (child, pipes) = s.spawned();
+                if step == 1 {
+                    s.stdout(pipes[0], b"sha1\n");
+                }
+                s.end(pipes[0]);
+                s.end(pipes[1]);
+                s.exited(child, if step == failed { 128 } else { 0 });
+                s.closed(child, &pipes);
+            } else {
+                s.file_operation();
+                if step == failed {
+                    s.complete_err(Error::Permission);
+                    if step == 4 {
+                        let Op::Close { .. } = s.file_operation() else { panic!("directory or file closed") };
+                        s.complete_ok();
+                    }
+                } else {
+                    s.complete_ok();
+                }
+            }
+        }
+        assert_broken(&mut s);
+    }
+}
+
 #[test]
 fn fetch_uses_its_store_then_points_the_repository_without_a_second_header() {
     let mut s = Started::new();

@@ -129,7 +129,7 @@ fn standalone_ancestry_exits_are_booleans_and_faults_keep_their_diagnostic() {
 
 #[test]
 fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
-    let op = git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) };
+    let op = git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: skein_lib::Token::new(9) };
     let command = Command::Origin { directory: Box::from(&b"gitdirs/7/app"[..]) };
     assert_eq!(sequence::first(&op), Next::Run(command.clone()));
     let matching = crate::invocation::joined(&[fixtures::REMOTE, b"\n"]);
@@ -142,7 +142,6 @@ fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
         (0, b"", false),
         (0, extra.as_ref(), false),
         (1, matching.as_ref(), false),
-        (128, matching.as_ref(), false),
     ] {
         assert_eq!(
             sequence::after(&op, &command, code, stdout, b"", 0, &fixtures::checkout()),
@@ -150,6 +149,10 @@ fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
             "{code}: {stdout:?}"
         );
     }
+    assert_eq!(
+        sequence::after(&op, &command, 128, b"", b"", 0, &fixtures::checkout()),
+        Next::Look { directory: Box::from(b"workspaces/7/app".as_slice()) }
+    );
     assert_eq!(
         sequence::after(&op, &command, 2, b"", b"bad config", 3, &fixtures::checkout()),
         Next::End(git::Done::FailedWithOutput {

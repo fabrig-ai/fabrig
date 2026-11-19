@@ -222,7 +222,7 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
         return arguments(command);
     }
     let at = match op {
-        git::Op::Clone { at, store, .. } => {
+        git::Op::Clone { at, store, .. } | git::Op::Look { at, store, .. } => {
             if let Command::Format = command {
                 let store = joined(&[b"stores/", Decimal::of(store.raw()).as_bytes()]);
                 return arguments_at(command, Some(&store), None);
@@ -236,7 +236,7 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
             }
             at
         }
-        git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => return arguments(command),
+        git::Op::Store { .. } | git::Op::Make { .. } => return arguments(command),
         git::Op::Reds { at, .. }
         | git::Op::Reset { at, .. }
         | git::Op::Point { at, .. }
