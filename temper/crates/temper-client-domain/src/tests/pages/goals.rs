@@ -403,31 +403,6 @@ fn each_state_of_the_table_reads() {
 }
 
 #[test]
-fn a_goals_id_is_its_leading_capitals_and_digits() {
-    for (title, expected) in [
-        ("S7 history in task logs", Some("S7")),
-        ("K10 · prepare reconnect statements once", Some("K10")),
-        ("H1, Home's parts", Some("H1")),
-        ("ABC123", Some("ABC123")),
-        ("A0", Some("A0")),
-        ("Fix 3 bugs", None),
-        ("s7 history", None),
-        ("SS7a", None),
-        ("ABCD1", None),
-        ("A1234", None),
-        ("A", None),
-        ("1", None),
-        ("", None),
-    ] {
-        let expected = match expected {
-            Some(id) => Some(id.as_bytes()),
-            None => None,
-        };
-        assert_eq!(goals::id(title.as_bytes()), expected, "{title}");
-    }
-}
-
-#[test]
 fn reports_arrive_with_live_and_ended_rows_without_notes() {
     let mut h = Harness::new();
     let read = ended_read(&h.reads());

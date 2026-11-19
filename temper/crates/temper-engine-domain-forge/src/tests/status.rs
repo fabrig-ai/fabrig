@@ -407,6 +407,8 @@ fn finding(number: u32, kind: FindingKind, severity: Severity, title: &[u8], sta
         reason: None,
         signature: None,
         seen: None,
+        blame: None,
+        cleared: None,
     }
 }
 fn high_a() -> Finding {
@@ -451,6 +453,29 @@ fn open_findings_words_count_only_open_rows_of_the_project_and_mark_their_bytes(
     }
     assert_eq!(run_findings(&mut d).as_ref(), b"Open findings: none\n");
     assert_eq!(d.person_briefs.get(&(PARTY, PROJECT)).unwrap().running.as_ref().unwrap().findings, None);
+}
+
+#[test]
+fn blamed_red_findings_are_open_until_cleared_whatever_their_triage_state() {
+    for state in [FindingState::New, FindingState::Backlog, FindingState::Routed, FindingState::Dropped] {
+        for cleared in [false, true] {
+            let mut d = restored();
+            let row = Finding {
+                kind: FindingKind::Red,
+                state,
+                blame: Some(FindingBlame { strength: BlameStrength::Owned, landings: Box::new([]) }),
+                cleared: cleared.then_some(FindingCleared { run: 8, at: BEFORE }),
+                ..high_a()
+            };
+            restore(&mut d, &env(), Stored::Finding(row));
+            let expected: &[u8] = if cleared {
+                b"Open findings: none\n"
+            } else {
+                b"Open findings: 1\n- red: 1 high\nHigh ones, newest first:\n- A (red)\n"
+            };
+            assert_eq!(run_findings(&mut d).as_ref(), expected, "{state:?}, cleared {cleared}");
+        }
+    }
 }
 
 #[test]
@@ -812,8 +837,12 @@ fn signed_landing(task: u64, at: Wall, people: &[u64]) -> LoggedLanding {
         branch: b"main".as_slice().into(),
         at,
         changes: Box::new([LoggedChange {
+            fixes: Box::new([]),
             goal: None,
             milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             task,
             pull: None,
             title: b"Small fix".as_slice().into(),
@@ -907,8 +936,12 @@ fn its_words_say_what_landed_since_the_brief() {
                 branch: b"main".as_slice().into(),
                 at: after(u64::from(n)),
                 changes: Box::new([LoggedChange {
+                    fixes: Box::new([]),
                     goal: None,
                     milestone: None,
+                    person: None,
+                    goal_title: None,
+                    draft: None,
                     signed: Box::new([]),
                     task: u64::from(n),
                     pull: None,

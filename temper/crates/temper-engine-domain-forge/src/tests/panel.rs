@@ -694,6 +694,8 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
                 many: None,
                 posting: None,
                 hold: None,
+                waiting: Box::new([]),
+                unkept: 0,
                 observations: Box::new([]),
                 repository: REPO,
                 tier,

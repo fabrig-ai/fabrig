@@ -91,6 +91,34 @@ fn settings_numbers_reserve_stock_holes_and_bound_own_items() {
 }
 
 #[test]
+fn a_kept_charter_allows_its_edits_without_opening_stock_holes() {
+    let (mut current, settings, mut limits, connectors) = numbered_defaults();
+    limits.tasks.charters = 3;
+    let (setting, value) = numbered_value(&current, Setting::Charter(1), 17);
+    assert!(current.default_value(setting).is_none());
+    current.changes.insert(setting, Changed { value: Some(value.clone()), revision: 1 }).unwrap();
+    let mut edited = value;
+    if let Value::Charter(charter) = &mut edited {
+        charter.policy.instructions = b"edited".as_slice().into();
+    }
+    assert_eq!(
+        check_change(&current, &[Item { setting, edit: Edit::Set(edited) }], &settings, &connectors, &limits),
+        Ok(())
+    );
+    assert_eq!(
+        check_change(&current, &[Item { setting, edit: Edit::Removed }], &settings, &connectors, &limits),
+        Ok(())
+    );
+    for (number, admitted) in [(18, false), (33, true), (65, false)] {
+        let (setting, value) = numbered_value(&current, Setting::Charter(1), number);
+        assert_eq!(
+            check_change(&current, &[Item { setting, edit: Edit::Set(value) }], &settings, &connectors, &limits),
+            if admitted { Ok(()) } else { Err(Failure { setting, fault: Fault::Range, detail: None }) }
+        );
+    }
+}
+
+#[test]
 fn a_template_set_names_the_stock_hole_and_past_the_last_number_as_range() {
     let (current, settings, limits, connectors) = numbered_defaults();
     for number in [9, 65] {
@@ -280,12 +308,12 @@ fn fault_case(fault: Fault) {
         }
         Fault::Range => {
             let mut value = template();
-            value.number = 9;
+            value.number = 65;
             current
                 .changes
-                .insert(Setting::Template(9), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })
+                .insert(Setting::Template(65), Changed { value: Some(Value::Template(Box::new(value))), revision: 2 })
                 .unwrap();
-            Setting::Template(9)
+            Setting::Template(65)
         }
         Fault::Accounts | Fault::Linked | Fault::Judged => unreachable!("an application's setting: apps-core"),
     };
