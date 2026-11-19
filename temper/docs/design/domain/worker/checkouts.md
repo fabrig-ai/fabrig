@@ -62,18 +62,26 @@ runs as contained processes and whose output it parses.
 - **Kept packed.** Each fetch into a store, and each check out's or
   merge's fetch of contents into a checkout, leaves a pack, and the
   worker's git runs no maintenance of its own (`../../protocol/git.md`,
-  section 3). So every prepare, a run's or a job's, asks as its last step
-  before it ends ready one `Pack` for each repository it names, in the
-  spec's order (`../../protocol/git.md`, 4.13), which repacks a place
-  holding more than 50 packs. Its repository is its own workspace's, which
-  no job uses while it prepares. Its store is named only where no other
-  held workspace borrows it, so that no repack runs while a job in any
-  workspace reads the store; a store another hold borrows waits for a
-  later prepare that finds it free. Nothing else asks a `Pack`: a push, a
-  save, a catch-up and a verifying fetch run while the hold's job uses its
-  checkout. A `Pack`'s fault fails nothing and spoils nothing, since git
-  replaces packs whole: the prepare ends ready as it would have without
-  it. An abort or a release cancels it as any operation.
+  section 3). So the cache counts, for each store, the fetches asked into
+  it, and for each workspace's repository, the check outs and merges asked
+  in it, each since the last `Pack` that named it, from 0 when it is made
+  and at the worker's start. A store is due at 25, and so is a
+  repository: half the 50 packs past which a `Pack` repacks
+  (`../../protocol/git.md`, 4.13), so a place holds about 75 packs at
+  most between two counts. A prepare, a run's or a job's, that would end
+  ready asks first, in the spec's order, one `Pack` for each repository
+  whose store or itself is due, naming the store only where it is due and
+  no other held workspace borrows it. Its repository is its own
+  workspace's, which no job uses while it prepares; a store another hold
+  borrows stays due for a later prepare that finds it free, so that no
+  repack runs while a job in any workspace reads the store. A `Pack`'s end,
+  whatever it is, sets the counts of the places it named back to 0.
+  Nothing else asks a `Pack`: a push, a save, a catch-up and a verifying
+  fetch run while the hold's job uses its checkout, though their fetches,
+  check outs and merges count. A `Pack`'s fault fails nothing and spoils
+  nothing, since git replaces packs whole: the prepare ends ready as it
+  would have without it. An abort or a release cancels it as any
+  operation.
 - **Repositories side by side.** A workspace holds one directory per
   repository, so code that refers to a sibling by path works, and the
   agent's write authority is the list of writable ones.

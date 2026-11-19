@@ -782,8 +782,9 @@ bound git's own `gc.autoPackLimit` keeps. Local; it names no identity.
 git keeps each fetch from a promisor remote as a pack of its own, a store's
 fetch (4.3) and a check out's or merge's fetch of contents (4.5, 4.6)
 alike, and section 3's settings leave no git to repack them, so a prepare
-asks one `Pack` for each repository (`../domain/worker/checkouts.md`). In
-each place's directory:
+asks a `Pack` for a repository once enough of those have gone into its
+store or into it (`../domain/worker/checkouts.md`). In each place's
+directory:
 
 1. The count:
    ```
@@ -1087,8 +1088,8 @@ checks this document's contract:
 - **A repack cut short** (4.13): one killed at its deadline leaves git's
   temporary files in `objects/pack`, which `count-objects` counts as
   garbage and no pack lookup reads; and a store whose repack outgrows the
-  local deadline is cut short at every prepare that finds it past 50
-  packs. Default: as it stands, since a blob-less store holds no file
+  local deadline is cut short each time a prepare asks it, every 25
+  fetches into it. Default: as it stands, since a blob-less store holds no file
   contents (50 MB on one deployment's forge, 4.11); a repack's own
   deadline, or a store's upkeep left off once it timed out, if a deployment
   shows one.
