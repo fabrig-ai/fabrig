@@ -96,6 +96,7 @@ fn pending(task: u64) -> PendingStep {
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
     }
 }
 fn follower_facts(d: &Domain) -> change::Facts {

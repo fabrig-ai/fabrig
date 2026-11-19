@@ -134,8 +134,6 @@ pub struct Domain {
     pub(crate) follow_steps: Map<(u64, u64), forge_route::follow_route::Pending>,
     pub(crate) closer_steps: Map<(u64, u64), forge_route::CloserStep>,
     pub(crate) forge_delegating: Map<(u64, u64), forge_route::ChangeStep>,
-    /// Steps begun before readiness hold their train through coalesced wakes (domain/landing.md, 9).
-    pub(crate) forge_settling: skein_lib::Set<u64>,
     /// One forming drains its make before admission (domain/landing-forming.md, 2).
     pub(crate) forge_forming: Option<(u64, Option<jig_domain_tasks::Refusal>)>,
     /// Refusal time, last reason and whether expiry was judged (domain/landing-forming.md, 3).
@@ -663,7 +661,6 @@ impl Domain {
                 limits.forge.judge_projects.checked_mul(limits.forge.follows).expect("follow capacity"),
             ),
             forge_delegating: Map::with_capacity(limits.forge.changes),
-            forge_settling: skein_lib::Set::with_capacity(limits.forge.changes),
             forge_forming: None,
             forge_refused: Map::with_capacity(limits.forge.changes),
             closer_steps: Map::with_capacity(limits.tasks.tasks),

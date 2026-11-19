@@ -138,6 +138,7 @@ pub(crate) struct PendingStep {
     paths_whole: bool,
     woken: bool,
     retry_at: Option<skein_lib::Time>,
+    read: Option<(skein_forge::api::Repository, skein_forge::api::Read)>,
     progress: List<(change::Change, change::Change)>,
 }
 /// Comparison at its head and the first time the last judged reviews were kept.
@@ -4636,10 +4637,32 @@ fn retry_gathers(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     for owner in due.into_boxed() {
-        if let Some(pending) = d.steps.remove(&owner) {
-            restart_step(d, env, pending, out);
+        if let Some(mut pending) = d.steps.remove(&owner) {
+            // Only invalidation starts the gather again; admission pressure keeps
+            // every answered fact (domain/forge/keeping-up.md, 1 and 3).
+            if pending.woken {
+                branch_due(d, pending.task);
+                restart_step(d, env, pending, out);
+            } else {
+                let (repository, read) = pending.read.take().expect("refused gather read");
+                pending.retry_at = None;
+                d.steps.insert(owner, pending).expect("capacity retry keeps its room");
+                gather_read(d, env, owner, repository, read, out);
+            }
         }
     }
+}
+
+fn gather_read(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    repository: skein_forge::api::Repository,
+    read: skein_forge::api::Read,
+    out: &mut Queue<Request>,
+) {
+    d.steps.get_mut(&owner).expect("pending gather").read = Some((repository, read.clone()));
+    child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
 }
 
 fn restart_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mut Queue<Request>) {
@@ -4827,18 +4850,14 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
         progress: List::uncapped(),
     };
     arm_gather(d, env, &pending);
     d.steps.insert(owner, pending).expect("step capacity checked");
     if read_branch {
         branch_sent(d, task, producer);
-        child(
-            d,
-            env,
-            skein_forge_client::Event::Read { owner, repository, read: skein_forge::api::Read::Branch { branch } },
-            out,
-        );
+        gather_read(d, env, owner, repository, skein_forge::api::Read::Branch { branch }, out);
     } else {
         step_read(d, env, owner, Err(skein_forge::api::Error::Missing), out);
     }
@@ -4953,6 +4972,7 @@ fn step_verified(
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
         progress: List::uncapped(),
     };
     let facts = change_facts(d, env, &row, &pending, merge);
@@ -5040,7 +5060,7 @@ fn step_read(
             pending.stage = StepStage::StallJobs;
             let repository = row.repository;
             d.steps.insert(owner, pending).expect("existing step");
-            child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+            gather_read(d, env, owner, repository, read, out);
         } else {
             finish_step(d, env, pending, out);
         }
@@ -5060,7 +5080,6 @@ fn step_read(
         return;
     }
     if pending.stage != StepStage::Paths && result == Err(skein_forge::api::Error::Busy) {
-        branch_due(d, pending.task);
         pending.retry_at = Some(env.now.saturating_add(Duration::from_secs(1)));
         d.steps.insert(owner, pending).expect("capacity retry keeps the gather");
         return;
@@ -5229,16 +5248,7 @@ fn step_read(
                 pending.stage = StepStage::BaseCi;
                 let Some(base_tip) = pending.base_tip else { unreachable!("base read") };
                 d.steps.insert(owner, pending).expect("replaces step");
-                child(
-                    d,
-                    env,
-                    skein_forge_client::Event::Read {
-                        owner,
-                        repository,
-                        read: skein_forge::api::Read::Checks { commit: base_tip },
-                    },
-                    out,
-                );
+                gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: base_tip }, out);
                 return;
             };
             let pull_ci = match &pending.pull {
@@ -5434,7 +5444,7 @@ fn step_read(
         },
     };
     d.steps.insert(owner, pending).expect("replaces step");
-    child(d, env, skein_forge_client::Event::Read { owner, repository, read: next }, out);
+    gather_read(d, env, owner, repository, next, out);
 }
 
 fn execution_due(state: &change::State, pending: &PendingStep) -> bool {
@@ -5487,16 +5497,7 @@ fn step_paths(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Pend
                 let repository = row.repository;
                 pending.stage = StepStage::Paths;
                 d.steps.insert(owner, pending).expect("replaces step");
-                child(
-                    d,
-                    env,
-                    skein_forge_client::Event::Read {
-                        owner,
-                        repository,
-                        read: skein_forge::api::Read::Compare { before, after },
-                    },
-                    out,
-                );
+                gather_read(d, env, owner, repository, skein_forge::api::Read::Compare { before, after }, out);
                 return;
             }
         }
@@ -6043,16 +6044,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
             let repository = row.repository;
             d.stall_words.remove(&row.task);
             d.steps.insert(owner, pending).expect("one step per change");
-            child(
-                d,
-                env,
-                skein_forge_client::Event::Read {
-                    owner,
-                    repository,
-                    read: skein_forge::api::Read::Checks { commit: head },
-                },
-                out,
-            );
+            gather_read(d, env, owner, repository, skein_forge::api::Read::Checks { commit: head }, out);
             return;
         }
         row.change = stepped.change;
@@ -6219,7 +6211,7 @@ fn drive_check(
             save_change(d, out, row);
             arm_gather(d, env, &pending);
             d.steps.insert(owner, pending).expect("one read per change");
-            child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
+            gather_read(d, env, owner, repository, read, out);
         }
         Action::Done | Action::Wait | Action::Held => {
             let facts = change_facts(d, env, &row, &pending, pending.base_tip.unwrap_or([0; 32]));
