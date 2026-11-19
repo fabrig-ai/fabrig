@@ -57,6 +57,8 @@ const OPENER: Token = Token::new(u64::MAX);
 pub struct Settings {
     pub engine: jig_client_shell_native::Engine,
     pub directory: Box<[u8]>,
+    /// The last origin's theme, only for a directory made by this start.
+    pub theme: Option<jig_client::Record>,
     pub address: Origin,
     pub scheme: Option<Scheme>,
     pub plain: bool,
@@ -127,6 +129,8 @@ pub struct Run {
     link_file: Option<Box<[u8]>>,
     local: LocalFile,
     note: Option<Note>,
+    theme: Option<jig_client::Record>,
+    theme_writing: bool,
     notes: Option<FileSave>,
     address: Origin,
     handshake: Option<skein_tls::client::Error>,
@@ -154,7 +158,7 @@ impl Run {
         let terminal_settings = limits::terminal(&settings.limits, settings.depth, settings.scheme.is_some());
         let mut shell = jig_client_shell_native::Shell::new(jig_client_shell_native::Settings {
             engine: settings.engine,
-            directory: settings.directory,
+            directory: settings.directory.clone(),
             limits: settings.limits.native.connections,
             io: settings.limits.native.io,
         });
@@ -184,9 +188,8 @@ impl Run {
             root
         });
         let box_child = settings.front.map(front::Child::new);
-        let recording = settings.record.map(|root| Recording::new(root, user, seed, settings.files == Some(root)));
-        let shared_notes = recording.as_ref().is_some_and(|recording| recording.notes);
-        let notes = settings.files.filter(|_| !shared_notes).map(|root| FileSave::new(root, user, seed, b"sign-in"));
+        let recording = settings.record.map(|root| Recording::new(root, user, seed));
+        let notes = settings.files.map(|root| FileSave::new(root, user, seed, &settings.directory, b"sign-in"));
         let operations = shell
             .operations()
             .checked_add(Terminal::operations(&terminal_settings).expect("checked terminal operations"))
@@ -231,6 +234,8 @@ impl Run {
             link_file: settings.link_file,
             local: LocalFile::new(root, user),
             note: settings.note,
+            theme: settings.theme,
+            theme_writing: false,
             notes,
             address: settings.address,
             handshake: None,
@@ -451,11 +456,6 @@ impl Run {
         {
             notes.noted = Some(note.print(&self.address));
         }
-        if let Some(note) = duties.note
-            && let Some(recording) = self.recording.as_mut().filter(|recording| recording.notes)
-        {
-            recording.save.noted = Some(note.print(&self.address));
-        }
         if let Some(address) = duties.address {
             self.signed_in = Some(address);
         }
@@ -512,7 +512,19 @@ impl Run {
         }
     }
 
-    fn started(&mut self, credential: Option<Secret>, kept: Vec<jig_client::Record>) {
+    fn started(&mut self, credential: Option<Secret>, mut kept: Vec<jig_client::Record>) {
+        if let Some(theme) = self
+            .theme
+            .take()
+            .filter(|_| !kept.iter().any(|record| record.key.as_ref() == temper_client_tui::theme::THEME_KEY))
+        {
+            // Queue this write before the host can ask for any writes of its own.
+            let mut records = skein_lib::List::with_capacity(1);
+            records.push(theme.clone()).expect("one theme record");
+            self.shell.down(jig_client::Request::Save { records });
+            self.theme_writing = true;
+            kept.push(theme);
+        }
         let (scheme, address) = self.start.take().expect("the shell loads once");
         let background = match self.terminal.background() {
             Background::Answered(rgb) => Some(rgb),
@@ -612,6 +624,10 @@ impl Run {
                 reported = true;
             }
             while let Some(event) = self.shell.events().pop() {
+                if self.theme_writing && matches!(&event, jig_client::Event::Stored | jig_client::Event::NotStored) {
+                    self.theme_writing = false;
+                    continue;
+                }
                 self.report(host::Report::Heard(event));
                 reported = true;
             }
@@ -865,7 +881,6 @@ impl Host for Run {
 }
 
 struct Recording {
-    notes: bool,
     save: FileSave,
     recorder: Option<journey::Recorder>,
     seed: u64,
@@ -873,8 +888,8 @@ struct Recording {
 }
 
 impl Recording {
-    fn new(root: Fd, user: u32, seed: u64, notes: bool) -> Self {
-        Self { notes, save: FileSave::new(root, user, seed, b""), recorder: None, seed, closing: false }
+    fn new(root: Fd, user: u32, seed: u64) -> Self {
+        Self { save: FileSave::new(root, user, seed, b"tui", b""), recorder: None, seed, closing: false }
     }
 
     fn start(&mut self, wall: Wall) {
@@ -919,6 +934,7 @@ struct FileSave {
     active: Option<SavedFile>,
     noted: Option<Box<[u8]>>,
     path: Box<[u8]>,
+    directory: Box<[u8]>,
     retain: bool,
     removals: Vec<Box<[u8]>>,
     stored: bool,
@@ -927,7 +943,7 @@ struct FileSave {
 }
 
 impl FileSave {
-    fn new(root: Fd, user: u32, seed: u64, path: &[u8]) -> Self {
+    fn new(root: Fd, user: u32, seed: u64, directory: &[u8], path: &[u8]) -> Self {
         // Four descriptors cover the parent, private directory, target and temporary.
         let limits = io::file_layer::Limits {
             files: 4,
@@ -950,6 +966,7 @@ impl FileSave {
             active: None,
             noted: None,
             path: path.into(),
+            directory: directory.into(),
             retain: false,
             removals: Vec::new(),
             stored: false,
@@ -1051,7 +1068,7 @@ impl FileSave {
                     Request::OpenPrivate {
                         owner,
                         root: self.root.expect("private save parent"),
-                        path: b"tui".as_slice().into(),
+                        path: self.directory.clone(),
                     },
                 );
             }
@@ -1352,7 +1369,8 @@ mod tests {
     fn settings() -> Settings {
         Settings {
             engine: jig_client_shell_native::Engine::Plain(io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback"))),
-            directory: b"tui".as_slice().into(),
+            directory: b"tui/at/127.0.0.1/8367".as_slice().into(),
+            theme: None,
             address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             scheme: Some(Scheme::Dark),
             plain: false,

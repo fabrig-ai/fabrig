@@ -418,7 +418,8 @@ fn the_link_path_is_the_same_deployments_as_the_box() {
 #[test]
 fn the_note_is_private_and_only_for_its_address() {
     let scratch = skein_scratch::Scratch::new("tui-note");
-    let path = scratch.path().join("sign-in");
+    let (directory, _) = prepare(&scratch);
+    let path = directory.join("sign-in");
     let engine = "127.0.0.1:8367".parse().expect("note address");
     let other = "[::1]:9000".parse().expect("other address");
     let user = skein_shell::effective_user();
@@ -453,7 +454,7 @@ fn the_note_is_private_and_only_for_its_address() {
         } else {
             fs::remove_file(&path).expect("remove fixture note");
         }
-        if tui::read_note(scratch.path(), &Origin::Http(address), owner) != expected {
+        if tui::read_note(&directory, &Origin::Http(address), owner) != expected {
             failures.push(row);
         }
     }
@@ -542,6 +543,178 @@ fn the_lines_name_the_binary() {
             assert_eq!(super::terminal_refusal(name, given), expected, "{name}: given {given}");
         }
     }
+}
+
+fn origin() -> temper_client_tui::Origin {
+    temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("origin"))
+}
+
+fn private_file(path: &std::path::Path, bytes: &[u8]) {
+    fs::write(path, bytes).expect("fixture bytes");
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
+}
+
+fn flat(scratch: &skein_scratch::Scratch) {
+    for (file, bytes) in
+        [("token", b"fake-token".as_slice()), ("store", b"fake-store"), ("sign-in", b"127.0.0.1:8367 until 123")]
+    {
+        private_file(&scratch.path().join(file), bytes);
+    }
+    private_file(&scratch.path().join("address"), b"http://127.0.0.1:8367");
+}
+
+fn prepare(scratch: &skein_scratch::Scratch) -> (std::path::PathBuf, bool) {
+    super::deployment::prepare(scratch.path(), &origin(), skein_shell::effective_user()).expect("origin directory")
+}
+
+fn no_flat(scratch: &skein_scratch::Scratch) {
+    for file in ["token", "store", "sign-in"] {
+        assert!(!scratch.path().join(file).exists(), "{file} removed from the flat directory");
+    }
+}
+
+#[test]
+fn origin_directories_keep_components_private_and_unshortened() {
+    use temper_client_tui::Origin;
+    let longest = ["a".repeat(63), "b".repeat(63), "c".repeat(63), "d".repeat(61)].join(".");
+    for (origin, relative) in [
+        (origin(), "at/127.0.0.1/8367".to_owned()),
+        (Origin::Http("[::1]:8367".parse().expect("IPv6")), "at/::1/8367".to_owned()),
+        (Origin::Https { name: b"dev.fabrig.ai".as_slice().into(), port: 443 }, "at/dev.fabrig.ai/443".to_owned()),
+        (Origin::Https { name: longest.as_bytes().into(), port: 443 }, format!("at/{longest}/443")),
+    ] {
+        let scratch = skein_scratch::Scratch::new("tui-origin");
+        let user = skein_shell::effective_user();
+        let (directory, made) = super::deployment::prepare(scratch.path(), &origin, user).expect("prepare");
+        assert!(made);
+        assert_eq!(directory, scratch.path().join(relative));
+        for path in [directory.clone(), directory.parent().expect("host").into(), scratch.path().join("at")] {
+            assert_eq!(fs::metadata(&path).expect("metadata").permissions().mode() & 0o777, 0o700);
+        }
+        assert!(!super::deployment::prepare(scratch.path(), &origin, user).expect("again").1);
+    }
+}
+
+#[test]
+fn origin_directories_refuse_a_public_or_linked_parent() {
+    for linked in [false, true] {
+        let scratch = skein_scratch::Scratch::new("tui-parent");
+        let at = scratch.path().join("at");
+        if linked {
+            std::os::unix::fs::symlink(scratch.path(), &at).expect("link");
+        } else {
+            fs::create_dir(&at).expect("public parent");
+            fs::set_permissions(&at, fs::Permissions::from_mode(0o755)).expect("mode");
+        }
+        assert!(super::deployment::prepare(scratch.path(), &origin(), skein_shell::effective_user()).is_err());
+    }
+}
+
+#[test]
+fn flat_files_move_only_with_both_matching_witnesses() {
+    let scratch = skein_scratch::Scratch::new("tui-move");
+    flat(&scratch);
+    let (destination, made) = prepare(&scratch);
+    assert!(!made, "migration made the directory, not this origin's first start");
+    for (file, bytes) in
+        [("token", b"fake-token".as_slice()), ("store", b"fake-store"), ("sign-in", b"127.0.0.1:8367 until 123")]
+    {
+        assert_eq!(fs::read(destination.join(file)).expect("moved"), bytes);
+    }
+    no_flat(&scratch);
+    assert_eq!(fs::read(scratch.path().join("address")).expect("address kept"), b"http://127.0.0.1:8367");
+}
+
+#[test]
+fn flat_files_with_a_different_address_are_removed() {
+    let scratch = skein_scratch::Scratch::new("tui-mismatch");
+    flat(&scratch);
+    private_file(&scratch.path().join("address"), b"http://127.0.0.1:9000");
+    let (destination, made) = prepare(&scratch);
+    assert!(made);
+    assert!(!destination.join("token").exists());
+    no_flat(&scratch);
+}
+
+#[test]
+fn flat_files_without_an_address_are_removed() {
+    let scratch = skein_scratch::Scratch::new("tui-no-address");
+    flat(&scratch);
+    fs::remove_file(scratch.path().join("address")).expect("no address");
+    prepare(&scratch);
+    no_flat(&scratch);
+}
+
+#[test]
+fn flat_files_without_a_note_are_removed() {
+    let scratch = skein_scratch::Scratch::new("tui-no-note");
+    flat(&scratch);
+    fs::remove_file(scratch.path().join("sign-in")).expect("no note");
+    prepare(&scratch);
+    no_flat(&scratch);
+}
+
+#[test]
+fn an_interrupted_move_finishes_before_opening_the_origin() {
+    let scratch = skein_scratch::Scratch::new("tui-resume");
+    flat(&scratch);
+    let staging = scratch.path().join("at/127.0.0.1/8367.new");
+    temper_shell::directories::make_private(&staging, skein_shell::effective_user()).expect("staging");
+    for file in ["token", "store", "sign-in"] {
+        fs::rename(scratch.path().join(file), staging.join(file)).expect("staged");
+    }
+    let (destination, made) = prepare(&scratch);
+    assert!(!made);
+    assert!(!staging.exists());
+    assert_eq!(fs::read(destination.join("token")).expect("finished token"), b"fake-token");
+    assert_eq!(fs::read(destination.join("store")).expect("finished store"), b"fake-store");
+    assert_eq!(fs::read(destination.join("sign-in")).expect("finished note"), b"127.0.0.1:8367 until 123");
+    no_flat(&scratch);
+}
+
+#[test]
+fn a_partial_move_finishes_with_the_remaining_flat_files() {
+    let scratch = skein_scratch::Scratch::new("tui-partial");
+    flat(&scratch);
+    let staging = scratch.path().join("at/127.0.0.1/8367.new");
+    temper_shell::directories::make_private(&staging, skein_shell::effective_user()).expect("staging");
+    fs::rename(scratch.path().join("token"), staging.join("token")).expect("first rename");
+    let (destination, _) = prepare(&scratch);
+    for file in ["token", "store", "sign-in"] {
+        assert!(destination.join(file).is_file());
+    }
+    assert!(!staging.exists());
+    no_flat(&scratch);
+}
+
+#[test]
+fn an_existing_destination_keeps_its_files_and_discards_the_flat_files() {
+    let scratch = skein_scratch::Scratch::new("tui-existing");
+    let (destination, _) = prepare(&scratch);
+    private_file(&destination.join("token"), b"destination-token");
+    flat(&scratch);
+    prepare(&scratch);
+    assert_eq!(fs::read(destination.join("token")).expect("kept"), b"destination-token");
+    assert!(!destination.join("store").exists());
+    no_flat(&scratch);
+}
+
+#[test]
+fn a_new_origin_takes_only_the_last_origins_theme() {
+    let scratch = skein_scratch::Scratch::new("tui-theme");
+    let user = skein_shell::effective_user();
+    let (previous, _) = prepare(&scratch);
+    let store = b"\0\0\0\x02\0\0\0\x05theme\0\0\0\x04dark\0\0\0\x05other\0\0\0\x03bad";
+    private_file(&previous.join("store"), store);
+    private_file(&scratch.path().join("address"), b"http://127.0.0.1:8367");
+    let other = temper_client_tui::Origin::Http("[::1]:9000".parse().expect("other"));
+    let (_, made) = super::deployment::prepare(scratch.path(), &other, user).expect("new origin");
+    let record = super::deployment::theme(scratch.path(), &other, user, made).expect("theme carried");
+    assert_eq!(record.key.as_ref(), temper_client_tui::theme::THEME_KEY);
+    assert_eq!(record.bytes.as_ref(), b"dark");
+    assert!(super::deployment::theme(scratch.path(), &other, user, false).is_none(), "only on first start");
+    fs::remove_file(previous.join("store")).expect("no store");
+    assert!(super::deployment::theme(scratch.path(), &other, user, true).is_none(), "Auto without a store");
 }
 
 #[test]

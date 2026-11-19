@@ -20,6 +20,8 @@ use temper_client_shell_terminal::address as engine_address;
 use temper_client_tui::{Note, Origin, Scheme, Unaddressed};
 use temper_shell::{directories, link_file};
 
+mod deployment;
+
 pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 #[derive(Debug, PartialEq, Eq)]
@@ -403,7 +405,9 @@ fn start(
     };
     let fixed = fixed.as_ref().map(fixed_run);
     let run_clock = fixed.as_ref().map_or(clock, |(_, clock)| clock);
-    let note = read_note(&directory, &origin, user);
+    let (origin_directory, made) = deployment::prepare(&directory, &origin, user)?;
+    let theme = deployment::theme(&directory, &origin, user, made);
+    let note = read_note(&origin_directory, &origin, user);
     let link_file = front.as_ref().map_or(link_file, |front| front.link.clone());
     let scheme = scheme(environment);
     let depth = depth(environment);
@@ -443,7 +447,8 @@ fn start(
             record,
             front,
             engine,
-            directory: Box::from(b"tui".as_slice()),
+            directory: Path::new("tui").join(deployment::relative(&origin)).as_os_str().as_bytes().into(),
+            theme,
             address: origin,
             scheme,
             plain: plain(environment),

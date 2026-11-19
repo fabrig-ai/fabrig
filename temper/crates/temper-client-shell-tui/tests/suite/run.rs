@@ -71,6 +71,7 @@ struct World {
     removed: Vec<Box<[u8]>>,
     recording_sync: Option<Handle>,
     saved: usize,
+    stores: usize,
     leave_after: usize,
     note_write: NoteWrite,
     held_note: Option<Call>,
@@ -138,6 +139,7 @@ impl World {
             front,
             Config::calm(),
             None,
+            None,
         )
     }
 
@@ -163,13 +165,20 @@ impl World {
         front: bool,
         config: Config,
         files: Option<Machine>,
+        deployment: Option<(u16, Option<jig_client::Record>)>,
     ) -> Self {
         let (mut files, root) = if let Some(mut files) = files {
             let root = files.reopen_root(0);
             (files, root)
         } else {
             let mut files = Machine::for_user(USER);
-            let root = files.lay(&[Item::directory(b"tui").mode(if refuse { 0o755 } else { 0o700 })]);
+            let origin = if front { b"tui/at/127.0.0.1/9000".as_slice() } else { b"tui/at/127.0.0.1/8367".as_slice() };
+            let root = files.lay(&[
+                Item::directory(b"tui").mode(0o700),
+                Item::directory(b"tui/at").mode(0o700),
+                Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+                Item::directory(origin).mode(if refuse { 0o755 } else { 0o700 }),
+            ]);
             (files, root)
         };
         let mut sim = Sim::new(SEED, config);
@@ -179,9 +188,6 @@ impl World {
             sim.root(pid, Handle::new(fd.raw()))
         });
         let note_root = notes.then(|| {
-            if let Some(root) = recording {
-                return root;
-            }
             let fd = files.open(root, b".", skein_fake_machine::How::Directory).expect("note root");
             sim.root(pid, Handle::new(fd.raw()))
         });
@@ -194,6 +200,7 @@ impl World {
         let output = sim.open_inherited_write(pid);
         let signals = sim.open_signal_source(pid);
         let engine = approval.then(|| Engine::new(&mut sim));
+        let port = deployment.as_ref().map_or(if front { 9000 } else { 8367 }, |(port, _)| *port);
         let settings = Settings {
             record: recording,
             front: spawn_root.map(|directory| temper_client_shell_tui::run::Front {
@@ -210,14 +217,13 @@ impl World {
                 directory,
                 log: b"/data/box/logs/box.log".as_slice().into(),
             }),
-            engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(
-                if front { "127.0.0.1:9000" } else { "127.0.0.1:8367" }.parse().expect("loopback"),
-            )),
-            directory: b"tui".as_slice().into(),
-            address: temper_client_tui::Origin::Http(std::net::SocketAddr::from((
+            engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(std::net::SocketAddr::from((
                 [127, 0, 0, 1],
-                if front { 9000 } else { 8367 },
-            ))),
+                port,
+            )))),
+            directory: format!("tui/at/127.0.0.1/{port}").as_bytes().into(),
+            theme: deployment.and_then(|(_, theme)| theme),
+            address: temper_client_tui::Origin::Http(std::net::SocketAddr::from(([127, 0, 0, 1], port))),
             scheme,
             plain: false,
             version: Box::default(),
@@ -262,6 +268,7 @@ impl World {
             removed: Vec::new(),
             recording_sync: None,
             saved: 0,
+            stores: 0,
             leave_after: 0,
             note_write: NoteWrite::Done,
             held_note: None,
@@ -283,6 +290,7 @@ impl World {
             false,
             Config::calm(),
             Some(files),
+            None,
         );
         world.wall = wall;
         world
@@ -465,6 +473,11 @@ impl World {
                     answers.push(Answer { ticket: call.ticket, result: Err(io::kernel::Error::Permission) });
                     continue;
                 }
+            }
+            if let Ask::Rename { to, .. } = &call.ask
+                && to.as_ref() == b"store"
+            {
+                self.stores += 1;
             }
             if let Ask::Rename { to, .. } = &call.ask
                 && to.as_ref() == b"sign-in"
@@ -961,6 +974,7 @@ impl World {
             true,
             Config { buffer, ..Config::calm() },
             None,
+            None,
         );
         world.settle();
         world
@@ -1140,7 +1154,12 @@ fn other_recording_bytes(name: &[u8]) -> &'static [u8] {
 }
 
 fn earlier_recordings(count: u32) -> Machine {
-    let mut items = vec![Item::directory(b"tui").mode(0o700)];
+    let mut items = vec![
+        Item::directory(b"tui").mode(0o700),
+        Item::directory(b"tui/at").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1/8367").mode(0o700),
+    ];
     for day in 1..=count {
         items.push(Item::file(format!("tui/recording-202611{day:02}T000000Z").as_bytes(), b"earlier").mode(0o600));
     }
@@ -1288,7 +1307,10 @@ fn recording_facts_include_the_loaded_records_and_credential() {
         Some(note),
     );
     let root = world.files.reopen_root(0);
-    for (path, bytes) in [(b"tui/store".as_slice(), store.as_slice()), (b"tui/token".as_slice(), CREDENTIAL)] {
+    for (path, bytes) in [
+        (b"tui/at/127.0.0.1/8367/store".as_slice(), store.as_slice()),
+        (b"tui/at/127.0.0.1/8367/token".as_slice(), CREDENTIAL),
+    ] {
         let file = world.files.open(root, path, How::Create { mode: 0o600 }).expect("seed private file");
         world.files.write(file, 0, bytes).expect("seed bytes");
         world.files.close(file);
@@ -1303,6 +1325,92 @@ fn recording_facts_include_the_loaded_records_and_credential() {
     world.leave_after = world.saved + 1;
     world.keys(b"\x03");
     world.drained(false);
+}
+
+fn deployment_files() -> Machine {
+    let mut files = Machine::for_user(USER);
+    let root = files.lay(&[
+        Item::directory(b"tui").mode(0o700),
+        Item::directory(b"tui/at").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1/8367").mode(0o700),
+        Item::directory(b"tui/at/127.0.0.1/9000").mode(0o700),
+        Item::file(b"tui/at/127.0.0.1/8367/token", &[7; 40]).mode(0o600),
+        Item::file(b"tui/address", b"http://127.0.0.1:8367").mode(0o600),
+    ]);
+    files.close(root);
+    files
+}
+
+fn at_deployment(files: Machine, port: u16, theme: Option<jig_client::Record>) -> World {
+    World::front_configured(
+        false,
+        false,
+        false,
+        Outcome::Success,
+        Recording::Root,
+        Some(Scheme::Light),
+        None,
+        true,
+        None,
+        false,
+        Config::calm(),
+        Some(files),
+        Some((port, theme)),
+    )
+}
+
+#[test]
+fn switching_origins_never_loads_another_origins_credential() {
+    use temper_client_shell_tui::journey::Line;
+    let mut files = deployment_files();
+    for (port, held) in [(8367, true), (9000, false), (8367, true)] {
+        let mut world = at_deployment(files, port, None);
+        world.settle();
+        world.keys(b"\x1bS");
+        let lines = replay(&world.recording_file().expect("start facts").0);
+        assert_eq!(lines.iter().any(|line| matches!(line, Line::Credential(_))), held, "port {port}");
+        world.draining = true;
+        world.keys(b"\x03");
+        world.drained(false);
+        assert_eq!(world.file(b"tui/at/127.0.0.1/8367/token"), Some((vec![7; 40], 0o600)));
+        assert!(world.file(b"tui/token").is_none());
+        files = world.files;
+    }
+}
+
+#[test]
+fn a_carried_theme_is_saved_once_and_loaded_on_return() {
+    use temper_client_shell_tui::journey::Line;
+    use temper_client_tui::theme::THEME_KEY;
+    let theme = jig_client::Record { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() };
+    let mut first = at_deployment(deployment_files(), 9000, Some(theme));
+    first.settle();
+    first.keys(b"\x1bS");
+    let lines = replay(&first.recording_file().expect("first facts").0);
+    assert!(lines.contains(&Line::Stored { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() }));
+    let (store, mode) = first.file(b"tui/at/127.0.0.1/9000/store").expect("theme saved in new store");
+    assert_eq!(mode, 0o600);
+    assert_eq!(jig_client_shell_native::store_record(&store, THEME_KEY).expect("kept theme").bytes.as_ref(), b"dark");
+    assert!(first.file(b"tui/store").is_none());
+    assert_eq!(first.stores, 1, "one Save of the carried theme alone");
+    first.draining = true;
+    first.keys(b"\x03");
+    first.drained(false);
+    let root = first.files.reopen_root(0);
+    let address = first.files.open(root, b"tui/address", skein_fake_machine::How::Write).expect("address");
+    first.files.write(address, 0, b"http://127.0.0.1:9000").expect("last address changed");
+    first.files.close(address);
+    first.files.close(root);
+    let mut second = at_deployment(first.files, 9000, None);
+    second.settle();
+    second.keys(b"\x1bS");
+    let lines = replay(&second.recording_file().expect("second facts").0);
+    assert!(lines.contains(&Line::Stored { key: THEME_KEY.into(), bytes: b"dark".as_slice().into() }));
+    assert_eq!(second.stores, 0, "a return reads its own theme without carrying again");
+    second.draining = true;
+    second.keys(b"\x03");
+    second.drained(false);
 }
 
 #[test]
@@ -1498,7 +1606,7 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
         world.note_write = fault;
         world.keys(&[b"\x1b[200~", LOCAL_LINK, b"\x1b[201~\r"].concat());
         if fault != NoteWrite::Done {
-            assert!(world.file(b"tui/sign-in").is_none(), "first note has not replaced the file");
+            assert!(world.file(b"tui/at/127.0.0.1/8367/sign-in").is_none(), "first note has not replaced the file");
             assert_eq!(world.held_note.is_some(), fault == NoteWrite::Hold);
             let engine = world.engine.as_mut().expect("engine");
             engine.deny_stream = true;
@@ -1526,7 +1634,7 @@ fn sign_in_expiry_writes_a_private_note_only_with_a_root() {
             b"127.0.0.1:8367 signed-out\n".as_slice()
         };
         assert_eq!(
-            world.file(b"tui/sign-in"),
+            world.file(b"tui/at/127.0.0.1/8367/sign-in"),
             notes.then(|| (expected.to_vec(), 0o600)),
             "expiry note written whole and private"
         );
