@@ -466,6 +466,11 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
             stopping::empty()
         }
         Work::Event(event) => step_one(core, env, event, work),
+        Work::Resources(batch) => {
+            let mut out = task::resume_resources(core, env, work, batch);
+            crate::admission::deletion::advance(core, env, &mut out);
+            out
+        }
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Work::PreparationFailed { task, failure } => route_preparation_failed(core, work, task, failure),
@@ -797,6 +802,10 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         Timer::Tasks => {
             let mut out = Queue::uncapped();
             step::fire_tasks(core, env, &mut out);
+            tag_task_outputs(core, env, out)
+        }
+        Timer::Resources => {
+            let out = crate::effects::resources::expire(core, env);
             tag_task_outputs(core, env, out)
         }
         Timer::Fleet => {

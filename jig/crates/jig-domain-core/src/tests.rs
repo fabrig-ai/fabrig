@@ -15,6 +15,7 @@ mod limits;
 #[path = "tests/person_task.rs"]
 mod person_task_stories;
 mod reads;
+mod reports;
 mod routing;
 mod run_policy_tools;
 mod runs;

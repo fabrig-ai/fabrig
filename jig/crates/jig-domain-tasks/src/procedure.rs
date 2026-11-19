@@ -9,8 +9,7 @@
 )]
 use crate::domain::{Domain, make_admitted, publish, record, task_mut};
 use crate::{
-    Active, Closing, Ending, Executor, Limits, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Request, Stage,
-    TaskResult,
+    Active, Closing, Executor, Limits, Party, Phase, ProcedureDecision, ProcedureEnd, Refusal, Request, Stage,
 };
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, ReplyTo};
@@ -244,15 +243,8 @@ fn check_words(task: &crate::TaskRecord, limits: &Limits, words: Option<&[u8]>) 
 fn end_step(domain: &mut Domain, env: &Env<Limits>, number: u64, end: ProcedureEnd, out: &mut Queue<Request>) {
     match end {
         ProcedureEnd::Result(result) => {
-            let ending = match result {
-                TaskResult::Failure { reason } => Ending::Failed { reason },
-                TaskResult::Approved { .. }
-                | TaskResult::Report { .. }
-                | TaskResult::Verdict { .. }
-                | TaskResult::Job { .. }
-                | TaskResult::NoChange { .. }
-                | TaskResult::Change { .. } => Ending::Done(result),
-            };
+            let executor = record(domain, number).expect("procedure task live").executor;
+            let ending = crate::failed::ending(result, executor, &env.limits);
             task_mut(domain, number).expect("procedure task live").record.phase =
                 Phase::Closing(Closing { stage: Stage::Delegates, ending });
             publish(domain, env, number, out);
