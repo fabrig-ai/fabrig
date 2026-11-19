@@ -2,7 +2,6 @@
 
 2026-11-18. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 4.1 and 9: `AskApproval { port }`, `Approval { secret, grant }`, a waiting read's kind and sources, `Approved { loopback }` and `NotGranted` [in flight: change 8875].
 
 
 Unlisted sections have no known gap, including `watches.md`, 2's `watches_full`

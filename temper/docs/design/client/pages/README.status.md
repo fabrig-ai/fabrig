@@ -15,7 +15,6 @@
   funds and person task cards draw their words whole after the from line
   that names their title, not only those past their first line [in
   flight: change 7579].
-- **Not yet:** 2, *The approval page*: the ask's kind deciding the press, a typed ask's address code dropped, where the ask came from, and the hand-off to `127.0.0.1` [in flight: change 8882].
 
 - **Not yet:** the whole document: the real-provider picker walk remains `accounts.status.md`, 2.
 

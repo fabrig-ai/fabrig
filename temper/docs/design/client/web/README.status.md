@@ -4,7 +4,6 @@
 
 
 - **Not yet:** 2.1: no `internal-fixed-start` [in flight: change 7721].
-- **Not yet:** 2.3: a typed ask's code dropped from the address [in flight: change 8882].
 
 
 
