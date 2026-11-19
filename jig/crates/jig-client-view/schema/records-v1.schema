@@ -9,4 +9,4 @@ enum Address { inbox: AddressInbox, conversations: AddressConversations, task: A
 record Place { party: u64 address: Address }
 record Draft { party: u64 task: u64 words: text 65536 touched: u64 }
 enum JigRecord { place: Place, draft: Draft }
-versioned record Record { store_version: u16 record: bytes 65565 }
+versioned record StoredRecord { store_version: u16 record: bytes 65565 }

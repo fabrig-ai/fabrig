@@ -3,6 +3,7 @@ use crate::state::address::Address;
 use alloc::boxed::Box;
 use jig_client::contract::Text;
 use skein_lib::{Reader, Writer, bytes};
+use w::Record as _;
 pub(crate) mod address;
 use crate::generated::records_v1 as w;
 /// The version of the reference UI's records.
@@ -37,73 +38,55 @@ impl RecordKey {
 /// The key and bytes the application keeps.
 #[must_use]
 pub fn encode(record: &Record) -> (Box<[u8]>, Box<[u8]>) {
-    let (version, key, record) = match record {
+    let (version, key, record, bounded) = match record {
         Record::Place { version, party, address: at } => (
             *version,
             RecordKey::Place,
-            w::JigRecord::Place(
-                w::Place::new(
-                    &w::CEILINGS,
-                    w::PlaceParts {
-                        party: *party,
-                        address: address::encode(*at, &w::CEILINGS).expect("bounded place"),
-                    },
-                )
-                .expect("bounded place"),
-            ),
+            w::JigRecord::Place(w::Place { party: *party, address: address::encode(*at) }),
+            "bounded place",
         ),
         Record::Draft { version, party, task, words, touched } => (
             *version,
             RecordKey::Draft { task: *task },
-            w::JigRecord::Draft(
-                w::Draft::new(
-                    &w::CEILINGS,
-                    w::DraftParts {
-                        party: *party,
-                        task: *task,
-                        words: bytes::copy_of(words.bytes()),
-                        touched: *touched,
-                    },
-                )
-                .expect("bounded draft"),
-            ),
+            w::JigRecord::Draft(w::Draft {
+                party: *party,
+                task: *task,
+                words: bytes::copy_of(words.bytes()),
+                touched: *touched,
+            }),
+            "bounded draft",
         ),
     };
-    let mut payload = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut payload).expect("measured page record");
-    let record = w::Record::new(&w::CEILINGS, w::RecordParts { store_version: version, record: payload.finish() })
-        .expect("bounded record");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured record");
-    (key.encode(), writer.finish())
+    let payload = record.encode(&w::CEILINGS).expect(bounded);
+    let record = w::StoredRecord { store_version: version, record: payload };
+    (key.encode(), record.encode(&w::CEILINGS).expect("bounded record"))
 }
 /// Drops unreadable records, other versions and records under a different key.
 #[must_use]
 pub fn decode(key: &[u8], bytes: &[u8]) -> Option<Record> {
     let mut reader = Reader::new(bytes);
-    let record = w::Record::decode(&w::CEILINGS, &mut reader).ok()?;
-    let version = record.store_version();
+    let record = w::StoredRecord::decode(&w::CEILINGS, &mut reader).ok()?;
+    let version = record.store_version;
     if reader.remaining() != 0 || version != RECORDS_VERSION {
         return None;
     }
-    let mut payload = Reader::new(record.record());
+    let mut payload = Reader::new(&record.record);
     let page = w::JigRecord::decode(&w::CEILINGS, &mut payload).ok()?;
     if payload.remaining() != 0 {
         return None;
     }
     let (record_key, record) = match page {
-        w::JigRecord::Place(value) => (
-            RecordKey::Place,
-            Record::Place { version, party: value.party(), address: address::decode(value.address()) },
-        ),
+        w::JigRecord::Place(value) => {
+            (RecordKey::Place, Record::Place { version, party: value.party, address: address::decode(&value.address) })
+        }
         w::JigRecord::Draft(value) => (
-            RecordKey::Draft { task: value.task() },
+            RecordKey::Draft { task: value.task },
             Record::Draft {
                 version,
-                party: value.party(),
-                task: value.task(),
-                words: Text::new(bytes::copy_of(value.words()), w::CEILINGS.draft_words).ok()?,
-                touched: value.touched(),
+                party: value.party,
+                task: value.task,
+                words: Text::new(value.words, w::CEILINGS.draft_words).ok()?,
+                touched: value.touched,
             },
         ),
     };
