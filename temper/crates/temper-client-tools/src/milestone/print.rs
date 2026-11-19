@@ -274,7 +274,10 @@ fn totals_text(
             out.number(u64::from(totals.closed()));
             out.put(b" closed \xc2\xb7 ");
             out.number(u64::from(totals.live()));
-            out.put(b" live\nspent: ");
+            out.put(b" live \xc2\xb7 ");
+            out.number(u64::from(totals.reds()));
+            out.put(if totals.reds() == 1 { b" red owed" } else { b" reds owed" });
+            out.put(b"\nspent: ");
             render::amount(totals.spent(), out);
             out.put(b" of ");
             render::amount(task.budget.numbers.budget, out);
@@ -482,6 +485,8 @@ fn encode_totals(totals: &w::MilestoneTotals, out: &mut Encoder) {
     out.unsigned(u64::from(totals.closed()));
     out.key(b"live");
     out.unsigned(u64::from(totals.live()));
+    out.key(b"reds");
+    out.unsigned(u64::from(totals.reds()));
     out.key(b"ended");
     match totals.ended() {
         Some(at) => out.unsigned(*at),

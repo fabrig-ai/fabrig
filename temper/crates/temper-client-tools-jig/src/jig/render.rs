@@ -247,6 +247,10 @@ pub trait Parts: core::fmt::Debug {
     fn extra_read(&self, _reading: &crate::jig::runner::reads::Reading) -> Option<(u32, jig_client::Readable)> {
         None
     }
+    /// Supplemental watches are read once and retained as family pages at their first delivery.
+    fn extra_watch(&self, _reading: &crate::jig::runner::reads::Reading) -> Option<(u32, jig_client::Watchable)> {
+        None
+    }
     /// A host renders its own joined record before the generic document dispatch.
     fn print_read(
         &self,

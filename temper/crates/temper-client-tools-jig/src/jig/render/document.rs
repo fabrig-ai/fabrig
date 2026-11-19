@@ -28,8 +28,14 @@ pub enum Document<'a> {
     Task(&'a Task, Option<&'a Me>),
     EndedTask(&'a Task, &'a jig_client::contract::Result, Option<&'a Me>),
     ReadSet(&'a crate::jig::runner::reads::Reading, Option<&'a Me>),
+    /// The task alone, retaining supplemental source words for a host's joined record.
+    TaskRead(&'a crate::jig::runner::reads::Reading, Option<&'a Me>),
     Wait(waiting::Waiting<'a>),
-    SizedTurn { task: u64, name: jig_client::contract::TurnName, bytes: u64 },
+    SizedTurn {
+        task: u64,
+        name: jig_client::contract::TurnName,
+        bytes: u64,
+    },
 }
 #[must_use]
 pub fn print(
@@ -44,6 +50,7 @@ pub fn print(
         | Document::Task(..)
         | Document::EndedTask(..)
         | Document::ReadSet(..)
+        | Document::TaskRead(..)
         | Document::Wait(_)
         | Document::SizedTurn { .. } => false,
     };
@@ -60,6 +67,7 @@ pub fn print(
         | Document::Accounts(_)
         | Document::Task(..)
         | Document::EndedTask(..)
+        | Document::TaskRead(..)
         | Document::Wait(_)
         | Document::SizedTurn { .. } => false,
     };
@@ -126,6 +134,17 @@ fn text(
             result_text(result, vocabulary, out);
             vocabulary.task_next(task, out);
         }
+        Document::TaskRead(reading, me) => {
+            if let Some(person) = &reading.person {
+                person_text(person, reading.person_answerer, *me, book, out);
+            }
+            let (task, result) = task_read(reading);
+            task_with_specification(task, *me, book, vocabulary, reading.specification.as_ref(), limits, out);
+            if let Some(result) = result {
+                result_text(result, vocabulary, out);
+            }
+            vocabulary.task_next(task, out);
+        }
         Document::ReadSet(reading, me) => read_sets::text(reading, *me, book, limits, vocabulary, out),
         Document::SizedTurn { task, name, bytes } => super::turn::sized(*task, *name, *bytes, true, out),
     }
@@ -133,6 +152,9 @@ fn text(
         Document::Me(me) => subjects::text_digest(b"me", &super::Part::Me(me), limits, out),
         Document::Task(task, _) | Document::EndedTask(task, _, _) => {
             subjects::text_digest(b"task", &super::Part::Task(task), limits, out);
+        }
+        Document::TaskRead(reading, _) => {
+            subjects::text_digest(b"task", &super::Part::Task(task_read(reading).0), limits, out);
         }
         Document::Accounts(_) | Document::ReadSet(..) | Document::SizedTurn { .. } | Document::Wait(_) => {}
     }
@@ -467,11 +489,20 @@ pub fn hex(bytes: &[u8], out: &mut Encoder) {
     }
     out.string(&hex);
 }
+fn task_read(reading: &crate::jig::runner::reads::Reading) -> (&Task, Option<&jig_client::contract::Result>) {
+    let Some(jig_client::Readout::Jig(jig_client::contract::ReadResult::Value(value))) = reading.pages.get(&1) else {
+        unreachable!("validated task document")
+    };
+    super::read_task(value).expect("validated task document")
+}
 fn subject_digest(document: &Document<'_>, limits: &Limits) -> Option<crate::jig::digest::Digest> {
     match document {
         Document::Me(me) => Some(crate::jig::digest::part(&super::Part::Me(me), limits)),
         Document::Task(task, _) | Document::EndedTask(task, _, _) => {
             Some(crate::jig::digest::part(&super::Part::Task(task), limits))
+        }
+        Document::TaskRead(reading, _) => {
+            Some(crate::jig::digest::part(&super::Part::Task(task_read(reading).0), limits))
         }
         Document::Accounts(_) | Document::ReadSet(..) | Document::Wait(_) | Document::SizedTurn { .. } => None,
     }
@@ -492,6 +523,25 @@ fn encode(document: &Document<'_>, limits: &Limits, digest: Option<crate::jig::d
         Document::EndedTask(task, result, _) => {
             cut.digest = digest;
             tasks::encode_ended_task(task, result, out, &mut cut);
+        }
+        Document::TaskRead(reading, _) => {
+            if let Some(person) = &reading.person {
+                out.object_start();
+                out.key(b"person_task");
+                encode_person_task(person, out, &mut cut);
+                out.key(b"task");
+            }
+            let (task, result) = task_read(reading);
+            match result {
+                Some(result) => {
+                    cut.digest = digest;
+                    tasks::encode_ended_task(task, result, out, &mut cut);
+                }
+                None => subjects::encode_as(&super::Part::Task(task), limits, digest, out),
+            }
+            if reading.person.is_some() {
+                out.object_end();
+            }
         }
         Document::ReadSet(reading, me) => read_sets::encode(reading, *me, limits, out, &mut cut),
         Document::SizedTurn { task, name, bytes } => {
