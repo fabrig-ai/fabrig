@@ -295,7 +295,10 @@ fn question_row(seed: u64, parts: bool) {
     );
     assert_eq!(world.inbound, relayed, "the next start carries the question without a duplicate relay");
     let row = live_row(&world, task);
-    assert_eq!(row.reasons, tasks::Reasons::QUESTION);
+    assert_eq!(
+        row.reasons,
+        if parts { tasks::Reasons::QUESTION.union(tasks::Reasons::WORDS) } else { tasks::Reasons::QUESTION }
+    );
     assert_eq!(row.offered, if parts { tasks::Reasons::QUESTION } else { tasks::Reasons::ALL });
     assert_eq!(row.inbox.as_ref(), [question]);
     assert_eq!(row.llm.as_ref().expect("original choice retained").main, story::M1);
@@ -508,6 +511,7 @@ fn arriving_after_preparation(seed: u64, kind: Arriving) {
         live_row(&world, run.0).phase,
         live_row(&world, run.0).refusals
     );
+    let words_number = words.number;
     assert_assignment(&world, run.0, instructions, story::M2, &[words, arriving.clone()]);
     let second = world.assigned.as_ref().expect("prepared run claimed");
     let second = (second.task, second.attempt);
@@ -530,6 +534,14 @@ fn arriving_after_preparation(seed: u64, kind: Arriving) {
         assert_eq!(live_row(&world, run.0).question_woken, arriving.number);
         story::park(&mut world, next, None);
     }
+    // The consumed directing words get one wake after the question's rule.
+    assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Preparing));
+    assert_eq!(live_row(&world, run.0).words_woken, words_number);
+    let reminder = world.domain.take_workspace().expect("unrecorded words wake once");
+    world.send(jig_test_domain::Event::Core(reminder));
+    let next = world.assigned.as_ref().expect("words reminder run");
+    let next = (next.task, next.attempt);
+    story::park(&mut world, next, None);
     assert_eq!(live_row(&world, run.0).phase, tasks::Phase::Active(tasks::Active::Idle));
     assert!(world.domain.take_workspace().is_none());
     world.close();
@@ -633,7 +645,12 @@ fn an_escalation_its_part_left_waits_for_a_change() {
     assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::WORDS.union(tasks::Reasons::ESCALATION));
     let next = (run.0, live_row(&world, run.0).attempt);
     story::turn(&mut world, next, Some(words.number));
-    park_with_entry(&mut world, next, child, &entry);
+    story::park(&mut world, next, Some(words.number));
+    assert_eq!(live_row(&world, run.0).words_woken, words.number);
+    let reminder = (run.0, live_row(&world, run.0).attempt);
+    assert!(reminder.1 > next.1, "unrecorded directing words wake once");
+    story::park(&mut world, reminder, None);
+    assert_waiting_entry(&world, run.0, child, &entry);
     let revision = live_row(&world, child).revisions.hold;
     story::rehold(&mut world, child);
     let new_revision = live_row(&world, child).revisions.hold;
@@ -644,7 +661,7 @@ fn an_escalation_its_part_left_waits_for_a_change() {
     let [new_entry] = changed.messages.as_ref() else { panic!("new entry at start") };
     assert!(new_entry.number > entry.number);
     assert_eq!(new_entry.kind, tasks::MessageKind::Escalation { task: child, revision: new_revision });
-    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::ESCALATION);
+    assert_eq!(live_row(&world, run.0).reasons, tasks::Reasons::ESCALATION.union(tasks::Reasons::WORDS));
     world.close();
 }
 

@@ -134,6 +134,7 @@ pub fn task(number: u64, dependencies: &[u64]) -> New {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Reply {
+    WordsRecorded { recorded: Box<[u64]>, unknown: Box<[u64]> },
     Lifted { released: u32 },
     Made(Vec<u64>),
     Done,
@@ -511,6 +512,7 @@ impl World {
             | Request::WriterWaiting { .. }
             | Request::EndTopic { .. }
             | Request::ResolveUncertain { .. }
+            | Request::WordsRecorded { .. }
             | Request::Sent { .. }
             | Request::RecurringDue { .. }
             | Request::Relay { .. }
@@ -621,6 +623,7 @@ impl World {
             | Event::Claim { .. }
             | Event::Started { .. }
             | Event::NowWritten { .. }
+            | Event::RecordWords { .. }
             | Event::Refusals { .. }
             | Event::Activation { cause: Cause::Unpriced, .. }
             | Event::PreparationWaiting { .. }
@@ -729,6 +732,7 @@ impl World {
             | Event::Claim { .. }
             | Event::Started { .. }
             | Event::NowWritten { .. }
+            | Event::RecordWords { .. }
             | Event::Refusals { .. }
             | Event::Activation { .. }
             | Event::PreparationWaiting { .. }
@@ -912,6 +916,7 @@ impl World {
                 | Request::ProposalStalled { .. }
                 | Request::EscalationStalled { .. }
                 | Request::ResolveUncertain { .. }
+                | Request::WordsRecorded { .. }
                 | Request::Sent { .. }
                 | Request::Relay { .. }
                 | Request::MetDue { .. }
@@ -1037,6 +1042,9 @@ impl World {
                     if let Some(reply_to) = reply_to {
                         self.reply(reply_to, Reply::Done);
                     }
+                }
+                Request::WordsRecorded { reply_to, recorded, unknown, .. } => {
+                    self.reply(reply_to, Reply::WordsRecorded { recorded, unknown });
                 }
                 Request::Lifted { reply_to, released } => self.reply(reply_to, Reply::Lifted { released }),
                 Request::PersonProposed { reply_to, .. }
@@ -1194,6 +1202,12 @@ impl World {
     #[must_use]
     pub fn capacity_refusals(&self) -> skein_lib::List<tasks::CapacityRefusal> {
         self.domain.capacity_refusals()
+    }
+
+    /// Read what a run would receive now, independently of its last activation.
+    #[must_use]
+    pub fn run_context(&self, number: u64) -> Box<RunContext> {
+        self.domain.run_context(number).expect("agent task context")
     }
 
     #[must_use]

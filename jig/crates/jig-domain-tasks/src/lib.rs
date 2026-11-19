@@ -94,6 +94,8 @@ mod funders;
 mod hold_origin;
 mod holds;
 mod inbox;
+mod words;
+pub use words::directing_words;
 mod index;
 mod questions;
 mod reasons;

@@ -370,6 +370,7 @@ fn tag_tasks(
         }
         tasks::Request::Lifted { reply_to, released } => terminals::lifted(core, env, reply_to, released, out),
         tasks::Request::MovedToNewest { .. } => unreachable!("settings move consumes its counts"),
+        tasks::Request::WordsRecorded { .. } => unreachable!("recording caller consumes its answer"),
         tasks::Request::Released { revision } => terminals::released(core, env, revision, out),
         tasks::Request::Erase { key } => terminals::erase(key, out),
         tasks::Request::Relay { task, .. } => terminals::relay(core, env, task, out),

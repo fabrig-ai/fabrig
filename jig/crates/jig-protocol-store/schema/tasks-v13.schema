@@ -328,7 +328,7 @@ record TaskDefinition {
     waiting_on: list 64 Number
     added: list 64 Added
 }
-enum InboxItem { word: Word, credit: QuestionCredit }
+enum InboxItem { word: Word, credit: QuestionCredit, unrecorded: Word }
 record TaskInterests {
     holdings: list 64 Holding
     holds_taken: bool
@@ -360,7 +360,7 @@ record TaskOutcome {
 }
 record Talk { party: u64 opened: u64 last: u64 }
 record Session { first: u64 reasons: u32 last: u64 }
-record BeforeTalk { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 }
+record BeforeTalk { activation_open: bool session: option Session closer: option u64 history: TaskHistory run: TaskRun definition: TaskDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 words_woken: u64 = 0 }
 record Concluded { by: u64 at: u64 }
 record TaskRecord { record: BeforeTalk talk: option Talk concluded: option Concluded = none }
 record HotHistory {
@@ -401,7 +401,7 @@ record HotDefinition {
     waiting_on: list 64 Number
     added: list 64 Added
 }
-record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 talk: option Talk concluded: option Concluded = none }
+record LiveHot { activation_open: bool session: option Session closer: option u64 history: HotHistory run: TaskRun definition: HotDefinition started_from: list 64 Number interests: TaskInterests outcome: TaskOutcome asked_requester: bool question_woken: u64 talk: option Talk concluded: option Concluded = none words_woken: u64 = 0 }
 record LiveCold { spec: Spec contract: Contract authority: Authority instructions: option bytes 524288 }
 record EndedByParty { party: u64 label: u32 ended_at: u64 task: u64 }
 record EndedByProject { project: u32 label: u32 ended_at: u64 task: u64 }

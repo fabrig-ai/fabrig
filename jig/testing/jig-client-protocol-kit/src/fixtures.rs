@@ -304,10 +304,11 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The task's closer and optional session each occupy 32 bytes in the task owner.
 // The optional talk occupies another 32 bytes in the task owner.
 // The question wake watermark occupies eight bytes in the task owner.
+// Unrecorded words and their wake watermark occupy 24 inline bytes.
 // The task owner's open attempt and optional summary join occupy 64 inline bytes.
 // Its loaded row carriers include the saved main endpoint.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2841;
+pub const TURN_OVERLAP_BYTES: u64 = 2865;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

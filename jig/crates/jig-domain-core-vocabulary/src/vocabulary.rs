@@ -1472,6 +1472,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::DecideEscalation { .. }
         | tasks::Event::ChargeEffect { .. }
+        | tasks::Event::RecordWords { .. }
         | tasks::Event::Turn { .. }
         | tasks::Event::NowWritten { .. }
         | tasks::Event::Refusals { .. }

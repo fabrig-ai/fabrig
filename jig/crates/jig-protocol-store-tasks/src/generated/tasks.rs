@@ -1970,6 +1970,8 @@ pub enum Path {
     BeforeTalkAskedRequester,
     /// The `question_woken` field of `BeforeTalk`.
     BeforeTalkQuestionWoken,
+    /// The `words_woken` field of `BeforeTalk`.
+    BeforeTalkWordsWoken,
     /// Bytes after `BeforeTalk`.
     BeforeTalkTail,
     /// The `by` field of `Concluded`.
@@ -2086,6 +2088,8 @@ pub enum Path {
     LiveHotTalk,
     /// The `concluded` field of `LiveHot`.
     LiveHotConcluded,
+    /// The `words_woken` field of `LiveHot`.
+    LiveHotWordsWoken,
     /// Bytes after `LiveHot`.
     LiveHotTail,
     /// The `spec` field of `LiveCold`.
@@ -3343,6 +3347,7 @@ impl Path {
             Self::BeforeTalkOutcome => "BeforeTalk.outcome",
             Self::BeforeTalkAskedRequester => "BeforeTalk.asked_requester",
             Self::BeforeTalkQuestionWoken => "BeforeTalk.question_woken",
+            Self::BeforeTalkWordsWoken => "BeforeTalk.words_woken",
             Self::BeforeTalkTail => "BeforeTalk (tail)",
             Self::ConcludedBy => "Concluded.by",
             Self::ConcludedAt => "Concluded.at",
@@ -3401,6 +3406,7 @@ impl Path {
             Self::LiveHotQuestionWoken => "LiveHot.question_woken",
             Self::LiveHotTalk => "LiveHot.talk",
             Self::LiveHotConcluded => "LiveHot.concluded",
+            Self::LiveHotWordsWoken => "LiveHot.words_woken",
             Self::LiveHotTail => "LiveHot (tail)",
             Self::LiveColdSpec => "LiveCold.spec",
             Self::LiveColdContract => "LiveCold.contract",
@@ -34118,6 +34124,8 @@ pub enum InboxItem {
     Word(Word),
     /// `credit` carrying `QuestionCredit`.
     Credit(QuestionCredit),
+    /// `unrecorded` carrying `Word`.
+    Unrecorded(Word),
 }
 
 impl InboxItem {
@@ -34129,7 +34137,7 @@ impl InboxItem {
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         match self {
-            Self::Word(record) => Word::check(record, limits),
+            Self::Word(record) | Self::Unrecorded(record) => Word::check(record, limits),
             Self::Credit(_) => Ok(()),
         }?;
         Ok(())
@@ -34141,7 +34149,7 @@ impl InboxItem {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Word(record) => 1_u32.checked_add(Word::measure(record)).expect("schema ceilings fit u32"),
+            Self::Word(record) | Self::Unrecorded(record) => 1_u32.checked_add(Word::measure(record)).expect("schema ceilings fit u32"),
             Self::Credit(record) => 1_u32.checked_add(QuestionCredit::measure(record)).expect("schema ceilings fit u32"),
         }
     }
@@ -34151,6 +34159,7 @@ impl InboxItem {
         match self {
             Self::Word(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
             Self::Credit(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::Unrecorded(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
         }
         Ok(())
     }
@@ -34167,6 +34176,7 @@ impl InboxItem {
         let value = match tag {
             0 => Self::Word(Word::decode_from(limits, reader)?),
             1 => Self::Credit(QuestionCredit::decode_from(limits, reader)?),
+            2 => Self::Unrecorded(Word::decode_from(limits, reader)?),
             _ => return Err(Problem { path: Path::InboxItemTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
@@ -34184,6 +34194,7 @@ impl InboxItem {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(Word::encoded_bound_within(limits)?).max(QuestionCredit::encoded_bound_within(limits)?);
+        biggest = biggest.max(Word::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -34197,6 +34208,7 @@ impl InboxItem {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut biggest = 0_u64;
         biggest = biggest.max(Word::decoded_bound_within(limits)?).max(QuestionCredit::decoded_bound_within(limits)?);
+        biggest = biggest.max(Word::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -35360,6 +35372,8 @@ pub struct BeforeTalkParts {
     pub asked_requester: bool,
     /// The `question_woken` field.
     pub question_woken: u64,
+    /// The `words_woken` field.
+    pub words_woken: u64,
 }
 
 /// `BeforeTalk` in this codec family.
@@ -35376,13 +35390,14 @@ pub struct BeforeTalk {
     outcome: TaskOutcome,
     asked_requester: bool,
     question_woken: u64,
+    words_woken: u64,
 }
 
 impl BeforeTalk {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: BeforeTalkParts) -> Result<Self, Problem> {
-        let BeforeTalkParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken } = parts;
-        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken };
+        let BeforeTalkParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, words_woken } = parts;
+        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, words_woken };
         value.check(limits)?;
         Ok(value)
     }
@@ -35431,9 +35446,13 @@ impl BeforeTalk {
     #[must_use]
     pub fn question_woken(&self) -> u64 { self.question_woken }
 
+    /// Reads the `words_woken` field.
+    #[must_use]
+    pub fn words_woken(&self) -> u64 { self.words_woken }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> BeforeTalkParts { BeforeTalkParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken } }
+    pub fn into_parts(self) -> BeforeTalkParts { BeforeTalkParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken, words_woken: self.words_woken } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.history.check(limits)?;
@@ -35477,6 +35496,7 @@ impl BeforeTalk {
         size = size.checked_add(field_outcome.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(8).expect("schema ceilings fit u32");
         size
     }
 
@@ -35519,6 +35539,8 @@ impl BeforeTalk {
         writer.put(&[u8::from(*field_asked_requester)])?;
         let field_question_woken = &self.question_woken;
         writer.put(&field_question_woken.to_be_bytes())?;
+        let field_words_woken = &self.words_woken;
+        writer.put(&field_words_woken.to_be_bytes())?;
         Ok(())
     }
 
@@ -35541,7 +35563,8 @@ impl BeforeTalk {
         let decoded_outcome = TaskOutcome::decode_from(limits, reader)?;
         let decoded_asked_requester = match reader.u8().ok_or(Problem { path: Path::BeforeTalkAskedRequester, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::BeforeTalkAskedRequester, reason: skein_codec::Reason::Bool }) };
         let decoded_question_woken = reader.u64().ok_or(Problem { path: Path::BeforeTalkQuestionWoken, reason: skein_codec::Reason::Short })?;
-        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken })
+        let decoded_words_woken = reader.u64().ok_or(Problem { path: Path::BeforeTalkWordsWoken, reason: skein_codec::Reason::Short })?;
+        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken, words_woken: decoded_words_woken })
     }
 }
 
@@ -35560,7 +35583,7 @@ impl BeforeTalk {
         size = size.checked_add(TaskRun::encoded_bound_within(limits)?)?.checked_add(TaskDefinition::encoded_bound_within(limits)?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.before_talk_started_from).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::encoded_bound_within(limits)?)?;
         size = size.checked_add(TaskOutcome::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
-        size = size.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(8_u64)?;
         size.checked_add(0)
     }
 
@@ -35578,7 +35601,7 @@ impl BeforeTalk {
         heap = heap.checked_add(TaskRun::decoded_bound_within(limits)?)?.checked_add(TaskDefinition::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(List::<Number>::price(limits.before_talk_started_from)?.checked_add(u64::from(limits.before_talk_started_from).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(TaskOutcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -36698,6 +36721,8 @@ pub struct LiveHotParts {
     pub talk: Option<Talk>,
     /// The `concluded` field.
     pub concluded: Option<Concluded>,
+    /// The `words_woken` field.
+    pub words_woken: u64,
 }
 
 /// `LiveHot` in this codec family.
@@ -36716,13 +36741,14 @@ pub struct LiveHot {
     question_woken: u64,
     talk: Option<Talk>,
     concluded: Option<Concluded>,
+    words_woken: u64,
 }
 
 impl LiveHot {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LiveHotParts) -> Result<Self, Problem> {
-        let LiveHotParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk, concluded } = parts;
-        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk, concluded };
+        let LiveHotParts { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk, concluded, words_woken } = parts;
+        let value = Self { activation_open, session, closer, history, run, definition, started_from, interests, outcome, asked_requester, question_woken, talk, concluded, words_woken };
         value.check(limits)?;
         Ok(value)
     }
@@ -36779,9 +36805,13 @@ impl LiveHot {
     #[must_use]
     pub fn concluded(&self) -> &Option<Concluded> { &self.concluded }
 
+    /// Reads the `words_woken` field.
+    #[must_use]
+    pub fn words_woken(&self) -> u64 { self.words_woken }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LiveHotParts { LiveHotParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken, talk: self.talk, concluded: self.concluded } }
+    pub fn into_parts(self) -> LiveHotParts { LiveHotParts { activation_open: self.activation_open, session: self.session, closer: self.closer, history: self.history, run: self.run, definition: self.definition, started_from: self.started_from, interests: self.interests, outcome: self.outcome, asked_requester: self.asked_requester, question_woken: self.question_woken, talk: self.talk, concluded: self.concluded, words_woken: self.words_woken } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.history.check(limits)?;
@@ -36835,6 +36865,7 @@ impl LiveHot {
         if field_concluded.is_some() {
         size = size.checked_add(16).expect("schema ceilings fit u32");
         }
+        size = size.checked_add(8).expect("schema ceilings fit u32");
         size
     }
 
@@ -36893,6 +36924,8 @@ impl LiveHot {
             }
             None => writer.put(&[0_u8])?,
         }
+        let field_words_woken = &self.words_woken;
+        writer.put(&field_words_woken.to_be_bytes())?;
         Ok(())
     }
 
@@ -36917,7 +36950,8 @@ impl LiveHot {
         let decoded_question_woken = reader.u64().ok_or(Problem { path: Path::LiveHotQuestionWoken, reason: skein_codec::Reason::Short })?;
         let decoded_talk = match reader.u8().ok_or(Problem { path: Path::LiveHotTalk, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Talk::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LiveHotTalk, reason: skein_codec::Reason::Tag }) };
         let decoded_concluded = match reader.u8().ok_or(Problem { path: Path::LiveHotConcluded, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Concluded::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LiveHotConcluded, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken, talk: decoded_talk, concluded: decoded_concluded })
+        let decoded_words_woken = reader.u64().ok_or(Problem { path: Path::LiveHotWordsWoken, reason: skein_codec::Reason::Short })?;
+        Ok(Self { activation_open: decoded_activation_open, session: decoded_session, closer: decoded_closer, history: decoded_history, run: decoded_run, definition: decoded_definition, started_from: decoded_started_from, interests: decoded_interests, outcome: decoded_outcome, asked_requester: decoded_asked_requester, question_woken: decoded_question_woken, talk: decoded_talk, concluded: decoded_concluded, words_woken: decoded_words_woken })
     }
 }
 
@@ -36937,7 +36971,7 @@ impl LiveHot {
         size = size.checked_add(4_u64.checked_add(u64::from(limits.live_hot_started_from).checked_mul(Number::encoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::encoded_bound_within(limits)?)?;
         size = size.checked_add(TaskOutcome::encoded_bound_within(limits)?)?.checked_add(1_u64)?;
         size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(Talk::encoded_bound_within(limits)?)?)?;
-        size = size.checked_add(1_u64.checked_add(Concluded::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(Concluded::encoded_bound_within(limits)?)?)?.checked_add(8_u64)?;
         size.checked_add(0)
     }
 
@@ -36956,7 +36990,7 @@ impl LiveHot {
         heap = heap.checked_add(List::<Number>::price(limits.live_hot_started_from)?.checked_add(u64::from(limits.live_hot_started_from).checked_mul(Number::decoded_bound_within(limits)?)?)?)?.checked_add(TaskInterests::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(TaskOutcome::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap = heap.checked_add(0_u64)?.checked_add(Talk::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(Concluded::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(Concluded::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
