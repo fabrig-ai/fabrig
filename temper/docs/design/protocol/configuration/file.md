@@ -104,7 +104,7 @@ Help lists these.
 |---|---|---|---|---|
 | `listen` | S E | a socket address on loopback | `"127.0.0.1:7100"` | the clients' listener |
 | `public` | S E | an origin, as `application.clients.public` takes it (`engine.md`) | none: the listener's origin | the address people reach, through a proxy that holds its TLS |
-| `webhooks` | S E | a socket address on loopback | `listen`'s address, its port plus 1; port 0 where `listen`'s is 0 | the forge's webhooks' listener |
+| `webhooks` | S E | a socket address on loopback | `listen`'s address, its port plus 1; port 0 where `listen`'s is 0; none where `listen`'s is 65535, refused as `temper.toml: webhooks (its default): listen uses port 65535; give webhooks explicitly` | the forge's webhooks' listener |
 | `owner` | S E | an address, 3 to 254 visible ASCII bytes with one `@` | the process's user's login at `localhost`, as `init` derives it (`../setup/init.md`, 2) | the first owner, read at the first start alone; later owners are the store's |
 | `workers` | E | a socket address on loopback | none: required | the workers' listener |
 | `engine` | W | a socket address on loopback | none: required | its engine's workers' listener |
