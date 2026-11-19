@@ -99,6 +99,25 @@ digest: task 7c1e09a2b44f0d13
   `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
   gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
   carry no next-run wait, keep their word.
+- **`unread:`** follows `waiting on:` where the task's document lists
+  unread words (jig's `client/domain/contract/documents.md`, section 1),
+  and is left out where it lists none: words a person, or a requesting
+  task, sent that no run of the task has recorded (jig's
+  `domain/tasks/messages.md`, 2). Its line counts them, and one line
+  each follows, indented two spaces, oldest first: `message M`, `from`
+  and the sender as `requester:` prints a requester (`you` for the
+  party's own words), its wall in the text's form, `seen` where a run
+  has read it and `not yet seen` where it still waits in the inbox, then
+  `: ` and its head, each control byte written as a space; a head
+  shorter than the words ends `… (B bytes; task activity TASK prints
+  them whole)`:
+
+  ```
+  unread: 2, oldest first; no run has recorded them
+    message 77 · from you · 2026-11-18 10:02 UTC · seen: Also add a /ready endpoint beside /health.
+    message 80 · from you · 2026-11-18 11:40 UTC · not yet seen: And keep the old route for… (1204 bytes; task activity 41 prints them whole)
+  ```
+
 - **A move** concerns who requests a task, not what it waits on: `acts:` and
   `--json` offer it on a task waiting for an account as on any other. On a
   task whose requester is already the party it isn't offered (jig's
@@ -325,7 +344,10 @@ may change with them.
   its `dependencies` as links, and beside them its `dependency_facts`,
   one object per dependency, `number`, `pending`, `added` (`null`, or
   `at`, a wall in nanoseconds, and `by`, the requester as `requester`
-  prints it), `keeps` and `status`.
+  prints it), `keeps` and `status`; its `unread`, an array, oldest
+  first, empty for none, each object `message`, `by` (the requester as
+  `requester` prints it), `at` (a wall in nanoseconds), `seen`, `head`
+  and `bytes` (1, *`unread:`*).
 - **`deployment census`** prints one object, `{"census": …}`: `null`
   before the store's first report, else the census whole, its fields
   named as jig's document names them (`commit`, `since`, `keyspaces`,

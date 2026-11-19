@@ -148,6 +148,25 @@ the task depends on what else the task awaits:
   answer once a change lands costs one more run, not its tries (the
   user, 2026-11-14).
 
+**Words left unrecorded wake it once.** After the ordinary
+unread-message wake rules and the question rule above, a task that keeps
+words (`messages.md`, 2) whose run parks idle, and that those rules
+left idle, is due again at once, `words` among its reasons
+(`messages.md`, 6), when it keeps an unrecorded words message newer than
+its `words_woken` that its wake policy lets wake it (`messages.md`, 3: a
+person's words always, a task's by the policy's kind for words).
+`words_woken` is the newest unrecorded message that has woken it so, 0
+for none, never lowered; the wake sets it to the newest such message's
+number. It spends no run try and numbers no notice: the unrecorded
+words are the reason, and the next run's brief shows them
+(../engine/briefs.md, 1.3). A park leaving only words at or below
+`words_woken` leaves the task idle, spending nothing, until its next
+event. So words a run read and left unrecorded cost one more run, never
+a poll, and a task that rules below would close or tell that nothing
+more will come is woken for its words first: this rule comes before
+Nothing left to await and before a closer is made (11), which a later
+park reaches.
+
 ## 3. Procedure tasks
 
 An active procedure task is stepped by the part of the engine that owns

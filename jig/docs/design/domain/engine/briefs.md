@@ -26,7 +26,8 @@ whom; its delegates, their states, and the
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; what waits for it, the waiting
-  section: the questions asked of it still open (1.2) and the proposals
+  section: the questions asked of it still open (1.2), the words it
+  keeps unrecorded (1.3), and the proposals
   and escalations waiting for its decision; the index of its notes; for a run that
   explains to its person, that person's preferences, whole (2.1); for a
   standing task, its Now, whole (../tasks/standing.md, section 6); a
@@ -205,6 +206,41 @@ nothing to go on, so every brief shows the open questions:
 The same open questions are among every run's reasons
 (../tasks/messages.md, 6), and one left open wakes the task again
 (../tasks/lifecycle.md, 2).
+
+### 1.3 The unrecorded words in the waiting section
+
+A words message a task keeps is taken from its inbox by the turn that
+reads it, and stays among the task's unrecorded words until a run
+records it (../tasks/messages.md, 2). So that a run that read it and
+ended, parked or stopped, without recording it leaves the next run
+something to go on, every brief shows them:
+
+- **Which.** Each words message the task keeps unrecorded, oldest
+  first. A message still in the inbox is none of them: the run's start
+  carries it whole, as a message.
+- **Which runs.** Every run that starts from a brief, the run after one
+  that was stopped among them. A task whose runs resume keeps no words.
+- **Its form.** The waiting section holds them after the open
+  questions (1.2), or alone where none is open. They open with the line
+  `Words sent to you, not yet recorded, oldest first:` and are each one
+  line and then the words whole, as their sender sent them:
+
+  ```
+  Person 42 wrote (message 77); once it is in a spec or a note, mark_read messages=[77], or name 77 in that note's records:
+  Also add a /ready endpoint beside /health.
+  ```
+
+  The sender is `Person N` or `Task N`, its number as the activity
+  names it; the number is the message's, the one `mark_read` and a
+  note's `records` take (`executors.md`, 3). Where open questions come
+  first, a blank line parts the two.
+- **Its place.** The waiting section's, as 1.2 says: optional, kept
+  before every other optional section, cut from its end past its budget,
+  saying how much. Words it cut stay unrecorded, shown again to the
+  next run, and listed in the task's document as every unrecorded
+  message is.
+- **Its words.** The kept `Word`'s, read from the task's record with no
+  store read.
 
 ## 2. Notes
 
