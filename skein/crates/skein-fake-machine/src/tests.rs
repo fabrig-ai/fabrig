@@ -4,6 +4,8 @@
 //! moved directory's `..`. What it answers, case by case, the suite holds
 //! to the real kernel (runtime/kernel.md, 8).
 
+mod reach;
+
 use alloc::vec::Vec;
 
 use crate::fs::{How, Is, Item, Machine, Refusal};

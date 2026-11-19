@@ -396,6 +396,13 @@ struct Adapter {
 
 impl skein_world::Machine for Adapter {
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<Answer>) {
+        if let Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(Answer {
+                ticket: call.ticket,
+                result: Err(skein_io::kernel::Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if let Ask::Spawn { program, env, .. } = &call.ask {
             self.spawns.borrow_mut().push(Spawned { program: program.clone(), environment: env.clone() });
         }

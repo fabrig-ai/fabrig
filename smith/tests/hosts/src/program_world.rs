@@ -318,6 +318,13 @@ impl Machine for MachineFiles {
             .map_err(skein_fake_machine::kernel_error)
     }
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        if let skein_sim::Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(kernel::Error::Reach(kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         if matches!(&call.ask, skein_sim::Ask::Spawn { program, .. } if program.as_ref() == b"missing") {
             answers.push(skein_sim::Answer { ticket: call.ticket, result: Err(kernel::Error::NotFound) });
         } else {

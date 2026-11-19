@@ -3351,6 +3351,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-rows",
  "skein-sim",
  "skein-sim-world",
 ]

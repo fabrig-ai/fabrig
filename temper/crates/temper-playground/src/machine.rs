@@ -315,6 +315,13 @@ impl skein_sim_world::Machine for Machine {
     }
     fn step(&mut self, mut call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
         use skein_sim::Ask;
+        if let Ask::Spawn { reach: Some(_), .. } = &call.ask {
+            answers.push(skein_sim::Answer {
+                ticket: call.ticket,
+                result: Err(skein_io::kernel::Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+            });
+            return;
+        }
         match &mut call.ask {
             Ask::Close { file } => self.release(*file),
             Ask::Open { root, .. } | Ask::Spawn { root, .. } => *root = self.resolve(*root),

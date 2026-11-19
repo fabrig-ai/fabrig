@@ -23,11 +23,16 @@ pub enum Story {
     SignalExited,
     /// Read a megabyte of patterned output, then close the exited child.
     Megabyte,
+    /// Read the restricted probe's answers from its output pipe.
+    Reach,
+    /// Observe a machine's reach refusal, then the owner's close.
+    ReachAbsent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Lifecycle {
     Running,
+    Failed,
     Exited,
     Closed,
 }
@@ -49,6 +54,7 @@ pub struct Process {
     pipe_closed: u32,
     output_bytes: usize,
     output_deliveries: u32,
+    probe_bytes: Vec<u8>,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     events: Queue<Event>,
@@ -74,18 +80,39 @@ impl Process {
         if real {
             pipes.push(Pipe { child: 2, way: Way::Out, parent: None });
         }
+        let reached = story == Story::Reach || story == Story::ReachAbsent;
+        let reach = reached.then(|| {
+            Box::new(skein_io::kernel::Reach {
+                abi: skein_io::kernel::Reach::ABI,
+                rules: Box::new([skein_io::kernel::Rule {
+                    root,
+                    path: b"granted".as_slice().into(),
+                    rights: skein_io::kernel::Rights::FULL,
+                }]),
+            })
+        });
+        let args = if reached {
+            use skein_fake_machine::probe::{self, Question};
+            probe::arguments(&[
+                Question::Read(b"../canary".as_slice().into()),
+                Question::Read(b"file".as_slice().into()),
+            ])
+        } else {
+            Box::from([Box::from(match story {
+                Story::Megabyte => b"megabyte".as_slice(),
+                Story::SignalRunning => b"fork-live".as_slice(),
+                Story::CloseExited | Story::SignalExited => b"fork-exit".as_slice(),
+                Story::Reach | Story::ReachAbsent => unreachable!("probe arguments above"),
+            })])
+        };
         requests.push(Request::Spawn {
             owner: OWNER,
             spawn: Spawn {
-                reach: None,
+                reach,
                 root,
-                dir: Box::from(b".".as_slice()),
+                dir: Box::from(if reached { b"granted".as_slice() } else { b".".as_slice() }),
                 program: Box::from(program),
-                args: Box::from([Box::from(match story {
-                    Story::Megabyte => b"megabyte".as_slice(),
-                    Story::SignalRunning => b"fork-live".as_slice(),
-                    Story::CloseExited | Story::SignalExited => b"fork-exit".as_slice(),
-                })]),
+                args,
                 env: Box::new([]),
                 pipes: pipes.into_boxed_slice(),
             },
@@ -105,6 +132,7 @@ impl Process {
             pipe_closed: 0,
             output_bytes: 0,
             output_deliveries: 0,
+            probe_bytes: Vec::new(),
             completions: Queue::with_capacity(32),
             submissions: Queue::with_capacity(32),
             events: Queue::uncapped(),
@@ -134,9 +162,13 @@ impl Process {
             }
             Event::Stream { owner, up: Up::Bytes(bytes) } => {
                 if self.pipes.first() == Some(&owner) {
-                    assert_eq!(self.story, Story::Megabyte, "only the megabyte fixture writes stdout");
-                    for (offset, &byte) in bytes.iter().enumerate() {
-                        assert_eq!(byte, u8::try_from((self.output_bytes + offset) % 256).expect("pattern byte"));
+                    if self.story == Story::Reach {
+                        self.probe_bytes.extend_from_slice(&bytes);
+                    } else {
+                        assert_eq!(self.story, Story::Megabyte, "only the megabyte fixture or probe writes stdout");
+                        for (offset, &byte) in bytes.iter().enumerate() {
+                            assert_eq!(byte, u8::try_from((self.output_bytes + offset) % 256).expect("pattern byte"));
+                        }
                     }
                     self.output_bytes += bytes.len();
                     self.output_deliveries += 1;
@@ -155,7 +187,8 @@ impl Process {
             }
             Event::Closed { owner } => {
                 if owner == OWNER {
-                    assert_eq!(self.lifecycle, Lifecycle::Exited, "one child terminal follows exit");
+                    let expected = if self.story == Story::ReachAbsent { Lifecycle::Failed } else { Lifecycle::Exited };
+                    assert_eq!(self.lifecycle, expected, "one child terminal follows exit or refusal");
                     assert_eq!(self.pipe_closed, u32::try_from(self.pipes.len()).expect("two pipes"));
                     self.lifecycle = Lifecycle::Closed;
                 } else {
@@ -163,8 +196,15 @@ impl Process {
                     self.pipe_closed = self.pipe_closed.checked_add(1).expect("two pipes");
                 }
             }
-            Event::Failed { .. }
-            | Event::Stream { up: Up::Failed(_) | Up::Room, .. }
+            Event::Failed { owner, error } => {
+                assert_eq!(owner, OWNER);
+                assert_eq!(self.story, Story::ReachAbsent);
+                assert_eq!(error, skein_io::Error::Reach(skein_io::kernel::Unenforced::Absent));
+                assert_eq!(self.lifecycle, Lifecycle::Running, "one failure before Closed");
+                self.lifecycle = Lifecycle::Failed;
+                self.acted = true;
+            }
+            Event::Stream { up: Up::Failed(_) | Up::Room, .. }
             | Event::Output { .. }
             | Event::Listening { .. }
             | Event::Accepted { .. }
@@ -199,7 +239,10 @@ impl Process {
             Story::Megabyte if self.lifecycle == Lifecycle::Exited && self.pipe_closed == 2 => {
                 Request::Close { entity: child }
             }
-            Story::SignalExited | Story::CloseExited | Story::Megabyte => return,
+            Story::Reach if self.lifecycle == Lifecycle::Exited && self.pipe_closed == 1 => {
+                Request::Close { entity: child }
+            }
+            Story::SignalExited | Story::CloseExited | Story::Megabyte | Story::Reach | Story::ReachAbsent => return,
         };
         self.acted = true;
         self.requests.push(request);
@@ -218,6 +261,14 @@ impl Process {
         }
         if !self.is_empty() {
             return Err("the owner and io hold nothing".into());
+        }
+        if self.story == Story::Reach {
+            use skein_fake_machine::probe::{self, Answer, Report};
+            let expected =
+                Report { answers: Box::new([Answer::Refused(skein_io::kernel::Error::Permission), Answer::Granted]) };
+            if probe::decode(&self.probe_bytes) != Ok(expected) {
+                return Err(format!("restricted probe report: {:?}", self.probe_bytes));
+            }
         }
         if self.story == Story::Megabyte {
             if self.output_bytes != 1_048_576 {
@@ -338,9 +389,23 @@ impl skein_world::Machine for Machine {
 #[must_use]
 pub fn run(seed: u64, config: Config, story: Story, memory: Memory) -> skein_world::Outcome<Process, Machine> {
     let mut machine = skein_fake_machine::Machine::new();
-    let root = machine.lay(&[]);
+    let reached = story == Story::Reach || story == Story::ReachAbsent;
+    let items = if reached {
+        vec![
+            skein_fake_machine::Item::directory(b"granted"),
+            skein_fake_machine::Item::file(b"granted/file", b"data"),
+            skein_fake_machine::Item::file(b"canary", b"canary"),
+        ]
+    } else {
+        Vec::new()
+    };
+    let root = machine.lay(&items);
+    if story == Story::ReachAbsent {
+        machine.set_landlock(skein_fake_machine::Landlock::Absent);
+    }
+    let program = if reached { b"reach_probe".as_slice() } else { b"process_fixture".as_slice() };
     let mut world = World::new(seed, config, Judge::default(), memory).with_machine(Machine(machine));
-    world.spawn_root(Handle::new(root.raw()), |root| Process::new(root, b"process_fixture", story, false));
+    world.spawn_root(Handle::new(root.raw()), |root| Process::new(root, program, story, false));
     let outcome = world.run();
     outcome.procs[0].check().expect("the process story settled");
     outcome
