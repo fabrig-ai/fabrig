@@ -25,7 +25,7 @@ mod values;
 
 pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned};
 pub use emit_limits::{pascal, snake};
-pub use largest::{largest, roots};
+pub use largest::{largest, largest_variants, roots};
 pub use parse::{Error, parse};
 pub use values::{Values, values};
 
@@ -166,7 +166,7 @@ pub fn form_of(schema_dir: &std::path::Path, family: &str) -> std::io::Result<Fo
 }
 
 /// Checks the names added by a form, beyond the shared Rust checks in `parse`.
-/// Sealed adds no check. Lean reserves its three shared codec re-exports.
+/// Sealed adds no check. Lean reserves its codec aliases and `Record` re-export.
 pub fn check_as(schema: &Schema, form: Form) -> Result<(), Error> {
     match form {
         Form::Sealed => Ok(()),

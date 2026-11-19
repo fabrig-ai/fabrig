@@ -74,31 +74,36 @@ macro_rules! family {
                         super::codec_memory::family!(@pin $($pin)?),
                     );
                     let values = limits.values();
-                    let bytes = skein_codegen::largest(schema, &root, values.as_slice())
-                        .unwrap_or_else(|why| panic!("{label}: largest: {why:?}"));
+                    let variants = skein_codegen::largest_variants(schema, &root, values.as_slice())
+                        .unwrap_or_else(|why| panic!("{label}: largest variants: {why:?}"));
                     let encoded = codec::$root::encoded_bound(&limits).expect("encoded bound");
                     let bound = codec::$root::decoded_bound(&limits).expect("decoded bound");
-                    assert_eq!(u64::try_from(bytes.len()).expect("length fits"), encoded, "{label}: largest");
+                    let longest = variants.iter().map(|bytes| u64::try_from(bytes.len()).expect("length fits")).max();
+                    assert_eq!(longest, Some(encoded), "{label}: largest");
                     assert!(encoded <= $cap, "{label}: cap");
-                    let mut reader = skein_lib::Reader::new(&bytes);
-                    let meter = skein_heap::Meter::new();
-                    let measured = {
-                    meter.start();
-                    let value = codec::$root::decode(&limits, &mut reader);
-                    let measured = meter.end();
-                    let value = value.unwrap_or_else(|why| panic!("{label}: decode at k={k:?}: {why:?}"));
-                    assert!(reader.is_empty(), "{label}: whole encoding consumed");
-                    assert!(measured.peak() <= bound,
-                        "{label}: k={k:?}, limits={:?}, peak={}, bound={bound}",
-                        values.as_slice(), measured.peak());
-                    super::codec_memory::round_trip!($form, value, limits, bytes, label);
-                    measured
-                    };
-                    assert_eq!(meter.held(), 0, "{label}: decoded allocations released");
-                    eprintln!("{label}: k={k:?}, cap={}, encoded={encoded}, decoded={bound}, peak={}, ceilings=({}, {})",
-                        $cap, measured.peak(),
-                        codec::$root::encoded_bound(&codec::CEILINGS).expect("ceiling encoded bound"),
-                        codec::$root::decoded_bound(&codec::CEILINGS).expect("ceiling decoded bound"));
+                    for (index, bytes) in variants.into_iter().enumerate() {
+                        let label = format!("{label} variant {index}");
+                        let encoded = bytes.len();
+                        let mut reader = skein_lib::Reader::new(&bytes);
+                        let meter = skein_heap::Meter::new();
+                        let measured = {
+                            meter.start();
+                            let value = codec::$root::decode(&limits, &mut reader);
+                            let measured = meter.end();
+                            let value = value.unwrap_or_else(|why| panic!("{label}: decode at k={k:?}: {why:?}"));
+                            assert!(reader.is_empty(), "{label}: whole encoding consumed");
+                            assert!(measured.peak() <= bound,
+                                "{label}: k={k:?}, limits={:?}, peak={}, bound={bound}",
+                                values.as_slice(), measured.peak());
+                            super::codec_memory::round_trip!($form, value, limits, bytes, label);
+                            measured
+                        };
+                        assert_eq!(meter.held(), 0, "{label}: decoded allocations released");
+                        eprintln!("{label}: k={k:?}, cap={}, encoded={encoded}, decoded={bound}, peak={}, ceilings=({}, {})",
+                            $cap, measured.peak(),
+                            codec::$root::encoded_bound(&codec::CEILINGS).expect("ceiling encoded bound"),
+                            codec::$root::decoded_bound(&codec::CEILINGS).expect("ceiling decoded bound"));
+                    }
                 }),+
                 _ => panic!("{label}: missing generated decoder"),
             }
