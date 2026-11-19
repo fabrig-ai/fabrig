@@ -4,6 +4,7 @@
 import json
 import os
 from pathlib import Path
+import re
 import runpy
 import subprocess
 import sys
@@ -384,6 +385,108 @@ class MacosTests(unittest.TestCase):
         self.assertEqual((self.root / "nextest.sha256").read_text(), "a" * 64 + f"  {self.root}/nextest.tar.gz\n")
         self.assertEqual(calls[names.index("nextest-digest")][1],
                          ["shasum", "-a", "256", "-c", self.root / "nextest.sha256"])
+
+    def wasm_checks(self, installed, targets="Registered Targets:\n  wasm32 - WebAssembly 32-bit\n"):
+        calls = []
+
+        def tools(formula):
+            self.file(f"{formula}/bin/clang", "fake clang\n")
+            self.file(f"{formula}/bin/llvm-ar", "fake archive tool\n")
+
+        for formula in installed:
+            tools(formula)
+
+        def checked(name, command):
+            command = list(map(str, command))
+            calls.append((name, command))
+            if command == ["brew", "list", "--formula", "--versions"]:
+                text = "python@3.14 3.14.0\n" + "".join(
+                    f"{formula} {version}\n" for formula, version in installed.items())
+            elif command == ["env", "HOMEBREW_NO_AUTO_UPDATE=1", "brew", "install", "llvm"]:
+                tools("llvm")
+                text = "installed\n"
+            elif command[:2] == ["brew", "--prefix"]:
+                text = str(self.root / command[2]) + "\n"
+            elif command[1:] == ["--print-targets"]:
+                text = targets
+            elif command[1:] == ["--version"]:
+                text = "Homebrew clang version 20.1.8\n"
+            else:
+                self.fail(f"unexpected check: {name} {command}")
+            self.file(f"logs/{name}.log", text)
+            return 0
+
+        return checked, calls
+
+    def test_wasm_compiler_uses_newest_installed_llvm_and_appends_target_tools(self):
+        checked, calls = self.wasm_checks({"llvm@18": "18.1.8", "llvm@20": "20.1.8"})
+        envfile = self.file("env", "EXISTING=kept\n")
+        globals_ = M["wasm_compiler"].__globals__
+        with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), GITHUB_ENV=str(envfile)):
+            with mock.patch.dict(globals_, checked=checked):
+                M["wasm_compiler"]()
+        prefix = self.root / "llvm@20"
+        self.assertIn(("wasm-llvm-prefix", ["brew", "--prefix", "llvm@20"]), calls)
+        self.assertIn(("wasm-cc-targets", [str(prefix / "bin/clang"), "--print-targets"]), calls)
+        self.assertIn(("wasm-cc-version", [str(prefix / "bin/clang"), "--version"]), calls)
+        self.assertFalse(any("install" in command for _, command in calls))
+        self.assertEqual(envfile.read_text(), "EXISTING=kept\n"
+                         f"CC_wasm32_unknown_unknown={prefix}/bin/clang\n"
+                         f"AR_wasm32_unknown_unknown={prefix}/bin/llvm-ar\n")
+
+    def test_wasm_compiler_orders_unversioned_llvm_by_its_printed_major(self):
+        checked, calls = self.wasm_checks({"llvm": "21.1.0", "llvm@20": "20.1.8"})
+        globals_ = M["wasm_compiler"].__globals__
+        with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), GITHUB_ENV=str(self.root / "env")):
+            with mock.patch.dict(globals_, checked=checked):
+                M["wasm_compiler"]()
+        self.assertIn(("wasm-llvm-prefix", ["brew", "--prefix", "llvm"]), calls)
+        self.assertFalse(any("install" in command for _, command in calls))
+
+    def test_wasm_compiler_installs_llvm_only_when_none_is_installed(self):
+        checked, calls = self.wasm_checks({})
+        globals_ = M["wasm_compiler"].__globals__
+        envfile = self.root / "env"
+        with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), GITHUB_ENV=str(envfile)):
+            with mock.patch.dict(globals_, checked=checked):
+                M["wasm_compiler"]()
+        names = [name for name, _ in calls]
+        self.assertEqual(names.count("wasm-llvm-install"), 1)
+        self.assertLess(names.index("wasm-llvm-install"), names.index("wasm-llvm-prefix"))
+        self.assertIn(("wasm-llvm-prefix", ["brew", "--prefix", "llvm"]), calls)
+        self.assertIn(("wasm-cc-version", [str(self.root / "llvm/bin/clang"), "--version"]), calls)
+        self.assertEqual(envfile.read_text(), f"CC_wasm32_unknown_unknown={self.root}/llvm/bin/clang\n"
+                         f"AR_wasm32_unknown_unknown={self.root}/llvm/bin/llvm-ar\n")
+
+    def test_wasm_compiler_faults_leave_environment_unwritten(self):
+        globals_ = M["wasm_compiler"].__globals__
+        for fault in ("clang", "llvm-ar", "targets"):
+            with self.subTest(fault=fault):
+                targets = ("  wasm64 - WebAssembly 64-bit\n  x86 - mentions wasm32\n"
+                           if fault == "targets" else "  wasm32 - WebAssembly 32-bit\n")
+                checked, _ = self.wasm_checks({"llvm@20": "20.1.8"}, targets=targets)
+                if fault != "targets":
+                    (self.root / "llvm@20/bin" / fault).unlink()
+                envfile = self.root / f"env-{fault}"
+                with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), GITHUB_ENV=str(envfile)):
+                    with mock.patch.dict(globals_, checked=checked):
+                        with self.assertRaisesRegex(ValueError, "missing|no wasm32 target"):
+                            M["wasm_compiler"]()
+                        with mock.patch.object(sys, "argv", [str(HELPER), "wasm-compiler"]):
+                            self.assertEqual(M["main"](), M["FAULT"])
+                self.assertFalse(envfile.exists())
+
+    def test_workflow_checks_wasm_compiler_only_in_browser_before_build(self):
+        workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
+        jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow)
+        command = 'run: python3 -I -B "$MACOS_HELPER" wasm-compiler'
+        holders = [name for name, body in zip(jobs[1::2], jobs[2::2]) if "wasm-compiler" in body]
+        self.assertEqual(holders, ["browser"])
+        browser = jobs[jobs.index("browser") + 1]
+        self.assertEqual(browser.count(command), 1)
+        self.assertLess(browser.index("The browser's wasm target, checked installed"), browser.index(command))
+        self.assertLess(browser.index("$RUN wasm-installed"), browser.index(command))
+        self.assertLess(browser.index(command), browser.index("- *build"))
 
     def test_runner_preserves_status_and_annotates_log_without_shell_splicing(self):
         envfile = self.file("env", "")
