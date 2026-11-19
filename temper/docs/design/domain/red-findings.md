@@ -186,15 +186,16 @@ What waits is section 11.
   5). Its state stays as triage left it.
 - **Its issue,** where it has one (`findings.md`, section 2), is closed
   with a comment, `Cleared by TIER run N.`, and never reopened.
-- **Its repair is named, not trusted:** for each finding a run clears,
-  its comments (`after-landing.md`, section 9) add one on each member
-  of each landing the finding names that the landing log still holds:
-  `Repaired by #M: TIER run N passed the failures blamed on this
-  landing.`, where a landing in the run's range has a member whose pull
-  request's body names the finding by a line `Fixes-finding: n`, n its
-  number in its project, M that member's pull request, the newest
-  landing's; else `Repaired: TIER run N passed the failures blamed on
-  this landing.` Each member of the log keeps the findings its body
+- **Its repair is named, not trusted:** each member of each landing
+  that a finding the run clears blames, and that the landing log still
+  holds, gets one comment from the run (`after-landing.md`, section 9),
+  however many cleared findings blame its landing: `Repaired by #M:
+  TIER run N passed the failures blamed on this landing.`, M the pull
+  request of the newest landing in the run's range with a member whose
+  pull request's body names any of those findings by a line
+  `Fixes-finding: n`, n its number in its project, its first such member
+  in the log's order; else `Repaired: TIER run N passed the failures
+  blamed on this landing.` Each member of the log keeps the findings its body
   names, at most 8, as it is logged. `Fixes #n`, in the home, names the
   finding whose issue is n, so none until findings have issues. That
   name clears nothing by itself, since a fix that lands can leave the

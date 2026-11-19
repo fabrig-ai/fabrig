@@ -28,6 +28,7 @@ pub(super) fn members(d: &Domain, row: &TierRow, commit: Commit) -> Box<[LoggedC
             let Some(change) = d.change(*task) else { continue };
             members
                 .push(LoggedChange {
+                    fixes: Box::new([]),
                     task: *task,
                     pull: change.pull,
                     title: change.title.clone(),

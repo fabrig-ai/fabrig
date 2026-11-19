@@ -248,6 +248,7 @@ pub struct Limits {
     pub follow_check_workflow: u32,
     pub follow_check_artifact: u32,
     pub follow_producer_some: u32,
+    pub logged_change_fixes: u32,
     pub logged_change_goal_title_some: u32,
     pub logged_change_draft_some: u32,
     pub logged_change_signed: u32,
@@ -596,6 +597,7 @@ pub const CEILINGS: Limits = Limits {
     follow_check_workflow: 256,
     follow_check_artifact: 256,
     follow_producer_some: 8_192,
+    logged_change_fixes: 8,
     logged_change_goal_title_some: 256,
     logged_change_draft_some: 256,
     logged_change_signed: 8,
@@ -944,6 +946,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "follow_check_workflow",
     "follow_check_artifact",
     "follow_producer_some",
+    "logged_change_fixes",
     "logged_change_goal_title_some",
     "logged_change_draft_some",
     "logged_change_signed",
@@ -3692,6 +3695,8 @@ pub enum Path {
     DismissedWhat,
     /// Bytes after `Dismissed`.
     DismissedTail,
+    /// The `fixes` field of `LoggedChange`.
+    LoggedChangeFixes,
     /// The `person` field of `LoggedChange`.
     LoggedChangePerson,
     /// The `goal_title` field of `LoggedChange`.
@@ -6264,6 +6269,7 @@ impl Path {
             Self::DismissedParty => "Dismissed.party",
             Self::DismissedWhat => "Dismissed.what",
             Self::DismissedTail => "Dismissed (tail)",
+            Self::LoggedChangeFixes => "LoggedChange.fixes",
             Self::LoggedChangePerson => "LoggedChange.person",
             Self::LoggedChangeGoalTitle => "LoggedChange.goal_title",
             Self::LoggedChangeDraft => "LoggedChange.draft",
@@ -58841,6 +58847,8 @@ fn dismissed_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> 
 /// Movable fields of `LoggedChange`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LoggedChangeParts {
+    /// The `fixes` field.
+    pub fixes: List<u32>,
     /// The `person` field.
     pub person: Option<u64>,
     /// The `goal_title` field.
@@ -58864,6 +58872,7 @@ pub struct LoggedChangeParts {
 /// `LoggedChange` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LoggedChange {
+    fixes: List<u32>,
     person: Option<u64>,
     goal_title: Option<Box<[u8]>>,
     draft: Option<Box<[u8]>>,
@@ -58878,11 +58887,15 @@ pub struct LoggedChange {
 impl LoggedChange {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: LoggedChangeParts) -> Result<Self, Problem> {
-        let LoggedChangeParts { person, goal_title, draft, signed, task, pull, title, goal, milestone } = parts;
-        let value = Self { person, goal_title, draft, signed, task, pull, title, goal, milestone };
+        let LoggedChangeParts { fixes, person, goal_title, draft, signed, task, pull, title, goal, milestone } = parts;
+        let value = Self { fixes, person, goal_title, draft, signed, task, pull, title, goal, milestone };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `fixes` field.
+    #[must_use]
+    pub fn fixes(&self) -> &List<u32> { &self.fixes }
 
     /// Reads the `person` field.
     #[must_use]
@@ -58922,9 +58935,10 @@ impl LoggedChange {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> LoggedChangeParts { LoggedChangeParts { person: self.person, goal_title: self.goal_title, draft: self.draft, signed: self.signed, task: self.task, pull: self.pull, title: self.title, goal: self.goal, milestone: self.milestone } }
+    pub fn into_parts(self) -> LoggedChangeParts { LoggedChangeParts { fixes: self.fixes, person: self.person, goal_title: self.goal_title, draft: self.draft, signed: self.signed, task: self.task, pull: self.pull, title: self.title, goal: self.goal, milestone: self.milestone } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.fixes.capacity() > limits.logged_change_fixes.min(CEILINGS.logged_change_fixes) { return Err(Problem { path: Path::LoggedChangeFixes, reason: skein_codec::Reason::Bound }); }
         if let Some(some_0) = self.goal_title.as_ref() && some_0.len() > usize::try_from(limits.logged_change_goal_title_some.min(CEILINGS.logged_change_goal_title_some)).expect("u32 fits usize") { return Err(Problem { path: Path::LoggedChangeGoalTitle, reason: skein_codec::Reason::Bound }); }
         if let Some(some_0) = self.draft.as_ref() && some_0.len() > usize::try_from(limits.logged_change_draft_some.min(CEILINGS.logged_change_draft_some)).expect("u32 fits usize") { return Err(Problem { path: Path::LoggedChangeDraft, reason: skein_codec::Reason::Bound }); }
         if self.signed.capacity() > limits.logged_change_signed.min(CEILINGS.logged_change_signed) { return Err(Problem { path: Path::LoggedChangeSigned, reason: skein_codec::Reason::Bound }); }
@@ -58938,6 +58952,9 @@ impl LoggedChange {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_fixes = &self.fixes;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(field_fixes.len().checked_mul(4).expect("schema ceilings fit u32")).expect("schema ceilings fit u32");
         let field_person = &self.person;
         size = size.checked_add(1).expect("schema ceilings fit u32");
         if field_person.is_some() {
@@ -58982,6 +58999,11 @@ impl LoggedChange {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_fixes = &self.fixes;
+        writer.put(&field_fixes.len().to_be_bytes())?;
+        for item_0 in field_fixes.as_slice() {
+        writer.put(&item_0.to_be_bytes())?;
+        }
         let field_person = &self.person;
         match field_person {
             Some(some_0) => {
@@ -59053,6 +59075,7 @@ impl LoggedChange {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_fixes = { let count = match skein_codec::read_count(reader, limits.logged_change_fixes.min(CEILINGS.logged_change_fixes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedChangeFixes, reason }), }; if count > reader.remaining() / 4 { return Err(Problem { path: Path::LoggedChangeFixes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u32().ok_or(Problem { path: Path::LoggedChangeFixes, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_person = match reader.u8().ok_or(Problem { path: Path::LoggedChangePerson, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LoggedChangePerson, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedChangePerson, reason: skein_codec::Reason::Tag }) };
         let decoded_goal_title = match reader.u8().ok_or(Problem { path: Path::LoggedChangeGoalTitle, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.logged_change_goal_title_some.min(CEILINGS.logged_change_goal_title_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LoggedChangeGoalTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LoggedChangeGoalTitle, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::LoggedChangeGoalTitle, reason: skein_codec::Reason::Tag }) };
         let decoded_draft = match reader.u8().ok_or(Problem { path: Path::LoggedChangeDraft, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let length = match skein_codec::read_len(reader, limits.logged_change_draft_some.min(CEILINGS.logged_change_draft_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LoggedChangeDraft, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LoggedChangeDraft, reason: skein_codec::Reason::Short })?) }), _ => return Err(Problem { path: Path::LoggedChangeDraft, reason: skein_codec::Reason::Tag }) };
@@ -59062,7 +59085,7 @@ impl LoggedChange {
         let decoded_title = { let length = match skein_codec::read_len(reader, limits.logged_change_title.min(CEILINGS.logged_change_title)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LoggedChangeTitle, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LoggedChangeTitle, reason: skein_codec::Reason::Short })?) };
         let decoded_goal = match reader.u8().ok_or(Problem { path: Path::LoggedChangeGoal, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LoggedChangeGoal, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedChangeGoal, reason: skein_codec::Reason::Tag }) };
         let decoded_milestone = match reader.u8().ok_or(Problem { path: Path::LoggedChangeMilestone, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::LoggedChangeMilestone, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::LoggedChangeMilestone, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { person: decoded_person, goal_title: decoded_goal_title, draft: decoded_draft, signed: decoded_signed, task: decoded_task, pull: decoded_pull, title: decoded_title, goal: decoded_goal, milestone: decoded_milestone })
+        Ok(Self { fixes: decoded_fixes, person: decoded_person, goal_title: decoded_goal_title, draft: decoded_draft, signed: decoded_signed, task: decoded_task, pull: decoded_pull, title: decoded_title, goal: decoded_goal, milestone: decoded_milestone })
     }
 }
 
@@ -59076,11 +59099,11 @@ impl LoggedChange {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.logged_change_goal_title_some))?)?)?;
-        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.logged_change_draft_some))?)?)?.checked_add(4_u64.checked_add(u64::from(limits.logged_change_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.logged_change_title))?)?.checked_add(1_u64.checked_add(8_u64)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.logged_change_fixes).checked_mul(4_u64)?)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.logged_change_goal_title_some))?)?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.logged_change_draft_some))?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.logged_change_signed).checked_mul(SignOff::encoded_bound_within(limits)?)?)?)?.checked_add(8_u64)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(4_u64.checked_add(u64::from(limits.logged_change_title))?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size.checked_add(0)
     }
 
@@ -59093,11 +59116,11 @@ impl LoggedChange {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.logged_change_goal_title_some))?;
-        heap = heap.checked_add(u64::from(limits.logged_change_draft_some))?.checked_add(List::<SignOff>::price(limits.logged_change_signed)?.checked_add(u64::from(limits.logged_change_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?;
+        heap = heap.checked_add(List::<u32>::price(limits.logged_change_fixes)?.checked_add(u64::from(limits.logged_change_fixes).checked_mul(0_u64)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(u64::from(limits.logged_change_goal_title_some))?.checked_add(u64::from(limits.logged_change_draft_some))?;
+        heap = heap.checked_add(List::<SignOff>::price(limits.logged_change_signed)?.checked_add(u64::from(limits.logged_change_signed).checked_mul(SignOff::decoded_bound_within(limits)?)?)?)?.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.logged_change_title))?;
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(u64::from(limits.logged_change_title))?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -59113,6 +59136,7 @@ fn logged_change_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u
 }
 
 fn check_logged_change_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.logged_change_fixes > CEILINGS.logged_change_fixes { return Err(Problem { path: Path::LoggedChangeFixes, reason: skein_codec::Reason::Bound }); }
     if limits.logged_change_goal_title_some > CEILINGS.logged_change_goal_title_some { return Err(Problem { path: Path::LoggedChangeGoalTitle, reason: skein_codec::Reason::Bound }); }
     if limits.logged_change_draft_some > CEILINGS.logged_change_draft_some { return Err(Problem { path: Path::LoggedChangeDraft, reason: skein_codec::Reason::Bound }); }
     if limits.logged_change_signed > CEILINGS.logged_change_signed { return Err(Problem { path: Path::LoggedChangeSigned, reason: skein_codec::Reason::Bound }); }
@@ -59122,6 +59146,7 @@ fn check_logged_change_record_limits(limits: &Limits) -> Result<(), Problem> {
 
 impl Limits {
     fn values_for_logged_change_record(&self, values: &mut List<u32>) {
+        values.push(self.logged_change_fixes).expect("room for every named limit");
         values.push(self.logged_change_goal_title_some).expect("room for every named limit");
         values.push(self.logged_change_draft_some).expect("room for every named limit");
         values.push(self.logged_change_signed).expect("room for every named limit");
@@ -59702,7 +59727,7 @@ impl LoggedLanding {
         let decoded_commit = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LoggedLandingCommit, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
         let decoded_branch = { let length = match skein_codec::read_len(reader, limits.logged_landing_branch.min(CEILINGS.logged_landing_branch)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::LoggedLandingBranch, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::LoggedLandingBranch, reason: skein_codec::Reason::Short })?) };
         let decoded_at = reader.u64().ok_or(Problem { path: Path::LoggedLandingAt, reason: skein_codec::Reason::Short })?;
-        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.logged_landing_changes.min(CEILINGS.logged_landing_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingChanges, reason }), }; if count > reader.remaining() / 22 { return Err(Problem { path: Path::LoggedLandingChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LoggedChange::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_changes = { let count = match skein_codec::read_count(reader, limits.logged_landing_changes.min(CEILINGS.logged_landing_changes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingChanges, reason }), }; if count > reader.remaining() / 26 { return Err(Problem { path: Path::LoggedLandingChanges, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LoggedChange::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_tiers = { let count = match skein_codec::read_count(reader, limits.logged_landing_tiers.min(CEILINGS.logged_landing_tiers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::LoggedLandingTiers, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::LoggedLandingTiers, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = LoggedTier::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { commit: decoded_commit, branch: decoded_branch, at: decoded_at, changes: decoded_changes, tiers: decoded_tiers })
     }

@@ -965,6 +965,7 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
     for task in tasks {
         changes
             .push(LoggedChange {
+                fixes: Box::new([]),
                 goal: None,
                 milestone: None,
                 person: None,
@@ -1106,6 +1107,7 @@ fn a_public_merge_keeps_a_dropped_member_from_its_log() {
     assert_eq!(
         log.landings[0].changes[1],
         LoggedChange {
+            fixes: Box::new([]),
             goal: None,
             milestone: None,
             person: None,

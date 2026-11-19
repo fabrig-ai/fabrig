@@ -227,8 +227,8 @@ fn earlier_landing_members_and_change_rows_default_goal_facts() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
     before = before.replacen(
-        "record LoggedChange { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
-        "record LoggedChange {", 1,
+        "record LoggedChange { fixes: list 8 u32 = [] person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "record LoggedChange { fixes: list 8 u32 = []", 1,
     );
     before = before.replacen(
         "record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
@@ -254,6 +254,7 @@ fn earlier_landing_members_and_change_rows_default_goal_facts() {
             at: skein_lib::Wall::from_nanos(123),
             tiers: Box::new([]),
             changes: Box::new([d::LoggedChange {
+                fixes: Box::new([]),
                 task: cold.task,
                 pull: Some(2),
                 title: b"member".as_slice().into(),
@@ -370,6 +371,7 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
             branch: b"main".as_slice().into(),
             at: skein_lib::Wall::from_nanos(123),
             changes: Box::new([d::LoggedChange {
+                fixes: Box::new([]),
                 signed: Box::new([]),
                 task: 51,
                 pull: Some(2),
@@ -401,6 +403,57 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
         assert_eq!(member.title.as_ref(), b"member");
         assert_eq!((member.goal, member.milestone), (None, None));
     }
+}
+
+#[test]
+fn an_earlier_landing_member_defaults_fixes() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let before = family.current.replacen(" fixes: list 8 u32 = []", "", 1);
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", Some(b"landing_log")).unwrap();
+    let new_root = new.root(b"Row", Some(b"landing_log")).unwrap();
+    let mut stored = d::Stored::LandingLog(d::LandingLog {
+        repository: skein_forge::api::Repository { forge: 1, repository: 2 },
+        landings: Box::new([d::LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: skein_lib::Wall::from_nanos(123),
+            tiers: Box::new([]),
+            changes: Box::new([d::LoggedChange {
+                fixes: Box::new([7, 12]),
+                signed: Box::new([]),
+                task: 51,
+                pull: Some(101),
+                title: b"member".as_slice().into(),
+                goal: Some(42),
+                milestone: Some(40),
+                person: Some(7),
+                goal_title: Some(b"Goal".as_slice().into()),
+                draft: None,
+            }]),
+        }]),
+    });
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut earlier = skein_lib::Buffer::with_capacity(4096);
+    write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("fixes default to empty");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(4096);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+    let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+    let d::Stored::LandingLog(log) = &mut stored else { panic!("landing log") };
+    log.landings[0].changes[0].fixes = Box::new([]);
+    assert_eq!(decoded, stored, "the previous member layout retains all other facts but names no fixes");
 }
 
 #[test]

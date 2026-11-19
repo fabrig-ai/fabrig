@@ -3318,6 +3318,8 @@ pub enum LoggedVerdict {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    /// Sorted distinct finding numbers named by the pull request's body, at most eight.
+    pub fixes: Box<[u32]>,
     pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,

@@ -14,6 +14,7 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
                     w::LoggedChange::new(
                         &w::CEILINGS,
                         w::LoggedChangeParts {
+                            fixes: encode_fixes(&change.fixes),
                             task: change.task,
                             pull: change.pull,
                             title: change.title.clone(),
@@ -59,10 +60,11 @@ pub(super) fn decode(row: w::LandingLog) -> d::LandingLog {
         let w::LoggedLandingParts { commit, branch, at, changes, tiers } = landing.into_parts();
         let mut members = List::with_capacity(changes.len());
         for change in changes.into_boxed() {
-            let w::LoggedChangeParts { task, pull, title, signed, goal, milestone, person, goal_title, draft } =
+            let w::LoggedChangeParts { task, pull, title, signed, goal, milestone, person, goal_title, draft, fixes } =
                 change.into_parts();
             members
                 .push(d::LoggedChange {
+                    fixes: fixes.into_boxed(),
                     goal,
                     milestone,
                     person,
@@ -86,6 +88,14 @@ pub(super) fn decode(row: w::LandingLog) -> d::LandingLog {
             .expect(FITS);
     }
     d::LandingLog { repository: names::decode_repository(repository), landings: decoded.into_boxed() }
+}
+
+fn encode_fixes(fixes: &[u32]) -> List<u32> {
+    let mut result = List::with_capacity(8);
+    for number in fixes {
+        result.push(*number).expect(FITS);
+    }
+    result
 }
 
 pub(super) fn encode_signed(signed: &[d::SignOff]) -> List<w::SignOff> {

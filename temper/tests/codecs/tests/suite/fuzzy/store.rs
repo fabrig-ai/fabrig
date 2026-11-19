@@ -579,6 +579,7 @@ fn verification_row(
             branch: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
             at: skein_lib::Wall::from_nanos(rng.next_u64()),
             changes: Box::new([forge::LoggedChange {
+                fixes: (0..rng.below(9)).map(|_| u32::try_from(rng.below(4_294_967_296)).expect("u32 draw")).collect(),
                 goal: None,
                 milestone: None,
                 person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },

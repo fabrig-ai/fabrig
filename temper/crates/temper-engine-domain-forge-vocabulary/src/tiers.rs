@@ -5,7 +5,8 @@ use core::mem::size_of;
 use skein_forge::api;
 use temper_engine_domain_forge_tiers as p;
 
-/// Logged members plus live changes whose landing rotated out of the ring.
+/// Logged members in the range or repaired, plus live changes whose landing rotated out of the ring.
+/// Finding repairs are coalesced per pull and keep any verification repair already composed.
 pub fn posting_comments(limits: &crate::Limits) -> Option<u32> {
     limits
         .landings_kept

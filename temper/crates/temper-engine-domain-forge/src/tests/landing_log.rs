@@ -27,6 +27,7 @@ fn a_merge_logs_its_change_with_its_title() {
                 branch: Box::from(b"main".as_slice()),
                 at: env().wall,
                 changes: Box::new([LoggedChange {
+                    fixes: Box::new([]),
                     goal: None,
                     milestone: None,
                     person: None,
@@ -43,6 +44,27 @@ fn a_merge_logs_its_change_with_its_title() {
         assert_eq!(d.landing_log(REPO), Some(&expected));
         assert_eq!(d.change(CHANGE).unwrap().change.state, change::State::Landed { merge: FIRST, since: env().wall });
     }
+}
+
+#[test]
+fn body_finding_lines_are_exact_distinct_sorted_and_bounded() {
+    let mut d = configured_domain(&[]);
+    add_change(&mut d, CHANGE, b"main");
+    d.changes.get_mut(&CHANGE).unwrap().body = b"Fixes-finding: 12\nFixes-finding: 7\r\nFixes-finding: 12\n Fixes-finding: 1\nFixes-finding: +2\nFixes-finding: 3 extra\nFixes-finding: 4 \nFixes-finding: 4294967296\nFixes #5\nFixes-finding: \nFixes-finding:  6\nFixes-finding: 0007".as_slice().into();
+    merged(&mut d, CHANGE, FIRST);
+    assert_eq!(d.landing_log(REPO).unwrap().landings[0].changes[0].fixes.as_ref(), [7, 12]);
+    // Distinct entries fill the eight slots; repeats do not consume one.
+    let mut body = skein_lib::Buffer::with_capacity(512);
+    for n in 1..=9 {
+        for _ in 0_u8..2 {
+            body.put(b"Fixes-finding: ").unwrap();
+            body.put(skein_lib::Decimal::of(n).as_bytes()).unwrap();
+            body.put(b"\n").unwrap();
+        }
+    }
+    d.changes.get_mut(&CHANGE).unwrap().body = body.to_boxed();
+    merged(&mut d, CHANGE, LAST);
+    assert_eq!(d.landing_log(REPO).unwrap().landings[1].changes[0].fixes.as_ref(), [1, 2, 3, 4, 5, 6, 7, 8]);
 }
 
 #[test]

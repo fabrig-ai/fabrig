@@ -438,7 +438,7 @@ record GoalFrom { project: u32 chat: u64 goal: u64 at: u64 }
 record KeepAsking { project: u32 subject: ClassSubject at: u64 }
 enum PersonFact { to_begin: ToBegin goal_from: GoalFrom keep_asking: KeepAsking }
 record Dismissed { party: u64 what: PersonFact }
-record LoggedChange { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 goal: option u64 = none milestone: option u64 = none }
+record LoggedChange { fixes: list 8 u32 = [] person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none signed: list 8 SignOff task: u64 pull: option u64 title: bytes 256 goal: option u64 = none milestone: option u64 = none }
 record LoggedCleared { run: u64 }
 record LoggedRed { run: u64 failing: option u32 }
 enum LoggedVerdict { verifying, cleared: LoggedCleared, red: LoggedRed }

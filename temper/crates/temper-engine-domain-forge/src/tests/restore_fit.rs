@@ -1136,6 +1136,7 @@ fn landing_logs_restore_and_report_their_missing_repository() {
             branch: b"main".as_slice().into(),
             at: Wall::from_nanos(123),
             changes: Box::new([LoggedChange {
+                fixes: Box::new([]),
                 goal: None,
                 milestone: None,
                 person: None,
@@ -1172,6 +1173,7 @@ fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
         at: Wall::EPOCH,
         changes: vec![
             LoggedChange {
+                fixes: Box::new([]),
                 goal: None,
                 milestone: None,
                 person: None,

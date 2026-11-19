@@ -2419,6 +2419,7 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
                 at: skein_lib::Wall::from_nanos(123),
                 changes: vec![
                     forge::LoggedChange {
+                        fixes: Box::new([]),
                         goal: None,
                         milestone: None,
                         person: None,
@@ -2442,7 +2443,7 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     let limits = fixtures::LIMITS;
-    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 11_021);
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 11_149);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
     for extra in [0, 1] {
         for row in [
