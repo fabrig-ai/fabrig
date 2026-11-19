@@ -368,8 +368,10 @@ The words for each offered source are:
     5), will replace it. Then "full in SPAN", amber, the share left at that
     rate, where that comes before the reset; otherwise "about 59% at reset",
     the share the rate reaches by then, in whole percent. With no length
-    held there is no rate, and the pace is "resets in SPAN"; with no reset,
-    the rate alone; with neither, no pace.
+    or no reset held there is no rate, since the window's opening isn't
+    known: the pace is "resets in SPAN" where the reset is held, and none
+    otherwise. The rate is rounded to its tenth under 10 and to its whole
+    from 10, halves up; "full in" and "at reset" come from the rate unrounded.
   - *A span* is days and hours from a day, "4 d 14 h", "2 d" with no
     hours; hours and minutes under a day, "1 h 40 min", "12 h"; "40 min"
     under an hour; "under 1 min". It is read from the page's clock, and
