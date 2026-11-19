@@ -94,7 +94,10 @@
   org and the name (byte strings, bounded as `Adopt`'s owner and name), made
   unadopted, and `playground`, a bool, the repository made as the
   playground's copy, `playground/widget` with its files, the org and name then
-  `playground` and `widget`; `copies`, `CopyAddresses`, at most
+  `playground` and `widget`, and `sample`, a bool, appended, the
+  repository made as the sample with its files, the org and name then
+  `work` and `hello`, as the welcome's sheet sends it; neither set, the
+  starter workflow alone (`../../protocol/setup/owned.md`, 7); `copies`, `CopyAddresses`, at most
   `FIRST_COPIES` (16) addresses, each at most 512 bytes in the form the
   client's check gives (`../../draft/repository-copies.md`, 5.4), which make no
   repository at set up; or `nothing`. Its outcome, `Answer`'s: *setting up*, the box asked
@@ -510,7 +513,8 @@
   unmarked, or other. The diagnostic `ended` stays separate; the client
   selects its stop's words from this typed fact, never its text;
   its first repository, `first`: none, or the set up's org, name,
-  whether it is the playground's copy (`playground`, appended), runner
+  whether it is the playground's copy (`playground`, appended) or the
+  sample (`sample`, appended after it), runner
   label (at most 64 bytes) and its state, `FirstState`, with no project:
   making; made, with the repository's id (u64);
   or failed, with its step, `CreateStep`: admin, org, repository (its
