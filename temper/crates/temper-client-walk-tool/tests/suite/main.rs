@@ -101,7 +101,9 @@ fn two_prints_have_identical_bytes() {
 #[test]
 fn owned_setup_marks_a_live_step_and_the_end_with_repeatable_pages() {
     let f = Fixture::new();
-    f.journey("owned", r#"walk 2
+    f.journey(
+        "owned",
+        r#"walk 2
 web press link "Set up temper"
 web see "Forgejo"
 web press link "Run on this machine"
@@ -110,7 +112,8 @@ web see "Fetching Forgejo \xc2\xb7 25%"
 web mark
 web see "work/hello made"
 web mark
-"#);
+"#,
+    );
     let a = f.root().join("a");
     let b = f.root().join("b");
     ok(&f.print(&a, &["owned"]));

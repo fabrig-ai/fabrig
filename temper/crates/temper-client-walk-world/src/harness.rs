@@ -40,7 +40,9 @@ impl Observe for Attach {
                         env: Box::new([]),
                         root: self.root,
                         dir: Box::new([]),
-                        pipes: [(3, Way::In), (4, Way::Out)].map(|(child, way)| Pipe { child, way, parent: None }).into(),
+                        pipes: [(3, Way::In), (4, Way::Out)]
+                            .map(|(child, way)| Pipe { child, way, parent: None })
+                            .into(),
                     }),
                 },
             });
@@ -53,7 +55,14 @@ impl Observe for Attach {
         }
         match (complete.kind, complete.result.expect("peer startup")) {
             (Op::Spawn { spawn }, Done::Spawned { pidfd, .. }) => {
-                let pipe = |child| spawn.pipes.iter().find(|pipe| pipe.child == child).and_then(|pipe| pipe.parent).expect("parent pipe");
+                let pipe = |child| {
+                    spawn
+                        .pipes
+                        .iter()
+                        .find(|pipe| pipe.child == child)
+                        .and_then(|pipe| pipe.parent)
+                        .expect("parent pipe")
+                };
                 service.adopt_box(pipe(3), pipe(4), LINE_BYTES).expect("world box pipes");
                 service.submissions().push(Submit { op: ATTACH, kind: Op::Close { fd: pidfd } });
             }

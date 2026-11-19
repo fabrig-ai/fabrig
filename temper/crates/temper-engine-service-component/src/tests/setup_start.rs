@@ -12,7 +12,8 @@ fn service_with_group(fake: bool) -> crate::Service {
                 b"owner",
                 false,
                 &config.directories,
-            ).unwrap(),
+            )
+            .unwrap(),
         )]);
     }
     local_service(config, local_store(false))

@@ -131,7 +131,10 @@ pub struct BoxPeer {
     submissions: Queue<Submit>,
 }
 impl BoxPeer {
-    pub(crate) fn program(_: &skein_io::kernel::Spawn, inherited: &skein_sim_world::Inherited) -> programs::Process<crate::Journey> {
+    pub(crate) fn program(
+        _: &skein_io::kernel::Spawn,
+        inherited: &skein_sim_world::Inherited,
+    ) -> programs::Process<crate::Journey> {
         let pipe = |child| inherited.pipes.iter().find(|(number, _)| *number == child).expect("box pipe").1;
         let mut peer = Self {
             requests: Some(pipe(3)),
@@ -159,8 +162,11 @@ impl BoxPeer {
         self.submit(Op::PipeRead { fd, buf: vec![0; usize::try_from(LINE_BYTES).expect("line bytes")].into() });
     }
     fn setup(&self, forge: u16) -> Option<temper_forge_setup::setup::Entry> {
-        let directories = jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
-        let path = directories.join(jig_protocol_config::Directory::Data, &setup_file::path(forge, BoxKind::Owned)).expect("setup path");
+        let directories =
+            jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+        let path = directories
+            .join(jig_protocol_config::Directory::Data, &setup_file::path(forge, BoxKind::Owned))
+            .expect("setup path");
         let read = temper_service::HandoverRead { forge, run: Token::new(0), path, max: 65536 };
         let bytes = read_handover(&mut self.disk.borrow_mut(), &read).ok()??;
         setup_file::decode(bytes.expose(), &directories).ok()?.entry(forge, &directories)
@@ -171,11 +177,15 @@ impl BoxPeer {
         self.script.running.as_ref().map(|running| running.began)
     }
     fn due(&mut self, now: Time) {
-        let Some((forge, line, last)) = self.script.due(now) else { return }; 
+        let Some((forge, line, last)) = self.script.due(now) else { return };
         if last {
             let entry = self.setup(forge).expect("owned group's setup");
             let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
-            machine::lay_handover(&mut self.disk.borrow_mut(), &path, &temper_playground::stories::admin_token(self.seed));
+            machine::lay_handover(
+                &mut self.disk.borrow_mut(),
+                &path,
+                &temper_playground::stories::admin_token(self.seed),
+            );
         }
         self.output.push_back(line.bytes(forge));
     }
@@ -193,7 +203,11 @@ impl Host for BoxPeer {
                     } else {
                         for byte in buf.iter().take(usize::try_from(count).expect("read size")) {
                             if let Some(line) = self.script.byte(*byte) {
-                                let owned = std::str::from_utf8(&line).ok().and_then(|s| s.strip_prefix("start ")).and_then(|s| s.parse().ok()).is_some_and(|forge| self.setup(forge).is_some());
+                                let owned = std::str::from_utf8(&line)
+                                    .ok()
+                                    .and_then(|s| s.strip_prefix("start "))
+                                    .and_then(|s| s.parse().ok())
+                                    .is_some_and(|forge| self.setup(forge).is_some());
                                 if let Some(answer) = self.script.ask(&line, owned, now) {
                                     self.output.push_back(answer);
                                 }
@@ -219,20 +233,36 @@ impl Host for BoxPeer {
             if let Some(bytes) = self.output.pop_front() {
                 self.writing = true;
                 self.submit(Op::PipeWrite { fd: self.answers.expect("answers open"), bytes, from: 0 });
-            } else if self.requests.is_none() && let Some(fd) = self.answers.take() {
+            } else if self.requests.is_none()
+                && let Some(fd) = self.answers.take()
+            {
                 self.submit(Op::Close { fd });
             }
         }
     }
-    fn completions(&mut self) -> &mut Queue<Complete> { &mut self.completions }
-    fn submissions(&mut self) -> &mut Queue<Submit> { &mut self.submissions }
-    fn work_pending(&self, now: Time) -> bool {
-        !self.completions.is_empty() || self.script.deadline().is_some_and(|at| at <= now) || (!self.writing && !self.output.is_empty())
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
     }
-    fn next_mechanism_deadline(&self) -> Option<Time> { self.script.deadline() }
-    fn next_policy_deadline(&self) -> Option<Time> { None }
-    fn is_empty(&self) -> bool { self.requests.is_none() && self.answers.is_none() && self.pending == 0 }
-    fn operations(&self) -> u32 { 16 }
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submissions
+    }
+    fn work_pending(&self, now: Time) -> bool {
+        !self.completions.is_empty()
+            || self.script.deadline().is_some_and(|at| at <= now)
+            || (!self.writing && !self.output.is_empty())
+    }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.script.deadline()
+    }
+    fn next_policy_deadline(&self) -> Option<Time> {
+        None
+    }
+    fn is_empty(&self) -> bool {
+        self.requests.is_none() && self.answers.is_none() && self.pending == 0
+    }
+    fn operations(&self) -> u32 {
+        16
+    }
 }
 
 #[cfg(test)]
