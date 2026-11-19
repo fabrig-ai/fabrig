@@ -36,6 +36,7 @@ Failed workspace preparation says where and why: worker, workspace,
 repository, stage, git command (check out distinct from clean), operation
 and prepare times; the worker logs it
 (`draft/checkout-failure-words.status.md`; `domain/worker/checkouts.md`, 1).
+A checkout's git is the worker's own, never the run's `.git` (`protocol/git.md`, 4.13).
 A real-loop story failing on an unasked kill names target, killer, time,
 reason and service notes from the run's last seconds
 (`draft/real-loop-kill-cause.status.md`; `testing/real-loop.md`).

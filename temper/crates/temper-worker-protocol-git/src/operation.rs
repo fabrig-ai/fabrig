@@ -27,7 +27,10 @@ pub(crate) struct Operation {
     pub(crate) stop: Option<git::Fault>,
     pub(crate) aborted: bool,
     pub(crate) ran: bool,
+    pub(crate) viewed: bool,
+    pub(crate) view_done: Option<Box<git::Done>>,
     pub(crate) file: Option<crate::files::Task>,
+    pub(crate) scan_index: Option<Box<[u8]>>,
     phase: Phase,
 }
 #[derive(Debug)]
@@ -79,12 +82,15 @@ impl Operation {
             aborted: false,
             ran: false,
             file: None,
+            viewed: false,
+            view_done: None,
+            scan_index: None,
             phase: Phase::Spawning { failed: false },
         }
     }
     pub fn spawn(&mut self, io_owner: Token, command: Command, settings: &Settings, out: &mut Outputs) {
         self.io_owner = io_owner;
-        self.word = Some(invocation::word(&command));
+        self.word = Some(if self.view_done.is_some() { b"view" } else { invocation::word(&command) });
         self.command = command;
         self.phase = Phase::Spawning { failed: false };
         let (directory, kind) = if self.command == Command::Version {
@@ -101,7 +107,7 @@ impl Operation {
             credentials = false;
         }
         let mut pipes = skein_lib::List::with_capacity(3);
-        if self.is_commit_tree() {
+        if self.has_input() {
             pipes.push(kernel::Pipe { child: 0, way: kernel::Way::In, parent: None }).expect("three pipes");
         }
         for child in [1, 2] {
@@ -114,8 +120,21 @@ impl Operation {
                 spawn: kernel::Spawn {
                     reach: None,
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
-                    args: invocation::arguments(&self.command),
-                    env: invocation::environment_for(&settings.home, kind, self.identity.as_ref(), credentials),
+                    args: match &self.op {
+                        Some(op) if self.view_done.is_some() && self.command == Command::Format => {
+                            let at = sequence::view_place(op).expect("view operation");
+                            invocation::arguments_at(&self.command, Some(&invocation::git_dir(at)), None)
+                        }
+                        Some(op) => invocation::arguments_for(op, &self.command),
+                        None => invocation::arguments(&self.command),
+                    },
+                    env: invocation::environment_for(
+                        &settings.home,
+                        kind,
+                        self.identity.as_ref(),
+                        credentials,
+                        self.scan_index.as_deref(),
+                    ),
                     root: settings.root,
                     dir: directory,
                     pipes: pipes.into_boxed(),
@@ -158,6 +177,9 @@ impl Operation {
         settings.git.as_deref()
     }
     fn environment_kind(&self, kind: Option<git::Kind>) -> Option<git::Kind> {
+        if self.view_done.is_some() {
+            return None;
+        }
         match self.command {
             Command::SnapshotFetch { .. } => Some(git::Kind::Fetch),
             Command::Clean => None,
@@ -179,6 +201,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Merge { .. }
             | Command::Unmerged
+            | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffPaths { .. }
             | Command::DiffIndex { .. }
@@ -190,9 +213,9 @@ impl Operation {
             | Command::Push { .. } => kind,
         }
     }
-    fn is_commit_tree(&self) -> bool {
+    fn has_input(&self) -> bool {
         match self.command {
-            Command::CommitTree { .. } => true,
+            Command::CommitTree { .. } | Command::UpdateIndex { .. } => true,
             Command::Reds(_)
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
@@ -222,6 +245,60 @@ impl Operation {
             | Command::Push { .. } => false,
         }
     }
+    fn input(&self) -> Box<[u8]> {
+        match &self.command {
+            Command::UpdateIndex { paths } => paths.clone(),
+            Command::Reds(_)
+            | Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotFetch { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Origin { .. }
+            | Command::Version
+            | Command::Format
+            | Command::Clone { .. }
+            | Command::Store { .. }
+            | Command::Remote { .. }
+            | Command::UpdateRef { .. }
+            | Command::Fetch { .. }
+            | Command::Create { .. }
+            | Command::CheckOut { .. }
+            | Command::Clean
+            | Command::Merge { .. }
+            | Command::Unmerged
+            | Command::Add
+            | Command::DiffPaths { .. }
+            | Command::DiffIndex { .. }
+            | Command::WriteTree
+            | Command::CommitTree { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
+            | Command::IsAncestor { .. }
+            | Command::Push { .. } => match &self.op {
+                Some(git::Op::Commit { title, body, .. }) if self.has_input() => invocation::message(title, body),
+                Some(
+                    git::Op::Store { .. }
+                    | git::Op::Make { .. }
+                    | git::Op::Clone { .. }
+                    | git::Op::Reds { .. }
+                    | git::Op::Reset { .. }
+                    | git::Op::Point { .. }
+                    | git::Op::Fetch { .. }
+                    | git::Op::Create { .. }
+                    | git::Op::CheckOut { .. }
+                    | git::Op::Look { .. }
+                    | git::Op::DiffPaths { .. }
+                    | git::Op::Brings { .. }
+                    | git::Op::IsAncestor { .. }
+                    | git::Op::Merge { .. }
+                    | git::Op::Commit { .. }
+                    | git::Op::Push { .. },
+                )
+                | None => Box::from(&b""[..]),
+            },
+        }
+    }
     pub fn accepts(&self, owner: Token) -> bool {
         if self.io_owner == owner {
             return true;
@@ -241,15 +318,23 @@ impl Operation {
             && let Some(next) = self.ready(checkout)
         {
             match next {
-                Next::End(_) => return,
+                Next::End(done) => {
+                    if self.viewed || !sequence::views(self.op.as_ref().expect("item operation"), &done) {
+                        return;
+                    }
+                }
                 Next::Results { .. }
                 | Next::Reds { .. }
                 | Next::Run(_)
                 | Next::Snapshot { .. }
+                | Next::Look { .. }
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }
-                | Next::Alternates
+                | Next::View { .. }
+                | Next::RemakeView { .. }
+                | Next::InitView { .. }
+                | Next::Alternates { .. }
                 | Next::Scan { .. } => {}
             }
         }
@@ -257,8 +342,8 @@ impl Operation {
             self.stop = Some(fault);
         }
         match &mut self.phase {
-            Phase::Active(child) => child.close(self.aborted, stop_reason(self.stop), out),
-            Phase::Spawning { .. } | Phase::Settled => {}
+            Phase::Active(child) if !child.closing => child.close(self.aborted, stop_reason(self.stop), out),
+            Phase::Active(_) | Phase::Spawning { .. } | Phase::Settled => {}
         }
     }
     pub fn ready(&self, checkout: &checkout::Limits) -> Option<Next> {
@@ -285,7 +370,7 @@ impl Operation {
         }
         let merge_listing = self.command == Command::Unmerged
             && match &self.op {
-                Some(git::Op::Merge { .. }) => true,
+                Some(git::Op::Merge { .. } | git::Op::Commit { .. }) => true,
                 Some(
                     git::Op::Store { .. }
                     | git::Op::Make { .. }
@@ -300,7 +385,6 @@ impl Operation {
                     | git::Op::DiffPaths { .. }
                     | git::Op::Brings { .. }
                     | git::Op::IsAncestor { .. }
-                    | git::Op::Commit { .. }
                     | git::Op::Push { .. },
                 )
                 | None => false,
@@ -325,6 +409,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Unmerged
+            | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffPaths { .. }
             | Command::DiffIndex { .. }
@@ -348,9 +433,12 @@ impl Operation {
         match child.exited {
             Some(kernel::Exit::Code(code)) => match &self.op {
                 Some(op) => {
-                    let mut next =
-                        sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout);
-                    if let Next::End(git::Done::Conflicted { cut, .. }) = &mut next {
+                    let mut next = if let Some(done) = &self.view_done {
+                        sequence::after_view(op, &self.command, done, code, stdout, &tail, child.stderr.dropped())
+                    } else {
+                        sequence::after(op, &self.command, code, stdout, &tail, child.stderr.dropped(), checkout)
+                    };
+                    if let Next::End(git::Done::Conflicted { cut, .. }) | Next::Scan { cut, .. } = &mut next {
                         *cut |= child.dropped > 0;
                     }
                     next
@@ -381,6 +469,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffIndex { .. }
             | Command::WriteTree
@@ -415,31 +504,10 @@ impl Operation {
         out: &mut Outputs,
     ) -> Option<Next> {
         let delimiter = self.delimiter();
-        let commit = self.is_commit_tree();
+        let commit = self.has_input();
         self.phase = match event {
             io::Event::Spawned { owner, child, pipes } if owner == self.io_owner => {
-                let message = match &self.op {
-                    Some(git::Op::Commit { title, body, .. }) if commit => invocation::message(title, body),
-                    Some(
-                        git::Op::Store { .. }
-                        | git::Op::Make { .. }
-                        | git::Op::Clone { .. }
-                        | git::Op::Reds { .. }
-                        | git::Op::Reset { .. }
-                        | git::Op::Point { .. }
-                        | git::Op::Fetch { .. }
-                        | git::Op::Create { .. }
-                        | git::Op::CheckOut { .. }
-                        | git::Op::Look { .. }
-                        | git::Op::DiffPaths { .. }
-                        | git::Op::Brings { .. }
-                        | git::Op::IsAncestor { .. }
-                        | git::Op::Merge { .. }
-                        | git::Op::Commit { .. }
-                        | git::Op::Push { .. },
-                    )
-                    | None => Box::from(&b""[..]),
-                };
+                let message = self.input();
                 assert_eq!(pipes.len(), if commit { 3 } else { 2 }, "requested standard pipes");
                 let mut child = Child {
                     token: child,
@@ -532,8 +600,15 @@ impl Operation {
                             if i == 1 {
                                 if let Some(paths) = &mut child.design_paths {
                                     paths.feed(&bytes, checkout.path_bytes);
-                                } else if child.dropped != 0 || child.stdout.write(&bytes).is_err() {
-                                    child.dropped = child.dropped.saturating_add(skein_lib::len_u64(bytes.len()));
+                                } else {
+                                    let kept = if child.dropped == 0 {
+                                        bytes.len().min(skein_lib::usize_of(child.stdout.room()))
+                                    } else {
+                                        0
+                                    };
+                                    child.stdout.write(bytes.get(..kept).expect("kept prefix")).expect("stdout room");
+                                    let dropped = bytes.len().checked_sub(kept).expect("kept prefix");
+                                    child.dropped = child.dropped.saturating_add(skein_lib::len_u64(dropped));
                                 }
                             } else {
                                 child.stderr.write(&bytes);
@@ -689,39 +764,6 @@ fn stop_reason(fault: Option<git::Fault>) -> kernel::Reason {
     }
 }
 
-fn directory(op: &git::Op, command: &Command) -> Box<[u8]> {
-    if let Command::Store { .. } = command {
-        return Box::from(&b"making"[..]);
-    }
-    match op {
-        git::Op::Clone { at, store, .. } => {
-            if let Command::Format = command {
-                return invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()]);
-            }
-            if let Command::Clone { .. } = command {
-                invocation::joined(&[b"workspaces/", skein_lib::Decimal::of(at.workspace.raw()).as_bytes()])
-            } else {
-                invocation::place(at)
-            }
-        }
-        git::Op::Fetch { at, store, .. } => {
-            if let Command::Fetch { .. } = command {
-                invocation::joined(&[b"stores/", skein_lib::Decimal::of(store.raw()).as_bytes()])
-            } else {
-                invocation::place(at)
-            }
-        }
-        git::Op::Store { .. } | git::Op::Look { .. } | git::Op::Make { .. } => Box::new([]),
-        git::Op::Reds { at, .. }
-        | git::Op::Reset { at, .. }
-        | git::Op::Point { at, .. }
-        | git::Op::Create { at, .. }
-        | git::Op::CheckOut { at, .. }
-        | git::Op::DiffPaths { at, .. }
-        | git::Op::Brings { at, .. }
-        | git::Op::IsAncestor { at, .. }
-        | git::Op::Merge { at, .. }
-        | git::Op::Commit { at, .. }
-        | git::Op::Push { at, .. } => invocation::place(at),
-    }
+fn directory(_op: &git::Op, _command: &Command) -> Box<[u8]> {
+    Box::new([])
 }

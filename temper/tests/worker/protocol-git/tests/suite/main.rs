@@ -11,3 +11,5 @@ mod fuzzy {
 }
 
 mod git_identity;
+
+mod view;

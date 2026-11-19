@@ -24,6 +24,7 @@ temper-fake-checkout.workspace = true
 skein-fake-forge-domain.workspace = true
 
 [dev-dependencies]
+skein-shell.workspace = true
 skein-throwaway-forgejo.workspace = true
 skein-scratch.workspace = true
 temper-test-env.workspace = true
