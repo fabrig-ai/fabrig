@@ -236,9 +236,11 @@ start afresh. Staging is made again at dev's build for each drill
     F0 settled every value (`../draft/store-floor.md`, 2), and
     `13efa77461`, the build dev.fabrig.ai runs. Each build's texts are
     kept verbatim, as `git show` gives them at that commit, under
-    `temper/tests/codecs/deployed/<build>/`, one file per family at its
-    path's file name, with a `README.md` naming each build in full and
-    why it is held. Nothing rewrites a kept text.
+    `temper/tests/codecs/deployed/<build>/`, one file per family named
+    `<family>-v<version>.schema` from its `family` line (jig's and
+    temper's secrets both live in a `secrets-v1.schema`), with a
+    `README.md` naming each build in full, each file's path at that
+    build, and why it is held. Nothing rewrites a kept text.
   - **A registered family:** each value type its family declares
     (jig's `protocol/store/layouts.md`, 2), at a build whose text holds
     its root and variant, has its layout planned to the binary's from
