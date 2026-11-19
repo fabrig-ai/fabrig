@@ -514,9 +514,10 @@ pub fn generate(schema: &Schema) -> Output;
     top-level record's decoder over arbitrary bytes, and over the
     fixed-rule values with bytes changed, cut or grown. It never panics,
     and what decodes encodes back to the same bytes;
-  - **memory,** where the family has it: decoding a full value at the
-    ceilings, measured with the counting allocator against its decoded
-    bound (section 4).
+  - **memory,** one test per owner over its roots: each root's largest
+    value (`largest`) at the ceilings, or under the test's cap at lower
+    limits with its bounds at the ceilings pinned, decoded and measured
+    with the counting allocator against its decoded bound (section 4).
 
   Their values are built at run time: the fixed-rule values of the
   schema's text, which the test embeds, the largest values given limits

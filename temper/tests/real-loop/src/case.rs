@@ -268,9 +268,9 @@ pub fn fixture() -> forge::Fixture {
             // These stories budget ten-unit runs and their nested delegates;
             // their own cap keeps those purses independent of the binary's K.
             value["world_settings"]["maximum_run_spend"] = 10.into();
-            value["engine"]["limits"]["overrides"]["people.projects"] = 2.into();
-            value["engine"]["limits"]["overrides"]["authority.projects"] = 2.into();
-            value["engine"]["limits"]["overrides"]["tasks.funders"] = 4.into();
+            value.jig_over("people.projects", 2);
+            value.jig_over("authority.projects", 2);
+            value.jig_over("tasks.funders", 4);
             // A runs on the director's explicit choice, distinct from the default.
             let mut model = value["world_settings"]["llm"]["models"][0].clone();
             model["name"] = OWNER_MODEL.into();
@@ -289,11 +289,11 @@ pub fn fixture() -> forge::Fixture {
             }
             // A tracked owner reserves core news, landing news, an answer and its
             // delegate's result together; the landing fixture's inbox holds 4 KiB.
-            value["engine"]["limits"]["overrides"]["tasks.inbox_bytes"] = 16384.into();
+            value.jig_over("tasks.inbox_bytes", 16384);
             // The director's prescribed final report exceeds the chat's 32 bytes.
             value["world_settings"]["report_words"] = 128.into();
             // The brief includes the full draft commit and its instructions.
-            value["engine"]["limits"]["overrides"]["documents.text_bytes"] = 512.into();
+            value.jig_over("documents.text_bytes", 512);
             landing::admit(value);
         },
         ..forge::fixture()
@@ -311,8 +311,8 @@ pub fn fixture_placed() -> forge::Fixture {
             // the director a charter whose wait exceeds PATIENCE (10 s).
             value["world_settings"]["second_wait_ms"] = 60000.into();
             // Creating offers the landing charters 1 and 4 plus this director's charter 2.
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
-            value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
+            value.jig_over("documents.lines", 3);
+            value.jig_over("tasks.charters", 2);
             value["world_settings"]["executor"] = 2.into();
             // The person must also be offered the new executor for that chat.
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
@@ -346,7 +346,7 @@ pub fn fixture_4_4() -> forge::Fixture {
             // resumed script then cannot collide with the model-change recap.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+            value.jig_over("hub.run_calls", 2);
         },
         ..fixture()
     }
@@ -363,7 +363,7 @@ pub fn fixture_check() -> forge::Fixture {
             // the listing every 10 ms adds traffic throughout the timer story.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+                value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
             // Branch watches keep their 100 ms slow reconciliation: at most
             // 2 * (PATIENCE / 100 ms + 1) steady reads for the two branches.
@@ -380,10 +380,10 @@ pub fn fixture_check() -> forge::Fixture {
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
             agent["profile"]["policy"]["parallel_tools"] = 1.into();
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+            value.jig_over("hub.run_calls", 2);
             // The opener's checkout needs an LLM grant and an application git
             // grant. One refuses its coder; two fit the three-worker ring.
-            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value.jig_over("hub.accounts", 2);
             landing::admit(value);
         },
         ..fixture_placed()
@@ -420,7 +420,7 @@ pub fn fixture_4_6() -> forge::Fixture {
             (fixture_placed().configure)(value, agent, forge);
             value["world_settings"]["landing"]["projects"] = json!([]);
             // The retry path is the same, only its wait is short; the backoff is not what this story tests.
-            value["engine"]["limits"]["overrides"]["tasks.retries.agent.base_ms"] = 1.into();
+            value.jig_over("tasks.retries.agent.base_ms", 1);
             landing::admit(value);
         },
         ..forge::fixture()
@@ -491,8 +491,8 @@ pub fn fixture_5_3() -> forge::Fixture {
             (fixture().configure)(value, agent, forge);
             value["world_settings"]["owner_brief"] = true.into();
             // Creating offers the landing charters 1 and 4 plus the owner's charter 2.
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
-            value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
+            value.jig_over("documents.lines", 3);
+            value.jig_over("tasks.charters", 2);
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
             kinds.as_array_mut().expect("executor kinds").push(json!({"kind":"charter","number":2}));
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -553,20 +553,20 @@ pub fn fixture_5_2() -> forge::Fixture {
             (fixture_placed().configure)(value, agent, forge);
             // Four one-slot workers keep the chat, implementer, reviewer and
             // B's release activation at once (testing/reference-case.md, act 2).
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = CASE_5_2_WORKERS.len().into();
+            value.jig_over("fleet.calls", CASE_5_2_WORKERS.len());
             // Initial adoption and forge hooks supply the listing changes,
             // as in fixture_check; repeating the listing adds no evidence.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+                value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
             value["world_settings"]["helper"] = true.into();
             // Creating offers charters 1, 2 and 4 plus the helper's charter 9.
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
+            value.jig_over("documents.lines", 4);
             // Nine catalogue slots hold the stock with the helper replacing charter 9.
             // The director, chat, helper, reviewer and change procedure need five delegation kinds.
             for (name, size) in [("tasks.charters", 9), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
-                value["engine"]["limits"]["overrides"][name] = size.into();
+                value.jig_over(name, size);
             }
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
             kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":HELPER_CHARTER}));
@@ -578,7 +578,7 @@ pub fn fixture_5_2() -> forge::Fixture {
             }
             // The coder's checkout needs both its LLM and application git grants,
             // as in fixture_check. The cluster supplies one slot per worker.
-            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value.jig_over("hub.accounts", 2);
             landing::admit(value);
         },
         ..forge::fixture()
@@ -620,8 +620,8 @@ pub fn fixture_5_5() -> forge::Fixture {
             (fixture().configure)(value, agent, forge);
             value["world_settings"]["second_resume"] = false.into();
             // Creating offers the landing charters 1 and 4 plus the planner's charter 2.
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
-            value["engine"]["limits"]["overrides"]["tasks.charters"] = 2.into();
+            value.jig_over("documents.lines", 3);
+            value.jig_over("tasks.charters", 2);
             let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
             kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":2}));
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -705,17 +705,17 @@ pub fn fixture_5_4() -> forge::Fixture {
             // Delegate/amend/cancel and their wait share one LLM completion.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+            value.jig_over("hub.run_calls", 2);
             // Read all three spec parameters, including the planned path (name 6).
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+            value.jig_over("documents.lines", 3);
             // The director's two-owner batch was refused: "batch limit".
-            value["engine"]["limits"]["overrides"]["tasks.batch"] = 2.into();
+            value.jig_over("tasks.batch", 2);
             // Then "task 2 goal limit": both owners must be tracked.
-            value["engine"]["limits"]["overrides"]["tasks.project_goals"] = 2.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
+            value.jig_over("tasks.project_goals", 2);
+            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             // "Authority refused: task allowance": the tree has eleven tasks,
             // two owners plus A's six descendants and B's two, under the chat.
-            value["engine"]["limits"]["overrides"]["tasks.tree_tasks"] = 11.into();
+            value.jig_over("tasks.tree_tasks", 11);
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["ceiling"]["delegation"]["tasks"] = 11.into();
                 project["policy"]["roles"][0]["authority"]["delegation"]["tasks"] = 11.into();
@@ -729,9 +729,9 @@ pub fn fixture_5_4() -> forge::Fixture {
             // Adoption and the fake forge's hooks supply listing changes (5.2).
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+                value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
-            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value.jig_over("hub.accounts", 2);
             landing::admit(value);
         },
         ..forge::fixture()
@@ -795,8 +795,8 @@ pub fn fixture_6_5() -> forge::Fixture {
             // landing.projects is empty: no repository or change is adopted.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
+            value.jig_over("hub.run_calls", 2);
+            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             value["world_settings"]["cap"] = 45.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 45.into();
@@ -883,10 +883,10 @@ pub fn fixture_6_4() -> forge::Fixture {
             // Listing polls stay PATIENCE + 1 ms (20001): adoption/hooks supply
             // changes. This timing bound and every oracle bound stay unchanged.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
-            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = 1.into();
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 2.into();
+            value.jig_over("hub.run_calls", 1);
+            value.jig_over("hub.accounts", 2);
+            value.jig_over("fleet.calls", 1);
+            value.jig_over("documents.lines", 2);
             value["world_settings"]["cap"] = 26.into();
             let tools = 0x0187 | 0x0020;
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -899,12 +899,12 @@ pub fn fixture_6_4() -> forge::Fixture {
             for (name, size) in
                 [("tasks.tasks", 5), ("tasks.exemptions", 5), ("tasks.project_tasks", 5), ("tasks.tree_tasks", 6)]
             {
-                value["engine"]["limits"]["overrides"][name] = size.into();
+                value.jig_over(name, size);
             }
-            value["application"]["limits"]["overrides"]["forge.change_policy.repairs"] = 1.into();
+            value.temper_over("forge.change_policy.repairs", 1);
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+                value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
             landing::admit(value);
         },
@@ -949,8 +949,8 @@ pub fn fixture_6_7() -> forge::Fixture {
             // + one opening completion + next run reserve 10, with one spare. No landing projects are used.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
+            value.jig_over("hub.run_calls", 2);
+            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             value["world_settings"]["cap"] = 65.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
@@ -1039,38 +1039,38 @@ pub fn fixture_6_6() -> forge::Fixture {
             value["world_settings"]["landing"]["projects"][0]["rules"].as_array_mut().expect("rules").push(kit_rule);
             // Two enforced rules each contribute CI, up-to-date and exact-head
             // blocking review: 2 * 3 = 6 requirements. Both repos are hooked.
-            value["engine"]["limits"]["overrides"]["authority.requirements"] = 6.into();
+            value.jig_over("authority.requirements", 6);
             // Configuring-3's new admission check measures this two-repository
             // project policy at 4398 bytes, above the landing fixture's 4096.
-            value["engine"]["limits"]["overrides"]["core.policy_bytes"] = 8192.into();
+            value.jig_over("core.policy_bytes", 8192);
             // Eight tasks, two batch members, one dependency. The deepest child
             // has three requester ancestors + its terminal result = four joins;
             // repin has two ancestors + dependency + result = four as well.
             for name in ["tasks.batch", "authority.batch"] {
-                value["engine"]["limits"]["overrides"][name] = 2.into();
+                value.jig_over(name, 2);
             }
             // Three lines carry a change's repository, branch and path; they
             // also cover the maximum requester ancestry. Two adopted repositories
             // and two checkout repositories fit the existing small capacities.
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 3.into();
+            value.jig_over("documents.lines", 3);
             // The coder's write + finish and each owner's delegate + wait share
             // one completion, serialized by the existing single call slot.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
-            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = 1.into();
+            value.jig_over("hub.run_calls", 1);
+            value.jig_over("hub.accounts", 2);
+            value.jig_over("fleet.calls", 1);
             // F10: the atomic A1 batch exceeds the inherited 2048-byte link
             // input. Until F10 admission/drop handling is fixed, this fixture
             // gives both link sides the agent's existing tool_payload bound.
-            value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4096.into();
-            value["engine"]["limits"]["overrides"]["core.call_answer_bytes"] = 4096.into();
+            value.jig_over("core.call_answer_bytes", 4096);
+            value.jig_over("core.call_answer_bytes", 4096);
             // Each procedure reserves ten, A1 adds its ten-unit run reserve,
             // and the director adds ten: spends 20, 30 and 40 respectively.
             value["world_settings"]["cap"] = 40.into();
             // Hooks/adoption supply changes; retain the case's PATIENCE+1 polls.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+                value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
             landing::admit(value);
         },
@@ -1123,11 +1123,10 @@ pub fn fixture_6_8() -> forge::Fixture {
             // c adds its input result to three ancestors and its own result;
             // coder/reviewer have four ancestors and a result. Small's four
             // store joins cannot read these; use standard's sixteen, as 6.2.
-            value["engine"]["limits"]["profile"] = "standard".into();
-            value["engine"]["limits"]["profile"] = "standard".into();
-            value["application"]["limits"]["overrides"]["forge.named_calls"] = 128.into();
-            value["application"]["limits"]["overrides"]["root.journal.deliveries"] = 1097.into();
-            value["application"]["limits"]["overrides"]["root.journal.held"] = 3291.into();
+
+            value.temper_over("forge.named_calls", 128);
+            value.temper_over("root.journal.deliveries", 1097);
+            value.temper_over("root.journal.held", 3291);
             // Role -> director -> A -> A1 -> c -> coder: the role's
             // depth six yields the director's five, as 6.2's fixture does.
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
@@ -1136,11 +1135,11 @@ pub fn fixture_6_8() -> forge::Fixture {
             }
             // Eight tasks, with A adding one ancestor over 6.6's smoke.
             // Keep each batch singleton and serialize each response's calls.
-            value["engine"]["limits"]["overrides"]["documents.lines"] = 4.into();
+            value.jig_over("documents.lines", 4);
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
-            value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
-            value["engine"]["limits"]["overrides"]["fleet.calls"] = PAUSE_WORKERS.len().into();
-            value["engine"]["limits"]["overrides"]["hub.accounts"] = 2.into();
+            value.jig_over("hub.run_calls", 1);
+            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
+            value.jig_over("hub.accounts", 2);
             // A reserves A1 (50), A2 (10), and its run's ten; the director
             // reserves A (80) and its run. All remain below the base ceiling 100.
             value["world_settings"]["cap"] = 100.into();
@@ -1149,7 +1148,7 @@ pub fn fixture_6_8() -> forge::Fixture {
             }
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
-                value["application"]["limits"]["overrides"][format!("forge.client.{name}")] = (story_ms + 1).into();
+                value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
             landing::admit(value);
         },

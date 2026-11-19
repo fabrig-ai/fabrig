@@ -152,6 +152,8 @@ fn a_notes_page_keeps_the_bodys_line_breaks() {
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
-#[path = "../../../../testing/codec-memory.rs"]
-mod codec_memory;
+#[expect(clippy::disallowed_types, reason = "ordinary Rust test support chooses limits through pure callbacks")]
+mod codec_memory {
+    include!("../../../../testing/codec-memory.rs");
+}
 mod codec_memory_test;

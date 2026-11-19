@@ -707,6 +707,7 @@ fn setting_head(item: &domain::SettingHead, _limits: &wire::Limits) -> wire::Set
         domain::Setting::Worker(number) => wire::Setting::Worker(wire::SettingNumber { number }),
         domain::Setting::Provider(number) => wire::Setting::Provider(wire::SettingNumber { number }),
         domain::Setting::Rules => wire::Setting::Rules,
+        domain::Setting::Limits => wire::Setting::Limits,
     };
     wire::SettingHead {
         setting,
@@ -727,6 +728,7 @@ fn read_setting_head(item: wire::SettingHead) -> domain::SettingHead {
             wire::Setting::Worker(value) => domain::Setting::Worker(value.number),
             wire::Setting::Provider(value) => domain::Setting::Provider(value.number),
             wire::Setting::Rules => domain::Setting::Rules,
+            wire::Setting::Limits => domain::Setting::Limits,
         },
         edit: match item.edit {
             wire::SettingEdit::Set => domain::SettingEdit::Set,

@@ -5,12 +5,13 @@ use super::codec_memory::family;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(clippy::too_many_lines, reason = "one dispatch per schema root and one clamp per named limit")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        concat!(include_str!("../../../../crates/jig-client-protocol-wire/schema/client-v36.schema"), include_str!("../../../../crates/jig-client-protocol-wire/schema/client-v36-part1.schema")),
-        jig_client_protocol_wire::v36, sealed,
+        concat!(include_str!("../../../../crates/jig-client-protocol-wire/schema/client-v37.schema"), include_str!("../../../../crates/jig-client-protocol-wire/schema/client-v37-part1.schema")),
+        jig_client_protocol_wire::v37, sealed,
         limits [
             keyed_request,
             keyed_value_some,
@@ -371,6 +372,9 @@ fn largest_roots_stay_within_decoded_bounds() {
             rules_implies,
             rules_requirements,
             application_value_bytes,
+            override_name,
+            override_reason,
+            limits_value_overrides,
             model_add_name,
             change_settings_items,
             refusal_full_tasks,
@@ -413,25 +417,25 @@ fn largest_roots_stay_within_decoded_bounds() {
             ChipDetails,
             ResourceScope,
             Operation,
-            NewTask,
+            NewTask => (120_478_959, 120_500_928),
             FamilyRecord,
             FamilyRequest,
             ReadAnswer,
             DecodedActivityLine,
             Hold,
-            ProposedTask,
-            HistoryRow,
+            ProposedTask => (69_535_131, 69_536_512),
+            HistoryRow => (108_400_817, 108_406_712),
             Note,
             ObjectPage,
             EndedDelegate,
             InboxSelection,
-            InboxEntry,
+            InboxEntry => (100_664_036, 100_663_840),
             ProviderOffer,
             LiveDelegate,
             ReadPosition,
             OptionLine,
             PersonContract,
-            ShownResult,
+            ShownResult => (134_217_832, 134_217_728),
             Recurring,
             ProjectResource,
             ProjectPolicyRole,
@@ -447,7 +451,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             AuthorizeAnswer,
             OpenAnswer,
             CloseAnswer,
-            Batch,
+            Batch => (1_073_744_132, 1_073_744_896),
             BatchReply,
             Gone,
             StreamEvent,
@@ -460,17 +464,17 @@ fn largest_roots_stay_within_decoded_bounds() {
             ProviderNumber,
             Kept,
             TableEntry,
-            SettingItem,
-            RevisionItem,
+            SettingItem => (1_254_385_444, 1_254_445_504),
+            RevisionItem => (2_508_770_875, 2_508_891_008),
             Final,
             Read,
-            Offered,
-            MeProject,
+            Offered => (101_188_792, 101_190_752),
+            MeProject => (102_280_231, 102_496_384),
             EntranceRefusal,
             Ask,
-            ReadValue,
-            DeliveryValue,
-            ReviewItem,
+            ReadValue => (1_281_503_763, 1_281_583_916),
+            DeliveryValue => (376_523_797, 376_531_400),
+            ReviewItem => (2_508_771_921, 2_508_892_028),
         ]
     );
     family!(
@@ -521,14 +525,13 @@ fn test_client_largest_roots_stay_within_decoded_bounds() {
             ClientSubject,
             Request,
             Outcome,
-            Document,
-            ReadAnswer,
+            Document => (68_748_872, 72_160_256),
+            ReadAnswer => (68_748_873, 72_160_520),
             Place,
             Subject,
             Read,
-            FamilyDocumentRecord,
+            FamilyDocumentRecord => (68_748_896, 72_160_256),
             FamilyAnswerRecord,
         ]
     );
 }
-

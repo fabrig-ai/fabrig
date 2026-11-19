@@ -192,6 +192,8 @@ pub enum LoginExit {
 /// Registry numbers the client reads (domain/accounts.md, 3.7).
 pub const FACT_EMAIL: u16 = 1;
 pub const FACT_NAME: u16 = 2;
+pub const FACT_USAGE: u16 = 7;
+pub const WINDOW_LIMITED: u16 = 3;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct AccountFact {
     pub kind: u16,

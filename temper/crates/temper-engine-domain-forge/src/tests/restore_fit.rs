@@ -107,9 +107,14 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             row.provider.repository = number;
             Stored::Repository(row)
         }
-        RecordKind::Hold => {
-            Stored::Hold(Hold { design_writers: Box::new([]), name: name(number), task: n, writer: None, drift: None })
-        }
+        RecordKind::Hold => Stored::Hold(Hold {
+            beside: None,
+            design_writers: Box::new([]),
+            name: name(number),
+            task: n,
+            writer: None,
+            drift: None,
+        }),
         RecordKind::Names => Stored::Names { task: n, resources: Box::new([]) },
         RecordKind::Subscription => Stored::Subscription(Subscriber {
             task: n,
@@ -1091,6 +1096,7 @@ fn setting_rule_fields_fit_at_the_bound_and_refuse_one_more_before_insertion() {
 
 fn tier_row(number: u32) -> TierRow {
     TierRow {
+        many: None,
         posting: None,
         hold: None,
         observations: Box::new([]),

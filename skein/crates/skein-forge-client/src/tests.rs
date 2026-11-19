@@ -8,6 +8,7 @@ mod keep;
 mod locate;
 mod outbox;
 mod queue;
+mod raise;
 mod recovery;
 mod refusal;
 mod settle;

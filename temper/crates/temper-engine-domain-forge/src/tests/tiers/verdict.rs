@@ -30,6 +30,34 @@ fn inherited_failures_blame_no_landing_and_many_stays_explicit() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "literal report expectations use ordinary test containers and text"
+)]
+fn a_many_verdict_names_its_report_after_its_attributions() {
+    let red = verdict(Box::new([p::Blame::Owns(p::Failures::Many)]), p::Failures::Many);
+    let landings =
+        [crate::TierPostedLanding { commit: [9; 32], blame: p::Blame::Owns(p::Failures::Many), change: Some(8) }];
+    let many = p::ManyTests {
+        tests: (0_u8..16).map(|at| format!("suite::t{at:02}").into_bytes().into_boxed_slice()).collect(),
+        more: 21,
+        cut: false,
+    };
+    let ids = (0_u8..16).map(|at| format!("\"suite::t{at:02}\"")).collect::<Vec<_>>().join(", ");
+    let without = posted_words(b"main", &red, &landings, None);
+    let expected = format!("{}\nIts report names: {ids} and 21 more.", core::str::from_utf8(&without).unwrap());
+    assert_eq!(posted_words(b"main", &red, &landings, Some(&many)).as_ref(), expected.as_bytes());
+    let escaped = p::ManyTests { tests: Box::new([b"a\nb\r\\\"".as_slice().into()]), more: 0, cut: true };
+    assert!(
+        posted_words(b"main", &red, &landings, Some(&escaped))
+            .ends_with(b"\nIts report names: \"a\\nb\\r\\\\\\\"\" and more, its report cut at the read's bound.")
+    );
+    let empty = p::ManyTests { tests: Box::new([]), more: 21, cut: true };
+    assert_eq!(posted_words(b"main", &red, &landings, Some(&empty)), without);
+}
+
+#[test]
 fn quotes_and_line_breaks_keep_an_id_in_one_attribution_line() {
     assert_eq!(report_id(b"a\nb\r\\\"").as_ref(), b"\"a\\nb\\r\\\\\\\"\"");
 }

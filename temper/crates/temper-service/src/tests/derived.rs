@@ -231,33 +231,19 @@ fn result_carrier() {
 #[test]
 fn inbox_carrier() {
     for scale in [1, 2] {
-        let (s, _, mut jig, _) = case(scale);
+        let (s, _, jig, _) = case(scale);
         assert_eq!(jig.core.tasks.inbox_bytes, s.inbox * (s.payload - 2));
-        let input = fixtures::with(fixtures::ENGINE, b"limits", br#"{"overrides":{}}"#);
-        let document =
-            config::document(&input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
-        let fixed = crate::startup::fixed(&config::Directories::working()).unwrap();
-        config::engine_over(
-            &document,
-            0,
-            &config::Directories::working(),
-            config::Defaults::PassedProviders,
-            &fixed,
-            &jig,
-        )
-        .unwrap();
-        jig.core.tasks.inbox_bytes = jig.core.tasks.message_bytes - 1;
-        let found = config::engine_over(
-            &document,
-            0,
-            &config::Directories::working(),
-            config::Defaults::PassedProviders,
-            &fixed,
-            &jig,
-        )
-        .unwrap_err();
-        let mut problems = Problems::empty();
-        problems.append(found, &config::Path::root());
+        let mut given = jig_domain_core::settings::Override {
+            name: b"tasks.inbox_bytes".as_slice().into(),
+            value: u64::from(jig.core.tasks.inbox_bytes),
+            reason: b"inbox carrier".as_slice().into(),
+        };
+        config::overrides::with_overrides(&jig, core::slice::from_ref(&given)).unwrap();
+        given.value = u64::from(jig.core.tasks.message_bytes - 1);
+        let problems = Problems::jig(
+            config::overrides::with_overrides(&jig, core::slice::from_ref(&given)).unwrap_err(),
+            &config::Path::root(),
+        );
         names(&lines(&problems), b"tasks.inbox_bytes", b"tasks.message_bytes");
     }
 }

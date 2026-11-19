@@ -688,7 +688,7 @@ impl Notes {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_notes = { let count = match skein_codec::read_count(reader, limits.notes_notes.min(CEILINGS.notes_notes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::NotesNotes, reason }), }; if count > reader.remaining() / 25 { return Err(Problem { path: Path::NotesNotes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Note::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_notes = { let count = match skein_codec::read_count(reader, limits.notes_notes.min(CEILINGS.notes_notes)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::NotesNotes, reason }), }; if count > reader.remaining() / 25 { return Err(Problem { path: Path::NotesNotes, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Note::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { notes: decoded_notes })
     }
 }

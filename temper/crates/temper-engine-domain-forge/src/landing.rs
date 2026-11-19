@@ -267,6 +267,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::Limits(_)
                     | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 4 has landing value"),
                 },
@@ -288,6 +289,7 @@ impl Domain {
                     | Value::Dependency(_)
                     | Value::ProjectAreas(_)
                     | Value::ProjectTriager(_)
+                    | Value::Limits(_)
                     | Value::AgentFigures(_)
                     | Value::Welcome(_) => unreachable!("kind 5 has gates value"),
                 },
@@ -5068,6 +5070,27 @@ impl Domain {
             jobs: receipt.jobs.clone(),
         })
     }
+    /// Only a change's current repair reads gate checks at its head or candidate.
+    #[must_use]
+    pub fn landing_failure_at(
+        &self,
+        parent: u64,
+        task: u64,
+        repository: api::Repository,
+        commit: api::Commit,
+    ) -> Option<crate::LandingFailure> {
+        let row = self.change(parent)?;
+        let (child, change::Delegate::Repair(why)) = row.delegate? else { return None };
+        if row.terminal() || child != task || row.repository != repository {
+            return None;
+        }
+        let failure = self.landing_failure(parent, why)?;
+        if row.change.last_head != Some(commit) && failure.prefix != commit {
+            return None;
+        }
+        Some(failure)
+    }
+
     pub(super) fn landing_regate(&self, change: u64, why: change::Repair) -> Option<crate::Regate> {
         let (key, _, receipt) = self.repair_receipt(change, why)?;
         Some(crate::Regate { receipt: key.clone(), run: receipt.run.id })

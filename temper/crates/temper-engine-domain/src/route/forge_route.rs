@@ -57,6 +57,7 @@ mod reads;
 use reads::read_answer;
 pub(crate) use reads::read_call;
 mod holds;
+pub(crate) mod limit_holds;
 mod relay;
 pub(crate) use holds::{hold as hold_reason, refused_step, start_refused};
 pub(crate) use relay::{ChangeStep, own_agents_words, refused as relay_refused};
@@ -1291,6 +1292,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             Work::GoalSubscribe(_)
             | Work::ForgeRestored
+            | Work::ForgeLimitHold { .. }
+            | Work::ForgeLimitRelease { .. }
             | Work::StatusAccount { .. }
             | Work::StartDone(_)
             | Work::Start(_)
@@ -2566,6 +2569,20 @@ pub(super) fn start_recovered_change(
         }
     } else {
         change_results(domain, context, recovered);
+        // Registration can persist before its branch hold meets a limit. A
+        // release retries that entrance before the first producer claims it.
+        let resource = forge::branch_name(provider, &branch);
+        let released = match domain.core.tasks.task(task) {
+            Some(owner) => owner.due_reason == tasks::Why::Released,
+            None => false,
+        };
+        let starting = match domain.forge.change(task) {
+            Some(row) => !row.terminal() && row.delegate.is_none() && row.change.last_head.is_none(),
+            None => false,
+        };
+        if !requester_branch && released && starting && domain.forge.hold(&resource).is_none() {
+            domain.work.push(Work::Forge(forge::Event::Hold { entry: 0, task, resource, from: None }));
+        }
     }
     step_dependents(domain, env, task);
     retry_change_names(domain, env, task);
@@ -4986,13 +5003,24 @@ pub(crate) fn outputs(
             }
             forge::Request::ResourceRefused { task, operation, resource, cause } => {
                 if admission_refused(domain, task) {
-                    let words = holds::refused_words(domain, operation, resource.as_ref(), cause);
-                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                    let words = holds::refused_words(domain, Some(task), operation, resource.as_ref(), cause);
+                    match cause {
+                        forge::RefusalCause::Limit { member, .. } => {
+                            let set = limit_holds::set(member, operation, resource.as_ref());
+                            limit_holds::hold(domain, env, task, cause, set, words);
+                        }
+                        forge::RefusalCause::Unadopted
+                        | forge::RefusalCause::InvalidName
+                        | forge::RefusalCause::Backend(_) => {
+                            holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                        }
+                    }
                 }
             }
             forge::Request::HeadRefused { task, resource, configured, needed } => {
                 let words = holds::refused_words(
                     domain,
+                    task,
                     b"record branch head",
                     Some(&resource),
                     forge::RefusalCause::Limit { member: "forge.client.resources", configured, needed },
@@ -5001,7 +5029,14 @@ pub(crate) fn outputs(
                 if let Some(task) = task
                     && admission_refused(domain, task)
                 {
-                    holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
+                    limit_holds::hold(
+                        domain,
+                        env,
+                        task,
+                        forge::RefusalCause::Limit { member: "forge.client.resources", configured, needed },
+                        forge::LimitSet::Heads,
+                        words,
+                    );
                 }
             }
             forge::Request::MakeFailed { task, resource, reason } => {
@@ -5439,6 +5474,7 @@ pub(crate) fn outputs(
             }
         }
     }
+    limit_holds::room_freed(domain, &env.limits.forge);
     if !domain.run_workspaces.is_empty() {
         super::now::resume_workspaces(domain, env);
     }

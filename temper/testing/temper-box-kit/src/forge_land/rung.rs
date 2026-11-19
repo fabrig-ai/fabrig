@@ -32,10 +32,6 @@ fn require(yes: bool, message: &str) -> Result<(), String> {
     if yes { Ok(()) } else { Err(message.to_owned()) }
 }
 
-fn read_json(path: &Path) -> Value {
-    serde_json::from_slice(&fs::read(path).expect("configuration bytes")).expect("configuration JSON")
-}
-
 fn write_json(path: &Path, value: &Value) {
     super::super::write_private(path, &serde_json::to_vec(value).expect("configuration JSON"));
 }
@@ -123,10 +119,14 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 /// The guide's init and the existing owned-forge fixture, with QA's model/room
 /// recipe (temper/docs/development/qa.md, 3; protocol/configuration/settings.md, 7),
 /// before the first start.
-pub fn deployment(paths: &[PathBuf; 3]) {
+#[expect(
+    clippy::must_use_candidate,
+    reason = "subprocess worlds use the files; focused checks retain the typed figures"
+)]
+pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configuration {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join("temper.json");
-    let mut value = read_json(&config);
+    let mut value = crate::limit_settings::configuration(&paths[0]);
     let mut worker = temper_agent_fixtures::read(&paths[0]);
     for table in ["providers", "endpoints"] {
         temper_agent_fixtures::providers::input(&mut value)[table]
@@ -142,33 +142,43 @@ pub fn deployment(paths: &[PathBuf; 3]) {
     worker["profile"]["declared"]["calls_per_response"] = 1.into();
     // The stock carriers also hold the stock's 82-message inbox; keep their
     // floor when the one-call recipe makes the agent's turn smaller.
-    let stock_turn = value["engine"]["limits"]["overrides"]["hub.turn_bytes"].as_u64().expect("stock turn");
+    let stock_turn = value.jig.hub.turn_bytes;
     let turn = turn_bounds::turn_body(&worker).max(u32::try_from(stock_turn).expect("stock turn fits"));
     turn_limits(&mut value, turn);
     // Walk 1's admitted declarations, not a phase-bound increase.
-    value["engine"]["memory_bytes"] = 817_372_775_016_049_u64.into();
-    value["workers"][0]["memory_bytes"] = 3_700_000_000_000_u64.into();
-    assert_eq!(value["engine"]["limits"]["overrides"]["people.requests"], 256);
-    assert_eq!(value["engine"]["limits"]["overrides"]["hub.turn_bytes"], turn);
-    assert_eq!(value["application"]["limits"]["overrides"]["root.loads.loads"], 32);
+    value.limits.root.transcript_memory = 817_372_775_016_049_u64;
+    assert_eq!(value.jig.core.people.requests, 256);
+    assert_eq!(value.jig.hub.turn_bytes, u64::from(turn));
+    assert_eq!(value.limits.root.loads.loads, 32);
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
     write_json(&config, &value);
+    crate::limit_settings::remember(&paths[0], &value);
     temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
-    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 1.into();
+    value.jig_over("hub.run_calls", 1);
     write_json(&config, &value);
     let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
     directories.config = paths[0].as_os_str().as_bytes().into();
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    temper_box_shell::boxed_operations_in(&[], b"/", &directories, &fs::read(&config).expect("configuration"))
-        .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+    temper_box_shell::operations_in_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &directories,
+        &fs::read(&config).expect("configuration"),
+        &temper_service::stock::Given::Stock,
+        &value.jig,
+        &value.limits,
+    )
+    .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+    value
 }
 
-fn turn_limits(value: &mut Value, turn: u32) {
+fn turn_limits(value: &mut temper_playground::documents::Configuration, turn: u32) {
     turn_bounds::apply(value, turn);
-    value["engine"]["limits"]["overrides"]["people.requests"] = 256.into();
-    value["application"]["limits"]["overrides"]["root.loads.loads"] = 32.into();
+    value.jig_over("people.requests", 256);
+    value.temper_over("root.loads.loads", 32);
 }
 
 /// A private command transcript, with a hard wall bound and no pipe backpressure.
@@ -609,6 +619,7 @@ pub fn green_light() {
 }
 
 fn start_box(binary: &Path, store: &Path, paths: &[PathBuf; 3], offline: bool) -> Child {
+    crate::limit_settings::install_paths(paths);
     let command = skein_world::end_to_end::Command {
         program: binary.into(),
         arguments: super::deployment_flags(paths)
@@ -995,7 +1006,7 @@ fn setup_observer(driver: &mut Driver, paths: &[PathBuf; 3]) -> Result<Value, St
     super::super::live::notice(
         "SETUP sol high output=32000; engine memory=derived-before-start; project and owner funding keep the current policy above the rung's minimum",
     );
-    let memory = read_json(&paths[0].join("temper.json"))["engine"]["memory_bytes"].clone();
+    let memory = serde_json::Value::from(temper_service::limits::stock().root.transcript_memory);
     super::super::live::notice(&format!("SETUP engine memory={memory}"));
     let baseline = driver.forge_json("branches")?;
     require(baseline.as_array().is_some_and(|b| b.len() == 1 && b[0]["name"] == "main"), "fresh main alone")?;

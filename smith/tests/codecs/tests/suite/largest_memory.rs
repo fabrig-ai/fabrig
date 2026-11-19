@@ -5,6 +5,7 @@ use super::codec_memory::family;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(clippy::too_many_lines, reason = "one dispatch per schema root and one clamp per named limit")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
@@ -60,7 +61,7 @@ fn largest_roots_stay_within_decoded_bounds() {
         roots [
             ListAsk,
             ListAnswer,
-            Start,
+            Start => (1_142_112_194, 1_142_914_560),
             HostAnswer,
             Acknowledge,
             GrantRefresh,
@@ -79,7 +80,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Limited,
             AccountRefused,
             Fact,
-            Answer,
+            Answer => (67_108_890, 67_108_864),
             Live,
         ]
     );
@@ -122,7 +123,7 @@ fn largest_roots_stay_within_decoded_bounds() {
         ],
         roots [
             Charter,
-            RunResult,
+            RunResult => (2_156_745_044, 2_156_952_640),
         ]
     );
     family!(
@@ -144,8 +145,8 @@ fn largest_roots_stay_within_decoded_bounds() {
         ],
         roots [
             State,
-            Turn,
-            Delivery,
+            Turn => (67_108_880, 67_108_864),
+            Delivery => (134_285_019, 134_288_384),
             Layouts,
         ]
     );
@@ -192,8 +193,7 @@ fn largest_roots_stay_within_decoded_bounds() {
         ],
         roots [
             Hit,
-            Turn,
+            Turn => (3_759_149_965, 3_759_206_816),
         ]
     );
 }
-

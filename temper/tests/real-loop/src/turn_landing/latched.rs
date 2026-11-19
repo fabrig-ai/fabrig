@@ -13,9 +13,9 @@ pub const AFTER: [usize; 2] = [8, 9];
 pub const ENDED: usize = 10;
 pub const LATCH_ENDED: usize = 11;
 
-fn configure(value: &mut Value, agent: &mut Value) {
+fn configure(value: &mut temper_playground::documents::Configuration, agent: &mut Value) {
     agent["profile"]["declared"]["calls_per_response"] = 2.into();
-    value["engine"]["limits"]["overrides"]["hub.run_calls"] = 2.into();
+    value.jig_over("hub.run_calls", 2);
     fixtures::own_policy(value);
     for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
         let policy = &mut project["policy"];
@@ -44,7 +44,7 @@ fn configure(value: &mut Value, agent: &mut Value) {
         ("people.inbox_tasks", 8),
         ("tasks.inbox_messages", 8),
     ] {
-        value["engine"]["limits"]["overrides"][name] = count.into();
+        value.jig_over(name, count);
     }
 }
 

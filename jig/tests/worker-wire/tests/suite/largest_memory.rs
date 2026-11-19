@@ -101,9 +101,8 @@ fn largest_roots_stay_within_decoded_bounds() {
         ],
         roots [
             Credential,
-            FromWorker,
-            FromEngine,
+            FromWorker => (288_227_333, 290_914_304),
+            FromEngine => (2_351_596_230, 2_351_680_512),
         ]
     );
 }
-

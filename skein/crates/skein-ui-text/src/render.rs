@@ -326,6 +326,7 @@ fn node(
         | Role::Status
         | Role::Alert
         | Role::Progress
+        | Role::Meter
         | Role::Code
         | Role::Quote
         | Role::Separator
@@ -536,7 +537,7 @@ fn line(tree: &Tree, at: u32, mut indent: u32, out: &mut List<u8>) {
     if quote {
         raw(out, b"> ");
     }
-    if n.role == Role::Progress {
+    if n.role == Role::Progress || n.role == Role::Meter {
         if let Some(name) = &n.name {
             safe(out, name, indent, false);
         }
@@ -620,7 +621,7 @@ fn states(n: &Node, out: &mut List<u8>) {
                     raw(out, if state == State::Pressed { b" (pressed)" } else { b" (selected)" });
                 }
             }
-            State::FoldsAway | State::Continues | State::ToLogEnd | State::Options => {}
+            State::ShownFolded | State::FoldsAway | State::Continues | State::ToLogEnd | State::Options => {}
             State::Required => raw(out, b" (required)"),
             State::Completed => raw(out, b" (completed)"),
             State::SubmitsOnEnter => {
@@ -663,6 +664,7 @@ fn content(tree: &Tree, at: u32, out: &mut List<u8>, indent: u32, quote: bool) {
     }
     if !found
         && root.role != Role::Progress
+        && root.role != Role::Meter
         && let Some(name) = &root.name
     {
         safe(out, name, indent, quote);

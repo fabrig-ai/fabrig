@@ -1,8 +1,8 @@
-//! Codec owners' largest-root memory checks (data/codec/README.md, section 6).
-//! Included by each world's test binary, with its counting allocator installed.
+// Codec owners' largest-root memory checks (data/codec/README.md, section 6).
+// Included by each world's test binary, with its counting allocator installed.
 
 /// Find the largest common clamp that fits, bisecting the remaining interval.
-pub(crate) fn select<L: Copy>(
+pub(crate) fn select<L>(
     family: &str,
     root: &str,
     cap: u64,
@@ -17,20 +17,17 @@ pub(crate) fn select<L: Copy>(
         return (ceilings, None);
     }
     // Decoded pins describe the generated types on a 64-bit target.
-    if let Some(pin) = pin {
-        assert_eq!(ceiling_bounds, pin, "{family}/{root}: ceiling bounds (64-bit sizes)");
-    } else {
-        eprintln!("PIN {family}/{root}: {ceiling_bounds:?}");
-    }
+    assert_eq!(Some(ceiling_bounds), pin, "{family}/{root}: ceiling bounds (64-bit sizes)");
     assert!(bounds(&lower(0)).0 <= cap, "{family}/{root}: even zero limits exceed cap {cap}");
     let mut low = 0;
     let mut high = u32::MAX;
     while low < high {
-        let middle = low + (high - low).div_ceil(2);
+        let middle =
+            low.checked_add(high.checked_sub(low).expect("ordered interval").div_ceil(2)).expect("midpoint fits");
         if bounds(&lower(middle)).0 <= cap {
             low = middle;
         } else {
-            high = middle - 1;
+            high = middle.checked_sub(1).expect("middle is above low");
         }
     }
     (lower(low), Some(low))
@@ -85,6 +82,7 @@ macro_rules! family {
                     assert!(encoded <= $cap, "{label}: cap");
                     let mut reader = skein_lib::Reader::new(&bytes);
                     let meter = skein_heap::Meter::new();
+                    let measured = {
                     meter.start();
                     let value = codec::$root::decode(&limits, &mut reader);
                     let measured = meter.end();
@@ -94,10 +92,13 @@ macro_rules! family {
                         "{label}: k={k:?}, limits={:?}, peak={}, bound={bound}",
                         values.as_slice(), measured.peak());
                     super::codec_memory::round_trip!($form, value, limits, bytes, label);
-                    drop(value);
+                    measured
+                    };
                     assert_eq!(meter.held(), 0, "{label}: decoded allocations released");
-                    eprintln!("{label}: k={k:?}, cap={}, encoded={encoded}, decoded={bound}, peak={}",
-                        $cap, measured.peak());
+                    eprintln!("{label}: k={k:?}, cap={}, encoded={encoded}, decoded={bound}, peak={}, ceilings=({}, {})",
+                        $cap, measured.peak(),
+                        codec::$root::encoded_bound(&codec::CEILINGS).expect("ceiling encoded bound"),
+                        codec::$root::decoded_bound(&codec::CEILINGS).expect("ceiling decoded bound"));
                 }),+
                 _ => panic!("{label}: missing generated decoder"),
             }

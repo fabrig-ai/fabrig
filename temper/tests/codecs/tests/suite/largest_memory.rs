@@ -5,6 +5,7 @@ use super::codec_memory::family;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(clippy::too_many_lines, reason = "one dispatch per schema root and one clamp per named limit")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
@@ -166,6 +167,14 @@ fn largest_roots_stay_within_decoded_bounds() {
             milestone_goal_line,
             milestone_goal_headline_some,
             milestone_part_goals,
+            limits_read_after_some,
+            limit_setting_reason,
+            limit_row_name,
+            limit_row_line,
+            limits_answer_rows,
+            limits_answer_next_some,
+            limit_hold_limit,
+            limit_holds_answer_rows,
             playground_answer_owner,
             playground_answer_name,
             playground_answer_cues,
@@ -309,6 +318,9 @@ fn largest_roots_stay_within_decoded_bounds() {
             agent_endpoint_limits_endpoint,
             agent_figures_profile,
             agent_figures_endpoints,
+            limit_override_name,
+            limit_override_reason,
+            temper_limits_overrides,
         ],
         roots [
             Trials,
@@ -321,7 +333,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Requesting,
             Forges,
             SettingAnswer,
-            ProposalItemsAnswer,
+            ProposalItemsAnswer => (1_073_759_239, 1_073_782_784),
             CharterWords,
             WaysPanel,
             ViewAnswer,
@@ -330,6 +342,8 @@ fn largest_roots_stay_within_decoded_bounds() {
             ChatPart,
             MilestonePart,
             MilestoneAnswer,
+            LimitsAnswer,
+            LimitHoldsAnswer,
             Reading,
             PlaygroundAnswer,
             DeploymentAnswer,
@@ -339,27 +353,28 @@ fn largest_roots_stay_within_decoded_bounds() {
             ChangesPanel,
             ProjectStatus,
             Watching,
-            ChangePanel,
+            ChangePanel => (84_399_085, 84_696_384),
             Answer,
             LandingRule,
             ForgeCharter,
             TemplateGoal,
             ProjectQuestions,
             ProjectLanding,
-            SettingsGate,
-            SettingsTier,
+            SettingsGate => (1_145_439_128, 1_158_809_983),
+            SettingsTier => (1_146_487_769, 1_159_858_615),
             RepositoryGates,
             ProjectGates,
             ProjectWays,
             ProjectClasses,
             DraftsPanel,
             Dependency,
-            FollowsPanel,
+            FollowsPanel => (1_106_292_750, 1_109_633_024),
             ProjectAreas,
             ProjectTriager,
             Welcome,
             Findings,
             AgentFigures,
+            TemperLimits,
         ]
     );
     family!(
@@ -428,6 +443,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             retargeted_after,
             hold_design_writers,
             names_resources,
+            limit_hold_member,
             landings_topic_branch,
             release_row_comment_some,
             create_issue_key,
@@ -556,6 +572,8 @@ fn largest_roots_stay_within_decoded_bounds() {
             landing_member_gates,
             landing_member_branch,
             failing_test_test_id,
+            shown_test_test_id,
+            many_tests_tests,
             landing_selection_tests,
             landing_by_test_gates,
             landing_by_test_probed,
@@ -654,6 +672,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             follow_producer_some,
             logged_change_signed,
             logged_change_title,
+            logged_red_tests,
             logged_tier_tier,
             logged_landing_branch,
             logged_landing_changes,
@@ -729,6 +748,9 @@ fn largest_roots_stay_within_decoded_bounds() {
             area_name,
             area_words,
             project_areas_areas,
+            limit_override_name,
+            limit_override_reason,
+            temper_limits_overrides,
             agent_figure_name,
             agent_endpoint_limits_endpoint,
             agent_figures_profile,
@@ -753,10 +775,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             Status,
             Remark,
             File,
-            SettingsGate,
-            SettingsTier,
+            SettingsGate => (1_145_439_128, 1_158_809_983),
+            SettingsTier => (1_146_487_769, 1_159_858_615),
             RepositoryGates,
-            Row,
+            Row => (2_823_456_448, 2_823_714_136),
         ]
     );
     family!(
@@ -808,7 +830,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Items,
             JobSpec,
             Left,
-            Saved,
+            Saved => (268_698_500, 269_487_616),
             Preparation,
             Identity,
             Ask,
@@ -816,4 +838,3 @@ fn largest_roots_stay_within_decoded_bounds() {
         ]
     );
 }
-

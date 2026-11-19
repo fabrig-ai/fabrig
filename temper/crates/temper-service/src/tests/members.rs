@@ -25,11 +25,10 @@ const APPLICATION: &[u8] = br#"{
  "token":"https://issuer.example.test/token","keys":"https://issuer.example.test/keys",
  "transport":{"tls":{"server_name":"issuer.example.test","trust":"roots.pem"}}}},
  "members":[{"address":"person@example.test","login":"person"}],"forges":[{"forge":1,"client":"forge-client"}]},
-"environment":[{"name":"CARGO_TARGET_DIR","value":"/srv/target"}],
-"limits":{"profile":"standard","overrides":{}}
+"environment":[{"name":"CARGO_TARGET_DIR","value":"/srv/target"}]
 }"#;
 
-fn expanded() -> Box<[u8]> {
+fn expanded() -> fixtures::Start {
     let input = fixtures::with(&fixtures::turn_document(), b"application", APPLICATION);
     let input = fixtures::with(
         &input,
@@ -126,6 +125,7 @@ fn every_row_is_a_member_its_decoder_takes() {
         ("application", What::Jig(config::What::Fixed), "application", "workers"),
         ("application", What::Jig(config::What::Fixed), "application", "machine"),
         ("application", What::Jig(config::What::Fixed), "application", "welcome"),
+        ("application", What::Jig(config::What::Fixed), "application", "limits"),
         ("application", What::Jig(config::What::Fixed), "application", "demo"),
     ] {
         let changed = gone(&document, parent, name);

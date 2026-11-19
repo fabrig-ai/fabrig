@@ -69,7 +69,7 @@ configuration/limits.md).
 | 0 | `Call` | `Call(NamedCall)`: task, attempt, completion, position | the connector's part of a live named call | `named_calls` |
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
 | 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 7) and landing branch (`../domain/forge/adoption.md`, 8) | `repositories` |
-| 3 | `Hold` | `Hold(Name)` | a held resource, its task, its writer and its drift | `holds` |
+| 3 | `Hold` | `Hold(Name)` | a held resource: its task, writers, drift and heads beside (`../domain/forge/branches.md`, 3) | `holds` |
 | 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption.md`, 1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
 | 6 | `BranchHead` | `BranchHead(Name)` | a branch's last observed tip | the client's `resources` |

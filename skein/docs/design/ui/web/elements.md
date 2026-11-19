@@ -27,12 +27,13 @@ the host tests (`testing.md`).
 | check | `<input type="checkbox">` with its label |
 | select, option | `<select>`, `<option>` showing its name as its text |
 | menu, menu item | `role="menu"` behind its button, `role="menuitem"`; a menu of a field's options (`../README.md`, 3.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (`README.md`, section 5) |
-| disclosure | `<details>` with `<summary>`, holding its name, then its description's element |
+| disclosure | `<details>` with `<summary>`, holding its name, then its description's element, then its children shown folded |
 | dialog | `<dialog>`, shown modal |
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
 | tree, tree item | `role="tree"`, `role="treeitem"`; nested tree items in `<div role="group">` |
 | tabs, tab | `role="tablist"`, `<a role="tab">` |
 | progress | `role="progressbar"` with its text, its own runs, shown in it and as `aria-valuetext` |
+| meter | `role="meter"` with its text, its own runs, shown in it and as `aria-valuetext` |
 | time | `<time>` |
 | code, quote, separator | `<pre><code>`, `<blockquote>`, `<hr>` |
 | image | one of its owner's pictures: `<img src="<prefix><digest>/pictures/<owner prefix>/<file>" alt="<name>">`; an address: `<img src="<the address>" alt="<name>">`; a picture the look lacks: its name as text |
@@ -68,6 +69,13 @@ the host tests (`testing.md`).
     description once, within the name ("3 tool calls read · grep ·
     edit, collapsed"). An owner's look tones it by that id, as
     `summary > [id^="skein-ui-description-"]`;
+  - *shown folded* (../README.md, 3.2): a disclosure's child shown folded
+    is drawn in its `<summary>`, after its name and its description's
+    `<span>`, in the tree's order, its element made as anywhere else, and a
+    patch to it or under it lands there. No attribute stands for it. A
+    summary is phrasing content, so an owner whose nodes there are blocks
+    gives them a `<span>` through its own elements (section 1). Its words
+    join the summary's, the disclosure's accessible name;
   - *states:* disabled is `disabled` where the element takes it, else
     `aria-disabled`; expanded `aria-expanded`; busy `aria-busy`; current
     `aria-current`, `page` on a link; invalid `aria-invalid`; pressed
@@ -83,13 +91,13 @@ the host tests (`testing.md`).
     hides it from sight only (`README.md`, section 10): a screen reader reads the
     item's words and then the word ("Branch pushed completed"), and what
     the eye sees is the owner's look, its style token;
-  - *a fraction* on a progress is `aria-valuemin="0"`,
+  - *a fraction* on a progress or a meter is `aria-valuemin="0"`,
     `aria-valuemax="<total>"` and `aria-valuenow="<done>"`, the
     fraction's numbers in decimal, read with its `aria-valuetext`, and
     `data-progress="<percent>"`, the whole percent, `done × 100 / total`
     rounded down, made in `u128`, 0 to 100, so a bar never shows full
     before its work is done. A whole percent is enough for sight, and
-    the words carry what is finer. With no fraction it has none of
+    the words carry what is finer. A progress with no fraction has none of
     them, and an owner's rule may draw a moving bar on
     `[role="progressbar"]:not([data-progress])`;
   - *a placeholder* is `placeholder` on the `<input>` or the

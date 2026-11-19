@@ -32,6 +32,7 @@ mod fuzzy {
     mod patch;
 }
 
-#[path = "../../../../testing/codec-memory.rs"]
-mod codec_memory;
+mod codec_memory {
+    include!("../../../../testing/codec-memory.rs");
+}
 mod largest_memory;

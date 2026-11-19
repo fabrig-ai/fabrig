@@ -22,7 +22,7 @@ const ORIGIN: &str = "http://127.0.0.1:31999";
 const SECOND_CHAT: u64 = 3;
 const DEADLINE: Time = Time::from_nanos(10_000_000_000);
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
-pub(crate) fn configure(document: &mut serde_json::Value) {
+pub(crate) fn configure(document: &mut temper_playground::documents::Configuration) {
     if ACTIVE.with(Cell::get) {
         for (name, count) in [
             ("tasks.tasks", 8),
@@ -32,7 +32,7 @@ pub(crate) fn configure(document: &mut serde_json::Value) {
             ("people.inbox_tasks", 16),
             ("people.operations", 3),
         ] {
-            document["engine"]["limits"]["overrides"][name] = count.into();
+            document.jig_over(name, count);
         }
         // A conversation asks its person through a person delegate (jig's tasks/messages.md, 5).
         for project in document["world_settings"]["policies"].as_array_mut().expect("policies") {

@@ -280,7 +280,8 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
         | settings::Setting::Provider(_)
         | settings::Setting::Worker(_)
         | settings::Setting::Model(_)
-        | settings::Setting::Rules => {}
+        | settings::Setting::Rules
+        | settings::Setting::Limits => {}
     }
     if let settings::Setting::Charter(number) = setting {
         return match core.charter_at(number, revision) {

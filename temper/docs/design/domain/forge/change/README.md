@@ -565,6 +565,10 @@ settles the write, so no later read takes it for drift:
   the head meanwhile, as above; once settled, the merge's commit is the
   branch's head and the change's new head, checked again (2, step 3).
   The same holds for the merge job's push on the branch (`repairs.md`).
+  A design writer's push recorded beside the merge that already descends
+  from its commit stays the branch's head and the change's, checked
+  again: the merge's record never moves the head back to it
+  (`../branches.md`, 3, *In the order the forge took them*).
 
 So a goal's landing whose own update, or its goal's close-out merged just
 before, moves the goal's branch goes on to CI on that head and merges;

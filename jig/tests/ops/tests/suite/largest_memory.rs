@@ -53,4 +53,3 @@ fn largest_roots_stay_within_decoded_bounds() {
         ]
     );
 }
-

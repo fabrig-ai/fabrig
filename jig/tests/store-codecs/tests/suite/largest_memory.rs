@@ -6,6 +6,7 @@ use jig_protocol_store::tasks_v13::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(clippy::too_many_lines, reason = "one dispatch per schema root and one clamp per named limit")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
@@ -37,7 +38,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             turn_record_transcript,
         ],
         roots [
-            Row,
+            Row => (1_073_747_847, 1_073_747_712),
         ]
     );
     family!(
@@ -261,7 +262,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             Dependency,
             FieldRule,
             Verdict,
-            Row,
+            Row => (2_778_014_646, 2_778_312_704),
         ]
     );
     family!(
@@ -270,6 +271,9 @@ fn largest_roots_stay_within_decoded_bounds() {
         jig_protocol_store::settings_v3, sealed,
         limits [
             text_bytes,
+            override_name,
+            override_reason,
+            limits_value_overrides,
             model_name_name,
             model_name_efforts,
             model_name_efforts_item,
@@ -360,10 +364,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             ApplicationState,
             Default,
             Changed,
-            Revision,
+            Revision => (3_221_527_862, 3_221_543_424),
             Extent,
             CharterVersion,
-            Proposal,
+            Proposal => (3_091_596_827, 3_104_200_192),
         ]
     );
     family!(
@@ -479,14 +483,13 @@ fn largest_roots_stay_within_decoded_bounds() {
             Grant,
             ResourceScope,
             Segment,
-            Creation,
+            Creation => (140_119_575, 140_122_496),
             ResultField,
-            Row,
+            Row => (420_983_888, 420_996_800),
             TaskProblem,
-            EndRecord,
+            EndRecord => (69_730_365, 69_730_608),
             PhaseRecord,
             ChangeRecord,
         ]
     );
 }
-

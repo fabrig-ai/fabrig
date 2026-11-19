@@ -29,6 +29,7 @@ mod fuzzy {
     mod random_regressions;
 }
 
-#[path = "../../../../../skein/testing/codec-memory.rs"]
-mod codec_memory;
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
 mod largest_memory;

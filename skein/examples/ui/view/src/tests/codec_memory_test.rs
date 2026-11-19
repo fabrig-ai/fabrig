@@ -5,6 +5,11 @@ use super::codec_memory::family;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "ordinary Rust codec memory harness embeds its schema and reports family/root diagnostics"
+)]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
@@ -26,4 +31,3 @@ fn largest_roots_stay_within_decoded_bounds() {
         ]
     );
 }
-

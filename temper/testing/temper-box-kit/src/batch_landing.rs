@@ -13,7 +13,7 @@ use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
 use skein_world::{Referee, real};
-use std::{cell::RefCell, collections::BTreeMap, fs, path::Path};
+use std::{cell::RefCell, collections::BTreeMap, path::Path};
 
 // Hello is task 1, the landing chat 2. Its one delegate batch makes these
 // siblings before any producer starts. The latch is a report, not a change.
@@ -34,8 +34,7 @@ pub(super) fn hold(name: &[u8]) -> Line {
 }
 
 fn scripts(root: &Path, forge: &Throwaway) -> Box<[Script]> {
-    let value: Value =
-        serde_json::from_slice(&fs::read(root.join("temper.json")).expect("configuration")).expect("JSON");
+    let value = super::limit_settings::configuration(root);
     let engine = temper_real_loop_world::settings::configuration(&value);
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
     scripted_batch(landing_scripts(super::ANSWER, forge).into_vec(), stock.rules.maximum_run_spend)
@@ -170,27 +169,26 @@ exit "$status"
 
 /// The turn and runner-cancellation stories use the same owned forge, policy,
 /// producer and funding setup. The batch stories also hold concurrent model turns.
-pub fn configure(root: &Path, repository: u64) {
-    turn_restart::configure_batch(root, repository, 3);
+#[expect(clippy::must_use_candidate, reason = "subprocess worlds use the files; in-process checks retain the figures")]
+pub fn configure(root: &Path, repository: u64) -> temper_playground::documents::Configuration {
+    let mut value = turn_restart::configure_batch(root, repository, 3);
     let path = root.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     turn_restart::selected_gate(root);
     value["workers"][0]["slots"] = 8.into();
-    for name in ["checkout.workspaces", "git_component.operations"] {
-        value["application"]["limits"]["overrides"][name] = 8.into();
-    }
+    value.derive_places();
     // Three readiness gathers run beside repository polls and the held latch.
-    let limits = &mut value["application"]["limits"]["overrides"];
-    limits["forge.client.pending"] = 16.into();
-    limits["forge.client.calls"] = 8.into();
-    limits["forge_component.connections"] = 8.into();
+    value.temper_over("forge.client.pending", 16);
+    value.temper_over("forge.client.calls", 8);
+    value.temper_over("forge_component.connections", 8);
     message_room(root, &mut value);
     turn_restart::staging_limits(&mut value);
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    super::limit_settings::remember(root, &value);
+    value
 }
 
 /// Hold the prepare job and the batch call under the standard engine profile.
-pub fn message_room(root: &Path, value: &mut Value) {
+pub fn message_room(root: &Path, value: &mut temper_playground::documents::Configuration) {
     // The one model call carries three independent change authorities and a latch.
     let mut agent = temper_agent_fixtures::read(root);
     agent["profile"]["declared"]["tool_payload"] = 63_740.into();
@@ -199,33 +197,45 @@ pub fn message_room(root: &Path, value: &mut Value) {
     }
     // The standard store holds the prepare job; keep only the story's engine bounds.
     let prepare = temper_service::limits::prepare_bound();
-    value["engine"]["limits"] = json!({"profile":"standard", "overrides":{
-        "core.run_bytes":32768,
-        "core.call_records":8,
-        "authority.projects":3,
-        "tasks.spec_bytes":prepare.spec,
-        "people.words":4096,
-        "tasks.run_inbox":8,
-        "fleet.slots":value["workers"][0]["slots"],
-        "hub.inbox":agent["profile"]["policy"]["inbox"]
-    }});
-    // Both ends declare the same assignment and job carriers at opening.
-    value["engine"]["limits"] = value["engine"]["limits"].clone();
-    let slots = value["workers"][0]["slots"].clone();
-    let limits = &mut value["engine"]["limits"]["overrides"];
-    limits["hub.accounts"] = 4.into();
-    limits["hub.slots"] = slots;
+    value.jig = jig_protocol_config::stock();
+    value.jig_over("core.run_bytes", 32768);
+    value.jig_over("core.call_records", 8);
+    value.jig_over("authority.projects", 3);
+    value.jig_over("tasks.spec_bytes", prepare.spec);
+    value.jig_over("tasks.result_bytes", prepare.result);
+    value.jig_over("tasks.message_bytes", 8190);
+    value.jig_over("people.words", 4096);
+    value.jig_over("tasks.inbox_bytes", 65536);
+    value.jig_over("tasks.run_inbox", 8);
+    value.jig_over("core.call_answer_bytes", 8192);
+    value.jig_over("fleet.slots", value["workers"][0]["slots"].as_u64().expect("worker slots"));
+    value.jig_over("hub.inbox", 8);
+    value.jig_over("hub.outcome_bytes", 8192);
+    let slots = value["workers"][0]["slots"].as_u64().expect("worker slots");
+    value.jig_over("hub.accounts", 4);
+    value.jig_over("hub.slots", slots);
+    value.jig_over("hub.event_bytes", 8190);
+    value.jig_over("hub.outcome_bytes", 8192);
+    value.temper_over("forge.client.op_bytes", 4096);
     // Turn read-back observes Forgejo's asynchronous manual-merge mark.
     // Use the shipped paces, within this story's wall bound.
-    let overrides = value["application"]["limits"]["overrides"].as_object_mut().expect("application overrides");
+    let stock = temper_service::limits::stock();
     for name in ["forge.client.poll_ms", "forge.client.poll_max_ms", "forge.client.slow_ms"] {
-        overrides.remove(name);
+        let row = temper_service::limits::find(name.as_bytes()).expect("pace name");
+        value.temper_over(name, (row.value)(&stock));
     }
-    // A heard delivery's fallback also bounds prepare retries and merge read-back.
-    overrides.insert("forge.client.fallback_ms".into(), 5000.into());
+    value.temper_over("forge.client.fallback_ms", 5000);
     turn_restart::staging_limits(value);
-    super::configuration::use_derived(value);
+    super::configuration::turn_bounds::apply(value, super::configuration::turn_bounds::turn_body(&agent));
+    // A task's retained inbox also crosses the record load edge.
+    for name in ["root.loads.bytes", "root.loads.reply_bytes"] {
+        let current = value.temper_value(name);
+        value.temper_over(name, current.max(8_388_608));
+    }
+    value.temper_over("root.loads.read_bytes", 16_777_216);
+    value.temper_over("root.journal.transcript_bytes", 8_388_608);
     temper_agent_fixtures::apply(value, root, &agent);
+    value.agent_bounds(&temper_agent_fixtures::prepared(root).agent);
 }
 
 fn get(forge: &Throwaway, route: &str) -> Value {
@@ -290,8 +300,10 @@ pub mod tests {
         };
         super::super::configuration(scratch.path(), &forge);
         super::configure(scratch.path(), 1);
-        let value = serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configuration"))
-            .expect("JSON");
+        let value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("configuration"))
+                .expect("JSON"),
+        );
         let engine = temper_real_loop_world::settings::configuration(&value);
         let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
         let scripts = super::scripted_batch(

@@ -8,7 +8,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::List;
-use skein_ui::{Builder, Role, phrases::Hole};
+use skein_ui::{Builder, Role, Run, phrases::Hole};
 use temper_client_domain::forge::trials;
 use temper_client_domain::{
     Address, Domain, Step,
@@ -167,7 +167,32 @@ fn progress(b: &mut Builder, w: &Words, trial: &Trial) {
 }
 
 /// Model’s line. `model_counts` decides the heading and act, independently of this line.
+#[expect(
+    clippy::too_many_lines,
+    reason = "the row's answered line differs from the welcome, whose states stay together"
+)]
 pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, trial: &Trial, place: Place) {
+    if let Place::Row = place
+        && let State::Answered { seconds } = trial.state
+    {
+        use crate::accounts::words::{self, Word as W};
+        let way = match trial.first {
+            First::Subscription => words::say(w, W::SignedInThrough, &[]),
+            First::Plan => words::say(w, W::SignedInTo, &[Hole::Name(trial.who.clone())]),
+            First::Key => words::say(w, W::KeyBilling, &[]),
+        };
+        let line = words::join(&[
+            &way,
+            &words::say(w, W::Separator, &[]),
+            &w.say(Word::WelcomeTryAnswered, &[Hole::Number(seconds)]),
+        ]);
+        b.open(Role::Paragraph);
+        b.style(look::ACCOUNT_CHECK);
+        b.name(&line);
+        b.text(Run::Plain, &line);
+        b.close();
+        return;
+    }
     let mut details: List<Box<[u8]>> = List::with_capacity(2);
     let (name, mark) = match &trial.state {
         State::Running { at } => {
@@ -224,7 +249,7 @@ pub fn line(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, 
         b.open(Role::Paragraph);
         b.style(look::WELCOME_STATUS_WHY);
         b.name(why);
-        b.text(skein_ui::Run::Plain, why);
+        b.text(Run::Plain, why);
         b.close();
         b.open(Role::Slot);
         b.style(look::WELCOME_STATUS_ACTS);
