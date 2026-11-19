@@ -16,7 +16,6 @@ pub(crate) struct Patience {
     figures: Option<String>,
     report: Option<String>,
     deferred: bool,
-    #[cfg(test)]
     forced: bool,
 }
 
@@ -43,7 +42,6 @@ impl Patience {
             figures: None,
             report: None,
             deferred: false,
-            #[cfg(test)]
             forced: false,
         }
     }
@@ -52,7 +50,6 @@ impl Patience {
         if self.deferred {
             return false;
         }
-        #[cfg(test)]
         if self.forced {
             return self.handle(Verdict::Failed("forced failed deadline figures".into()));
         }
@@ -65,7 +62,6 @@ impl Patience {
         }
         self.handle(verdict(deadline.expired()))
     }
-    #[cfg(test)]
     pub(crate) fn force_failed(&mut self) {
         self.forced = true;
     }
@@ -295,12 +291,15 @@ mod tests {
     fn a_busy_world_fails_through_overdue_naming_the_pending_service_component() {
         let scratch = crate::Scratch::new("overdue-service");
         let mut service = ServiceHost::new(scratch.path().into(), Fd::new(0), true);
-        let prepared = temper_box_shell::prepare_in_with_program(
+        let prepared = temper_box_shell::prepare_in_with_limits(
+            "temper",
             &[],
             b"/",
             &crate::service::directories(scratch.path()),
-            &crate::fixtures::given(scratch.path()),
-            Some(&scratch.path().join("temper-agent")),
+            &crate::fixtures::given(scratch.path(), &service.configuration),
+            &[],
+            &service.configuration.jig,
+            &service.configuration.limits,
         )
         .expect("prepared service");
         let prepared = crate::service::Driven::new(prepared);

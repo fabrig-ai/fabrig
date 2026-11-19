@@ -162,6 +162,8 @@ pub struct Protocol {
     serial: u64,
     /// Each decided call's typed answer, by its opaque call name, in render order.
     pub answers: Vec<(Box<[u8]>, engine::CallAnswer)>,
+    /// The read supplied to the host renderer, after root resolution.
+    pub read_forms: BTreeMap<Box<[u8]>, skein_forge::api::Read>,
     pub read_pages: BTreeMap<Box<[u8]>, (u32, u32)>,
     pub read_jobs: BTreeMap<Box<[u8]>, skein_forge::api::JobAttempt>,
     /// The root's render-only asking route, separate from each durable decision.
@@ -356,6 +358,9 @@ impl Protocol {
             engine::Request::Worker(engine::WorkerRequest::Deliver(engine::Delivery::Host(delivery))) => {
                 match *delivery {
                     engine::HostDelivery::Render { to, name, answer, read, job, page, ask, .. } => {
+                        if let Some(read) = &read {
+                            self.read_forms.insert(name.clone(), *read.clone());
+                        }
                         if self.host_calls {
                             let read = read.expect("forge story renders its decoded read");
                             let event = temper_engine_service_vocabulary::tools::render_read(
@@ -413,6 +418,7 @@ impl Protocol {
             | engine::Request::Worker(_)
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
+            | engine::Request::LimitSettingsCommitted { .. }
             | engine::Request::ForgeKept(_)
             | engine::Request::ForgeGone { .. }
             | engine::Request::ChoosePlace { .. }

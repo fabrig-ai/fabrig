@@ -8,8 +8,8 @@ use std::{
     process::{Command, Stdio},
 };
 
-fn provider(directory: &Path, bits: Option<u32>, secret: bool) {
-    support::configuration(directory, &support::Forge::Unreached);
+fn provider(directory: &Path, bits: Option<u32>, secret: bool) -> temper_playground::documents::Configuration {
+    let figures = support::configuration(directory, &support::Forge::Unreached);
     let key = directory.join("provider.key");
     if let Some(bits) = bits {
         let status = Command::new("openssl")
@@ -36,20 +36,22 @@ fn provider(directory: &Path, bits: Option<u32>, secret: bool) {
         "addresses":[]
     });
     fs::write(path, serde_json::to_vec(&value).expect("JSON")).expect("configuration");
+    figures
 }
 
-fn refused(directory: &Path, field: &str) {
+fn refused(directory: &Path, field: &str, figures: &temper_playground::documents::Configuration) {
     let bytes = fs::read(directory.join("temper.json")).expect("configuration");
-    let why = crate::admission(&support::configuration::directories(directory), &bytes)
-        .expect_err("provider admission refuses");
+    let mut configuration = figures.clone();
+    configuration.document = serde_json::from_slice(&bytes).expect("provider document");
+    let why = support::admission(directory, &configuration).expect_err("provider admission refuses");
     assert!(why.contains("provider") && why.contains(field), "{why}");
 }
 
 #[test]
 fn missing_provider_key_refuses_before_serving() {
     let scratch = support::Scratch::new("provider-missing-key");
-    provider(scratch.path(), None, true);
-    refused(scratch.path(), "key");
+    let figures = provider(scratch.path(), None, true);
+    refused(scratch.path(), "key", &figures);
     scratch.remove();
 }
 
@@ -57,15 +59,15 @@ fn missing_provider_key_refuses_before_serving() {
 fn rsa_2048_is_refused_even_when_the_client_is_valid() {
     // 9.7 requires RSA 3072, not merely an RSA key accepted by OpenSSL.
     let scratch = support::Scratch::new("provider-short-key");
-    provider(scratch.path(), Some(2048), true);
-    refused(scratch.path(), "key");
+    let figures = provider(scratch.path(), Some(2048), true);
+    refused(scratch.path(), "key", &figures);
     scratch.remove();
 }
 
 #[test]
 fn missing_client_secret_refuses_with_a_valid_signing_key() {
     let scratch = support::Scratch::new("provider-missing-client-secret");
-    provider(scratch.path(), Some(3072), false);
-    refused(scratch.path(), "secret");
+    let figures = provider(scratch.path(), Some(3072), false);
+    refused(scratch.path(), "secret", &figures);
     scratch.remove();
 }

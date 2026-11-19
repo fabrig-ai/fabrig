@@ -1,179 +1,508 @@
-# What macOS runs (temper/docs/design/testing/README.md, 2.8): every target
-# compiled, then the one story. A red run blocks nothing: it is a finding.
+# Dispatched parts and one report (temper/docs/design/testing/macos.md, 1–8).
 name: macos
+run-name: ${{ inputs.request }}
 
 on:
-  schedule:
-    - cron: "17 3,9,15,21 * * *"
   workflow_dispatch:
+    inputs:
+      set:
+        description: Parts to run
+        type: choice
+        options: [e2e, suites, live, all]
+        required: true
+      commit:
+        description: Forty lowercase hex digits on main
+        type: string
+        required: true
+      tests:
+        description: Test ids, one per line; empty runs the whole set
+        type: string
+        default: ""
+      request:
+        description: Run title
+        type: string
+        required: true
 
 permissions:
   contents: read
 
-# One run at a time per ref; a new run waits, and a later run
-# takes the waiting one's place.
-concurrency:
-  group: macos-${{ github.ref }}
-  cancel-in-progress: false
+defaults:
+  run:
+    shell: bash
 
 env:
   NEXTEST_VERSION: 0.9.148
   NEXTEST_SHA256: 6c23b7fb4ca82c571fc8dfedbab45bfa773d45918f933170c85d21cd7f4b852b
+  # Chrome for Testing's nearest build to Linux's browser-tier Chromium, on
+  # the same 147.0.7727 branch, in known-good-versions-with-downloads.json.
+  # These two pins move together when Linux's Chromium changes major version.
+  CHROME_FOR_TESTING_VERSION: 147.0.7727.117
+  CHROME_FOR_TESTING_SHA256: 7a91c88d288500033f00fecbd1b3f1a0aa61803fec74432658012bdd83fd1c9f
   CARGO_TERM_COLOR: never
   CARGO_INCREMENTAL: "0"
-  # The runner's disk is small (14 GB documented): line tables keep
-  # backtraces' places at a fraction of full debug information's size.
+  # Line tables fit the runner's disk (macos.md, 6).
   CARGO_PROFILE_DEV_DEBUG: line-tables-only
   CARGO_PROFILE_TEST_DEBUG: line-tables-only
-  # testing-strategy.md, section 8: nextest starts each test directly.
   NEXTEST_DOUBLE_SPAWN: "0"
   TEMPER_INTERNAL_BUNDLE: none
 
 jobs:
-  macos:
-    runs-on: macos-26
-    timeout-minutes: 120
-    defaults:
-      run:
-        shell: bash
+  # macos.md, 1, 4.1–4.2: validate before any checkout or build; place by package.
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      process: ${{ steps.plan.outputs.process }}
+      process_ids: ${{ steps.plan.outputs.process_ids }}
+      browser: ${{ steps.plan.outputs.browser }}
+      browser_ids: ${{ steps.plan.outputs.browser_ids }}
+      skein: ${{ steps.plan.outputs.skein }}
+      skein_ids: ${{ steps.plan.outputs.skein_ids }}
+      smith: ${{ steps.plan.outputs.smith }}
+      smith_ids: ${{ steps.plan.outputs.smith_ids }}
+      jig: ${{ steps.plan.outputs.jig }}
+      jig_ids: ${{ steps.plan.outputs.jig_ids }}
+      temper: ${{ steps.plan.outputs.temper }}
+      temper_ids: ${{ steps.plan.outputs.temper_ids }}
+      live: ${{ steps.plan.outputs.live }}
+      live_ids: ${{ steps.plan.outputs.live_ids }}
+      given: ${{ steps.plan.outputs.given }}
+      parts: ${{ steps.plan.outputs.parts }}
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          persist-credentials: false
-
-      # Each check runs through $RUNNER_TEMP/run, which keeps its output and,
-      # when it fails, gives its failing tests or errors and the output's
-      # tail as error annotations, so that a failure reads through the
-      # public API without the logs.
-      # Every check runs once the tools are in, whatever an earlier one
-      # gave, so that one run shows every failure.
-      - name: The runner of each check
+      - &commit-check
+        name: The commit is on main, fetched now
+        working-directory: ${{ github.workspace }}
+        env:
+          COMMIT: ${{ inputs.commit }}
+          REPOSITORY: ${{ github.repository }}
         run: |
+          # This check precedes even the helper checkout (macos.md, 1).
           mkdir -p "$RUNNER_TEMP/logs"
-          cat >"$RUNNER_TEMP/annotate.py" <<'EOF'
-          import re, sys
-          name, path = sys.argv[1:]
-          text = open(path, encoding="utf-8", errors="replace").read()
-          lines = text.splitlines()
-          def escape(s):
-              return s.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-          def error(title, body):
-              title = escape(title).replace(":", "%3A").replace(",", "%2C")
-              print(f"::error title={title}::{escape(body)}")
-          failed = [l.strip() for l in lines
-                    if re.match(r"\s+(FAIL|SIGSEGV|SIGABRT|SIGKILL|TIMEOUT|LEAK-FAIL)\s+\[", l)]
-          headlines = [l for l in lines if re.match(r"(error(\[E\d+\])?|warning): ", l)]
-          found = failed or headlines
-          error(f"{name}: {len(found)} failed", "\n".join(dict.fromkeys(found))[-30000:] or "no test or error line found")
-          tail = "\n".join(lines[-1200:])
-          size = 30000
-          chunks = [tail[i:i + size] for i in range(0, len(tail), size)][-4:]
-          for i, chunk in enumerate(chunks, 1):
-              error(f"{name}: output's tail {i}/{len(chunks)}", chunk)
-          EOF
-          cat >"$RUNNER_TEMP/run" <<'EOF'
-          #!/bin/bash
-          # run NAME COMMAND...
-          name=$1
-          shift
-          log="$RUNNER_TEMP/logs/$name.log"
-          "$@" 2>&1 | tee "$log"
-          status=${PIPESTATUS[0]}
-          if [ "$status" -ne 0 ]; then
-              python3 -I "$RUNNER_TEMP/annotate.py" "$name" "$log"
-          fi
-          exit "$status"
-          EOF
-          chmod +x "$RUNNER_TEMP/run"
-          echo "RUN=$RUNNER_TEMP/run" >>"$GITHUB_ENV"
-
-      - name: Rust from the workspace's toolchain file, and cargo-nextest
-        id: rust
-        run: |
-          # rustup is on the image; no installer script runs here.
-          if ! command -v rustup >/dev/null; then
-              echo "::error title=rustup::rustup is not on the macos-26 image"
+          exec > >(tee "$RUNNER_TEMP/logs/commit.log") 2>&1
+          annotate_commit_failure() {
+              status=$?
+              if [ "$status" -ne 0 ]; then
+                  python3 -I -B - "$RUNNER_TEMP/logs/commit.log" <<'PY'
+          import pathlib, sys
+          text = pathlib.Path(sys.argv[1]).read_text(errors="replace")[-30000:]
+          text = text.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+          print("::error title=commit check::" + text)
+          PY
+              fi
+          }
+          trap annotate_commit_failure EXIT
+          if [[ ! "$COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+              echo '::error title=commit::Expected forty lowercase hex digits'
               exit 1
           fi
-          rustup --version
-          rustup toolchain install
-          curl -sSfL -o "$RUNNER_TEMP/nextest.tar.gz" \
-              "https://github.com/nextest-rs/nextest/releases/download/cargo-nextest-$NEXTEST_VERSION/cargo-nextest-$NEXTEST_VERSION-universal-apple-darwin.tar.gz"
-          echo "$NEXTEST_SHA256  $RUNNER_TEMP/nextest.tar.gz" | shasum -a 256 -c -
-          mkdir -p "$HOME/.cargo/bin"
-          tar -xzf "$RUNNER_TEMP/nextest.tar.gz" -C "$HOME/.cargo/bin"
-          rustc --version
-          cargo nextest --version
-          uname -a
+          if [ "$GITHUB_REF" != refs/heads/main ]; then
+              echo '::error title=dispatch::Dispatch this workflow on main'
+              exit 1
+          fi
+          root="$RUNNER_TEMP/main-check"
+          git init "$root"
+          git -C "$root" remote add origin "https://github.com/$REPOSITORY.git"
+          git -C "$root" fetch --no-tags --filter=tree:0 origin +refs/heads/main:refs/remotes/origin/main
+          if ! git -C "$root" merge-base --is-ancestor "$COMMIT" origin/main; then
+              echo '::error title=commit::The fetched main does not hold the commit'
+              exit 1
+          fi
+      - &checkout-tested
+        name: The tested commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ inputs.commit }}
+          path: tested
+          persist-credentials: false
+      - &checkout-helper
+        name: The helper from the workflow commit, beside the tested tree
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          path: _macos
+          persist-credentials: false
+          sparse-checkout: tools/macos
+      - name: Place the ids
+        id: plan
+        env:
+          SET: ${{ inputs.set }}
+          TESTS: ${{ inputs.tests }}
+        run: python3 -I -B _macos/tools/macos/macos.py plan --packages tested/tools/tiers/packages.toml
 
-      # The registry by the lock; the target by the lock and the toolchain,
-      # saved once per key: the dependencies stay built, and the workspace's
-      # own crates build again in each run.
-      - name: Restore the registry
+  # macos.md, 1, 2, 4–6: build first, fetch the forge, then the process pair.
+  process:
+    needs: plan
+    if: ${{ needs.plan.outputs.process == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: process
+      IDS: ${{ needs.plan.outputs.process_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - &clock
+        name: Start the wall clock
+        working-directory: ${{ github.workspace }}
+        run: echo "MACOS_STARTED=$(date +%s)" >>"$GITHUB_ENV"
+      - *checkout-tested
+      - *checkout-helper
+      - &runner
+        name: The runner of checks, logs and annotations
+        run: python3 -I -B ../_macos/tools/macos/macos.py setup-runner
+      - &rust
+        name: The workspace toolchain and checked cargo-nextest
+        run: python3 -I -B "$MACOS_HELPER" install
+      - &registry-restore
+        name: Restore the registry
+        id: registry
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-home-macos-26-${{ hashFiles('Cargo.lock') }}
+          key: cargo-home-macos-26-${{ hashFiles('tested/Cargo.lock') }}
           restore-keys: cargo-home-macos-26-
-      - name: Restore the target
+      - &target-restore
+        name: Restore this part's dependencies
         id: target
         uses: actions/cache/restore@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
         with:
-          path: target
-          key: target-macos-26-rust-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
-          restore-keys: target-macos-26-rust-${{ hashFiles('rust-toolchain.toml') }}-
-
-      - name: Compile every target
-        if: ${{ !cancelled() && steps.rust.outcome == 'success' }}
-        run: $RUN compile cargo check --workspace --exclude 'hearth*' --all-targets --keep-going
-
-      - name: Save the registry
-        if: always()
+          path: tested/target
+          key: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}
+          restore-keys: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-
+      - &build
+        name: Build the whole part, or make its compiler red
+        id: build
+        run: python3 -I -B "$MACOS_HELPER" build "$PART" "$PART.xml"
+      - name: The pinned forge binaries
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        run: python3 -I -B "$MACOS_HELPER" fetch-forge
+      - &run-part
+        name: Run selections and refuse cut-short runs, then make the part's file
+        if: ${{ success() && steps.build.outputs.build_red == 'false' }}
+        run: python3 -I -B "$MACOS_HELPER" run "$PART" "$PART.xml"
+      - &upload-part
+        name: Upload the part's file, never a partial result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: part-${{ env.PART }}
+          path: tested/${{ env.PART }}.xml
+          if-no-files-found: error
+      - &prune
+        name: Remove workspace outputs and print the dependencies' size
+        id: prune
+        if: ${{ always() && steps.target.outcome == 'success' }}
+        continue-on-error: true
+        run: |
+          python3 -I -B "$MACOS_HELPER" prune
+          du -sh target
+      - &target-save
+        name: Save the pruned target once per key
+        if: ${{ always() && steps.prune.outcome == 'success' && steps.target.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        continue-on-error: true
+        with:
+          path: tested/target
+          key: target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}
+      - &registry-save
+        name: Save the registry once per key
+        if: ${{ always() && steps.registry.outcome == 'success' && steps.registry.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
+        continue-on-error: true
         with:
           path: |
             ~/.cargo/registry/index
             ~/.cargo/registry/cache
             ~/.cargo/git/db
-          key: cargo-home-macos-26-${{ hashFiles('Cargo.lock') }}
-        continue-on-error: true
-      - name: Save the target
-        if: always() && steps.target.outputs.cache-hit != 'true'
-        uses: actions/cache/save@caa296126883cff596d87d8935842f9db880ef25 # v5.1.0
-        with:
-          path: target
-          key: target-macos-26-rust-${{ hashFiles('rust-toolchain.toml') }}-${{ hashFiles('Cargo.lock') }}
-        continue-on-error: true
-
-      - name: The pinned binaries, through temper forge fetch
-        if: ${{ !cancelled() && steps.rust.outcome == 'success' }}
-        id: fetch
-        run: |
-          $RUN build cargo build -p temper-box --bin temper-box
-          $RUN build-fake-claude cargo build -p smith-fake-claude --bin fake-claude
-          root="$RUNNER_TEMP/fetch"
-          mkdir -m 700 "$root" "$root/config" "$root/data" "$root/cache"
-          flags=(--config "$root/config" --data "$root/data" --cache "$root/cache")
-          $RUN init target/debug/temper-box init "${flags[@]}" --box
-          mkdir -p "$root/data/box/groups"
-          printf 'owned\n' >"$root/data/box/groups/1"
-          $RUN fetch target/debug/temper-box forge fetch "${flags[@]}" 1
-          forgejo=$(echo "$root"/cache/forgejo/*/forgejo)
-          runner=$(echo "$root"/cache/forgejo-runner/*/forgejo-runner)
-          $RUN forgejo-runs "$forgejo" --version
-          $RUN runner-runs "$runner" --version
-          echo "TEMPER_TEST_FORGEJO=$forgejo" >>"$GITHUB_ENV"
-          echo "TEMPER_TEST_FORGEJO_RUNNER=$runner" >>"$GITHUB_ENV"
-
-      - name: The one story
-        if: ${{ !cancelled() && steps.rust.outcome == 'success' && steps.fetch.outcome == 'success' }}
-        run: |
-          $RUN story cargo nextest run --profile process-temper -p temper-box --test process \
-              -E 'test(=a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart)'
-
-      - name: The disk
+          key: cargo-home-macos-26-${{ hashFiles('tested/Cargo.lock') }}
+      - &verdict
+        name: Fail when the part's file holds a failed case
+        if: ${{ success() }}
+        run: python3 -I -B "$MACOS_HELPER" verdict "$PART" "$PART.xml"
+      - &disk
+        name: Disk and elapsed wall time
         if: always()
-        run: df -h "$GITHUB_WORKSPACE" && du -sh target ~/.cargo/registry || true
+        working-directory: ${{ github.workspace }}
+        run: |
+          df -h
+          du -sh tested/target ~/.cargo/registry || true
+          echo "Elapsed wall seconds: $(( $(date +%s) - MACOS_STARTED ))"
+
+  # macos.md, 1, 4–6: all pair builds precede Chrome and the selected pair runs.
+  browser:
+    needs: plan
+    if: ${{ needs.plan.outputs.browser == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 150
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: browser
+      IDS: ${{ needs.plan.outputs.browser_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - name: The browser's wasm target, checked installed
+        run: |
+          $RUN wasm-target rustup target add wasm32-unknown-unknown
+          $RUN wasm-installed bash -c 'rustup target list --installed | grep -Fx wasm32-unknown-unknown'
+      - *build
+      - name: Chrome for Testing, checked before unpacking
+        if: ${{ steps.build.outputs.run_tests == 'true' }}
+        run: |
+          archive="$RUNNER_TEMP/chrome-mac-arm64.zip"
+          $RUN chrome-download curl -sSfL -o "$archive" \
+              "https://storage.googleapis.com/chrome-for-testing-public/$CHROME_FOR_TESTING_VERSION/mac-arm64/chrome-mac-arm64.zip"
+          printf '%s  %s\n' "$CHROME_FOR_TESTING_SHA256" "$archive" >"$RUNNER_TEMP/chrome.sha256"
+          $RUN chrome-digest shasum -a 256 -c "$RUNNER_TEMP/chrome.sha256"
+          $RUN chrome-unpack unzip -q "$archive" -d "$RUNNER_TEMP/chrome"
+          chrome="$RUNNER_TEMP/chrome/chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing"
+          $RUN chrome-file test -f "$chrome"
+          $RUN chrome-version "$chrome" --version
+          echo "SKEIN_TEST_CHROMIUM=$chrome" >>"$GITHUB_ENV"
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 1, 4–6: name-selected packages, listed binary builds, focused then fuzzy.
+  skein:
+    needs: plan
+    if: ${{ needs.plan.outputs.skein == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: skein
+      IDS: ${{ needs.plan.outputs.skein_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - *build
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 1, 4–6: smith's packages and binary prerequisites, with no macOS budget.
+  smith:
+    needs: plan
+    if: ${{ needs.plan.outputs.smith == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: smith
+      IDS: ${{ needs.plan.outputs.smith_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - *build
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 1, 4–6: jig's packages and binary prerequisites, focused then fuzzy.
+  jig:
+    needs: plan
+    if: ${{ needs.plan.outputs.jig == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: jig
+      IDS: ${{ needs.plan.outputs.jig_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - *build
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 1, 4–6: temper's packages and binary prerequisites, focused then fuzzy.
+  temper:
+    needs: plan
+    if: ${{ needs.plan.outputs.temper == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 300
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: temper
+      IDS: ${{ needs.plan.outputs.temper_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - *clock
+      - *checkout-tested
+      - *checkout-helper
+      - *runner
+      - *rust
+      - *registry-restore
+      - *target-restore
+      - *build
+      - *run-part
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - *disk
+
+  # macos.md, 1, 2, 4–6, 8: main checked again; only this job reaches the live key.
+  live:
+    needs: plan
+    if: ${{ needs.plan.outputs.live == 'true' }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    environment: macos-live
+    defaults:
+      run:
+        working-directory: tested
+    env:
+      PART: live
+      IDS: ${{ needs.plan.outputs.live_ids }}
+      GIVEN: ${{ needs.plan.outputs.given }}
+    steps:
+      - *clock
+      - *checkout-tested
+      - *commit-check
+      - *checkout-helper
+      - *runner
+      - *registry-restore
+      - *target-restore
+      # One step owns the secret: check before installing/building, write only
+      # after both tier builds and forge fetch, and never pass its value to a run.
+      - name: Check the key, build, fetch and run the live stories
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set +x
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+              echo '::error title=live key::ANTHROPIC_API_KEY is absent'
+              exit 1
+          fi
+          python3 -I -B "$MACOS_HELPER" install
+          python3 -I -B "$MACOS_HELPER" build "$PART" "$PART.xml"
+          # A compiler red already made the file; a build-only pass makes an empty one.
+          if [ -f "$PART.xml" ]; then exit 0; fi
+          if [ -n "$IDS" ] && [ -z "$(python3 -I -B "$MACOS_HELPER" filterset)" ]; then
+              python3 -I -B "$MACOS_HELPER" merge "$PART.xml"
+              exit 0
+          fi
+          python3 -I -B "$MACOS_HELPER" fetch-forge
+          while IFS='=' read -r name value; do
+              case "$name" in
+                  TEMPER_TEST_FORGEJO|TEMPER_TEST_FORGEJO_RUNNER) export "$name=$value" ;;
+              esac
+          done <"$GITHUB_ENV"
+          umask 077
+          key=$(mktemp "$RUNNER_TEMP/anthropic.XXXXXX")
+          echo "MACOS_LIVE_KEY_FILE=$key" >>"$GITHUB_ENV"
+          trap 'rm -f "$key"' EXIT
+          printf '%s' "$ANTHROPIC_API_KEY" >"$key"
+          unset ANTHROPIC_API_KEY
+          export TEMPER_TEST_LIVE_ANTHROPIC_KEY="$key" SKEIN_TEST_LIVE_ANTHROPIC_KEY="$key"
+          export TMPDIR="$(mktemp -d "$RUNNER_TEMP/live-tmp.XXXXXX")"
+          export TEMPER_TEST_LIVE_STORE="$(mktemp -d "$RUNNER_TEMP/live-store.XXXXXX")"
+          export TEMPER_TEST_LIVE_NOTICE="$TMPDIR/notice"
+          : >"$TEMPER_TEST_LIVE_NOTICE"
+          export SKEIN_TEST_LIVE_ANTHROPIC_MODEL=claude-haiku-5-5
+          export SKEIN_TEST_LIVE_CA_FILE=/etc/ssl/cert.pem
+          python3 -I -B "$MACOS_HELPER" run "$PART" "$PART.xml"
+      - *upload-part
+      - *prune
+      - *target-save
+      - *registry-save
+      - *verdict
+      - name: Remove the live key file
+        if: always()
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -n "${MACOS_LIVE_KEY_FILE:-}" ]; then rm -f "$MACOS_LIVE_KEY_FILE"; fi
+      - *disk
+
+  # macos.md, 1, 5.3–5.4: a missing part is a fault, never a partial report.
+  report:
+    needs: [plan, process, browser, skein, smith, jig, temper, live]
+    if: ${{ !cancelled() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+    env:
+      PARTS: ${{ needs.plan.outputs.parts }}
+    steps:
+      - *checkout-helper
+      - name: The report's runner of checks
+        run: python3 -I -B _macos/tools/macos/macos.py setup-runner
+      - name: Download parts and make the one report
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/parts" "$RUNNER_TEMP/report"
+          if [ "$PARTS" != '[]' ]; then
+              # Even a refused download reaches the missing-part check, naming each part.
+              $RUN download gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+                  --pattern 'part-*' --dir "$RUNNER_TEMP/parts" || download_status=$?
+          fi
+          python3 -I -B "$MACOS_HELPER" report "$RUNNER_TEMP/parts" "$RUNNER_TEMP/report/junit.xml"
+          if [ "${download_status:-0}" -ne 0 ]; then
+              rm -f "$RUNNER_TEMP/report/junit.xml"
+              exit "$download_status"
+          fi
+      - name: The one report and every part's full file
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: junit
+          path: ${{ runner.temp }}/report/*.xml
+          if-no-files-found: error

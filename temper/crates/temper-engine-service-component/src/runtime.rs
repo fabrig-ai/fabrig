@@ -33,7 +33,6 @@ impl engine::Engine {
     ) -> Result<Self, Problems> {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
-        limits.memory_bytes = settings.jig.memory;
         limits.host_reply_bytes = settings.host_reply_bytes;
         if !temper_engine_domain::valid(&limits) {
             return Err(start_problem(b"memory_bytes", What::Bound));
@@ -42,8 +41,21 @@ impl engine::Engine {
         let shared = forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
-        let store_limits = store::limits(&limits, &limits.forge, &settings.jig.limits.store)
-            .ok_or(start_problem(b"limits", What::Bound))?;
+        let store_limits = match settings.store_limits {
+            Some(envelope) => {
+                let application = temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
+                    .ok_or(start_problem(b"limits", What::Bound))?;
+                jig_protocol_store::runtime_limits(
+                    &envelope,
+                    &temper_engine_domain::core_limits(&limits),
+                    application,
+                    limits.journal.transcript_bytes.max(limits.loads.transcript_bytes),
+                )
+                .or(Err(start_problem(b"limits", What::Bound)))?
+            }
+            None => store::limits(&limits, &limits.forge, &settings.jig.limits.store)
+                .ok_or(start_problem(b"limits", What::Bound))?,
+        };
         let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));

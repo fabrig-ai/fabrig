@@ -3,6 +3,7 @@
 layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
 
 [skein]
+"github-conformance::suite" = "real-loop" # Real journal and transcript files over a simulated network.
 "skein-browser-world::browser_facts" = "end-to-end" # Real Chromium and the browser face.
 "skein-browser-world::browser_real" = "end-to-end" # Real Chromium on the served pages.
 "skein-browser-world::suite" = "machine"
@@ -144,8 +145,9 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-client-browser-world::browser_all" = "end-to-end" # Chromium on the shipped bundle and service.
 "temper-client-bundle::steps" = "step" # Build decisions on sample paths, files and commands.
 "temper-client-domain::suite" = "domain"
+"temper-client-gallery-tool::suite" = "domain" # Whole gallery catalogue: client roots and views over sample states.
 "temper-client-gallery::suite" = "end-to-end" # Shipped gallery's command-line boundary.
-"temper-client-journeys-tool::suite" = "end-to-end" # Runs the shipped look-refresh.sh on real git.
+"temper-client-journeys-tool::suite" = "end-to-end" # Runs look-refresh.sh on real git and whole journey admission/normalisation over files.
 "temper-client-journeys::suite" = "end-to-end" # Shipped journeys tool's command-line boundary.
 "temper-client-redaction::boundary" = "step" # Redaction and scanning of one fixture field.
 "temper-client-shell-terminal::suite" = "machine"
@@ -162,6 +164,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-protocol-forge-world::suite" = "protocol"
 "temper-engine::suite" = "end-to-end" # Shipped engine's command-line boundary.
 "temper-fake-git-hosted::suite" = "simulated" # step and simulated: argument checks and hosted git iterate on fake io.
+"temper-engine-shell::suite" = "real-loop" # Stopped checkpoint, restore and upgrade commands over real files and locks.
 "temper-forge-setup-shell::suite" = "real-loop" # step and real-loop: file/spec checks, real commands and TLS peers.
 "temper-git-transcripts::suite" = "end-to-end" # Shipped recorder's command-line boundary.
 "temper-one-process-world::memory" = "simulated"
@@ -177,6 +180,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-real-loop-world::suite" = "real-loop"
 "temper-redeploy-tool::suite" = "real-loop" # step, domain and real-loop: fake hosts/clock beside real sh process seam.
 "temper-redeploy::suite" = "end-to-end" # Shipped redeploy's command-line boundary.
+"temper-service::protocol_link" = "protocol" # Stock starts and keepalives across real engine/worker channel stacks.
 "temper-stage-one::suite" = "end-to-end" # Shipped stage-one tool's command-line boundary.
 "temper-system-world::suite" = "system"
 "temper-twin-tool::suite" = "domain" # step and domain: conversion checks and fake LLM replay.

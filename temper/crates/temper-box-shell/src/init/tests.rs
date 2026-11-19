@@ -440,6 +440,8 @@ fn init_keeps_an_existing_provider_key_even_without_openssl() {
     fs::remove_dir_all(root).unwrap();
 }
 
+const PROVIDER_KEY: &[u8] = include_bytes!("fixtures/provider.pem");
+
 #[test]
 fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
     use std::process::{Command, Stdio};
@@ -450,7 +452,7 @@ fn init_makes_a_private_3072_bit_provider_key_before_writing_its_document() {
     let Done::Usage(before) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
     let clock = skein_shell::Clock::new();
     let started = clock.now().now;
-    let written = write(&dirs, &env, &root.join("temper"), [0; 2]).unwrap();
+    let written = write_with_key(&dirs, &env, &root.join("temper"), [0; 2], PROVIDER_KEY).unwrap();
     let elapsed = clock.now().now.saturating_since(started);
     let Done::Usage(after) = io.perform(Op::Usage).unwrap() else { panic!("usage") };
     eprintln!(

@@ -7,6 +7,10 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"
+
 [dependencies]
 temper-engine-domain.workspace = true
 temper-engine-domain-forge.workspace = true
@@ -39,6 +43,8 @@ temper-protocol-store.workspace = true
 temper-protocol-worker-wire.workspace = true
 
 [dev-dependencies]
+temper-service.workspace = true
+temper-deployment-fixtures.workspace = true
 temper-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
 temper-limits-fixtures.workspace = true

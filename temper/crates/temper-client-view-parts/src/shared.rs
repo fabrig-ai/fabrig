@@ -12,7 +12,7 @@ mod reach;
 mod refusal;
 pub use reach::{allowed, object, offer, rule, why, why_words};
 mod words;
-pub use cards::{DelegationLine, delegation_line, proposal_line};
+pub use cards::{DelegationLine, delegation_line, proposal_line, proposal_title};
 pub use lists::{Choice, Confirmation, chats, confirmation, efforts, list_head, models};
 pub use needs::{NeedAct, NeedMark, NeedPrompt, need_prompts};
 pub use question::{Question, QuestionChoice, question};

@@ -11,7 +11,7 @@ fn model(value: &jig_domain_core::Model) -> Value {
 }
 /// Use the binary's stock defaults, with this deployment's models.
 #[must_use]
-pub fn stock(deployment: &Value) -> Value {
+pub fn stock(deployment: &super::Configuration) -> Value {
     let engine = configuration(deployment);
     let defaults = temper_service::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     let c = &defaults.charters[0];
@@ -46,7 +46,7 @@ pub fn item(kind: &str, number: u32, value: Value) -> Value {
     clippy::too_many_lines,
     reason = "world-only inputs build a typed catalogue independently of the deployment document"
 )]
-pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
+pub fn configuration(deployment: &super::Configuration) -> jig_protocol_config::Engine {
     let mut value = deployment["engine"].clone();
     strip_engine(&mut value);
     for member in ["charters", "templates", "policies", "rules"] {
@@ -94,7 +94,7 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
     inline["templates"] = json!([]);
     inline["policies"] = json!([]);
     inline["rules"] = json!({"ceiling":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},"budget":{"spend":1,"deadline_unix_seconds":null},"notes":0,"note_resources":[]},"period_spend":0,"minimum_run_spend":0,"maximum_run_spend":1,"implies":[],"requirements":[]});
-    let own = parse_engine(&inline, jig_protocol_config::Defaults::Document);
+    let own = parse_engine(&inline, jig_protocol_config::Defaults::Document, &deployment.jig);
     value["llm"].as_object_mut().expect("llm").remove("models");
     for provider in value["llm"]["providers"].as_array_mut().expect("providers") {
         let mut endpoint = None;
@@ -119,7 +119,7 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
             object.insert("endpoint".into(), json!(endpoint.expect("provider's endpoint")));
         }
     }
-    let mut engine = parse_engine(&value, jig_protocol_config::Defaults::Passed);
+    let mut engine = parse_engine(&value, jig_protocol_config::Defaults::Passed, &deployment.jig);
     engine.llm.models = own.llm.models;
     let policy_values = deployment["world_settings"]["policies"].as_array().map_or_else(
         || json!([]),
@@ -163,19 +163,24 @@ pub fn configuration(deployment: &Value) -> jig_protocol_config::Engine {
     }
     engine
 }
-fn parse_engine(value: &Value, defaults: jig_protocol_config::Defaults) -> jig_protocol_config::Engine {
+fn parse_engine(
+    value: &Value,
+    defaults: jig_protocol_config::Defaults,
+    limits: &jig_protocol_config::Limits,
+) -> jig_protocol_config::Engine {
     let bytes = serde_json::to_vec(value).expect("engine JSON");
     let document = jig_protocol_config::document(
         &bytes,
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .expect("engine document");
-    jig_protocol_config::engine(
+    jig_protocol_config::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
         defaults,
         &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).expect("world constants"),
+        limits,
     )
     .expect("world configuration")
 }
@@ -341,7 +346,7 @@ fn strip_engine(engine: &mut Value) {
 }
 
 /// The worlds' typed seeds, independent of the startup document.
-pub fn seed_configuration(engine: &mut jig_protocol_config::Engine, document: &Value) {
+pub fn seed_configuration(engine: &mut jig_protocol_config::Engine, document: &super::Configuration) {
     if document["world_settings"]["adopt_only"] == true {
         engine.acts = Box::new([jig_domain_people::ActGrant {
             connector: 1,

@@ -107,6 +107,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 | Request::Busy(_)
                 | Request::Unsettled(_)
                 | Request::Restarting { .. }
+                | Request::LimitSettingsCommitted { .. }
                 | Request::Drained
                 | Request::Stop) => requests.push(request).unwrap(),
             }

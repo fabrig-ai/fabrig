@@ -69,6 +69,7 @@ pub(crate) fn stamp(current: &mut Current, items: &[Item], revision: u32) -> Lis
             | Setting::Worker(_)
             | Setting::Model(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. }
             | Setting::ProjectPolicy { .. } => continue,
         }

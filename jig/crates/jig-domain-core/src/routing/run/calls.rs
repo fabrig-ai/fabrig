@@ -159,9 +159,14 @@ pub(crate) fn named_proposal_accept(
             let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
-                operation: tasks::Amend { task, message, stop_run, amendment: Box::new(amendment) },
+                operation: tasks::Amend {
+                    funder: Some(tasks::Funder::Task(key.task)),
+                    task,
+                    message,
+                    stop_run,
+                    amendment: Box::new(amendment),
+                },
                 places: Box::new([]),
-                funder: Some(tasks::Funder::Task(key.task)),
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
             }
@@ -172,6 +177,7 @@ pub(crate) fn named_proposal_accept(
             };
             tasks::Event::Amend {
                 operation: tasks::Amend {
+                    funder: Some(tasks::Funder::Task(key.task)),
                     task,
                     message,
                     stop_run: false,
@@ -189,7 +195,6 @@ pub(crate) fn named_proposal_accept(
                     }),
                 },
                 places: Box::new([]),
-                funder: Some(tasks::Funder::Task(key.task)),
                 reply_to: ReplyTo::new(token),
                 by: tasks::Party::Task(key.task),
             }
@@ -934,12 +939,13 @@ pub(crate) fn named_amend(
         );
         return out;
     };
+    let current = core.tasks.task(target).expect("amend admission found target");
+    let funder = crate::routing::amendment_funder(core, &current.authority, &amendment, tasks::Funder::Task(key.task));
     assert!(core.pending_calls.insert(key, true).is_ok(), "call record room reserved");
     let token = core.fly_call(token, RoutedCall::Control { key, target, revised: true });
     work.push(Work::Event(Event::Tasks(tasks::Event::Amend {
-        operation: tasks::Amend { task: target, message, stop_run, amendment: Box::new(amendment) },
+        operation: tasks::Amend { funder, task: target, message, stop_run, amendment: Box::new(amendment) },
         places: evidence.places.into_boxed(),
-        funder: None,
         reply_to: ReplyTo::new(token),
         by: tasks::Party::Task(key.task),
     })));

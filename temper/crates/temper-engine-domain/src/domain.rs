@@ -1,5 +1,5 @@
 //! The admitted step and ordered journal release (jig's domain/root.md, 3).
-use crate::boundary::{BriefConnector, BriefSection, Event, Fact, Payload, Read, Released, Request, Work};
+use crate::boundary::{BriefConnector, BriefSection, EndedRead, Event, Fact, Payload, Read, Released, Request, Work};
 use crate::limits::{Limits, backlog, core_limits, environment_core, payload_slots, run_policy_bound, valid};
 use crate::restart::{connector_restarting, request_load};
 use crate::route::{forge_route, host_route, policy_translate, route_core_requests, route_into, step_routed};
@@ -98,6 +98,7 @@ pub struct Domain {
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
+    pub(crate) forge_limit_holds: Map<u64, forge_route::limit_holds::Waiting>,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) kinds: Box<[crate::KindValue]>,
     pub(crate) settings_parts: Map<u64, crate::route::settings_parts::Held>,
@@ -141,6 +142,8 @@ pub struct Domain {
     /// Loads of durable rows outside the working set: a run's preparation
     /// (transcript, dependencies, inputs) and historical queries.
     pub(crate) archive_reads: Slab<Option<Read>>,
+    /// Ended tasks wait for archive and load room, in the core's read-flight bound (root.md, 7).
+    pub(crate) ended_waiting: Queue<EndedRead>,
     /// Read loads' answers that waited for journal room (jig's `domain/root.md`, 3).
     pub(crate) store_answers: Queue<Event>,
     pub(crate) call_renders: Map<Token, host_route::Flight>,
@@ -336,6 +339,12 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The restored settings head; service admission keeps this revision with its lists.
+    #[must_use]
+    pub fn settings_revision(&self) -> u32 {
+        self.core.current.newest()
+    }
+
     /// The deployment's current welcome (protocol/configuration/settings.md, 2).
     #[must_use]
     pub fn welcome(&self) -> bool {
@@ -635,6 +644,7 @@ impl Domain {
             forge_reading: Map::with_capacity(limits.fleet.calls),
             status_reading: Map::uncapped(),
             next_status_owner: 0,
+            forge_limit_holds: Map::with_capacity(limits.tasks.tasks),
             forge_left: Map::with_capacity(limits.tasks.tasks),
             forge_effecting: Map::with_capacity(limits.fleet.calls),
             forge_effects: Map::with_capacity(
@@ -659,6 +669,7 @@ impl Domain {
             answer_parts: Map::uncapped(),
             refused_calls: Map::uncapped(),
             archive_reads: Slab::with_capacity(limits.loads.loads),
+            ended_waiting: Queue::with_capacity(limits.tasks.tasks),
             store_answers: Queue::with_capacity(limits.loads.loads),
             call_renders: Map::with_capacity(limits.fleet.calls),
             work: Queue::uncapped(),
@@ -757,6 +768,7 @@ impl Domain {
 
     pub(crate) fn stop_start(&mut self, stop: StartStop) {
         if self.start_stop.is_none() {
+            self.ended_waiting.clear();
             self.start_stop = Some(stop);
             self.stop_pending = true;
         }
@@ -786,6 +798,7 @@ impl Domain {
             && self.refused_calls.is_empty()
             && self.forge_briefs.is_empty()
             && self.archive_reads.is_empty()
+            && self.ended_waiting.is_empty()
             && self.revision_reads.is_empty()
             && self.history_reads.is_empty()
             && self.view_reads.is_empty()
@@ -822,7 +835,8 @@ impl Domain {
 
     /// Retired IO/body/child slots are reclaimed at iteration end, after every event and ready
     /// pass. Bounded child/slab bookkeeping releases only retired entries; issued loads still
-    /// awaiting a terminal remain owned. Emits no request or terminal.
+    /// awaiting a terminal remain owned. Waiting ended reads reserve freed slots for their next
+    /// held-output pass. Emits no request or terminal.
     pub fn reclaim(&mut self) {
         self.changed();
         self.settled = None;
@@ -831,6 +845,7 @@ impl Domain {
         self.forge.reclaim();
         self.archive_reads.reclaim();
         loads::reclaim(&mut self.loads);
+        crate::archive::reclaim_ended(self);
     }
 
     /// Shell/root caller discards every currently queued child observation, scanning at most each
@@ -913,7 +928,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 /// turn bytes are under the budget (domain/root.md, 4.1). Only an
 /// activation asks; nothing else waits on bytes.
 pub(crate) fn within_budget(domain: &Domain, limits: &Limits) -> bool {
-    domain.held_bytes() < limits.memory_bytes
+    domain.held_bytes() < limits.transcript_memory
 }
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
@@ -975,6 +990,9 @@ fn finish_close(
         domain.sent_commit = commits;
         domain.durable_commit = commits;
     }
+    if domain.core.stopping() || domain.journal.stopped() {
+        domain.ended_waiting.clear();
+    }
     if domain.journal.stopped() {
         domain.journal_stop = journal_stop;
         // Immediate outputs assembled alongside this failed cohort must not
@@ -991,7 +1009,8 @@ fn finish_close(
 pub(crate) fn invalidate_input(domain: &mut Domain, event: &Event) {
     match event {
         Event::Resume => {}
-        Event::Setup { .. }
+        Event::LimitsRaised
+        | Event::Setup { .. }
         | Event::Released(_)
         | Event::Forge(_)
         | Event::Stop
@@ -1068,6 +1087,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Busy(_)
             | Request::Unsettled(_)
             | Request::Restarting { .. }
+            | Request::LimitSettingsCommitted { .. }
             | Request::Drained
             | Request::Account(_)) => {
                 assert!(now(domain, request), "root door reserves one route's immediate outputs");
@@ -1428,6 +1448,7 @@ fn released_into(
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
         | Delivery::Restarting { .. }
+        | Delivery::LimitSettingsCommitted { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }

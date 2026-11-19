@@ -7,7 +7,11 @@ use temper_engine_domain_forge_tiers as p;
 
 /// Logged members plus live changes whose landing rotated out of the ring.
 pub fn posting_comments(limits: &crate::Limits) -> Option<u32> {
-    limits.landings_kept.checked_mul(limits.landing_members)?.checked_add(limits.changes)
+    limits
+        .landings_kept
+        .checked_add(limits.landings_pending)?
+        .checked_mul(limits.landing_members)?
+        .checked_add(limits.changes)
 }
 pub(crate) fn tests_bytes(tests: &[Box<[u8]>]) -> Option<u64> {
     let mut held = skein_lib::len_u64(tests.len()).checked_mul(u64::try_from(size_of::<Box<[u8]>>()).ok()?)?;
@@ -35,6 +39,9 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         .checked_add(
             skein_lib::len_u64(row.record.flakes.len()).checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
         )?;
+    if let Some(many) = &row.many {
+        held = held.checked_add(tests_bytes(&many.tests)?)?;
+    }
     for flake in &row.record.flakes {
         held = held.checked_add(skein_lib::len_u64(flake.test.len()))?;
     }

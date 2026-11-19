@@ -209,7 +209,10 @@
       and *Later*): "Nothing needs you.", "One thing needs you.", "Two things
       need you." and so on in number words to "Nine", digits after, "29
       things need you.", "N+ things need you." where the read is cut, the
-      project's name until its needs have answered. Where every open card
+      project's name until its needs have answered whole: the count and its
+      "+" are the last whole read's, through every refresh and every read
+      that ends without its value (`needs-you.md`, 1, *The needs' rows*).
+      Where every open card
       concerns findings (1, **Findings, drawn**, *Counted*) and the read
       is not cut, "finding" stands for "thing" and the number is the
       findings', `Counted::total`, each once, not the cards': "One
@@ -224,14 +227,30 @@
       and a `last_landed`, "The last change landed SPAN ago.", SPAN the
       kicker's word, "just now" under a minute; nothing with nothing landed.
       So a landing never stands under "Nothing needs you." alone, whatever
-      became of the brief: a refused, failed or unfunded run isn't the
-      person's error, and Home has no word for one. "overnight" is the status
+      became of the brief: a failed or refused run isn't the person's
+      error, and Home has no word for one; an unpaid one has the line
+      below. "overnight" is the status
       agent's word, never the computed sentence's;
-    - *the lede and the byline:* the brief's `lede`, if the brief is new as
+    - *the lede and the byline:* the brief, the person's own (the
+      document is the watcher's, `../../domain/forge/attention.md`, 2):
+      its `lede`, if the brief is new as
       above, then "Written by the status
       agent at 07:42", its `at` by `../view.md`, 6's *clock*, in `temper-home-byline`,
       12 px in the faint colour. Otherwise neither: the computed Home has
-      no prose of its own.
+      no prose of its own;
+    - *where nothing pays* (`../../draft/brief-per-person.md`, 3): with no
+      brief new to the person and the document's `unpaid` true, their
+      last run having found no account to pay for it or no room in their
+      pool (`../../domain/forge/attention.md`, 3, *When nothing pays*), the
+      lede's place holds one line, in the lede's style: "No brief: no
+      account pays for your work here." then a space and the link
+      "Accounts", to `Accounts` (`Address::Accounts`), drawn as *More
+      accounts*' link is; no byline. The headline is unchanged, the
+      computed landed sentence. A brief new to the person wins over the
+      line, and `unpaid` false draws nothing there. The terminal shell's
+      layout draws the same line in its lede's place. Home on All
+      projects joins briefs alone and draws no such line: the line says
+      "here" of one project.
   - *Needs you,* the first region after the intro, a region named "Needs you", drawn while an open card
     waits (1, *A page's parts*): what needs the person in this
     project, the groups of `Inbox` but its updates, read as `Inbox` reads
@@ -367,6 +386,13 @@
       milestone's being the newest of its own and its goals', a tie the
       lower task number first; then ended rows, the newest end first. As
       many as the larger of 5 and the live rows, counted after grouping.
+    - *One stable list:* a goal under a drawn milestone is drawn under
+      that milestone's row alone, never also as a row of its own, and a
+      row's headline, a milestone's count, state and strip are what its
+      part last said, kept through a delivery whose part is not made
+      (`../forge/parts.md`, 5; `milestone.md`, 1, *A goal's milestone*).
+      So a refresh that finds nothing changed draws the same rows, in the
+      same order, with the same words.
     - *A milestone's row,* one link to its `Task`, `temper-goals-row` and
       `temper-ms-row`, as the mockup `../web/home-for-a-person/home.html`
       draws it: its top line, `temper-goals-top`, at the left its tag and
@@ -481,7 +507,7 @@
       and ": " in the strong weight, then the first sentence of its `lede`,
       up to and with the first ".", "!" or "?" that ends the lede or is
       followed by a space, the whole lede with none. The name says whose,
-      since one brief a project is written in its own project's words
+      since the person's brief in each project is written in that project's words
       (`../../draft/surfaces.md`, 15, its default);
     - *the byline:* "Each project's brief, its first line · the newest,
       vsr's, by the status agent at 07:52", vsr the newest joined brief's

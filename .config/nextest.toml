@@ -1,4 +1,5 @@
 # The workspace's focused, fuzzy, and tier profiles.
+# macOS overrides double every slow timeout; Linux settings and global walls stay unchanged.
 #
 # The focused suite, profile default, is each tree's focused suite: every test
 # but the fuzzy ones and the tiers' binaries (process, live, browser).
@@ -24,8 +25,8 @@
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
 # at the user's request on 10-22; the workspace's is their sum, until the
-# suites are timed together. Slow periods only flag a test SLOW as it runs
-# (none terminates); each tree keeps its own.
+# suites are timed together. Focused and fuzzy slow periods only flag a test SLOW
+# as it runs (neither terminates); each tree keeps its own.
 
 # CPU contention inflates real-loop work without runnable wait, which
 # skein/docs/foundation/testing-strategy.md 2.10's starvation rule cannot see.
@@ -54,7 +55,7 @@ default-filter = """
 ) | (
   package(/^temper(-|$)/)
   & not test(/^tests::sign_in::fuzzy_/) & not ((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain)) & test(/^fuzzy::/))
-  & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing)) & kind(lib) & test(/^fuzzy::/))
+  & not ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
   & not (binary(=proof_live) & test(/^rung_b0s_/))
   & not (binary(=live_github_managed) & test(=managed_ready_client))
@@ -67,6 +68,16 @@ default-filter = """
 # Three times the gate's wall in .config/gate/walls.toml: a backstop for every run but the gate's, its expiry starved (skein/docs/foundation/testing-strategy.md, 8.1; the user, 11-16).
 global-timeout = "810s"
 slow-timeout = { period = "6s" }
+
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.default.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.default.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
 
 [[profile.default.overrides]]
 filter = "package(=temper-real-loop-world) & kind(test)"
@@ -108,7 +119,7 @@ default-filter = """
 ) | (
   package(/^temper(-|$)/)
   & (((kind(test) | package(=temper-engine-domain) | package(=temper-worker-domain)) & test(/^fuzzy::/))
-     | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing)) & kind(lib) & test(/^fuzzy::/))
+     | ((package(=temper-engine-domain-forge) | package(=temper-engine-domain-forge-landing) | package(=temper-engine-domain-forge-tiers)) & kind(lib) & test(/^fuzzy::/))
      | (package(=temper-engine-service-component) & test(/^tests::sign_in::fuzzy_/)))
   & not binary(/^(process|live|live_github)$/)
 ) | (
@@ -118,6 +129,16 @@ default-filter = """
 # Three times the gate's wall in .config/gate/walls.toml: a backstop for every run but the gate's, its expiry starved (skein/docs/foundation/testing-strategy.md, 8.1; the user, 11-16).
 global-timeout = "645s"
 slow-timeout = { period = "40s" }
+
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.fuzzy.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "20s" }
+
+[[profile.fuzzy.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "80s" }
 
 [[profile.fuzzy.overrides]]
 filter = "package(=temper-real-loop-world) & kind(test)"
@@ -129,18 +150,40 @@ filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
 slow-timeout = { period = "10s" }
 
 [profile.browser-skein]
+junit = { path = "junit.xml" }
 default-filter = "((package(=skein-browser-world) | package(=skein-ui-web-tests)) & binary(/^browser_/)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
 global-timeout = "4m"
 slow-timeout = { period = "40s", terminate-after = 3 }
 test-threads = 1
 
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.browser-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.browser-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "80s", terminate-after = 3 }
+
 [profile.live-skein]
+junit = { path = "junit.xml" }
 default-filter = "(package(=skein-llm-world) & binary(=live)) & (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))"
 global-timeout = "20m"
 slow-timeout = { period = "120s", terminate-after = 3 }
 test-threads = 1
 retries = 0
 fail-fast = false
+
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.live-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.live-skein.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "240s", terminate-after = 3 }
 
 [profile.live-smith]
 default-filter = "((package(=smith) | package(=smith-agent-process-world)) & binary(=live)) & package(/^smith(-|$)/)"
@@ -150,6 +193,16 @@ test-threads = 1
 retries = 0
 fail-fast = false
 
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.live-smith.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.live-smith.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "240s" }
+
 [profile.live-jig]
 default-filter = "binary(=live) & not test(=live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure) & package(/^jig(-|$)/)"
 global-timeout = "24m"
@@ -157,22 +210,59 @@ slow-timeout = { period = "10m", terminate-after = 1 }
 test-threads = 1
 retries = 0
 
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.live-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "test(=a_person_signs_in_to_chatgpt_and_a_real_model_answers)"
+slow-timeout = { period = "44m", terminate-after = 1 }
+
+[[profile.live-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.live-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "20m", terminate-after = 1 }
+
 [[profile.live-jig.overrides]]
 filter = "test(=a_person_signs_in_to_chatgpt_and_a_real_model_answers)"
 slow-timeout = { period = "22m", terminate-after = 1 }
 
 [profile.browser-jig]
+junit = { path = "junit.xml" }
 default-filter = "(package(=jig-client-browser-world) & binary(/^browser_/)) & package(/^jig(-|$)/)"
 global-timeout = "120s"
 slow-timeout = { period = "40s", terminate-after = 3 }
 test-threads = 1
 
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.browser-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.browser-jig.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "80s", terminate-after = 3 }
+
 # Process stories and the two drivers' offline proofs, three at a time
 # (temper/docs/design/testing/process-tier.md).
 [profile.process-temper]
+junit = { path = "junit.xml" }
 default-filter = "(binary(=process) | (binary(=proof_live) & test(/^rung_b0s_/)) | (binary(=live_github_managed) & test(=managed_ready_client))) & package(/^temper(-|$)/)"
 global-timeout = "25m"
 test-threads = 3
+
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.process-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.process-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
 
 # The one walk that signs in to ChatGPT on the fake box, where the callback's port is fixed.
 [[profile.process-temper.overrides]]
@@ -184,16 +274,38 @@ test-group = "temper-sign-in-callback"
 # (temper/docs/design/testing/live-tier.md). The owner's scripts ignore this filter
 # and name their own story.
 [profile.live-temper]
+junit = { path = "junit.xml" }
 default-filter = "(binary(=live) & (test(=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)"
 global-timeout = "50m"
 test-threads = 1
 retries = 0
 
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.live-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.live-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "12s" }
+
 [profile.browser-temper]
+junit = { path = "junit.xml" }
 default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) & package(/^temper(-|$)/)"
 global-timeout = "120s"
 slow-timeout = { period = "40s" }
 test-threads = 1
+
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.browser-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.browser-temper.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "80s" }
 
 # The conformance tier, outside the gate (hearth/docs/design/testing/README.md, 2.8);
 # HEARTH_RECORD=1 captures.
@@ -203,3 +315,13 @@ global-timeout = "4m"
 slow-timeout = { period = "60s", terminate-after = 2 }
 retries = 0
 fail-fast = false
+
+# macOS doubles the Linux slow periods (temper/docs/design/testing/macos.md, 7).
+[[profile.conformance-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+filter = "package(/^jig(-|$)/) | package(/^hearth(-|$)/)"
+slow-timeout = { period = "2000ms" }
+
+[[profile.conformance-hearth.overrides]]
+platform = 'cfg(target_os = "macos")'
+slow-timeout = { period = "120s", terminate-after = 2 }

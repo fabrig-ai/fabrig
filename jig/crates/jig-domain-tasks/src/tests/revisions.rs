@@ -184,9 +184,14 @@ impl Harness {
     pub(super) fn amend(&mut self, number: u64, amendment: Amendment) {
         let message = self.domain.task(number).unwrap().last_message.checked_add(1).expect("test message room");
         let out = self.send(Event::Amend {
-            operation: crate::Amend { task: number, message, stop_run: false, amendment: Box::new(amendment) },
+            operation: crate::Amend {
+                funder: None,
+                task: number,
+                message,
+                stop_run: false,
+                amendment: Box::new(amendment),
+            },
             places: Box::new([]),
-            funder: None,
             reply_to: to(),
             by: Party::Person(9),
         });
@@ -733,9 +738,8 @@ fn words_release_a_stop_before_its_cancelled_run_answers() {
     authority.budget.spend = 90;
     change.authority = Some(authority);
     test.send(Event::Amend {
-        operation: crate::Amend { task: 1, message: 2, stop_run: true, amendment: Box::new(change) },
+        operation: crate::Amend { funder: None, task: 1, message: 2, stop_run: true, amendment: Box::new(change) },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: Party::Person(9),
     });
@@ -781,13 +785,13 @@ fn an_amendment_releases_only_the_named_hold_and_preflights_both_changes() {
     let before = h.domain.task(1).unwrap().clone();
     h.send(Event::Amend {
         operation: crate::Amend {
+            funder: None,
             task: 1,
             message: before.last_message + 1,
             stop_run: false,
             amendment: Box::new(bad),
         },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: Party::Person(9),
     });
@@ -798,13 +802,13 @@ fn an_amendment_releases_only_the_named_hold_and_preflights_both_changes() {
     change.release = Some(held);
     h.send(Event::Amend {
         operation: crate::Amend {
+            funder: None,
             task: 1,
             message: before.last_message + 1,
             stop_run: false,
             amendment: Box::new(change),
         },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: Party::Person(9),
     });
@@ -1219,13 +1223,13 @@ fn settings_amend(test: &mut Harness, number: u64, model: u8) -> Vec<Request> {
     change.llm = Some(settings_choice(model));
     test.send(Event::Amend {
         operation: crate::Amend {
+            funder: None,
             task: number,
             message: test.domain.task(number).unwrap().last_message.checked_add(1).unwrap(),
             stop_run: false,
             amendment: Box::new(change),
         },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: Party::Person(9),
     })

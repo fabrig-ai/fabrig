@@ -168,7 +168,7 @@ pub(crate) fn write_with_program(
     preferred: [u16; 2],
     program: Option<&Path>,
 ) -> Result<Written, String> {
-    write_deployment(directories, environment, binary, &preferred, program, true)
+    write_deployment(directories, environment, binary, &preferred, program, true, ProviderKey::Generated)
 }
 pub(crate) fn write_bare(
     directories: &Directories,
@@ -176,7 +176,40 @@ pub(crate) fn write_bare(
     binary: &Path,
     preferred: [u16; 2],
 ) -> Result<Written, String> {
-    write_deployment(directories, environment, binary, &preferred, None, false)
+    write_deployment(directories, environment, binary, &preferred, None, false, ProviderKey::Generated)
+}
+
+#[derive(Clone, Copy)]
+enum ProviderKey {
+    Generated,
+    #[cfg(test)]
+    Given(&'static [u8]),
+}
+impl ProviderKey {
+    fn make_missing(self, key: &Path, environment: &[EnvironmentEntry]) -> Result<(), String> {
+        match self {
+            Self::Generated => {
+                if !key.exists() && find(environment, b"openssl").is_none() {
+                    Err("openssl is not on PATH".into())
+                } else {
+                    crate::forge_sign_in::make_missing(key, true)
+                }
+            }
+            #[cfg(test)]
+            Self::Given(bytes) => crate::forge_sign_in::make_missing_given(key, bytes),
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn write_with_key(
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+    binary: &Path,
+    preferred: [u16; 2],
+    key: &'static [u8],
+) -> Result<Written, String> {
+    write_deployment(directories, environment, binary, &preferred, None, true, ProviderKey::Given(key))
 }
 fn check_destinations(directories: &Directories, boxed: bool) -> Result<(), String> {
     let mut destinations = vec![directories.document(), path(&directories.data).join("worker.secret")];
@@ -199,6 +232,7 @@ fn write_deployment(
     preferred: &[u16],
     program: Option<&Path>,
     boxed: bool,
+    provider_key: ProviderKey,
 ) -> Result<Written, String> {
     check_destinations(directories, boxed)?;
     let git = find(environment, b"git");
@@ -217,12 +251,7 @@ fn write_deployment(
         directories.open(skein_shell::effective_user())?;
         let no_sign_in = if boxed {
             let key = path(&directories.data).join("provider.key");
-            let result = if !key.exists() && find(environment, b"openssl").is_none() {
-                Err("openssl is not on PATH".into())
-            } else {
-                crate::forge_sign_in::make_missing(&key, true)
-            };
-            result.err()
+            provider_key.make_missing(&key, environment).err()
         } else {
             None
         };

@@ -91,6 +91,49 @@ fn a_second_press_in_flight_sends_nothing() {
     assert_eq!(f::sent(&mut f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept))).len(), 0);
 }
 #[test]
+fn withdrawing_confirms_once_and_sends_the_cards_key_and_project_without_a_read() {
+    let object =
+        ObjectKey::Proposal(c::ProposalKey { proposer: c::Proposer::Party(fixtures::PARTY), number: OTHER_PROPOSAL });
+    let mut pages = f::pages(object, f::proposal(ActKind::Withdraw, Admission::Allowed));
+    // The request names the entry, not the document's different project or key.
+    let card = pages.inbox.as_mut().unwrap().cards.get_mut(FIRST_CARD).unwrap();
+    card.project = Some(0);
+    for act in [f::decide(object, ActKind::Withdraw), Act::Confirm, Act::Confirm, f::decide(object, ActKind::Withdraw)]
+    {
+        let confirming = act == Act::Confirm;
+        let was_sent = match pages.confirmation() {
+            Some(open) => open.sent.is_some(),
+            None => false,
+        };
+        let mut out = f::act(&mut pages, act);
+        let mut sent = skein_lib::List::with_capacity(1);
+        while let Some(request) = out.pop() {
+            if let crate::pages::Request::Client(jig_client::Event::Send {
+                request: jig_client::Ask::Jig(ask), ..
+            }) = request
+            {
+                sent.push(*ask).unwrap();
+            } else if let crate::pages::Request::Client(jig_client::Event::Read { .. }) = request {
+                panic!("Withdraw does not read");
+            }
+        }
+        if confirming && !was_sent {
+            assert_eq!(sent.as_slice(), [c::Ask::Withdraw { project: 0, proposal: OTHER_PROPOSAL }]);
+        } else {
+            assert!(sent.is_empty());
+        }
+        assert_eq!(pages.confirmation().unwrap().act, ActKind::Withdraw);
+    }
+    let key = pages.confirmation().unwrap().sent.unwrap();
+    let outcome = jig_client::Outcome::Answered(jig_client::Answered::Jig(c::Answer::Done(c::Outcome::Document(
+        c::DocumentOutcome::Withdrawn { proposal: OTHER_PROPOSAL },
+    ))));
+    sheet_answer(&mut pages, key, outcome);
+    assert!(pages.confirmation().is_none());
+    assert!(pages.inbox().unwrap().cards.is_empty(), "the fixture has no retained entry");
+}
+
+#[test]
 fn a_page_holds_at_most_one_open_confirmation() {
     let mut pages = f::pages(PROPOSAL, f::proposal(ActKind::Accept, Admission::Allowed));
     f::act(&mut pages, f::decide(PROPOSAL, ActKind::Accept));

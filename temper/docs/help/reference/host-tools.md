@@ -358,7 +358,7 @@ Offered where the run's charter names the settings family and its authority hold
 
 - `setting`: object. One setting's whole value, named as a settings file names it.
   - `kind`: text; required. The setting's kind. the `kind` form, under Shared forms.
-  - `number`: integer [1, 4294967295]. Setting number; template-goal: its template's. Omit for rules, welcome and unnumbered project settings.
+  - `number`: integer [1, 4294967295]. Number; template-goal: its template's. Omit for rules/welcome/agents/limit kinds/unnumbered project settings.
   - `project`: integer [1, 4294967295]. Project settings: required; landing-rule: optional, absent=deployment; charter-words/template-goal/welcome: none.
 - `revision`: integer [1, 4294967295]. Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it.
 - `history`: object. A page of the revisions, the newest first.
@@ -380,7 +380,7 @@ Offered where the run's charter names the settings family and its authority hold
 - `items`: array. The changes, at most one per setting. Supply exactly one of items or note.
   - `setting`: object; required. The setting, named as a settings file names it.
     - `kind`: text; required. The setting's kind. the `kind` form, under Shared forms.
-    - `number`: integer >=1. Setting number; template-goal: its template's. Omit for rules, welcome and unnumbered project settings.
+    - `number`: integer >=1. Number; template-goal: its template's. Omit for rules/welcome/agents/limit kinds/unnumbered project settings.
     - `project`: integer [1, 4294967295]. Project settings: required; landing-rule: optional, absent=deployment; charter-words/template-goal/welcome: none.
   - `set`: any value. Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first.
   - `edit`: one of `reset|removed`. In place of set: reset, to follow its default again, or removed, no longer offered.
@@ -396,20 +396,20 @@ Offered where the run's charter names the read family and its authority holds it
 
 - `what`: one of `branch|branches|compare|file|protection|settings|collaborators|permission`; required. Read to make; each what below lists its required and optional members.
 - `repository`: text. owner/name; omit or empty for the project's one.
-- `branch`: text. Branch name; pull_for: the branch it merges from.
+- `branch`: text. Branch name; omit or empty for the default branch. file: read at its head unless commit.
 - `prefix`: text. Nonempty name prefix, as temper/; longer reads fewer.
 - `before`: text. Earlier commit: 40 or 64 lowercase hex digits.
 - `after`: text. Later commit: 40 or 64 lowercase hex digits.
-- `commit`: text. Commit id: 40 or 64 lowercase hex digits.
+- `commit`: text. Commit id: 40 or 64 lowercase hex digits. file: omit to read at branch's head.
 - `path`: text. File or directory path; dot or empty for root.
 - `max_bytes`: integer [1, 4294967295]. Raw prefix or log bytes; default: read limit. Leave room for metadata and escaping (up to 4x); cuts are incomplete.
 - `page`: integer [1, 4294967295], 1 when absent. Page from 1; default 1. Next page uncut; same page and skip if cut.
 - `user`: integer [1, 18446744073709551615]. Forge user's id; permission names their login.
-- `what=branch`: requires branch; takes repository, branch.
+- `what=branch`: requires none; takes repository, branch.
 - `what=branches`: requires prefix; takes repository, prefix.
 - `what=compare`: requires before, after; takes repository, before, after.
-- `what=file`: requires commit, path; takes repository, commit, path, max_bytes.
-- `what=protection`: requires branch; takes repository, branch.
+- `what=file`: requires path; takes repository, path, commit, branch, max_bytes.
+- `what=protection`: requires none; takes repository, branch.
 - `what=settings`: requires none; takes repository.
 - `what=collaborators`: requires none; takes repository, page.
 - `what=permission`: requires user; takes repository, user.
@@ -551,6 +551,10 @@ Offered to an asking run, where its authority holds the asking family.
 - `subagents`: array. the `main` form, under Shared forms.
 - `account`: integer >=0.
 
+### kind
+
+one of `charter|template|policy|rules|model|worker|provider|limits|temper-limits|landing-rule|forge-charter|template-goal|project-policy|project-ways|project-questions|project-classes|charter-words|project-words|follow|dependency|project-areas|project-triager|welcome|agents`.
+
 ### grants
 
 - `connector`: integer >=0; required.
@@ -558,10 +562,6 @@ Offered to an asking run, where its authority holds the asking family.
 - `segments`: array; required.
 - `terminal`: text; required. the `terminal` form, under Shared forms.
 - `last`: text; required.
-
-### kind
-
-one of `charter|template|policy|rules|model|worker|provider|landing-rule|forge-charter|template-goal|project-policy|project-ways|project-questions|project-classes|charter-words|project-words|follow|dependency|project-areas|project-triager|welcome|agents`.
 
 ### words
 

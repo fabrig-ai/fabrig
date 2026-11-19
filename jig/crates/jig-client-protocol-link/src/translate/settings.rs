@@ -19,6 +19,7 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Worker(item) => w::Setting::Worker(wire_setting_number(item, limits)?),
         c::Setting::Provider(item) => w::Setting::Provider(wire_setting_number(item, limits)?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::Limits => w::Setting::Limits,
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting::new(
             limits,
             w::ProjectPolicySettingParts { project: *project },
@@ -38,6 +39,7 @@ pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
         w::Setting::Worker(item) => c::Setting::Worker(restore_setting_number(item)?),
         w::Setting::Provider(item) => c::Setting::Provider(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
+        w::Setting::Limits => c::Setting::Limits,
         w::Setting::ProjectPolicy(v) => c::Setting::ProjectPolicy { project: v.project() },
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
     })
@@ -360,6 +362,7 @@ pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(wire_setting_policy(item, limits)?)),
         c::SettingValue::Rules(item) => w::SettingValue::Rules(Box::new(wire_rules(item, limits)?)),
+        c::SettingValue::Limits(item) => w::SettingValue::Limits(wire_limits(item, limits)?),
     })
 }
 pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result<c::SettingValue, w::Problem> {
@@ -381,6 +384,7 @@ pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result
         }
         w::SettingValue::Policy(item) => c::SettingValue::Policy(Box::new(restore_setting_policy(item, limits)?)),
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(restore_rules(item, limits)?)),
+        w::SettingValue::Limits(item) => c::SettingValue::Limits(restore_limits(item)),
     })
 }
 pub fn wire_setting_set(value: &c::SettingSet, limits: &w::Limits) -> Result<w::SettingSet, w::Problem> {
@@ -471,6 +475,7 @@ pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault,
         w::SettingFault::Judged => c::SettingFault::Judged,
         w::SettingFault::Linked => c::SettingFault::Linked,
         w::SettingFault::Accounts => c::SettingFault::Accounts,
+        w::SettingFault::Range => c::SettingFault::Range,
     })
 }
 pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::MalformedSettings, w::Problem> {
@@ -1207,6 +1212,29 @@ pub fn restore_overlay(value: &w::Overlay) -> Result<c::Overlay, w::Problem> {
         },
         instructions: text(value.instructions(), w::CEILINGS.overlay_instructions)?,
     })
+}
+
+fn wire_limits(values: &[c::Override], limits: &w::Limits) -> Result<w::LimitsValue, w::Problem> {
+    let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+    for value in values {
+        overrides
+            .push(w::Override::new(
+                limits,
+                w::OverrideParts { name: value.name.clone(), value: value.value, reason: value.reason.clone() },
+            )?)
+            .expect("override count");
+    }
+    w::LimitsValue::new(limits, w::LimitsValueParts { overrides })
+}
+
+fn restore_limits(value: &w::LimitsValue) -> Box<[c::Override]> {
+    let mut overrides = List::with_capacity(value.overrides().len());
+    for item in value.overrides() {
+        overrides
+            .push(c::Override { name: item.name().into(), value: item.value(), reason: item.reason().into() })
+            .expect("override count");
+    }
+    overrides.into_boxed()
 }
 
 fn wire_worker(value: &c::WorkerSetting, limits: &w::Limits) -> Result<w::WorkerSetting, w::Problem> {

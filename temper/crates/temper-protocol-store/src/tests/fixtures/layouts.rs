@@ -5,8 +5,9 @@
     clippy::disallowed_types,
     reason = "ordinary Rust schema fixtures"
 )]
-use crate::{jobs, records};
-use jig_protocol_store::JobLayout;
+use crate::{jobs, keys, records};
+use alloc::collections::BTreeMap;
+use jig_protocol_store::{JobLayout, JobRow};
 use skein_codec::{
     layout::{Plan, Workspace},
     schema,
@@ -22,23 +23,43 @@ pub fn wide() -> String {
 pub fn layout(text: &str, variant: &str) -> JobLayout {
     JobLayout { root: "Row".into(), variant: Some(variant.into()), text: text.as_bytes().into(), held: Box::new([]) }
 }
-pub fn at_floor(stored: &Stored, variant: &str) -> Box<[u8]> {
-    let wide = schema::parse(wide().as_bytes()).unwrap();
-    let floor = schema::parse(FLOOR.as_bytes()).unwrap();
-    let plan = Plan::derive_dropping(
-        &wide,
-        wide.root(b"Row", Some(variant.as_bytes())).unwrap(),
-        &[],
-        &floor,
-        floor.root(b"Row", Some(variant.as_bytes())).unwrap(),
-        &[],
-    )
-    .expect("fixture plans back to floor");
-    let mut work = Workspace::new();
-    assert!(work.fit(&plan));
-    let mut out = skein_lib::Buffer::with_capacity(1_048_576);
-    plan.convert(&records::encode(stored), &mut out, &mut work).unwrap();
-    out.as_slice().into()
+/// One test's floor encoder: schemas once, a reverse plan once per variant.
+pub struct Floor {
+    wide: schema::Schema,
+    old: schema::Schema,
+    plans: BTreeMap<String, Plan>,
+    work: Workspace,
+    out: skein_lib::Buffer,
+}
+impl Floor {
+    pub fn new() -> Self {
+        Self {
+            wide: schema::parse(wide().as_bytes()).unwrap(),
+            old: schema::parse(FLOOR.as_bytes()).unwrap(),
+            plans: BTreeMap::new(),
+            work: Workspace::new(),
+            out: skein_lib::Buffer::with_capacity(1_048_576),
+        }
+    }
+    pub fn row(&mut self, stored: &Stored, variant: &str) -> JobRow {
+        let plan = self.plans.entry(variant.into()).or_insert_with(|| {
+            Plan::derive_dropping(
+                &self.wide,
+                self.wide.root(b"Row", Some(variant.as_bytes())).unwrap(),
+                &[],
+                &self.old,
+                self.old.root(b"Row", Some(variant.as_bytes())).unwrap(),
+                &[],
+            )
+            .expect("fixture plans back to floor")
+        });
+        assert!(self.work.fit(plan));
+        plan.convert(&records::encode(stored), &mut self.out, &mut self.work).unwrap();
+        JobRow {
+            key: keys::encode(&temper_engine_domain_forge_vocabulary::stored_key(stored), u32::MAX).unwrap(),
+            value: self.out.as_slice().into(),
+        }
+    }
 }
 
 /// Replace distinctive test-id content and its count, leaving the surrounding value alone.

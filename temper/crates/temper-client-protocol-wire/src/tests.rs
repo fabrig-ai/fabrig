@@ -1221,6 +1221,14 @@ fn project_status_round_trips_and_refuses_trailing_bytes() {
         let status = crate::decode_project_status(bytes, &v1::CEILINGS).expect("project status golden");
         assert_eq!(crate::project_status(&status).as_ref(), bytes);
         assert_eq!(crate::decode_project_status(&fixtures::trailing(bytes), &v1::CEILINGS), None);
+        for unpaid in [false, true] {
+            let mut parts = status.clone().into_parts();
+            parts.unpaid = unpaid;
+            let status = v1::ProjectStatus::new(&v1::CEILINGS, parts).unwrap();
+            let decoded = crate::decode_project_status(&crate::project_status(&status), &v1::CEILINGS).unwrap();
+            assert_eq!(decoded.unpaid(), unpaid);
+            assert_eq!(decoded, status);
+        }
     }
 }
 

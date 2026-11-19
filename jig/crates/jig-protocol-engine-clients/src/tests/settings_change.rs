@@ -144,14 +144,17 @@ fn settings_answers_and_each_fault_keep_their_facts() {
         }
     }
     for setting in [p::Setting::Charter(1), p::Setting::Template(2), p::Setting::Policy(3), p::Setting::Rules] {
-        for fault in [
-            p::SettingFault::Shape,
-            p::SettingFault::Count,
-            p::SettingFault::Reference,
-            p::SettingFault::Rules,
-            p::SettingFault::Budget,
-            p::SettingFault::Grace,
-            p::SettingFault::Owner,
+        for (fault, expected) in [
+            (p::SettingFault::Shape, w::SettingFault::Shape),
+            (p::SettingFault::Count, w::SettingFault::Count),
+            (p::SettingFault::Reference, w::SettingFault::Reference),
+            (p::SettingFault::Rules, w::SettingFault::Rules),
+            (p::SettingFault::Budget, w::SettingFault::Budget),
+            (p::SettingFault::Grace, w::SettingFault::Grace),
+            (p::SettingFault::Owner, w::SettingFault::Owner),
+            (p::SettingFault::Judged, w::SettingFault::Judged),
+            (p::SettingFault::Linked, w::SettingFault::Linked),
+            (p::SettingFault::Range, w::SettingFault::Range),
         ] {
             let value = translate::refusals::refusal(
                 p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Settings { setting, fault, detail: None } },
@@ -160,6 +163,7 @@ fn settings_answers_and_each_fault_keep_their_facts() {
             .expect("settings fixture");
             let w::Refusal::Malformed(value) = value else { panic!("malformed settings") };
             let w::Malformed::Settings(facts) = value.why() else { panic!("settings facts") };
+            assert_eq!(facts.fault(), &expected);
             assert_eq!(
                 facts.setting(),
                 &match setting {
@@ -186,6 +190,7 @@ fn settings_answers_and_each_fault_keep_their_facts() {
                         w::SettingNumber::new(&limits, w::SettingNumberParts { number }).expect("number")
                     ),
                     p::Setting::Rules => w::Setting::Rules,
+                    p::Setting::Limits => w::Setting::Limits,
                     p::Setting::Application { kind, scope, number } => w::Setting::Application(
                         w::ApplicationSetting::new(&limits, w::ApplicationSettingParts { kind, scope, number })
                             .expect("application setting")

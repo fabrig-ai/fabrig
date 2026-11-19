@@ -11,6 +11,7 @@ pub enum Setting {
     Template(u32),
     Policy(u32),
     Rules,
+    Limits,
     Application { kind: u32, scope: u32, number: u32 },
 }
 

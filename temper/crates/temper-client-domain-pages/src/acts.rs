@@ -118,12 +118,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Requ
             if card.key.is_some() {
                 return;
             }
-            let Some(page) = &card.page else { return };
-            if !allowed(page, act) {
+            if !card_allowed(card, act) {
                 return;
             }
             let confirm = Confirm { object, revision, act, again: None, sent: None, failed: None };
-            if jig_client::facts::dangerous(act) || (act == ActKind::Accept || act == ActKind::Release) {
+            if jig_client::facts::dangerous(act)
+                || (act == ActKind::Accept || act == ActKind::Release || act == ActKind::Withdraw)
+            {
                 pages.confirm = Some(confirm);
             } else {
                 let _sent = send(pages, confirm, out);
@@ -196,6 +197,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queue<Requ
         | Act::Models(_)
         | Act::HandArea(_)
         | Act::StopAsking(_)
+        | Act::LimitSettings(_)
         | Act::Needs(_)
         | Act::Finding(_)
         | Act::TellWords { .. }
@@ -247,13 +249,17 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
     if card.key.is_some() {
         return None;
     }
-    let Some(page) = &card.page else { return None };
+    if !card_allowed(card, open.act) {
+        return None;
+    }
+    if let (ObjectKey::Proposal(proposal), ActKind::Withdraw) = (open.object, open.act) {
+        let ask = Ask::Withdraw { project: card.project?, proposal: proposal.number };
+        return Some(submit(pages, open.object, ask, out));
+    }
+    let page = card.page.as_ref()?;
     // A proposal is decided under its own project, which a chat's card doesn't
     // hold (temper/docs/design/client/pages/settings.md, 2).
     let project = if let ReadValue::Proposal(proposal) = page { proposal.project } else { card.project? };
-    if !allowed(page, open.act) {
-        return None;
-    }
     let words = card.words.clone();
     let ask = match (open.object, open.act) {
         (ObjectKey::Proposal(proposal), ActKind::Accept | ActKind::Reject) => Ask::Decide {
@@ -343,9 +349,12 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
         (ObjectKey::PersonTask(task), ActKind::HandBack) => Ask::HandBack { project, task },
         _ => return None,
     };
+    Some(submit(pages, open.object, ask, out))
+}
+fn submit(pages: &mut Pages, object: ObjectKey, ask: Ask, out: &mut Queue<Request>) -> Key {
     pages.serial = pages.serial.checked_add(1).expect("pages keys fit");
     let key = Key { asker: Owner::Pages.asker(), number: pages.serial };
-    let card = find_card(pages, open.object).expect("card retained");
+    let card = find_card(pages, object).expect("card retained");
     card.key = Some(key);
     card.outcome = None;
     out.push(Request::Client(jig_client::Event::Send {
@@ -353,7 +362,7 @@ fn send(pages: &mut Pages, open: Confirm, out: &mut Queue<Request>) -> Option<Ke
         name: None,
         request: jig_client::Ask::Jig(Box::new(ask)),
     }));
-    Some(key)
+    key
 }
 pub fn told(pages: &mut Pages, told: &Told) -> bool {
     if let Told::Answered { key, outcome } = told
@@ -391,5 +400,13 @@ pub(crate) fn allowed(page: &ReadValue, act: ActKind) -> bool {
     match jig_client::facts::offer(offers(page), act) {
         Some(Admission::Allowed | Admission::Bounded { .. }) => true,
         Some(Admission::Refused(_) | Admission::Proposed { .. }) | None => false,
+    }
+}
+
+#[must_use]
+pub fn card_allowed(card: &Card, act: ActKind) -> bool {
+    match &card.page {
+        Some(page) => allowed(page, act),
+        None => act == ActKind::Withdraw && card.withdraw_unread,
     }
 }

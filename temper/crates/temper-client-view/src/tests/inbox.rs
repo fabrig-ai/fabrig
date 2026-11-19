@@ -11,6 +11,119 @@ pub(super) use super::fixtures::inbox::{question_root, styled, subtree};
 use skein_ui::{Act, Role};
 
 const GOAL: u64 = 7;
+fn party_amendment(withdraw: bool) -> (c::ProposalKey, c::ReadValue) {
+    let key = c::ProposalKey { proposer: c::Proposer::Party(fixtures::chat::PARTY), number: fixtures::INBOX_QUESTION };
+    let mut task = fixtures::task::document();
+    task.chip.task = fixtures::INBOX_TASK;
+    let mut before = c::AmendmentState {
+        addressed: None,
+        taken_by: None,
+        instructions: None,
+        spec: task.spec,
+        authority: task.authority,
+        wake: task.wake,
+        dependencies: skein_lib::List::uncapped(),
+        cut: false,
+    };
+    before.authority.authority.spend = 20;
+    let mut after = before.clone();
+    after.authority.authority.spend = 150;
+    after.spec.specification.words =
+        c::DocumentText::complete(c::Text::new(b"Wider task specification".as_slice().into(), 64).unwrap());
+    let c::ReadValue::Proposal(mut proposal) = fixtures::cards::batch_proposal() else { panic!("proposal fixture") };
+    proposal.key = key;
+    proposal.action = c::ProposalAction::Amend {
+        task: c::TaskLink::Live(task.chip),
+        addressed: None,
+        before: Box::new(before),
+        after: Box::new(after),
+        reason: c::DocumentText::complete(c::Text::new(b"Widen the work".as_slice().into(), 32).unwrap()),
+        release: None,
+    };
+    proposal.acts = skein_lib::List::uncapped();
+    for act in [c::ActKind::Accept, c::ActKind::Reject, c::ActKind::Withdraw] {
+        if act != c::ActKind::Withdraw || withdraw {
+            proposal.acts.push(c::Offered { act, admission: c::Admission::Allowed, effect: None }).unwrap();
+        }
+    }
+    (key, c::ReadValue::Proposal(proposal))
+}
+#[test]
+fn a_partys_amendment_draws_its_target_specification_authorities_and_offered_withdraw() {
+    for withdraw in [false, true] {
+        let (key, page) = party_amendment(withdraw);
+        let mut root = fixtures::inbox_with_proposer(
+            Filter { kind: Some(Kind::Proposal), ..Filter::ALL },
+            Some((c::Read::Proposal { proposal: key }, page)),
+            key.proposer,
+        );
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            fixtures::build(&mut view, &root);
+            let text = fixtures::text(view.tree());
+            for fact in [
+                b"Amend task 9".as_slice(),
+                b"Wider task specification",
+                b"Authority before",
+                b"Authority after",
+                b"May spend 20",
+                b"May spend 150",
+            ] {
+                assert!(skein_lib::bytes::find(&text, fact).is_some(), "missing {fact:?} in {text:?}");
+            }
+            assert!(fixtures::find(view.tree(), Role::Button, b"Accept").is_some());
+            assert!(fixtures::find(view.tree(), Role::Disclosure, b"Reject with reason").is_some());
+            assert_eq!(fixtures::find(view.tree(), Role::Button, b"Withdraw").is_some(), withdraw);
+        }
+        if withdraw {
+            let mut view = fixtures::browser_page_view(&root);
+            let button = fixtures::find(view.tree(), Role::Button, b"Withdraw").unwrap();
+            let action = crate::act(&mut view, button, Act::Press).unwrap();
+            assert_eq!(
+                action,
+                temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Decide {
+                    object: c::ObjectKey::Proposal(key),
+                    revision: None,
+                    act: c::ActKind::Withdraw
+                })
+            );
+            fixtures::root_event(&mut root, Event::Act { action });
+            let mut view = fixtures::browser_page_view(&root);
+            assert!(fixtures::find(view.tree(), Role::Dialog, b"Withdraw this proposal?").is_some());
+            let mut button = None;
+            for node in view.tree().nodes().iter().rev() {
+                if node.role == Role::Button && node.name.as_deref() == Some(b"Withdraw") {
+                    button = Some(node.id);
+                    break;
+                }
+            }
+            let button = button.unwrap();
+            assert_eq!(
+                crate::act(&mut view, button, Act::Press),
+                Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Confirm))
+            );
+        }
+    }
+}
+#[test]
+fn a_refused_card_draws_withdraw_for_the_signed_in_maker_alone() {
+    for proposer in [
+        c::Proposer::Party(fixtures::chat::PARTY),
+        c::Proposer::Party(fixtures::OTHER_PARTY),
+        c::Proposer::Task(fixtures::INBOX_TASK),
+    ] {
+        let root = fixtures::inbox_with_refused_proposer(proposer);
+        for words in [fixtures::words(), fixtures::browser_words()] {
+            let mut view = fixtures::view_of(words);
+            fixtures::build(&mut view, &root);
+            assert_eq!(
+                fixtures::find(view.tree(), Role::Button, b"Withdraw").is_some(),
+                proposer == c::Proposer::Party(fixtures::chat::PARTY)
+            );
+        }
+    }
+}
+
 #[test]
 fn entries_are_named_by_kind_and_source_task() {
     let view = fixtures::page_view(&fixtures::inbox_root());
@@ -546,7 +659,7 @@ fn has_styled_name(nodes: &[Node], style: skein_ui::Style, name: &[u8]) -> bool 
 }
 #[test]
 fn section_counts_use_listed_cards_and_the_sources_cut_fact() {
-    for (cut, needs, updates) in [(false, b"4".as_slice(), b"2 new".as_slice()), (true, b"4+", b"2+ new")] {
+    for (cut, needs, updates) in [(false, b"4".as_slice(), b"2 new".as_slice()), (true, b"4", b"2+ new")] {
         let root = fixtures::inbox_facts(Filter::ALL, None, c::Proposer::Task(fixtures::INBOX_TASK), cut, None);
         let view = fixtures::page_view(&root);
         for (section, expected) in [(b"Needs you".as_slice(), needs), (b"Updates".as_slice(), updates)] {

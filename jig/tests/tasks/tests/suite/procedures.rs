@@ -90,6 +90,7 @@ fn procedure_with_child() -> World {
 
 fn amendment() -> tasks::Amend {
     tasks::Amend {
+        funder: None,
         task: CHILD,
         message: AMENDMENT,
         stop_run: false,

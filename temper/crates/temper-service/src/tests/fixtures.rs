@@ -3,21 +3,9 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{Secret, Time, Token};
 use temper_protocol_records_forge as forge_records;
 
-// smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
-pub const DIALECT: u32 = 3;
-
-// The stock catalogue holds twelve charters.
-// The closer procedure and close job make seventeen executor places in both limits.
-pub const ENGINE: &[u8] = br#"{
-"limits": {"overrides": {"fleet.slots":4,"hub.accounts":8,"hub.inbox":8,"hub.held":8,"hub.event_bytes":512,"tasks.inbox_bytes":4096,"core.run_bytes":32768,"tasks.charters":13,"core.templates":7,"tasks.result_bytes":32,"tasks.run_inbox":2,"hub.turns":1,"people.amendment_bytes":64,"core.policy_bytes":8192,"authority.grants":16,"authority.executors":22,"tasks.executor_kinds":22,"notes.scopes":32,"tasks.spec_bytes":128,"tasks.message_bytes":512,"tasks.hold_bytes":64,"tasks.authority_bytes":64,"people.words":512,"core.call_answer_bytes":2048,"notes.recalled":1}},
-"hosts": {
-"listener": [{"in_process": "workers"}]
-},
-"clients": {
-},
-"owners": [{"provider": 1, "subject": "owner-a"}],
-"memory_bytes": 1152921504606846976
-}"#;
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
 
 // An inline project policy is refused with its enclosing moved member.
 pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
@@ -31,122 +19,6 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 "budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
 }}]"#;
 
-pub fn engine() -> settings::Engine {
-    static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS
-        .get_or_init(|| {
-            let mut jig = parse_engine(ENGINE);
-            let policy = jig.policies.first().unwrap();
-            assert_eq!(policy.number, 1);
-            jig.projects = Box::new([jig_protocol_config::Project {
-                number: 1,
-                name: "Project 1".into(),
-                policy: policy.policy.clone(),
-                roles: policy.roles.clone(),
-                templates: policy.templates.clone(),
-            }]);
-            for owner in &mut jig.owners {
-                owner.project = 1;
-            }
-            jig
-        })
-        .clone();
-    // This typed fixture reaches the core's start; policy 1 includes the train’s merge grants with the standing charter executors.
-
-    let own = small_limits();
-    let root = limits::engine(&jig.limits, &own).unwrap();
-    let connector = *jig.connectors.first().unwrap();
-    settings::Engine {
-        kinds: crate::stock::kinds(&root, connector),
-        period_span: crate::stock::PERIOD_SPAN,
-        host_reply_bytes: None,
-        agent_charter_bytes: None,
-        setups: Box::new([]),
-        test_github: None,
-        directories: jig_protocol_config::Directories::working(),
-        jig,
-        webhooks: None,
-        sign_in: None,
-        push: None,
-        clients: crate::startup::application::Clients {
-            listener: jig_protocol_config::Address::Addr(http::address()),
-            bundle: None,
-            public: None,
-        },
-        files: settings::Files { entries: skein_lib::List::with_capacity(0) },
-        demo: None,
-        program_environment: Box::new([]),
-        host_part: temper_engine_domain::room::HostPart {
-            allowance: u64::MAX,
-            ..temper_engine_domain::room::HostPart::EMPTY
-        },
-        ways_stock: crate::stock::ways(),
-        kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landing_held: false,
-        limits: own,
-    }
-}
-
-// The small worlds admit the stock's larger goal charter while keeping Small's store page.
-fn small_limits() -> limits::Limits {
-    let mut own = temper_limits_fixtures::small();
-    own.root.journal.run_bytes = 32_768;
-    own
-}
-
-pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
-    jig_domain_core::settings::CatalogueModel {
-        first_read: None,
-        number: 1,
-        model: jig_domain_core::Model {
-            provider: 1,
-            dialect: DIALECT,
-            endpoint: 1,
-            program: None,
-            name: b"small".as_slice().into(),
-            cache_life_ms: 0,
-            window: 8192,
-            output: 1024,
-            input_price: 1,
-            cached_price: 1,
-            cache_write_price: None,
-            output_price: 1,
-            price_unit: 1000,
-            effort: None,
-            efforts: Box::default(),
-        },
-        shown: None,
-        description: None,
-        picker: true,
-        withdrawn: false,
-        source: jig_domain_core::settings::ModelSource::Stock,
-        estimated: false,
-    }
-}
-
-/// A parsed engine passed the stock, before any component is made.
-pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
-    let document = jig_protocol_config::document(
-        bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap();
-    let mut jig = jig_protocol_config::engine_over(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::PassedProviders,
-        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &jig_protocol_config_fixtures::small(),
-    )
-    .unwrap();
-    let running = temper_worker_service_fixtures::providers();
-    let mut defaults =
-        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap();
-    defaults.providers = running.clone();
-    jig_protocol_config::pass_providers(&mut jig, defaults, &running, Box::new([])).unwrap();
-    jig
-}
 /// Startup guards keep the small policy bound; they never make the core.
 pub fn guard_engine() -> settings::Engine {
     let mut settings = engine();
@@ -159,23 +31,6 @@ pub(crate) const FORGE_TOKEN: &[u8] = b"api-token";
 const FORGE_GIT_TOKEN: &[u8] = b"forge-token-1234";
 const FIRST_FORGE_TOKEN: &[u8] = b"first-forge-token";
 const SECOND_FORGE_TOKEN: &[u8] = b"second-forge-token";
-
-pub fn forges() -> Box<[settings::Forge]> {
-    Box::new([settings::Forge {
-        log_origins: None,
-        mode: temper_engine_domain_forge::Mode::Connected,
-        number: 1,
-        kind: settings::Kind::Forgejo,
-        api: jig_protocol_config::Address::Host { name: Box::from(&b"forge.example"[..]), port: 3000 },
-        transport: settings::Transport::Plaintext,
-        git: Box::from(&b"https://forge.example"[..]),
-        git_program: None,
-        web: None,
-        app_read_only: false,
-        user: 42,
-        identity: 1,
-    }])
-}
 
 /// A runtime table carrying the document fixture's values.
 pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
@@ -205,117 +60,6 @@ pub fn forge_table(forges: &[settings::Forge]) -> crate::forges::Forges {
 
 pub const OWNER: Token = Token::new(91);
 
-#[expect(clippy::too_many_lines, reason = "the fixture supplies every retained task field")]
-pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
-    use jig_domain_tasks as tasks;
-    use skein_lib::Wall;
-    tasks::TaskRecord {
-        concluded: None,
-        session: None,
-        talk: None,
-        activation_open: false,
-        closer: None,
-        offered: jig_domain_tasks::Reasons::ALL,
-        reasons: jig_domain_tasks::Reasons::FIRST,
-        asked_requester: false,
-        question_woken: 0,
-        open_attempt: None,
-        settings: tasks::SettingsRevision { task: 1, run: None },
-        added: Box::new([]),
-        hold_bound_since: None,
-        label: 0,
-        flags: tasks::Flags::PLAIN,
-        last_activity: Wall::EPOCH,
-        ended_below: tasks::Endings::ZERO,
-        ended_delegates: tasks::Endings::ZERO,
-        question_lines: Box::new([]),
-        hold: 0,
-        placed: None,
-        proposal_rows: Box::new([]),
-        instructions: None,
-        llm: None,
-        kept_account: None,
-        refused: Box::new([]),
-        grace: None,
-        created_at: Wall::EPOCH,
-        changed: Wall::EPOCH,
-        phase_since: Wall::EPOCH,
-        run_since: None,
-        retry_notice: None,
-        ended_at: None,
-        revision: 0,
-        revisions: tasks::Revisions { hold: 0, spec: 0, person: 0 },
-        milestone: 0,
-        activity: 0,
-        due_reason: tasks::Why::Made,
-        narrowing: false,
-        llm_changed: false,
-        result_position: 0,
-        last_reply: 0,
-        replies: Box::new([]),
-        escalation: tasks::Escalation::Unheld { revision: 0 },
-        proposal: None,
-        result_proposal: false,
-        number,
-        project: 1,
-        requester: tasks::Party::Deployment { project: 1 },
-        run_spent: 0,
-        run_reserved: 0,
-        root: number,
-        depth: 0,
-        executor: tasks::Executor::Agent { charter: 1 },
-        taken_by: None,
-        person_answer: None,
-        person_wait: None,
-        result_followups: Box::new([]),
-        tracked: None,
-        recurring: None,
-        spec: tasks::Spec {
-            job: None,
-            asks: false,
-            words: Box::new([]),
-            parameters: Box::new([]),
-            inputs: Box::new([]),
-        },
-        contract: tasks::Contract::Report { words: 32 },
-        authority: tasks::Authority {
-            tools: tasks::Tools(0),
-            models: tasks::Models::NONE,
-            grants: Box::new([]),
-            delegation: tasks::Delegation { kinds: Box::new([]), tasks: 1, depth: 0 },
-            budget: tasks::Budget { spend: 1, deadline: None },
-            notes: tasks::Scopes(0),
-            note_resources: Box::new([]),
-        },
-        numbers: tasks::Numbers { budget: 1, spent: 0, spent_below: 0, reserved: 0 },
-        funder: tasks::Funder::Period { project: 1, period: 1 },
-        waiting_on: Box::new([]),
-        holdings: Box::new([]),
-        holds_taken: false,
-        hold_wait_since: None,
-        room_wait: None,
-        dependencies: Box::new([]),
-        started_from: Box::new([]),
-        delegates: Box::new([]),
-        references: Box::new([]),
-        questions: Box::new([]),
-        subscriptions: Box::new([]),
-        wake: tasks::WakePolicy::DEFAULT,
-        turn: 0,
-        last_message: 0,
-        inbox: Box::new([]),
-        saved: Box::new([]),
-        ever_turned: false,
-        made: 1,
-        attempt: 0,
-        last_answer: None,
-        tries: tasks::Tries::NONE,
-        invalid_result: None,
-        refusals: 0,
-        phase: tasks::Phase::Waiting,
-    }
-}
-
 pub fn seeds() -> settings::Seeds {
     settings::Seeds {
         deployment: [7; 16],
@@ -329,28 +73,6 @@ pub fn seeds() -> settings::Seeds {
 
 pub fn fill_files(settings: &mut settings::Engine) {
     settings.files.entries = skein_lib::List::with_capacity(2);
-}
-
-pub fn wire_limits() -> temper_protocol_worker_wire::v1::Limits {
-    crate::translate::limits(&temper_limits_fixtures::small()).unwrap()
-}
-
-pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_domain::ForgeRepository {
-    temper_engine_domain::ForgeRepository {
-        prefixes: Box::new([]),
-        delivers: false,
-        save: Some(b"temper/7/s7".as_slice().into()),
-        tag: temper_engine_domain_forge::tag(1, repository),
-        provider: skein_forge::api::Repository { forge: 1, repository },
-        name: name.into(),
-        host: b"forge.example".as_slice().into(),
-        owner: owner.into(),
-        start: temper_engine_domain::ForgeStart::Base(b"main".as_slice().into()),
-        push: Some(b"temper/task-7".as_slice().into()),
-        landing: None,
-        delivered: None,
-        identity: 1,
-    }
 }
 
 pub fn assignment_with(repository: temper_engine_domain::ForgeRepository) -> temper_engine_domain::Assignment {
@@ -370,66 +92,6 @@ pub fn resolution_with_pull(bytes: usize) -> temper_engine_domain::Assignment {
         body: temper_engine_domain::BriefBody::Text(body),
     }]);
     assignment
-}
-
-pub fn assignment_with_settings(
-    repository: temper_engine_domain::ForgeRepository,
-    settings: &settings::Engine,
-) -> temper_engine_domain::Assignment {
-    let task = task_record(7);
-    temper_engine_domain::Assignment {
-        check_timeout: None,
-        charter: 1,
-        task: 7,
-        attempt: 2,
-        conversation: 2,
-        live: jig_domain_host::LiveAsk::NONE,
-        run: Box::new(temper_engine_domain::RunCharter {
-            revision: 1,
-            ended_by: jig_domain_tasks::EndedBy::Result,
-            sources: Box::new([Some(1)]),
-            accounts: Box::new([jig_domain_authority::AccountBinding { provider: 1, account: 1, source: 1 }]),
-            placement: jig_domain_fleet::PlacementConstraint {
-                channel: Token::new(1),
-                kind: jig_domain_fleet::HostKind::Worker,
-            },
-            policy: settings.jig.charters[0].policy.clone(),
-            contract: task.contract,
-            authority: task.authority,
-            budget: 20,
-        }),
-        sections: Box::new([]),
-        messages: Box::new([]),
-        saved: Box::new([]),
-        workstream: 7,
-        workspace: temper_engine_domain::ForgeWorkspace { repositories: Box::new([repository]) },
-        transcript: Box::new([]),
-        answered: Box::new([]),
-        settled: Box::new([]),
-        grants: Box::new([]),
-    }
-}
-
-pub fn encoding(settings: &settings::Engine) -> crate::assignment::Encoding {
-    let mut entries = skein_lib::List::with_capacity(u32::try_from(settings.jig.llm.endpoints.len()).unwrap());
-    for endpoint in &settings.jig.llm.endpoints {
-        entries
-            .push(smith_protocol_channel::Endpoint {
-                name: endpoint.name.clone(),
-                number: endpoint.number,
-                dialect: endpoint.dialect,
-            })
-            .unwrap();
-    }
-    crate::assignment::Encoding {
-        limits: wire_limits(),
-        endpoints: smith_protocol_channel::Endpoints::new(entries),
-        deployment: [7; 16],
-        charter_bytes: crate::assignment::charter_bound(
-            settings.jig.limits.hub.charter_bytes,
-            settings.agent_charter_bytes,
-        ),
-    }
 }
 
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
@@ -491,7 +153,7 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
     }
 }
 
-pub fn stock_document() -> Box<[u8]> {
+pub fn stock_document() -> Start {
     super::stock::generated()
 }
 pub fn stock_files() -> settings::Files {
@@ -598,11 +260,24 @@ pub fn worker_digests(_settings: &settings::Engine) -> settings::Files {
     settings::Files { entries: skein_lib::List::with_capacity(0) }
 }
 
+pub use link_setup::{
+    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, parse_engine_over, repository,
+    small_model, wire_limits, worker_runtime,
+};
+pub(crate) use temper_service_link_fixtures::link_setup;
+
+pub fn engine() -> settings::Engine {
+    static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
+    link_setup::engine_with(ENGINE_SETTINGS.get_or_init(link_setup::engine_jig).clone())
+}
+
+pub(crate) use temper_service_link_fixtures::link_peer;
+pub(crate) use temper_service_link_fixtures::link_profiles;
 mod worker;
-mod worker_git;
+use temper_service_link_fixtures::worker_git;
 pub mod worker_peers;
 pub use worker::{worker_agent, worker_files, worker_limits, worker_settings};
-pub use worker_git::{WorkerStand, started_worker};
+pub use worker_git::started_worker;
 pub mod http;
 pub mod system;
 pub use system::{Kernel, hello, one_process, until_hosting};
@@ -1069,7 +744,7 @@ pub fn unopened_store() -> crate::store::Store {
 }
 
 /// The prepare job's declared request and result must fit a turn fixture.
-pub fn turn_document() -> Box<[u8]> {
+pub fn turn_document() -> Start {
     let document = document();
     let mut overrides: serde_json::Value =
         serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
@@ -1085,4 +760,25 @@ pub fn turn_document() -> Box<[u8]> {
         serde_json::from_slice(&value(&document, b"engine.limits.overrides")).unwrap();
     overrides["hub.event_bytes"] = 4_096_u32.into();
     with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
+}
+
+#[path = "../../../../testing/startup_fixture.rs"]
+mod typed;
+pub use typed::{Input, Start};
+
+pub fn named_with(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    given: &crate::stock::Given,
+) -> Result<crate::startup::Named, crate::startup::Problems> {
+    input.configured().named_with(directories, given)
+}
+
+pub fn document_store_limits(
+    input: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    agent: Option<&temper_service_core::agent::Declaration>,
+) -> Result<crate::startup::StoreLimits, crate::startup::Problems> {
+    let input = input.configured();
+    crate::startup::store_limits_with_limits(&input.document, directories, agent, &input.jig, &input.own)
 }

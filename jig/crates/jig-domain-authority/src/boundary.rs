@@ -294,12 +294,13 @@ pub enum PersonRequest {
     Allot(/** Complete future authority/allotment to reserve, bounded by authority limits. */ Authority),
     /// Check role acceptance and rights for one proposed action.
     Accept(/** Single proposed action; effect acceptance still needs its pinned-fact check. */ Action),
-    /// What the amendment must newly give; a narrowing gives empty authority. Check role permission
-    /// and authority newly given by the amendment.
-    Amend(
-        /** Authority the amendment newly gives, bounded by authority limits; narrowing supplies empty authority. */
-        Authority,
-    ),
+    /// Check the whole authority left by a widening and what it needs from the giver's pool.
+    Amend {
+        /// Complete authority after the amendment, bounded by authority limits.
+        authority: Authority,
+        /// Budget already funded by this pool, or spend retained by the task when funded anew.
+        credit: u64,
+    },
     /// Check role permission and the authority/allotment funding the move.
     Move(/** Complete authority/allotment to fund for the moved task, bounded by authority limits. */ Authority),
     /// Check specific cancellation permission; does not cancel here.
@@ -310,6 +311,25 @@ pub enum PersonRequest {
     Watch,
     /// Check specific policy-change permission; does not replace policy here.
     Policy,
+}
+
+impl PersonRequest {
+    /// Funding already covered for a widening (domain/authority.md, sections 7 and 8.4).
+    #[must_use]
+    pub fn funding_credit(&self) -> u64 {
+        match self {
+            Self::Amend { credit, .. } => *credit,
+            Self::Create(_)
+            | Self::Delegate { .. }
+            | Self::Allot(_)
+            | Self::Accept(_)
+            | Self::Move(_)
+            | Self::Cancel
+            | Self::Release
+            | Self::Watch
+            | Self::Policy => 0,
+        }
+    }
 }
 
 /// Root-gathered person-role question with the funding snapshot and separate available

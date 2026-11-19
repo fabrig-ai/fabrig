@@ -431,7 +431,7 @@ pub static PAGES: [Page; 77] = [
         name: "ctl-proposal",
         kind: Kind::Reference,
         title: "temper ctl proposal",
-        summary: "Proposals: read one, decide it.",
+        summary: "Proposals: read, decide or withdraw one.",
         text: include_str!("../../../docs/help/reference/ctl-proposal.md"),
     },
     Page {
@@ -599,7 +599,7 @@ pub static PAGES: [Page; 77] = [
         name: "limits",
         kind: Kind::Reference,
         title: "Limits",
-        summary: "Every limit application.limits.overrides takes: its unit, the stock's value and what it bounds.",
+        summary: "Every row belongs to the temper-limits setting: its name, unit, stock value, when a raise applies and what it bounds.",
         text: include_str!("../../../docs/help/reference/limits.md"),
     },
     Page {

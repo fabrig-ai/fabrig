@@ -5,20 +5,23 @@ use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };
 use alloc::boxed::Box;
-use skein_lib::List;
+use skein_lib::{List, Map};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
+mod tests;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum At {
     Decl(DeclIx),
     Type(TypeIx),
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Location {
     text: u32,
     at: At,
     variant: Option<VariantIx>,
 }
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct Key {
     old: Location,
     new: Location,
@@ -50,11 +53,16 @@ pub(super) enum Policy {
 struct Builder {
     plan: Plan,
     policy: Policy,
+    // Worklists assign first-discovery indices; the maps only find them again.
     keys: List<Key>,
+    by_key: Map<Key, u32>,
     places: List<Place>,
     read_keys: List<Location>,
+    by_read_key: Map<Location, u32>,
     read_places: List<Place>,
     pairs: List<Pair>,
+    #[cfg(test)]
+    passes: u32,
 }
 
 fn text<'a>(texts: &'a [&Schema], at: u32) -> &'a Schema {
@@ -124,6 +132,46 @@ fn matched_part(old: &Schema, shape: Shape, new: &Schema, current: Target) -> Op
 }
 
 impl Builder {
+    fn new(policy: Policy, head: Option<u16>, old_head: bool, tag: Option<u8>) -> Self {
+        Self {
+            plan: Plan {
+                nodes: List::uncapped(),
+                reads: List::uncapped(),
+                dropped: List::with_capacity(MAX_DECLARATIONS),
+                root: 0,
+                depth: 0,
+                fields: 0,
+                head,
+                old_head,
+                tag,
+            },
+            policy,
+            keys: List::uncapped(),
+            by_key: Map::uncapped(),
+            places: List::uncapped(),
+            read_keys: List::uncapped(),
+            by_read_key: Map::uncapped(),
+            read_places: List::uncapped(),
+            pairs: List::uncapped(),
+            #[cfg(test)]
+            passes: 0,
+        }
+    }
+    fn complete(&mut self, olds: &[&Schema], news: &[&Schema]) -> Result<(), Underived> {
+        for at in 0..u32::MAX {
+            if at >= self.keys.len() {
+                break;
+            }
+            self.build(olds, news, at)?;
+        }
+        for at in 0..u32::MAX {
+            if at >= self.read_keys.len() {
+                break;
+            }
+            self.build_read(olds, at);
+        }
+        finish(self)
+    }
     fn pair(&mut self, olds: &[&Schema], news: &[&Schema], a: u32, b: u32) -> u32 {
         for at in 0..self.pairs.len() {
             let pair = self.pairs.get(at).expect("pair index");
@@ -142,26 +190,24 @@ impl Builder {
         at
     }
     fn request_read(&mut self, key: Location, place: Place) -> u32 {
-        for at in 0..self.read_keys.len() {
-            if self.read_keys.get(at) == Some(&key) {
-                return at;
-            }
+        if let Some(&at) = self.by_read_key.get(&key) {
+            return at;
         }
         let at = self.read_keys.len();
         self.read_keys.push(key).expect("read nodes bounded by reached texts");
+        self.by_read_key.insert(key, at).expect("one lookup entry per reader");
         self.read_places.push(place).expect("one place per reader");
         self.plan.reads.push(Read { kind: ReadKind::Pending, minimum: 0, depth: 0 }).expect("one reader per key");
         at
     }
     fn request(&mut self, key: Key, place: Place) -> u32 {
-        for at in 0..self.keys.len() {
-            if self.keys.get(at) == Some(&key) {
-                return at;
-            }
+        if let Some(&at) = self.by_key.get(&key) {
+            return at;
         }
         let at = self.keys.len();
         let read = self.request_read(key.old, place);
         self.keys.push(key).expect("conversion nodes bounded by reached texts");
+        self.by_key.insert(key, at).expect("one lookup entry per conversion");
         self.places.push(place).expect("one place per conversion");
         self.plan
             .nodes
@@ -701,25 +747,7 @@ pub(super) fn plan(
         Shape::Record { versioned: true, .. } => Some(new.version()),
         Shape::Record { versioned: false, .. } | Shape::Enum { .. } => None,
     };
-    let mut builder = Builder {
-        plan: Plan {
-            nodes: List::uncapped(),
-            reads: List::uncapped(),
-            dropped: List::with_capacity(MAX_DECLARATIONS),
-            root: 0,
-            depth: 0,
-            fields: 0,
-            head,
-            old_head: headed,
-            tag: root_tag(old, old_root),
-        },
-        policy,
-        keys: List::uncapped(),
-        places: List::uncapped(),
-        read_keys: List::uncapped(),
-        read_places: List::uncapped(),
-        pairs: List::uncapped(),
-    };
+    let mut builder = Builder::new(policy, head, headed, root_tag(old, old_root));
     let pair = builder.pair(olds.as_slice(), news.as_slice(), 0, 0);
     if builder.pairs.get(pair).expect("root pair").matching.get(new_root.decl.index()).copied().flatten()
         != Some(old_root.decl)
@@ -746,24 +774,17 @@ pub(super) fn plan(
         },
         place,
     );
-    for at in 0..u32::MAX {
-        if at >= builder.keys.len() {
-            break;
-        }
-        builder.build(olds.as_slice(), news.as_slice(), at)?;
-    }
-    for at in 0..u32::MAX {
-        if at >= builder.read_keys.len() {
-            break;
-        }
-        builder.build_read(olds.as_slice(), at);
-    }
-    finish(&mut builder)?;
+    builder.complete(olds.as_slice(), news.as_slice())?;
     Ok(builder.plan)
 }
 
 fn finish(builder: &mut Builder) -> Result<(), Underived> {
     for _ in 0..super::MAX_DEPTH {
+        #[cfg(test)]
+        {
+            builder.passes = add(builder.passes, 1);
+        }
+        let mut changed = false;
         for at in 0..builder.plan.reads.len() {
             if builder.plan.read(at).depth == 0
                 && let Some((depth, minimum)) = read_facts(&builder.plan, at)
@@ -771,6 +792,7 @@ fn finish(builder: &mut Builder) -> Result<(), Underived> {
                 let read = builder.plan.reads.get_mut(at).expect("reader slot");
                 read.depth = depth;
                 read.minimum = minimum;
+                changed = true;
             }
         }
         for at in 0..builder.plan.nodes.len() {
@@ -781,7 +803,12 @@ fn finish(builder: &mut Builder) -> Result<(), Underived> {
                 node.depth = depth;
                 node.keeps = keeps;
                 node.empty &= builder.plan.reads.get(node.read).expect("reader").minimum == 0;
+                changed = true;
             }
+        }
+        // Facts depend only on settled children, whose nonzero depths never change.
+        if !changed {
+            break;
         }
     }
     for at in 0..builder.plan.reads.len() {

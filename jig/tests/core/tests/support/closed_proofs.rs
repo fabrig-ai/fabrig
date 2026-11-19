@@ -119,6 +119,12 @@ pub fn proof(world: &World) -> &core::RunProof {
     };
     proof
 }
+pub fn endpoint(world: &mut World, task: u64, endpoint: Option<u32>) {
+    let mut proof = world.domain.core().proofs.get(&task).expect("saved run proof").clone();
+    proof.endpoint = endpoint;
+    world.seed(Box::new([root::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))]));
+}
+
 pub fn tail(world: &World) -> Option<&[u8]> {
     world.assigned.as_ref().expect("chat assignment").brief.iter().find_map(|section| {
         if let jig_domain_brief::GatherPlaced::Core { kind: jig_domain_brief::Core::TranscriptTail, text, .. } = section

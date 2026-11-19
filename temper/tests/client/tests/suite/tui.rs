@@ -125,7 +125,7 @@ fn a_tui_signed_in_by_its_pasted_link_draws_me() {
     assert!(tui.status().starts_with("● Live"), "status={:?}; frame={}", tui.status(), tui.text());
     assert_eq!(tui.keeps.len(), CREDENTIAL_WRITES);
     assert!(tui.credential().is_some());
-    assert_eq!(tui.address.as_deref(), Some(ADDRESS));
+    assert_eq!(tui.address.as_ref().map(temper_client_tui::Origin::authority).as_deref(), Some(ADDRESS));
 }
 
 #[test]

@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+jig-client-protocol-http.workspace = true
 serde_json.workspace = true
 jig-protocol-accounts-kit.workspace = true
 skein-fake-oauth.workspace = true

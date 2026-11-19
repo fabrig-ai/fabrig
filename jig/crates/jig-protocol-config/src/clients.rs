@@ -199,6 +199,15 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         problems.push(path.member(b"core.templates"), crate::What::Bound);
         problems.push(path.member(b"authority.projects"), crate::What::Bound);
     }
+    // A task may hold one connector topic past its ordinary subscription bound.
+    let subscriptions_ceiling =
+        wire.subscriptions_entries.min(jig_protocol_store::tasks_v13::CEILINGS.task_interests_subscriptions);
+    if match core.tasks.subscriptions.checked_add(1) {
+        Some(count) => count > subscriptions_ceiling,
+        None => true,
+    } {
+        problems.push(path.member(b"tasks.subscriptions"), crate::What::Bound);
+    }
     for (name, value, maximum) in [
         (b"fleet.configured_workers".as_slice(), core.fleet.configured_workers, wire.deployment_worker_settings),
         (
@@ -271,6 +280,21 @@ mod settings_tests {
             Path::root().member(b"limits").member(b"people.words")
         );
     }
+    #[test]
+    fn subscriptions_leave_room_for_one_apart_topic_in_both_codecs() {
+        ceiling(b"tasks.subscriptions", 31);
+        let mut limits = crate::stock();
+        limits.clients.wire.subscriptions_entries = 0;
+        limits.core.tasks.subscriptions = 0;
+        let mut problems = Problems::empty();
+        check_settings(&limits, &mut problems);
+        assert_eq!(problems.problems.len(), 1, "even a zero ordinary bound needs the apart slot");
+        assert_eq!(
+            problems.problems.get(0).unwrap().path,
+            Path::root().member(b"limits").member(b"tasks.subscriptions")
+        );
+    }
+
     #[test]
     fn pending_settings_fit_the_wire_inventory() {
         let maximum = crate::stock().clients.wire.settings_document_pending;
@@ -354,12 +378,12 @@ mod settings_tests {
     #[test]
     fn inventory_counts_both_defaults_and_changes() {
         let mut limits = crate::stock();
-        // Stock has 25 other slots per set and shared ranges of 64 models, 64 workers and 16 providers.
-        limits.core.tasks.charters = 159;
+        // Stock has 26 other slots per set and shared ranges of 64 models, 64 workers and 16 providers.
+        limits.core.tasks.charters = 158;
         let mut problems = Problems::empty();
         check_settings(&limits, &mut problems);
         assert!(problems.is_empty());
-        limits.core.tasks.charters = 160;
+        limits.core.tasks.charters = 159;
         check_settings(&limits, &mut problems);
         assert_eq!(problems.problems.len(), 3);
     }

@@ -108,7 +108,9 @@ impl Ended {
             }
             EndedValue::Proposal(proposal) => {
                 let proposer = match proposal.action {
-                    super::RetainedAction::Settings(_) => {
+                    super::RetainedAction::Settings(_)
+                    | super::RetainedAction::Batch(_)
+                    | super::RetainedAction::Amend { .. } => {
                         return self.key
                             == ObjectKey::Proposal(ProposalKey {
                                 proposer: Proposer::Party(proposal.proposer),
@@ -120,10 +122,8 @@ impl Ended {
                                     number: proposal.number,
                                 });
                     }
-                    super::RetainedAction::Batch(_)
-                    | super::RetainedAction::Effect { .. }
+                    super::RetainedAction::Effect { .. }
                     | super::RetainedAction::ProcedureEffect { .. }
-                    | super::RetainedAction::Amend { .. }
                     | super::RetainedAction::Widen { .. }
                     | super::RetainedAction::Release { .. } => Proposer::Task(proposal.proposer),
                 };

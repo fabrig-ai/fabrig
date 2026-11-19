@@ -63,8 +63,65 @@ fn a_members_symbols_reach_only_their_connector_with_whether_it_is_tracked() {
     let requests = symbol_asks(ask(&mut core, &env, symbolic_goal(SYMBOL_CONNECTOR)));
     assert_eq!(
         requests.as_ref(),
-        &[(FIRST_CONNECTOR, Box::from([]), true, OWNER), (SYMBOL_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER),]
+        &[
+            (FIRST_CONNECTOR, Box::from([]), true, OWNER, OWNER),
+            (SYMBOL_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER, OWNER),
+        ]
     );
+}
+
+#[test]
+fn a_persons_batch_beneath_a_child_asks_each_members_holdings_under_the_tree_root() {
+    let (_, mut limits) = tree_core();
+    limits.authority.batch = 2;
+    let mut core = core_with_limits(&limits);
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    signed_in(&mut core, &env);
+    let mut root = new_row(&core, OWNER, tasks::Funder::Period { project: 1, period: 1 }, None);
+    root.authority.delegation.tasks = 8;
+    fixtures::make_batch(&mut core, &env.limits, tasks::Party::Person(OWNER), Box::new([root]));
+    let mut child = new_row(&core, CHILD, tasks::Funder::Task(OWNER), None);
+    child.authority.delegation.tasks = 4;
+    fixtures::make_batch(&mut core, &env.limits, tasks::Party::Task(OWNER), Box::new([child]));
+    assert_eq!(core.tasks.root(CHILD), Some(OWNER));
+    core.counters.deployment.tasks = CHILD;
+    let mut member = fixtures::member(b"nested goal", 1);
+    member.tracked = Some(1);
+    member.symbols = Box::new([people::Symbol { connector: SYMBOL_CONNECTOR, symbol: OWN_RESOURCE }]);
+    let mut out = ask(
+        &mut core,
+        &env,
+        people::Ask::Delegate { project: 1, task: CHILD, batch: Box::new([member.clone(), member]) },
+    );
+    for number in [3, 4] {
+        let mut request = None;
+        let mut connectors = List::with_capacity(u32::try_from(CONNECTORS).unwrap());
+        while let Some(next) = out.pop() {
+            if let Request::Ask { connector, ask: Ask::TaskHoldings { request: token, root, number: new, .. } } = next {
+                assert_eq!(root, OWNER);
+                assert_eq!(new, number);
+                connectors.push(connector).unwrap();
+                request = Some(token);
+            } else if let Request::Held(held) = next {
+                panic!("delegate was not asked: {held:?}");
+            }
+        }
+        assert_eq!(connectors.as_slice(), &[FIRST_CONNECTOR, SYMBOL_CONNECTOR]);
+        let request = request.expect("each member asks both connectors");
+        for connector in connectors.into_boxed() {
+            let mut answered = step(
+                &mut core,
+                &env,
+                Event::Holdings { request, connector, holdings: Some(Box::new([])), refused: None },
+            );
+            while let Some(next) = answered.pop() {
+                out.push(next);
+            }
+        }
+    }
+    for number in [3, 4] {
+        assert_eq!(core.tasks.root(number), Some(OWNER));
+    }
 }
 
 #[test]
@@ -334,13 +391,13 @@ fn an_unnamed_holdings_failure_keeps_the_procedures_holds_refusal() {
     refused_procedure(None, tasks::Problem::new(Some(OWNER), tasks::Refusal::Holds));
 }
 
-type SymbolAsk = (u16, Box<[u16]>, bool, u64);
+type SymbolAsk = (u16, Box<[u16]>, bool, u64, u64);
 
 fn symbol_asks(mut out: Queue<Request>) -> Box<[SymbolAsk]> {
     let mut asks = List::with_capacity(u32::try_from(CONNECTORS).unwrap());
     while let Some(next) = out.pop() {
-        if let Request::Ask { connector, ask: Ask::TaskHoldings { symbols, tracked, number, .. } } = next {
-            asks.push((connector, symbols, tracked, number)).unwrap();
+        if let Request::Ask { connector, ask: Ask::TaskHoldings { symbols, tracked, number, root, .. } } = next {
+            asks.push((connector, symbols, tracked, number, root)).unwrap();
         }
     }
     asks.into_boxed()
@@ -372,7 +429,10 @@ fn a_proposals_members_keep_their_symbol_order_and_tracking_separately() {
     }
     assert_eq!(
         symbol_asks(first).as_ref(),
-        &[(FIRST_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER), (SYMBOL_CONNECTOR, Box::from([]), true, OWNER),]
+        &[
+            (FIRST_CONNECTOR, Box::from([OWN_RESOURCE]), true, OWNER, OWNER),
+            (SYMBOL_CONNECTOR, Box::from([]), true, OWNER, OWNER),
+        ]
     );
     let request = request.expect("the first member asks for holdings");
     drop(step(
@@ -388,8 +448,8 @@ fn a_proposals_members_keep_their_symbol_order_and_tracking_separately() {
     assert_eq!(
         symbol_asks(out).as_ref(),
         &[
-            (FIRST_CONNECTOR, Box::from([]), false, CHILD),
-            (SYMBOL_CONNECTOR, Box::from([SECOND_RESOURCE, OWN_RESOURCE]), false, CHILD),
+            (FIRST_CONNECTOR, Box::from([]), false, CHILD, CHILD),
+            (SYMBOL_CONNECTOR, Box::from([SECOND_RESOURCE, OWN_RESOURCE]), false, CHILD, CHILD),
         ]
     );
 }

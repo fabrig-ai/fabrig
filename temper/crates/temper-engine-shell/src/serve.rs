@@ -107,6 +107,10 @@ pub fn github_runtime(
     let log_origins = if machine.is_none() { github_logs::defaults() } else { List::with_capacity(0) };
     Ok(service::ForgeRuntime { number: 0, address, transport, log_origins })
 }
+mod limits;
+pub(crate) use limits::held_failure;
+pub use limits::{Held, close_limits_store, limits_hold, open_limits};
+
 pub fn prepare(
     binary: &str,
     environment: &[EnvironmentEntry],
@@ -169,26 +173,59 @@ fn prepare_given(
     )?;
     let accounts = accounts(&engine)?;
     let seeds = seeds(None, None)?;
-    let mut service = service::startup::with_setup_given(
+    let landing = landing_hold(path(&directories.data))?;
+    let inputs = service::startup::LimitInputs::new(
         bytes,
         &jig_directories(directories),
         &files,
+        None,
         &seeds,
-        Some(accounts),
+        given,
+        false,
+        None,
+    );
+    let models = config::core(&engine, seeds.deployment, seeds.seed).settings.models;
+    let (mut store, state) =
+        open_limits(inputs, &models, path(&directories.data), &named.deployment, user, build_name, owned)?;
+    let start = service::startup::checked_start_with_resolved(
+        bytes,
+        &jig_directories(directories),
+        &files,
+        None,
+        &seeds,
         List::with_capacity(0),
         Some(&checked),
         given,
-        program_environment(directories, environment, working, &printed::running_word(environment)),
-    )
-    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    if let Some(line) = landing_hold(path(&directories.data))? {
+        &state.in_force,
+    );
+    let mut start = match start {
+        Ok(start) => start,
+        Err(why) => {
+            close_limits_store(&mut store)?;
+            return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
+        }
+    };
+    start.engine.program_environment =
+        program_environment(directories, environment, working, &printed::running_word(environment));
+    let mut service =
+        match service::startup::restoring_prepared(start.engine, &seeds, Some(accounts), start.forges, start.io) {
+            Ok(service) => service,
+            Err(why) => {
+                close_limits_store(&mut store)?;
+                return Err(String::from_utf8_lossy(&service::startup::lines(&why)).into_owned());
+            }
+        };
+    service.engine_component().take_limit_store(store, state);
+    if let Some(line) = landing {
         eprintln!("{line}");
         service.engine_component().hold_landings(true);
     }
     service.engine_component().build_name(build_name);
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
-    adopt(service.engine_component(), &named.deployment, bundle, user, owned)?;
+    if let Some(bundle) = bundle {
+        service.engine_component().adopt_bundle(bundle);
+    }
     Ok((service, named.deployment))
 }
 /// The kernel operations an engine alone keeps in flight at most, without retaining its descriptors.
@@ -244,7 +281,11 @@ pub fn operations_in_with(
     directories.open(skein_shell::effective_user())?;
     let mut owned = Vec::new();
     let result = prepare_given(binary, environment, working, directories, config, &mut owned, given, false, "")
-        .map(|(service, _)| service.operations());
+        .and_then(|(mut service, _)| {
+            let operations = service.operations();
+            close_limits_store(service.engine_component().store())?;
+            Ok(operations)
+        });
     close(owned);
     result.map_err(|why| prefixed(&format!("{binary} serve"), &why))
 }

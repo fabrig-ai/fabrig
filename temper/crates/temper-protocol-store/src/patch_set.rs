@@ -313,6 +313,12 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                     keys: &[KeyRange { from: &[48], to: &[49] }],
                 },
                 ValueType {
+                    number: 50,
+                    root: "Row",
+                    variant: Some("person_brief"),
+                    keys: &[KeyRange { from: &[50], to: &[51] }],
+                },
+                ValueType {
                     number: 41,
                     root: "Row",
                     variant: Some("history_project"),
@@ -389,6 +395,7 @@ pub const OWNER_SET: OwnerSet = OwnerSet {
                 Keys { from: &[crate::keys::RED_PASS], to: &[47], root: "Row" },
                 Keys { from: &[47], to: &[48], root: "Row" },
                 Keys { from: &[48], to: &[49], root: "Row" },
+                Keys { from: &[50], to: &[51], root: "Row" },
                 Keys { from: &[127], to: &[128], root: "Row" },
                 Keys { from: &[128], to: &[129], root: "Row" },
                 Keys { from: &[129], to: &[130], root: "Row" },

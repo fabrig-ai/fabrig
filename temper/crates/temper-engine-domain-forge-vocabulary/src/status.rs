@@ -28,8 +28,15 @@ pub struct ProjectFacts {
     pub project: u32,
     pub landed: u64,
     pub last_landed: Wall,
+}
+/// Each person's brief and run (temper/docs/design/domain/forge/attention.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct PersonBrief {
+    pub party: u64,
+    pub project: u32,
     pub brief: Option<Brief>,
     pub running: Option<StatusRunning>,
+    pub unpaid: Option<Wall>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Looked {
@@ -51,6 +58,7 @@ pub struct StatusView {
     pub landed: u64,
     pub last_landed: Option<Wall>,
     pub brief: Option<Brief>,
+    pub unpaid: bool,
     pub previous: Option<Wall>,
     pub seen: u64,
     pub queued: u32,

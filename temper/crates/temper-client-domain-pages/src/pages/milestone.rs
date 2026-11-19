@@ -50,7 +50,6 @@ impl Page {
     fn search(&mut self, out: &mut Queue<Request>) {
         if self.searching.is_none() && self.line_at != Some(self.key) {
             self.searching = Some(self.key);
-            self.line = None;
             self.pages = 0;
             self.ended_group = false;
             self.read_line(None, None, out);
@@ -102,18 +101,21 @@ impl Page {
             }
             if found.is_some() {
                 self.line = found;
-            } else if self.pages < 8 {
-                if !self.ended_group
-                    && let Some(after) = &page.live_after
-                {
-                    self.read_line(Some(after.clone()), None, out);
-                    return;
+            } else {
+                if self.pages < 8 {
+                    if !self.ended_group
+                        && let Some(after) = &page.live_after
+                    {
+                        self.read_line(Some(after.clone()), None, out);
+                        return;
+                    }
+                    if let c::EndedGroup::Rows { after: Some(after), .. } = &page.ended {
+                        self.ended_group = true;
+                        self.read_line(None, Some(after.clone()), out);
+                        return;
+                    }
                 }
-                if let c::EndedGroup::Rows { after: Some(after), .. } = &page.ended {
-                    self.ended_group = true;
-                    self.read_line(None, Some(after.clone()), out);
-                    return;
-                }
+                self.line = None;
             }
         }
         self.line_at = self.searching.take();

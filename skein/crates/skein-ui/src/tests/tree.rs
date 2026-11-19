@@ -236,6 +236,49 @@ fn runs_and_link_addresses_keep_their_owner_tokens() {
 }
 
 #[test]
+fn an_empty_text_leaf_keeps_its_place_without_runs() {
+    // A root paragraph and its single text child take two nodes and levels.
+    const NODES: u32 = 2;
+    const DEPTH: u32 = 2;
+    let limits = Limits { nodes: NODES, depth: DEPTH, text_bytes: 0, text_per_node: 0, ..LIMITS };
+    let mut builder = Builder::new(&limits);
+    builder.open(Role::Paragraph);
+    builder.text(Run::Strong, b"");
+    builder.close();
+    let tree = builder.finish();
+    assert_eq!(tree.len(), NODES);
+    assert_eq!(tree.get(0).expect("paragraph").size, NODES);
+    let leaf = tree.get(1).expect("empty text leaf");
+    assert_eq!(leaf.role, Role::Text);
+    assert_eq!(leaf.size, 1);
+    assert_eq!(leaf.name, None);
+    assert!(leaf.text.is_empty());
+    assert_eq!(leaf.text.capacity(), 1);
+}
+
+#[test]
+fn nested_text_replacements_keep_each_nodes_byte_account() {
+    // The parent holds a five-byte name and three-byte description; its child holds
+    // a three-byte name and one-byte run. Both fill their shared byte bound.
+    const PARENT_BYTES: u32 = 8;
+    const TREE_BYTES: u32 = 12;
+    let limits = Limits { text_per_node: PARENT_BYTES, text_bytes: TREE_BYTES, ..LIMITS };
+    let mut builder = Builder::new(&limits);
+    builder.open(Role::Paragraph);
+    builder.name(b"abc");
+    builder.description(b"one");
+    builder.open(Role::Text);
+    builder.name(b"kid");
+    builder.run(Run::Emphasis, b"x");
+    builder.close();
+    builder.name(b"label");
+    builder.close();
+    let used = builder.finish().used();
+    assert_eq!(used.text_per_node, PARENT_BYTES);
+    assert_eq!(used.text_bytes, TREE_BYTES);
+}
+
+#[test]
 fn a_built_text_leaf_reserves_one_run() {
     let mut builder = Builder::new(&LIMITS);
     builder.text(Run::Plain, b"one");
@@ -431,4 +474,38 @@ fn a_primary_backslash_is_a_shortcut() {
         tree.get(0).expect("button").shortcut,
         Some(crate::Shortcut { key: b'\\', modifier: crate::Modifier::Primary })
     );
+}
+
+#[test]
+fn a_meter_holds_its_required_fraction_and_words() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Meter);
+    let fraction = crate::Fraction { done: 2900, total: 10000 };
+    b.fraction(fraction);
+    b.run(Run::Plain, b"29% used");
+    b.close();
+    let tree = b.finish();
+    let node = tree.get(0).expect("meter exists");
+    assert_eq!(node.fraction, Some(fraction));
+    assert_eq!(crate::Made::of(node).attribute.fraction, Some(fraction));
+    assert_eq!(node.text.get(0).expect("value words").text.as_ref(), b"29% used");
+    assert!(!crate::takes(Role::Meter, false, &crate::Act::Press));
+}
+
+#[test]
+fn shown_folded_children_precede_a_disclosures_body() {
+    let mut b = Builder::new(&LIMITS);
+    b.open(Role::Disclosure);
+    for _ in 0_u32..2 {
+        b.open(Role::Group);
+        b.state(State::ShownFolded);
+        b.text(Run::Plain, b"Week");
+        b.close();
+    }
+    b.text(Run::Plain, b"Sources");
+    b.close();
+    let tree = b.finish();
+    assert!(tree.get(1).expect("first child").states.as_slice().contains(&State::ShownFolded));
+    assert!(tree.get(3).expect("second child").states.as_slice().contains(&State::ShownFolded));
+    assert!(tree.get(5).expect("body child").states.is_empty());
 }

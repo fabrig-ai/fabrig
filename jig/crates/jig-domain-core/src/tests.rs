@@ -495,6 +495,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            limits: Box::default(),
             providers: Box::new([provider_setting(1, b"Fake", 1)]),
             workers: Box::new([
                 crate::settings::WorkerSetting {
@@ -819,6 +820,7 @@ fn documents_run_has_only_the_live_proofs_committed_progress() {
                 task: 1,
                 attempt: 7,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 window: None,
                 crossed: false,
@@ -1354,9 +1356,8 @@ fn person_address_proposals_keep_the_named_revision_and_actual_beforefacts() {
         &mut core,
         &limits,
         tasks::Event::Amend {
-            operation: tasks::Amend { task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
+            operation: tasks::Amend { funder: None, task: 2, message: 21, stop_run: false, amendment: Box::new(moved) },
             places: Box::new([]),
-            funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
         },
@@ -2101,14 +2102,14 @@ fn documents_inbox_keeps_two_projects_groups_order_and_exact_cursor() {
     people::step(
         &mut core.people,
         &env,
-        people::Event::Waiting { task: 1, entries: Box::new([needs[0], needs[1]]) },
+        people::Event::Waiting { source: people::NeedSource::Task(1), entries: Box::new([needs[0], needs[1]]) },
         &mut out,
     );
     people::step(
         &mut core.people,
         &env,
         people::Event::Waiting {
-            task: 5,
+            source: people::NeedSource::Task(5),
             entries: Box::new([
                 needs[2],
                 people::Entry {
@@ -2321,6 +2322,7 @@ fn watch_core() -> (Core, Limits) {
                 task: 1,
                 attempt: 7,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 window: None,
                 crossed: false,
@@ -2686,7 +2688,7 @@ fn ten_changed_decisions_coalesce_behind_one_inflight_delivery() {
             &mut core,
             &limits,
             Event::People(people::Event::Waiting {
-                task: 1,
+                source: people::NeedSource::Task(1),
                 entries: Box::new([people::Entry {
                     task: 1,
                     project: 1,
@@ -3880,9 +3882,14 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
         &mut core,
         &limits,
         tasks::Event::Amend {
-            operation: tasks::Amend { task: 1, message: 21, stop_run: false, amendment: Box::new(amendment) },
+            operation: tasks::Amend {
+                funder: None,
+                task: 1,
+                message: 21,
+                stop_run: false,
+                amendment: Box::new(amendment),
+            },
             places: Box::new([]),
-            funder: None,
             reply_to: ReplyTo::new(Token::new(5)),
             by: tasks::Party::Person(1),
         },

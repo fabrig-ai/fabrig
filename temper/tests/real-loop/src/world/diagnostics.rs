@@ -13,7 +13,7 @@ const ROWS: usize = 32;
 const REVIEW_CHARTER: u32 = 4;
 
 pub(super) struct Operations {
-    pending: BTreeMap<Token, Operation>,
+    pub(super) pending: BTreeMap<Token, Operation>,
     pub(super) terminals: Terminals,
     pub(super) now: Time,
     pub(super) started: Option<Time>,
@@ -36,7 +36,7 @@ struct Timer {
     until: Time,
     since: Time,
 }
-struct Operation {
+pub(super) struct Operation {
     kind: &'static str,
     since: Time,
 }

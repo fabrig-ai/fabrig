@@ -17,7 +17,7 @@ pub fn save(key: &[u8], value: &[u8]) -> Asked {
     Asked::Save { key: key.into(), value: value.into() }
 }
 pub fn route() -> Route<'static> {
-    Route { path: b"/jig/v1/sign-in/link", home: b"/" }
+    Route { path: b"/jig/v1/sign-in/link", page: None, home: b"/" }
 }
 
 #[derive(Default)]

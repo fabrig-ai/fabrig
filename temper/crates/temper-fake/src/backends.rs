@@ -299,7 +299,7 @@ pub fn rewrite(temper: &[u8], paths: &Paths, peers: &Peers) -> Result<Documents,
         let _value = read::text(&d, bundle, 4096, &ap.member(b"clients").member(b"bundle"))?;
     }
     edits.text(&d, bundle, &paths.bundle, &ap.member(b"clients").member(b"bundle"))?;
-    capacity(&d, &mut edits)?;
+    capacity();
     Ok(Documents {
         temper: edits.finish(&d)?,
         providers: providers(peers)?,
@@ -398,20 +398,12 @@ fn object_member(d: &Document, at: u32, name: &[u8], value: &[u8], edits: &mut E
         append(d, at, &read::joined(&[b"{", &text(name)?, b":", value, b"}"]), edits)
     }
 }
-fn capacity(d: &Document, edits: &mut Edits) -> Result<(), Refusal> {
-    let engine = member(d, 0, b"engine", &Path::root())?;
-    let limits = member(d, engine, b"limits", &Path::root())?;
-    let overrides = member(d, limits, b"overrides", &Path::root())?;
-    object_member(d, overrides, b"accounts.credentials", b"4", edits)?;
-    let path = Path::root().member(b"engine").member(b"limits");
-    let parsed = jig_protocol_config::overrides::parse(d, limits, &path);
-    if !parsed.problems.is_empty() {
-        return Err(read::why(&path, b"invalid engine limits"));
-    }
-    let receiving = u64::from(parsed.limits.core.documents.lines);
-    let lines = Decimal::of(receiving.max(u64::from(PROVIDER_LINES)));
-    object_member(d, overrides, b"documents.lines", lines.as_bytes(), edits)?;
-    Ok(())
+fn capacity() {
+    let stock = jig_protocol_config::stock();
+    assert!(
+        stock.core.documents.lines >= PROVIDER_LINES && stock.core.accounts.credentials >= 4,
+        "the stock carries the fake backend provider offer and credentials"
+    );
 }
 fn forge(
     d: &Document,

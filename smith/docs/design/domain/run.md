@@ -598,10 +598,16 @@ host tool for it, as temper's `delegate` does.
   3.4's resume form; it does not add a fresh begin instruction. A transcript
   it cannot use (another version, malformed, unresolved, too large) fails
   the run as transient, saying which (session.md, section 3), and the host decides
-  what the next run starts from. A window that ran on another endpoint,
-  dialect, account or backend is not refused: it is carried over
-  (session.md, 8.2). A run that does not resume starts fresh from its
-  brief, which carries what the host thinks it needs.
+  what the next run starts from. Whether a run resumes at all is its
+  host's decision, made before the start, since a run that resumes is
+  given no brief to start fresh from. A host that moves a task to
+  another endpoint or backend, program to direct or back, starts its
+  run fresh rather than offer it the window, as jig's engine does
+  (jig's `domain/engine/executors.md`, 2, *Resumed only where it ran*).
+  A window a host offers anyway, or one that ran on another dialect or
+  account, is not refused: it is carried over (session.md, 8.2). A run
+  that does not resume starts fresh from its brief, which carries what
+  the host thinks it needs.
 - **Messages mid-work.** Between
   completions, not only when main yields, the run offers its queued
   messages to the working session, which appends them after the results

@@ -27,13 +27,13 @@ pub fn tui() -> Limits {
 
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    let Some((view, words)) = native::view(&limits.native) else { return false };
-    let Some(required) = temper_client_tui::limits(&limits.native.client, &view.tree, limits.paste) else {
-        return false;
-    };
-    native::valid(&limits.native)
-        && temper_client_tui::words::Words::english(words, &limits.native.client).is_ok()
-        && skein_ui::valid(&limits.view)
+    checked(limits).is_some()
+}
+/// Validate once and keep the words for the host's view.
+pub(crate) fn checked(limits: &Limits) -> Option<temper_client_tui::words::Words> {
+    let (view, words) = native::checked(&limits.native)?;
+    let required = temper_client_tui::limits(&limits.native.client, &view.tree, limits.paste)?;
+    let usable = skein_ui::valid(&limits.view)
         && limits.view.nodes >= required.nodes
         && limits.view.depth >= required.depth
         && limits.view.text_per_node >= required.text_per_node
@@ -50,7 +50,11 @@ pub fn valid(limits: &Limits) -> bool {
             skein_ui_screen_terminal::Depth::True,
             true,
         ))
-        .is_some()
+        .is_some();
+    if !usable {
+        return None;
+    }
+    temper_client_tui::words::Words::english(words, &limits.native.client).ok()
 }
 
 #[must_use]

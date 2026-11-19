@@ -81,6 +81,7 @@ pub fn why(builder: &mut Builder, kind: &[u8]) {
         unread: None,
         handle: jig_client::Handle { asker: jig_client::Asker::JIG, number: 1 },
         page: None,
+        withdraw_unread: false,
         whole: None,
         task: None,
         words: None,

@@ -31,13 +31,13 @@ fn refuse_amendment(spec: Spec) {
     test.make(vec![task(TASK, &[])]);
     let out = test.send(Event::Amend {
         operation: crate::Amend {
+            funder: None,
             task: TASK,
             message: MESSAGE,
             stop_run: false,
             amendment: Box::new(Amendment { spec: Some(spec), ..amendment() }),
         },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: Party::Person(REQUESTER),
     });

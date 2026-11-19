@@ -50,6 +50,12 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         prepared(runner, client, env, called, request, out);
         return;
     }
+    if called.call.tool == rows::WITHDRAW_AT {
+        let Some(me) = me(runner, client) else { return };
+        let request = withdraw(&called.call, me);
+        prepared(runner, client, env, called, request, out);
+        return;
+    }
     if let Some(request) = immediate(&called.call, &env.limits) {
         prepared(runner, client, env, called, request, out);
         return;
@@ -91,6 +97,15 @@ pub(super) fn start(runner: &mut Runner, client: &Client, env: &Env<Limits>, cal
         },
     });
     runner.acts.insert(called.call_number, Reading { called, document: None });
+}
+// client/ctl/areas.md, area 2: admission needs the maker, never the proposal read.
+fn withdraw(call: &Call, me: &c::Me) -> Prepared {
+    let Some(Value::Proposal(key)) = value(call, 0) else { unreachable!("proposal argument") };
+    if key.proposer != c::Proposer::Party(me.party.number) {
+        return Err(Failed::Fixed(b"proposal withdraw needs your party's pN/K"));
+    }
+    let project = super::reads::selected_project(value(call, 1), me).ok_or(Failed::Fixed(b"unknown project"))?;
+    Ok((Request::Ask(c::Ask::Withdraw { project, proposal: key.number }), None))
 }
 fn immediate(call: &Call, limits: &Limits) -> Option<Prepared> {
     let request = match call.tool {

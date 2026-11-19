@@ -44,6 +44,40 @@ pub fn proposal(act: ActKind, admission: Admission) -> ReadValue {
         acts: offered(act, admission),
     }))
 }
+pub fn amendment(proposer: Proposer) -> ReadValue {
+    let task = chat::task();
+    let before = AmendmentState {
+        addressed: None,
+        taken_by: None,
+        instructions: None,
+        spec: task.spec,
+        authority: task.authority,
+        wake: task.wake,
+        dependencies: List::uncapped(),
+        cut: false,
+    };
+    let mut after = before.clone();
+    after.spec = spec();
+    after.authority.authority.spend = 150;
+    let ReadValue::Proposal(mut proposal) = proposal(ActKind::Accept, Admission::Allowed) else {
+        panic!("proposal fixture")
+    };
+    proposal.key.proposer = proposer;
+    proposal.action = ProposalAction::Amend {
+        task: TaskLink::Live(task.chip),
+        addressed: None,
+        before: Box::new(before),
+        after: Box::new(after),
+        reason: DocumentText::complete(text(b"Widen this task")),
+        release: None,
+    };
+    proposal.acts = List::from_boxed(Box::new([
+        Offered { act: ActKind::Accept, admission: Admission::Allowed, effect: None },
+        Offered { act: ActKind::Reject, admission: Admission::Allowed, effect: None },
+        Offered { act: ActKind::Withdraw, admission: Admission::Allowed, effect: None },
+    ]));
+    ReadValue::Proposal(proposal)
+}
 pub fn chip() -> Chip {
     let mut chip = chat::task().chip;
     chip.executor = ChipExecutor::Party { party: PARTY };
@@ -118,6 +152,7 @@ pub fn pages(object: ObjectKey, page: ReadValue) -> Pages {
     inbox
         .cards
         .push(Card {
+            withdraw_unread: false,
             whole: None,
             task: None,
             object,

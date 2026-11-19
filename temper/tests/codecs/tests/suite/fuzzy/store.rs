@@ -373,6 +373,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let mut tier = forge::TierRow {
+        many: None,
         posting: None,
         hold: None,
         observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),
@@ -525,10 +526,13 @@ fn verification_row(
     let row = forge::Stored::LandingLog(forge::LandingLog {
         repository,
         landings: Box::new([forge::LoggedLanding {
+            tiers: Box::new([]),
             commit: [7; 32],
             branch: temper_codecs_world::drawn(rng, LIMITS.name_bytes).into_boxed_slice(),
             at: skein_lib::Wall::from_nanos(rng.next_u64()),
             changes: Box::new([forge::LoggedChange {
+                goal: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: rng.next_u64(),
                 pull: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
@@ -567,10 +571,16 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         project,
         landed: rng.next_u64(),
         last_landed: Wall::from_nanos(rng.next_u64()),
-        brief,
-        running,
     });
     row_and_key(&facts, rng, bounds);
+    let person = forge::Stored::PersonBrief(forge::PersonBrief {
+        party: rng.next_u64(),
+        project,
+        brief,
+        running,
+        unpaid: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
+    });
+    row_and_key(&person, rng, bounds);
     let looked = forge::Stored::Looked(forge::Looked {
         party: rng.next_u64(),
         project,

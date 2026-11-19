@@ -64,7 +64,7 @@ pub struct View {
     reply: Box<[Event]>,
     left_off: List<(u64, launchpad::LeftKind)>,
     selected_event: Option<Event>,
-    authority: Box<[u8]>,
+    origin: Option<crate::Origin>,
     page: Option<Box<[u8]>>,
     focus: Option<Box<[u8]>>,
     walkable: bool,
@@ -87,7 +87,7 @@ impl View {
             reply: Box::default(),
             left_off: List::with_capacity(3),
             selected_event: None,
-            authority: Box::default(),
+            origin: None,
             page: None,
             focus: None,
             walkable: false,
@@ -156,11 +156,17 @@ fn sign_in_line(tui: &Tui, root: &Domain, words: &Words) -> Option<(Box<[u8]>, S
         }),
     }
 }
-fn approval_line(root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
+fn approval_line(tui: &Tui, root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
     let word = match root.asked() {
         None => return None,
         Some(asked::State::Asking) => return Some((words.say(Word::ApprovalAsking, &[]), look::WAITING)),
         Some(asked::State::NotAsked(why)) => match why {
+            NotAsked::Refused if tui.address().at_name() => {
+                return Some((
+                    words.say(Word::ApprovalNameRefused, &[Hole::Name(crate::place(tui.address(), false))]),
+                    look::REFUSED,
+                ));
+            }
             NotAsked::Refused => Word::ApprovalNotAskedRefused,
             NotAsked::Busy => Word::ApprovalNotAskedBusy,
             NotAsked::NotReady | NotAsked::Lost => Word::ApprovalNotAskedDown,
@@ -190,14 +196,12 @@ fn approval_line(root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
     };
     Some((words.say(word, &[]), look::REFUSED))
 }
-fn port(address: &[u8]) -> &[u8] {
-    let mut port = b"".as_slice();
-    for (index, byte) in address.iter().enumerate() {
-        if *byte == b':' {
-            port = address.get(index.saturating_add(1)..).expect("colon is in the address");
-        }
-    }
-    port
+fn port(origin: &crate::Origin) -> Box<[u8]> {
+    let port = match origin {
+        crate::Origin::Http(socket) => socket.port(),
+        crate::Origin::Https { port, .. } => *port,
+    };
+    copy_of(skein_lib::Decimal::of(u64::from(port)).as_bytes())
 }
 fn approval_waiting(
     b: &mut Builder,
@@ -208,6 +212,14 @@ fn approval_waiting(
     wall: Wall,
 ) -> Option<Wall> {
     let address = approval_address(tui.address(), code);
+    if tui.address().at_name() {
+        approval_name_waiting(b, tui, words, code, &address);
+    } else {
+        approval_loopback_waiting(b, tui, words, code, address);
+    }
+    approval_expiry(b, words, expires, wall)
+}
+fn approval_loopback_waiting(b: &mut Builder, tui: &Tui, words: &Words, code: ApprovalCode, address: Box<[u8]>) {
     match tui.browser() {
         Some(Browser::None) => {
             text(b, Role::Paragraph, &words.say(Word::ApprovalOpen, &[]), None);
@@ -216,7 +228,7 @@ fn approval_waiting(
             text(
                 b,
                 Role::Paragraph,
-                &words.say(Word::ApprovalTunnel, &[Hole::Name(copy_of(port(tui.address())))]),
+                &words.say(Word::ApprovalTunnel, &[Hole::Name(port(tui.address()))]),
                 Some(look::HINT),
             );
         }
@@ -226,6 +238,29 @@ fn approval_waiting(
             text(b, Role::Paragraph, &words.say(Word::ApprovalNoTab, &[Hole::Name(address)]), None);
         }
     }
+}
+fn clipped_line(b: &mut Builder, role: Role, bytes: &[u8]) {
+    b.open(Role::Region);
+    b.region(look::SIGN_IN_LINE);
+    text(b, role, bytes, None);
+    b.close();
+}
+fn approval_name_waiting(b: &mut Builder, tui: &Tui, words: &Words, code: ApprovalCode, address: &[u8]) {
+    let code = Hole::Name(copy_of(&code.shown()));
+    match tui.browser() {
+        Some(Browser::None) => {
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameOpen, &[]), None);
+            clipped_line(b, Role::Paragraph, address);
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameType, &[code]), None);
+        }
+        None | Some(Browser::Opening | Browser::Opened) => {
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameTab, &[code]), None);
+            text(b, Role::Paragraph, &words.say(Word::ApprovalNameNoTab, &[]), None);
+            clipped_line(b, Role::Paragraph, address);
+        }
+    }
+}
+fn approval_expiry(b: &mut Builder, words: &Words, expires: Wall, wall: Wall) -> Option<Wall> {
     // The shared span counts up from its first wall to its second; here they
     // describe the remaining time. The countdown crosses each bound just after it.
     let (span, _) = words.view().time(TimeForm::Span, wall, expires);
@@ -243,7 +278,7 @@ fn approval(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall
     if tui.pasted() {
         return None;
     }
-    if let Some((line, style)) = approval_line(root, words) {
+    if let Some((line, style)) = approval_line(tui, root, words) {
         text(b, Role::Paragraph, &line, Some(style));
         return None;
     }
@@ -252,11 +287,27 @@ fn approval(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall
         None | Some(asked::State::Asking | asked::State::NotAsked(_)) => None,
     }
 }
-fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall) -> Option<Wall> {
+fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall, focus: u64) -> Option<Wall> {
     if tui.signed_out() {
         text(b, Role::Paragraph, &words.view().say(Shared::SignedOutMain, &[]), Some(look::DOWN));
     }
-    text(b, Role::Paragraph, &words.say(Word::SignIn, &[Hole::Name(copy_of(tui.address()))]), None);
+    if tui.address().at_name() {
+        clipped_line(
+            b,
+            Role::Heading { level: 2 },
+            &words.say(Word::SignIn, &[Hole::Name(crate::place(tui.address(), false))]),
+        );
+        let tick = approval(b, tui, root, words, wall);
+        if crate::may_ask_again(tui, root) {
+            b.open(Role::Button);
+            b.name(&words.say(Word::AskAgain, &[]));
+            b.bind(Binding { owner: look::OWNER, token: look::ASK_AGAIN });
+            b.focus(focus);
+            b.close();
+        }
+        return tick;
+    }
+    text(b, Role::Paragraph, &words.say(Word::SignIn, &[Hole::Name(crate::place(tui.address(), false))]), None);
     let tick = approval(b, tui, root, words, wall);
     text(b, Role::Paragraph, &words.say(Word::Paste, &[]), Some(look::HINT));
     b.open(Role::TextField);
@@ -264,7 +315,7 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     b.entry(EntryKind::Secret);
     b.state(State::SubmitsOnEnter);
     b.value(tui.field(), tui.written());
-    b.placeholder(&words.say(Word::LinkShape, &[Hole::Name(copy_of(tui.address()))]));
+    b.placeholder(&words.say(Word::LinkShape, &[Hole::Name(tui.address().authority())]));
     b.bind(Binding { owner: look::OWNER, token: look::LINK });
     b.focus(tui.focus());
     b.close();
@@ -273,6 +324,22 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     }
     tick
 }
+/// A build refused replaces every screen out of front (temper/docs/design/client/tui/pages/refused.md, 1).
+#[must_use]
+pub fn refused(root: &Domain, tui: &Tui) -> bool {
+    let link = root.client().link();
+    !tui.front() && (link.state == Link::OutOfDate || !link.not_served.is_empty())
+}
+
+fn refused_lines(b: &mut Builder, tui: &Tui, words: &Words) {
+    let place = crate::place(tui.address(), tui.front() || tui.boxed());
+    text(b, Role::Paragraph, &words.say(Word::AnotherBuild, &[Hole::Name(place.clone())]), None);
+    if !tui.version().is_empty() {
+        text(b, Role::Paragraph, &words.say(Word::ThisBuild, &[Hole::Name(copy_of(tui.version()))]), None);
+    }
+    text(b, Role::Paragraph, &words.say(Word::StartBuild, &[Hole::Name(place)]), None);
+}
+
 /// The sign-in screen is drawn while signed out with no sign-in from a link under way.
 #[must_use]
 pub fn sign_in_drawn(root: &Domain, tui: &Tui) -> bool {
@@ -296,11 +363,12 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     if view.built == Some((root_shown, revision)) && !ticked {
         return;
     }
-    view.authority = copy_of(tui.address());
+    view.origin = Some(tui.address().clone());
     view.page = page_focus(root, tui.address());
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
-    if sign_in_drawn(root, tui) {
+    let refused = refused(root, tui);
+    if refused || sign_in_drawn(root, tui) {
         view.reply = Box::default();
         view.selected_event = None;
         view.walkable = false;
@@ -317,9 +385,20 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
         b.open(Role::Main);
         b.region(look::TOP);
         text(&mut b, Role::Heading { level: 1 }, &words.say(Word::Title, &[]), Some(look::TITLE));
-        view.tick = sign_in(&mut b, tui, root, words, wall);
+        view.tick = if refused {
+            refused_lines(&mut b, tui, words);
+            None
+        } else {
+            sign_in(&mut b, tui, root, words, wall, view.shown)
+        };
         b.close();
-        view.escape = foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds);
+        view.escape = if refused {
+            let state = words.say(Word::State, &[Hole::Name(words.say(Word::BuildRefused, &[]))]);
+            foot::bottom(&mut b, &state, look::DOWN, words);
+            None
+        } else {
+            foot::draw(&mut b, &foot::read(root, tui, words, wall), words, &mut view.binds)
+        };
         b.close();
         view.render.finish(b, view.shown, out);
     } else {
@@ -400,7 +479,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
                         launchpad::LeftKind::Chat { .. } => Address::Chat { task: line.task },
                         launchpad::LeftKind::Goal => Address::Task { task: line.task },
                     };
-                    let address = page_address(&view.authority, &page);
+                    let address = page_address(view.origin.as_ref().expect("built view has an origin"), &page);
                     view.selected_event = Some(match line.kind {
                         launchpad::LeftKind::Chat { .. } => {
                             Event::Act { act: temper_client_domain::pages::Act::Go { address: page } }
@@ -510,6 +589,9 @@ pub fn event(view: &View, node: NodeId, act: Act) -> Option<Event> {
             }
         }
         Act::Press => {
+            if bound.binding.token == look::ASK_AGAIN {
+                return Some(Event::SignIn);
+            }
             let index = u32::try_from(bound.binding.token.raw().checked_sub(4)?).ok()?;
             view.binds.events.get(index).cloned()
         }
@@ -601,7 +683,7 @@ pub fn arrow(view: &View, arrow: Arrow) -> Option<Event> {
     Some(Event::LeftOff { task: Some(view.left_off.get(picked)?.0) })
 }
 
-fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
+fn page_focus(root: &Domain, origin: &crate::Origin) -> Option<Box<[u8]>> {
     if root.client().link().state == Link::SignedOut {
         return None;
     }
@@ -617,10 +699,10 @@ fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
     } else {
         Address::Home { project: root.pages().project()? }
     };
-    Some(page_address(authority, &page))
+    Some(page_address(origin, &page))
 }
-fn page_address(authority: &[u8], page: &Address) -> Box<[u8]> {
-    skein_lib::bytes::concat(&[b"http://", authority, &temper_client_domain::address::print(page)])
+fn page_address(origin: &crate::Origin, page: &Address) -> Box<[u8]> {
+    crate::origin::page(origin, &temper_client_domain::address::print(page))
 }
 fn has_needs(root: &Domain) -> bool {
     match root.pages().inbox() {
@@ -649,16 +731,34 @@ pub fn chat_number(view: &View, number: u32) -> Option<u64> {
 pub fn focus(view: &View) -> Option<&[u8]> {
     view.focus.as_deref()
 }
+// In front alone, beside the screen under a place not yet started (client/tui/box.md, `/web`).
+fn web_offered(root: &Domain, tui: &Tui) -> bool {
+    tui.front()
+        && tui.box_stage() == &crate::BoxStage::Running
+        && !starting::shown(root, tui)
+        && !sign_in_drawn(root, tui)
+        && match tui.box_state() {
+            crate::BoxState::GaveUp { .. } | crate::BoxState::Stopping | crate::BoxState::Stopped { .. } => false,
+            crate::BoxState::Running | crate::BoxState::Starting { .. } | crate::BoxState::Restarting { .. } => true,
+        }
+}
 /// The TUI's own commands in their offered order (client/tui/pages/README.md).
 #[must_use]
 pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
-    let mut commands = List::with_capacity(9);
+    let mut commands = List::with_capacity(10);
+    let web = web_offered(root, tui);
     if root.client().link().state == Link::SignedOut || welcome::shown(root, tui) {
+        if web {
+            commands.push(Own::Web).expect("web counted");
+        }
         commands.push(Own::Theme).expect("one theme command");
         return commands.into_boxed();
     }
     if root.pages().chat().is_some() {
         commands.push(Own::Open).expect("chat commands counted");
+        if web {
+            commands.push(Own::Web).expect("web counted");
+        }
         commands.push(Own::Tell).expect("chat commands counted");
     } else if let Some(project) = root.pages().project() {
         // Only the brief is read here; its availability does not depend on the clock.
@@ -672,6 +772,7 @@ pub fn offered_own(root: &Domain, tui: &Tui) -> Box<[Own]> {
                 Own::Change | Own::Ask | Own::Open | Own::Tell => true,
                 Own::Talk => talk::available(root, project),
                 Own::Theme => false,
+                Own::Web => web,
                 Own::Brief => brief,
                 Own::Needs => no_list && has_needs(root),
             };

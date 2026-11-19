@@ -326,6 +326,8 @@ pub enum Word {
     DeleteProjectSays,
     CloseTask,
     AcceptTitle,
+    WithdrawTitle,
+    Withdraw,
     RejectTitle,
     ReleaseTitle,
     TasksBelowOne,
@@ -621,6 +623,25 @@ pub enum Word {
     LimitsStoreFill,
     LimitsProject,
     LimitsCut,
+    LimitsSettings,
+    LimitsStock,
+    LimitsSetting,
+    LimitsInForce,
+    LimitsNoSetting,
+    LimitsCount,
+    LimitsBytes,
+    LimitsMilliseconds,
+    LimitsAtOnce,
+    LimitsNextStart,
+    LimitsWaitingStart,
+    LimitsLeftOut,
+    LimitsHeldBytes,
+    LimitsReadRefused,
+    LimitsMore,
+    LimitsFirst,
+    NeedsLimit,
+    NeedsLimitRaise,
+    NeedsLimitOwner,
     LimitsCensusTitle,
     LimitsCensusLede,
     LimitsCensusRow,
@@ -1073,6 +1094,7 @@ pub enum Word {
     HomeLandedNow,
     HomeLandedMany,
     HomeByline,
+    HomeUnpaid,
     HomeTryStopped,
     HomeLanding,
     HomeChatsSentence,
@@ -2255,7 +2277,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2806;
+const PHRASES: u32 = 2836;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2282,10 +2304,10 @@ const PHRASES: u32 = 2806;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5214;
+const SEGMENTS: u32 = 5268;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66173;
-const ALL: [Word; 2081] = [
+const ENGLISH_BYTES: u32 = 66686;
+const ALL: [Word; 2103] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2562,6 +2584,8 @@ const ALL: [Word; 2081] = [
     Word::DeleteProjectSays,
     Word::CloseTask,
     Word::AcceptTitle,
+    Word::WithdrawTitle,
+    Word::Withdraw,
     Word::RejectTitle,
     Word::ReleaseTitle,
     Word::TasksBelowOne,
@@ -2851,6 +2875,25 @@ const ALL: [Word; 2081] = [
     Word::LimitsStoreFill,
     Word::LimitsProject,
     Word::LimitsCut,
+    Word::LimitsSettings,
+    Word::LimitsStock,
+    Word::LimitsSetting,
+    Word::LimitsInForce,
+    Word::LimitsNoSetting,
+    Word::LimitsCount,
+    Word::LimitsBytes,
+    Word::LimitsMilliseconds,
+    Word::LimitsAtOnce,
+    Word::LimitsNextStart,
+    Word::LimitsWaitingStart,
+    Word::LimitsLeftOut,
+    Word::LimitsHeldBytes,
+    Word::LimitsReadRefused,
+    Word::LimitsMore,
+    Word::LimitsFirst,
+    Word::NeedsLimit,
+    Word::NeedsLimitRaise,
+    Word::NeedsLimitOwner,
     Word::LimitsCensusTitle,
     Word::LimitsCensusLede,
     Word::LimitsCensusRow,
@@ -3295,6 +3338,7 @@ const ALL: [Word; 2081] = [
     Word::HomeLandedNow,
     Word::HomeLandedMany,
     Word::HomeByline,
+    Word::HomeUnpaid,
     Word::HomeTryStopped,
     Word::HomeLanding,
     Word::HomeChatsSentence,
@@ -4482,6 +4526,8 @@ impl Word {
             Self::DeleteProjectSays => 5679,
             Self::CloseTask => 3752,
             Self::AcceptTitle => 3755,
+            Self::WithdrawTitle => 4260,
+            Self::Withdraw => 4261,
             Self::RejectTitle => 3756,
             Self::ReleaseTitle => 3757,
             Self::TasksBelowOne => 3758,
@@ -4928,6 +4974,25 @@ impl Word {
             Self::LimitsStoreFill => 4786,
             Self::LimitsProject => 4787,
             Self::LimitsCut => 4788,
+            Self::LimitsSettings => 9859,
+            Self::LimitsStock => 9860,
+            Self::LimitsSetting => 9861,
+            Self::LimitsInForce => 9862,
+            Self::LimitsNoSetting => 9863,
+            Self::LimitsCount => 9864,
+            Self::LimitsBytes => 9865,
+            Self::LimitsMilliseconds => 9866,
+            Self::LimitsAtOnce => 9867,
+            Self::LimitsNextStart => 9868,
+            Self::LimitsWaitingStart => 9869,
+            Self::LimitsLeftOut => 9870,
+            Self::LimitsHeldBytes => 9871,
+            Self::LimitsReadRefused => 9872,
+            Self::LimitsMore => 9873,
+            Self::LimitsFirst => 9874,
+            Self::NeedsLimit => 9875,
+            Self::NeedsLimitRaise => 9876,
+            Self::NeedsLimitOwner => 9877,
             Self::LimitsCensusTitle => 9238,
             Self::LimitsCensusLede => 9239,
             Self::LimitsCensusRow => 9240,
@@ -5418,6 +5483,7 @@ impl Word {
             Self::HomeLandedOne => 3622,
             Self::HomeLandedMany => 3623,
             Self::HomeByline => 3624,
+            Self::HomeUnpaid => 4540,
             Self::HomeTryStopped => 3876,
             Self::HomeLanding => 3625,
             Self::HomeChatsSentence => 3626,
@@ -6545,6 +6611,13 @@ const FOLLOW_WORDS: [Word; 12] = [
 ];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // Limit names and reasons have wire bounds independent of the client's ordinary text projection.
+    if word == Word::LimitsSetting && kind == HoleKind::Name {
+        return Ok(if last { 120 } else { 13 });
+    }
+    if (word == Word::NeedsLimit || word == Word::NeedsLimitRaise) && kind == HoleKind::Name {
+        return Ok(64);
+    }
     // Sixteen area names and Anything else, joined in a role's card head (team.md, 1).
     if word == Word::TeamOwnsSince {
         return Ok(temper_client_protocol_wire::v1::CEILINGS
@@ -7133,6 +7206,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::DeleteProjectSays => (&[b"", b" leaves every list, and its chats, goals and notes are deleted. Its repositories stay on their forges. This can\xe2\x80\x99t be undone."], &[Name]),
         Word::CloseTask => (&[b"Close task"], &[]),
         Word::AcceptTitle => (&[b"Accept this proposal?"], &[]),
+        Word::WithdrawTitle => (&[b"Withdraw this proposal?"], &[]),
+        Word::Withdraw => (&[b"Withdraw"], &[]),
         Word::RejectTitle => (&[b"Reject this proposal?"], &[]),
         Word::ReleaseTitle => (&[b"Release this task?"], &[]),
         Word::TasksBelowOne => (&[b"1 task below it is cancelled."], &[]),
@@ -7746,6 +7821,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::HomeLandedMany => (&[b"", b" changes landed since you last looked."], &[Number]),
         Word::HomeTryStopped => (&[b"", b" didn\xe2\x80\x99t answer when tried"], &[Name]),
         Word::HomeByline => (&[b"Written by the status agent at ", b""], &[Name]),
+        Word::HomeUnpaid => (&[b"No brief: no account pays for your work here."], &[]),
         Word::HomeLanding => (&[b"Landing: "], &[]),
         Word::HomeChatsSentence => (&[b"A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing."], &[]),
         Word::LookedMinute => (&[b"a minute"], &[]),
@@ -8611,7 +8687,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::MembersLede => (&[b"Each project\xe2\x80\x99s people and services, and the role each holds there. Who owns an area of a project is its Team\xe2\x80\x99s."], &[]),
         Word::LimitsTab => (&[b"Limits"], &[]),
         Word::LimitsHeading => (&[b"What this deployment holds."], &[]),
-        Word::LimitsLede => (&[b"The capacities temper\xe2\x80\x99s engine runs within, as it reports them. Its owner sets them in its configuration."], &[]),
+        Word::LimitsLede => (&[b"Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a raise applies."], &[]),
         Word::MembersDeployment => (&[b"The deployment"], &[]),
         Word::MembersOwner => (&[b"You are its owner."], &[]),
         Word::MembersNoRole => (&[b"You hold no role in it."], &[]),
@@ -8644,6 +8720,25 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LimitsStoreFill => (&[b"", b" of ", b""], &[Name, Name]),
         Word::LimitsProject => (&[b"Project ", b""], &[Number]),
         Word::LimitsCut => (&[b"Some capacity facts were omitted."], &[]),
+        Word::LimitsSettings => (&[b"Limits by name"], &[]),
+        Word::LimitsStock => (&[b"Stock: ", b""], &[Number]),
+        Word::LimitsSetting => (&[b"", b" (", b": ", b")"], &[Number, Name, Name]),
+        Word::LimitsInForce => (&[b"In force: ", b""], &[Number]),
+        Word::LimitsNoSetting => (&[b"No override"], &[]),
+        Word::LimitsCount => (&[b"count"], &[]),
+        Word::LimitsBytes => (&[b"bytes"], &[]),
+        Word::LimitsMilliseconds => (&[b"milliseconds"], &[]),
+        Word::LimitsAtOnce => (&[b"Raises apply at once"], &[]),
+        Word::LimitsNextStart => (&[b"Raises apply at the next start"], &[]),
+        Word::LimitsWaitingStart => (&[b"Waits for the next start"], &[]),
+        Word::LimitsLeftOut => (&[b"Left out: no limit of this release"], &[]),
+        Word::LimitsHeldBytes => (&[b"Root holds ", b" bytes"], &[Number]),
+        Word::LimitsReadRefused => (&[b"The limit settings could not be read."], &[]),
+        Word::LimitsMore => (&[b"Next limits"], &[]),
+        Word::LimitsFirst => (&[b"First limits"], &[]),
+        Word::NeedsLimit => (&[b"", b" is ", b"; this needed ", b"."], &[Name, Number, Number]),
+        Word::NeedsLimitRaise => (&[b"Raise ", b" to ", b""], &[Name, Number]),
+        Word::NeedsLimitOwner => (&[b"A deployment owner can raise it. You can ask temper."], &[]),
         Word::LimitsCensusTitle => (&[b"What the store holds"], &[]),
         Word::LimitsCensusLede => (&[b"As of commit ", b"; writes since commit ", b", the store's last snapshot."], &[Number, Number]),
         Word::LimitsCensusRow => (&[b"", b" rows \xc2\xb7 ", b" \xc2\xb7 ", b" writes"], &[Name, Name, Name]),

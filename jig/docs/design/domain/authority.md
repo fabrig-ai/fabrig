@@ -350,6 +350,41 @@ would. Project 0 names no project and has no policy (people/README.md, section
 - **A restart** restores it, as any live task: whether it runs again is
   the application's, which cancels it first if it shouldn't.
 
+### 6.2 A person's automatic work in a project
+
+An application may start, in a project, work done for one person
+rather than for the project: temper's brief, written for the person who
+looks (temper's `domain/forge/attention.md`, 3). It is that person's
+work, paid as theirs, where a connector's repair is the project's
+(section 6, *The deployment*).
+
+- **Who makes it:** the application, for a party with a role in the
+  project: `Core::pool_seed(project, person) -> Option<RepairSeed>`,
+  then `Event::ConnectorRepair` with that seed, as a project-funded
+  repair is made from `Core::repair_seed`. Its creator is
+  `Party::Deployment { project }`, unlisted and untracked, so what
+  selects by a person requester (Chats, results, updates, the inbox)
+  never selects it.
+- **Who pays:** the person's pool in the project, `Funder::Pool {
+  project, person, period }`, the period's and the pool's opening
+  (`OpenPeriod`, `CarvePool`) in the decision that makes it where
+  either is missing, as a person's goal opens them. Its payer is the
+  person (accounts.md, 4.1), so it takes what a chat of theirs in the
+  project takes (accounts.md, 4.3), a plan of theirs included, though
+  the project has other parties.
+- **Its money:** the project's ceiling's authority, its spend the least
+  of the ceiling's spend, what the person's pool has left (its role's
+  unopened allotment where the pool isn't open yet, as
+  `Core::person_pool` reads it) and the rules' `maximum_run_spend`. A
+  run returns what it leaves to the pool when it ends (section 7).
+- **None** where that spend is zero, the person has no role in the
+  project, the project is not open or has no policy, or no task number
+  is left; nothing is written. A make that the tasks child refuses (a
+  pool the period can't carve) is refused as a repair's is, with
+  `Ask::RepairRefused`.
+- **The rest** is a repair's: the procedure's steps, its delegates
+  funded from it, its deadline and holdings, a restart restoring it.
+
 ## 7. Budgets and spend
 
 - **Four numbers per funder:** its budget (what it was given), what it
@@ -432,6 +467,19 @@ would. Project 0 names no project and has no policy (people/README.md, section
   leaves its funder as it was, a lower budget giving the difference back
   to it. So a task has one funder, and a widening is never split between
   two.
+
+  A party gives from their pool in the project's open period, which the
+  widening's decision opens where it is not open yet, as an acceptance's
+  does; a task gives from its own numbers. So a party's widening of a
+  task funded from an earlier period's pool, their own included, funds
+  it anew from the open one, and a task's widening of a delegate another
+  funds makes the amending task its funder. Every amendment names its
+  giver so: a party's, alone or in a compound request (people/acts.md,
+  1), a run's and a procedure step's. What a widening needs from its
+  giver is what it reserves: the new budget less the task's budget where
+  the giver already funds it, and otherwise the new budget less what the
+  task and the ended tasks it funded spent. A party's widening is judged
+  by that need (8.4).
 - **No overrun is recorded.** Every charge is reserved before it is
   made, or, for a program backend's completions, held in its run's
   reserve (below), so what is recorded against a task never passes its
@@ -719,6 +767,18 @@ pool has left.
   limit under the giver's role, not the target's remaining allowance.
   Exhaustion does not prevent granting more tasks. The request still
   passes the same funding and authority-ceiling admission checks.
+- **A party's widening is judged as section 7 funds it.** An amendment
+  that widens is judged whole, by the authority it leaves the task: at
+  most their role's authority, its budget no more than their role's
+  spend, however much of it the task holds already; and what it needs
+  from them (section 7, *Whoever widens a task funds it*) no more than
+  their pool has left, an unopened pool read at what it would open
+  with. Beyond their role or their pool it is beyond authority and may
+  be proposed, since an accepter funds a proposal (section 9); beyond
+  the policy's ceiling or the deployment's rules it is refused. A
+  task's document offers the amendment by this judgement's own numbers
+  (`../client/domain/contract/documents.md`, 3), so a client proposes
+  only what the request sent directly would be answered as beyond.
 - **A compound request** is checked as people/acts.md, 1 says: each
   operation as it would be alone, in order.
 - **Account requests** (accounts.md, section 5) are checked against the

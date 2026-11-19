@@ -19,6 +19,21 @@ read hasn't answered, on first load or after the link comes back, a page
 keeps what it last knew, rows and words alike, through every refresh; with
 nothing known, a section draws its title with no line under it.
 
+A page redraws from whole answers alone. A read answers whole once its
+value has come, every page of it read through to its last; a read or a
+page of it that ends without its value is no answer, and so, for its row,
+is a row's part not made (`../forge/parts.md`, 5). Neither changes what
+the page drew from the answers before it: a list's rows, its count and
+whether it is cut, a row's headline, the milestone a goal is under. Only
+a whole answer replaces them, and it replaces them whole. So a page whose
+reads answer again, in any order and with any of them ending without its
+value, while nothing changes in the store, draws the same text every
+time. The `inbox` watch delivers again on any task's activity in a
+project the person sees, not only on a change of its needs (jig's
+`client/domain/contract/README.md`, 5.2), and a list's watch on any of its
+rows' activity, so on a running project a page's reads answer again every
+few seconds; what they find unchanged moves nothing.
+
 Each page has an address, and watches what it shows while it is open;
 leaving it closes its handles. Its mockup designs what temper does not
 draw yet: its look, its parts and their order, its words and where its
@@ -51,7 +66,7 @@ keeps (`../../protocol/configuration/README.md`, section 2).
 | `Forges` | `forges.html` | inside Deployment's frame while a project is open (`settings.md`, 1): the person's forges, each row folded until opened: its connection, its mode and access, on GitHub temper's App and its installations, a connect under way and how the last ended, its load; then the playground's forge, folded, while the playground is read (`../forge/family.md`, 7); "+ Connect a forge", to `ConnectForge`, but while the playground runs (`../forge/deployment.md`) | the forge's, through the forge's side (`../forge/family.md`, 2) | connect a stopped forge; replace a key or tokens; install on another account; new repository; forget the admin's token; set up again; remove a forge, confirmed (`../engine.md`) |
 | `ConnectForge { forge }` | `connect-forge.html` | under its path (`settings.md`, 1), connecting one more forge, `forge` the choice it is at: the shared choice cards or a way’s panel, then the open row on Forges, adopting nothing (`../forge/deployment.md`) | the forge's, through the forge's side (`../forge/family.md`, 2) | connect; connect as its admin; set up a Forgejo here (`../engine.md`) |
 | `Welcome { step }` | `welcome.html`; the first run's step 0 | the first run's welcome, by the store's state, empty, unfinished or whole (`welcome.md`, 1): "Try the playground" or "Set up temper", the latter a wizard of Welcome, Forge, Model and Ready, its `step` (`welcome.md`, 2; `../../draft/archive/first-run.md`, 2.3) | the playground's read (`../forge/family.md`, 7); `accounts`; the `forges` watch, for a person whose role holds the deployment's forges; the forge's, as `ConnectForge` reads it | start the playground; start a forge cut short over, or go on with it; `ConnectForge`'s and `ConnectModel`'s acts |
-| `Accounts` | `accounts.html` | inside Deployment's frame while a project is open (`settings.md`, 1), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (`accounts.md`, 2, An account's line); opened, that state's words and acts, its trial's line under the head and before the sources (`../../domain/trial.md`, 6.2), its sources in order, each with its state in words and, for a program's, on which hosts (`accounts.md`, 2), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: `accounts.md`, 2) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (`../forge/family.md`, 7); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract/README.md`, 5.1); `me`'s LLM providers | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
+| `Accounts` | `accounts.html` | inside Deployment's frame while a project is open (`settings.md`, 1), and there "Sign out" at its foot, in a browser at a phone's width alone: the person's LLM accounts, then, for an owner, the deployment's, each row folded until opened: its LLM provider and display name, its holder, its deciding source's state and its line (`accounts.md`, 2, An account's line), and its usage windows where held (`accounts.md`, 2, Usage); opened, that state's words and acts, its trial's line under the head and before the sources (`../../domain/trial.md`, 6.2; `accounts.md`, 2, An account's check line), the uses it pays for by name, its sources in order, each with its state in words and, for a program's, on which hosts (`accounts.md`, 2), what it pays for, the runs using it and the tasks waiting for it (facts jig gives the deployment's accounts alone for now, so a person's own leave them out: `accounts.md`, 2) and its acts; the checks under way, and how the last ended; then the playground's account, folded, while the playground is read (`../forge/family.md`, 7); "+ Connect a model", to `ConnectModel`, but while the playground is read | `accounts` (jig's `client/domain/contract/README.md`, 5.1); `me`'s LLM providers; jig's `Read::Project` for each project `me` lists, one at a time, as `Members` reads them, while an account's uses name a party (`accounts.md`, 2, An account's line) | sign in again or add a key from a state's acts, as `ConnectModel`'s ways; sign a source out; add a key to an account; replace a key; remove a source or an account; check a program's login again; move an account, or a source, up or down; resume a limited source |
 | `ConnectModel { way }` | `connect-model.html` | under its path (`settings.md`, 1), connecting one more LLM account, `way` the way it is at, or none at the choices: the welcome’s cards (`accounts.md`, 2, The ways), then a sign-in’s wait or a key’s or program’s panel; success returns to Accounts with a confirmation line, and other endings keep their words and acts (`accounts.md`, 2, A sign-in) | `accounts`; `me`'s LLM providers | sign in with an LLM provider; add a key as an account of its own; declare a program's login |
 | `Members` | none: `../../draft/surfaces.md`, section 8 | Deployment's fifth tab: each project's members, each with the role it holds there, and the person's role in the deployment (`settings.md`, 1) | `me`; jig's `Read::Project` for each project `me` lists, one at a time | none |
 | `Limits` | none: `../../draft/surfaces.md`, section 8 | Deployment's sixth tab: the deployment's capacities as its engine reports them, read-only (`settings.md`, 1) | `me`; jig's `deployment` document, watched as `Builders` watches it | none |
@@ -106,7 +121,11 @@ keeps (`../../protocol/configuration/README.md`, section 2).
     in its page's header (`goal.md`, 2). A chat's heading keeps its own
     short form (`chat::short_title`, at 72), a wait's or a dependency's
     name its cut at 40 (`work.md`, 1, *A wait's names*), and the TUI's
-    launchpad its cut to the row's room, after this one.
+    launchpad its cut to the row's room, after this one. The TUI's chat
+    cards, a delegated task's and a proposal's, draw the title whole and
+    let the screen wrap it (`../tui/pages/chat.md`, 1, *a card*): the
+    shared lines keep the cut for the browser's terminal, and
+    `shared::proposal_title` gives a proposal's whole.
 - **A task's words after its title:** a card or page that draws a
   task's title and then its words leaves the words out when they are
   only the title: whole, not cut, with nothing past their first line

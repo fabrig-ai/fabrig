@@ -7,27 +7,8 @@ use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
 use temper_client_tui::Scheme;
 
-fn facts() -> Facts {
-    Facts {
-        set_up: false,
-        box_log: Box::default(),
-        seed: 7,
-        now: Time::ZERO,
-        wall: Wall::EPOCH,
-        size: Size { rows: 12, columns: 48 },
-        scheme: Some(Scheme::Dark),
-        background: None,
-        plain: false,
-        version: Box::default(),
-        boxed: false,
-        address: b"127.0.0.1:8367".as_slice().into(),
-        front: false,
-        local: false,
-        note: None,
-        kept: Vec::new(),
-        credential: None,
-    }
-}
+pub(in crate::journey) mod fixture;
+use fixture::facts;
 
 struct Walk {
     host: Host,
@@ -107,13 +88,7 @@ fn pasted() -> Walk {
     walk
 }
 
-fn written(records: &[Line]) -> Box<[u8]> {
-    let mut bytes = Vec::new();
-    for record in records {
-        record.write(&mut bytes);
-    }
-    bytes.into()
-}
+use fixture::written;
 
 fn replay_stale(recording: &[u8]) -> Stale {
     let mut replay = Replay::new(recording).expect("readable recording");
@@ -123,6 +98,36 @@ fn replay_stale(recording: &[u8]) -> Stale {
             Ok(Some(_)) => {}
             Ok(None) => panic!("changed rule was accepted"),
         }
+    }
+}
+
+#[test]
+fn handshake_reports_record_their_words_and_replay_the_same_frames() {
+    use temper_client_tui::{Handshake, Origin};
+    let mut facts = facts();
+    facts.address = Origin::parse(b"https://dev.fabrig.ai").expect("origin");
+    facts.size = Size { rows: 24, columns: 80 };
+    let mut walk = Walk::with(&facts);
+    for (failed, word) in [
+        (Some(Handshake::Untrusted), "untrusted"),
+        (Some(Handshake::Expired), "expired"),
+        (Some(Handshake::NotYetValid), "not-yet-valid"),
+        (Some(Handshake::OtherName), "other-name"),
+        (Some(Handshake::Failed), "failed"),
+        (None, "none"),
+    ] {
+        walk.reports(vec![Report::Handshake { failed }]);
+        walk.mark();
+        let file = walk.save();
+        assert!(
+            String::from_utf8_lossy(&file).lines().any(|line| line == format!("handshake {word}")),
+            "recorded {word}"
+        );
+        assert!(lines(&file).expect("read records").contains(&Line::Handshake(failed)), "read {word}");
+    }
+    same_frames(walk);
+    for bad in [b"handshake unknown\n".as_slice(), b"handshake\n", b"handshake none extra\n"] {
+        assert!(lines(bad).is_err(), "strict handshake record: {bad:?}");
     }
 }
 
@@ -343,11 +348,11 @@ fn facts_and_only_kept_turns_have_ordered_lines() {
         let file = recorder.save(&mut host);
         let records = lines(&file).expect("facts");
         let mut expected = vec![
-            Line::Journey { version: 3 },
+            Line::Journey { version: 4 },
             Line::Seed(7),
             Line::Clocks { now: Time::ZERO, wall: Wall::EPOCH },
             Line::Screen { size: Size { rows: 12, columns: 48 }, scheme: Some(Scheme::Light) },
-            Line::Address(b"127.0.0.1:8367".as_slice().into()),
+            Line::Address(facts.address.print()),
             Line::Stored { key: b"test-store".as_slice().into(), bytes: b"test-value".as_slice().into() },
             Line::Credential(credential().into_exposed()),
             Line::End(Some(host.frame().print())),
@@ -465,7 +470,11 @@ fn sent(walk: &mut Walk, kind: fn(&Sent) -> bool) -> Token {
 }
 
 fn approved() -> Walk {
-    let mut walk = Walk::new();
+    approved_at(&facts())
+}
+
+fn approved_at(facts: &Facts) -> Walk {
+    let mut walk = Walk::with(facts);
     let exchange = sent(&mut walk, |message| matches!(message, Sent::ApprovalAsk(_)));
     // v21 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];
@@ -548,7 +557,7 @@ fn duties_keep_the_seams_order_and_fields() {
             Request::CloseStream,
         ],
         keep: Some(Some(credential())),
-        address: Some(b"signed".as_slice().into()),
+        address: Some(temper_client_tui::Origin::Http("127.0.0.1:8367".parse().unwrap())),
         open: Some(b"browse".as_slice().into()),
         close: true,
     };
@@ -564,7 +573,7 @@ fn duties_keep_the_seams_order_and_fields() {
         Line::Unstream,
         Line::Keep(Some(credential().into_exposed())),
         Line::Note(temper_client_tui::Note::SignedOut),
-        Line::Signed(b"signed".as_slice().into()),
+        Line::Signed(b"http://127.0.0.1:8367".as_slice().into()),
         Line::Read,
         Line::Browse(b"browse".as_slice().into()),
         Line::Quit,
@@ -711,59 +720,6 @@ fn local_records_are_refused_outside_their_places() {
 }
 
 #[test]
-fn setup_and_log_facts_are_ordered_optional_and_replayed() {
-    for bad in [b"set-up extra\n".as_slice(), b"box-log\n", b"box-log bare\n", b"box-log \"path\" extra\n"] {
-        assert!(lines(bad).is_err(), "strict start-fact fields: {bad:?}");
-    }
-    for (set_up, log) in [
-        (false, b"".as_slice()),
-        (true, b""),
-        (false, b"/data/box/logs/box.log"),
-        (true, b"/data/box/logs/box.log"),
-        (true, b"/data/\"\xff/box/logs/box.log"),
-    ] {
-        let mut given = facts();
-        given.front = true;
-        given.boxed = true;
-        given.set_up = set_up;
-        given.box_log = log.into();
-        let mut walk = Walk::with(&given);
-        walk.mark();
-        let recording = walk.save();
-        let records = lines(&recording).expect("start records");
-        let mut expected = vec![Line::Box, Line::Front];
-        if set_up {
-            expected.push(Line::SetUp);
-        }
-        if !log.is_empty() {
-            expected.push(Line::BoxLog(log.into()));
-        }
-        assert!(records.get(5..5 + expected.len()) == Some(expected.as_slice()), "facts follow address in order");
-        let (read, _) = super::replay::facts(&records).expect("ordered facts");
-        assert_eq!(read.set_up, set_up);
-        assert_eq!(read.box_log.as_ref(), log);
-        let mut replay = Replay::new(&recording).expect("read recording");
-        while replay.next().expect("replay facts").is_some() {}
-        assert!(prove(&recording).is_ok(), "new facts preserve recorded prints");
-        if set_up && !log.is_empty() {
-            for (at, insert) in [(7, Line::SetUp), (9, Line::BoxLog(log.into())), (11, Line::SetUp)] {
-                let mut bad = records.clone();
-                bad.insert(at, insert);
-                assert!(Replay::new(&written(&bad)).is_err(), "repeated or misplaced fact");
-            }
-            let mut bad = records.clone();
-            bad.swap(7, 8);
-            assert!(Replay::new(&written(&bad)).is_err(), "box-log cannot precede set-up");
-        }
-        if !set_up && log.is_empty() {
-            let mut legacy = records;
-            legacy.swap(5, 6);
-            assert!(prove(&written(&legacy)).is_ok(), "recordings with front then box replay unchanged");
-        }
-    }
-}
-
-#[test]
 fn front_reports_replay_through_box_line_read() {
     use crate::host::tests::{delivery_report, home_subject, home_tasks, launchpad_me, watch};
     use jig_client_protocol_wire as w;
@@ -891,7 +847,7 @@ fn header_facts_are_optional_ordered_and_replayed() {
             assert!(records[at] == Line::Version(version.into()));
             at += 1;
         }
-        assert!(records[at] == Line::Address(facts.address.clone()));
+        assert!(records[at] == Line::Address(facts.address.print()));
         let (read, _) = replay::facts(&records).expect("header facts read");
         let (_, Report::Start(start)) = read.start() else { panic!("start") };
         assert_eq!(start.plain, plain);
@@ -910,4 +866,40 @@ fn header_facts_are_optional_ordered_and_replayed() {
             assert!(Replay::new(&written(&changed)).is_err(), "header facts cannot follow address");
         }
     }
+}
+
+#[test]
+fn recordings_keep_origins_and_replay_older_authorities() {
+    let mut facts = facts();
+    facts.address = temper_client_tui::Origin::Https { name: b"dev.fabrig.ai".as_slice().into(), port: 443 };
+    let mut walk = approved_at(&facts);
+    walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::hello_bytes()),
+    })]);
+    let records = lines(&walk.save()).expect("named recording");
+    assert!(records.contains(&Line::Address(b"https://dev.fabrig.ai".as_slice().into())));
+    assert!(records.contains(&Line::Signed(b"https://dev.fabrig.ai".as_slice().into())));
+    assert!(records.contains(&Line::Browse(b"https://dev.fabrig.ai/terminal".as_slice().into())));
+    assert_eq!(replay::facts(&records).unwrap().0.address, facts.address);
+    same_frames(walk);
+
+    let mut walk = approved();
+    walk.reports(vec![Report::Heard(jig_client::Event::Streamed {
+        message: jig_client::Streamed::Record(crate::host::tests::hello_bytes()),
+    })]);
+    let mut records = lines(&walk.save()).expect("loopback recording");
+    assert!(records.contains(&Line::Address(b"http://127.0.0.1:8367".as_slice().into())));
+    assert!(records.contains(&Line::Signed(b"http://127.0.0.1:8367".as_slice().into())));
+    for record in &mut records {
+        if let Line::Address(bytes) | Line::Signed(bytes) = record {
+            *bytes = bytes.strip_prefix(b"http://").expect("loopback origin").into();
+        }
+    }
+    let old = written(&records);
+    assert_eq!(
+        replay::facts(&records).unwrap().0.address,
+        temper_client_tui::Origin::Http("127.0.0.1:8367".parse().unwrap())
+    );
+    assert!(prove(&old).is_ok(), "bare address and signed facts retain their replay");
+    assert_eq!(written(&lines(&old).unwrap()), old, "the reader preserves old printed bytes");
 }

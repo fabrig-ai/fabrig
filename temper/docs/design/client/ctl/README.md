@@ -333,7 +333,8 @@ temper ctl help [GROUP [VERB]]
   before the loop, the directory of the FILE its arguments name, and
   `--call`'s call is decoded on the loop, from FILE or from stdin
   alike.
-- **`sign-in FILE|-`** signs in by the link `temper-box serve` printed, read
+- **`sign-in FILE|-`** signs in by the link `temper-box serve` printed,
+  or an asked one, in either of its forms (`../README.md`, section 4), read
   from FILE or stdin and never an argument (section 7), on loopback, and
   writes the token and the address the link names, as `temper-box open` does
   (`../README.md`, section 4), and `party`. A DIRECTORY that holds a

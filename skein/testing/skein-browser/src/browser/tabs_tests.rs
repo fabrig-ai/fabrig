@@ -24,6 +24,7 @@ impl Peer {
                     target: Some(Box::from(target)),
                     session: Some(Box::from(b"session".as_slice())),
                     initial_url: Box::from(b"about:blank".as_slice()),
+                    requests: false,
                     frame: Some(Box::from(b"main".as_slice())),
                     navigating: false,
                     opening: false,

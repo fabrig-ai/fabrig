@@ -59,6 +59,7 @@ fn status(
                 queued: 0,
                 red,
                 branch: b"main".as_slice().into(),
+                unpaid: false,
                 brief,
             },
         )
@@ -208,7 +209,7 @@ fn briefs_join_four_sentences_with_strong_project_names() {
         (1, "vsr: First sentence.", true),
         (5, "vsr: First sentence. rust: First sentence. sql: First sentence. fabrig: First sentence.", true),
     ] {
-        let projects: Vec<_> = ["vsr", "rust", "sql", "fabrig", "extra"]
+        let mut projects: Vec<_> = ["vsr", "rust", "sql", "fabrig", "extra"]
             .iter()
             .take(count)
             .enumerate()
@@ -229,8 +230,15 @@ fn briefs_join_four_sentences_with_strong_project_names() {
                 project
             })
             .collect();
+        let mut unpaid = project(9, "unpaid", 1, 0);
+        let Status::Shown(document) = unpaid.status else { panic!("shown status") };
+        let mut parts = document.into_parts();
+        parts.unpaid = true;
+        unpaid.status = Status::Shown(Box::new(w::ProjectStatus::new(&w::CEILINGS, parts).unwrap()));
+        projects.push(unpaid);
         for words in [f::words(), f::browser_words()] {
             let (tree, _) = drawn(&facts(projects_for_briefs(&projects)), &words);
+            assert!(!has(&tree, "No brief: no account pays for your work here."));
             let lede = tree.nodes().iter().find(|n| n.styles.as_slice().contains(&look::HOME_LEDE));
             assert_eq!(lede.is_some(), byline);
             if let Some(lede) = lede {

@@ -31,7 +31,17 @@ pub const STOCK: Sources = Sources { turn: 18_431_842, payload: 63_740, inbox: 8
 /// Fabrig’s own development of 2026-11-16: T + 1,024 bytes of frame margin
 /// (configuration/limits.md, the stock covers fabrig’s development).
 pub const OUTPUT_FLOOR: u32 = 18_432_866;
+/// The stock number of goals in flight (configuration/derived.md, 5.4).
+pub const LIVE_GOALS: u32 = 40;
+/// Deployment store envelope (configuration/limit-settings.md, 3), from
+/// draft/config.md, 5.2's plan for 100 live goals.
+pub const STORE_LIVE_GOALS: u32 = 100;
 impl Sources {
+    /// A process takes the larger of its setting and its agent's payload.
+    #[must_use]
+    pub fn with_payload(self, tool_payload: u32) -> Self {
+        Self { payload: self.payload.max(tool_payload), ..self }
+    }
     #[must_use]
     pub fn agent(agent: &Declaration) -> Self {
         Self {
@@ -140,6 +150,186 @@ fn both(limits: &mut Limits, sources: Sources) -> Result<(), jig_protocol_config
         .max(OUTPUT_FLOOR);
     Ok(())
 }
+/// Scale a stock count, rounding up; multiplication of two u32 values fits u64.
+fn count(stock: u32, live_goals: u32) -> Result<u32, jig_protocol_config::Problem> {
+    let scaled = u64::from(stock)
+        .checked_mul(u64::from(live_goals))
+        .expect("two u32 values fit u64")
+        .div_ceil(u64::from(LIVE_GOALS));
+    u32::try_from(scaled).or(Err(failure(b"live_goals", b"scaled count exceeds u32")))
+}
+/// The forge's work-in-flight sources, independent of the engine's vocabulary.
+/// Scaling keeps its stored caps and its landing tie (configuration/derived.md, 5.4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ForgeCounts {
+    pub tasks: u32,
+    pub holds: u32,
+    pub subscriptions: u32,
+    pub entries: u32,
+    pub client_entries: u32,
+    pub client_resources: u32,
+    pub issues: u32,
+    pub landings: u32,
+    pub landing_members: u32,
+}
+impl ForgeCounts {
+    fn scale(&mut self, live_goals: u32) -> Result<(), jig_protocol_config::Problem> {
+        self.tasks = count(self.tasks, live_goals)?.min(1024);
+        self.holds = count(self.holds, live_goals)?.min(256);
+        self.subscriptions = count(self.subscriptions, live_goals)?;
+        self.entries = count(self.entries, live_goals)?;
+        self.client_entries = count(self.client_entries, live_goals)?;
+        self.client_resources = count(self.client_resources, live_goals)?;
+        self.issues = count(self.issues, live_goals)?;
+        self.landing_members = self.landing_members.min(self.holds);
+        self.landings = count(self.landings, live_goals)?.min(
+            self.holds
+                .checked_div(self.landing_members)
+                .ok_or(failure(b"self.landing_members", b"requires at least 1"))?,
+        );
+        Ok(())
+    }
+}
+/// Scale work in flight, keeping the format caps and ties (configuration/derived.md, 5.4).
+/// The caller supplies the stock forge; jig's stock stays in jig.
+pub fn scaled(jig: &mut Limits, forge: &mut ForgeCounts, live_goals: u32) -> Result<(), jig_protocol_config::Problem> {
+    if live_goals == 0 {
+        return Err(failure(b"live_goals", b"requires at least 1"));
+    }
+    let stock = jig_protocol_config::stock().core.tasks;
+    let tasks = &mut jig.core.tasks;
+    tasks.tasks = count(stock.tasks, live_goals)?;
+    tasks.delegates = stock.delegates.min(tasks.tasks.saturating_sub(1));
+    tasks.project_tasks = count(stock.project_tasks, live_goals)?;
+    tasks.project_goals = count(stock.project_goals, live_goals)?;
+    tasks.placed_holds = count(stock.placed_holds, live_goals)?;
+    tasks.project_placed_holds = count(stock.project_placed_holds, live_goals)?;
+    tasks.party_placed_holds = count(stock.party_placed_holds, live_goals)?;
+    tasks.exemptions = count(stock.exemptions, live_goals)?.min(4096).min(tasks.tasks);
+    tasks.funders = count(stock.funders, live_goals)?;
+    tasks.pools = count(stock.pools, live_goals)?;
+    tasks.hold_waiters = count(stock.hold_waiters, live_goals)?;
+    jig.core.people.operations = tasks.delegates.saturating_add(1).max(tasks.project_goals).min(tasks.tasks);
+    jig.core.people.inbox_tasks =
+        tasks.tasks.checked_mul(2).ok_or(failure(b"people.inbox_tasks", b"twice tasks.tasks exceeds u32"))?;
+    forge.scale(live_goals)?;
+    Ok(())
+}
+/// Steps 1–3 of configuration/derived.md, 4. Sources have already selected the
+/// agent, or the engine's stock turn and the setting's payload alone.
+pub fn base(
+    live_goals: u32,
+    tool_payload: u32,
+    sources: Sources,
+    forge: &mut ForgeCounts,
+) -> Result<Limits, jig_protocol_config::Problem> {
+    let mut limits = stock();
+    scaled(&mut limits, forge, live_goals)?;
+    engine(&mut limits, sources.with_payload(tool_payload))?;
+    Ok(limits)
+}
+/// Read the two source figures before either limits reader derives its base.
+/// Invalid values stay with the application reader for its path's diagnostics.
+#[must_use]
+pub fn figures(document: &skein_json::Document) -> (u32, u32) {
+    use crate::startup::member;
+    let Some(application) = member(document, 0, b"application") else { return (LIVE_GOALS, STOCK.payload) };
+    let goals = figure(document, application, b"live_goals", LIVE_GOALS);
+    let payload = figure(document, application, b"tool_payload", STOCK.payload);
+    (if goals == 0 { LIVE_GOALS } else { goals }, if payload == 0 { STOCK.payload } else { payload })
+}
+/// Select the setting alone for an engine with no agent; otherwise keep the
+/// agent's payload when it is larger (configuration/derived.md, 2).
+#[must_use]
+pub fn process_sources(document: &skein_json::Document, sources: Sources) -> Sources {
+    use crate::startup::member;
+    let payload = figures(document).1;
+    if let Some(at) = member(document, 0, b"workers")
+        && let Ok(workers) = jig_protocol_config::read::list(document, at, document.len())
+        && !workers.is_empty()
+    {
+        return sources.with_payload(payload);
+    }
+    Sources { payload, ..STOCK }
+}
+fn figure(document: &skein_json::Document, application: u32, name: &[u8], stock: u32) -> u32 {
+    use crate::startup::member;
+    let Some(limits) = member(document, application, b"limits") else { return stock };
+    let Some(overrides) = member(document, limits, b"overrides") else { return stock };
+    let Some(at) = member(document, overrides, name) else { return stock };
+    if let Ok(value) = jig_protocol_config::read::integer(document, at, u64::from(u32::MAX)) {
+        return u32::try_from(value).expect("checked u32 figure");
+    }
+    stock
+}
+/// Same-set ties follow overrides before jig validates the resulting limits.
+pub fn follow_tasks(document: &skein_json::Document, at: u32, limits: &mut Limits) {
+    let tasks = figure(document, at, b"tasks.tasks", limits.core.tasks.tasks);
+    let delegates = if overridden(document, at, b"tasks.delegates") {
+        Some(figure(document, at, b"tasks.delegates", limits.core.tasks.delegates))
+    } else {
+        None
+    };
+    follow_counts(
+        limits,
+        tasks,
+        delegates,
+        figure(document, at, b"tasks.project_goals", limits.core.tasks.project_goals),
+        overridden(document, at, b"people.operations"),
+        overridden(document, at, b"people.inbox_tasks"),
+        overridden(document, at, b"tasks.exemptions"),
+    );
+}
+/// Settings lists and the worker document keep the same task-count ties.
+pub fn follow_task_overrides(limits: &mut Limits, overrides: &[jig_domain_core_vocabulary::settings::Override]) {
+    let tasks = limit_figure(overrides, b"tasks.tasks").unwrap_or(limits.core.tasks.tasks);
+    let delegates = limit_figure(overrides, b"tasks.delegates");
+    let goals = limit_figure(overrides, b"tasks.project_goals").unwrap_or(limits.core.tasks.project_goals);
+    follow_counts(
+        limits,
+        tasks,
+        delegates,
+        goals,
+        limit_figure(overrides, b"people.operations").is_some(),
+        limit_figure(overrides, b"people.inbox_tasks").is_some(),
+        limit_figure(overrides, b"tasks.exemptions").is_some(),
+    );
+}
+fn limit_figure(overrides: &[jig_domain_core_vocabulary::settings::Override], name: &[u8]) -> Option<u32> {
+    for item in overrides {
+        if item.name.as_ref() == name {
+            return u32::try_from(item.value).ok();
+        }
+    }
+    None
+}
+fn follow_counts(
+    limits: &mut Limits,
+    tasks: u32,
+    delegates: Option<u32>,
+    goals: u32,
+    operations: bool,
+    inbox: bool,
+    exemptions: bool,
+) {
+    let delegates = match delegates {
+        Some(delegates) => delegates,
+        None => {
+            limits.core.tasks.delegates =
+                jig_protocol_config::stock().core.tasks.delegates.min(tasks.saturating_sub(1));
+            limits.core.tasks.delegates
+        }
+    };
+    if !operations {
+        limits.core.people.operations = delegates.saturating_add(1).max(goals).min(tasks);
+    }
+    if !inbox {
+        limits.core.people.inbox_tasks = tasks.saturating_mul(2);
+    }
+    if !exemptions {
+        limits.core.tasks.exemptions = limits.core.tasks.exemptions.min(tasks);
+    }
+}
 /// Apply the engine's carriers to its base, before jig reads the overrides.
 pub fn engine(limits: &mut Limits, sources: Sources) -> Result<(), jig_protocol_config::Problem> {
     limits.core.resume_bytes = resume(sources.turn)
@@ -193,6 +383,11 @@ pub fn worker_document(
     if let Err(found) = worker(&mut base, sources) {
         let mut problems = jig_protocol_config::Problems::empty();
         problems.push(found.path, found.what);
+        return Err(problems);
+    }
+    if crate::startup::member(document, at, b"memory_bytes").is_some() {
+        let mut problems = jig_protocol_config::Problems::empty();
+        problems.push(jig_protocol_config::Path::root().member(b"memory_bytes"), jig_protocol_config::What::Fixed);
         return Err(problems);
     }
     let mut worker =

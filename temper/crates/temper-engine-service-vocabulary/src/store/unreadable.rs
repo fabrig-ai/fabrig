@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UnreadableRow {
     pub key: Box<[u8]>,
+    pub lowered: Option<jig_protocol_store::codec::Lowered>,
 }
 impl UnreadableRow {
     /// The family's durable number and variant, independent of the value's codec.
@@ -47,6 +48,7 @@ impl UnreadableRow {
             33 => "QaPass",
             keys::DISMISSED => "Dismissed",
             keys::MAKING => "Making",
+            keys::PERSON_BRIEF => "PersonBrief",
             keys::PROJECT_FACTS => "ProjectFacts",
             keys::LOOKED => "Looked",
             keys::AWAY => "Away",

@@ -523,9 +523,9 @@ fn resize(world: &mut World, task: u64, spend: u64, message: u64) {
         jig_tasks_world::response(world, |reply_to| tasks::Event::Amend {
             reply_to,
             by: jig_tasks_world::PERSON_PARTY,
-            funder: None,
             places: Box::new([]),
             operation: tasks::Amend {
+                funder: None,
                 task,
                 message,
                 stop_run: false,

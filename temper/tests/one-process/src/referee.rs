@@ -57,11 +57,12 @@ pub(crate) struct Referee {
     applied: u64,
     settled_at: Option<u64>,
     adopted: u32,
-    committed: Store,
+    commit_seen: usize,
     agent_seen: usize,
     client_seen: usize,
     saved_seen: Option<usize>,
     window_at: Option<u64>,
+    held_at: Option<(u64, bool)>,
     client_life: u32,
     party: Option<u64>,
     handed: bool,
@@ -141,8 +142,7 @@ impl Referee {
             story_steps: 100_000,
         };
         if matches!(scenario, crate::world::Story::PlaygroundA) {
-            let document =
-                serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
+            let document = temper_playground::stories::A.configuration();
             let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
                 panic!("the composition supplies story A's defaults")
             };
@@ -155,8 +155,7 @@ impl Referee {
         let rules = run.borrow().rules.clone().unwrap_or_else(|| Rc::new(RefCell::new(rules::Referee::new(policy))));
         let applied = run.borrow().applied;
         let adopted = crate::stories::adopted(&store.borrow().rows);
-        let mut committed = Store::new();
-        committed.rows = run.borrow().rows.clone();
+        let acknowledged = restart::forge(&run.borrow().rows);
         run.borrow_mut().rules = Some(rules.clone());
         Self {
             finding: None,
@@ -167,16 +166,17 @@ impl Referee {
             phase,
             attached: None,
             cold: (applied > 0).then_some(()),
-            acknowledged: restart::forge(&committed.rows),
+            acknowledged,
             uncertain: None,
             applied,
             settled_at: None,
             adopted,
-            committed,
+            commit_seen: 0,
             agent_seen: 0,
             client_seen: 0,
             saved_seen: None,
             window_at: None,
+            held_at: None,
             client_life: 0,
             party: None,
             handed: false,
@@ -306,11 +306,11 @@ pub(crate) fn chat_waited(store: &Store) -> bool {
             root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
                 if task.number == 1 && task.phase == jig_domain_tasks::Phase::Active(jig_domain_tasks::Active::Idle)
         )
-    }) && snapshot(store).receipts.contains(&rules::Receipt::Turn(1, 1, 2))
+    }) && snapshot(&store.rows).receipts.contains(&rules::Receipt::Turn(1, 1, 2))
 }
-fn snapshot(store: &Store) -> rules::Snapshot {
+fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
     let mut snapshot = rules::Snapshot::default();
-    for row in store.rows.values() {
+    for row in rows.values() {
         match row {
             root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
                 revision,
@@ -351,7 +351,19 @@ fn snapshot(store: &Store) -> rules::Snapshot {
     snapshot
 }
 impl Referee {
-    fn phase_complete(&self, other: &[Proc]) -> Result<bool, String> {
+    fn change_held(&mut self) -> bool {
+        let store = self.store.borrow();
+        if let Some((at, held)) = self.held_at
+            && at == store.applied
+        {
+            return held;
+        }
+        // This predicate reads only durable rows, which change at a commit.
+        let held = crate::stories::change_held(&store.rows);
+        self.held_at = Some((store.applied, held));
+        held
+    }
+    fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
                 crate::world::Phase::Refused => return Err(String::from("refused starts send no shutdown signal")),
@@ -384,7 +396,7 @@ impl Referee {
                         forge.complete() && forge::Forge::hooks_complete(other)
                     }
                     crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
-                    crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
+                    crate::world::Story::HeldChange => self.change_held(),
                     crate::world::Story::CodingAtStop => return Err(String::from("stop story uses drain and restart")),
                 },
             }
@@ -407,16 +419,17 @@ impl Referee {
                 };
                 self.run.borrow_mut().pending_adoption = !pending_keys.is_empty();
                 self.run.borrow_mut().pending_keys = pending_keys;
-                self.acknowledged = restart::forge(&self.committed.rows);
+                self.acknowledged = restart::forge(&self.run.borrow().rows);
                 self.uncertain = self
                     .store
                     .borrow()
                     .pending
                     .front()
-                    .map(|pending| restart::next(&self.committed.rows, &pending.writes));
+                    .map(|pending| restart::next(&self.run.borrow().rows, &pending.writes));
                 self.say(now, rules::Observed::Restart)?;
                 self.store.borrow_mut().recovering();
                 self.settled_at = None;
+                self.held_at = None;
                 self.adopted = 0;
                 self.cold = Some(());
                 self.handed = false;
@@ -513,24 +526,29 @@ impl skein_world::Referee<Proc> for Referee {
         self.forge.borrow_mut().observe(procs)?;
         let Proc::Service(service) = &procs[0] else { return Err(String::from("service first")) };
         self.adoption_window(service);
-        let store = self.store.borrow();
-        for commit in &service.observer.commits {
+        // Each service incarnation owns its commit vector. Check every new
+        // commit once, without revisiting the prefix on each process's turn.
+        if !service.observer.attached {
+            self.commit_seen = 0;
+        }
+        for commit in &service.observer.commits[self.commit_seen..] {
             if commit.number <= self.applied {
                 continue;
             }
+            let mut run = self.run.borrow_mut();
             for write in &commit.writes {
-                restart::apply(&mut self.committed.rows, write);
+                restart::apply(&mut run.rows, write);
             }
             self.rules
                 .borrow_mut()
                 .observe(
                     now.as_nanos(),
-                    rules::Observed::Durable { number: commit.number, snapshot: snapshot(&self.committed) },
+                    rules::Observed::Durable { number: commit.number, snapshot: snapshot(&run.rows) },
                 )
                 .map_err(|why| format!("durable conformance: {why:?}"))?;
             // A result in its requester's durable inbox has reached that task
             // (temper/docs/design/testing/README.md, 2.5).
-            for row in self.committed.rows.values() {
+            for row in run.rows.values() {
                 if let root::Record::Core(core::Record::Tasks(
                     jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
                 )) = row
@@ -551,19 +569,16 @@ impl skein_world::Referee<Proc> for Referee {
                 }
             }
             self.applied = commit.number;
-            self.run.borrow_mut().applied = self.applied;
-            self.run.borrow_mut().rows.clone_from(&self.committed.rows);
+            run.applied = self.applied;
         }
-        drop(store);
+        self.commit_seen = service.observer.commits.len();
         let restored = self.store.borrow_mut().restored.take();
         if self.cold.is_some()
             && let Some(rows) = restored
         {
             restart::check(&self.acknowledged, self.uncertain.as_ref(), &restart::forge(&rows))
                 .map_err(|why| format!("restart recovered a whole forge commit: {why:?}"))?;
-            let mut recovered = Store::new();
-            recovered.rows = rows;
-            let receipts = snapshot(&recovered).receipts;
+            let receipts = snapshot(&rows).receipts;
             self.say(now, rules::Observed::ColdStore { receipts })?;
             self.cold = None;
         }

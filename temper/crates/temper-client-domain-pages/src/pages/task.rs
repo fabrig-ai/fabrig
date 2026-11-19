@@ -492,6 +492,7 @@ impl Task {
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }
@@ -642,6 +643,7 @@ impl Task {
             | Act::Models(_)
             | Act::HandArea(_)
             | Act::StopAsking(_)
+            | Act::LimitSettings(_)
             | Act::Needs(_)
             | Act::Finding(_)
             | Act::TellWords { .. }
@@ -1126,6 +1128,7 @@ impl Task {
         self.next = self.next.checked_add(1).expect("task handles fit");
         self.cards
             .push(Card {
+                withdraw_unread: false,
                 whole: None,
                 task: None,
                 object,

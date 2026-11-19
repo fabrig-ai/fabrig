@@ -10,6 +10,8 @@ mod activity;
 mod admission;
 #[path = "../support/admission.rs"]
 mod admission_support;
+#[path = "../support/amendment_funding.rs"]
+mod amendment_funding;
 mod application_documents;
 mod application_settings;
 #[path = "../support/bundle.rs"]
@@ -71,6 +73,7 @@ mod run_positions;
 mod runs;
 mod sessions;
 mod settings;
+mod settings_limits;
 mod settings_memory;
 mod settings_project_policy;
 mod settings_proposal_edges;
@@ -97,6 +100,7 @@ mod templates;
 mod topics;
 
 mod fuzzy {
+    mod amendment_funding;
     mod decision_reads;
     mod deletion;
     mod faults;

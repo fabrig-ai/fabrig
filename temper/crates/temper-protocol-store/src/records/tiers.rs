@@ -8,7 +8,7 @@ use temper_engine_domain_forge_tiers as p;
 use temper_engine_domain_forge_vocabulary as d;
 mod post;
 
-fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
+pub(super) fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     let mut values = List::with_capacity(u32::try_from(tests.len()).expect(FITS));
     for test in tests {
         values
@@ -17,7 +17,38 @@ fn encode_tests(tests: &[Box<[u8]>]) -> List<w::FailingTest> {
     }
     values
 }
-fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
+pub(super) fn decode_tests(tests: List<w::FailingTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
+    let mut values = List::with_capacity(tests.len());
+    for test in tests.into_boxed() {
+        let test = test.into_parts().test_id;
+        if test.is_empty() {
+            return Err(Undecodable::Malformed);
+        }
+        if let Some(previous) = values.as_slice().last()
+            && previous >= &test
+        {
+            return Err(Undecodable::Malformed);
+        }
+        values.push(test).expect(FITS);
+    }
+    Ok(values.into_boxed())
+}
+fn encode_shown(tests: &[Box<[u8]>]) -> (List<w::ShownTest>, u32) {
+    let capacity = u32::try_from(tests.len()).expect(FITS).min(w::CEILINGS.many_tests_tests);
+    let mut values = List::with_capacity(capacity);
+    let mut dropped = 0_u32;
+    for test in tests {
+        if values.len() == capacity {
+            dropped = dropped.saturating_add(1);
+        } else {
+            values
+                .push(w::ShownTest::new(&w::CEILINGS, w::ShownTestParts { test_id: test.clone() }).expect(FITS))
+                .expect(FITS);
+        }
+    }
+    (values, dropped)
+}
+fn decode_shown(tests: List<w::ShownTest>) -> Result<Box<[Box<[u8]>]>, Undecodable> {
     let mut values = List::with_capacity(tests.len());
     for test in tests.into_boxed() {
         let test = test.into_parts().test_id;
@@ -199,6 +230,19 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
     w::TierRow::new(
         &w::CEILINGS,
         w::TierRowParts {
+            many: match &row.many {
+                Some(many) => {
+                    let (tests, dropped) = encode_shown(&many.tests);
+                    Some(
+                        w::ManyTests::new(
+                            &w::CEILINGS,
+                            w::ManyTestsParts { tests, more: many.more.saturating_add(dropped), cut: many.cut },
+                        )
+                        .expect(FITS),
+                    )
+                }
+                None => None,
+            },
             observations: row.observations.clone(),
             repository: names::encode_repository(row.repository),
             tier: row.tier.clone(),
@@ -271,6 +315,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
 }
 pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let w::TierRowParts {
+        many,
         observations,
         repository,
         tier,
@@ -304,6 +349,13 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let record = decode_record(record)?;
     let run = record.run.as_ref();
     Ok(d::TierRow {
+        many: match many {
+            Some(many) => {
+                let w::ManyTestsParts { tests, more, cut } = many.into_parts();
+                Some(p::ManyTests { tests: decode_shown(tests)?, more, cut })
+            }
+            None => None,
+        },
         observations,
         repository: names::decode_repository(repository),
         tier,

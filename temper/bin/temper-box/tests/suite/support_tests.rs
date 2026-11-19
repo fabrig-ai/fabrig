@@ -3,12 +3,82 @@ use crate::support;
 use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
+fn the_sign_in_fixture_reads_the_initialized_listeners_without_an_llm_member() {
+    use std::num::NonZeroU16;
+    let scratch = support::Scratch::startup("sign-in-listeners");
+    let root = scratch.path().as_os_str().as_encoded_bytes();
+    let answer = temper_init::files(
+        &temper_init::Facts {
+            binary: b"/fixture/temper-box",
+            git: None,
+            claude: None,
+            ports: temper_init::Ports {
+                clients: NonZeroU16::new(8367).expect("clients port"),
+                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
+            },
+            login: None,
+            sign_in: false,
+        },
+        &temper_init::Directories { config: root, data: root },
+        &[7; 32],
+    )
+    .expect("init files");
+    let temper_init::Content::Bytes { bytes, .. } =
+        &answer.files.iter().find(|file| file.name == b"temper.json").expect("deployment document").content
+    else {
+        panic!("deployment bytes")
+    };
+    support::write_private(&scratch.path().join("temper.json"), bytes);
+    let _issuer = support::sign_in::patch_configuration(scratch.path());
+    let providers = temper_agent_fixtures::providers::read(scratch.path());
+    let issuer = providers["providers"][0]["sources"]["sign_in"]["issuer"].as_str().expect("patched issuer");
+    assert!(issuer.starts_with("http://127.0.0.1:"), "independent local issuer: {issuer}");
+    scratch.remove();
+}
+
+#[test]
+fn rebinding_the_fake_model_keeps_the_split_deployments_issuer() {
+    let scratch = support::Scratch::startup("split-provider-rebind");
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    std::fs::create_dir(&config).expect("config directory");
+    std::fs::create_dir(&data).expect("data directory");
+    support::write_private(&config.join("temper.json"), b"{}");
+    let mut providers = temper_agent_fixtures::providers::stock();
+    providers["providers"][0]["sources"]["sign_in"]["issuer"] = "http://127.0.0.1:19002".into();
+    temper_agent_fixtures::providers::write(&data, &providers);
+    let peer = support::fake_llm(Box::new([]));
+    peer.configure(&config);
+    let rebound = temper_agent_fixtures::providers::read(&data);
+    assert_eq!(
+        rebound["providers"][0]["sources"]["sign_in"]["issuer"],
+        providers["providers"][0]["sources"]["sign_in"]["issuer"]
+    );
+    assert_eq!(rebound["endpoints"][0]["address"]["socket"], peer.address().to_string());
+    scratch.remove();
+}
+
+#[test]
+fn fixture_provider_edits_keep_routes_and_leave_demo_fixed() {
+    use serde_json::json;
+    let mut providers = temper_service::stock::providers().into_vec();
+    providers.truncate(1);
+    providers.push(temper_service::stock::scripted("127.0.0.1:19003".parse().expect("scripted address")));
+    let mut wanted = temper_agent_fixtures::providers::flat(&providers);
+    wanted["endpoints"][0]["address"] = json!({"socket":"127.0.0.1:19001"});
+    let items = support::provider_setup::items(&wanted);
+    assert_eq!(items.len(), 1, "set only the fixture provider, leaving other stock model references intact");
+    assert_eq!(items[0]["set"]["endpoints"][0]["address"]["socket"], "127.0.0.1:19001");
+    assert!(items.iter().all(|item| item["setting"]["number"] != 3), "demo is fixed, never a settings edit");
+}
+
+#[test]
 fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     use serde_json::json;
     use temper_service::startup;
     let scratch = support::Scratch::startup("cluster-turn-documents");
     let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &cluster_turn_setup::fixture());
-    cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
+    let figures = cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
     let forge = cluster_turn_setup::read(&cluster.dir("forge").join("forge.json"));
     assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
     assert_eq!(forge["manual_merges"], json!({"allow":true,"autodetect":true}));
@@ -33,7 +103,14 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
     let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
-    let engine = startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("initial engine");
+    let engine = startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut figures.jig.clone(),
+    )
+    .expect("initial engine");
     assert!(
         temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
         "the worker's merge train must be declared"
@@ -52,8 +129,14 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         let directories = temper_box_shell::directories::jig_directories(&directories);
         let bytes = std::fs::read(root.join("config/temper.json")).expect("deployment document");
         if process == "engine" {
-            startup::store_limits(&bytes, &directories, Some(&agent.declaration()))
-                .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
+            startup::store_limits_with_limits(
+                &bytes,
+                &directories,
+                Some(&agent.declaration()),
+                &figures.jig,
+                &figures.limits,
+            )
+            .unwrap_or_else(|why| panic!("{process}: {}", String::from_utf8_lossy(&startup::lines(&why))));
         }
         match startup::shape(&bytes, &directories).expect("separate shape") {
             startup::Shape::EngineAlone => {
@@ -84,8 +167,10 @@ fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
         json!({"newest":7}),
         json!({"setting":{"kind":"policy","number":1},"value":{
             "period_spend":48000,"roles":[{"number":0,"period_spend":48000}],"kept":"policy"}}),
-        json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat"}}),
-        json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer"}}),
+        json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat",
+            "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
+        json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer",
+            "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
     ]
     .iter()
     .map(|value| support::Ended {
@@ -101,6 +186,11 @@ fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
     assert_eq!(policy["kept"], "policy");
     assert_eq!(settings["items"][1]["set"]["kept"], "chat");
     assert_eq!(settings["items"][2]["set"]["kept"], "producer");
+    assert_eq!(
+        settings["items"][1]["set"]["model"]["provider"], 1,
+        "the chat uses the fake provider, not stock's first choice"
+    );
+    assert_eq!(settings["items"][2]["set"]["model"]["provider"], 1, "the producer uses the fake provider");
     assert_eq!(settings["items"][3]["set"]["gates"], json!([]), "turn's test gate is the only gate");
     scratch.remove();
 }
@@ -239,7 +329,10 @@ fn batch_landing_configuration_passes_startup_admission() {
     landing_configuration_admission("batch-landing-admission", support::batch_landing::configure);
 }
 
-fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u64)) {
+fn landing_configuration_admission(
+    case: &str,
+    configure: fn(&std::path::Path, u64) -> temper_playground::documents::Configuration,
+) {
     use skein_lib::{List, Secret};
     use temper_service::settings::{Files, Seeds};
 
@@ -252,7 +345,7 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         git: format!("http://{api}/"),
     };
     support::configuration(root, &forge);
-    configure(root, 1);
+    let figures = configure(root, 1);
     let document = std::fs::read(root.join("temper.json")).expect("story configuration");
     let directories = jig_protocol_config::Directories::working();
     let named = temper_service::named(&document, &directories).expect("named story files");
@@ -271,15 +364,18 @@ fn landing_configuration_admission(case: &str, configure: fn(&std::path::Path, u
         seed: 7,
         crypto: Secret::new(Box::new([9; 32])),
     };
-    let result = temper_service::startup::check(
+    let result = temper_service::startup::checked_start_with_limits(
         &document,
         &directories,
         &Files { entries },
-        &agent,
+        Some(&agent),
         &seeds,
-        None,
         List::with_capacity(0),
         None,
+        &temper_service::stock::Given::Stock,
+        None,
+        &figures.jig,
+        &figures.limits,
     );
     if let Err(problems) = result {
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
@@ -354,6 +450,48 @@ fn cluster_the_retained_charter_overrides_name_no_documents() {
     for charter in charters {
         assert_eq!(charter["set"]["documents"], serde_json::json!([]), "cluster charter names no documents");
     }
+}
+
+#[test]
+fn fixture_limits_are_applied_before_the_subprocess_restart() {
+    let scratch = support::Scratch::startup("small-limits-settings");
+    let mut configuration = support::configuration(scratch.path(), &support::Forge::Unreached);
+    configuration.jig_over("tasks.project_goals", 2);
+    configuration.temper_over("checkout.remote_timeout_ms", 7_000);
+    support::limit_settings::remember(scratch.path(), &configuration);
+    support::limit_settings::install(scratch.path());
+    let seen = support::ctl::run(support::ctl::Story::new(
+        scratch.path(),
+        vec![
+            support::ctl::Step::Run(support::ctl::Call::sign_in()),
+            support::ctl::Step::Run(support::ctl::Call::new(&["settings", "show", "limits", "--json"])),
+            support::ctl::Step::Run(support::ctl::Call::new(&["settings", "show", "temper-limits", "--json"])),
+        ],
+    ));
+    assert_eq!(
+        support::ctl::json(&seen.calls[1])["value"]
+            .as_array()
+            .expect("jig limits")
+            .iter()
+            .find(|item| item["name"] == "tasks.project_goals")
+            .expect("project goal capacity")["value"],
+        2
+    );
+    assert_eq!(
+        support::ctl::json(&seen.calls[2])["value"]
+            .as_array()
+            .expect("temper limits")
+            .iter()
+            .find(|item| item["name"] == "checkout.remote_timeout_ms")
+            .expect("worker checkout limit")["value"],
+        7_000
+    );
+    scratch.remove();
+}
+
+#[test]
+fn ctl_limit_settings_apply_both_kinds_in_one_revision() {
+    support::ctl::read_condition_tests::limit_settings_apply_both_kinds_in_one_revision();
 }
 
 #[test]

@@ -247,6 +247,14 @@ pub enum Word {
     ProgramNotOffered,
     ResumeNotOffered,
     ExpiringPlan,
+    PersonCount,
+    PeopleCount,
+    ProjectCount,
+    ProjectsCount,
+    And,
+    More,
+    SignedInThrough,
+    SignedInTo,
 }
 const ROWS: &[(Word, &[u8])] = &[
     (Word::ProgramNote, "If this machine has no Claude Code, this fetches it first. Claude Code asks you to sign in. temper never reads its login.".as_bytes()),
@@ -442,6 +450,13 @@ const ROWS: &[(Word, &[u8])] = &[
     (Word::ProgramNotOffered, b"This provider offers you no program login. Choose another way to connect."),
     (Word::ResumeNotOffered, b"This source isn't limited, so there's nothing to resume. Its state above is current."),
     (Word::ExpiringPlan, b"Expiring: sign in again before it ends."),
+    (Word::PersonCount, b" person"),
+    (Word::PeopleCount, b" people"),
+    (Word::ProjectCount, b" project"),
+    (Word::ProjectsCount, b" projects"),
+    (Word::And, b" and "),
+    (Word::More, b" more"),
+    (Word::SignedInThrough, b"Signed in through Claude Code"),
     (Word::KeyConsoleDetails, "From the Claude Console, under API keys. What temper’s agents use is billed to the key’s organization.".as_bytes()),
 ];
 // Both names are borrowed; no configured name is replaced by a guessed brand.
@@ -500,6 +515,7 @@ const NAMED: &[(Word, &[u8], &[u8])] = &[
     (Word::EnvironmentCommand, b"temper program-login ", b""),
     (Word::ProgramCommandHere, b"On this machine, run: ", b""),
     (Word::ProgramNameTaken, b"The name ", b" is taken. Choose another name for this login."),
+    (Word::SignedInTo, b"Signed in to ", b""),
 ];
 // PLAN is hole 0 and DISPLAY hole 1; hole 2 repeats PLAN in a renewal.
 struct EndWords {

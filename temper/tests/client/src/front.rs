@@ -56,6 +56,9 @@ pub struct Joint {
     pub playground: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub deployment: (bool, bool),
     pub program_environment: Box<[u8]>,
+    /// The service-only Limits read, scripted at this domain world's boundary.
+    pub limit_pages: VecDeque<temper_client_protocol_wire::v1::LimitsAnswer>,
+    pub settings_changes: Vec<jig_client::contract::ChangeSettings>,
     pub hold_playground_end: bool,
     held_playground_end: Vec<(ClientId, Event)>,
     pub playground_ends: Vec<skein_lib::RequestKey>,
@@ -194,6 +197,21 @@ pub fn engine_limits() -> engine::Limits {
     // Frame project allocations must also fit the smaller tools project bound.
     limits.documents.lines = limits.documents.lines.min(tools.projects);
     limits.watermark = engine::default_watermark(&limits.journal);
+    limits
+}
+pub(crate) fn reading_engine_limits() -> engine::Limits {
+    turn_engine_limits(1_048_576, 2_097_152, Some(2))
+}
+fn turn_engine_limits(bytes: u32, read_bytes: u64, rows: Option<u32>) -> engine::Limits {
+    let mut limits = engine_limits();
+    limits.journal.transcript_bytes = bytes;
+    limits.loads.bytes = bytes;
+    limits.loads.reply_bytes = bytes;
+    limits.loads.transcript_bytes = bytes;
+    limits.loads.read_bytes = read_bytes;
+    if let Some(rows) = rows {
+        limits.documents.rows = rows;
+    }
     limits
 }
 // First-run client worlds cover the seeded project, a new project and its owner.
@@ -1058,18 +1076,18 @@ impl Joint {
     /// A whole-turn engine with two activity rows per page.
     #[must_use]
     pub fn with_reading_pages(seed: u64, limits: &client::Limits) -> Self {
-        Self::with_turn_bytes(seed, limits, 1_048_576, 2_097_152, Some(2))
+        let engine_limits = reading_engine_limits();
+        Self::with_engine(
+            seed,
+            limits,
+            Store::with_limits(&engine_limits),
+            [walking::config(seed), walking::config(seed)],
+            &engine_limits,
+            1,
+        )
     }
     fn with_turn_bytes(seed: u64, limits: &client::Limits, bytes: u32, read_bytes: u64, rows: Option<u32>) -> Self {
-        let mut engine_limits = engine_limits();
-        engine_limits.journal.transcript_bytes = bytes;
-        engine_limits.loads.bytes = bytes;
-        engine_limits.loads.reply_bytes = bytes;
-        engine_limits.loads.transcript_bytes = bytes;
-        engine_limits.loads.read_bytes = read_bytes;
-        if let Some(rows) = rows {
-            engine_limits.documents.rows = rows;
-        }
+        let engine_limits = turn_engine_limits(bytes, read_bytes, rows);
         Self::with_engine(
             seed,
             limits,
@@ -1626,6 +1644,8 @@ impl Joint {
             playground: None,
             deployment: (true, true),
             program_environment: Box::new([]),
+            limit_pages: VecDeque::new(),
+            settings_changes: Vec::new(),
             hold_playground_end: false,
             held_playground_end: Vec::new(),
             playground_ends: Vec::new(),
@@ -2024,6 +2044,7 @@ impl Joint {
         }
         false
     }
+    #[expect(clippy::too_many_lines, reason = "the world scripts service-only reads together")]
     fn playground_read(&mut self, who: ClientId, request: &Request) -> bool {
         if let Request::Unlinked {
             request:
@@ -2077,6 +2098,27 @@ impl Joint {
                                 result: jig_client::Readout::Family {
                                     family: wire::FORGE,
                                     record: Some(wire::program_environment_answer(&answer)),
+                                },
+                            },
+                        },
+                    }
+                    .into(),
+                ));
+                return true;
+            }
+            if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
+                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Limits(_)))
+            {
+                let answer = self.limit_pages.pop_front();
+                self.callbacks.push((
+                    who,
+                    RootEvent::Client {
+                        event: jig_client::Event::Up {
+                            up: jig_client::Up::ReadDone {
+                                read: *read,
+                                result: jig_client::Readout::Family {
+                                    family: temper_client_protocol_wire::FORGE,
+                                    record: answer.as_ref().map(temper_client_protocol_wire::limits_answer),
                                 },
                             },
                         },
@@ -2185,6 +2227,16 @@ impl Joint {
             )
         {
             self.playground_removals.push(*key);
+        }
+        if let Request::Unlinked {
+            request:
+                jig_client::UnlinkedRequest::Down {
+                    down: jig_client::Down::Send { request: jig_client::Ask::Jig(ask), .. },
+                },
+        } = &request
+            && let jig_client::contract::Ask::ChangeSettings(change) = ask.as_ref()
+        {
+            self.settings_changes.push(change.clone());
         }
         if self.reachable(who, &request) || self.start_playground(who, &request) {
             return;

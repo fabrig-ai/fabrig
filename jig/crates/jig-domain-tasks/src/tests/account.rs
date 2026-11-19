@@ -89,6 +89,7 @@ fn amend_choice(h: &mut Harness, account: Option<u32>) {
     choice.account = account;
     h.send(Event::Amend {
         operation: crate::Amend {
+            funder: None,
             task: TASK,
             message,
             stop_run: false,
@@ -106,7 +107,6 @@ fn amend_choice(h: &mut Harness, account: Option<u32>) {
             }),
         },
         places: Box::new([]),
-        funder: None,
         reply_to: to(),
         by: crate::Party::Person(9),
     });

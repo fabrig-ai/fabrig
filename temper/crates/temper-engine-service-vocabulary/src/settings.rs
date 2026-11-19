@@ -74,7 +74,7 @@ pub struct Author {
 pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
 
 /// The seeds the shell draws at start, as jig's reference takes them.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Seeds {
     pub deployment: [u8; 16],
     pub seed: u64,
@@ -126,6 +126,9 @@ pub struct Engine {
     pub period_span: skein_lib::Duration,
     pub kinds_stock: Box<[temper_engine_domain_forge::settings::Stock]>,
     pub limits: super::limits::Limits,
+    /// Deployment envelope laid out over the store base before runtime overrides.
+    /// Typed component fixtures may leave it absent to lay out their own profile.
+    pub store_limits: Option<jig_protocol_store::Limits>,
 }
 
 pub use temper_service_core::agent::Declaration as Agent;

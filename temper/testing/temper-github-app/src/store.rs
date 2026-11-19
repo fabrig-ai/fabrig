@@ -28,9 +28,25 @@ pub(super) fn run_with(
     load: bool,
     writes: Vec<protocol::Write>,
 ) -> Result<Rows, String> {
-    let jig = jig_protocol_config_fixtures::small();
-    let own = temper_limits_fixtures::small();
-    let root = temper_engine_service_vocabulary::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
+    run_configured(
+        data,
+        records,
+        load,
+        writes,
+        &jig_protocol_config_fixtures::small(),
+        &temper_limits_fixtures::small(),
+    )
+}
+
+pub(super) fn run_configured(
+    data: &Path,
+    records: &[(u64, Box<[u8]>)],
+    load: bool,
+    writes: Vec<protocol::Write>,
+    jig: &jig_protocol_config::Limits,
+    own: &temper_engine_service_vocabulary::limits::Limits,
+) -> Result<Rows, String> {
+    let root = temper_engine_service_vocabulary::limits::engine(jig, own).ok_or("fixture engine limits")?;
     let limits = temper_engine_service_vocabulary::store::limits(&root, &root.forge, &jig.store)
         .ok_or("fixture store limits")?;
     if records.iter().any(|(_, value)| value.len() > usize::try_from(limits.secrets.value).expect("store value bound"))

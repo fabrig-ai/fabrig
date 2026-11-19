@@ -307,7 +307,8 @@ fn dismissed(linked: bool) -> Box<[u8]> {
     wire::dismissals(&f::Dismissals::new(&f::CEILINGS, f::DismissalsParts { dismissed }).unwrap())
 }
 
-pub(super) fn events() {
+#[test]
+fn a_goal_command_starts_refuses_and_cancels_its_sheet() {
     for send in [false, true] {
         let mut host = host(false, false);
         typed(&mut host, b"/goal");
