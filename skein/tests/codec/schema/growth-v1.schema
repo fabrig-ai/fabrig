@@ -1,0 +1,6 @@
+family growth 1
+
+# A list past the growth floor must decode without reallocating.
+record Growth {
+    items: list 16 u64
+}

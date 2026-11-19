@@ -19,7 +19,10 @@ enum Report {
 
 pub(super) fn start(mount: web_sys::Element, path: &str, primary: skein_ui_web::mapping::Primary) {
     let case = path.strip_prefix("/test/tree/").expect("tree fixture route").to_owned();
-    assert!(["first", "middle", "move", "rename", "last", "mixed", "form", "summary"].contains(&case.as_str()));
+    assert!(
+        ["first", "middle", "move", "rename", "last", "mixed", "form", "summary", "shown-folded"]
+            .contains(&case.as_str())
+    );
     let mut limits = skein_ui_example_view::limits::limits();
     limits.depth = 7; // Page, main, tree, three item levels, and their text.
     let page = Rc::new(RefCell::new(Page::new(
@@ -84,6 +87,12 @@ fn build(builder: &mut Builder, case: &str, revision: u64) {
     builder.name(revision_text.as_bytes());
     builder.text(Run::Plain, revision_text.as_bytes());
     builder.close();
+    if case == "shown-folded" {
+        account(builder, revision);
+        builder.close();
+        builder.close();
+        return;
+    }
     if case == "form" || case == "summary" {
         form(builder, revision, case == "summary");
         builder.close();
@@ -158,5 +167,32 @@ fn form(builder: &mut Builder, revision: u64, closes_first: bool) {
         builder.close();
         builder.close();
     }
+    builder.close();
+}
+
+fn account(builder: &mut Builder, revision: u64) {
+    builder.open(Role::Disclosure);
+    builder.name(b"Claude subscription");
+    builder.description(if revision < 2 { b"Ready" } else { b"Updated" });
+    builder.open(Role::Group);
+    if revision != 4 {
+        builder.state(skein_ui::State::ShownFolded);
+    }
+    builder.text(Run::Plain, if revision < 2 { b"Week" } else { b"Month" });
+    builder.open(Role::Meter);
+    builder.name(b"Usage");
+    builder.fraction(skein_ui::Fraction { done: 2900, total: 10000 });
+    builder.run(Run::Plain, b"29% used");
+    builder.close();
+    builder.close();
+    if revision == 1 || revision == 2 {
+        builder.open(Role::Text);
+        builder.state(skein_ui::State::ShownFolded);
+        builder.run(Run::Plain, b"Extra");
+        builder.close();
+    }
+    builder.open(Role::Paragraph);
+    builder.text(Run::Plain, b"Sources");
+    builder.close();
     builder.close();
 }

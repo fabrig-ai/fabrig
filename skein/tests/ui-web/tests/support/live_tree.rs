@@ -277,3 +277,44 @@ fn clicking_the_visible_field_label_focuses_its_named_input() {
     assert!(!kept[0].value.is_empty());
     assert_eq!(kept[0].value, kept[1].value, "caption's for names this input");
 }
+
+#[test]
+fn shown_folded_children_patch_in_the_live_summary() {
+    let mut story = TreeStory::new("shown-folded");
+    for revision in 0_u64..=5 {
+        if revision != 0 {
+            story.patch(revision);
+        }
+        let words = if revision < 2 { "Ready" } else { "Updated" };
+        let head = if revision == 4 { "details > [role=group]" } else { "summary > [role=group]" };
+        story.dom(
+            format!("{head}:has(> span:first-child + [role=meter][aria-label=Usage]):not([data-shown-folded])"),
+            "role",
+            "group",
+        );
+        story.dom(
+            format!("{head} > [role=meter][aria-valuenow='2900'][aria-valuemax='10000'][aria-valuetext='29% used']"),
+            "data-progress",
+            "29",
+        );
+        story.dom("summary > [id^=skein-ui-description-]:first-child".into(), "id", "skein-ui-description-6");
+        story.steps(vec![harness::Step::Person(Step::See {
+            find: Find::named(Role::Disclosure, words.as_bytes()),
+            within: SECOND,
+        })]);
+        let caption = if revision < 2 { "Week" } else { "Month" };
+        story.dom(format!("{head} > span:first-child"), "data-node", "8");
+        if revision != 4 {
+            story
+                .steps(vec![harness::Step::Person(Step::See { find: Find::text(caption.as_bytes()), within: SECOND })]);
+        }
+        if revision == 1 || revision == 2 {
+            story.dom("details:has(> summary > [role=group] + span:last-child)".into(), "data-node", "6");
+            story.steps(vec![harness::Step::Person(Step::See { find: Find::text(b"Extra"), within: SECOND })]);
+        } else {
+            story.dom("details:has(> summary:not(:has(> [role=group] + span)))".into(), "data-node", "6");
+        }
+        story.dom("details:has(> summary:first-child ~ p:last-child)".into(), "data-node", "6");
+    }
+    story.run();
+}

@@ -123,6 +123,7 @@ impl Builder {
         let index = self.open.pop().expect("a node is open").index;
         let size = self.tree.len().checked_sub(index).expect("node precedes its children");
         let node = self.tree.nodes.get_mut(index).expect("open node exists");
+        assert!(node.role != Role::Meter || node.fraction.is_some(), "a meter has a fraction");
         assert!(node.fraction.is_none() || !node.text.is_empty(), "a fraction has its words");
         node.size = size;
     }
@@ -170,9 +171,9 @@ impl Builder {
         self.tree.nodes.push(node).expect("tree fits its node capacity");
     }
 
-    /// Append a nonempty run to an open text node or progress; empty spans take no storage.
+    /// Append a nonempty run to an open text node, progress or meter; empty spans take no storage.
     pub fn run(&mut self, run: Run, bytes: &[u8]) {
-        assert!(self.node().role.takes_runs(), "runs belong to text nodes or progress");
+        assert!(self.node().role.takes_runs(), "runs belong to text nodes, progress or meters");
         if bytes.is_empty() {
             return;
         }
@@ -181,9 +182,12 @@ impl Builder {
         self.node_mut().text.push(TextRun { run, text }).expect("nonempty runs fit the text capacity");
     }
 
-    /// Say how far a progress has gone, its runs saying it in words.
+    /// Give a progress or meter its fraction, its runs saying it in words.
     pub fn fraction(&mut self, fraction: Fraction) {
-        assert!(self.node().role == Role::Progress, "fractions belong to progress");
+        assert!(
+            self.node().role == Role::Progress || self.node().role == Role::Meter,
+            "fractions belong to progress or meters"
+        );
         assert!(fraction.total > 0, "a fraction's total is above zero");
         assert!(fraction.done <= fraction.total, "a fraction's done is at most its total");
         self.node_mut().fraction = Some(fraction);
@@ -281,6 +285,9 @@ impl Builder {
 
     /// Add a semantic state once.
     pub fn state(&mut self, state: State) {
+        if state == State::ShownFolded {
+            self.check_shown_folded();
+        }
         if state == State::Options {
             assert!(self.node().role == Role::Menu, "options belongs to menus");
         }
@@ -304,6 +311,28 @@ impl Builder {
         }
         if !self.node().states.as_slice().contains(&state) {
             self.node_mut().states.push(state).expect("states fit the node capacity");
+        }
+    }
+
+    fn check_shown_folded(&mut self) {
+        let current = self.open.pop().expect("a node is open");
+        let parent = self.open.top().expect("shown folded has a parent").index;
+        self.open.push(current).expect("open node fits its previous room");
+        assert!(
+            self.tree.get(parent).expect("parent exists").role == Role::Disclosure,
+            "shown folded belongs to disclosure children"
+        );
+        let first = parent.checked_add(1).expect("child index fits u32");
+        let mut next = first;
+        for at in first..self.index() {
+            if at == next {
+                let child = self.tree.get(at).expect("earlier child exists");
+                assert!(
+                    child.states.as_slice().contains(&State::ShownFolded),
+                    "shown folded children precede ordinary children"
+                );
+                next = at.checked_add(child.size).expect("subtree end fits u32");
+            }
         }
     }
 
@@ -650,6 +679,7 @@ fn acted_on(role: Role) -> bool {
         | Role::TreeItem
         | Role::Tabs
         | Role::Progress
+        | Role::Meter
         | Role::Time
         | Role::Code
         | Role::Quote
