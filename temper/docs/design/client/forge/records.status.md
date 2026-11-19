@@ -2,8 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [records.md](records.md).
 
-- **Not yet:** *`SetUp`* and the row's `first`: `sample`, on
-  `FirstEmpty` and `FirstRepository` [in flight: change 10131].
 
 
 - **Not yet:** *`OpenChange`* and *A project's changes*: `into` left

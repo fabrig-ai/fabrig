@@ -2,12 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [deployment.md](deployment.md).
 
-- **Not yet:** Choose, *Forgejo on this machine*: the card headed
-  "Local" and its line [in flight: change 10132].
-- **Not yet:** Details, *Forgejo on this machine*: "Set up again" after
-  a sample's failure asks the sample again [in flight: change 10131].
-- **Not yet:** Choose and Details, *Forgejo on this machine*: the sheet's
-  sample by default, with no names [in flight: change 10139].
 
 - **Not yet:**  the native-queue position remains `README.status.md`, 2.1.
   the panel's gate amendment remains `README.status.md`, 2.3.  the counted approval and person-task cards remain `README.status.md`, 4.

@@ -2,10 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [owned.md](owned.md).
 
-- **Not yet:** 7, *The sample*: `Empty`'s `sample`, the sample's three
-  files and Create's bound of 3: `temper-forge-setup` holds no sample
-  and bounds Create at 2, and the set up makes the starter's files alone
-  [in flight: change 10131].
 
 - **Departs:** 6: off the box, a forge's fetch comes after its first
   `forge prepare`, where the section has it before the preparation.
