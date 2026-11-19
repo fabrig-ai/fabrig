@@ -3,9 +3,6 @@
 2026-11-19. Where the tree's code lags or departs from [commands.md](commands.md).
 
 - **Not yet:**
-  - 4: `smith check` finds `rg` by its own loop, joining a relative
-    directory of the commands' `PATH` under the workspace, not by the
-    agent's finding (`smith-local-shell/src/check.rs`). [in flight: change 10397]
   - the whole document: the `--account` flag and the `account` setting.
     `smith-local-shell/src/command.rs` parses no `--account`, and
     `settings/schema.rs` has no `account` key, so 1's refusal that
