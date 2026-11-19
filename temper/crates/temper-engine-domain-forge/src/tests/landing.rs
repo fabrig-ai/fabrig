@@ -1577,6 +1577,38 @@ fn cancelling_a_landing_leaves_its_change_live_and_detached() {
     }
 }
 #[test]
+fn cancelling_a_landing_wakes_only_its_own_train_and_its_former_members() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = across_fixture();
+    member_landing(&mut d);
+    let member = d.changes.get_mut(&fixtures::CHANGE).expect("member");
+    member.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    d.landing.rows.get_mut(&61).expect("landing").landing.members[0].landed = Some(fixtures::HEAD);
+    for (task, repository, base) in [
+        (53, REPO, b"main".as_slice()),
+        (54, REPO, b"goal".as_slice()),
+        (OTHER_CHANGE, OTHER_REPOSITORY, b"main".as_slice()),
+    ] {
+        let mut row = fixtures::opening_row();
+        row.task = task;
+        row.change.task = task;
+        row.repository = repository;
+        row.base = base.into();
+        row.change.way = change::Way::Turn;
+        row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(row)) });
+    }
+    let requests = outputs(&mut d, Event::SettleEffects { task: 61, root: 61, ending: ReleaseEnding::Cancelled });
+    assert!(requests.contains(&Request::WakeProcedure { task: fixtures::CHANGE }), "former member wakes");
+    assert!(requests.contains(&Request::WakeProcedure { task: 53 }), "own train's waiter wakes");
+    assert!(!requests.contains(&Request::WakeProcedure { task: 54 }), "another branch's waiter stays asleep");
+    assert!(
+        !requests.contains(&Request::WakeProcedure { task: OTHER_CHANGE }),
+        "another repository's waiter stays asleep"
+    );
+}
+
+#[test]
 fn cancelling_a_member_retains_its_identity_for_the_rounds_cleanup() {
     let mut d = landing_fixture();
     member_landing(&mut d);

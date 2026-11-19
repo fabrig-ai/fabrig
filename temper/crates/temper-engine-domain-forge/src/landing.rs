@@ -5405,12 +5405,11 @@ pub(crate) fn closing(
             }
         }
         crate::landing_history::transition(d, env.wall, &prior, &row, out);
-        let project = row.landing.project;
         save(d, row, out);
         for member in told.into_boxed() {
             emit(out, Request::LandingNews { task, member, step: crate::LandingNews::Landed });
         }
-        wake_project_ready(d, project, out);
+        wake_train_ready(d, task, out);
     } else if let Some(change) = d.changes.get(&task)
         && let Some(landing) = change.change.landing
     {
@@ -5431,12 +5430,16 @@ pub(crate) fn closing(
     }
 }
 
-fn wake_project_ready(d: &Domain, project: u32, out: &mut Queue<Request>) {
+// An ending landing frees only its repository and branch (domain/landing.md, 4.2 and 9).
+fn wake_train_ready(d: &Domain, task: u64, out: &mut Queue<Request>) {
+    let Some(landing) = d.landing.rows.get(&task) else { return };
+    let Some(member) = landing.landing.members.first() else { return };
+    let repository = repository(member);
     for (task, row) in &d.changes {
         if row.change.landing.is_none()
             && let change::State::Ready { .. } = row.change.state
-            && let Some(repository) = d.repositories.get(&row.repository)
-            && repository.project == project
+            && row.repository == repository
+            && row.base == landing.landing.branch
         {
             emit(out, Request::WakeProcedure { task: *task });
         }

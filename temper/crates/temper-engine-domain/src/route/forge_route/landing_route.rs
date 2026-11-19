@@ -643,24 +643,26 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
         decision: ProcedureStep::new(end),
     }));
     if choice == landing::Decision::Finish || choice == landing::Decision::Cancel {
-        wake_ready(domain, env, task);
+        wake_train_ready(domain, env, task);
     } else if let landing::Decision::Wait { .. } = choice {
     } else {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
     }
 }
 
-fn wake_ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
-    let Some(row) = domain.forge.landing(task) else { return };
-    let project = row.landing.project;
-    for repository in domain.forge.writable_repositories(project) {
-        for change in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
-            if let Some(row) = domain.forge.change(change)
-                && row.change.landing.is_none()
-                && let forge_change::State::Ready { .. } = row.change.state
-            {
-                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));
-            }
+// A landing ends for its train alone (domain/landing.md, 4.2 and 9).
+fn wake_train_ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
+    let Some(landing) = domain.forge.landing(task) else { return };
+    let Some(member) = landing.landing.members.first() else { return };
+    let repository =
+        skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+    for change in domain.forge.changes_for(repository, env.limits.forge.changes) {
+        if let Some(row) = domain.forge.change(change)
+            && row.change.landing.is_none()
+            && let forge_change::State::Ready { .. } = row.change.state
+            && row.base == landing.landing.branch
+        {
+            domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));
         }
     }
 }

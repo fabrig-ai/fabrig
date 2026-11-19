@@ -52,6 +52,7 @@ fn merged_pull() -> PendingStep {
         progress: List::uncapped(),
         task: CHANGE,
         retry_at: None,
+        read: None,
         entry: OPEN,
         follow_tree: List::with_capacity(LIMITS.key_entries),
         stage: StepStage::Branch,
