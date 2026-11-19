@@ -6,6 +6,7 @@ mod due_ready;
 mod flake;
 mod limit_holds;
 mod reds;
+mod refused;
 mod room;
 mod settling;
 mod settling_due;
@@ -2244,10 +2245,19 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
     super::start_landing(&mut domain, &env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
-    let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
-    assert_eq!(row.landing.members[0].change, 7);
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    assert_eq!(row.landing.members[0].change, 7);
+    for name in names {
+        domain.work.push(Work::Forge(forge::Event::Hold {
+            entry: 0,
+            task: row.landing.task,
+            resource: name,
+            from: None,
+        }));
+    }
+    domain.forge_forming = None;
     (domain, env, row)
 }
 
@@ -4827,7 +4837,12 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
 fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{forge, forge_change as c, tasks};
     use skein_lib::Queue;
-    let (mut domain, mut env) = procedure_root();
+    let mut limits = crate::tests::resume_fixture::limits();
+    // Two ready changes and their retained landing tasks need admission room.
+    limits.tasks.tasks = 16;
+    limits.tasks.project_tasks = 16;
+    limits.people.inbox_tasks = 32;
+    let (mut domain, mut env) = procedure_root_with_limits(limits);
     env.limits.tasks.batch = 2;
     env.limits.tasks.batch_bytes = 16_384;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });

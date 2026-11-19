@@ -43,7 +43,7 @@ pub(crate) enum Internal {
     Admission,
     Deletion { project: u32 },
     Delegate,
-    Repair,
+    Repair { number: u64 },
     Acknowledge,
 }
 

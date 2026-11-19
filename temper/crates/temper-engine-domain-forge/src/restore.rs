@@ -35,7 +35,7 @@ impl Domain {
         }
         None
     }
-    fn join_changes(&mut self) {
+    pub(crate) fn join_changes(&mut self) {
         while let Some((task, _)) = self.change_hot.first() {
             let task = *task;
             let Some(cold) = self.change_cold.get(&task).cloned() else { break };

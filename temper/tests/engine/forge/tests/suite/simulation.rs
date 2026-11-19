@@ -1532,6 +1532,8 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::FileVerdict { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
                 | top::Request::LoadHistory { .. }

@@ -14,7 +14,7 @@ its updates and its merge in the repository's style
 (`forge/change/README.md`, 2 steps 3 and 5 to 7, `forge/queues.md` and
 `forge/README.md`, section 6). What follows a landing, its tiers and its
 verdict, is `after-landing.md`. The forge's calls it makes are skein's
-`forge/README.md`, 3.2. What is still open is `landing.md`, section 17.
+`forge/README.md`, 3.2.
 
 ## 1. In one page
 
@@ -217,7 +217,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 
 - **A procedure task of the forge's,** `landing`, made in the decision
   that forms it (section 9), with its members. It holds each member's
-  branch in the landing from its making (5.1).
+  branch in the landing from its making (5.1). The landing is saved once
+  jig has made it (`landing-forming.md`).
 - **Requested by the deployment on the project's behalf,** with the
   authority the project's policy gives landings, as a branch's repair
   under `queue` is (`forge/queues.md`); funded from the project's
@@ -967,7 +968,8 @@ documents for another task or project remain errors.
 ## 15. Restart
 
 - **Restored whole** with the forge's other families (`forge/README.md`,
-  section 9). Trains are derived again from the live landings.
+  section 9). Trains are derived again from the live landings. A live
+  landing jig never made ends at the link pass (`landing-forming.md`, 4).
 - **Before any landing steps,** the train's tip and each member's head
   are read afresh, and each run in flight is read (`Read::Run`); a
   dispatch whose outcome was uncertain is found by its runs, as section 11 says.

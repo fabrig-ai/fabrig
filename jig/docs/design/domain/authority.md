@@ -298,7 +298,11 @@ deployment's rules       the most any project may have; requirements on effects
   spend, and waits while there is none. A deployment-started task that
   runs an agent (a queue's repair, whose producer is one) is funded as
   before, and cannot be made while nothing of the period is
-  unreserved.
+  unreserved. A make the tasks child refuses for any such task is told
+  to every connector as `Ask::RepairRefused`, naming the task the
+  refusal names where it names one (`repair`), the make's own number
+  (`number`) and the refusal (`why`), so a connector knows which of its
+  makes failed and why.
 - **Effective authority.** What a task may do when it decides is its own
   authority within the deployment's rules, the project's policy and what
   adoption found the application may do, as all three stand then:

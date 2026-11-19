@@ -253,6 +253,8 @@ pub struct StoryLimits {
     pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
+    /// Cached party requests retained while a full live-task room is exercised.
+    pub party_requests: Option<u32>,
     pub authority_batch: Option<u32>,
     pub tasks_batch: Option<u32>,
     pub task_delegates: Option<u32>,
@@ -678,7 +680,7 @@ impl World {
             }
             if with_change {
                 // One adoption, three chat creations and two Says survive the restart cut.
-                limits.people.requests = 6;
+                limits.people.requests = timing.party_requests.unwrap_or(6);
                 // Adoption stories ask in 128 bytes of words.
                 limits.people.words = 128;
                 limits.tasks.message_bytes = if batch.unwrap_or(1) > 1 { 256 } else { 128 };

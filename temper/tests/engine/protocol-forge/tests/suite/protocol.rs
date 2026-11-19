@@ -610,6 +610,8 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::FileVerdict { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
+                | top::Request::LandingUnmade { .. }
+                | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::Decided { .. }
                 | top::Request::LoadHistory { .. }

@@ -183,56 +183,49 @@ a page whose draft promises a request budget, and a pass compares its
 last line as a see (`client/drive.md`, 3.2; `testing/qa/triage.md`, 3;
 `testing/qa/passes.md`, 4).
 
-Merge queue M1–M3, goals 683, 2175 and 2336: `turn` landing queues
-(`domain/landing.md`), a train per repository/branch, one landing each
-at a time. Up to the project's `batch` waiting units stack in the
-worker's merge train, a branch per member, proved once at the top,
-landed by one fast-forward of the landing's own pull request. Red
-multi-unit rounds narrow by prefixes: repair the blamed unit, land the
-green prefix, carry higher units to the next round. `temper_probe`
-lets probe gates stop at first red (`domain/landing-search.md`).
-Probes by test T1, goal 4045, gives `temper_tests` to probe only cases
-the top's gates report failed, landing nothing, with one run per
-workflow/commit in flight
+Merge queue M1–M3, goals 683, 2175, 2336 (`domain/landing.md`): `turn`
+queues, one train per repository/branch, one landing at a time. Up to
+project `batch` waiting units stack in the worker's merge train, one
+branch/member, proved once at top, landed by one fast-forward of the
+landing's own pull request. Red multi-unit rounds prefix-narrow: repair
+blamed unit, land green prefix, carry higher units to the next round.
+`temper_probe` lets probe gates stop at first red (`domain/landing-search.md`).
+Probes by test T1, goal 4045: `temper_tests` probes only cases top gates
+report failed, lands nothing, one flight per workflow/commit
 (`domain/landing-search-by-test.md`; `draft/probes-by-test.status.md`).
-Engine worlds check the behaviours; the process tier keeps two stories
-each on fake forge and owned Forgejo, run by choice
-(`testing/process-tier.md`); staging walks follow landing
-(`draft/merge-queue.status.md`).
+Engine worlds check behaviour; process tier: two stories each on fake
+forge and owned Forgejo, run by choice (`testing/process-tier.md`);
+staging walks follow landing (`draft/merge-queue.status.md`).
 
-Landing history H1, goal 2474: change/landing steps survive their rows
-as events (`domain/landing-history.md`), written by the deciding or
-observing step under `queue` and `turn`, one change per event. Families
-are demand-loaded through the root by the forge, omitted at restart;
-swept by change past `forge.history_days` or `forge.history_events`,
-including idle/deleted projects; read by `temper ctl landing history`
-and `change show` after the row goes. H2, goal 2649, reads events alone
-for timing (`domain/landing-times.md`): a fold splits ready-to-landed/ended
-spans into non-overlapping states, held first, waiting last, partial if
-history starts after ready; landing rounds, probes and proof time;
-paged by change with running totals in the cursor, read by
+Landing history H1, goal 2474: change/landing events outlive rows
+(`domain/landing-history.md`), one change/event by deciding/observing
+steps under `queue`/`turn`. The forge demand-loads families through the
+root, omits them at restart, sweeps by change past `forge.history_days`
+or `forge.history_events`, idle/deleted projects too.
+`temper ctl landing history` and `change show` read after rows go.
+H2, goal 2649: events alone give timing (`domain/landing-times.md`): a
+fold splits ready-to-landed/ended into non-overlapping states, held first,
+waiting last, partial if history starts after ready; landing rounds,
+probes, proof time; paged by change with cursor totals, read by
 `temper ctl landing times` (`draft/landing-history.status.md`).
 
-A held landing recovers (`draft/held-landing-recovery.status.md`): a
-release takes effect once, fenced, read afresh and decided on those
-reads, never on the ended delegate it retires, so a failed resolution's
-release checks the head its branch now holds, or asks one fresh
-resolution pinned to it (`domain/forge/change/repairs.md`, *A
-release*); a change owns only the pull request it opened or whose
-number it stored, never a closed one found by its branches
-(`domain/forge/change/README.md`, 2); an ended change's pull request,
-branch and history are frozen (`domain/forge/keeping-up.md`, 3); and a
-job's attempt names why it ended (`domain/landing-history.md`, 2.2).
+Held landings recover (`draft/held-landing-recovery.status.md`): release
+acts once, fenced, on fresh reads, not its retired delegate. Failed-resolution
+release checks its branch's head or asks one fresh resolution pinned to it (`domain/forge/change/repairs.md`, *A release*).
+A change owns only its opened/stored-number pull request, not a closed
+one found by branches (`domain/forge/change/README.md`, 2). Ended changes'
+pull requests, branches and history freeze (`domain/forge/keeping-up.md`,
+3); job attempts name why they ended (`domain/landing-history.md`, 2.2).
 
-A landing's prepare survives a restart
-(`draft/prepare-restart.status.md`): a round at preparing reads at each
-step whether its prepare lives, has answered or is absent, from jig's
-context and its job record, never from its own marks; the forge's start
-reads and wakes each landing, deciding nothing; a lost attempt is
-retried in the same child once its writer slots settle; proven absence
-asks once again, fenced by jig's step, keeping the prefixes recovered;
-and a release at preparing reconciles the same way
-(`domain/landing-preparing.md`).
+A landing's prepare survives restart (`draft/prepare-restart.status.md`,
+`domain/landing-preparing.md`): preparing reads each step's prepare
+(live, answered, absent) from jig's context/job record, not its marks;
+forge start reads/wakes each landing without deciding. Lost attempts
+retry in the same child after writer slots settle; proven absence
+re-asks once, jig-step fenced, preserving prefixes; release at preparing
+reconciles alike. Forming makes the task first; refused make forms
+nothing, its train waits a queue window; start ends a landing whose
+task was never made (`domain/landing-forming.md`).
 
 A follow across projects is the whole story's milestone F1
 (`domain/forge/follows.md`): kind 12, a follow of a branch of a
@@ -617,6 +610,7 @@ Design documents:
 - [`domain/forge/room.md`](domain/forge/room.status.md)
 - [`domain/forge/walkthrough.md`](domain/forge/walkthrough.status.md)
 - [`domain/landing.md`](domain/landing.status.md)
+- [`domain/landing-forming.md`](domain/landing-forming.status.md)
 - [`domain/landing-settings.md`](domain/landing-settings.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
 - [`domain/landing-preparing.md`](domain/landing-preparing.status.md)
