@@ -121,3 +121,4 @@ table holds the reference's two tiers described
   - 5: the caller's person is found through its chat, where the request has
     `domain.core.tasks.delegation`: a chat's goal has the chat as its requester, so
     the root takes jig's `served_chat`, then the chat's person.
+- **Not yet:** 6: the stock tables' eighth item, `findings` "a repair goal for a routine red after landing" at `Decide` [in flight: change 10368].

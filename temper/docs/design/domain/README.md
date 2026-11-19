@@ -71,6 +71,8 @@ all. Then temper's:
    - `red-findings.md`: under `wait: landed`, each red after landing a
      finding blamed on the landing and goal behind it, held until a run
      passes its tests.
+   - `red-repairs.md`: the triager's sorts of a red finding, its blame
+     moved, and repair goals, capped and judged at their end.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
 10. **milestones.md:** a milestone, a set of goals on jig's gathering:

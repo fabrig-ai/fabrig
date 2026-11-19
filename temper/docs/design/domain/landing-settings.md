@@ -42,11 +42,13 @@ Kind 4's members, each with its default and the section it serves:
 | `wait`: `cleared` or `landed`, whether a change into a branch a tier follows lives to cleared or ends at landed | `cleared` | `after-landing.md`, section 6 |
 | `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing.md`, 3, 5.2, 6, 7 |
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
+| `repairs`: `repair_goals`, `repair_attempts`, `repair_deadline` and `goal`, the repair goal's shape; refused without `wait: landed` | none; when set 2, 2, 24 hours, `goal` required | `red-repairs.md`, section 7 |
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
 
 - **What is built:** kind 4's `by`, `batch`, `combine`, `merge_job`,
   `close_job`, `landing_attempts`, `check_timeout`, `gate_retries`,
-  `gate_timeout`, `wait`, `tier_retries` and `verification_bound`, and kind 5
+  `gate_timeout`, `wait`, `tier_retries`, `verification_bound` and
+  `repairs`, and kind 5
   whole. Each field keeps the form, bounds and default
   `../protocol/configuration/engine.md`'s `landing` gives it, where the
   document's `application.landing` held them. A start now refuses that
