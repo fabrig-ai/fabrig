@@ -121,7 +121,7 @@ impl Prompt {
     /// option. The caller must still bound received output locally on Responses.
     pub fn output_ceiling(&mut self, provider: Provider, ceiling: u32) -> Result<(), Error> {
         if ceiling == 0 {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::Output });
         }
         self.max_output_tokens = match provider {
             Provider::OpenAi => None,
@@ -267,16 +267,123 @@ impl Error {
     }
 }
 
+/// Maximum byte length of an admission cause name (llm/admission.md, section 1).
+pub const CAUSE_BYTES: u32 = 24;
+
+/// The rule a malformed request broke (llm/admission.md, section 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Invalid {
+    /// The model name is empty.
+    Model,
+    /// The Anthropic history has no message.
+    NoMessages,
+    /// An Anthropic message has no block.
+    EmptyMessage,
+    /// The output ceiling is zero.
+    Output,
+    /// A tool schema is not an object.
+    ToolSchema,
+    /// A tool name or call ID breaks the dialect grammar.
+    Identifier,
+    /// A block is in a role that cannot carry it.
+    Role,
+    /// An oversize or cut outcome cannot replay as a call.
+    Outcome,
+    /// Only must name distinct offered tools, at least one.
+    Choice,
+    /// Text or a number cannot be written as JSON.
+    Text,
+    /// Native call arguments must be a JSON object.
+    Arguments,
+    /// Provider replay metadata is malformed.
+    Replay,
+    /// A reasoning item is malformed.
+    Reasoning,
+    /// The credential value or scheme is invalid for its provider.
+    Credential,
+    /// The endpoint authority or target is malformed.
+    Endpoint,
+    /// An extra header is reserved, malformed or repeated.
+    Header,
+    /// The request head length arithmetic overflowed.
+    Head,
+    /// The client limits are inconsistent.
+    Limits,
+    /// A document is malformed, missing a field or has a wrong type.
+    Document,
+}
+
+impl Invalid {
+    /// Fixed public name, never provider-owned bytes.
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::Model => b"model",
+            Self::NoMessages => b"no-messages",
+            Self::EmptyMessage => b"empty-message",
+            Self::Output => b"output",
+            Self::ToolSchema => b"tool-schema",
+            Self::Identifier => b"identifier",
+            Self::Role => b"role",
+            Self::Outcome => b"outcome",
+            Self::Choice => b"choice",
+            Self::Text => b"text",
+            Self::Arguments => b"arguments",
+            Self::Replay => b"replay",
+            Self::Reasoning => b"reasoning",
+            Self::Credential => b"credential",
+            Self::Endpoint => b"endpoint",
+            Self::Header => b"header",
+            Self::Head => b"head",
+            Self::Limits => b"limits",
+            Self::Document => b"document",
+        }
+    }
+}
+
+/// What the request asks that its dialect cannot carry (llm/admission.md, section 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Unsupported {
+    /// Replay belongs to another provider.
+    ReplayProvider,
+    /// The dialect cannot carry replay on this block.
+    ReplayBlock,
+    /// The replay version or provider tag is unknown.
+    ReplayForm,
+    /// The Responses route takes no output token cap.
+    OutputCap,
+    /// The dialect does not take this reasoning effort or thinking setting.
+    Effort,
+}
+
+impl Unsupported {
+    /// Fixed public name, never provider-owned bytes.
+    #[must_use]
+    pub const fn name(self) -> &'static [u8] {
+        match self {
+            Self::ReplayProvider => b"replay-provider",
+            Self::ReplayBlock => b"replay-block",
+            Self::ReplayForm => b"replay-form",
+            Self::OutputCap => b"output-cap",
+            Self::Effort => b"effort",
+        }
+    }
+}
+
 /// A rejected call has produced no traffic and no terminal event.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Error {
-    Invalid,
+    Invalid {
+        cause: Invalid,
+    },
     /// A configured local cap refused admission.
     Limit {
         which: Cap,
         bound: u64,
     },
-    Unsupported,
+    Unsupported {
+        cause: Unsupported,
+    },
 }
 
 /// The owner's deadline that passed (llm/README.md, section 2.5; llm/connection.md, section 6).
@@ -419,4 +526,51 @@ pub struct Call {
     pub prompt: Prompt,
     pub endpoint: Endpoint,
     pub credential: Option<Credential>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{CAUSE_BYTES, Invalid, Unsupported};
+
+    #[test]
+    fn admission_cause_names_are_fixed_bounded_ascii_and_unique() {
+        let names: [(&[u8], &[u8]); 24] = [
+            (Invalid::Model.name(), b"model"),
+            (Invalid::NoMessages.name(), b"no-messages"),
+            (Invalid::EmptyMessage.name(), b"empty-message"),
+            (Invalid::Output.name(), b"output"),
+            (Invalid::ToolSchema.name(), b"tool-schema"),
+            (Invalid::Identifier.name(), b"identifier"),
+            (Invalid::Role.name(), b"role"),
+            (Invalid::Outcome.name(), b"outcome"),
+            (Invalid::Choice.name(), b"choice"),
+            (Invalid::Text.name(), b"text"),
+            (Invalid::Arguments.name(), b"arguments"),
+            (Invalid::Replay.name(), b"replay"),
+            (Invalid::Reasoning.name(), b"reasoning"),
+            (Invalid::Credential.name(), b"credential"),
+            (Invalid::Endpoint.name(), b"endpoint"),
+            (Invalid::Header.name(), b"header"),
+            (Invalid::Head.name(), b"head"),
+            (Invalid::Limits.name(), b"limits"),
+            (Invalid::Document.name(), b"document"),
+            (Unsupported::ReplayProvider.name(), b"replay-provider"),
+            (Unsupported::ReplayBlock.name(), b"replay-block"),
+            (Unsupported::ReplayForm.name(), b"replay-form"),
+            (Unsupported::OutputCap.name(), b"output-cap"),
+            (Unsupported::Effort.name(), b"effort"),
+        ];
+        assert_eq!(CAUSE_BYTES, 24);
+        for (index, (name, expected)) in names.iter().enumerate() {
+            assert_eq!(name, expected);
+            assert_ne!(*name, b"");
+            assert!(name.len() <= skein_lib::usize_of(CAUSE_BYTES));
+            for byte in *name {
+                assert!(byte.is_ascii_lowercase() || *byte == b'-');
+            }
+            for (previous, _) in names.get(..index).expect("index through the names") {
+                assert_ne!(previous, name);
+            }
+        }
+    }
 }

@@ -3835,12 +3835,16 @@ pub enum Path {
     ActivityNotifiedWord,
     /// Bytes after `ActivityNotified`.
     ActivityNotifiedTail,
+    /// The tag of `RunFresh`.
+    RunFreshTag,
     /// The `attempt` field of `ActivityRunBegan`.
     ActivityRunBeganAttempt,
     /// The `why` field of `ActivityRunBegan`.
     ActivityRunBeganWhy,
     /// The `resumed` field of `ActivityRunBegan`.
     ActivityRunBeganResumed,
+    /// The `fresh` field of `ActivityRunBegan`.
+    ActivityRunBeganFresh,
     /// Bytes after `ActivityRunBegan`.
     ActivityRunBeganTail,
     /// The `attempt` field of `ActivityRunEnded`.
@@ -9263,9 +9267,11 @@ impl Path {
             Self::ActivityNotifiedRecipient => "ActivityNotified.recipient",
             Self::ActivityNotifiedWord => "ActivityNotified.word",
             Self::ActivityNotifiedTail => "ActivityNotified (tail)",
+            Self::RunFreshTag => "RunFresh (tag)",
             Self::ActivityRunBeganAttempt => "ActivityRunBegan.attempt",
             Self::ActivityRunBeganWhy => "ActivityRunBegan.why",
             Self::ActivityRunBeganResumed => "ActivityRunBegan.resumed",
+            Self::ActivityRunBeganFresh => "ActivityRunBegan.fresh",
             Self::ActivityRunBeganTail => "ActivityRunBegan (tail)",
             Self::ActivityRunEndedAttempt => "ActivityRunEnded.attempt",
             Self::ActivityRunEndedEnd => "ActivityRunEnded.end",
@@ -71099,11 +71105,112 @@ impl ActivityNotified {
 
 fn activity_notified_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ActivityNotified::encoded_bound_within(limits)?);
-    activity_run_began_encoded_bound_family(limits, biggest)
+    run_fresh_encoded_bound_family(limits, biggest)
 }
 
 fn activity_notified_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ActivityNotified::decoded_bound_within(limits)?);
+    run_fresh_decoded_bound_family(limits, biggest)
+}
+
+/// `RunFresh` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum RunFresh {
+    /// `moved` without a payload.
+    Moved,
+    /// `closed` without a payload.
+    Closed,
+    /// `cut` without a payload.
+    Cut,
+    /// `limit` without a payload.
+    Limit,
+    /// `session` without a payload.
+    Session,
+}
+
+impl RunFresh {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+impl RunFresh {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Moved | Self::Closed | Self::Cut | Self::Limit | Self::Session => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Moved => writer.put(&[0_u8])?,
+            Self::Closed => writer.put(&[1_u8])?,
+            Self::Cut => writer.put(&[2_u8])?,
+            Self::Limit => writer.put(&[3_u8])?,
+            Self::Session => writer.put(&[4_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::RunFreshTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::RunFreshTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Moved,
+            1 => Self::Closed,
+            2 => Self::Cut,
+            3 => Self::Limit,
+            4 => Self::Session,
+            _ => return Err(Problem { path: Path::RunFreshTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl RunFresh {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn run_fresh_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RunFresh::encoded_bound_within(limits)?);
+    activity_run_began_encoded_bound_family(limits, biggest)
+}
+
+fn run_fresh_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(RunFresh::decoded_bound_within(limits)?);
     activity_run_began_decoded_bound_family(limits, biggest)
 }
 
@@ -71116,6 +71223,8 @@ pub struct ActivityRunBeganParts {
     pub why: RunWhy,
     /// The `resumed` field.
     pub resumed: bool,
+    /// The `fresh` field.
+    pub fresh: Option<RunFresh>,
 }
 
 /// `ActivityRunBegan` in this codec family.
@@ -71124,13 +71233,14 @@ pub struct ActivityRunBegan {
     attempt: u64,
     why: RunWhy,
     resumed: bool,
+    fresh: Option<RunFresh>,
 }
 
 impl ActivityRunBegan {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: ActivityRunBeganParts) -> Result<Self, Problem> {
-        let ActivityRunBeganParts { attempt, why, resumed } = parts;
-        let value = Self { attempt, why, resumed };
+        let ActivityRunBeganParts { attempt, why, resumed, fresh } = parts;
+        let value = Self { attempt, why, resumed, fresh };
         Ok(value)
     }
 
@@ -71146,9 +71256,13 @@ impl ActivityRunBegan {
     #[must_use]
     pub fn resumed(&self) -> bool { self.resumed }
 
+    /// Reads the `fresh` field.
+    #[must_use]
+    pub fn fresh(&self) -> &Option<RunFresh> { &self.fresh }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ActivityRunBeganParts { ActivityRunBeganParts { attempt: self.attempt, why: self.why, resumed: self.resumed } }
+    pub fn into_parts(self) -> ActivityRunBeganParts { ActivityRunBeganParts { attempt: self.attempt, why: self.why, resumed: self.resumed, fresh: self.fresh } }
 
 }
 
@@ -71161,6 +71275,11 @@ impl ActivityRunBegan {
         let field_why = &self.why;
         size = size.checked_add(field_why.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_fresh = &self.fresh;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_fresh.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -71172,6 +71291,14 @@ impl ActivityRunBegan {
         field_why.encode(writer)?;
         let field_resumed = &self.resumed;
         writer.put(&[u8::from(*field_resumed)])?;
+        let field_fresh = &self.fresh;
+        match field_fresh {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -71186,7 +71313,8 @@ impl ActivityRunBegan {
         let decoded_attempt = reader.u64().ok_or(Problem { path: Path::ActivityRunBeganAttempt, reason: skein_codec::Reason::Short })?;
         let decoded_why = RunWhy::decode_from(limits, reader)?;
         let decoded_resumed = match reader.u8().ok_or(Problem { path: Path::ActivityRunBeganResumed, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ActivityRunBeganResumed, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { attempt: decoded_attempt, why: decoded_why, resumed: decoded_resumed })
+        let decoded_fresh = match reader.u8().ok_or(Problem { path: Path::ActivityRunBeganFresh, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(RunFresh::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ActivityRunBeganFresh, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { attempt: decoded_attempt, why: decoded_why, resumed: decoded_resumed, fresh: decoded_fresh })
     }
 }
 
@@ -71201,7 +71329,7 @@ impl ActivityRunBegan {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(8_u64)?.checked_add(RunWhy::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(RunFresh::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -71215,7 +71343,7 @@ impl ActivityRunBegan {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(RunWhy::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(RunFresh::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

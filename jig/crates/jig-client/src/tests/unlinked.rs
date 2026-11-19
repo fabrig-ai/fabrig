@@ -40,6 +40,7 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
+<<<<<<< HEAD
         up: Up::Served {
             served: true,
             versions: Some(contract::VersionRange {
@@ -47,6 +48,9 @@ fn client() -> Client {
                 last: jig_client_protocol_wire::VERSION,
             }),
         },
+=======
+        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 38, last: 38 }) },
+>>>>>>> refs/hand5/g9117
     });
     c.step(Event::SignIn { with: With::Transport });
     c

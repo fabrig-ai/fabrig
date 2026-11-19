@@ -322,11 +322,11 @@ fn non_ascii_endpoint_or_credential_fields_are_invalid() {
         headers: Box::new([Header { name: bytes::copy_of(b"X-Extra"), value: bytes::copy_of(b"caf\xc3\xa9") }]),
         ..Endpoint::openai()
     };
-    for input in [
-        Call { endpoint, ..call() },
-        Call { credential: Some(Credential::bearer(bytes::copy_of(b"caf\xc3\xa9"))), ..call() },
+    for (input, cause) in [
+        (Call { endpoint, ..call() }, Invalid::Header),
+        (Call { credential: Some(Credential::bearer(bytes::copy_of(b"caf\xc3\xa9"))), ..call() }, Invalid::Credential),
     ] {
-        assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid));
+        assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid { cause }));
     }
 }
 
@@ -636,11 +636,57 @@ fn valid_ignores_heap_opened_items() {
 }
 
 #[test]
+fn model_schema_and_identifier_refusals_name_their_rules() {
+    for provider in [Provider::OpenAi, Provider::Anthropic] {
+        let mut input = call();
+        input.endpoint = match provider {
+            Provider::OpenAi => Endpoint::openai(),
+            Provider::Anthropic => Endpoint::anthropic(),
+        };
+        input.credential = None;
+        let control = Call {
+            owner: input.owner,
+            prompt: input.prompt.clone(),
+            endpoint: input.endpoint.clone(),
+            credential: None,
+        };
+        let _control = Client::prepare(control, &limits()).expect("valid request for either dialect");
+        input.prompt.model = Box::new([]);
+        assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid { cause: Invalid::Model }));
+
+        for (name, schema, cause) in
+            [(b"read".as_slice(), b"[]".as_slice(), Invalid::ToolSchema), (b"", b"{}", Invalid::Identifier)]
+        {
+            let mut input = call();
+            input.endpoint = match provider {
+                Provider::OpenAi => Endpoint::openai(),
+                Provider::Anthropic => Endpoint::anthropic(),
+            };
+            input.credential = None;
+            input.prompt.tools = Box::new([crate::Tool {
+                name: bytes::copy_of(name),
+                description: Box::new([]),
+                schema: crate::Json::from_bytes(schema, &limits().native().document()).expect("schema JSON"),
+            }]);
+            assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid { cause }));
+        }
+    }
+}
+
+#[test]
+fn inconsistent_limits_name_the_startup_rule() {
+    let mut bounds = limits();
+    bounds.sse.chunk = 0;
+    assert!(!valid(&bounds));
+    assert_eq!(Client::prepare(call(), &bounds).err(), Some(Error::Invalid { cause: Invalid::Limits }));
+}
+
+#[test]
 fn anthropic_refuses_a_bearer_at_admission() {
     let mut input = call();
     input.endpoint = Endpoint::anthropic();
     input.credential = Some(Credential::bearer(bytes::copy_of(b"secret")));
-    assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid));
+    assert_eq!(Client::prepare(input, &limits()).err(), Some(Error::Invalid { cause: Invalid::Credential }));
 }
 
 #[test]

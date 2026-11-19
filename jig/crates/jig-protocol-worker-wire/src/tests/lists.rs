@@ -1,7 +1,11 @@
 //! Account list boundaries (jig/docs/design/protocol/channel/records.md, 1).
 use super::fixtures::repeated;
+<<<<<<< HEAD
 use crate::v17::Record;
 use crate::{self as wire, v17};
+=======
+use crate::{self as wire, v18};
+>>>>>>> refs/hand5/g9117
 use skein_lib::{Reader, Writer};
 
 // Channel 5.1's fixed bounds, independent of adjustable codec limits.
@@ -52,18 +56,26 @@ fn list_rows_at_each_bound_round_trip_and_one_past_is_refused() {
     for (rows, name, shown, efforts, effort, problem) in [
         (0, 0, 0, 0, 0, None),
         (ROWS, NAME, SHOWN, EFFORTS, EFFORT, None),
+<<<<<<< HEAD
         (ROWS + 1, NAME, SHOWN, EFFORTS, EFFORT, Some(v17::paths::LISTED_ROWS_ROWS)),
         (1, NAME + 1, SHOWN, EFFORTS, EFFORT, Some(v17::paths::LIST_ROW_NAME)),
         (1, NAME, SHOWN + 1, EFFORTS, EFFORT, Some(v17::paths::LIST_ROW_SHOWN)),
         (1, NAME, SHOWN, EFFORTS + 1, EFFORT, Some(v17::paths::LIST_ROW_EFFORTS)),
         (1, NAME, SHOWN, EFFORTS, EFFORT + 1, Some(v17::paths::LIST_ROW_EFFORTS)),
+=======
+        (ROWS + 1, NAME, SHOWN, EFFORTS, EFFORT, Some(v18::Path::ListedRowsRows)),
+        (1, NAME + 1, SHOWN, EFFORTS, EFFORT, Some(v18::Path::ListRowName)),
+        (1, NAME, SHOWN + 1, EFFORTS, EFFORT, Some(v18::Path::ListRowShown)),
+        (1, NAME, SHOWN, EFFORTS + 1, EFFORT, Some(v18::Path::ListRowEfforts)),
+        (1, NAME, SHOWN, EFFORTS, EFFORT + 1, Some(v18::Path::ListRowEfforts)),
+>>>>>>> refs/hand5/g9117
     ] {
         let bytes = list_bytes(rows, name, shown, efforts, effort);
         let result = wire::ListRead::decode(&wire::CEILINGS, &mut Reader::new(&bytes));
         match problem {
             Some(path) => assert_eq!(
                 result.expect_err("one past bound"),
-                v17::Problem { path, reason: skein_codec::Reason::Bound }
+                v18::Problem { path, reason: skein_codec::Reason::Bound }
             ),
             None => {
                 let record = result.expect("within bounds");

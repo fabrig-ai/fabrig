@@ -332,7 +332,7 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     }
 }
 
-fn codec() -> jig_protocol_worker_wire::v17::Limits {
+fn codec() -> jig_protocol_worker_wire::v18::Limits {
     jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {

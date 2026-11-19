@@ -23,6 +23,7 @@ fn preparing() -> Harness {
 }
 fn claim(h: &mut Harness, attempt: u64, account: u32, budget: u64) {
     h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,

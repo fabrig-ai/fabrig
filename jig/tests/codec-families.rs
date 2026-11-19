@@ -29,9 +29,13 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
         schemas: &["schema/client-v38.schema", "schema/client-v38-part1.schema"],
 >>>>>>> refs/hand5/g9120
+=======
+        schemas: &["schema/client-v38.schema", "schema/client-v38-part1.schema"],
+>>>>>>> refs/hand5/g9117
         generated: &["src/generated/client.rs"],
     },
     Family {
@@ -137,6 +141,10 @@ pub const FAMILIES: &[Family] = &[
         text: jig_protocol_worker_wire::SCHEMA,
         root: "crates/jig-protocol-worker-wire",
         codec_root: "crates/jig-protocol-worker-wire",
+<<<<<<< HEAD
+=======
+        schemas: &["schema/worker-wire-v18.schema"],
+>>>>>>> refs/hand5/g9117
         generated: &["src/generated/worker_wire.rs"],
     },
     Family {

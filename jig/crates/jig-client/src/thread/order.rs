@@ -53,7 +53,7 @@ mod tests {
                     task: 7,
                     position: *position,
                     at: Wall::EPOCH,
-                    line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
+                    line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false, fresh: None },
                 });
                 sources.push((core::cmp::Reverse(*position), core::ptr::from_ref(source.as_ref()))).unwrap();
                 rows.push(DecodedActivityLine { source, decoded: None }).unwrap();
@@ -79,7 +79,7 @@ mod tests {
                     task: u64::try_from(task).unwrap(),
                     position,
                     at: Wall::EPOCH,
-                    line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
+                    line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false, fresh: None },
                 }),
                 decoded: None,
             })

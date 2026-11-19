@@ -39,7 +39,7 @@ pub(super) fn encode_owner_activity(
             out.object_end();
             out.object_end();
         }
-        jig_client::contract::Activity::RunBegan { attempt, why, resumed } => {
+        jig_client::contract::Activity::RunBegan { attempt, why, resumed, fresh } => {
             out.object_start();
             out.key(b"run_began");
             out.object_start();
@@ -49,6 +49,17 @@ pub(super) fn encode_owner_activity(
             encode_owner_run_why(why, out, budget);
             out.key(b"resumed");
             out.boolean(*(resumed));
+            out.key(b"fresh");
+            match fresh {
+                None => out.null(),
+                Some(cause) => out.string(match cause {
+                    jig_client::contract::RunFresh::Moved => b"moved",
+                    jig_client::contract::RunFresh::Closed => b"closed",
+                    jig_client::contract::RunFresh::Cut => b"cut",
+                    jig_client::contract::RunFresh::Limit => b"limit",
+                    jig_client::contract::RunFresh::Session => b"session",
+                }),
+            }
             out.object_end();
             out.object_end();
         }
@@ -278,4 +289,34 @@ fn encode_invalid_reason(value: Option<jig_client::contract::InvalidReason>, out
         jig_client::contract::InvalidReason::Followups => b"followups",
         jig_client::contract::InvalidReason::UnreadableResult => b"unreadable result",
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use jig_client::contract as c;
+    use skein_json::writer::{Encoder, Limits};
+    #[test]
+    fn run_beginnings_encode_fresh_by_its_wire_name() {
+        for (fresh, name) in [
+            (None, "null"),
+            (Some(c::RunFresh::Moved), "\"moved\""),
+            (Some(c::RunFresh::Closed), "\"closed\""),
+            (Some(c::RunFresh::Cut), "\"cut\""),
+            (Some(c::RunFresh::Limit), "\"limit\""),
+            (Some(c::RunFresh::Session), "\"session\""),
+        ] {
+            let value = c::Activity::RunBegan { attempt: 3, why: c::RunWhy::Ready, resumed: false, fresh };
+            let limits = Limits { depth: 8, length: 256 };
+            let mut budget = super::super::Cut { room: 0, left: 0, turn: None, subject: false, digest: None };
+            let mut measured = Encoder::measure(&limits);
+            super::encode_owner_activity(&value, &mut measured, &mut budget);
+            let mut encoded = Encoder::write(measured.measured().expect("bounded beginning"), &limits);
+            super::encode_owner_activity(&value, &mut encoded, &mut budget);
+            let mut expected = skein_lib::Buffer::with_capacity(256);
+            expected.put(br#"{"run_began":{"attempt":3,"why":"ready","resumed":false,"fresh":"#).expect("prefix");
+            expected.put(name.as_bytes()).expect("wire name");
+            expected.put(b"}}").expect("end");
+            assert_eq!(encoded.finish().as_ref(), expected.as_slice());
+        }
+    }
 }

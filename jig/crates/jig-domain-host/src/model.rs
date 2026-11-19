@@ -9,6 +9,7 @@ pub struct ModelFailure {
     pub kind: ModelFailureKind,
     pub evidence: ModelEvidence,
     pub status: Option<u16>,
+    pub refusal: Option<Box<[u8]>>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -37,6 +38,7 @@ pub enum ModelEvidence {
 
 impl ModelFailure {
     pub const NAME_BYTES: u32 = 40;
+    pub const REFUSAL_BYTES: u32 = 24;
 
     #[must_use]
     pub fn outage(&self) -> bool {
@@ -69,11 +71,16 @@ impl ModelFailure {
             Some(_) => (b", status ", status.as_bytes()),
             None => (b"", b""),
         };
+        let refusal = self.refusal.as_deref();
         let parts: [&[u8]; 6] = [b": ", self.kind.words(), label, value, b", ", self.evidence.words()];
         let mut length =
             endpoint.len().checked_add(1).expect("bounded endpoint").checked_add(model.len()).expect("bounded names");
         for part in parts {
             length = length.checked_add(part.len()).expect("bounded model failure words");
+        }
+        if let Some(refusal) = refusal {
+            length =
+                length.checked_add(2).expect("refusal separator").checked_add(refusal.len()).expect("bounded refusal");
         }
         let mut writer = Writer::new(length);
         name(&mut writer, endpoint);
@@ -81,6 +88,10 @@ impl ModelFailure {
         name(&mut writer, model);
         for part in parts {
             writer.put(part).expect("measured model failure words");
+        }
+        if let Some(refusal) = refusal {
+            writer.put(b": ").expect("measured refusal separator");
+            name(&mut writer, refusal);
         }
         writer.finish()
     }
@@ -134,6 +145,7 @@ mod tests {
             kind,
             evidence,
             status,
+            refusal: None,
         }
     }
 
@@ -186,6 +198,28 @@ mod tests {
         let words = value.words();
         assert_eq!(words.len(), 123);
         core::str::from_utf8(&words).expect("model failure words are UTF-8");
+    }
+
+    #[test]
+    fn refusal_words_name_the_cause_and_sanitize_its_bytes() {
+        let mut value = failure(ModelFailureKind::Invalid, ModelEvidence::Unsent, None);
+        value.endpoint = b"anthropic-api".as_slice().into();
+        value.refusal = Some(b"empty-message".as_slice().into());
+        assert_eq!(value.words().as_ref(), b"anthropic-api claude-opus-5-5: invalid, unsent: empty-message");
+        value.refusal = Some(b"bad\x00\x7f\xff ~".as_slice().into());
+        assert_eq!(value.words().as_ref(), b"anthropic-api claude-opus-5-5: invalid, unsent: bad??? ~");
+    }
+
+    #[test]
+    fn refusal_words_at_the_bounds_fit_the_tasks_reason() {
+        let mut value = failure(ModelFailureKind::Unsupported, ModelEvidence::Unsent, None);
+        assert_eq!(ModelFailure::NAME_BYTES, 40);
+        assert_eq!(ModelFailure::REFUSAL_BYTES, 24);
+        value.endpoint = Box::new([b'e'; 40]);
+        value.model = Box::new([b'm'; 40]);
+        value.refusal = Some(Box::new([b'r'; 24]));
+        assert_eq!(value.words().len(), 128, "the tasks child's REASON_BYTES");
+        assert!(!value.outage());
     }
 
     #[test]

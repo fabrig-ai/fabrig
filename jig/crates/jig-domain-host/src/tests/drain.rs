@@ -219,6 +219,7 @@ fn the_hub_keeps_the_named_model_call_through_the_stop_save_and_release() {
         kind: crate::ModelFailureKind::Unavailable,
         evidence: crate::ModelEvidence::Unsent,
         status: Some(403),
+        refusal: None,
     };
     let mut h = Harness::new();
     let (owner, workspace, agent) = h.live(1);

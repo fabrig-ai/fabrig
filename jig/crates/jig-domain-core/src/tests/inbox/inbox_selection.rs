@@ -322,6 +322,7 @@ fn finished_chat() -> (Core, Limits, Box<[Record]>) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: jig_domain_tasks::Reasons::ALL,
             reasons: jig_domain_tasks::Reasons::FIRST,

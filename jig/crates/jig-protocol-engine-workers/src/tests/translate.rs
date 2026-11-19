@@ -172,7 +172,11 @@ fn an_answer_hands_left_and_saved_work_up_as_parts() {
 fn a_call_record_keeps_its_name_bytes() {
     let mut parts = fixtures::call_record();
     parts.contract = 3;
+<<<<<<< HEAD
     let record = parts;
+=======
+    let record = jig_protocol_worker_wire::Call::new(&jig_protocol_worker_wire::v18::CEILINGS, parts).expect("call");
+>>>>>>> refs/hand5/g9117
     let link = up(translate::Up::Call(record));
     let jig_domain_host::LinkUp::Call { run, attempt, contract, call, tool, writes, input, deadline } = link else {
         panic!("call");
@@ -225,7 +229,7 @@ fn down(record: jig_domain_host::LinkDown) -> translate::Down {
     };
     translated.expect("complete output")
 }
-fn codec() -> jig_protocol_worker_wire::v17::Limits {
+fn codec() -> jig_protocol_worker_wire::v18::Limits {
     jig_protocol_worker_wire::sizes::limits(&fixtures::SIZES).expect("small codec")
 }
 fn assignment_output() -> jig_domain_host::LinkDown {
@@ -283,7 +287,7 @@ fn a_transcript_past_its_bound_including_lengths_drops_the_assignment() {
             reason: None,
             figure: Some(13),
             bound: Some(12),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_transcript)),
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v18::CEILINGS.assignment_transcript)),
         }
     );
 }
@@ -299,7 +303,7 @@ fn a_charter_past_its_bound_names_its_bytes_limit_and_ceiling() {
             reason: None,
             figure: Some(7),
             bound: Some(6),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_charter))
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v18::CEILINGS.assignment_charter))
         }
     );
     limits.assignment_charter = 7;
@@ -320,8 +324,12 @@ fn an_encoding_refusal_keeps_its_codec_path_and_reason() {
         .frame(&codec())
         .expect_err("not UTF-8"),
         Unencoded {
+<<<<<<< HEAD
             field: jig_protocol_worker_wire::v17::name(jig_protocol_worker_wire::v17::paths::MESSAGE_WORDS)
                 .expect("generated path"),
+=======
+            field: jig_protocol_worker_wire::v18::Path::MessageWords.name(),
+>>>>>>> refs/hand5/g9117
             reason: Some(skein_codec::Reason::Utf8),
             figure: None,
             bound: None,
@@ -341,7 +349,7 @@ fn a_full_list_names_its_count_limit_and_ceiling() {
             reason: None,
             figure: Some(1),
             bound: Some(0),
-            ceiling: Some(u64::from(jig_protocol_worker_wire::v17::CEILINGS.assignment_messages))
+            ceiling: Some(u64::from(jig_protocol_worker_wire::v18::CEILINGS.assignment_messages))
         }
     );
 }

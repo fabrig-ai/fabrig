@@ -205,8 +205,10 @@ fn an_oversized_text_and_a_smaller_read_keep_utf8_suffixes_within_the_bound() {
 
 fn closed_window() -> (Core, Limits) {
     let (mut core, limits) = watch_core();
+    core.current.test_charter_mut(1).policy.resume = true;
     core.counters.deployment.runs = 7;
     let proof = core.proofs.get_mut(&1).unwrap();
+    proof.endpoint = Some(1);
     proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: true });
     core.begin_transcript(1, 1, Some((1, 1)));
     (core, limits)
@@ -222,14 +224,21 @@ fn beginning_a_transcript_keeps_its_windows_closed_flag() {
 
 fn assert_closed_prepares(tail_bytes: u32, body: &[u8], expected_tail: &[u8]) {
     let (core, limits) = closed_window();
-    assert_prepares(core, &limits, tail_bytes, body, expected_tail, false);
+    assert_prepares(core, &limits, tail_bytes, body, expected_tail, false, Some(tasks::Fresh::Closed));
 }
 
-fn assert_prepares(mut core: Core, limits: &Limits, tail_bytes: u32, body: &[u8], expected_tail: &[u8], resume: bool) {
+fn assert_prepares(
+    mut core: Core,
+    limits: &Limits,
+    tail_bytes: u32,
+    body: &[u8],
+    expected_tail: &[u8],
+    resume: bool,
+    fresh: Option<tasks::Fresh>,
+) {
     core.settings.tail_bytes = tail_bytes;
     let tries = core.tasks.task(1).unwrap().tries;
     let refusals = core.tasks.task(1).unwrap().refusals;
-    core.current.test_charter_mut(1).policy.resume = true;
     runs::run_choice::host(&mut core, limits, Token::new(7), &[b"scripted"]);
     let mut accounts_out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts };
@@ -248,7 +257,11 @@ fn assert_prepares(mut core: Core, limits: &Limits, tail_bytes: u32, body: &[u8]
     );
     send_task(&mut core, limits, tasks::Event::Prepare { reply_to: ReplyTo::new(Token::new(1)), task: 1 });
     core.contexts.insert(1, core.tasks.run_context(1).unwrap()).unwrap();
-    append(&mut core, 1, body);
+    let turn = match core.transcripts.get(&1).unwrap().last {
+        Some((_, turn)) => turn.checked_add(1).expect("fixture turn"),
+        None => 1,
+    };
+    append(&mut core, turn, body);
     assert_eq!(tail(&core, tail_bytes).as_ref(), expected_tail);
     let _out = watch_outputs(&mut core, limits, Event::BriefAssembled { task: 1, failure: None });
     let attempt = core.workspace_flight(1).unwrap().1;
@@ -276,6 +289,7 @@ fn assert_prepares(mut core: Core, limits: &Limits, tail_bytes: u32, body: &[u8]
         }
     }
     assert!(prepared, "window prepares a run");
+    assert_eq!(core.claiming.get(&1).unwrap().3, fresh, "preparation keeps why before the proof is replaced");
     assert_eq!(core.proofs.get(&1).unwrap().window.is_some(), resume);
     assert_eq!(core.proofs.get(&1).unwrap().endpoint, Some(1));
     assert_eq!(core.tasks.task(1).unwrap().tries, tries);
@@ -284,6 +298,7 @@ fn assert_prepares(mut core: Core, limits: &Limits, tail_bytes: u32, body: &[u8]
 
 fn open_window() -> (Core, Limits) {
     let (mut core, limits) = watch_core();
+    core.current.test_charter_mut(1).policy.resume = true;
     core.counters.deployment.runs = 7;
     let proof = core.proofs.get_mut(&1).unwrap();
     proof.window = Some(CurrentWindow { attempt: 1, turn: 1, closed: false });
@@ -355,7 +370,15 @@ fn a_window_without_an_endpoint_uses_the_main_providers_previous_source_kind() {
             authority::AccountBinding { provider: 2, account: 0, source: 1 },
             authority::AccountBinding { provider: 1, account: 1, source: 2 },
         ]);
-        assert_prepares(core, &limits, 128, b"saved window", b"saved window", resume);
+        assert_prepares(
+            core,
+            &limits,
+            128,
+            b"saved window",
+            b"saved window",
+            resume,
+            if resume { None } else { Some(tasks::Fresh::Moved) },
+        );
     }
 }
 
@@ -364,7 +387,7 @@ fn a_window_without_an_endpoint_or_main_provider_binding_starts_fresh() {
     let (mut core, limits) = open_window();
     core.proofs.get_mut(&1).unwrap().accounts =
         Box::new([authority::AccountBinding { provider: 2, account: 0, source: 1 }]);
-    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false);
+    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false, Some(tasks::Fresh::Moved));
 }
 
 #[test]
@@ -372,7 +395,7 @@ fn a_move_found_at_activation_still_prevents_resume_at_the_claim() {
     let (mut core, limits) = open_window();
     core.proofs.get_mut(&1).unwrap().endpoint = Some(1);
     window(&mut core).moved = true;
-    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false);
+    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false, Some(tasks::Fresh::Moved));
 }
 
 #[test]
@@ -380,7 +403,7 @@ fn a_move_found_only_at_the_claim_prevents_resume() {
     let (mut core, limits) = open_window();
     core.proofs.get_mut(&1).unwrap().endpoint = Some(2);
     assert!(!window(&mut core).moved);
-    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false);
+    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false, Some(tasks::Fresh::Moved));
 }
 
 #[test]
@@ -439,6 +462,10 @@ fn cut_turn(attempt: u64, number: u32, opens_window: bool) -> TurnRecord {
 
 #[test]
 fn cut_turns_keep_their_length_and_place_without_resuming() {
+    let (mut core, limits) = open_window();
+    core.proofs.get_mut(&1).unwrap().endpoint = Some(1);
+    assert!(core.append_cut_transcript(1, cut_turn(1, 1, true), 4096));
+    assert_prepares(core, &limits, 128, b"after", b"[a turn too large to load]\nafter", false, Some(tasks::Fresh::Cut));
     for bytes in [1, 4096] {
         let mut core = window_core(256);
         for turn in [cut_turn(1, 2, false), cut_turn(1, 1, false), cut_turn(0, 1, true), cut_turn(2, 1, true)] {
@@ -464,4 +491,27 @@ fn cut_turns_keep_their_length_and_place_without_resuming() {
     append(&mut core, 1, b"before");
     assert!(core.append_cut_transcript(1, cut_turn(1, 2, false), 1));
     assert!(resumed(&mut core).is_empty());
+}
+
+#[test]
+fn a_window_past_the_limit_records_limit_not_cut() {
+    let (mut core, limits) = open_window();
+    core.proofs.get_mut(&1).unwrap().endpoint = Some(1);
+    core.settings.resume_bytes = 8;
+    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false, Some(tasks::Fresh::Limit));
+}
+
+#[test]
+fn a_moved_closed_window_records_moved_first() {
+    let (mut core, limits) = closed_window();
+    core.proofs.get_mut(&1).unwrap().endpoint = Some(2);
+    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false, Some(tasks::Fresh::Moved));
+}
+
+#[test]
+fn a_charter_that_starts_fresh_records_no_fresh_cause() {
+    let (mut core, limits) = closed_window();
+    core.current.test_charter_mut(1).policy.resume = false;
+    core.proofs.get_mut(&1).unwrap().endpoint = Some(2);
+    assert_prepares(core, &limits, 128, b"saved window", b"saved window", false, None);
 }

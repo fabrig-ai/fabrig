@@ -537,7 +537,8 @@ enum RunEnd { parked, finished, cancelled, failed: RunEndFailed, refused }
 record ActivityWords { message: u64 by: Requester kind: MessageKind words: text 262144 }
 record ActivityHeard { value: Word }
 record ActivityNotified { recipient: Requester word: Word }
-record ActivityRunBegan { attempt: u64 why: RunWhy resumed: bool }
+enum RunFresh { moved, closed, cut, limit, session }
+record ActivityRunBegan { attempt: u64 why: RunWhy resumed: bool fresh: option RunFresh }
 record ActivityRunEnded { attempt: u64 end: RunEnd spent: u64 }
 record ActivityTurn { reply: u64 attempt: u64 turn: u32 read: option u64 }
 record ActivityDecidedProposal { number: u64 made: bool }

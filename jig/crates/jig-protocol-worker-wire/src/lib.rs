@@ -14,7 +14,7 @@ use skein_lib::Token;
 
 #[rustfmt::skip]
 #[path = "generated/worker_wire.rs"]
-pub mod v17;
+pub mod v18;
 mod application;
 mod kinds;
 mod spoken;
@@ -32,13 +32,18 @@ pub mod fit;
 #[cfg(test)]
 mod tests;
 
+<<<<<<< HEAD
 pub use v17::Record;
 
 pub use v17::{ModelEvidence, ModelFailure, ModelFailureKind};
+=======
+pub use v18::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
+>>>>>>> refs/hand5/g9117
 
 pub use kinds::{
     KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
 };
+<<<<<<< HEAD
 pub use v17::Restarting;
 pub use v17::{
     AccountRefused, AgentFailure, AgentFailureValue, Answer, Bound, Call, CancelReason, CancelReasonValue, Count,
@@ -54,6 +59,33 @@ pub use v17::{
 };
 pub use v17::{AgreedWire, Draining};
 pub use v17::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
+=======
+pub use v18::{
+    AccountRefused, AccountRefusedParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, Answer, AnswerParts,
+    Bound, Call, CallParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Count, CountKind, CountParts,
+    Ended, EndedParts, Ending, Exceeded, ExceededParts, Fact, FactParts, FactValue, Failed, FailedParts, Failure,
+    Invalid, InvalidStart, InvalidStartParts, InvalidValue, InvalidValueParts, Limited, LimitedAccount,
+    LimitedAccountParts, LimitedParts, Long, LongParts, MessageRefusal, Mismatch, MismatchParts, Operation, Parked,
+    ParkedParts, PhaseValue, PhaseValueParts, Preparation, PreparationValue, PreparationValueParts, Refusal,
+    RefusalValue, RefusalValueParts, Refused, RefusedAccount, RefusedAccountParts, RefusedParts, Resource,
+    ResourceParts, RunFailure, RunFailureValue, RunFailureValueParts, StartCause, Turn, TurnParts, Unauthorized,
+    UnauthorizedParts, Work, WorkParts,
+};
+pub use v18::{
+    Acknowledge, AcknowledgeParts, AnsweredCall, AnsweredCallParts, ApplicationValue, ApplicationValueParts,
+    Assignment, AssignmentParts, Cancel, CancelParts, CredentialValue, CredentialValueParts, DeliveryAnswer,
+    DeliveryAnswerParts, DeliveryOutcome, Grant, GrantParts, GrantValue, Granted, GrantedParts, HostAnswer,
+    HostAnswerParts, Inbound, InboundParts, Message, MessageParts, ProgramValue, ProgramValueParts, RelayAnswer,
+    RelayText, RelayTextParts, Relayed, RelayedParts, Scheme, SettledAnswer, TurnBusy, TurnBusyParts, TurnKept,
+    TurnKeptParts, Workspace, WorkspaceParts,
+};
+pub use v18::{AgreedWire, AgreedWireParts, Draining, DrainingParts};
+pub use v18::{
+    Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
+    Hosting, HostingParts, Phase, Wire, WireParts,
+};
+pub use v18::{Restarting, RestartingParts};
+>>>>>>> refs/hand5/g9117
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -107,6 +139,7 @@ impl Reason {
     }
 }
 
+<<<<<<< HEAD
 pub use v17::{
     Check, Login, LoginOtherwise, LoginState, Logins, ProgramSource, SignOut, SignOutResult, SignedOut, SourceFailed,
     SourceFailure, Sources,
@@ -121,6 +154,28 @@ pub use v17::{
 };
 
 pub use v17::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
+=======
+pub use v18::{
+    Check, CheckParts, Login, LoginOtherwise, LoginOtherwiseParts, LoginParts, LoginState, Logins, LoginsParts,
+    ProgramSource, ProgramSourceParts, SignOut, SignOutParts, SignOutResult, SignedOut, SignedOutParts, SourceFailed,
+    SourceFailedParts, SourceFailure, Sources, SourcesParts,
+};
+
+pub use v18::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
+
+// Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
+pub use v18::{
+    DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
+    JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,
+    JobInvalidStartParts, JobInvalidValue, JobInvalidValueParts, JobParts, JobRefusal, JobRefusalValue,
+    JobRefusalValueParts,
+};
+
+pub use v18::{
+    ListFailed, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, ListRefused,
+    ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
+};
+>>>>>>> refs/hand5/g9117
 
 /// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
@@ -128,13 +183,18 @@ pub mod wire {
     pub const FAMILY: &str = "jig-worker-wire";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = crate::v17::VERSION;
+    pub const VERSION: u16 = crate::v18::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
     #[cfg(test)]
+<<<<<<< HEAD
     const TEXT: &str = crate::SCHEMA;
+=======
+    #[expect(clippy::disallowed_macros, reason = "the wire identity test embeds its current schema")]
+    const TEXT: &str = include_str!("../schema/worker-wire-v18.schema");
+>>>>>>> refs/hand5/g9117
 
     /// The current schema's family fingerprint.
     #[must_use]
@@ -161,6 +221,15 @@ pub mod wire {
     }
 }
 
+<<<<<<< HEAD
 pub use v17::{Ask, AskAnswer, AskBytes, Asked};
 
 pub use v17::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};
+=======
+pub use v18::{Ask, AskAnswer, AskBytes, AskBytesParts, AskParts, Asked, AskedParts};
+
+pub use v18::{
+    AgentEndpoint, AgentEndpointParts, Agents, AgentsParts, EndpointLimits, EndpointLimitsParts, Figures, FiguresParts,
+    Header, HeaderParts, Limit, LimitParts, Opening, Oversized, Tls, TlsParts, Transport,
+};
+>>>>>>> refs/hand5/g9117

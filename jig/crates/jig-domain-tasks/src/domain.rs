@@ -813,7 +813,19 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::gathering::settle(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
-        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered, session_end } => {
+        Event::Claim {
+            reply_to,
+            task,
+            attempt,
+            resumed,
+            fresh,
+            budget,
+            account,
+            writes,
+            reasons,
+            offered,
+            session_end,
+        } => {
             crate::run::claim(
                 domain,
                 env,
@@ -822,6 +834,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     number: task,
                     attempt,
                     resumed,
+                    fresh,
                     budget,
                     account,
                     writes,

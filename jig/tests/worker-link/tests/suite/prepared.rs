@@ -16,6 +16,7 @@ fn fresh_agreement() -> skein_channel::Frame {
             .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
             .expect("four jig wires");
     }
+<<<<<<< HEAD
     wires.push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 }).expect("application wire");
     let record = wire::v17::Agreed { wires };
     let mut body = Writer::new(skein_lib::length::usize_of(
@@ -27,6 +28,21 @@ fn fresh_agreement() -> skein_channel::Frame {
         record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     )
     .expect("frame");
+=======
+    wires
+        .push(
+            wire::AgreedWire::new(
+                &limits,
+                wire::AgreedWireParts { name: b"test-worker-wire".as_slice().into(), version: 3 },
+            )
+            .expect("wire"),
+        )
+        .expect("application wire");
+    let record = wire::v18::Agreed::new(&limits, wire::v18::AgreedParts { wires }).expect("agreement");
+    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
+    record.encode(&mut body).expect("measured agreement");
+    let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
+>>>>>>> refs/hand5/g9117
     frame.put(&body.finish()).expect("body");
     frame.finish().expect("measured frame")
 }

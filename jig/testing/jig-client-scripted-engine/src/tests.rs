@@ -514,7 +514,7 @@ fn scenario_all_read_shapes_and_reverse_activity() {
                         task: 8,
                         position,
                         at: Wall::EPOCH,
-                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Ready, resumed: true },
+                        line: Activity::RunBegan { attempt: 1, why: RunWhy::Ready, resumed: true, fresh: None },
                     }),
                     decoded: None,
                 })

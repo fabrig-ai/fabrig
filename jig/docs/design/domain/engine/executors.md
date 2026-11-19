@@ -224,7 +224,8 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   is none). A claim whose main model's endpoint is another than its
   previous proof's resumes nothing: a task moved from a program login to
   a key or back, or to another provider. It starts fresh from a brief
-  that carries the transcript's tail, as one past the resume limit does.
+  that carries the transcript's tail, as one past the resume limit does,
+  and its activity says so, `Moved` (*Why a run began fresh*).
   That is a transition that counts nothing: no failure, no transient try,
   no refusal, and no window closed. A standing task's session ends there,
   `Fresh` (`../tasks/standing.md`, 5.2), so its next run is its session's
@@ -279,7 +280,7 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   a failure: the attempt counts as any attempt does, its brief's tail
   within the tail's budget, and no transient try, failure, refusal or
   unread transcript is counted; its activity shows a run begun fresh,
-  as one past the limit. A closed window's tail the store cannot read
+  its window closed (*Why a run began fresh*). A closed window's tail the store cannot read
   (a frame unread, `../../protocol/store/transcripts.md`, 3) is left out: the attempt
   starts fresh without it, and nothing is counted. When a turn's rendered
   text needs cutting, a tail budget too small for the 19-byte cut marker
@@ -296,6 +297,31 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   keeps the window as a `CurrentWindow` (its attempt, its turn, whether
   it is closed: core-v6's `Window`); the transcript a run prepares keeps
   the pair it loads from, and whether it is closed beside it.
+- **Why a run began fresh.** A run's beginning in its task's activity,
+  `RunBegan`, says why it ran and whether it resumed. A run that does
+  not resume though its charter resumes and its task has a window, open
+  or closed, from an earlier attempt also says why it began fresh, in
+  its `fresh`, the first that holds of:
+  - `Moved`: its window ran on another endpoint or backend (*Resumed
+    only where it ran*);
+  - `Closed`: its window is closed (*A closed window*);
+  - `Cut`: its window holds a turn too large to load (*A turn too large
+    for a page*);
+  - `Limit`: its window is past the resume limit (*Resuming*);
+  - `Session`: a standing task's session ended, its `SessionEnded` line
+    just before saying how (`../tasks/standing.md`, 5.2).
+
+  A task's first run, a resumed run, and a run whose charter starts
+  every run fresh have none. The cause is judged in the claim's
+  preparation, where the window's load and the endpoints are still
+  there, and is committed with the claim, never inferred from the proof
+  the claim replaces. It is stored on the tasks family's `BeganLine` as
+  `fresh: option Fresh = none`, so a line written before it reads none,
+  and crosses to clients as `ActivityRunBegan.fresh`, a `RunFresh`
+  (`moved`, `closed`, `cut`, `limit`, `session`), which moves
+  `jig-client-wire` to 37 (`../../protocol/client/README.md`, 6). Its
+  words are its readers': temper's task page says `Run N began fresh:`
+  and why (temper's `client/pages/task.md`, 2).
 - **A crossed claim is never adopted.** The stored proof's
   `RunProof.crossed` (core-v6) fences the claim independently of its
   window: a claim resuming an earlier attempt's window, one whose

@@ -134,8 +134,8 @@ fn pair(output: &mut List<u8>, check: &str, demand: u32, cap: u32) {
 
 fn client(output: &mut List<u8>, error: Error) {
     match error {
-        Error::Invalid => text(output, "request-head: invalid endpoint or reserved header"),
-        Error::Unsupported => text(output, "request-head: unsupported endpoint"),
+        Error::Invalid { .. } => text(output, "request-head: invalid endpoint or reserved header"),
+        Error::Unsupported { .. } => text(output, "request-head: unsupported endpoint"),
         Error::Limit { which, bound } => {
             text(output, "request-head: ");
             text(output, cap_name(which));

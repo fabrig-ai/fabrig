@@ -79,7 +79,7 @@ fn a_chat_opens_to_its_opening_or_a_screen_and_a_half() {
                 let mut rows = skein_lib::List::with_capacity(1);
                 rows.push(owner_activity(
                     1,
-                    c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false },
+                    c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
                 ))
                 .unwrap();
                 f.chat.told(
@@ -498,8 +498,11 @@ fn a_chat_sends_no_seen_without_a_new_loaded_reply() {
 fn a_chat_sees_reply_numbers_instead_of_activity_positions() {
     let (mut pages, client) = chat_pages();
     let mut rows = skein_lib::List::with_capacity(4);
-    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
-        .unwrap();
+    rows.push(owner_activity(
+        1,
+        c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
+    ))
+    .unwrap();
     rows.push(owner_activity(
         2,
         c::Activity::Words {
@@ -526,8 +529,11 @@ fn a_chat_sees_reply_numbers_instead_of_activity_positions() {
 fn a_chat_with_activity_but_no_numbered_owner_turn_sends_no_seen() {
     let (mut pages, client) = chat_pages();
     let mut rows = skein_lib::List::with_capacity(3);
-    rows.push(owner_activity(1, c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false }))
-        .unwrap();
+    rows.push(owner_activity(
+        1,
+        c::Activity::RunBegan { attempt: f::ATTEMPT, why: c::RunWhy::Made, resumed: false, fresh: None },
+    ))
+    .unwrap();
     rows.push(owner_activity(
         2,
         c::Activity::Words {
@@ -1102,7 +1108,7 @@ fn window_activity(page: u32, pages: u32) -> c::ActivityPage {
                 pages.checked_sub(page).unwrap().checked_mul(WINDOW_PAGE_ROWS).unwrap().checked_sub(offset).unwrap(),
             ),
             skein_lib::Wall::EPOCH,
-            c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false },
+            c::Activity::RunBegan { attempt: 1, why: c::RunWhy::Made, resumed: false, fresh: None },
         ))
         .unwrap();
     }

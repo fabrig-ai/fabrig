@@ -16,7 +16,7 @@ fn at(minutes: u64) -> Wall {
     Wall::from_nanos((9 * DAY).saturating_add(minutes.saturating_mul(MINUTE)))
 }
 fn began(attempt: u64) -> c::Activity {
-    c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: attempt == 3 }
+    c::Activity::RunBegan { attempt, why: c::RunWhy::Ready, resumed: attempt == 3, fresh: None }
 }
 fn ended(attempt: u64, spent: u64) -> c::Activity {
     c::Activity::RunEnded { attempt, end: c::RunEnd::Parked, spent }

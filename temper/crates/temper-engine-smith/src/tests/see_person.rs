@@ -569,7 +569,7 @@ fn activity() -> Answer {
                 task: 41,
                 position: 1,
                 at: AT,
-                line: tasks::Line::RunBegan { attempt: 3, why: tasks::Why::Made, resumed: false },
+                line: tasks::Line::RunBegan { attempt: 3, why: tasks::Why::Made, resumed: false, fresh: None },
             },
             turn: None,
         },

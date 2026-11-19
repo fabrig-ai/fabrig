@@ -36,6 +36,7 @@ fn start(h: &mut Harness, number: u64, budget: u64) {
     let attempt = context.previous_attempt.checked_add(1).expect("fixture attempt");
     h.send(Event::Prepare { reply_to: to(), task: number });
     h.send(Event::Claim {
+        fresh: None,
         reply_to: to(),
         task: number,
         attempt,

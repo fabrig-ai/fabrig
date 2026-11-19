@@ -186,6 +186,7 @@ fn a_standing_roles_person_delegate_is_live_beyond_the_first_needs_page() {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: tasks::Reasons::ALL,
             reasons: tasks::Reasons::FIRST,

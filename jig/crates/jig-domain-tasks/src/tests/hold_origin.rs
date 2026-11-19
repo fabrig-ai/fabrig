@@ -21,6 +21,7 @@ fn hold_origin_survives_restart_terminal_and_release_in_exact_hold_rows() {
     h.make([task(1, &[])].into());
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,

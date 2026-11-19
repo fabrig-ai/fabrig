@@ -97,6 +97,211 @@ fn credential(value: &[u8]) -> Credential {
     Credential::bearer(value.into())
 }
 
+fn refusal_request(prompt: llm::Prompt, generation: u64, bounds: Receiving, observed: bool) -> FromDomain {
+    FromDomain::Complete {
+        owner: Token::new(7),
+        grant: Some(GrantName { account: 0, generation }),
+        prompt,
+        deadlines: smith_domain::session::Deadlines {
+            head: Duration::from_secs(2),
+            idle: Duration::from_secs(3),
+            whole: Time::from_nanos(10_000_000_000),
+        },
+        bounds,
+        outcome: run::outcome::OutcomeSpec { change: None, verdicts: Box::new([]), report: None, failure: None },
+        deliver: None,
+        observation: if observed { Some(smith_protocol_llm::Observation { first: true, messages: 0 }) } else { None },
+        deltas: smith_protocol_llm::Deltas { text: false, input: false },
+    }
+}
+
+fn named_failure(up: &mut Queue<ToDomain>, name: &[u8]) {
+    let Some(ToDomain::Failed { owner, failure, evidence, report, detail }) = up.pop() else {
+        panic!("one refused completion");
+    };
+    assert_eq!(owner, Token::new(7));
+    assert_eq!(failure, llm::Failure::Invalid);
+    assert_eq!(evidence, llm::Evidence::Unsent);
+    assert_eq!(report, llm::Report { status: None, code: name.into(), request: Box::new([]), field: Box::new([]) });
+    assert_eq!(detail, skein_lib::bytes::concat(&[b"refused before sending: ", name]));
+    assert!(up.is_empty(), "one terminal");
+}
+
+#[derive(Clone, Copy)]
+enum Refused {
+    Choice,
+    Repeated,
+    Endpoint,
+    Owner,
+    Grant,
+}
+
+#[test]
+fn local_call_refusals_name_choice_tool_endpoint_owner_and_grant() {
+    for case in [Refused::Choice, Refused::Repeated, Refused::Endpoint, Refused::Owner, Refused::Grant] {
+        let limits = limits();
+        let mut component = Component::new(&limits, endpoints()).expect("component");
+        component
+            .grant(GrantName { account: 0, generation: 1 }, credential(b"fixture"), Time::from_nanos(100))
+            .expect("grant");
+        let mut up = Queue::uncapped();
+        let mut io = Queue::uncapped();
+        let mut input = prompt();
+        let mut generation = 1;
+        let name: &[u8] = match case {
+            Refused::Choice => {
+                input.choice = llm::ToolChoice::Only(Box::new([llm::Served::Wait]));
+                b"choice-not-served"
+            }
+            Refused::Repeated => {
+                input.served = Box::new([llm::Served::Wait, llm::Served::Wait]);
+                b"tool-name"
+            }
+            Refused::Endpoint => {
+                input.endpoint = llm::Endpoint(43);
+                b"unknown-endpoint"
+            }
+            Refused::Owner => {
+                component.from_domain(&env(1, &limits), complete(7, 1, limits.receiving), &mut up, &mut io);
+                let Some(IoRequest::Connect { .. }) = io.pop() else {
+                    panic!("first call starts");
+                };
+                assert!(up.is_empty());
+                b"owner"
+            }
+            Refused::Grant => {
+                generation = 0;
+                b"grant"
+            }
+        };
+        component.from_domain(
+            &env(1, &limits),
+            refusal_request(input, generation, limits.receiving, false),
+            &mut up,
+            &mut io,
+        );
+        assert!(io.is_empty(), "refused call never touches io");
+        named_failure(&mut up, name);
+    }
+}
+
+#[test]
+fn skein_admission_causes_survive_observed_and_unobserved_calls() {
+    for observed in [false, true] {
+        for (effort, name) in [(true, b"effort".as_slice()), (false, b"identifier")] {
+            let limits = limits();
+            let destination = skein_llm_connection::Endpoint {
+                limits: limits.translation.client,
+                credential: skein_llm::client::CredentialLimits { value: limits.grant_value_bytes },
+                address: SocketAddr::from(([127, 0, 0, 1], 443)),
+                transport: skein_llm_connection::Transport::Plaintext,
+                llm: shared::Endpoint::anthropic(),
+            };
+            let endpoints = Endpoints::new(
+                Box::new([ConfiguredEndpoint {
+                    name: llm::Endpoint(42),
+                    connect: Duration::from_secs(1),
+                    handshake: Duration::from_secs(1),
+                    destination,
+                    oversized_reasoning: smith_protocol_llm::OversizedReasoning::Fail,
+                }]),
+                1,
+            )
+            .expect("endpoint");
+            let mut component = Component::new(&limits, endpoints).expect("component");
+            component
+                .grant(
+                    GrantName { account: 0, generation: 1 },
+                    Credential::key(b"fixture".as_slice().into()),
+                    Time::from_nanos(100),
+                )
+                .expect("grant");
+            let mut input = prompt();
+            if effort {
+                input.effort = Some(b"turbo".as_slice().into());
+            } else {
+                input.messages = Box::new([llm::Message {
+                    role: llm::Role::Assistant,
+                    content: Box::new([llm::Block::ToolCall {
+                        id: b"bad id".as_slice().into(),
+                        name: b"host_action".as_slice().into(),
+                        input: b"{}".as_slice().into(),
+                        replay: None,
+                    }]),
+                }]);
+            }
+            let mut up = Queue::uncapped();
+            let mut io = Queue::uncapped();
+            component.from_domain(
+                &env(1, &limits),
+                refusal_request(input, 1, limits.receiving, observed),
+                &mut up,
+                &mut io,
+            );
+            assert!(io.is_empty(), "admission is before sending");
+            named_failure(&mut up, name);
+        }
+    }
+}
+
+#[test]
+fn a_refused_main_completion_names_its_cause_in_the_run_end_and_channel_answer() {
+    use smith_protocol_llm_world::{World, fixture};
+    let mut settings = fixture::settings(9342);
+    settings.host_tool_name = b"bad name";
+    settings.job = smith_protocol_llm_world::Job::HostTools;
+    let mut bounds = fixture::limits();
+    bounds.client.http.request = 16_384;
+    bounds.client.request = 16_384;
+    let receiving =
+        smith_protocol_llm_fixtures::receiving(&bounds.client, settings.limits.decoded_call_bytes).expect("receiving");
+    settings.limits.session.completion_bytes = receiving.max_completion_bytes;
+    settings.limits.session.completion_blocks = receiving.max_completion_blocks;
+    settings.limits.session.failure_bytes = receiving.max_failure_bytes;
+    let mut world =
+        World::with_protocol(settings, None, fixture::Dialect::Anthropic.configuration(), bounds, Box::new([]));
+    world.run(2000);
+    let run::Answer::Failed { failure: run::RunFailure::Model(fault), spent, turns } = world.answer() else {
+        panic!("the refused main completion fails its run: {:?}", world.answer());
+    };
+    assert_eq!(
+        fault,
+        &run::Fault::Completion {
+            failure: run::CompletionFailure::Invalid,
+            evidence: run::CompletionEvidence::Unsent,
+            model: 0,
+            attempts: 1,
+            report: run::Report {
+                status: None,
+                code: b"identifier".as_slice().into(),
+                request: Box::new([]),
+                field: Box::new([])
+            },
+        }
+    );
+    assert_eq!(world.answer_detail(), b"refused before sending: identifier");
+    assert_eq!(world.protocol_calls().len(), 1, "a lasting refusal is not retried");
+    assert!(world.protocol_calls().iter().all(|call| call.request.is_empty()), "nothing sent to the provider");
+    let record = smith_protocol_translate::answer_record(
+        Time::ZERO,
+        run::Answer::Failed { failure: run::RunFailure::Model(fault.clone()), spent: *spent, turns: *turns },
+        None,
+        &smith_channel::CEILINGS,
+        &smith_charter::CEILINGS,
+    )
+    .expect("channel answer");
+    let smith_channel::RunResult::Failed(failed) = record.result() else {
+        panic!("failed answer");
+    };
+    let smith_channel::RunFailure::Model(model) = failed.reason() else {
+        panic!("model failure");
+    };
+    let smith_channel::ModelFault::Completion(completion) = model.value() else {
+        panic!("completion failure");
+    };
+    assert_eq!(completion.code(), b"identifier");
+}
+
 #[test]
 fn invalid_limits_are_refused() {
     let bounds = limits();

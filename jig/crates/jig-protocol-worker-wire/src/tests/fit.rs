@@ -1,8 +1,12 @@
 //! A resumed start fitted to its room (jig/docs/design/protocol/channel/README.md, 11).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
+<<<<<<< HEAD
 use crate::v17::Record;
 use crate::{self as wire, sizes};
+=======
+use crate::{self as wire, sizes, v18};
+>>>>>>> refs/hand5/g9117
 use skein_lib::List;
 
 // The resumed fixture's fixed fields57 + workspace27 + charter14 + transcript24
@@ -24,7 +28,11 @@ enum Answer {
 
 const HOST: Answer = Answer::Host { bytes: ANSWER_BYTES, error: false };
 
+<<<<<<< HEAD
 fn calls(answers: &[Answer]) -> List<wire::AnsweredCall> {
+=======
+fn calls(limits: &v18::Limits, answers: &[Answer]) -> List<wire::AnsweredCall> {
+>>>>>>> refs/hand5/g9117
     let mut calls = List::with_capacity(u32::try_from(answers.len()).unwrap());
     for (position, answer) in answers.iter().enumerate() {
         let position = u8::try_from(position).unwrap();
@@ -45,8 +53,13 @@ fn calls(answers: &[Answer]) -> List<wire::AnsweredCall> {
     calls
 }
 
+<<<<<<< HEAD
 fn resumed(answered: List<wire::AnsweredCall>) -> wire::Assignment {
     let mut parts = fixtures::assignment_resumed();
+=======
+fn resumed(limits: &v18::Limits, answered: List<wire::AnsweredCall>) -> wire::Assignment {
+    let mut parts = fixtures::assignment_resumed().into_parts();
+>>>>>>> refs/hand5/g9117
     parts.answered = answered;
     parts
 }

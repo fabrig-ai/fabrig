@@ -126,6 +126,9 @@ pub fn activity(world: &World) -> Vec<tasks::Line> {
         .collect()
 }
 pub fn fresh(world: &World) {
+    fresh_because(world, Some(tasks::Fresh::Closed));
+}
+pub fn fresh_because(world: &World, expected: Option<tasks::Fresh>) {
     let assignment = world.assigned.as_ref().expect("fresh assignment");
     assert!(!assignment.run.policy.resume);
     assert!(assignment.transcript.is_empty());
@@ -133,7 +136,10 @@ pub fn fresh(world: &World) {
     assert_eq!(proof(world).conversation, assignment.attempt);
     assert_eq!(proof(world).window, None);
     assert!(!proof(world).crossed, "every new claim writes its own uncrossed proof");
-    assert!(matches!(activity(world).last(), Some(tasks::Line::RunBegan { resumed: false, .. })));
+    assert!(matches!(
+        activity(world).last(),
+        Some(tasks::Line::RunBegan { resumed: false, fresh, .. }) if *fresh == expected
+    ));
 }
 
 pub use crate::run_helpers::{SEED, hello, hello_hosting, tail};
