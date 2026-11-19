@@ -2,7 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [task.md](task.md).
 
-- **Not yet:** 2: "Run N began fresh: " and its why, on the page and the command line's activity. [in flight: change 9225]
 
 Section 2's run-ended activity line names the invalid contract kind or
 says its result could not be read. The view's renderer table distinguishes
