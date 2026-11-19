@@ -8,7 +8,6 @@ use skein_lib::Time;
 use skein_lib::Token;
 use smith_charter::Record;
 use temper_engine_domain as root;
-use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 #[test]
 fn each_repositorys_grant_carries_its_identitys_value() {
     let values = fixtures::values_with_identity(1, b"forge-token-1234");

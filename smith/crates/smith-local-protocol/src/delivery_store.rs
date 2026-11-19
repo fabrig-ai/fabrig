@@ -8,7 +8,7 @@
 use crate::local_store_v1::Record;
 use crate::{File, StoreError, local_store_v1 as wire};
 use alloc::boxed::Box;
-use skein_lib::{List, Reader};
+use skein_lib::{List, Reader, Writer};
 use smith_domain::run;
 use smith_local_domain::{DeliveryIntent, DeliveryRecord, DeliveryState, IntentDirectory, PushTarget};
 
@@ -33,8 +33,9 @@ pub fn save_delivery(record: &DeliveryRecord, max_bytes: u32) -> Result<File, St
     if length > max_bytes {
         return Err(StoreError::TooLarge);
     }
-    let bytes = value.encode(&wire::CEILINGS).or(Err(StoreError::TooLarge))?;
-    Ok(File { name: delivery_name(record.name), bytes })
+    let mut writer = Writer::new(usize::try_from(length).expect("measured bytes fit usize"));
+    value.write(&wire::CEILINGS, &mut writer).or(Err(StoreError::TooLarge))?;
+    Ok(File { name: delivery_name(record.name), bytes: writer.finish() })
 }
 
 /// Decode the generated grammar and preserve the domain's constructor checks.

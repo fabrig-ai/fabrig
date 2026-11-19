@@ -244,10 +244,6 @@ impl Component {
             return Err(Error::Order);
         }
         let record = answer_record(now, answer, read, &self.bodies, &self.charter)?;
-        match record.measure(&self.bodies) {
-            Ok(_) => (),
-            Err(problem) => return Err(Error::ChannelBody(problem)),
-        }
         let frame = match smith_channel::frame(smith_channel::Body::Answer(record)) {
             Ok(value) => value,
             Err(problem) => return Err(Error::Frame(problem)),

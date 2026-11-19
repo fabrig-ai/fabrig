@@ -2,7 +2,6 @@ use crate::worker_route;
 use jig_domain_host as host;
 use smith_channel::Record;
 use smith_host_domain as agent;
-use temper_protocol_worker_wire::v1::Record;
 
 #[test]
 fn a_call_name_is_encoded_as_smiths_channel_record() {

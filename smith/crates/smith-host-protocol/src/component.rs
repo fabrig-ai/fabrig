@@ -218,7 +218,6 @@ impl Component {
             return Err(Error::Order);
         }
         let record = crate::translate::encode_message(message, &self.bodies)?;
-        record.measure(&self.bodies)?;
         let frame = smith_channel::frame(smith_channel::Body::Message(record))?;
         self.send_frame(token, frame, to_service, below);
         Ok(())
