@@ -7,42 +7,29 @@ use skein_lib::{Duration, List, Rng, Wall};
 fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
     let mut whole_cut = false;
     let mut selected_cut = false;
-<<<<<<< HEAD
     let mut stale_after_cut = false;
-=======
     let mut unkept = false;
     let mut held = false;
->>>>>>> refs/hand5/9644
     for seed in 0..256 {
         prefix_search(seed);
         let played = run(seed);
         let [whole, selected, absent] = played.2;
         whole_cut |= whole;
         selected_cut |= selected;
-<<<<<<< HEAD
         stale_after_cut |= played.3;
-        assert_eq!(played, run(seed), "replay seed {seed}");
-    }
-    assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
-    assert!(stale_after_cut, "the sweep moves main after a cut, before the next open is answered");
-=======
         unkept |= absent;
         held |= played.0.phase == Phase::Held { was: Box::new(Phase::Preparing), why: crate::Hold::Prepare };
         assert_eq!(played, run(seed), "replay seed {seed}");
     }
     assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
     assert!(unkept && held, "the sweep reaches a prepare with no kept answer and its hold");
->>>>>>> refs/hand5/9644
+    assert!(stale_after_cut, "the sweep moves main after a cut, before the next open is answered");
 }
 
 // Each effect takes 1–3 steps, separately from its result becoming readable.
 // The settling bound is 32 + 20 per member + 24 per drawn disturbance:
 // member steps, round cleanup, and another proof after each disturbance.
-<<<<<<< HEAD
-fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2], bool) {
-=======
-fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3]) {
->>>>>>> refs/hand5/9644
+fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3], bool) {
     let mut rng = Rng::new(seed);
     let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
     let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
@@ -116,19 +103,12 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 3]) {
                     assert!(member.landed.is_some() || member.left.is_some(), "terminal seed {seed}");
                 }
                 if world.pending.is_empty() {
-<<<<<<< HEAD
-                    return (next.landing, trace.into_boxed(), world.cuts, world.stale_after_cut);
+                    return (next.landing, trace.into_boxed(), world.reached(), world.stale_after_cut);
                 }
             }
             Decision::Hold(_) | Decision::Cancel => {
-                return (next.landing, trace.into_boxed(), world.cuts, world.stale_after_cut);
+                return (next.landing, trace.into_boxed(), world.reached(), world.stale_after_cut);
             }
-=======
-                    return (next.landing, trace.into_boxed(), world.reached());
-                }
-            }
-            Decision::Hold(_) | Decision::Cancel => return (next.landing, trace.into_boxed(), world.reached()),
->>>>>>> refs/hand5/9644
             Decision::None
             | Decision::Wait { .. }
             | Decision::Prepare { .. }
@@ -320,13 +300,10 @@ struct Top {
     stale: Option<StaleAt>,
     cancel: bool,
     cuts: [bool; 2],
-<<<<<<< HEAD
     stale_after_cut: bool,
-=======
     /// Prepares still to end with no answer their round keeps, read as absent.
     unkept: u32,
     absent: bool,
->>>>>>> refs/hand5/9644
 }
 
 impl Top {
@@ -381,12 +358,9 @@ impl Top {
             stale,
             cancel,
             cuts: [false; 2],
-<<<<<<< HEAD
             stale_after_cut: false,
-=======
             unkept,
             absent: false,
->>>>>>> refs/hand5/9644
         }
     }
 

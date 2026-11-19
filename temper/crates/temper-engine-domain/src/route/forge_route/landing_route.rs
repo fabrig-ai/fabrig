@@ -369,27 +369,14 @@ fn create_landing(
             searched: None,
             round: landing::Round::new(own_branch.clone()),
 
-<<<<<<< HEAD
             task: number,
             project,
             phase: landing::Phase::Waiting,
             preparation: 0,
             stale_proofs: 0,
+            last_prepare: None,
             branch: Box::from(branch),
             members: members.into_boxed(),
-=======
-                task: number,
-                project,
-                phase: landing::Phase::Waiting,
-                preparation: 0,
-                stale_proofs: 0,
-                last_prepare: None,
-                branch: Box::from(branch),
-                members: members.into_boxed(),
-            },
-            asks: asks.into_boxed(),
-            entries: Box::new([]),
->>>>>>> refs/hand5/9644
         },
         asks: asks.into_boxed(),
         entries: Box::new([]),
