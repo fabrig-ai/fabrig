@@ -11,4 +11,9 @@ mod stores;
 
 mod reds;
 
+<<<<<<< HEAD
 mod view;
+=======
+mod pack;
+mod pack_locks;
+>>>>>>> refs/hand5/c9623

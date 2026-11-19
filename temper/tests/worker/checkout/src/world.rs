@@ -1165,6 +1165,7 @@ impl World {
             Op::Store { .. }
             | Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Make { .. }
@@ -1290,6 +1291,7 @@ impl World {
             | Op::Clone { .. }
             | Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Create { .. }
@@ -1421,6 +1423,7 @@ impl World {
                     Kind::Clone => told.clones += 1,
                     Kind::Reds
                     | Kind::Reset
+                    | Kind::Pack
                     | Kind::Point
                     | Kind::Store
                     | Kind::Fetch

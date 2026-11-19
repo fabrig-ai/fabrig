@@ -418,6 +418,7 @@ impl World {
         match op {
             Op::Reds { .. }
             | Op::Reset { .. }
+            | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Store { .. }
             | Op::Make { .. }

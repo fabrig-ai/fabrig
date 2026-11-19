@@ -456,7 +456,142 @@ impl World {
                 "Look leaves the run's config unchanged"
             );
         }
+<<<<<<< HEAD
         done
+=======
+        output
+    }
+
+    fn reds(&self, directory: &[u8], content: Option<Box<[u8]>>, marker: bool, rerun: Option<u32>) -> git::Done {
+        let directory = self.root.join(OsStr::from_bytes(directory));
+        fs::create_dir_all(&directory).expect("check directory");
+        let file = directory.join("reds");
+        if marker || content.is_none() {
+            let _ = fs::remove_file(&file);
+            let _ = fs::remove_file(directory.join("check-results"));
+        }
+        if let Some(content) = content {
+            let name = if marker { "reds-wait" } else { "reds" };
+            let temporary = directory.join(format!("{name}.tmp"));
+            fs::write(&temporary, content).expect("check file");
+            fs::rename(temporary, directory.join(name)).expect("whole check file");
+        }
+        if let Some(rerun) = rerun {
+            let temporary = directory.join("rerun.tmp");
+            fs::write(&temporary, format!("temper-rerun 1 {rerun}\n")).expect("rerun marker");
+            fs::rename(temporary, directory.join("rerun")).expect("whole marker");
+        }
+        git::Done::Succeeded
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the harness drives every checkout operation through its command sequence"
+    )]
+    fn perform(&self, mut op: git::Op) -> git::Done {
+        if let git::Op::Make { workspace, .. } = &op {
+            fs::create_dir_all(self.root.join(format!("workspaces/{}", workspace.raw()))).expect("workspace");
+            return git::Done::Succeeded;
+        }
+        if let git::Op::Store { store, remote, .. } = &op {
+            let directory = format!("stores/{}", store.raw());
+            fs::create_dir_all(self.root.join(&directory)).expect("store directory");
+            let output = self.command(
+                "stores",
+                &invocation::Command::Store {
+                    directory: store.raw().to_string().into_bytes().into(),
+                    remote: remote.clone(),
+                },
+                Some(git::Kind::Store),
+                b"",
+            );
+            assert!(output.status.success(), "store init: {:?}", output.stderr);
+            return git::Done::Succeeded;
+        }
+        let at = match &op {
+            git::Op::Clone { at, .. }
+            | git::Op::Reds { at, .. }
+            | git::Op::Reset { at, .. }
+            | git::Op::Pack { at, .. }
+            | git::Op::Point { at, .. }
+            | git::Op::Fetch { at, .. }
+            | git::Op::Create { at, .. }
+            | git::Op::CheckOut { at, .. }
+            | git::Op::Look { at, .. }
+            | git::Op::DiffPaths { at, .. }
+            | git::Op::Brings { at, .. }
+            | git::Op::IsAncestor { at, .. }
+            | git::Op::Merge { at, .. }
+            | git::Op::Commit { at, .. }
+            | git::Op::Push { at, .. } => at,
+            git::Op::Store { .. } | git::Op::Make { .. } => unreachable!(),
+        };
+        let repository = String::from_utf8(invocation::place(at).into_vec()).expect("fixture directory");
+        let workspace = at.workspace;
+        let mut next = sequence::first(&op);
+        for _ in 0..20 {
+            next = match next {
+                Next::Run(command) => {
+                    let message = if let (invocation::Command::CommitTree { .. }, git::Op::Commit { title, body, .. }) =
+                        (&command, &op)
+                    {
+                        invocation::message(title, body)
+                    } else {
+                        Box::default()
+                    };
+                    let kind = if matches!(command, invocation::Command::SnapshotFetch { .. }) {
+                        Some(git::Kind::Fetch)
+                    } else {
+                        Some(op.kind())
+                    };
+                    let directory = match (&op, &command) {
+                        (git::Op::Clone { .. }, invocation::Command::Clone { .. }) => {
+                            format!("workspaces/{}", workspace.raw())
+                        }
+                        (git::Op::Clone { store, .. }, invocation::Command::Format)
+                        | (git::Op::Fetch { store, .. }, invocation::Command::Fetch { .. }) => {
+                            format!("stores/{}", store.raw())
+                        }
+                        _ => repository.clone(),
+                    };
+                    let output = self.command(&directory, &command, kind, &message);
+                    sequence::after(
+                        &op,
+                        &command,
+                        u8::try_from(output.status.code().expect("exit")).expect("code"),
+                        &output.stdout,
+                        &output.stderr,
+                        0,
+                        &LIMITS,
+                    )
+                }
+                Next::Snapshot { parent, merging } => {
+                    let git::Op::Commit { parent: target, merging: second, .. } = &mut op else { unreachable!() };
+                    *target = parent;
+                    *second = merging;
+                    Next::Run(if merging.is_some() { invocation::Command::Unmerged } else { invocation::Command::Add })
+                }
+                Next::Reds { directory, content, marker, rerun } => {
+                    return self.reds(&directory, content, marker, rerun);
+                }
+                Next::Results { .. } => panic!("this delivery has no check results read"),
+                Next::End(done) => return done,
+                Next::Alternates => {
+                    let git::Op::Clone { store, remote, .. } = &op else { unreachable!() };
+                    fs::write(
+                        self.root.join(&repository).join(".git/objects/info/alternates"),
+                        format!("../../../../../stores/{}/objects\n", store.raw()),
+                    )
+                    .expect("alternates");
+                    Next::Run(invocation::Command::Remote { remote: remote.clone() })
+                }
+                Next::Make | Next::Store | Next::InstallStore { .. } | Next::Scan { .. } => {
+                    panic!("no unresolved paths")
+                }
+            };
+        }
+        panic!("git operation settles")
+>>>>>>> refs/hand5/c9623
     }
 
     fn finish(&mut self, mut event: checkout::Event) -> checkout::Request {

@@ -6,6 +6,9 @@ use crate::{
 use alloc::boxed::Box;
 use temper_worker_domain_checkout::{self as checkout, git};
 
+/// Pack bound (temper/docs/design/protocol/git.md, 4.13).
+const PACKS: u32 = 50;
+
 /// The next step after an invocation has settled and closed.
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[expect(clippy::large_enum_variant, reason = "bounded diagnostics stay inline as in git::Done")]
@@ -48,6 +51,7 @@ pub fn first(op: &git::Op) -> Next {
             Command::Create { remote: remote.clone(), branch: branch.clone(), commit: *commit }
         }
         git::Op::Reset { commit, .. } => Command::SnapshotReset { commit: *commit },
+        git::Op::Pack { store, .. } => Command::CountObjects { store: *store },
         git::Op::Point { into, commit, .. } => Command::UpdateRef { into: *into, commit: *commit },
         git::Op::CheckOut { commit, .. } => Command::CheckOut { commit: *commit },
         git::Op::Brings { head, upstream, .. } => Command::MergeBases { head: *head, upstream: *upstream },
@@ -92,6 +96,18 @@ pub fn after(
         return next;
     }
     match ran {
+        Command::CountObjects { store } => {
+            if code == 0
+                && let Some(packs) = output::packs(stdout)
+            {
+                return if packs > PACKS { Next::Run(Command::Repack { store: *store }) } else { packed(*store) };
+            }
+        }
+        Command::Repack { store } => {
+            if code == 0 {
+                return packed(*store);
+            }
+        }
         Command::Reds(_) => unreachable!("reds handled above"),
         Command::MergeBases { .. } => return merge_bases(op, code, stdout, tail, cut),
         Command::BringsList { .. } => {
@@ -114,6 +130,7 @@ pub fn after(
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
             | git::Op::Reset { .. }
+            | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -206,6 +223,7 @@ pub fn after(
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
             | git::Op::Reset { .. }
+            | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -269,6 +287,7 @@ pub fn after(
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
             | git::Op::Reset { .. }
+            | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -298,6 +317,12 @@ pub fn after(
     }
     let fault = if code == 0 || !remote(ran) { git::Fault::Broken } else { output::classify(tail, op.kind()) };
     failed(fault, tail, cut)
+}
+fn packed(store: Option<skein_lib::Token>) -> Next {
+    match store {
+        Some(_) => Next::Run(Command::CountObjects { store: None }),
+        None => Next::End(git::Done::Succeeded),
+    }
 }
 fn id(stdout: &[u8]) -> Option<git::Commit> {
     invocation::object(stdout.strip_suffix(b"\n")?)
@@ -352,6 +377,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -374,6 +400,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -396,6 +423,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Clone { .. }
         | git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
         | git::Op::Create { .. }
@@ -418,6 +446,8 @@ fn remote(command: &Command) -> bool {
         | Command::CheckOut { .. }
         | Command::Merge { .. } => true,
         Command::Reds(_)
+        | Command::CountObjects { .. }
+        | Command::Repack { .. }
         | Command::Format
         | Command::Version
         | Command::Origin { .. }

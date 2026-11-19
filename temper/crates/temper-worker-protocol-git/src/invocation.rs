@@ -28,13 +28,35 @@ pub const SETTINGS: [&[u8]; 13] = [
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Command {
     Reds(crate::reds::CheckCommand),
+    /// A place in Pack (protocol/git.md, 4.13); None is the repository.
+    CountObjects {
+        store: Option<Token>,
+    },
+    Repack {
+        store: Option<Token>,
+    },
     Format,
     SnapshotHead,
-    SnapshotMerge { head: git::Commit, second: Option<git::Commit> },
-    SnapshotFetch { remote: Box<[u8]>, head: git::Commit, merging: Option<git::Commit>, second: git::Commit },
-    SnapshotReachable { head: git::Commit, merging: Option<git::Commit>, second: git::Commit },
-    SnapshotReset { commit: git::Commit },
+    SnapshotMerge {
+        head: git::Commit,
+        second: Option<git::Commit>,
+    },
+    SnapshotFetch {
+        remote: Box<[u8]>,
+        head: git::Commit,
+        merging: Option<git::Commit>,
+        second: git::Commit,
+    },
+    SnapshotReachable {
+        head: git::Commit,
+        merging: Option<git::Commit>,
+        second: git::Commit,
+    },
+    SnapshotReset {
+        commit: git::Commit,
+    },
     Version,
+<<<<<<< HEAD
     Origin { directory: Box<[u8]> },
     Clone { directory: Box<[u8]>, format: Format, bare: bool },
     Remote { remote: Box<[u8]>, format: Format },
@@ -43,19 +65,78 @@ pub enum Command {
     Fetch { remote: Box<[u8]>, source: Source, into: git::Into, workspace: Token },
     Create { remote: Box<[u8]>, branch: Box<[u8]>, commit: git::Commit },
     CheckOut { commit: git::Commit },
+=======
+    Origin {
+        directory: Box<[u8]>,
+    },
+    Clone {
+        directory: Box<[u8]>,
+        format: Format,
+    },
+    Remote {
+        remote: Box<[u8]>,
+    },
+    Store {
+        directory: Box<[u8]>,
+        remote: Box<[u8]>,
+    },
+    UpdateRef {
+        into: git::Into,
+        commit: git::Commit,
+    },
+    Fetch {
+        remote: Box<[u8]>,
+        source: Source,
+        into: git::Into,
+        workspace: Token,
+    },
+    Create {
+        remote: Box<[u8]>,
+        branch: Box<[u8]>,
+        commit: git::Commit,
+    },
+    CheckOut {
+        commit: git::Commit,
+    },
+>>>>>>> refs/hand5/c9623
     Clean,
-    Merge { theirs: git::Commit },
+    Merge {
+        theirs: git::Commit,
+    },
     Unmerged,
     UpdateIndex { paths: Box<[u8]> },
     Add,
-    DiffIndex { parent: git::Commit },
-    DiffPaths { before: git::Commit, after: git::Commit },
+    DiffIndex {
+        parent: git::Commit,
+    },
+    DiffPaths {
+        before: git::Commit,
+        after: git::Commit,
+    },
     WriteTree,
-    CommitTree { tree: git::Commit, parent: git::Commit, merging: Option<git::Commit> },
-    MergeBases { head: git::Commit, upstream: git::Commit },
-    BringsList { bases: Box<[git::Commit]>, base: git::Commit },
-    IsAncestor { expected: git::Commit, commit: git::Commit },
-    Push { remote: Box<[u8]>, commit: git::Commit, branch: Box<[u8]>, expected: Option<git::Commit> },
+    CommitTree {
+        tree: git::Commit,
+        parent: git::Commit,
+        merging: Option<git::Commit>,
+    },
+    MergeBases {
+        head: git::Commit,
+        upstream: git::Commit,
+    },
+    BringsList {
+        bases: Box<[git::Commit]>,
+        base: git::Commit,
+    },
+    IsAncestor {
+        expected: git::Commit,
+        commit: git::Commit,
+    },
+    Push {
+        remote: Box<[u8]>,
+        commit: git::Commit,
+        branch: Box<[u8]>,
+        expected: Option<git::Commit>,
+    },
 }
 
 /// The item's program is carried by every operation except Make.
@@ -66,6 +147,7 @@ pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
         git::Op::Clone { at, .. }
         | git::Op::Reds { at, .. }
         | git::Op::Reset { at, .. }
+        | git::Op::Pack { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::Fetch { at, .. }
         | git::Op::Create { at, .. }
@@ -99,6 +181,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
             | git::Op::Reset { .. }
+            | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
             | git::Op::Create { .. }
@@ -112,6 +195,8 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Origin { .. }
+        | Command::CountObjects { .. }
+        | Command::Repack { .. }
         | Command::Format
         | Command::Clone { .. }
         | Command::UpdateRef { .. }
@@ -187,6 +272,8 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
         Command::SnapshotFetch { .. } | Command::Fetch { .. } => b"fetch",
         Command::SnapshotReachable { .. } => b"for-each-ref",
         Command::SnapshotReset { .. } => b"reset",
+        Command::CountObjects { .. } => b"count-objects",
+        Command::Repack { .. } => b"repack",
         Command::Version => b"version",
         Command::Origin { .. } => b"config",
         Command::Clone { .. } => b"init",
@@ -258,6 +345,8 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
     let extra = match command {
         Command::BringsList { bases, .. } => u32::try_from(bases.len()).expect("bounded merge-base stdout"),
         Command::Reds(_)
+        | Command::CountObjects { .. }
+        | Command::Repack { .. }
         | Command::Format
         | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
@@ -339,6 +428,11 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
             let git_dir = joined(&[b"--git-dir=", directory]);
             words(&mut out, &[&git_dir, b"config", b"--local", b"--get", b"remote.origin.url"]);
         }
+        Command::CountObjects { .. } => words(&mut out, &[b"count-objects", b"-v"]),
+        Command::Repack { .. } => words(
+            &mut out,
+            &[b"-c", b"remote.origin.promisor=true", b"repack", b"-A", b"-d", b"-l", b"-q", b"--no-write-bitmap-index"],
+        ),
         Command::Format => words(&mut out, &[b"rev-parse", b"--show-object-format"]),
         Command::Clone { directory, format, bare } => {
             words(&mut out, &[b"init", b"--quiet"]);
@@ -474,6 +568,7 @@ pub(crate) fn environment_for(
         | Some(
             git::Kind::Reds
             | git::Kind::Reset
+            | git::Kind::Pack
             | git::Kind::Point
             | git::Kind::Clone
             | git::Kind::Look
@@ -539,6 +634,7 @@ pub(crate) fn environment_for(
         | Some(
             git::Kind::Reds
             | git::Kind::Reset
+            | git::Kind::Pack
             | git::Kind::Point
             | git::Kind::Clone
             | git::Kind::Look
