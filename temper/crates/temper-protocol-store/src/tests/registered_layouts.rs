@@ -226,14 +226,9 @@ fn earlier_landing_members_and_change_rows_default_goal_facts() {
     use temper_engine_domain_forge_vocabulary as d;
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
-    before = before.replacen(
-        "milestone: option u64 = none fixes: list 8 u32 = [] person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
-        "milestone: option u64 = none fixes: list 8 u32 = []", 1,
-    );
-    before = before.replacen(
-        "close: option bytes 16384 person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
-        "close: option bytes 16384", 1,
-    );
+    let facts = "person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none ";
+    assert_eq!(before.matches(facts).count(), 2, "both logged members and cold changes carry goal facts");
+    before = before.replace(facts, "");
     assert_ne!(before, family.current);
     let old = schema::parse(before.as_bytes()).unwrap();
     let new = schema::parse(family.current.as_bytes()).unwrap();

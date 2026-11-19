@@ -2,12 +2,12 @@ use super::fixtures;
 use crate::{Undecodable, application, keys, records};
 use temper_engine_domain_forge_vocabulary as forge;
 
-// Project gates dominate Row: the carrier plus its stored setting and row framing.
-const APPLICATION_ROW_BYTES: u32 = forge::settings::CARRIER + 34;
+// Tier rows dominate Row: eight full waiting filings and the row framing.
+const APPLICATION_ROW_BYTES: u32 = 3_993_742;
 
 #[test]
 fn the_application_sizes_are_the_largest_key_and_row() {
-    // The bound includes the largest project-gates setting envelope.
+    // The bound includes eight full waiting filings in a tier row.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
         Some(jig_protocol_store::sizes::Application {
@@ -45,7 +45,7 @@ fn the_change_bound_follows_the_tier_landings_ceilings() {
         [1024, 1024, 4096]
     );
     assert_eq!(bound, (least - 1) / 2);
-    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_905_337_347));
+    assert_eq!(crate::v25::TierRow::encoded_bound(&ceilings), Some(1_909_122_475));
     let mut forge = fixtures::LIMITS;
     forge.changes = bound;
     let limits = records::limits(&forge).unwrap();
@@ -111,7 +111,7 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     let old_view = crate::v25::GoalView::encoded_bound(&before).expect("old view size");
     let new_view = crate::v25::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
-    // The schema's fixed framing plus the measured view; project gates dominate Row.
+    // The schema's fixed framing plus the measured view; tier rows dominate Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
     assert_eq!(crate::v25::IssueRow::encoded_bound(&before), Some(5657));

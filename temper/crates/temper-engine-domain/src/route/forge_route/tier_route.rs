@@ -209,15 +209,16 @@ fn projection_needed(domain: &Domain, task: u64) -> bool {
 // Each verdict line holds one whole escaped ID and its retained change read.
 fn report_words(words: &[u8], bound: u32) -> Box<[u8]> {
     let mut offset = 0_usize;
-    for line in words.split(|byte| *byte == b'\n') {
+    while let Some(rest) = words.get(offset..) {
+        let length = skein_lib::bytes::find(rest, b"\n").unwrap_or(rest.len());
+        let line = rest.get(..length).expect("report line");
         if line.ends_with(b" red filings wait for room in the project's findings.")
             || line.ends_with(b" red filings were dropped for want of room.")
         {
             let end = offset.saturating_sub(1);
             let tail = words.get(end..).expect("report tail");
             let reserve = u32::try_from(tail.len()).expect("bounded filing counts");
-            let head =
-                forge::tier_report_words(words.get(..end).expect("report head"), bound.saturating_sub(reserve));
+            let head = forge::tier_report_words(words.get(..end).expect("report head"), bound.saturating_sub(reserve));
             let mut result = List::uncapped();
             for part in [head.as_ref(), tail] {
                 for byte in part {
@@ -226,7 +227,10 @@ fn report_words(words: &[u8], bound: u32) -> Box<[u8]> {
             }
             return result.into_boxed();
         }
-        offset = offset.saturating_add(line.len()).saturating_add(1);
+        if length == rest.len() {
+            break;
+        }
+        offset = offset.saturating_add(length).saturating_add(1);
     }
     forge::tier_report_words(words, bound)
 }

@@ -353,13 +353,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let record = decode_record(record)?;
     let run = record.run.as_ref();
     Ok(d::TierRow {
-        many: match many {
-            Some(many) => {
-                let w::ManyTestsParts { tests, more, cut } = many.into_parts();
-                Some(p::ManyTests { tests: decode_shown(tests)?, more, cut })
-            }
-            None => None,
-        },
+        many: decode_many(many)?,
         waiting: super::findings::decode_filings(waiting)?,
         unkept,
         observations,
@@ -417,6 +411,16 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             None => None,
         },
         record,
+    })
+}
+
+fn decode_many(many: Option<w::ManyTests>) -> Result<Option<p::ManyTests>, Undecodable> {
+    Ok(match many {
+        Some(many) => {
+            let w::ManyTestsParts { tests, more, cut } = many.into_parts();
+            Some(p::ManyTests { tests: decode_shown(tests)?, more, cut })
+        }
+        None => None,
     })
 }
 

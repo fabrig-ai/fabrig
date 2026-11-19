@@ -419,7 +419,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.shown_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_227);
+    assert_eq!(empty_goals.len(), 120_235);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.hold = Some(d::TierHold {
@@ -459,7 +459,7 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     full.unkept = u32::MAX;
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 208_614);
+    assert_eq!(row.len(), 3_993_742);
 }
 
 #[test]
