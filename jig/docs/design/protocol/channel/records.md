@@ -79,6 +79,8 @@ pub enum UsageOutcome { Read(Box<[UsageWindow]>), NotSignedIn, Spent, Failed { r
 // jig-domain-host's link: LinkUp::Usage { run, attempt, account, window: UsageWindow },
 // LinkUp::UsageRead { read: u64, outcome: UsageOutcome },
 // LinkDown::ReadUsage { read: u64, source: SourceName }.
+// Hello::reads_usage: bool, no field of the wire's: the engine's component sets
+// it where the channel's agreed version has `read usage`, for the fleet's placing.
 ```
 
 - **A refused start is not kept.** An answer that refuses its start
