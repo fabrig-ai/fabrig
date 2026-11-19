@@ -304,8 +304,8 @@ pub fn figures_line(engine: &jig_protocol_config::Address, figures: &jig_protoco
     };
     format!(
         "figures taken from {engine}: {} places, {} limits, {} endpoints\n",
-        figures.places(),
-        figures.limits().len(),
-        figures.agents().endpoints().len()
+        figures.places,
+        figures.limits.len(),
+        figures.agents.endpoints.len()
     )
 }

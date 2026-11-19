@@ -1,5 +1,6 @@
 //! Bounds supplied by the layer (protocol/channel/README.md, 10).
 use crate::Unusable;
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{
     self as wire,
     sizes::{self, Sizes},

@@ -1,10 +1,11 @@
 use super::fixtures::SIZES_ONE_SLOT;
+use crate::v17::Record;
 use crate::{
     self as wire,
     sizes::{self, Sizes},
     v17,
 };
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader};
 
 // jig/docs/design/protocol/channel/records.md, 1 bounds a login email in bytes.
 const EMAIL_BYTES: usize = 255;
@@ -33,27 +34,16 @@ fn source_record_fields_refuse_one_byte_past_each_bound() {
     let limits = sizes::limits(&SIZES_ONE_SLOT).expect("tiny bounds");
     for length in [32, 33] {
         let name: Box<[u8]> = Box::from([b'a'; 33].get(..length).expect("field fixture"));
-        assert_eq!(wire::Check::new(&limits, wire::CheckParts { name: name.clone() }).is_ok(), length == 32);
-        assert_eq!(wire::SignOut::new(&limits, wire::SignOutParts { name: name.clone() }).is_ok(), length == 32);
+        assert_eq!((wire::Check { name: name.clone() }).encode(&limits).is_ok(), length == 32);
+        assert_eq!((wire::SignOut { name: name.clone() }).encode(&limits).is_ok(), length == 32);
+        assert_eq!((wire::ProgramSource { name: name.clone() }).encode(&limits).is_ok(), length == 32);
+        assert_eq!((wire::LoginOtherwise { method: name.clone() }).encode(&limits).is_ok(), length == 32);
         assert_eq!(
-            wire::ProgramSource::new(&limits, wire::ProgramSourceParts { name: name.clone() }).is_ok(),
+            (wire::Login { name: name.clone(), state: wire::LoginState::Usable, email: None }).encode(&limits).is_ok(),
             length == 32
         );
         assert_eq!(
-            wire::LoginOtherwise::new(&limits, wire::LoginOtherwiseParts { method: name.clone() }).is_ok(),
-            length == 32
-        );
-        assert_eq!(
-            wire::Login::new(
-                &limits,
-                wire::LoginParts { name: name.clone(), state: wire::LoginState::Usable, email: None }
-            )
-            .is_ok(),
-            length == 32
-        );
-        assert_eq!(
-            wire::SignedOut::new(&limits, wire::SignedOutParts { name, result: wire::SignOutResult::SignedOut })
-                .is_ok(),
+            (wire::SignedOut { name, result: wire::SignOutResult::SignedOut }).encode(&limits).is_ok(),
             length == 32
         );
     }
@@ -65,26 +55,20 @@ fn source_record_fields_refuse_one_byte_past_each_bound() {
         (Some(Box::from([b'e'; EMAIL_BYTES + 1])), false),
         (Some(Box::from([0xff])), false),
     ] {
-        let row = wire::Login::new(
-            &limits,
-            wire::LoginParts { name: b"a".as_slice().into(), state: wire::LoginState::Usable, email },
-        );
-        assert_eq!(row.is_ok(), valid);
-        if let Ok(row) = row {
-            let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-            row.encode(&mut writer).expect("encode login");
-            assert_eq!(wire::Login::decode(&limits, &mut Reader::new(&writer.finish())), Ok(row));
+        let row = wire::Login { name: b"a".as_slice().into(), state: wire::LoginState::Usable, email };
+        let encoded = row.encode(&limits);
+        assert_eq!(encoded.is_ok(), valid);
+        if let Ok(bytes) = encoded {
+            assert_eq!(wire::Login::decode(&limits, &mut Reader::new(&bytes)), Ok(row));
         }
     }
     for length in [16, 17] {
         assert_eq!(
-            wire::SourceFailed::new(
-                &limits,
-                wire::SourceFailedParts {
-                    reason: wire::SourceFailure::Exited,
-                    detail: Box::from([b'e'; 17].get(..length).expect("detail fixture")),
-                }
-            )
+            (wire::SourceFailed {
+                reason: wire::SourceFailure::Exited,
+                detail: Box::from([b'e'; 17].get(..length).expect("detail fixture")),
+            })
+            .encode(&limits)
             .is_ok(),
             length == 16
         );
@@ -98,27 +82,16 @@ fn whole_source_lists_enforce_bounds_through_round_trip() {
         let mut logins = List::with_capacity(count);
         for index in 0..count {
             let name: Box<[u8]> = Box::from([b'a' + u8::try_from(index).expect("three sources")].as_slice());
-            names
-                .push(wire::ProgramSource::new(&limits, wire::ProgramSourceParts { name: name.clone() }).expect("name"))
-                .expect("list");
-            logins
-                .push(
-                    wire::Login::new(
-                        &limits,
-                        wire::LoginParts { name, state: wire::LoginState::NotSignedIn, email: None },
-                    )
-                    .expect("row"),
-                )
-                .expect("list");
+            names.push(wire::ProgramSource { name: name.clone() }).expect("list");
+            logins.push(wire::Login { name, state: wire::LoginState::NotSignedIn, email: None }).expect("list");
         }
-        let sources = wire::Sources::new(&limits, wire::SourcesParts { sources: names });
-        let logins = wire::Logins::new(&limits, wire::LoginsParts { logins });
-        assert_eq!(sources.is_ok(), count <= 2);
+        let sources = wire::Sources { sources: names };
+        let encoded = sources.encode(&limits);
+        let logins = wire::Logins { logins }.encode(&limits);
+        assert_eq!(encoded.is_ok(), count <= 2);
         assert_eq!(logins.is_ok(), count <= 2);
-        if let Ok(sources) = sources {
-            let mut writer = Writer::new(skein_lib::length::usize_of(sources.measure()));
-            sources.encode(&mut writer).expect("encode");
-            assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&writer.finish())), Ok(sources));
+        if let Ok(bytes) = encoded {
+            assert_eq!(wire::Sources::decode(&limits, &mut Reader::new(&bytes)), Ok(sources));
         }
     }
     v17::check_limits(&limits).expect("source limits");

@@ -1422,6 +1422,7 @@ fn worker_root(limits: &root::Limits) -> root::Domain {
 mod prepared_tests {
     use crate::tests::fixtures;
     use jig_protocol_worker_link::{Event, Request};
+    use jig_protocol_worker_wire::Record;
     use skein_channel::{Lower, LowerEvent};
     use skein_lib::{List, Queue, Time, Token, stream};
 
@@ -1594,21 +1595,21 @@ mod prepared_tests {
             }
         }
         let opening = opening.expect("the worker sent an opening");
-        assert_eq!(opening.wires().len(), 5);
+        assert_eq!(opening.wires.len(), 5);
         let mut charter = None;
-        for wire in opening.wires() {
-            if wire.name() == b"smith-charter" {
+        for wire in &opening.wires {
+            if wire.name.as_ref() == b"smith-charter" {
                 charter = Some(wire);
                 break;
             }
         }
         let charter = charter.expect("charter stated");
-        assert_eq!(charter.lowest(), 5, "the chosen version overrides the floor");
-        for (stated, wire) in opening.wires().iter().zip(expected_jig.iter().chain(expected_application.iter())) {
-            assert_eq!(stated.name(), wire.name.as_bytes());
-            assert_eq!(stated.lowest(), wire.lowest);
-            assert_eq!(stated.layouts().as_slice(), wire.layouts.as_slice());
-            assert_eq!(stated.layouts().len(), 1, "one version of every wire");
+        assert_eq!(charter.lowest, 5, "the chosen version overrides the floor");
+        for (stated, wire) in opening.wires.iter().zip(expected_jig.iter().chain(expected_application.iter())) {
+            assert_eq!(stated.name.as_ref(), wire.name.as_bytes());
+            assert_eq!(stated.lowest, wire.lowest);
+            assert_eq!(stated.layouts.as_slice(), wire.layouts.as_slice());
+            assert_eq!(stated.layouts.len(), 1, "one version of every wire");
         }
     }
 

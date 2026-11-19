@@ -1,4 +1,5 @@
 //! Channel bounds from the owners' numbers (protocol/channel/README.md, 8 and 10).
+use crate::Record;
 use crate::{Kind, v17};
 
 /// Bounds supplied by the domains and the application's protocol layer.

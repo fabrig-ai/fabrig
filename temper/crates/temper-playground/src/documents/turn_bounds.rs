@@ -1,4 +1,5 @@
 //! The agent's turn allowances (temper/docs/design/playground.md, 3).
+use jig_protocol_worker_wire::Record;
 use serde_json::Value;
 
 /// Derive the turn body bound from a credential-free agent document.

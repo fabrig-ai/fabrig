@@ -32,36 +32,28 @@ pub mod fit;
 #[cfg(test)]
 mod tests;
 
-pub use v17::{ModelEvidence, ModelFailure, ModelFailureKind, ModelFailureParts};
+pub use v17::Record;
+
+pub use v17::{ModelEvidence, ModelFailure, ModelFailureKind};
 
 pub use kinds::{
     KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
 };
+pub use v17::Restarting;
 pub use v17::{
-    AccountRefused, AccountRefusedParts, AgentFailure, AgentFailureValue, AgentFailureValueParts, Answer, AnswerParts,
-    Bound, Call, CallParts, CancelReason, CancelReasonValue, CancelReasonValueParts, Count, CountKind, CountParts,
-    Ended, EndedParts, Ending, Exceeded, ExceededParts, Fact, FactParts, FactValue, Failed, FailedParts, Failure,
-    Invalid, InvalidStart, InvalidStartParts, InvalidValue, InvalidValueParts, Limited, LimitedAccount,
-    LimitedAccountParts, LimitedParts, Long, LongParts, MessageRefusal, Mismatch, MismatchParts, Operation, Parked,
-    ParkedParts, PhaseValue, PhaseValueParts, Preparation, PreparationValue, PreparationValueParts, Refusal,
-    RefusalValue, RefusalValueParts, Refused, RefusedAccount, RefusedAccountParts, RefusedParts, Resource,
-    ResourceParts, RunFailure, RunFailureValue, RunFailureValueParts, StartCause, Turn, TurnParts, Unauthorized,
-    UnauthorizedParts, Work, WorkParts,
+    AccountRefused, AgentFailure, AgentFailureValue, Answer, Bound, Call, CancelReason, CancelReasonValue, Count,
+    CountKind, Ended, Ending, Exceeded, Fact, FactValue, Failed, Failure, Invalid, InvalidStart, InvalidValue, Limited,
+    LimitedAccount, Long, MessageRefusal, Mismatch, Operation, Parked, PhaseValue, Preparation, PreparationValue,
+    Refusal, RefusalValue, Refused, RefusedAccount, Resource, RunFailure, RunFailureValue, StartCause, Turn,
+    Unauthorized, Work,
 };
 pub use v17::{
-    Acknowledge, AcknowledgeParts, AnsweredCall, AnsweredCallParts, ApplicationValue, ApplicationValueParts,
-    Assignment, AssignmentParts, Cancel, CancelParts, CredentialValue, CredentialValueParts, DeliveryAnswer,
-    DeliveryAnswerParts, DeliveryOutcome, Grant, GrantParts, GrantValue, Granted, GrantedParts, HostAnswer,
-    HostAnswerParts, Inbound, InboundParts, Message, MessageParts, ProgramValue, ProgramValueParts, RelayAnswer,
-    RelayText, RelayTextParts, Relayed, RelayedParts, Scheme, SettledAnswer, TurnBusy, TurnBusyParts, TurnKept,
-    TurnKeptParts, Workspace, WorkspaceParts,
+    Acknowledge, AnsweredCall, ApplicationValue, Assignment, Cancel, CredentialValue, DeliveryAnswer, DeliveryOutcome,
+    Grant, GrantValue, Granted, HostAnswer, Inbound, Message, ProgramValue, RelayAnswer, RelayText, Relayed, Scheme,
+    SettledAnswer, TurnBusy, TurnKept, Workspace,
 };
-pub use v17::{AgreedWire, AgreedWireParts, Draining, DrainingParts};
-pub use v17::{
-    Bounds, BoundsParts, CEILINGS, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts,
-    Hosting, HostingParts, Phase, Wire, WireParts,
-};
-pub use v17::{Restarting, RestartingParts};
+pub use v17::{AgreedWire, Draining};
+pub use v17::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
 
 /// An application's opaque bytes under the token its vocabulary names.
 #[derive(PartialEq, Eq, Debug)]
@@ -116,25 +108,19 @@ impl Reason {
 }
 
 pub use v17::{
-    Check, CheckParts, Login, LoginOtherwise, LoginOtherwiseParts, LoginParts, LoginState, Logins, LoginsParts,
-    ProgramSource, ProgramSourceParts, SignOut, SignOutParts, SignOutResult, SignedOut, SignedOutParts, SourceFailed,
-    SourceFailedParts, SourceFailure, Sources, SourcesParts,
+    Check, Login, LoginOtherwise, LoginState, Logins, ProgramSource, SignOut, SignOutResult, SignedOut, SourceFailed,
+    SourceFailure, Sources,
 };
 
-pub use v17::{InputCall, InputCallParts, LiveAsk, LiveAskParts, LiveKind, Piece, PieceParts};
+pub use v17::{InputCall, LiveAsk, LiveKind, Piece};
 
 // Jobs use the worker channel's own records (jig/docs/design/protocol/channel/records.md, 4).
 pub use v17::{
-    DeliveryOutcomeValue, DeliveryOutcomeValueParts, Job, JobAnswer, JobAnswerParts, JobBound, JobBoundParts,
-    JobEnding, JobFailed, JobFailedParts, JobFailure, JobFinished, JobFinishedParts, JobInvalid, JobInvalidStart,
-    JobInvalidStartParts, JobInvalidValue, JobInvalidValueParts, JobParts, JobRefusal, JobRefusalValue,
-    JobRefusalValueParts,
+    DeliveryOutcomeValue, Job, JobAnswer, JobBound, JobEnding, JobFailed, JobFailure, JobFinished, JobInvalid,
+    JobInvalidStart, JobInvalidValue, JobRefusal, JobRefusalValue,
 };
 
-pub use v17::{
-    ListFailed, ListFailureValue, ListFailureValueParts, ListOutcome, ListRead, ListReadParts, ListRefused,
-    ListRefusedParts, ListRow, ListRowParts, ListedRows, ListedRowsParts, ReadList, ReadListParts,
-};
+pub use v17::{ListFailed, ListFailureValue, ListOutcome, ListRead, ListRefused, ListRow, ListedRows, ReadList};
 
 /// This crate's spoken family and layout (protocol/channel/wires.md, 2).
 pub mod wire {
@@ -175,9 +161,6 @@ pub mod wire {
     }
 }
 
-pub use v17::{Ask, AskAnswer, AskBytes, AskBytesParts, AskParts, Asked, AskedParts};
+pub use v17::{Ask, AskAnswer, AskBytes, Asked};
 
-pub use v17::{
-    AgentEndpoint, AgentEndpointParts, Agents, AgentsParts, EndpointLimits, EndpointLimitsParts, Figures, FiguresParts,
-    Header, HeaderParts, Limit, LimitParts, Opening, Oversized, Tls, TlsParts, Transport,
-};
+pub use v17::{AgentEndpoint, Agents, EndpointLimits, Figures, Header, Limit, Opening, Oversized, Tls, Transport};

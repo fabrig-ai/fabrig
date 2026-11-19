@@ -1,5 +1,6 @@
 //! The checkout's capacity, whole (protocol/configuration/limits.md).
 //! Git's earlier check defers stdout here, where both links' rooms are known.
+use jig_protocol_worker_wire::Record;
 use super::{Problems, What};
 use crate::{limits, settings};
 use jig_protocol_config::{self as config, Path};

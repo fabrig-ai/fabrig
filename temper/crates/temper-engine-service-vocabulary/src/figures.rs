@@ -65,15 +65,13 @@ impl Composer {
             }
             endpoints.push(endpoint_figure(endpoint, limits)).expect("counted endpoints");
         }
-        let agents =
-            w::Agents::new(&w::CEILINGS, w::AgentsParts { profile, endpoints }).expect("configured agents fit figures");
-        w::Figures::new(&w::CEILINGS, w::FiguresParts { places: 0, limits: self.limits.clone(), agents })
-            .expect("configured limits fit figures")
+        let agents = w::Agents { profile, endpoints };
+        w::Figures { places: 0, limits: self.limits.clone(), agents }
     }
 }
 
 fn limit(name: &[u8], value: u64) -> w::Limit {
-    w::Limit::new(&w::CEILINGS, w::LimitParts { name: bytes::copy_of(name), value }).expect("limit name fits figures")
+    w::Limit { name: bytes::copy_of(name), value }
 }
 
 fn endpoint_figure(endpoint: &config::llm::Endpoint, limits: &s::AgentLimits) -> w::AgentEndpoint {
@@ -83,53 +81,39 @@ fn endpoint_figure(endpoint: &config::llm::Endpoint, limits: &s::AgentLimits) ->
     };
     let transport = match &endpoint.transport {
         config::llm::Transport::Plaintext => w::Transport::Plaintext,
-        config::llm::Transport::Tls { server_name, trust } => w::Transport::Tls(
-            w::Tls::new(&w::CEILINGS, w::TlsParts { server_name: server_name.clone(), trust: trust.clone() })
-                .expect("configured TLS fits figures"),
-        ),
+        config::llm::Transport::Tls { server_name, trust } => {
+            w::Transport::Tls(w::Tls { server_name: server_name.clone(), trust: trust.clone() })
+        }
     };
     let mut headers = List::with_capacity(u32::try_from(endpoint.headers.len()).expect("configured headers"));
     for header in &endpoint.headers {
-        headers
-            .push(
-                w::Header::new(&w::CEILINGS, w::HeaderParts { name: header.name.clone(), value: header.value.clone() })
-                    .expect("configured header fits figures"),
-            )
-            .expect("counted headers");
+        headers.push(w::Header { name: header.name.clone(), value: header.value.clone() }).expect("counted headers");
     }
-    let limits = w::EndpointLimits::new(
-        &w::CEILINGS,
-        w::EndpointLimitsParts {
-            window: limits.window(),
-            output: limits.output(),
-            reasoning_item: limits.reasoning_item(),
-            head: Duration::from_millis(limits.head_ms()),
-            idle: Duration::from_millis(limits.idle_ms()),
-            oversized: match limits.oversized() {
-                s::Oversized::Fail => w::Oversized::Fail,
-                s::Oversized::Drop => w::Oversized::Drop,
-            },
+    let limits = w::EndpointLimits {
+        window: limits.window(),
+        output: limits.output(),
+        reasoning_item: limits.reasoning_item(),
+        head: Duration::from_millis(limits.head_ms()),
+        idle: Duration::from_millis(limits.idle_ms()),
+        oversized: match limits.oversized() {
+            s::Oversized::Fail => w::Oversized::Fail,
+            s::Oversized::Drop => w::Oversized::Drop,
         },
-    )
-    .expect("endpoint limits fit figures");
-    w::AgentEndpoint::new(
-        &w::CEILINGS,
-        w::AgentEndpointParts {
-            name: endpoint.name.clone(),
-            number: endpoint.number,
-            dialect: endpoint.dialect,
-            provider: endpoint.provider.clone(),
-            program: endpoint.program.clone(),
-            host,
-            port,
-            transport,
-            headers,
-            connect: endpoint.connect,
-            handshake: endpoint.handshake,
-            limits,
-        },
-    )
-    .expect("configured endpoint fits figures")
+    };
+    w::AgentEndpoint {
+        name: endpoint.name.clone(),
+        number: endpoint.number,
+        dialect: endpoint.dialect,
+        provider: endpoint.provider.clone(),
+        program: endpoint.program.clone(),
+        host,
+        port,
+        transport,
+        headers,
+        connect: endpoint.connect,
+        handshake: endpoint.handshake,
+        limits,
+    }
 }
 
 fn ip(address: core::net::IpAddr) -> Box<[u8]> {

@@ -2,6 +2,7 @@
 //! (jig/docs/design/protocol/channel/README.md, 9.1 and 11).
 use crate::{fixtures, processes::ServiceHost};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::Queue;
 
@@ -37,16 +38,18 @@ impl Starts {
                     assert!(bytes.len() > 22, "opening carries credentials");
                     let mut parts =
                         wire::Credential::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(&bytes[22..]))
-                            .expect("whole opening credential")
-                            .into_parts();
+                            .expect("whole opening credential");
                     let mut secret = parts.secret.expose().to_vec();
                     *secret.first_mut().expect("nonempty fixture secret") ^= 1;
                     parts.secret = skein_lib::Secret::new(secret.into_boxed_slice());
-                    let credential =
-                        wire::Credential::new(&wire::CEILINGS, parts).expect("changed secret has the same bounds");
-                    let mut encoded =
-                        skein_lib::Writer::new(usize::try_from(credential.measure()).expect("credential length"));
-                    credential.encode(&mut encoded).expect("measured credential");
+                    let credential = parts;
+                    let mut encoded = skein_lib::Writer::new(
+                        usize::try_from(
+                            credential.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+                        )
+                        .expect("credential length"),
+                    );
+                    credential.write(&jig_protocol_worker_wire::CEILINGS, &mut encoded).expect("measured credential");
                     bytes[22..].copy_from_slice(&encoded.finish());
                 }
             }
