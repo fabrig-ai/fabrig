@@ -390,11 +390,7 @@ pub(super) fn step(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, entry: 
                 landings: blames.into_boxed(),
                 flakes: Box::new([]),
             };
-<<<<<<< HEAD
-            let words = super::posted_words(&row.tier, &verdict, &posting.landings, row.many.as_ref());
-=======
-            let words = super::posted_words(row, &verdict, &posting.landings);
->>>>>>> refs/manual4/g8558
+            let words = super::posted_row_words(row, &verdict, &posting.landings);
             super::done(d, row, words, out);
         } else {
             row.posting = Some(posting);

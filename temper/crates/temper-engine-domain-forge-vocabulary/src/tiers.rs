@@ -41,10 +41,9 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         .checked_add(
             skein_lib::len_u64(row.record.flakes.len()).checked_mul(u64::try_from(size_of::<p::Flake>()).ok()?)?,
         )?;
-<<<<<<< HEAD
     if let Some(many) = &row.many {
         held = held.checked_add(tests_bytes(&many.tests)?)?;
-=======
+    }
     held = held.checked_add(
         skein_lib::len_u64(row.waiting.len()).checked_mul(u64::try_from(size_of::<crate::VerdictFiling>()).ok()?)?,
     )?;
@@ -56,7 +55,6 @@ pub fn row_bytes(row: &TierRow) -> Option<u64> {
         if let Some(blame) = &filing.blame {
             held = held.checked_add(crate::findings::blame_bytes(blame)?)?;
         }
->>>>>>> refs/manual4/g8558
     }
     for flake in &row.record.flakes {
         held = held.checked_add(skein_lib::len_u64(flake.test.len()))?;

@@ -1866,8 +1866,36 @@ fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p:
             })
             .expect("bounded range");
     }
-<<<<<<< HEAD
-    posted_words(&row.tier, verdict, posted.as_slice(), row.many.as_ref())
+    posted_row_words(row, verdict, posted.as_slice())
+}
+fn posted_row_words(row: &TierRow, verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
+    let mut parts = List::uncapped();
+    parts.push(posted_words(&row.tier, verdict, landings, row.many.as_ref())).expect("verdict words");
+    if !row.waiting.is_empty() {
+        parts
+            .push(joined(&[
+                b"\n",
+                skein_lib::Decimal::of(skein_lib::len_u64(row.waiting.len())).as_bytes(),
+                b" red filings wait for room in the project's findings.",
+            ]))
+            .expect("waiting count");
+    }
+    if row.unkept > 0 {
+        parts
+            .push(joined(&[
+                b"\n",
+                skein_lib::Decimal::of(u64::from(row.unkept)).as_bytes(),
+                b" red filings were dropped for want of room.",
+            ]))
+            .expect("unkept count");
+    }
+    let mut words = List::uncapped();
+    for part in parts.as_slice() {
+        for byte in part {
+            words.push(*byte).expect("verdict words");
+        }
+    }
+    words.into_boxed()
 }
 fn posted_words(
     tier: &[u8],
@@ -1875,13 +1903,8 @@ fn posted_words(
     landings: &[crate::TierPostedLanding],
     many: Option<&p::ManyTests>,
 ) -> Box<[u8]> {
-=======
-    posted_words(row, verdict, posted.as_slice())
-}
-fn posted_words(row: &TierRow, verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
->>>>>>> refs/manual4/g8558
     let mut parts = List::uncapped();
-    parts.push(verdict_summary(&row.tier, verdict)).expect("verdict words");
+    parts.push(verdict_summary(tier, verdict)).expect("verdict words");
     for (at, blame) in verdict.landings.iter().enumerate() {
         let (kind, failures) = match blame {
             p::Blame::Cleared => continue,
@@ -1905,7 +1928,6 @@ fn posted_words(row: &TierRow, verdict: &p::Verdict, landings: &[crate::TierPost
             }
         }
     }
-<<<<<<< HEAD
     if verdict.failing == p::Failures::Many
         && let Some(many) = many
         && !many.tests.is_empty()
@@ -1918,25 +1940,6 @@ fn posted_words(row: &TierRow, verdict: &p::Verdict, landings: &[crate::TierPost
             names = joined(&[&names, b" ", &tail]);
         }
         parts.push(joined(&[&names, b"."])).expect("many names line");
-=======
-    if !row.waiting.is_empty() {
-        parts
-            .push(joined(&[
-                b"\n",
-                skein_lib::Decimal::of(skein_lib::len_u64(row.waiting.len())).as_bytes(),
-                b" red filings wait for room in the project's findings.",
-            ]))
-            .expect("waiting count");
-    }
-    if row.unkept > 0 {
-        parts
-            .push(joined(&[
-                b"\n",
-                skein_lib::Decimal::of(u64::from(row.unkept)).as_bytes(),
-                b" red filings were dropped for want of room.",
-            ]))
-            .expect("unkept count");
->>>>>>> refs/manual4/g8558
     }
     let mut words = List::uncapped();
     for part in parts.as_slice() {

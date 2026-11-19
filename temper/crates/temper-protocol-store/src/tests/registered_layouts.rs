@@ -217,12 +217,6 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
     assert_eq!(decoded, stored, "an old outcome keeps its facts but names no landing");
 }
 
-<<<<<<< HEAD
-fn golden(text: &'static str, name: &str) -> Box<[u8]> {
-    skein_codegen::values(text)
-        .goldens
-        .clone()
-=======
 #[test]
 fn earlier_landing_members_and_change_rows_default_goal_facts() {
     use skein_codec::{
@@ -233,12 +227,12 @@ fn earlier_landing_members_and_change_rows_default_goal_facts() {
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
     let mut before = family.current.to_owned();
     before = before.replacen(
-        "record LoggedChange { fixes: list 8 u32 = [] person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
-        "record LoggedChange { fixes: list 8 u32 = []", 1,
+        "milestone: option u64 = none fixes: list 8 u32 = [] person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "milestone: option u64 = none fixes: list 8 u32 = []", 1,
     );
     before = before.replacen(
-        "record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
-        "record ChangeCold {", 1,
+        "close: option bytes 16384 person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "close: option bytes 16384", 1,
     );
     assert_ne!(before, family.current);
     let old = schema::parse(before.as_bytes()).unwrap();
@@ -342,9 +336,10 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
     assert_eq!(decoded, Stored::Finding(row), "an old finding keeps its signature, without blame or clearing");
 }
 
-fn golden(text: &str, name: &str) -> Box<[u8]> {
-    skein_codegen::goldens(&skein_codegen::parse(text).expect("current store schema"))
->>>>>>> refs/manual4/g8558
+fn golden(text: &'static str, name: &str) -> Box<[u8]> {
+    skein_codegen::values(text)
+        .goldens
+        .clone()
         .into_iter()
         .find(|value| value.name == name)
         .expect("named fixed-rule Change row")
@@ -550,7 +545,7 @@ fn an_earlier_tier_defaults_waiting_and_unkept() {
     };
     use temper_engine_domain_forge_vocabulary::Stored;
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
-    let before = family.current.replace("waiting: list 8 VerdictFiling = [] unkept: u32 = 0 ", "");
+    let before = family.current.replace(" waiting: list 8 VerdictFiling = [] unkept: u32 = 0", "");
     assert_ne!(before, family.current);
     let old = schema::parse(before.as_bytes()).unwrap();
     let new = schema::parse(family.current.as_bytes()).unwrap();

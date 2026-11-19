@@ -752,17 +752,14 @@ Run: URL
   If any omitted attribution is `many`, the
   remainder says `many` too. Full IDs remain in the change read's retained
   `Verification`; no separate record or larger task result is needed.
-<<<<<<< HEAD
   Where the run's failures are many and its report kept names (section
   4), a line `Its report names: "ID", "ID" and K more.` follows the
   attribution lines the report holds, before its remainder, each id
   quoted as an attribution's is and taken whole in the room the
   attributions and the remainder leave, those left out joining its K
   (2026-11-19).
-=======
   Under `wait: landed`, it ends with the tier's red filings waiting for
   room (`red-findings.md`, section 7), kept within its bound.
->>>>>>> refs/manual4/g8558
 - **Effects:** the tiers' dispatches and reruns are `landing.md`, 11's
   kinds 16 and 17, their branches' creation kind 9, released at the
   task's close; statuses and comments are kinds 6 and 7; each its run's
@@ -874,7 +871,6 @@ Run: URL
   `landings_pending` per repository (64), their sum at most the store's
   256 (`../protocol/configuration/limits.md`); `trailers` per landing (8) and `trailer_bytes` per line
   (200); `tiers` per repository (2 in `small`),
-<<<<<<< HEAD
   `failing_tests` per run (64, 16 in `small`) and `test_id_bytes` (512),
   each at most what a finding's signature holds, 64 ids of at most 512
   bytes (`findings.md`, section 4), which a start checks
@@ -899,12 +895,6 @@ Run: URL
   derived worst case stays within the store's admitted value at the
   stock limits; 32 entries of two lists each would not (169 MB against
   103 MB, 2026-11-19).
-=======
-  `failing_tests` per run (64, at most a finding signature's 64,
-  `findings.md`, section 4), `test_id_bytes` (512, at most the
-  store's 1,024, `../protocol/store.md`, 4), and a tier's
-  name at most 32 bytes.
->>>>>>> refs/manual4/g8558
 
 A tier's record keeps at most `failing_tests` ids of its last judged
 failures, each within `test_id_bytes`; a run past either is many, as
