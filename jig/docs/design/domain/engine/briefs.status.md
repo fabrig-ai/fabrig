@@ -1,10 +1,11 @@
 # briefs: status
 
-2026-11-16. Where the tree's code lags or departs from [briefs.md](briefs.md).
+2026-11-19. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
 
 - **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6).
 - **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].
+- **Not yet:** 1.1, *A dependency's result*: every failed result read, busy, no row, another's row or one not ended, counts as transient with the one reason `results: a dependency's result could not be read`, naming neither the task nor what was read (`jig-domain-core/src/routing/run/results.rs`, `loaded`; `runs/retained.rs`, `dependency_result`) [in flight: change 9152].
 
 - **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
   1: the brief's lineage and calls sections, and the waiting section's proposals and escalations, which reach a run as inbox entries instead.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
