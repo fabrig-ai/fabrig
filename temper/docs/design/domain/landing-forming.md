@@ -44,7 +44,8 @@ does, in this order:
    (`landing.md`, 4.2), as before.
 3. **Its admission:** where jig holds a task by the seed's number, the
    landing's row (`landing.md`, section 12), which links each member's
-   change to it and tells each member's goal it joined (4.2), then a
+   change to it and tells each member's goal it joined (`landing.md`,
+   4.2), then a
    hold of each member's branch by the landing's task. Where jig holds
    none, the refusal (section 3), and none of these.
 
