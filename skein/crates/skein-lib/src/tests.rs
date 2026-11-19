@@ -18,6 +18,7 @@ mod held;
 mod journal;
 mod length;
 mod requests;
+mod sha1;
 mod sha256;
 mod streams;
 mod time;

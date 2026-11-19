@@ -44,6 +44,7 @@ mod requests;
 mod rng;
 mod secret;
 mod set;
+pub mod sha1;
 pub mod sha256;
 mod slab;
 mod stack;
