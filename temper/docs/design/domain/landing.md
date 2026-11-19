@@ -250,6 +250,7 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   first in line by its kept time. Cancelled, by a person's act on the
   landing task, its members are left ready and in no landing, each
   unless it is recorded landed (section 8), and the train forms again.
+  Either end wakes its own train's waiting changes, no other's.
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (5.2), `prepare job: WHY`;
@@ -744,7 +745,10 @@ The default, for a project with no prepare command:
 - **A train is a repository and the branch its changes land into:** a
   repository's main, or a goal's branch, each a train of its own.
 - **Held** by its live landing from the decision that forms it to its
-  end. Held is derived from the landings' phases, never stored. A
+  end (4.2), so a train has one live landing at a time. Held is derived
+  from the landings' phases, never stored: one landed or cancelled
+  holds it no more, though its task may still follow its runs (7.1)
+  and delete its branches. A
   landing held for a person (4.2) holds its own train alone: other
   trains form, prove and turn beside it.
 - **Waiting changes** are ready (section 3) under turn and in no
@@ -753,8 +757,7 @@ The default, for a project with no prepare command:
   live, with aging past the deployment's queue window, and the task's
   number last. Derived, not kept.
 - **Forming is level-triggered:** whenever a train is free and has a
-  waiting unit (4.1), every change of it waiting and none of them left
-  out (below), a decision forms its
+  waiting unit (4.1), every change of it waiting, a decision forms its
   next landing: the waiting units in order, each whole, up to the
   project's `batch` changes for a train into a repository's main, and
   one unit for a train into any other branch (`landing-settings.md`, 1.1). The first unit is
@@ -763,15 +766,12 @@ The default, for a project with no prepare command:
   and passed over. Forming is judged when a change becomes ready, when
   a landing ends, when a change's priority moves, and at a restart, for
   each train they touch.
-- **A due step leaves its change out:** a waiting change whose own step
-  is due (stepped again each queue window, `forge/queues.md`; woken when
-  a landing ends; or awaiting its step's forge read) is left out of the
-  forming judged while it is due, and so is a unit with such a member.
-  It never stops its train: the train forms from the waiting units left
-  in, at that judgement, however many waiting changes it has and however
-  often they are stepped or woken. A change left out keeps its place in
-  line, the time it first became ready, and joins a later landing once
-  its step has settled.
+- **A due step leaves no change out:** a waiting change whose own step
+  is due (woken when a landing ends, or awaiting its step's forge read)
+  joins the forming judged while it is due, in its place in line, as a
+  quiet one does, and never holds it. Its readiness drops only with its
+  head moving, and its landing reads each member's head as it joins: a
+  moved one leaves (4.3).
 - **Changes made ready by one event** (a dependency they share ending,
   one decision's gates) are waiting together: a change into the train
   under turn, in no landing and not yet ready, whose due step will make
@@ -787,11 +787,10 @@ The default, for a project with no prepare command:
   that, unstored, so after a restart such a change may hold for one more
   step. No other due step holds a train:
   not a change still checking or producing, gating with a gate
-  outstanding, kept by a pending dependency, or already waiting (left
-  out, above).
-- **Each train on its own:** a change's step or wake holds or leaves out
-  only its own train's forming; other trains settle and form
-  independently.
+  outstanding, kept by a pending dependency, or already ready, whatever
+  step made it so.
+- **Each train on its own:** a change's step or wake holds only its own
+  train's forming; other trains settle and form independently.
 - **No race, no reservation:** a train's branch moves only by its
   landing's turn, or by a push from outside temper, which makes a round
   stale (section 8). Stale rounds are counted on the landing and
