@@ -94,6 +94,11 @@ fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directo
 }
 
 #[test]
+fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
+    support::boxed::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
+}
+
+#[test]
 fn fixture_provider_edits_keep_routes_and_leave_demo_fixed() {
     use serde_json::json;
     let mut providers = temper_service::stock::providers().into_vec();
