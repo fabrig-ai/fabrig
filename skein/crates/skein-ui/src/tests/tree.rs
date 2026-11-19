@@ -332,6 +332,47 @@ fn a_hint_and_name_fill_the_node_and_tree_byte_bounds() {
     }
 }
 
+#[test]
+fn replacing_a_menu_button_charges_only_the_difference() {
+    const MENU_BYTES: u32 = 8; // Four menu name bytes, two button words and two button name bytes.
+    for first in [None, Some((b"a".as_slice(), b"old".as_slice())), Some((b"long".as_slice(), b"name".as_slice()))] {
+        let limits = Limits { text_per_node: 12, text_bytes: 12, ..LIMITS };
+        let mut b = Builder::new(&limits);
+        b.open(Role::Menu);
+        b.name(b"Menu");
+        if let Some((words, name)) = first {
+            b.menu_button(words, name);
+        }
+        b.menu_button(b"Go", b"Do");
+        b.close();
+        b.open(Role::Menu);
+        b.name(b"Next");
+        b.close();
+        let tree = b.finish();
+        let node = tree.get(0).unwrap();
+        let button = node.button.as_ref().unwrap();
+        assert_eq!(button.words.as_ref(), b"Go");
+        assert_eq!(button.name.as_ref(), b"Do");
+        assert_eq!(node.text_bytes(), MENU_BYTES);
+        assert_eq!(tree.used().text_per_node, MENU_BYTES);
+        assert_eq!(tree.used().text_bytes, limits.text_bytes);
+    }
+}
+
+#[test]
+fn a_menu_name_and_both_button_texts_fill_the_node_byte_bound() {
+    const MENU_BYTES: u32 = 43; // Menu name, button words and button name together.
+    let limits = Limits { text_per_node: MENU_BYTES, text_bytes: MENU_BYTES, ..LIMITS };
+    let mut b = Builder::new(&limits);
+    b.open(Role::Menu);
+    b.name(b"Stock ways");
+    b.menu_button(b"You approve", b"Way shown: You approve");
+    b.close();
+    let used = b.finish().used();
+    assert_eq!(used.text_per_node, limits.text_per_node);
+    assert_eq!(used.text_bytes, limits.text_bytes);
+}
+
 const IMAGE_ADDRESSES: &[(&[u8], bool)] = &[
     (b"/a.png", true),
     (b"//x/a.png", false),

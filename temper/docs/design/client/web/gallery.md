@@ -164,18 +164,19 @@ from the engine's own answers, is where the look is tuned.
 | `home-answered` | `home-morning-card` with the first answered: its line, its toast, the next as the card |
 | `home-one-need` | one need: no lines and no "Answer in a row"; on a phone, "Answer" |
 | `ask` | the solo world's Ask temper page before its first words: its heading, the form "Ask temper" and its empty text area |
-| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede "How a change is produced and lands in PROJECT." and the ways, Agents review run and shown: the head, its line, "Keep it" and "Stock ways"; its path, the foot's legend and "How does temper work?" alone; the last line; Send disabled while the words are empty |
-| `ask-ways-menu` | `ask-first-run` with "Stock ways" open: "You approve", "Agents review" ticked, "Draft first" |
-| `ask-ways-approve` | `ask-first-run` with "You approve" chosen from "Stock ways": its line, its path with "you approve" and no review, the head's "Use this", "Back" and "Stock ways" |
+| `ask-first-run` | the same page in the first run's world at its step 7, template 5 listed, To begin unfinished, its way of working left: the rail's Home, Ask temper, the hairline and How work runs alone, the phone's three tabs; the lede "How a change is produced and lands in PROJECT." and the ways, Agents review run and shown: the head, its line, and at the lede's right "Keep it" and the drop-down "Agents review"; its path, the foot's legend and "How does temper work?" alone; the last line; Send disabled while the words are empty |
+| `ask-ways-menu` | `ask-first-run` with the drop-down open, its menu "Stock ways": "You approve", "Agents review" ticked with "current" at its right, "Draft first" |
+| `ask-ways-approve` | `ask-first-run` with "You approve" chosen from the drop-down: its line, its path with "you approve" and no review, "Use this" and the drop-down "You approve" at the lede's right, no "Back" |
+| `ask-ways-approve-menu` | `ask-ways-approve` with the drop-down open: "You approve" ticked, "Agents review" with "current" at its right, "Draft first" |
 | `ask-ways-draft` | hand-made `ways` delivery over a repository with CI and tiers on goal branches and on main, "Draft first" chosen: its two landings, the goal branch's bar dimmer, "verify" before main |
 | `ask-ways-card` | `ask-first-run` with the review's stop pressed: its card under the path, its caret at the stop, its model, what it can do and what it is asked to |
 | `ask-ways-card-person` | `ask-ways-approve` with "you approve" pressed: a person's card, the role and what they decide |
-| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way, with the project's words: their `lede` as the head's line, "Stock ways" alone at its right, its path, "How does temper work?" alone in the foot |
+| `ask-ways-yours` | hand-made `ways` delivery whose project runs no stock way, with the project's words: their `lede` as the head's line, the drop-down "PROJECT's own" alone at the lede's right, its path, "How does temper work?" alone in the foot |
 | `ask-ways-yours-bare` | `ask-ways-yours` with no project words: the line "PROJECT runs settings of its own." |
-| `ask-ways-yours-menu` | `ask-ways-yours` with "Stock ways" open: the three ways, none ticked |
+| `ask-ways-yours-menu` | `ask-ways-yours` with the drop-down open: "PROJECT's own" ticked with "current" at its right, then the three ways |
 | `ask-ways-refused` | `ask-ways-approve` with "Use this" refused for too few approvers: the forge, the role, how many it asks and how many can, under the foot |
-| `ask-ways-member` | a member's page: the line and the path, "Stock ways" alone at the head's right, "How does temper work?" alone in the foot |
-| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review shown with "Stock ways" alone at the head's right, To begin's first step done |
+| `ask-ways-member` | a member's page: the line and the path, the drop-down alone at the lede's right, "How does temper work?" alone in the foot |
+| `ask-ways-kept` | after "Keep it": its toast naming the revision, Agents review shown with the drop-down "Agents review" alone at the lede's right, To begin's first step done |
 | `ask-typing` | words entered; Send enabled; the rail and tabs as `ask-first-run`'s |
 | `ask-sending` | the Ask temper start out; Send and "How does temper work?" disabled, words kept; the rail and tabs as `ask-first-run`'s |
 | `ask-refused` | the start refused; jig's words below the composer, the words kept; the rail and tabs as `ask-first-run`'s |
@@ -198,8 +199,8 @@ from the engine's own answers, is where the look is tuned.
 | `how` | hand-made `ways` delivery over a repository with CI and tiers, Agents review current and shown: the heading "Agents review", its line, "Ask temper to change this", its path drawn with "verify" before main's bar and the legend under it, no act but "Keep it" while To begin's first step is left; What reaches you from Agents review's stock classes, "While you’re away, they are decided with the recommended choice and listed."; the foot's switches (`../pages/settings.md`, 2, *The page*) |
 | `how-approve` | hand-made `ways` delivery over a repository with neither CI nor tiers, You approve current: its path with no "check" and no tier, "you approve" above the line; What reaches you from You approve's classes: no "Agents decide, then tell you", every movable kind under "Asks you", "They ask even while you’re away.", and no "Away until" |
 | `how-draft` | `how` with Draft first current, Goals shown and its template giving 80: two landings, the goal branch's bar, Roles from a hand-made `roles` answer as `whole-story/how.html` draws them: the chat, Ask temper, the drafter, the coordinator, the coding agent and the status agent, each `who` saying when it runs and what it does, Budgets' row "Goals", "80" |
-| `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", the head's line from the project's words, "Stock ways" alone at its right, no act |
-| `how-menu` | `how` with "Stock ways" open: the three ways, Agents review ticked |
+| `how-yours` | hand-made `ways` delivery whose project runs no stock way: "A way of its own", the way "its own", the head's line from the project's words, the drop-down "PROJECT's own" alone at the section head's right, no act |
+| `how-menu` | `how` with the drop-down open: the three ways, Agents review ticked with "current" at its right |
 | `how-card` | `how` with the review's stop pressed: its ring and words, its card under the drawing with its caret, its model, what it can do and what it is asked to, "Open the reviewer ›" |
 | `night-how` | `how` with the night switch pressed: the path's marks by night |
 | `how-reaches` | hand-made deliveries, Draft first current, its classes the whole story's `how.html`'s: wording, retries, implementation choices and test-only changes decided, then a path set, "vsr’s protocol core", asking even when away, and a new dependency and a departure Away may decide: What reaches you's three columns, "While you’re away, all but changes to vsr’s protocol core are decided with the recommended choice and listed.", and its rows, the question route and "Away until" |

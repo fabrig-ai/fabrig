@@ -127,13 +127,13 @@ impl Sample {
     pub fn open_menu(&self) -> Option<&[u8]> {
         match self.name {
             "rail-new-menu" => Some(b"New draft or change"),
-            "ask-ways-menu" | "ask-ways-yours-menu" | "how-menu" => Some(b"Stock ways"),
+            "ask-ways-menu" | "ask-ways-approve-menu" | "ask-ways-yours-menu" | "how-menu" => Some(b"Stock ways"),
             "rail-person-menu" => Some(b"Robin"),
             _ => None,
         }
     }
 }
-pub const N: usize = 450;
+pub const N: usize = 451;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -743,6 +743,12 @@ pub fn samples() -> [Sample; N] {
         },
         Sample {
             name: "ask-ways-approve",
+            world: FirstRun { step: 7 },
+            address: Address::Ask { project: 1 },
+            then: Shown,
+        },
+        Sample {
+            name: "ask-ways-approve-menu",
             world: FirstRun { step: 7 },
             address: Address::Ask { project: 1 },
             then: Shown,

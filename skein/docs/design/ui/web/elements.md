@@ -26,7 +26,7 @@ the host tests (`testing.md`).
 | choice, choice group | `<input type="radio">` with its label, `role="radiogroup"` |
 | check | `<input type="checkbox">` with its label |
 | select, option | `<select>`, `<option>` showing its name as its text |
-| menu, menu item | `role="menu"` behind its button, `role="menuitem"`; a menu of a field's options (`../README.md`, 3.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (`README.md`, section 5) |
+| menu, menu item | `role="menu"` behind its button, `role="menuitem"`; the button, `aria-haspopup="menu"`, shows the menu's name as its text, or, where the menu has a button (`../README.md`, 3.2), that button's words as its text and its name as its `aria-label`, the menu's `aria-label` its own name either way; a menu of a field's options (`../README.md`, 3.2), `role="listbox"` with no button, `id="skein-ui-options-N"`, and its items `role="option"`, `id="skein-ui-option-N"`, N the node's id (`README.md`, section 5) |
 | disclosure | `<details>` with `<summary>`, holding its name, then its description's element, then its children shown folded |
 | dialog | `<dialog>`, shown modal |
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
