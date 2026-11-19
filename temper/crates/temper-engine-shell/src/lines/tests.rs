@@ -1137,6 +1137,7 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn a_landing_refusal_names_its_train_reason_and_stack() {
     for (why, words) in [(Some(jig_domain_tasks::Refusal::Live), "Live"), (None, "unknown")] {
         let line = note_line(
@@ -1156,6 +1157,26 @@ fn a_landing_refusal_names_its_train_reason_and_stack() {
             )
         );
     }
+=======
+fn restore_history_failures_name_the_task_check_and_place() {
+    use jig_protocol_store::{
+        Family,
+        restore::{Cause, Failure, HistoryFailure, RowSite},
+    };
+    let failure = Failure {
+        cause: Cause::History { task: 4097, failure: HistoryFailure::PlaceMissing },
+        row: Some(RowSite {
+            family: Some(Family::Component),
+            key: Box::from([0, 10, 0, 0, 0, 0, 0, 0, 16, 1]),
+            key_bytes: 10,
+            truncated: false,
+        }),
+    };
+    assert_eq!(
+        page_failure(Some(&failure)),
+        "task 4097 history fetch: history place missing, family Component, key [00, 0a, 00, 00, 00, 00, 00, 00, 10, 01]"
+    );
+>>>>>>> refs/hand6/g10286
 }
 
 #[test]

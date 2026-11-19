@@ -23,6 +23,11 @@ temper hands them, its fixture and its policy.
   The frames' patcher and the wires' patches keep their own rules.
 - **One golden deployment at the floor** opens and serves with the
   production owner sets; a copy without its floor is refused (5).
+- **Dev's build's image opens too** (5): the settled image as the build
+  dev.fabrig.ai runs left it, opened and started by this build.
+- **The deployed layouts are guarded** (6): a stored layout changed with
+  no conversion and no version move fails a focused test against the
+  texts of the builds whose layouts dev.fabrig.ai's store holds.
 - **After dev runs a job, its code goes.** Dropping a whole older form
   moves the floor and names its bridge in the same landing (8).
 
@@ -182,6 +187,23 @@ start afresh. Staging is made again at dev's build for each drill
   the loaded copy, which takes small's figures from test fixtures with
   the kept overrides over them (`../draft/config.md`, 5). No other
   configuration member is changed to evade a refusal. Its paths are listed in `.config/fixture-readers.toml`.
+- **Dev's build's image:** `temper/tests/one-process/golden/dev/`, the
+  settled image (7) as the build dev.fabrig.ai runs, `13efa77461`, made
+  and kept it in its own tree, copied from that commit byte for byte and
+  never written again. Its `README.md` names the build and the copy.
+  It is the store dev's own codec wrote, at that build's layouts, with
+  ended tasks whose history is in their task logs. Its focused open
+  loads a fresh machine from its roots, as the floor's does, and starts
+  this build with production sets: the open registers this build's
+  layouts in a new generation, the start's restore pages and its census
+  pass, and each ended task's history reads back through the kept
+  client's token. The source generation's files stay unchanged, a log
+  it shares with the new generation unchanged up to the source's
+  extent, past which a resumed task appends (jig's `logs.md`, 7); a
+  second start writes no generation and reads the same. Its
+  configuration is loaded as the floor's is. When dev.fabrig.ai moves to
+  a newer build, the image is replaced by that build's, in the landing
+  that moves the guard's builds (6).
 
 ## 6. The policy and the gate
 
@@ -208,6 +230,56 @@ start afresh. Staging is made again at dev's build for each drill
   patch gate. Each format's byte tests, the schemas' records drift and
   pinned constructs, built-value round trips, registry tests and the
   golden deployment's outcomes stand beside it.
+- **The deployed layouts are guarded.** A focused test holds every
+  family the production owner sets declare (2), and the client's kept
+  records (jig's `client/domain/view-state.md`), against the texts of
+  each build whose layouts dev.fabrig.ai's store holds:
+  - **The builds:** `3d1c717d379e`, the floor's bridge, at whose layouts
+    F0 settled every value (`../draft/store-floor.md`, 2), and
+    `13efa77461`, the build dev.fabrig.ai runs. Each build's texts are
+    kept verbatim, as `git show` gives them at that commit, under
+    `temper/tests/codecs/deployed/<build>/`, one file per family named
+    `<family>-v<version>.schema` from its `family` line (jig's and
+    temper's secrets both live in a `secrets-v1.schema`), with a
+    `README.md` naming each build in full, each file's path at that
+    build, and why it is held. Nothing rewrites a kept text.
+  - **A registered family:** each value type its family declares
+    (jig's `protocol/store/layouts.md`, 2), at a build whose text holds
+    its root and variant, has its layout planned to the binary's from
+    that build's texts and their held texts, as the open's check plans
+    a registry row (jig's `protocol/store/layouts.md`, 5.3) with every
+    layout taken as held. It passes where a plan derives, or, for a
+    value type no task log holds (jig's `protocol/store/logs.md`, 8),
+    where a written job of the binary converts that layout (jig's
+    `protocol/store/layouts.md`, 6).
+  - **A family outside the registry,** and the client's records: at the
+    same version, every declaration both texts hold keeps its layout's
+    fingerprint (skein's `data/codec/README.md`, 9.4), so names and
+    comments may change and a declaration no row is read by may go; a
+    family whose version moved passes where its patch from the kept
+    version is in the tree (skein's `data/codec/command.md`, 2).
+  - **Inventory:** each family the sets declare is kept at each build,
+    or is new since it; a family that was stored at a build and is
+    neither in its directory nor new fails, so a new stored family joins
+    the guard.
+  - **Its failure** names the build, the family, the value type or
+    declaration, and the rule: a default (`= value`), a former name
+    (`was`), a written job, or a version move with its patch.
+  - **The builds move** by a landing after dev.fabrig.ai is redeployed:
+    the new build's texts are added beside the others, its image
+    replaces dev's (5), and a build's texts go only once dev's registry
+    holds no layout they give (jig's `protocol/store/layouts.md`, 5.4)
+    or a floor move settled them (8).
+- **Temper's store at dev's layouts.** Step tests in
+  `temper-protocol-store` keep `13efa77461`'s `store-v25.schema` as a
+  fixture, equal to the guard's copy. For each value type changed in
+  place since (the landing log's members and tiers, a change's cold
+  part, a finding and its signature, a tier), a value written at that
+  text, and checked as a generic value of it, converts to the binary's
+  layout with its added fields at their defaults. A store seeded at that
+  text opens with the production sets in a new generation and reads each
+  row back; a second open writes nothing. The guard's own mutations pin
+  the red findings' defaults.
 - **The wires' rule is unchanged** (`wires.md`, 3): a layout change
   moves its wire version, keeps the old text and brings its patch and
   reverse or breaking declaration. A store's floor promises no wire
@@ -260,4 +332,9 @@ those builds or starts afresh (`../draft/store-floor.md`, 6).
 
 ## 9. Open questions
 
-None.
+- **Builds between the floor's bridge and dev's:** a build dev.fabrig.ai
+  ran between `3d1c717d379e` and `13efa77461` may have left values at
+  layouts of its own, which the guard (6) does not keep. The redeploy's
+  check over a checkpoint of dev's store refuses such a layout by name
+  (jig's `protocol/store/layouts.md`, 5.3); its registry's texts could
+  be added to the guard's builds from that store.

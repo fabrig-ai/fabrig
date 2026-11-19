@@ -45,6 +45,7 @@ pub use owners::{SKEIN_SET, SMITH_SET};
 pub use upgrade::sets::{Frames, JIG, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, Retired, ValueType};
 mod reads;
 mod registry;
+pub use registry::{HeldLayout, judge_held_layout};
 pub mod restore;
 mod restoring;
 pub mod retained;

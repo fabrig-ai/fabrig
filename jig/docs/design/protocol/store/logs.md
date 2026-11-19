@@ -181,6 +181,13 @@ task logs this read has fetched. The jobs' pages read the map alone
   (the erasure's pages) can meet it.
 - **A frame the log cannot give** (`LogUnread`) fails the read as a row
   that does not decode does (`loads.md`, 1).
+- **A failed fetch names its task:** a restore page whose fetch fails is
+  refused at the task's history place row (`00 0a <task>`, 1) as its
+  row, with a cause of its own saying which check failed: the task's
+  extent or place missing or malformed, a frame the log cannot give, a
+  frame past the fetch's page or past the extent, or a record that does
+  not parse (3). It is never a rowless undecodable value. A party's
+  read, a get and a load page fail as before.
 - **What reads differ:** none of the scopes of `loads.md`, 3, nor the
   restart's census and question lines (`loads.md`, 2), changes what it
   answers. Two scans change their source: a project's deletion finds
@@ -283,7 +290,9 @@ as it is read (temper's `draft/store-shape.md`, section 3):
   erase row hides a key; `DropHistory` drops the log and its row; each
   read kind of `loads.md`, 3 over a task whose history is in its log
   answers as over the map, a run missing then fetching then answering;
-  a fetch past `Limits::fetch` failing its read; a turn of a task with no transcript file in its turns log, one
+  a fetch past `Limits::fetch` failing its read; each failed fetch
+  of a restore page refused at its task's place row with its cause
+  (4); a turn of a task with no transcript file in its turns log, one
   of a task with one in its file; every read kind of `transcripts.md`, 3
   over a turns log.
 - **The store's world,** `jig-store-world`: commits with history and
