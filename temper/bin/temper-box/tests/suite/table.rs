@@ -56,7 +56,7 @@ fn help(text: &str) -> bool {
             .split_whitespace()
             .collect::<Vec<_>>()
             .join(" ")
-            .contains("Judges the workers alone over a copy; switches nothing.")
+            .contains("Judges the workers alone over links and small copies; switches nothing.")
         && ["forge", "fake", "internal", "ctl", "open"].iter().all(|word| !names.contains(word))
 }
 

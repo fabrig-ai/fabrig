@@ -286,7 +286,9 @@ pub fn opened_worker_rehearsal() {
     assert_eq!(code, 0, "{workers}");
     assert!(patches.is_empty(), "Openings runs no job");
     let verdict = report.split_inclusive('\n').filter(|line| line.contains(" upgrade: worker")).collect::<String>();
-    assert_eq!(workers, verdict, "the stop's verdict is the check's worker lines alone");
+    // The stopped-chat fixture copies its two map files and has no sealed files to link.
+    let counts = "temper-box upgrade: rehearsal linked 0 files, copied 2\n";
+    assert_eq!(workers, format!("{counts}{verdict}"), "file counts precede the check's worker verdict");
     assert_eq!(image(&mut disk), before, "workers leaves every source path and byte unchanged");
 }
 
