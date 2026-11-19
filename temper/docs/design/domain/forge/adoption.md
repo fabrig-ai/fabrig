@@ -38,9 +38,10 @@
   or owned Forgejo's access is asked for before the reads (2). Its
   outcome is the adoption's: adopted, refused by the core with jig's
   reasons, or refused by the forge with the connector's. The
-  connector keeps it under the people child's token until its retention
-  ends, to give again when the request is sent again (jig's
-  `domain/connectors.md`, 5.5; `../../protocol/store.md`, section 2).
+  connector keeps it under the people child's token, to give again when
+  the request is sent again, until its retention ends or it makes room
+  for a newer request (section 9; jig's `domain/connectors.md`, 5.5;
+  `../../protocol/store.md`, section 2).
 - **The forge's host** in a repository's resource path, and in what a
   person reads of it, is the forge's as its record has it: the host of
   its `git` base, with `:port` when it names one
@@ -867,7 +868,45 @@ apart.
 - **Where the landing branch is the default branch,** every reader
   reads the same name as before, and nothing behaves otherwise.
 
-## 9. Open questions
+## 9. Kept answers
+
+The answers to the forge's keyed requests, each kept under the people
+child's token and given again when its request is sent again (jig's
+`domain/connectors.md`, 5.5): an adoption's (the opening's bullets), an
+opening's (`change/opened.md`, 2), a repository's making and its
+dismissal (5), and a follow's act (`follows.md`). One table holds them
+all.
+
+- **Its places:** at most `forge.applications`, each an answer kept or
+  a request pending, admitted and not yet answered, at most
+  `forge.adoptions` of those. The figure bounds what the table stores,
+  never how many requests may be decided within a retention: no request
+  is refused because many answers are kept.
+- **Expired answers go first:** each new request first drops every kept
+  answer whose retention has ended, all of them at once, and erases each
+  one's row (`../../protocol/store.md`, section 2, tag 15).
+- **The oldest answered makes room:** where the places are still all
+  taken, the kept answer whose retention ends first is dropped, the
+  lowest token first among equals, and its row erased in the same
+  decision; under one retention it is the oldest answered. The request
+  takes the place freed.
+- **A pending request is never dropped:** its answer is still to come.
+  With every place pending, a request is answered busy, which passes as
+  they are answered (jig's `domain/people/acts.md`, 1).
+- **Room only for a request that takes a place:** one answered busy for
+  its flights, with `forge.adoptions` requests pending or repositories
+  being read, is answered so before any answer is dropped.
+- **Sent again once its answer went:** jig's people child keeps the key
+  and its token for its own retention (jig's
+  `client/domain/contract/requests.md`, 3), so the request is not
+  decided again: its connector no longer keeping the outcome, it is
+  answered unknown, as one past its retention is. An opening sent again
+  so opens nothing new.
+- **The figures stay:** `forge.applications` 32, `forge.adoptions` 2,
+  and the request retention a day (`people.request_retention_ms`), in
+  the standard profile (`../../protocol/configuration/limits.md`).
+
+## 10. Open questions
 
 - **A workflow that runs on no pull request** (`adoption.md`, 7; `change/branch-path.md`, *CI's card*):
   CI's card names every workflow file on the landing branch but those
