@@ -20,4 +20,3 @@ the test connector no longer reports one as a default of size 0
   4.2: a projection's or a release's failure for good, kept
   durably as news. 6.3: every effect of a step within its one decision.
   6.7: a procedure told to drain. 13: request budgets. 17: the deleted-project restore story remains `engine/settings.status.md`, 10.
-- **Not yet:** 3.3: each held resource's report kept while a waiting batch names it, the batch counted against the reports' table and refused when its reports have not all come within `tasks.hold_wait` (tasks/holds.md, 2) [in flight: change 9915].

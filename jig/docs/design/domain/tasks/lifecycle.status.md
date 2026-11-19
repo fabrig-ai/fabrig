@@ -7,7 +7,6 @@
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).
 - **Not yet:** 6: a standing task's tries per session (`standing.md`, 5.1).
 - **Not yet:** 6: a dependency's or input's result whose load the store answered busy counts as transient, not infrastructure (`jig-domain-core/src/routing/run/results.rs`, `loaded`).
-- **Not yet:** 7: a failure always says why: the words of jig's own failed endings (past its tries with nothing left to await, owing its requester a question, its closer failing) and of a declared failure with no reason [in flight: change 9916].
 
 - **Not yet:** 10: a drain; a project's scope; a
   party's proposal of a release; a hold parked until an event.
