@@ -309,8 +309,15 @@ if entry.key.as_ref() == name { Some(entry) } else { None }
   buffer.
   The byte search (`bytes::find`, `find_from`, `count`) runs in linear
   time and allocates nothing. `bytes::is_utf8` says whether bytes are UTF-8,
-  and `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
-  below a byte count: the one place skein and its users check text.
+  `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
+  below a byte count, and `bytes::utf8_replaced(bytes: &[u8]) -> Box<[u8]>`
+  makes any bytes text of the same length: each byte that is not part of
+  a UTF-8 character (`core::str::from_utf8`'s reading, a sequence cut
+  short included) becomes `?`, and UTF-8 comes back unchanged. These are
+  the one place skein and its users check text. Keeping the length keeps
+  every bound the bytes already met, so a step that must send bytes it
+  cannot vouch for as text (a repository's file, a job's log) sends them
+  so rather than being refused whole.
 - **`bytes::decimal(digits: &[u8]) -> Option<u64>`** reads `1*DIGIT` as a
   `u64`, or returns `None` for no digits, a byte other than an ASCII digit,
   or a number past `u64::MAX`; leading zeros are read as zeros.
@@ -427,6 +434,30 @@ and keep no copy of their own.
   the bytes differ, for comparing a signature, a state or a token with
   the one expected. `skein-oauth`'s comparison of a returned state uses
   it and keeps no copy.
+
+### 6.3 SHA-1
+
+`lib::sha1` is SHA-1 (FIPS 180-4), for naming bytes as git names an
+object in a SHA-1 repository: a blob's id is SHA-1 over `blob `, the
+length in decimal, a NUL byte, then the bytes. It is never for a
+security purpose: SHA-1 is broken for collisions, and nothing checks a
+signature, a token or a state with it.
+
+- **Streaming, as SHA-256's.** `Sha1::new()`, then `update(&[u8])` with
+  each piece as it arrives, cut anywhere, then `finish(self) -> [u8; 20]`;
+  `sha1::digest(&[u8]) -> [u8; 20]` is the one-shot form. The digest is
+  its 20 bytes in the standard's order, as `sha1sum` and git print them in
+  hex.
+- **No heap, no copy.** The state is five words, one 64-byte block and
+  the count of bytes hashed; `update` compresses whole blocks from the
+  caller's slice and copies only the part of a block a piece leaves.
+- **`Clone`,** with a `Debug` that shows the count of bytes hashed, not
+  the state. The standard's bound, 2^64 − 1 bits, is asserted.
+- **No HMAC and no comparison** of its own: a step that needs either
+  takes SHA-256's (6.2).
+- **Its users.** temper's engine, naming a file of a pull request by its
+  blob id where the repository is SHA-1 (temper's
+  `domain/forge/change/repairs.md`, a resolution's pull section).
 
 ## 7. Streams
 
