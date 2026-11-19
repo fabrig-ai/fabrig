@@ -8,9 +8,62 @@ use skein_lib::{Duration, List, Reader, Secret, Writer};
 #[path = "lean_fixture.rs"]
 mod fixture;
 
-const PATH: Path = Path { declaration: 9, part: 2 };
+// Only the second family's identity is needed, not a second codec.
+mod other_fixture {
+    pub struct Limits;
+    pub type Path = crate::Path<Limits>;
+    pub type Problem = crate::Problem<Limits>;
+}
 
-fn written<T, F: Field<(), T>>(shape: &F, value: &T) -> Result<Box<[u8]>, Problem> {
+#[test]
+fn families_have_distinct_problem_types() {
+    use core::any::TypeId;
+    assert_ne!(TypeId::of::<fixture::Problem>(), TypeId::of::<other_fixture::Problem>());
+    assert_ne!(TypeId::of::<fixture::Path>(), TypeId::of::<other_fixture::Path>());
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the test formats Debug without requiring traits from Limits")]
+fn positions_and_refusals_need_no_limits_traits_or_storage() {
+    use core::{
+        fmt::Debug,
+        hash::{Hash, Hasher},
+        mem::size_of,
+    };
+    use std::hash::DefaultHasher;
+
+    struct Limits;
+    const PATH: Path<Limits> = Path::new(9, 2);
+    const PROBLEM: Problem<Limits> = PATH.problem(Reason::Trailing);
+    fn traits<T: Clone + Copy + Debug + Eq + Hash>(value: T) -> T {
+        value
+    }
+    fn hash(value: &impl Hash) -> u64 {
+        let mut state = DefaultHasher::new();
+        value.hash(&mut state);
+        state.finish()
+    }
+
+    let path = traits(PATH);
+    let problem = traits(PROBLEM);
+    assert_eq!((path.declaration, path.part), (9, 2));
+    assert_eq!(size_of::<Path<Limits>>(), size_of::<(u16, u16)>());
+    assert_eq!(size_of::<Problem<Limits>>(), size_of::<Problem<()>>());
+    assert_eq!(path, PATH);
+    assert_ne!(path, Path::new(8, 2));
+    assert_ne!(path, Path::new(9, 1));
+    assert_eq!(problem, PROBLEM);
+    assert_ne!(problem, Path::new(8, 2).problem(Reason::Trailing));
+    assert_ne!(problem, PATH.problem(Reason::Short));
+    assert_eq!(hash(&path), hash(&(9_u16, 2_u16)));
+    assert_eq!(hash(&problem), hash(&(9_u16, 2_u16, Reason::Trailing)));
+    assert_eq!(format!("{path:?}"), "Path { declaration: 9, part: 2 }");
+    assert_eq!(format!("{problem:?}"), "Problem { path: Path { declaration: 9, part: 2 }, reason: Trailing }");
+}
+
+const PATH: Path<()> = Path::new(9, 2);
+
+fn written<T, F: Field<(), T>>(shape: &F, value: &T) -> Result<Box<[u8]>, Problem<()>> {
     let mut measure = Writer::measure(1024);
     shape.write(value, &(), &mut measure, PATH)?;
     let mut out = Writer::new(measure.written());
@@ -125,25 +178,26 @@ fn record_round_trip<T: Record<Limits = fixture::Limits> + core::fmt::Debug + Pa
     value: T,
     bytes: &[u8],
 ) {
+    let path = fixture::Path::new(9, 2);
     assert_eq!(value.measure(&fixture::CEILINGS), Ok(u32::try_from(bytes.len()).expect("small")));
     assert_eq!(value.encode(&fixture::CEILINGS).expect("encode").as_ref(), bytes);
     assert_eq!(T::decode(&fixture::CEILINGS, &mut Reader::new(bytes)), Ok(value.clone()));
     let sequence =
         field::Sequence { limit: 1, minimum: u32::try_from(bytes.len()).expect("small record"), item: field::Nested };
     let mut out = Writer::new(bytes.len().checked_add(4).expect("count prefix"));
-    sequence.write(&list([value.clone()], 1), &fixture::CEILINGS, &mut out, PATH).expect("nested list write");
+    sequence.write(&list([value.clone()], 1), &fixture::CEILINGS, &mut out, path).expect("nested list write");
     let wire = out.finish();
     assert_eq!(wire.get(..4), Some(&[0, 0, 0, 1][..]));
     assert_eq!(wire.get(4..), Some(bytes));
-    let read: List<T> = sequence.read(&fixture::CEILINGS, &mut Reader::new(&wire), PATH).expect("nested list read");
+    let read: List<T> = sequence.read(&fixture::CEILINGS, &mut Reader::new(&wire), path).expect("nested list read");
     assert_eq!(read.as_slice(), core::slice::from_ref(&value));
     let option = field::Optional { item: field::Nested };
     let mut out = Writer::new(bytes.len().checked_add(1).expect("option tag"));
-    option.write(&Some(value.clone()), &fixture::CEILINGS, &mut out, PATH).expect("nested option write");
+    option.write(&Some(value.clone()), &fixture::CEILINGS, &mut out, path).expect("nested option write");
     let wire = out.finish();
     assert_eq!(wire.first(), Some(&1));
     assert_eq!(wire.get(1..), Some(bytes));
-    let read: Option<T> = option.read(&fixture::CEILINGS, &mut Reader::new(&wire), PATH).expect("nested option read");
+    let read: Option<T> = option.read(&fixture::CEILINGS, &mut Reader::new(&wire), path).expect("nested option read");
     assert_eq!(read, Some(value));
     for cut in 0..bytes.len() {
         assert_eq!(
@@ -199,8 +253,8 @@ fn records_enumerations_versions_and_nested_paths() {
         Err(paths::WORDS_WORDS.problem(Reason::Bound))
     );
     assert_eq!(fixture::name(paths::WORDS_WORDS), Some("Words.words"));
-    assert_eq!(fixture::name(Path { declaration: u16::MAX, part: 0 }), None);
-    assert_eq!(fixture::name(Path { declaration: 1, part: u16::MAX }), None);
+    assert_eq!(fixture::name(fixture::Path::new(u16::MAX, 0)), None);
+    assert_eq!(fixture::name(fixture::Path::new(1, u16::MAX)), None);
     let mut limits = fixture::CEILINGS;
     limits.words_words = 1;
     assert_eq!(Words { words: Box::from(&b"ab"[..]) }.measure(&limits), Err(paths::WORDS_WORDS.problem(Reason::Bound)));
