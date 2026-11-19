@@ -3,6 +3,7 @@ mod approval;
 mod fixtures;
 mod link_sign_in;
 mod task_refusal;
+mod unread;
 mod versions;
 use crate::*;
 use skein_lib::Reader;
@@ -12,7 +13,7 @@ use skein_lib::Reader;
 #[expect(clippy::disallowed_macros, reason = "the test reads schemas to hold wire constants to their family versions")]
 fn version_constants_match_their_schemas() {
     let client =
-        concat!(include_str!("../schema/client-v36.schema"), include_str!("../schema/client-v36-part1.schema"));
+        concat!(include_str!("../schema/client-v37.schema"), include_str!("../schema/client-v37-part1.schema"));
     let client = skein_codec::schema::parse(client.as_bytes()).expect("client schema");
     assert_eq!(VERSION, u32::from(client.version()), "jig-client-wire VERSION must equal its family version");
     let public =
