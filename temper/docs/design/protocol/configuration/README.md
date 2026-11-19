@@ -77,7 +77,10 @@ document says what temper adds. What is open is listed in `README.md`, section 9
 - **One format rule** for temper's typed members: member names are the
   Rust field names, and the parser follows the types (section 8).
 - **Limits by name,** their numbers in `temper-service`'s limits module,
-  overridden by dotted name. The forge component's (`renew_before`,
+  overridden by dotted name: the engine's and the box's by two kinds of
+  settings, jig's `limits` and temper's `temper-limits`, which their
+  documents no longer hold (`limit-settings.md`), and a worker alone's
+  by its document until its figures come from the engine. The forge component's (`renew_before`,
   `log_poll`, `log_catch_up`, `log_pages` among them) are given once for
   every forge, never per forge; the forges kept, `forge.forges`, and the
   repositories, `forge.repositories`, are counts for the deployment

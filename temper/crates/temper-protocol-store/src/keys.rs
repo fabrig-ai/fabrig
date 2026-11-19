@@ -54,6 +54,7 @@ pub const KEYSPACES: jig_protocol_store::Keyspaces = jig_protocol_store::Keyspac
         (CHANGE_HOT, "temper.changes-hot"),
         (PERSON_BRIEF, "temper.person-briefs"),
         (MILESTONE, "temper.milestones"),
+        (LIMIT_HOLD, "temper.limit-holds"),
         (127, "temper.history-project"),
         (128, "temper.landing-history"),
         (129, "temper.history-change"),
@@ -115,6 +116,8 @@ pub const CHANGE_HOT: u8 = 48;
 /// The forge's milestone row (domain/milestones.md, 8).
 pub const PERSON_BRIEF: u8 = 50;
 pub const MILESTONE: u8 = 49;
+/// A task held on a named limit (protocol/configuration/limit-settings.md, 6).
+pub const LIMIT_HOLD: u8 = 51;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_EVENT: u8 = 128;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
@@ -304,6 +307,9 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
             writer.tag(3);
             write_name(&mut writer, name);
         }
+        forge::Key::LimitHold(task) => {
+            writer.tag(LIMIT_HOLD).u64(*task);
+        }
         forge::Key::Names(task) => {
             writer.tag(4).u64(*task);
         }
@@ -479,6 +485,7 @@ pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
             forge::Key::Tier { repository, tier }
         }
         MILESTONE => forge::Key::Milestone(reader.u64()?),
+        LIMIT_HOLD => forge::Key::LimitHold(reader.u64()?),
         LANDING_LOG => forge::Key::LandingLog { repository: read_repository(&mut reader)? },
         VERIFICATION => {
             forge::Key::Verification { repository: read_repository(&mut reader)?, commit: read_commit(&mut reader)? }

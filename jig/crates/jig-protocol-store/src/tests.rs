@@ -94,6 +94,7 @@ fn valid_refuses_each_unrepresentable_limit() {
 }
 
 mod sizes;
+mod startup_limits;
 
 #[test]
 fn valid_requires_room_for_transcript_work() {

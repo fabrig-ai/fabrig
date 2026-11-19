@@ -16,12 +16,12 @@ enum Until {
     Wires,
 }
 
-fn configured(document: &[u8]) -> temper_service::Service {
-    let mut document: serde_json::Value = serde_json::from_slice(document).expect("configuration");
+fn configured(document: &temper_playground::documents::Configuration) -> temper_service::Service {
+    let mut document = document.clone();
     let given = temper_playground::documents::given(&document);
     temper_playground::documents::settings::strip_models(&mut document);
     document.as_object_mut().expect("document").remove("world_settings");
-    temper_service::startup::restoring_with(
+    temper_service::startup::restoring_with_limits(
         &serde_json::to_vec(&document).expect("configuration bytes"),
         &jig_protocol_config::Directories::working(),
         &fixtures::files(),
@@ -29,6 +29,8 @@ fn configured(document: &[u8]) -> temper_service::Service {
         &fixtures::seeds(),
         None,
         &given,
+        &document.jig,
+        &document.limits,
     )
     .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
 }
@@ -37,7 +39,12 @@ fn configured(document: &[u8]) -> temper_service::Service {
     clippy::too_many_lines,
     reason = "one driver covers the restart cuts and both rehearsal reaches on the same disk"
 )]
-fn drive(disk: &mut Machine, document: &[u8], sets: OwnerSets, until: Until) -> (String, u8, Progress) {
+fn drive(
+    disk: &mut Machine,
+    document: &temper_playground::documents::Configuration,
+    sets: OwnerSets,
+    until: Until,
+) -> (String, u8, Progress) {
     let mut service = configured(document);
     service.owner_sets(sets);
     let mut sim = Sim::new(fixtures::SEED, skein_sim::Config::calm());
@@ -341,35 +348,10 @@ pub fn rehearsal_then_start_and_back() {
 pub fn golden(directory: &Path) {
     stories::set(world::Story::PlaygroundA);
     stories::setup_settings(world::Phase::Story);
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(directory.join("configuration.json")).expect("golden configuration"))
-            .expect("golden JSON");
-    // Workers are admitted through settings, not the document (protocol/cluster.md, 3).
-    document["engine"]["hosts"].as_object_mut().expect("kept hosts").remove("workers");
-    document["workers"][0]["name"] = "local".into();
-    document["engine"]["limits"]["overrides"]["fleet.slots"] = 4.into();
-    crate::golden::bridge_kept_profiles(&mut document);
-    let sections = document.pointer_mut("/engine/limits/overrides/brief.sections").expect("brief sections");
-    *sections = sections.as_u64().expect("count").max(u64::from(jig_domain_core::CORE_SECTIONS)).into();
-    let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
-        panic!("world defaults")
-    };
-    for (name, count) in [
-        ("tasks.charters", jig.charters.len()),
-        ("core.templates", jig.templates.len()),
-        ("authority.executors", jig.rules.ceiling.delegation.kinds.len()),
-    ] {
-        let bound = document["engine"]["limits"]["overrides"].get_mut(name).expect("count override");
-        *bound = bound.as_u64().expect("count").max(u64::try_from(count).expect("default count")).into();
-    }
+    let document = crate::golden::read_configuration(directory);
     let mut disk = crate::golden::files::load(directory);
     let before = image(&mut disk);
-    let (report, code, patches) = drive(
-        &mut disk,
-        &serde_json::to_vec(&document).expect("configuration"),
-        temper_engine_service::store::OWNER_SETS,
-        Until::Check,
-    );
+    let (report, code, patches) = drive(&mut disk, &document, temper_engine_service::store::OWNER_SETS, Until::Check);
     assert_eq!(code, 0, "{report}");
     assert!(patches.is_empty(), "floor store needs no jobs");
     assert!(report.contains("registry commit, jobs and restores pass"), "{report}");

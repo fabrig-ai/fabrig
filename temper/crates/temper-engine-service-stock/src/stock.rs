@@ -44,6 +44,19 @@ pub enum Given {
     },
 }
 impl Given {
+    /// Retain the defaults beside the non-setting startup facts.
+    #[must_use]
+    pub fn copied(&self) -> Self {
+        match self {
+            Self::Stock => Self::Stock,
+            Self::Own { jig, forge, ways } => {
+                Self::Own { jig: copy_defaults(jig), forge: forge.clone(), ways: ways.clone() }
+            }
+            Self::Running { given, providers, fixed } => {
+                Self::Running { given: Box::new(given.copied()), providers: providers.clone(), fixed: fixed.clone() }
+            }
+        }
+    }
     #[must_use]
     pub fn with_providers(
         &self,
@@ -119,6 +132,7 @@ impl Given {
                     }
                 }
                 Some(Defaults {
+                    limits: own.limits.clone(),
                     providers: own.providers.clone(),
                     workers: Box::new([]),
                     models: configured.into_boxed(),
@@ -129,6 +143,23 @@ impl Given {
                 })
             }
         }
+    }
+}
+
+fn copy_defaults(own: &Defaults) -> Defaults {
+    let mut policies = Map::with_capacity(own.policies.len());
+    for (number, policy) in &own.policies {
+        policies.insert(*number, policy.clone()).expect("counted policies");
+    }
+    Defaults {
+        providers: own.providers.clone(),
+        limits: own.limits.clone(),
+        workers: Box::new([]),
+        models: own.models.clone(),
+        charters: own.charters.clone(),
+        templates: own.templates.clone(),
+        policies,
+        rules: own.rules.clone(),
     }
 }
 
@@ -543,6 +574,7 @@ pub fn checked_with(models: Box<[CatalogueModel]>, result_bytes: u32) -> Option<
     let mut policies = Map::with_capacity(1);
     policies.insert(1, project_policy(period_spend, pool_spend, chat_spend)).expect("one stock policy");
     Some(Defaults {
+        limits: Box::default(),
         providers: providers(),
         workers: Box::new([]),
         models,
@@ -1024,12 +1056,13 @@ pub fn forge(_limits: &temper_engine_domain::Limits) -> Box<[temper_engine_domai
         ),
         (9, 16, settings::Value::CharterWords(bytes::copy_of(b"Keeps its area's port in step with its source."))),
         (21, 1, settings::Value::AgentFigures(agents())),
+        (22, 1, settings::Value::Limits(Box::new([]))),
     ];
-    let mut stock = List::with_capacity(17);
+    let mut stock = List::with_capacity(u32::try_from(values.len()).expect("stock default count"));
     for (kind, number, value) in values {
         stock
             .push(settings::Stock { kind, scope: 0, number, value: settings::SizedValue { size: size(&value), value } })
-            .expect("one landing rule, two forge charters, thirteen charter lines and one goal template's work");
+            .expect("one landing rule, two forge charters, thirteen charter lines, one goal template and limits");
     }
     stock.into_boxed()
 }

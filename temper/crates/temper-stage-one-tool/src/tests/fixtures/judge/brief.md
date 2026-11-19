@@ -289,7 +289,7 @@ prerequisites:
 - gpt-6.1-sol on smith's direct backend, with an OpenAI account's key, for producers, foremen and the triage
 - a real model for Ask temper, charter 11's
 - the project, its repository adopted
-- `docs/examples/reference/limits.json`'s overrides in the box's document
+- the reference's figures as `limits` and `temper-limits` settings, over the stock
 - `forge.change_policy.questions` at 4
 - the project's `merge_job`, `.temper/merge`, in `application.landing`
 - the tier `goal`: workflow `tier-goal.yml`, `branch` `goal`, `span_ms` 1200000

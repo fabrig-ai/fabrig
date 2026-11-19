@@ -148,6 +148,10 @@ fn open_without_two_arguments_prints_its_usage() {
 pub(crate) mod configuration;
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the comparison retains typed limits and the scripted listener for both startup routes"
+)]
 fn the_standalone_operations_check_retains_no_descriptors() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let directory = std::env::temp_dir().join(format!("temper-operations-{}", std::process::id()));
@@ -181,29 +185,53 @@ fn the_standalone_operations_check_retains_no_descriptors() {
         Box::from(crate::scripted::ADDRESS),
         listener.local_addr().expect("scripted address").to_string().into_bytes().into_boxed_slice(),
     )];
-    let (agent, document) = configuration::documents(&directory, "/fixture/temper");
+    let (agent, mut config) = configuration::typed_documents(&directory, "/fixture/temper");
+    let document = serde_json::to_vec(&config).expect("deployment document");
     let named_file = directory.join("worker.secret");
     write("temper.json", &document);
     temper_agent_fixtures::install(&directory, &serde_json::from_slice(&agent).expect("agent JSON"));
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("installed document")).expect("JSON");
-    let composed = temper_agent_fixtures::at(&document, &directory);
-    configuration::support::turn_bounds::apply(
-        &mut document,
-        configuration::support::turn_bounds::turn_body(&composed),
-    );
-    let document = serde_json::to_vec(&document).expect("deployment JSON");
+    let composed = temper_agent_fixtures::at(&config, &directory);
+    configuration::support::turn_bounds::apply(&mut config, configuration::support::turn_bounds::turn_body(&composed));
+    let document = serde_json::to_vec(&config).expect("deployment document");
     assert_eq!(configuration::flags(&directory).len(), 6);
-    let operations = super::operations_in(&environment, b"/", &configuration::directories(&directory), &document)
-        .expect("standalone operations");
+    let operations = super::operations_in_with_limits(
+        "temper",
+        &environment,
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &temper_service::stock::Given::Stock,
+        &config.jig,
+        &config.limits,
+    )
+    .expect("standalone operations");
     assert_no_descriptors_in(&directory);
     assert!(operations > 0);
     assert!(!directory.join("workspaces").exists(), "counting credit must not pin the agent or open roots");
     let mut owned = Vec::new();
-    let (service, _) =
-        super::prepare_with_store(&environment, b"/", &configuration::directories(&directory), &document, &mut owned)
-            .expect("same standalone preparation");
+    let (mut service, _, _) = super::serve::prepare_with_limits(
+        "temper",
+        &environment,
+        b"/",
+        &configuration::directories(&directory),
+        &document,
+        &mut owned,
+        false,
+        false,
+        None,
+        None,
+        &temper_service::stock::Given::Stock,
+        None,
+        true,
+        &[],
+        Some((&config.jig, &config.limits)),
+        None,
+    )
+    .expect("same standalone preparation");
     assert_eq!(operations, service.operations());
+    if let super::Service::Joined(service) = &mut service {
+        temper_engine_shell::serve::close_limits_store(service.engine_component().store()).expect("close opened store");
+    }
     drop(service);
     super::close(owned);
     assert_no_descriptors_in(&directory);
@@ -266,8 +294,6 @@ fn fixed_sign_in_ports_are_checked_against_the_demo_listener() {
     let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
     // Keep git concurrency at one so the small profile's 48 sockets reach the
     // redirect-port check after this fixture adds an OAuth listener.
-    value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
     value["workers"][0]["slots"] = 1.into();
     let directories = jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("directories");
     let mut providers = temper_service::stock::providers();

@@ -16,6 +16,19 @@ pub const MEMBERS: &[Member] = &[
     Member { path: "application.demo", words: "moved: the playground's scripted model is the box's own" },
     Member { path: "application.landing", words: LANDING },
     Member {
+        path: "engine.limits",
+        words: "moved: jig's limits are the setting limits; ask temper, or use temper ctl settings apply",
+    },
+    Member {
+        path: "engine.memory_bytes",
+        words: "moved: the root's budget is transcript_memory, in the setting temper-limits",
+    },
+    Member {
+        path: "application.limits",
+        words: "moved: temper's limits are the setting temper-limits; ask temper, or use temper ctl settings apply",
+    },
+    Member { path: "workers[].memory_bytes", words: "moved: nothing read a worker's memory_bytes; remove it" },
+    Member {
         path: "application.machine",
         words: "moved: a forge's place is chosen when it's set up, and kept with the forge",
     },

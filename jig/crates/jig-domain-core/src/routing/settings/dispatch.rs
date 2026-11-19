@@ -243,6 +243,7 @@ fn preflight(
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
             | s::Setting::Rules
+            | s::Setting::Limits
             | s::Setting::Model(_)
             | s::Setting::Application { .. }
             | s::Setting::ProjectPolicy { .. } => {}
@@ -251,6 +252,7 @@ fn preflight(
             s::Setting::Worker(number) => number,
             s::Setting::Provider(_)
             | s::Setting::Rules
+            | s::Setting::Limits
             | s::Setting::Policy(_)
             | s::Setting::Charter(_)
             | s::Setting::Template(_)
@@ -390,7 +392,7 @@ fn decide_with(
                 s::Setting::Model(_) => models = true,
                 s::Setting::Worker(_) => workers = true,
                 s::Setting::Provider(_) => providers = true,
-                s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
+                s::Setting::Limits | s::Setting::Application { .. } | s::Setting::ProjectPolicy { .. } => {}
             }
         }
     }
@@ -415,6 +417,7 @@ fn decide_with(
             | s::Setting::Worker(_)
             | s::Setting::Model(_)
             | s::Setting::Rules
+            | s::Setting::Limits
             | s::Setting::Application { .. } => core.current.replaced(item.setting),
         };
         items

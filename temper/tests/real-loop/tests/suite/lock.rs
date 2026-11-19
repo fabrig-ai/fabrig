@@ -1,7 +1,7 @@
 //! Two native acts serialize on the real directory lock.
 use temper_real_loop_world::{
     Exit, argv,
-    calls::{D1, contended, join, probe, release, sign_in, start, task, until},
+    calls::{D1, call, contended, join, probe, release, sign_in, start, task, until},
     fixtures, run, scripts,
 };
 // Two calls must contend together; a single call cannot expose overlapping ownership.
@@ -16,6 +16,18 @@ const FIRST_NAME: &str = "first";
 const SECOND_NAME: &str = "second";
 #[test]
 fn two_acts_on_one_directory_take_its_lock_in_turn() {
+    lock_story();
+}
+
+#[test]
+fn a_drained_service_leaves_the_next_lock_story_clean() {
+    super::lifecycle::service_drains();
+    let mut tasks = lock_story();
+    tasks.sort_unstable();
+    assert_eq!(tasks, [1, 2], "the next world's tasks start at one");
+}
+
+fn lock_story() -> [u64; ACTS] {
     let ran = run(
         || scripts::chat_scripts(ACTS),
         || {
@@ -30,6 +42,11 @@ fn two_acts_on_one_directory_take_its_lock_in_turn() {
                 join(SECOND),
                 until(D1, argv!["chat", "show", task(FIRST)], scripts::REPLY, scripts::EARLY),
                 until(D1, argv!["chat", "show", task(SECOND)], scripts::REPLY, scripts::EARLY),
+                // Reading a reply does not end a chat or join its activation.
+                call(D1, argv!["chat", "close", task(FIRST), "--key", "close-first"]).succeeds(),
+                call(D1, argv!["chat", "close", task(SECOND), "--key", "close-second"]).succeeds(),
+                call(D1, argv!["task", "show", task(FIRST), "--until", "ended"]).succeeds(),
+                call(D1, argv!["task", "show", task(SECOND), "--until", "ended"]).succeeds(),
             ]
         },
     );
@@ -38,4 +55,5 @@ fn two_acts_on_one_directory_take_its_lock_in_turn() {
     let (a, b) = (one.locked.expect("one took the lock"), two.locked.expect("two took the lock"));
     let (x, y) = (one.released.expect("one closed its lock"), two.released.expect("two closed its lock"));
     assert!(x <= b || y <= a, "both held DIRECTORY's lock at once");
+    [ran.number(FIRST), ran.number(SECOND)]
 }
