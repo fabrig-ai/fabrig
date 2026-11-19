@@ -28,11 +28,20 @@ fn lean_helper_fixture_has_no_drift() {
 }
 
 #[test]
+<<<<<<< HEAD
 fn lean_secret_fields_need_no_box_import() {
     let schema = parse("family hidden 1 record Row { value: option list 2 secret 8 }").expect("secret schema");
     let output = generate_as(&schema, Form::Lean).records;
     assert!(output.contains("pub value: Option<List<skein_lib::Secret>>"));
     assert!(!output.contains("use alloc::boxed::Box;"), "secret fields use Secret, not Box");
+=======
+fn lean_roots_have_a_concrete_debug_decode_entry() {
+    let schema = parse("family roots 1\nrecord Item { byte: u8 }\nrecord Root { item: Item }\n").expect("root schema");
+    let output = generate_as(&schema, Form::Lean).records;
+    let (nested, root) = output.split_once("// Record: Root.").expect("root implementation");
+    assert!(!nested.contains("fn decode("), "nested reads use the family's read entry");
+    assert!(root.contains("#[cfg(debug_assertions)]\n    fn decode("), "only debug builds override the default entry");
+>>>>>>> refs/hand5/10253
 }
 
 #[test]
