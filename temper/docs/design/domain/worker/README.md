@@ -504,14 +504,37 @@ shows in the log with each attempt that fetched it (the user, 2026-11-19):
 <binary> worker: run <run> attempt <attempt> check out <repository> <commit>
 ```
 
-A job's lines put `job <kind>` after its attempt, as its failure line
-does (`jobs.md`). `<run>` and `<attempt>` are its assignment's,
+A job's lines put `job <kind> <verb>` after its attempt, its kind's
+number and verb as its failure line prints them (`jobs.md`), so that
+both join by the same words: `temper worker: run 9551 attempt 3 job 1
+prepare fetch fabrig commit <id> into fetched`. `<run>` and `<attempt>` are its assignment's,
 `<repository>` the repository's directory, `<source>` what the fetch
 names (`branch <name>`, `commit <id>` or `default`; `../../protocol/git.md`,
 4.3), `<into>` `fetched` or `landing`, and ids are in full, as
 `../../protocol/git.md`, section 3 writes them. Each line goes through the
 worker's notes, escaped to one line, as the agent's stop line does: operator
 output that no fact or turn holds.
+
+**Each assignment** the engine sends a worker, a run's or a job's, is one
+serve line as it leaves, so that the worker's lines join it by run and
+attempt and show why a start came again (the user, 2026-11-19):
+
+```
+<binary> serve: task <task> run <run> attempt <attempt> assigned to worker <name>: <why>
+```
+
+A job's puts `job <kind>` after `<name>`, its kind as serve's job line
+prints it (`jobs.md`). `<run>` is the worker's `run`. `<name>` is the
+worker's configured name (`workers[].name`), or `channel <n>` for a channel
+no configured worker holds. `<why>` is the claim's cause (jig's
+`domain/tasks/lifecycle.md`, 6): `recheck` where the attempt before ended in
+one; else, with the retry notice the claim cleared, `retry after <class>
+failure <count> of <allowance>` or `retry after refusal <count>`, then
+`: <reason>` where it carries one; else the due reason, `made`, `ready`,
+`message <n>`, `released`, `retry`, `narrowed` or `changed`, as the client's
+activity names it. An attempt placed again after a busy refusal is a
+second line. Escaped to one line as serve's other lines are; nothing
+stores it.
 
 **A configured model-call bound** is reported as jig's
 `RunFailure::Exceeded(Exceeded { bound, value })`. Smith's
@@ -875,11 +898,6 @@ for; and that nothing is live once it settles.
 
 ## 10. Open questions
 
-- **Why a run was assigned** (4.3, *Each fetch and check out*): the
-  worker's line names the run and its attempt, not why the engine
-  assigned it, which the engine keeps and no assignment carries. Where
-  that cause is printed, on serve's line for each assignment or on this
-  line, over jig's worker wire, awaits the user (2026-11-19).
 - **Several workers in one world:** the whole worker's world runs one;
   placement across several is exercised with scripted workers in the
   engine's world.
