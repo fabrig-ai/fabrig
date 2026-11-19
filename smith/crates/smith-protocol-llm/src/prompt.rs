@@ -1,5 +1,6 @@
 //! Whole bounded tool declarations and concrete conversations into Skein.
 //! Host schemas are normalized to object inputs (protocol/llm.md, section 3).
+//! Empty turns gain request-only text without moving messages (section 2).
 
 use alloc::boxed::Box;
 
@@ -9,6 +10,8 @@ use smith_domain::{llm, run, tools};
 
 use crate::types::{Context, ToolSchema};
 use crate::{Error, Limits, valid};
+
+const EMPTY_TURN: &[u8] = b"[an empty turn]";
 
 /// Prepare the translated prompt and retained context for the connection
 /// component, which prepares the sole skein Client when it admits Start.
@@ -107,7 +110,12 @@ fn translate(
         List::with_capacity(u32::try_from(messages.len()).or(Err(Error::Limit))?);
     for (index, message) in messages.into_iter().enumerate() {
         let maximum = if Some(index) == owed_message { result_maximum } else { limits.rendered_result };
-        let mut content = List::with_capacity(u32::try_from(message.content.len()).or(Err(Error::Limit))?);
+        let mut content = List::with_capacity(u32::try_from(message.content.len().max(1)).or(Err(Error::Limit))?);
+        if message.content.is_empty() {
+            content
+                .push(skein_llm::Block::Text { text: bytes::copy_of(EMPTY_TURN), replay: None })
+                .expect("room for the empty turn marker");
+        }
         for block in message.content {
             let block = translate_block(block, &namespace, limits, maximum, translated.last())?;
             content.push(block).expect("room for each admitted source block");
@@ -311,7 +319,7 @@ fn history_admitted(messages: &[llm::Message], limits: &Limits) -> Result<(), Er
     let mut blocks = 0_usize;
     let mut documents = 0_u64;
     for message in messages {
-        blocks = blocks.checked_add(message.content.len()).ok_or(Error::Limit)?;
+        blocks = blocks.checked_add(message.content.len().max(1)).ok_or(Error::Limit)?;
         if blocks > maximum {
             return Err(Error::Limit);
         }

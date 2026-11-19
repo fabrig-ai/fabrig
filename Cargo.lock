@@ -5368,10 +5368,13 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-world",
+ "smith-domain",
  "smith-domain-session",
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-tools-world",
 ]
 
