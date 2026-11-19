@@ -108,6 +108,16 @@ impl Store {
     pub fn adopt(&mut self, fd: Fd, user: u32) -> Result<(), Fd> {
         self.host.adopt(fd, user, self.installation)
     }
+    /// Rehearse over a whole copy of `source` in `scratch` (jig's protocol/store/opening.md, 5),
+    /// opened before an engine is sized, as a start opens its store.
+    pub fn adopt_rehearsal(&mut self, source: Fd, scratch: Fd, user: u32) -> Result<(), Fd> {
+        self.host.adopt_mode(
+            source,
+            user,
+            self.installation,
+            protocol::host::Adoption::Rehearse { scratch, reach: protocol::Reach::Whole },
+        )
+    }
     pub fn down(&mut self, out: root::StoreRequest) -> bool {
         let out = match out {
             root::StoreRequest::Catalogue { names } => {
