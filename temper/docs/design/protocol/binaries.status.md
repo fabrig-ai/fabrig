@@ -4,7 +4,6 @@
 
 - **Not yet:** 1 and 2: `upgrade --check` has no per-job timing: each `Event::Ran` job line ends `time unavailable` (`temper-engine-shell/src/upgrade/report.rs`). The whole rehearsal/tool time is printed separately.
 
-- **Not yet:** 2: a rehearsal makes `upgrade-SEED` before it locks it, rather than locking `upgrade-SEED.new` and renaming it; the sweep removes a leftover modified within the hour, skips one it cannot open without a line, and panics on an error with no errno; a run removes its own scratch only when empty, with no line when it cannot (`temper-engine-shell/src/upgrade/scratch.rs`, `upgrade.rs`) [in flight: change 9350]
 
 - **Not yet:** 1, 4 and 5: `temper-service`'s worker half is its `worker` feature, which `temper-worker-shell`, the box and the worlds switch on, so `temper-worker`'s closure holds the engine's domain, `temper-engine-smith` and `temper-box-machine` as its row's exceptions, and the rows exclude neither `temper-service` nor, from the worker, `temper-forge-setup` and `temper-protocol-records-forge` (`services.status.md`)
 
