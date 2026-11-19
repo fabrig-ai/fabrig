@@ -1,7 +1,8 @@
 # README: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-19. Where temper's code lags or departs from [README.md](README.md).
 
+- **Not yet:** 4, *The link's page, `/sign-in`*: temper prints and makes every link in the route's form, the engine's printed and local links and ctl's asked link among them, and `LINK_PAGE` is `temper-client-domain-forge`'s alone [in flight: change 10466]; the TUI's link field's placeholder is in the route's form [in flight: change 10470].
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
