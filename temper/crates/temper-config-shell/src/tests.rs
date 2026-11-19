@@ -1,4 +1,5 @@
 use crate::*;
+mod overlay;
 use serde_json::{Value, json};
 use std::{os::unix::ffi::OsStrExt, path::Path};
 

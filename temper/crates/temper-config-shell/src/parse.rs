@@ -16,6 +16,18 @@ use toml::{
 };
 
 pub fn parse(text: &[u8], shape: Shape, facts: &Facts) -> Result<Read, Refusal> {
+    read(text, shape, facts, None)
+}
+
+/// Each top-level key supplied replaces the whole key; omitted keys stay.
+/// Required keys may come from the file (testing/qa/deployment.md, 6.2).
+pub fn patch(file: &File, text: &[u8], shape: Shape, facts: &Facts) -> Result<Read, Refusal> {
+    let patched = read(text, shape, facts, Some(file))?;
+    // Check inherited keys too and return the lines of the file that will be written.
+    parse(&crate::render(&patched.file, shape), shape, facts)
+}
+
+pub(super) fn table(text: &[u8]) -> Result<(&str, toml::Spanned<DeTable<'_>>), Refusal> {
     if text.len() > FILE_BYTES {
         return Err(Refusal::one("temper.toml: file exceeds 1 MiB".into()));
     }
@@ -26,14 +38,32 @@ pub fn parse(text: &[u8], shape: Shape, facts: &Facts) -> Result<Read, Refusal> 
     let spanned = DeTable::parse(text).map_err(|why| {
         Refusal::one(format!("temper.toml:{}: {}", at(text, why.span().map_or(0, |span| span.start)), why.message()))
     })?;
-    let decoded = toml::Table::deserialize(toml::de::Deserializer::from(spanned.clone())).expect("parsed TOML");
+    Ok((text, spanned))
+}
+
+fn read(text: &[u8], shape: Shape, facts: &Facts, base: Option<&File>) -> Result<Read, Refusal> {
+    let (text, spanned) = table(text)?;
+    let mut decoded = toml::Table::deserialize(toml::de::Deserializer::from(spanned.clone())).expect("parsed TOML");
+    let replaces_environment = decoded.contains_key("environment");
+    if let Some(base) = base {
+        let rendered = crate::render(base, shape);
+        let mut table: toml::Table =
+            toml::from_str(std::str::from_utf8(&rendered).expect("rendered UTF-8")).expect("rendered TOML");
+        table.extend(decoded);
+        decoded = table;
+    }
     let mut reader = Reader { text, shape, keys: Keys::default(), refusal: Refusal::empty(), environment: Vec::new() };
     reader.table(spanned.get_ref(), &Value::Table(decoded.clone()), "");
     reader.groups(&decoded);
     if !reader.refusal.problems.is_empty() {
         return Err(reader.refusal);
     }
-    let file = file(&decoded, reader.environment);
+    let mut file = file(&decoded, reader.environment);
+    if let Some(base) = base
+        && !replaces_environment
+    {
+        file.environment.clone_from(&base.environment);
+    }
     reader.keys.record_rows(shape, &file, facts);
     let document = document::build(&file, shape, facts)?;
     Ok(Read { file, document, keys: reader.keys })

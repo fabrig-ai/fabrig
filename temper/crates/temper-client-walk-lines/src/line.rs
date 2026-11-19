@@ -61,11 +61,8 @@ impl Document {
     }
     /// Relative to the scratch directory (testing/qa/deployment.md, 3).
     #[must_use]
-    pub fn path(self) -> &'static str {
-        match self {
-            Self::Engine => "config/engine/temper.json",
-            Self::Worker => "config/worker/temper.json",
-        }
+    pub fn path(self) -> std::path::PathBuf {
+        std::path::Path::new("config").join(self.name()).join(temper_config_shell::FILE)
     }
 }
 /// Names substituted only in ctl arguments (client/drive.md, 3.4).

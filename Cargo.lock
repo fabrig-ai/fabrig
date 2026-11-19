@@ -5962,6 +5962,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-web",
  "jig-client-test-records",
+ "jig-protocol-config",
  "serde_json",
  "sha2",
  "skein-browser",
@@ -5983,8 +5984,11 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-client-walk-lines",
+ "temper-config-shell",
+ "temper-engine-service-startup",
  "temper-fake",
  "temper-shell",
+ "temper-worker-service",
 ]
 
 [[package]]
@@ -6318,6 +6322,7 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+ "temper-config-shell",
 ]
 
 [[package]]
@@ -7793,6 +7798,7 @@ dependencies = [
  "sha2",
  "skein-scratch",
  "skein-shell",
+ "temper-config-shell",
  "temper-test-env",
 ]
 
@@ -7899,6 +7905,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "temper-config-shell",
  "temper-engine-service",
  "temper-engine-shell",
  "temper-service-core",

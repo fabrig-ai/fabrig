@@ -20,7 +20,7 @@ fn place_names_render_only_string_values() {
         "cue": "changes/{pull}.md {other} {place.clients}/{place.clients}",
         "plain": [null, true, false, 1.234567890123456789e+42]
     }"#;
-    let rendered = render("engine.json", input, &place).expect("place names");
+    let rendered = render("model.json", input, &place).expect("place names");
     assert_eq!(
         json(&rendered),
         json!({
@@ -32,8 +32,8 @@ fn place_names_render_only_string_values() {
         })
     );
     assert!(rendered.windows(b"1.234567890123456789e+42".len()).any(|bytes| bytes == b"1.234567890123456789e+42"));
-    let why = render("worker.json", br#"{"value":"{place.missing}"}"#, &place).expect_err("unknown name");
-    assert!(why.contains("worker.json") && why.contains("missing"), "{why}");
+    let why = render("model.json", br#"{"value":"{place.missing}"}"#, &place).expect_err("unknown name");
+    assert!(why.contains("model.json") && why.contains("missing"), "{why}");
     assert!(Place::new([1; 9], "/scratch".into(), "/bin".into(), None).is_err());
     assert!(Place::new([0, 1, 2, 3, 4, 5, 6, 7, 8], "/scratch".into(), "/bin".into(), None).is_err());
     assert!(Place::new(place.ports.array(), "relative".into(), "/bin".into(), None).is_err());
@@ -43,40 +43,48 @@ fn place_names_render_only_string_values() {
 #[test]
 fn bundle_name_renders_the_absolute_bundle_and_requires_it_by_document_name() {
     let mut place = place();
-    let input = br#"{"application":{"clients":{"bundle":"{place.bundle}"}}}"#;
-    let why = render("engine.json", input, &place).expect_err("bundle absent");
-    assert_eq!(why, "engine.json: place name bundle needs --bundle");
+    let input = b"workers = \"{place.workers}\"\n[internal]\nbundle = \"{place.bundle}\"\n";
+    let why = render("engine.toml", input, &place).expect_err("bundle absent");
+    assert!(why.contains("engine.toml") && why.contains("place name bundle needs --bundle"), "{why}");
     place.bundle = Some("/p/bundle".into());
-    assert_eq!(
-        json(&render("engine.json", input, &place).expect("bundle given")),
-        json!({"application":{"clients":{"bundle":"/p/bundle"}}})
-    );
+    let file =
+        configuration("engine", &render("engine.toml", input, &place).expect("bundle given"), Shape::EngineAlone)
+            .expect("file");
+    assert_eq!(file.internal.bundle, Some("/p/bundle".into()));
     assert!(Place::new(place.ports.array(), "/scratch".into(), "/bin".into(), Some("relative".into())).is_err());
 }
 
 #[test]
-fn documents_are_exact_bounded_json_at_prepared_paths() {
+fn documents_are_exact_bounded_files_at_prepared_paths() {
     let place = place();
     let files = [
-        ("engine.json", b"{}".as_slice()),
-        ("worker.json", b"{}".as_slice()),
+        ("engine.toml", b"workers = \"{place.workers}\"\n".as_slice()),
+        ("worker.toml", b"engine = \"{place.workers}\"\nname = \"worker\"\n".as_slice()),
         ("forgejo.json", b"{}".as_slice()),
         ("model.json", b"{}".as_slice()),
         ("providers.json", b"{}".as_slice()),
     ];
     let rendered = documents(&files, &place).expect("deployment documents and kept providers");
+    assert_eq!(rendered[0].0, PathBuf::from("/scratch").join(Document::Engine.path()));
+    assert_eq!(rendered[1].0, PathBuf::from("/scratch").join(Document::Worker.path()));
     assert_eq!(
-        rendered.iter().map(|(path, _)| path.to_str().expect("fixture path")).collect::<Vec<_>>(),
+        rendered.iter().skip(2).map(|(path, _)| path.to_str().expect("fixture path")).collect::<Vec<_>>(),
         [
-            "/scratch/config/engine/temper.json",
-            "/scratch/config/worker/temper.json",
             "/scratch/config/forgejo.json",
             "/scratch/config/model.json",
             "/scratch/data/engine/providers.setting",
-            "/scratch/config/providers.json",
+            "/scratch/config/providers.json"
         ]
     );
-    assert!(rendered.iter().all(|(_, bytes)| json(bytes) == json!({})));
+    assert_eq!(
+        configuration("engine", &rendered[0].1, Shape::EngineAlone).expect("engine").workers,
+        Some("127.0.0.1:4102".parse().expect("socket"))
+    );
+    assert_eq!(
+        configuration("worker", &rendered[1].1, Shape::WorkerAlone).expect("worker").name.as_deref(),
+        Some("worker")
+    );
+    assert!(rendered.iter().skip(2).all(|(_, bytes)| json(bytes) == json!({})));
     for (name, _) in files {
         let missing: Vec<_> = files.iter().copied().filter(|(given, _)| *given != name).collect();
         let why = documents(&missing, &place).expect_err("required document");
@@ -86,13 +94,13 @@ fn documents_are_exact_bounded_json_at_prepared_paths() {
     extra.push(("agent.json", b"{}"));
     assert!(documents(&extra, &place).expect_err("extra file").contains("agent.json"));
     let limit = usize::try_from(DOCUMENT_BYTES).expect("byte bound");
-    let mut full = b"{}".to_vec();
+    let mut full = b"workers = \"127.0.0.1:4102\"\n".to_vec();
     full.resize(limit, b' ');
-    assert_eq!(json(&render("engine.json", &full, &place).expect("at byte bound")), json!({}));
+    render("engine.toml", &full, &place).expect("at byte bound");
     full.push(b' ');
-    for bytes in [full.as_slice(), b"not JSON", b""] {
-        let why = render("engine.json", bytes, &place).expect_err("invalid document");
-        assert!(why.contains("engine.json"), "{why}");
+    for bytes in [full.as_slice(), b"not TOML", b""] {
+        let why = render("engine.toml", bytes, &place).expect_err("invalid document");
+        assert!(why.contains("engine.toml"), "{why}");
     }
 }
 
@@ -140,28 +148,36 @@ fn values_take_output_paths_from_rendered_documents() {
 }
 
 #[test]
-fn merge_is_rfc7396_and_renders_only_the_patch() {
+fn merge_overlays_toml_and_renders_only_the_patch() {
     let place = place();
-    let source = br#"{"a":{"b":1,"c":[1]},"keep":"{place.clients}","replace":1}"#;
-    let patch = br#"{"a":{"c":[2],"b":null},"add":"{place.clients}","replace":{"absent":null,"new":true}}"#;
-    assert_eq!(
-        json(&merge(source, patch, &place).expect("merge")),
-        json!({
-            "a": {"c": [2]}, "keep": "{place.clients}", "add": "127.0.0.1:4101", "replace": {"new": true}
-        })
-    );
-    assert_eq!(json(&merge(b"[]", br#"{"a":null}"#, &place).expect("object patch replaces non-object")), json!({}));
-    for patch in [b"[]".as_slice(), b"null", b"1", b"\"text\"", b"bad"] {
-        assert!(merge(source, patch, &place).expect_err("object patch required").contains("patch"));
+    let source = b"engine = \"127.0.0.1:4102\"\nname = \"{place.clients}\"\n[environment]\nOLD = \"old\"\n";
+    let patch = b"[environment]\nNEW = \"{place.clients}\"\n";
+    let merged = merge(source, patch, &place, Shape::WorkerAlone).expect("merge");
+    let file = configuration("worker", &merged, Shape::WorkerAlone).expect("worker file");
+    assert_eq!(file.name.as_deref(), Some("{place.clients}"));
+    assert_eq!(file.environment, [("NEW".into(), "127.0.0.1:4101".into())]);
+    for patch in [b"[]".as_slice(), b"name = null", b"listen = '127.0.0.1:7100'", b"bad"] {
+        assert!(merge(source, patch, &place, Shape::WorkerAlone).expect_err("valid patch required").contains("patch"));
     }
-    let why = merge(source, br#"{"a":"{place.nope}"}"#, &place).expect_err("patch name");
+    let why = merge(source, b"name = '{place.nope}'", &place, Shape::WorkerAlone).expect_err("patch name");
     assert!(why.contains("patch") && why.contains("nope"), "{why}");
     let limit = usize::try_from(PATCH_BYTES).expect("patch bound");
-    let mut full = b"{}".to_vec();
-    full.resize(limit, b' ');
-    merge(source, &full, &place).expect("patch at bound");
+    let mut full = vec![b' '; limit];
+    merge(source, &full, &place, Shape::WorkerAlone).expect("empty patch at bound");
     full.push(b' ');
-    assert!(merge(source, &full, &place).expect_err("patch past bound").contains("patch"));
+    assert!(merge(source, &full, &place, Shape::WorkerAlone).expect_err("patch past bound").contains("patch"));
+}
+
+#[test]
+fn toml_engine_patches_are_checked_as_the_binary_checks_them() {
+    let place = place();
+    let source = b"workers = '127.0.0.1:4102'\n";
+    let why =
+        merge(source, b"public = 'not an origin'", &place, Shape::EngineAlone).expect_err("invalid public origin");
+    assert!(why.contains(temper_config_shell::FILE) && why.contains("public"), "{why}");
+    let why = render("engine.toml", b"workers = '127.0.0.1:4102'\npublic = 'not an origin'", &place)
+        .expect_err("invalid template origin");
+    assert!(why.contains("engine.toml") && why.contains("public"), "{why}");
 }
 
 #[test]

@@ -93,7 +93,7 @@ fn table(out: &mut String, value: &Table, template: &str, path: &str, shape: Sha
         }
     }
 }
-fn quote(s: &str) -> String {
+pub(super) fn quote(s: &str) -> String {
     let mut out = String::from("\"");
     for c in s.chars() {
         match c {

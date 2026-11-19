@@ -7,14 +7,16 @@ mod parse;
 mod render;
 pub mod rows;
 mod source;
+mod template;
 
 pub use machine::{facts, read};
 pub use pages::{help, reference};
-pub use parse::parse;
+pub use parse::{parse, patch};
 pub use render::render;
 pub use source::{Keys, Refusal};
 use std::{net::SocketAddr, path::PathBuf};
 pub use temper_service_core::startup::Shape;
+pub use template::substitute;
 
 pub const FILE: &str = "temper.toml";
 pub const FORMER: &str = "temper.json";

@@ -1710,7 +1710,7 @@ fn turn_bound_document(path: &std::path::Path, turn: u32, escaped: bool) {
     turn_bound_members(&document, &path.display().to_string(), turn);
 }
 fn template_start(path: &std::path::Path, text: &str) -> serde_json::Value {
-    if path.file_name().is_some_and(|name| name == temper_config_shell::FILE) {
+    if path.extension().is_some_and(|extension| extension == "toml") {
         let mut text = text.to_owned();
         for name in [
             "story.clients",
@@ -1718,9 +1718,13 @@ fn template_start(path: &std::path::Path, text: &str) -> serde_json::Value {
             "story.webhooks",
             "proc.forge.ready.address",
             "proc.engine.ready.workers",
+            "place.clients",
+            "place.workers",
+            "place.webhooks",
         ] {
             text = text.replace(&format!("{{{name}}}"), "127.0.0.1:9");
         }
+        let text = text.replace("{place.bundle}", "/fixture/bundle");
         serde_json::from_slice(
             &support::configuration::parse(text.as_bytes(), temper_config_shell::Shape::EngineAlone).document,
         )
@@ -1927,8 +1931,8 @@ fn turn_bounds() {
     eprintln!("story A: T={turn}");
     for (relative, escaped) in [
         (format!("bin/temper-box/tests/fixtures/cluster-turn/engine/{}", temper_config_shell::FILE), true),
-        ("docs/development/qa/setups/turn-landing/config/engine.json".to_owned(), false),
-        ("docs/development/qa/setups/stock-landing/config/engine.json".to_owned(), false),
+        ("docs/development/qa/setups/turn-landing/config/engine.toml".to_owned(), false),
+        ("docs/development/qa/setups/stock-landing/config/engine.toml".to_owned(), false),
     ] {
         let path = root.join(relative);
         let text = fs::read_to_string(&path).expect("engine-figures fixture");
