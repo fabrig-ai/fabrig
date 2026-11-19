@@ -1953,6 +1953,88 @@ raise SystemExit({code})
         self.assertEqual(json.loads((self.root / 'target/figures-argv.json').read_text()), argv)
         self.assertEqual(calls[-1], (['python3', '-I', '-B', 'tools/tiers/figures.py', *argv], self.root))
 
+    def test_figures_landing_repair_base_and_parent_order(self):
+        """A landing's repair uses its base (tools/pre-pr/design.md, 2, 4)."""
+        budgets = 'tools/tiers/budgets.toml'
+        reasons = ('landed_first', 'landed_second')
+        rows = (('B', 'first', 'skipped'), ('B', 'second', 'skipped'),
+                ('H', 'second', 'passed'), ('H', 'first', 'failed'))
+        for pin, base_parent, verdict in rows:
+            with self.subTest(pin=pin, base_parent=base_parent):
+                self.setUp()
+                self.command('git', 'branch', '-M', 'main')
+                source = Path(__file__).resolve().parents[1] / 'tiers'
+                for name in ('figures.py', 'cpu.py'):
+                    self.write('tools/tiers/' + name, (source / name).read_text())
+                self.write('tools/tiers/layers.toml', 'layers = ["step", "domain", "simulated"]\n')
+                self.write(budgets, '[gate.default]\n')
+                self.write('Cargo.toml', '[workspace]\nmembers = ["api", "client"]\n')
+                self.write('client/Cargo.toml', '[package]\nname = "client"\n')
+                self.write('client/src/lib.rs', 'pub fn client() {}\n')
+                self.pin()
+                fork = self.command('git', 'rev-parse', 'HEAD').strip()
+
+                self.command('git', 'checkout', '-q', '--detach', fork)
+                self.write('api/src/lib.rs', 'pub fn change() {}\n')
+                self.command('git', 'commit', '-qam', 'change head H')
+                old_head = self.command('git', 'rev-parse', 'HEAD').strip()
+
+                self.command('git', 'checkout', '-q', 'main')
+                self.write(budgets, '[gate.default]\n' + ''.join(
+                    f'\n[[gate.default.reasons]]\nbinary = "client::suite"\n'
+                    f'test = "{name}"\ncpu_s = 3\nwhy = "landed test"\n'
+                    for name in reasons))
+                self.write('client/src/landed.rs', 'pub fn landed() {}\n')
+                self.command('git', 'add', '.')
+                self.command('git', 'commit', '-qm', 'landing base B')
+                landing_base = self.command('git', 'rev-parse', 'HEAD').strip()
+
+                parents = ((landing_base, old_head) if base_parent == 'first' else
+                           (old_head, landing_base))
+                self.command('git', 'checkout', '-q', '--detach', parents[0])
+                self.command('git', 'merge', '--no-ff', '-qm', 'repair merge', parents[1])
+                self.write('api/src/repair.rs', 'pub fn repair() {}\n')
+                expected_base = landing_base if pin == 'B' else old_head
+                self.command('git', 'update-ref', 'refs/temper/landing', expected_base)
+
+                with mock.patch.object(PRE_PR, 'code_inputs', wraps=PRE_PR.code_inputs) as inputs:
+                    result, log, calls, _ = self.deliver(packages=('api', 'client'))
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['base'], expected_base, log)
+                self.assertEqual(result, int(verdict == 'failed'), log)
+                delivery_verdict = 'refused' if verdict == 'failed' else 'passed'
+                self.assertIn(f'pre-pr: {delivery_verdict} (base {expected_base}, '
+                              'merge base of refs/temper/landing and HEAD)\n', log)
+                paths = (['api/src/lib.rs', 'api/src/repair.rs'] if pin == 'B' else
+                         ['api/src/repair.rs', 'client/src/landed.rs', budgets])
+                self.assertTrue(inputs.called)
+                for call in inputs.call_args_list:
+                    self.assertEqual(call.args[0], paths)
+                packages = 'api' if pin == 'B' else 'api client'
+                self.assertIn(f'\nlints: {packages}\ntests: {packages}\n', log)
+                figure_calls = [args for args, _ in calls if 'tools/tiers/figures.py' in args]
+                if verdict == 'skipped':
+                    self.assertEqual(figure_calls, [])
+                    self.assertNotIn('pre-pr: figures', log)
+                else:
+                    merged = landing_base if base_parent == 'second' else old_head
+                    self.assertEqual(figure_calls, [
+                        ['python3', '-I', '-B', 'tools/tiers/figures.py', '--base', expected_base,
+                         '--head', record['tree'], '--merged', merged]])
+                    self.assertRegex(log, rf'pre-pr: figures: {verdict}, \d+\.\d{{3}} s\n')
+                    count = len(reasons) if verdict == 'failed' else 0
+                    self.assertIn(f'figures: {count} raised or added since {old_head} and {merged}\n', log)
+                    if verdict == 'passed':
+                        self.assertIn(f'figures: {budgets} unchanged since {landing_base}\n', log)
+                if verdict == 'failed':
+                    for name in reasons:
+                        self.assertIn(f'figure added: default reason client::suite {name}: 3\n', log)
+                    self.assertEqual(record['failures'], [dict(name='figures', key=None, **{'class': 'new'})])
+                else:
+                    self.assertEqual(record['failures'], [])
+                    self.assertNotIn('figure added:', log)
+                self.assertEqual(self.command('git', 'rev-parse', 'refs/temper/landing').strip(), expected_base)
+
     def test_figures_refusal_is_not_inherited(self):
         """A figure refusal is the delivery's (tools/pre-pr/design.md, 4)."""
         output = 'figure raised: default temper domain ceiling: 137.5 to 141.5'
