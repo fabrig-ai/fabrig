@@ -744,11 +744,22 @@ The default, for a project with no prepare command:
   line, the time it first became ready, and joins a later landing once
   its step has settled.
 - **Changes made ready by one event** (a dependency they share ending,
-  one decision's gates) are waiting together: while a change into the
-  train under turn, in no landing and not yet ready, has a due step,
-  which may make it ready, forming that train waits for that step to
-  settle, so they form one landing, never the first alone, and no timer
-  or delay stands in for that settling.
+  one decision's gates) are waiting together: a change into the train
+  under turn, in no landing and not yet ready, whose due step will make
+  it ready, holds that train's forming while that step is due, so they
+  form one landing, never the first alone, and no timer or delay stands
+  in for that settling. Its step will make it ready when it is gating
+  at its head, each blocking gate passed there or its gate's result come
+  back for that step to take in, and no dependency of it pending
+  outside its unit (4.1).
+- **One step at most:** the hold lasts that one step. A change whose
+  step ends with it not ready holds no more while it stays gating at
+  that head, whatever wakes it again. The running engine remembers
+  that, unstored, so after a restart such a change may hold for one more
+  step. No other due step holds a train:
+  not a change still checking or producing, gating with a gate
+  outstanding, kept by a pending dependency, or already waiting (left
+  out, above).
 - **Each train on its own:** a change's step or wake holds or leaves out
   only its own train's forming; other trains settle and form
   independently.
@@ -1039,8 +1050,3 @@ them (`../testing/qa/setups.md`, 6).
   more.
 - **A gate for a goal's branch's train:** none here (7.1); a project
   that wants one names it when one does.
-- **What holds a forming** while a change not yet ready steps (9):
-  every such change with a due step, as here; only one whose due step
-  makes it ready (its gates passed, no dependency pending); or none, so
-  that changes made ready by one event may form apart. Asked of the
-  user, 2026-11-19.
