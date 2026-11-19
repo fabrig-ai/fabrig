@@ -133,8 +133,14 @@ writes only `slots`.
   lower `fleet.slots` by the same rule. The
   engine's document needs neither `fleet.slots` nor `hub.slots`, and an
   override of either is still read.
-- **A box's worker** is admitted at its document's `slots`, which the
-  start checks against the ceiling, as today.
+- **A worker's own link** caps its output at a u32 too: its places
+  times a run's turns, calls and asks, past 147 MB a place at the stock
+  (8 turns of 18,431,842 bytes), so it holds fewer places than
+  `fleet.slots`. A worker whose places pass it refuses its start,
+  naming its figures (`figures.md`, section 3, step 5).
+- **A box's worker** is built and admitted at its setting `local`'s
+  places, kept in its data directory (`figures.md`, section 4); its
+  document's `slots` gives none.
 
 ### 5.4 From `live_goals`
 

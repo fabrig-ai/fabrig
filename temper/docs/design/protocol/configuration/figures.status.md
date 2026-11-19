@@ -4,5 +4,5 @@
 
 
 
-- **Not yet:** 3 and 4: a worker's places are its setting's alone, the box's worker built at `fleet.slots` and admitted at `local`'s places [in flight: change 9598].
+- **Not yet:** 3 and 4: a worker's places are its setting's alone, the box's worker built at `local`'s places, kept in `local.setting`, and admitted at them [in flight: change 9598].
 - **Not yet:** 6: `[programs]` `claude` and `git` taking the place of the found ones [in flight: change 9610].

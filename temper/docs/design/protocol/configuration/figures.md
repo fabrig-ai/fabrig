@@ -126,16 +126,22 @@ filled so:
   as at every worker's.
 - **Its places are its setting `local`'s** (`../cluster.md`, section
   1), 4 by default. The box builds its worker before its store opens,
-  so it builds it at its engine's `fleet.slots`, the most places a
-  worker takes, its hub's slots, workspaces and git operations sized
-  so; its engine admits it at `local`'s places, as it admits every
-  worker at the smaller of its setting's places and its hello's
-  (`../../draft/config.md`, 6.7). So the box runs `local`'s places at
-  once, and a change of them applies at the box's next start. The
-  start's document's `slots` gives none (`file.md`, section 4). Where
-  building at `fleet.slots` would allocate for each slot ahead of its
-  use, the box keeps `local`'s places in its data directory as it keeps
-  `agents.setting`, and builds at them.
+  so it keeps that setting in its data directory as it keeps
+  `agents.setting`: `local.setting`, the setting's value, written by
+  its engine whenever the setting changes and after each restore where
+  the file isn't the store's value, whole and renamed into place. Its
+  start builds its worker at the file's places, its hub's slots,
+  workspaces and git operations sized so; with no file, the default's
+  4; a file that doesn't decode is logged, and the default is used. Its
+  engine admits it as it admits every worker, at the smaller of its
+  setting's places and its hello's (`../../draft/config.md`, 6.7). So a
+  change of `local`'s places applies at the box's next start. The
+  start's document's `slots` gives none (`file.md`, section 4).
+- **It isn't built at `fleet.slots`:** a worker's own link caps its
+  output at a u32, its places times a run's turns, calls and asks, and
+  at the stock's 8 turns of 18,431,842 bytes a place passes 147 MB, so
+  32 places pass the cap and a box built at them couldn't start
+  (`derived.md`, 5.3).
 - **Its in-process link** hears its figures as any worker's does. One
   that differs is logged the same way (3, step 6).
 - **Its agent configuration** is written and pinned as a worker alone's
