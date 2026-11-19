@@ -6585,6 +6585,7 @@ name = "temper-engine-domain-forge-vocabulary"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
+ "jig-domain-authority",
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
