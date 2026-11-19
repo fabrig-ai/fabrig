@@ -103,7 +103,7 @@ Every limit application.limits.overrides takes: its unit, the stock's value and 
 - `forge.brief_sections`: count, 40. Bounds forge brief sections gathered at once.
 - `forge.brief_bytes`: bytes, 131,584. Bounds bytes retained for one gathered forge brief section.
 - `forge.tiers.tiers`: count, 2. Bounds tiers retained per repository.
-- `forge.tiers.failing_tests`: count, 16. Bounds failing tests reported per tier run.
+- `forge.tiers.failing_tests`: count, 64. Bounds failing tests reported per tier run.
 - `forge.tiers.test_id_bytes`: bytes, 512. Bounds a failing test's identifier in a tier's report.
 - `forge.sitting_ms`: milliseconds, 1,800,000. Sets the gap between a person's sittings on Home.
 - `forge.queue_window_ms`: milliseconds, 30,000. Sets the time allowed to gather a landing queue.

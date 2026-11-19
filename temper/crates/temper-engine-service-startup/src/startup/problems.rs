@@ -15,6 +15,7 @@ pub enum EngineWhat {
     OldAgentCommand,
     NoWebhooks,
     TierChanges { count: u32, bound: u32, ceiling: u32 },
+    TierFailingTests { count: u32, bound: u32 },
     TestIdBytes { bytes: u32, bound: u32 },
     StorePage { transcript: u32, frame: u32, page: u32, ceiling: u32 },
     StoreMap(jig_protocol_store::sizes::SizeRefusal),
@@ -57,7 +58,7 @@ fn words(what: EngineWhat) -> &'static [u8] {
         EngineWhat::LandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule",
         EngineWhat::ProjectLandingStored => b"landing rules live in the store; read them with temper ctl settings show landing-rule --project",
         EngineWhat::CharterStored => b"the forge's charters live in the store; read them with temper ctl settings show forge-charter 1",
-EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
+EngineWhat::FigureEndpoints { .. } | EngineWhat::FleetGrace { .. } | EngineWhat::Room(_) | EngineWhat::Stock(_) | EngineWhat::TierChanges { .. } | EngineWhat::TierFailingTests { .. } | EngineWhat::TestIdBytes { .. } | EngineWhat::StorePage { .. } | EngineWhat::StoreMap(_) | EngineWhat::StoreTask { .. } | EngineWhat::Admission { .. } => b"",
  }
 }
 fn redirect_listener(listener: super::Listener, writer: &mut Writer, length: &mut usize, measuring: bool) {
@@ -165,6 +166,11 @@ fn stock(floor: crate::stock::Floor, writer: &mut Writer, length: &mut usize, me
     put(writer, length, measuring, unit);
     put(writer, length, measuring, b"; raise it in engine.limits.overrides");
 }
+fn past_bound(value: u32, bound: u32, writer: &mut Writer, length: &mut usize, measuring: bool) {
+    put(writer, length, measuring, Decimal::of(u64::from(value)).as_bytes());
+    put(writer, length, measuring, b", past its bound of ");
+    put(writer, length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+}
 fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
     let mut length = 0_usize;
     for problem in &problems.problems {
@@ -207,9 +213,7 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
             EngineWhat::Room(short) => put(writer, &mut length, measuring, &short.words()),
             EngineWhat::Stock(floor) => stock(floor, writer, &mut length, measuring),
             EngineWhat::TierChanges { count, bound, ceiling } => {
-                put(writer, &mut length, measuring, Decimal::of(u64::from(count)).as_bytes());
-                put(writer, &mut length, measuring, b", past its bound of ");
-                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
+                past_bound(count, bound, writer, &mut length, measuring);
                 put(
                     writer,
                     &mut length,
@@ -219,11 +223,18 @@ fn render(problems: &Problems, writer: &mut Writer, measuring: bool) -> usize {
                 put(writer, &mut length, measuring, Decimal::of(u64::from(ceiling)).as_bytes());
                 put(writer, &mut length, measuring, b")");
             }
+            EngineWhat::TierFailingTests { count, bound } => {
+                past_bound(count, bound, writer, &mut length, measuring);
+                put(
+                    writer,
+                    &mut length,
+                    measuring,
+                    b", the most a finding's signature holds of a tier's failing tests",
+                );
+            }
             EngineWhat::TestIdBytes { bytes, bound } => {
-                put(writer, &mut length, measuring, Decimal::of(u64::from(bytes)).as_bytes());
-                put(writer, &mut length, measuring, b", past its bound of ");
-                put(writer, &mut length, measuring, Decimal::of(u64::from(bound)).as_bytes());
-                put(writer, &mut length, measuring, b", the most the store holds of a failing test's id");
+                past_bound(bytes, bound, writer, &mut length, measuring);
+                put(writer, &mut length, measuring, b", the most a finding's signature holds of a test's id");
             }
             EngineWhat::StorePage { frame, ceiling, .. } => {
                 store_page(frame, ceiling, writer, &mut length, measuring);

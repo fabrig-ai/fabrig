@@ -202,7 +202,16 @@ fn configured_limits(
         limits.checkout = shared.checkout;
         limits.git_component = shared.git_component;
     }
-    // Both runtime startup and offline store readers pass here before sizing the store.
+    tier_bounds(&limits, problems);
+    // Pass the resolved client capacity once, including the profile default.
+    handed
+        .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
+        .expect("bounded setup inputs");
+    Some(limits)
+}
+
+// Both runtime startup and offline store readers check these before sizing the store.
+fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
     let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
     if limits.forge.changes > bound {
         problems.push(
@@ -214,18 +223,20 @@ fn configured_limits(
             }),
         );
     }
-    let bound = temper_protocol_store::test_id_ceiling();
+    let bound = temper_engine_domain_forge::FindingSignature::IDS;
+    if limits.forge.tiers.failing_tests > bound {
+        problems.push(
+            super::checks::own(b"forge.tiers.failing_tests"),
+            What::Half(crate::startup::EngineWhat::TierFailingTests { count: limits.forge.tiers.failing_tests, bound }),
+        );
+    }
+    let bound = temper_engine_domain_forge::FindingSignature::ID_BYTES;
     if limits.forge.tiers.test_id_bytes > bound {
         problems.push(
             super::checks::own(b"forge.tiers.test_id_bytes"),
             What::Half(crate::startup::EngineWhat::TestIdBytes { bytes: limits.forge.tiers.test_id_bytes, bound }),
         );
     }
-    // Pass the resolved client capacity once, including the profile default.
-    handed
-        .push((bytes::copy_of(b"forge.client.repositories"), u64::from(limits.forge.client.repositories)))
-        .expect("bounded setup inputs");
-    Some(limits)
 }
 fn workers(document: &Document, directories: &config::Directories, problems: &mut Problems) -> List<Worker> {
     let count = match super::member(document, 0, b"workers") {
