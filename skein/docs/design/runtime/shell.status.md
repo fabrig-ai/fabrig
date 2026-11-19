@@ -32,7 +32,6 @@ fixtures (`temper/docs/design/testing/tools.md`); temper's remaining binaries
 are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
 
 - **Not yet:** 14.4: `Table::reach`, `Reached` and `Table::unknown`.
-- **Not yet:** 6.1: `host_name()`, the host's name through `uname`, once in `posix`. [in flight: change 10337]
 - **Not yet:** 6: the configured peer names resolved at startup (step 5).
   6.4: the helper's dispatch and the startup check, `Kernel::can_restrict`.
   [in flight: change 9014]
