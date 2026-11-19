@@ -38,7 +38,10 @@ impl Rig {
                         assert_eq!(Some(&load), self.requests.next_load.as_ref(), "reloaded page's fetch");
                     }
                 } else if url.ends_with(b"/request-leave") {
-                    assert!(self.requests.next_load.is_some(), "pagehide's request follows the new document's Sent");
+                    assert!(
+                        self.requests.next_load.is_some(),
+                        "the leaving document's request follows the new document's Sent"
+                    );
                     assert_eq!(Some(&load), self.requests.first_load.as_ref(), "keepalive keeps the leaving load");
                     self.requests.keepalive = true;
                 } else {

@@ -386,6 +386,25 @@ pub fn stock() -> Limits {
         },
     }
 }
+/// The one deployment store base (configuration/limit-settings.md, 3).
+/// Typed bases retain their profile's ceilings; the stock's value and page
+/// ceilings give way to the layout, which fills them with its computed needs.
+pub fn store_base(
+    typed: Option<(&jig_protocol_config::Limits, &Limits)>,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(jig_protocol_config::Limits, Limits), jig_protocol_config::Problem> {
+    use temper_service_core::derived;
+    if let Some((jig, own)) = typed {
+        return Ok((*jig, *own));
+    }
+    let (mut jig, own) = base(derived::STORE_LIVE_GOALS, derived::STOCK.payload, sources)?;
+    jig.store.store.value = u32::MAX;
+    jig.store.store.page.bytes = u32::MAX;
+    jig.store.secrets.value = u32::MAX;
+    jig.store.secrets.page.bytes = u32::MAX;
+    Ok((jig, own))
+}
+
 /// Steps 1–3 of configuration/derived.md, 4, shared by both document readers.
 pub fn base(
     live_goals: u32,

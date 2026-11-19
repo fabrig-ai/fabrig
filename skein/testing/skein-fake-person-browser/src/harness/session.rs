@@ -164,6 +164,7 @@ impl Pump {
                 env.push((OsStr::from_bytes(&entry.name).into(), OsStr::from_bytes(&entry.value).into()));
             }
             let spawn = Spawn {
+                reach: None,
                 program: command.program,
                 args: command.args.into_boxed(),
                 env: env.iter().map(|(key, value)| [key.as_bytes(), b"=", value.as_bytes()].concat().into()).collect(),

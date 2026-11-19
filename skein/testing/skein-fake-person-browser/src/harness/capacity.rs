@@ -85,6 +85,7 @@ mod tests {
                 io::Request::Spawn {
                     owner: Token::new(u64::try_from(index).expect("fixture index")),
                     spawn: Spawn {
+                        reach: None,
                         program: b"fixture".as_slice().into(),
                         args: Box::new([]),
                         env: Box::new([]),

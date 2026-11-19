@@ -49,9 +49,8 @@ pub(crate) struct Tables {
     /// Each entity's deadlines: a close or output write, and a retry.
     pub(crate) deadlines: Deadlines<(Id<Entity>, Timer)>,
     pub(crate) ready: Ready,
-    /// The owners of the `Listen`s and `Connect`s refused for want of a
-    /// socket slot, oldest first, until `resume` tells them.
-    pub(crate) refused: Queue<Token>,
+    /// Entrance refusals, oldest first, until `resume` tells the owner why.
+    pub(crate) refused: Queue<(Token, Error)>,
     /// Accepts armed in this iteration, against `Limits::accepts`.
     pub(crate) armed: u32,
     /// The process resource read, independently of entity admission.
@@ -444,8 +443,8 @@ impl Ready {
 /// `Connecting`; an open stream is delivered what its demand asked for;
 /// an idle listener arms its accept.
 pub fn resume(io: &mut Io, env: &Env<Limits>, up: &mut Queue<Event>, subs: &mut Queue<Submit>) {
-    if let Some(owner) = io.tables.refused.pop() {
-        up.push(Event::Failed { owner, error: Error::Busy });
+    if let Some((owner, error)) = io.tables.refused.pop() {
+        up.push(Event::Failed { owner, error });
         up.push(Event::Closed { owner });
         return;
     }
@@ -493,7 +492,7 @@ pub fn up(io: &mut Io, env: &Env<Limits>, complete: Complete, up: &mut Queue<Eve
             assert_eq!(io.tables.usage.take(), Some(flight), "one process usage operation");
             let usage = match result {
                 Ok(Done::Usage(usage)) => Measured::Read(usage),
-                Err(kernel::Error::Other(_)) => Measured::Unread,
+                Err(kernel::Error::Reach(_) | kernel::Error::Other(_)) => Measured::Unread,
                 Ok(
                     Done::Nothing
                     | Done::Count(_)
@@ -689,7 +688,7 @@ fn listen(io: &mut Io, owner: Token, addr: Addr, subs: &mut Queue<Submit>) {
         return;
     }
     let Ok(id) = io.entities.insert(Entity::Listener(listener::opened(owner, addr))) else {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     };
     let _socket: Id<Flight> = io.tables.submit(subs, id, Purpose::Socket, Op::Socket { family: Family::of(&addr) });
@@ -704,7 +703,7 @@ fn connect(io: &mut Io, owner: Token, addr: Addr, subs: &mut Queue<Submit>) {
         }
     };
     let Ok(id) = io.entities.insert(Entity::Stream(stream::opened(owner, addr))) else {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     };
     // Connecting is told from the ready list, before the socket's completion.

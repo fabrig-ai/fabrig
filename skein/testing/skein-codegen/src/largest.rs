@@ -2,7 +2,7 @@
 
 use alloc::collections::{BTreeMap, BTreeSet};
 
-use crate::{Declaration, Enumeration, Error, Record, Schema, Type, analysis::Context, emit_limits};
+use crate::{Declaration, Enumeration, Error, Record, Schema, Type, Variant, analysis::Context, emit_limits};
 
 fn name(declaration: &Declaration) -> &str {
     match declaration {
@@ -56,26 +56,30 @@ pub fn roots(schema: &Schema) -> Vec<String> {
 /// Returns an error for an unknown declaration, a wrong number of limits, or a
 /// limit above its schema ceiling. The schema must have been validated by [`crate::parse`].
 pub fn largest(schema: &Schema, declaration: &str, limits: &[u32]) -> Result<Vec<u8>, Error> {
-    if !schema.declarations.iter().any(|candidate| name(candidate) == declaration) {
-        return Err(Error { line: 0, message: format!("unknown declaration {declaration}") });
-    }
     let context = Context::new(schema);
-    if limits.len() != context.bounds.len() {
-        return Err(Error {
-            line: 0,
-            message: format!("expected {} limits, got {}", context.bounds.len(), limits.len()),
-        });
-    }
-    let mut bounds = BTreeMap::new();
-    for ((name, ceiling, _), limit) in context.bounds.iter().zip(limits) {
-        if limit > ceiling {
-            return Err(Error { line: 0, message: format!("limit {name} is {limit}, above ceiling {ceiling}") });
-        }
-        bounds.insert(name.as_str(), *limit);
-    }
-    let mut builder = Builder { context: &context, bounds, values: BTreeMap::new() };
+    let mut builder = Builder::new(&context, declaration, limits)?;
     builder.build(declaration);
     Ok(builder.values.remove(declaration).expect("built declaration"))
+}
+
+/// Each variant's largest encoding in schema order, or a record's single largest encoding.
+/// Nested enumerations use the longest encoding, as [`largest`] does.
+///
+/// # Errors
+/// Returns an error for an unknown declaration, a wrong number of limits, or a
+/// limit above its schema ceiling. The schema must have been validated by [`crate::parse`].
+pub fn largest_variants(schema: &Schema, declaration: &str, limits: &[u32]) -> Result<Vec<Vec<u8>>, Error> {
+    let context = Context::new(schema);
+    let mut builder = Builder::new(&context, declaration, limits)?;
+    match context.declaration(declaration) {
+        Declaration::Record(record) => Ok(vec![builder.record(record)]),
+        Declaration::Enum(enumeration) => Ok(enumeration
+            .variants
+            .iter()
+            .enumerate()
+            .map(|(index, variant)| builder.variant(index, variant))
+            .collect()),
+    }
 }
 
 struct Builder<'a> {
@@ -84,7 +88,27 @@ struct Builder<'a> {
     values: BTreeMap<String, Vec<u8>>,
 }
 
-impl Builder<'_> {
+impl<'a> Builder<'a> {
+    fn new(context: &'a Context<'a>, declaration: &str, limits: &[u32]) -> Result<Self, Error> {
+        if !context.declarations.iter().any(|candidate| name(candidate) == declaration) {
+            return Err(Error { line: 0, message: format!("unknown declaration {declaration}") });
+        }
+        if limits.len() != context.bounds.len() {
+            return Err(Error {
+                line: 0,
+                message: format!("expected {} limits, got {}", context.bounds.len(), limits.len()),
+            });
+        }
+        let mut bounds = BTreeMap::new();
+        for ((name, ceiling, _), limit) in context.bounds.iter().zip(limits) {
+            if limit > ceiling {
+                return Err(Error { line: 0, message: format!("limit {name} is {limit}, above ceiling {ceiling}") });
+            }
+            bounds.insert(name.as_str(), *limit);
+        }
+        Ok(Self { context, bounds, values: BTreeMap::new() })
+    }
+
     // Named values are built once, including payloads inspected while choosing a variant.
     fn build(&mut self, name: &str) {
         if self.values.contains_key(name) {
@@ -127,10 +151,19 @@ impl Builder<'_> {
                 longest = length;
             }
         }
-        let mut bytes = Vec::with_capacity(longest.checked_add(1).expect("checked ceiling"));
-        bytes.push(u8::try_from(chosen).expect("at most 256 variants"));
-        if let Some(name) = &enumeration.variants.get(chosen).expect("enum nonempty").record {
-            bytes.extend_from_slice(self.values.get(name).expect("built payload"));
+        self.variant(chosen, enumeration.variants.get(chosen).expect("enum nonempty"))
+    }
+
+    fn variant(&mut self, index: usize, variant: &Variant) -> Vec<u8> {
+        let payload = variant.record.as_ref().map(|name| {
+            self.build(name);
+            self.values.get(name).expect("built payload")
+        });
+        let length = payload.map_or(0, Vec::len).checked_add(1).expect("checked ceiling");
+        let mut bytes = Vec::with_capacity(length);
+        bytes.push(u8::try_from(index).expect("at most 256 variants"));
+        if let Some(payload) = payload {
+            bytes.extend_from_slice(payload);
         }
         bytes
     }

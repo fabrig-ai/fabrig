@@ -52,6 +52,7 @@ pub fn spawn_of(command: &Command) -> Spawn {
         pipes.insert(0, Pipe { child: 0, way: Way::In, parent: None });
     }
     Spawn {
+        reach: None,
         program: b"/usr/bin/git".as_slice().into(),
         args: invocation::arguments(command),
         env: invocation::environment(b"/worker/home", kind, Some(&identity())),

@@ -198,9 +198,13 @@ def configuration(config, profile, env, limits, caller_filter):
             raise ValueError('slow-timeout terminate-after is unsupported')
     compiled = []
     for override in overrides:
-        for key in ('threads-required', 'run-extra-args', 'platform'):
+        for key in ('threads-required', 'run-extra-args'):
             if key in override:
                 raise ValueError(f'unsupported override {key}')
+        if 'platform' in override:
+            if 'priority' in override or 'test-group' in override:
+                raise ValueError('unsupported override platform')
+            continue
         compiled.append((filterset(override['filter']), override))
     default_filter = None if caller_filter else filterset(merged.get('default-filter', 'all()'))
     groups = {name: value['max-threads'] for name, value in data.get('test-groups', {}).items()}

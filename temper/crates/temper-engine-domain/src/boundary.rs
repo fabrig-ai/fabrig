@@ -1234,6 +1234,7 @@ pub(crate) enum Work {
     ProposalLoaded { waiter: Token, rows: Box<[Record]> },
     ProposalFailed { waiter: Token },
     TaskProposalLoaded { waiter: Token, rows: Option<Box<[Record]>> },
+    EndedLoad { waiter: Token, task: u64 },
     EndedLoaded { waiter: Token, rows: Box<[Record]> },
     ChangeFromLoaded { task: u64, row: Option<Box<jig_domain_tasks::TaskRecord>> },
     EndedFailed { waiter: Token },

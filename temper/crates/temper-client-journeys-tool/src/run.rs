@@ -184,7 +184,7 @@ pub(crate) fn addition(added: &crate::Added, is_tui: bool) -> String {
 
 fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentEntry]) -> Result<(), String> {
     let is_tui = Path::new(TUI_JOURNEYS).join(name).join("walk").exists();
-    let steps = starting(name, is_tui)?;
+    let steps = starting(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, is_tui)?;
     let horizon = if is_tui { tui_again::HORIZON } else { again::HORIZON };
     record_walk(name, steps, prepared, &scratch_base(prepared), horizon, None, environment)
         .and_then(|scratch| remove_scratch(name, &scratch).map_err(Stopped::from))
@@ -197,16 +197,22 @@ fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentE
         })
 }
 
-fn starting(name: &str, is_tui: bool) -> Result<Option<tui_again::Starting>, String> {
+pub(crate) fn starting(
+    web: &Path,
+    tui: &Path,
+    name: &str,
+    is_tui: bool,
+) -> Result<Option<tui_again::Starting>, String> {
     if !named(name) {
         return Err(refusal(Refusal::Name(name.to_owned())));
     }
+    crate::refuse_moved(web, tui, name).map_err(refusal)?;
     // Validate a walk before its children start; `again` also validates before its build.
     if is_tui {
-        tui_again::starting(Path::new(TUI_JOURNEYS), Path::new(JOURNEYS), name).map(Some).map_err(refusal)
+        tui_again::starting(tui, web, name).map(Some).map_err(refusal)
     } else {
-        let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
-        let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
+        let _steps = again::starting(web, name).map_err(refusal)?;
+        let _setup = again::setup(web, name).map_err(refusal)?;
         Ok(None)
     }
 }
@@ -346,7 +352,8 @@ fn pages(options: &PageOptions, started: Instant, environment: &[EnvironmentEntr
                 (None, Some(Err(stopped))) => return Err(stopped.clone()),
                 (None, None) => return Err(bound.expect("unbuilt inputs need an expired bound").not_walked()),
             };
-            let steps = starting(&journey.name, journey.client == Client::Tui)?;
+            let steps =
+                starting(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), &journey.name, journey.client == Client::Tui)?;
             let own = match journey.client {
                 Client::Web => again::HORIZON,
                 Client::Tui => tui_again::HORIZON,
@@ -518,6 +525,7 @@ pub(crate) fn reprint_roots(
             let entry = entry.map_err(|_| format!("cannot read {}", journeys.display()))?;
             let path = entry.path();
             if entry.file_type().map_err(|_| format!("cannot read {}", path.display()))?.is_dir()
+                && !crate::moved(&path).map_err(refusal)?
                 && path.join("recording").is_file()
             {
                 names.push(entry.file_name());
@@ -550,6 +558,7 @@ pub(crate) fn refusal(why: Refusal) -> String {
         }
         Refusal::TuiAgain { name, step, report } => format!("{name} at step {step}: {report}"),
         Refusal::OtherClient { name } => format!("{name} belongs to the other client's journey directory"),
+        Refusal::Moved { name } => format!("{name} has a walk of version 2; use temper-client-walk"),
         Refusal::TuiProof { name, refusal } => match refusal {
             temper_client_shell_tui::journey::Refusal::Unreadable(why) => {
                 format!("{name} is unreadable at line {}: {}", why.line, why.why)

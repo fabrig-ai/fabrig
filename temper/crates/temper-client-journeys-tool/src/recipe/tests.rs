@@ -6,6 +6,18 @@ use std::{
     path::Path,
 };
 
+#[test]
+fn web_mark_is_refused_at_its_recipe_line() {
+    let mut files = Files::new();
+    for prefix in ["", "web see \"Ready\"\n", "check\n"] {
+        put(&mut files, "a", "recipe", format!("recipe 1\n{prefix}web mark\nweb see \"Hi\"\n").as_bytes());
+        let error = read(&files, "a").expect_err("journey line in a recipe");
+        assert_eq!(error.name, "a");
+        assert_eq!(error.line, Some(if prefix.is_empty() { 2 } else { 3 }));
+        assert_eq!(error.why, "web mark is a journey's line");
+    }
+}
+
 type Files = BTreeMap<String, BTreeMap<OsString, Vec<u8>>>;
 fn put(files: &mut Files, name: &str, file: &str, bytes: &[u8]) {
     files.entry(name.into()).or_default().insert(file.into(), bytes.into());

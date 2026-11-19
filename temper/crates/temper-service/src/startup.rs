@@ -45,8 +45,8 @@ pub use application::sign_in::{Endpoints, SignIn, url as sign_in_url};
 pub use application::{Forge, Identity, Transport, USER_BYTES, User};
 pub use checks::redirect_ports;
 use jig_protocol_config::{self as config, Path, Segment, read};
-use temper_engine_service::startup::{checked_store, engine_limits, prepare_forges};
 pub use temper_engine_service::startup::{engine, engine_over, engine_with, fixed, fleet_grace, worker_fleet_grace};
+use temper_engine_service::startup::{engine_limits, prepare_forges};
 
 pub use problems::{Problem, Problems, What, lines};
 use skein_lib::List;
@@ -261,9 +261,13 @@ fn store_limits_over(
             return Err(problems);
         }
     }
-    let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits, parsed.engine.memory)?;
-    let store = checked_store(&root, &parsed.engine.limits.store, None)?;
-    Ok(StoreLimits { store, forge: root.forge })
+    let sources = if parsed.workers.is_empty() { temper_service_core::derived::STOCK } else { sources };
+    let typed = match limits {
+        Some(_) => Some((&parsed.engine.limits, &parsed.application.limits)),
+        None => None,
+    };
+    let store = temper_engine_service::startup::deployment_store(typed, sources)?;
+    Ok(StoreLimits { store: store.store, forge: store.forge })
 }
 
 #[derive(Debug)]
@@ -813,7 +817,7 @@ pub fn checked_start_with(
     given: &crate::stock::Given,
     git: Option<&[u8]>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None, None, None)
+    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None, None, None, None)
 }
 /// Check a start with a world's typed jig and temper limits instead of the stock.
 #[expect(
@@ -844,6 +848,7 @@ pub fn checked_start_with_limits(
         given,
         git,
         Some((jig, own)),
+        None,
         None,
         None,
     )
@@ -880,6 +885,7 @@ pub fn checked_start_with_resolved(
         Some((&resolved.jig, &resolved.temper)),
         Some(&resolved.temper),
         part,
+        Some(&resolved.store),
     )
 }
 #[expect(clippy::too_many_arguments, reason = "the box supplies its applied worker beside the checked engine inputs")]
@@ -895,7 +901,7 @@ fn checked_start_using(
     git: Option<&[u8]>,
     part: Option<WorkerPart>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None, None, part)
+    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, git, None, None, part, None)
 }
 #[expect(
     clippy::too_many_arguments,
@@ -915,6 +921,7 @@ fn checked_start_over(
     limits: Option<(&config::Limits, &crate::limits::Limits)>,
     worker_limits: Option<&crate::limits::Limits>,
     part: Option<WorkerPart>,
+    envelope: Option<&jig_protocol_store::Limits>,
 ) -> Result<CheckedStart, Problems> {
     let sources = match agent {
         Some(agent) => temper_service_core::derived::Sources::agent(&agent.declaration()),
@@ -1026,6 +1033,20 @@ fn checked_start_over(
     let shared = crate::limits::worker(worker_own);
     let worker = checked_worker(parsed.workers, parsed.application.workers, &parsed.engine, worker_own, agent)?;
 
+    let store_limits = match envelope {
+        Some(store) => *store,
+        None => {
+            let sources = match &declaration {
+                Some(agent) => temper_service_core::derived::Sources::agent(agent),
+                None => temper_service_core::derived::STOCK,
+            };
+            let typed = match limits {
+                Some(_) => Some((&parsed.engine.limits, &parsed.application.limits)),
+                None => None,
+            };
+            temper_engine_service::startup::deployment_store(typed, sources)?.store
+        }
+    };
     let mut engine = settings::Engine {
         landing_held: false,
         setups: Box::new([]),
@@ -1057,6 +1078,7 @@ fn checked_start_over(
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
         limits: parsed.application.limits,
+        store_limits: Some(store_limits),
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
     if let Some(&connector) = core.connectors.first() {
@@ -1075,7 +1097,10 @@ fn checked_start_over(
     if let Some(agent) = &declaration {
         turn = Some(agent.turn_body);
     }
-    checked_store(&root, &engine.jig.limits.store, turn)?;
+    let envelope = engine.store_limits.expect("checked deployment envelope");
+    if let Err(why) = crate::store::admit(&root, &root.forge, &envelope, turn) {
+        return Err(temper_engine_service::startup::checks::store_refusal(why));
+    }
     let io = match &worker {
         Some((worker, _)) => checks::process_io(
             &engine.jig.limits.io,

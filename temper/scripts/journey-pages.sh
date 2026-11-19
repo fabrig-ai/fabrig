@@ -160,6 +160,25 @@ git fetch origin main >&2 || exit 1
 git checkout -B "$branch" origin/main >&2 || exit 1
 tip=$(git rev-parse HEAD) || exit 1
 
+moved=
+for walk in temper/docs/design/client/web/journeys/*/walk temper/docs/design/client/tui/journeys/*/walk; do
+    [ -f "$walk" ] || continue
+    first=
+    IFS= read -r first < "$walk" || :
+    [ "$first" != 'walk 2' ] || moved=yes
+done
+: > "$scratch/print"
+walk_printed=0
+if [ -n "$moved" ]; then
+    {
+        status=0
+        TEMPER_INTERNAL_BUNDLE=none cargo run --locked -p temper-client-walk -- pages || status=$?
+        printf '%s\n' "$status" > "$scratch/exit"
+    } | tee -a "$scratch/print"
+    walk_printed=$(cat "$scratch/exit")
+    case "$walk_printed" in 0 | 1) ;; *) exit 1 ;; esac
+fi
+
 set -- run --locked -p temper-client-journeys -- pages
 [ -z "$prepared" ] || set -- "$@" --prepared "$prepared"
 if [ -n "$within" ]; then
@@ -177,9 +196,10 @@ fi
     printed=0
     TEMPER_INTERNAL_BUNDLE=none cargo "$@" || printed=$?
     printf '%s\n' "$printed" > "$scratch/exit"
-} | tee "$scratch/print"
+} | tee -a "$scratch/print"
 printed=$(cat "$scratch/exit")
 case "$printed" in 0 | 1) ;; *) exit 1 ;; esac
+[ "$walk_printed" != 1 ] || printed=1
 
 # NUL records keep spaces, quoting and newlines in paths unambiguous. Disabling
 # rename detection checks both the deleted and added paths against the same set.

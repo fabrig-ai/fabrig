@@ -169,6 +169,9 @@ fn remove_orphans(root: &Path, client: Client) -> Result<(), Refusal> {
         if !entry.file_type().map_err(|_| io_refusal(&directory))?.is_dir() {
             continue;
         }
+        if crate::moved(&directory)? {
+            continue;
+        }
         let recording = directory.join("recording");
         if recording.try_exists().map_err(|_| io_refusal(&recording))? {
             continue;

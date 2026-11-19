@@ -62,6 +62,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
+        store_limits: None,
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),

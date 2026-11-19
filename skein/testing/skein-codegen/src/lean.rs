@@ -1,4 +1,4 @@
-//! Lean modules (data/codec/README.md, 4; contracts.md, 3).
+//! Lean modules (skein/docs/design/data/codec/README.md, 4).
 
 use crate::{
     Declaration, Output, Schema, Type,
@@ -56,7 +56,7 @@ fn paths(schema: &Schema, out: &mut String) {
         }
         line(&mut names, "    &[");
         for (part, (name, text)) in parts.iter().enumerate() {
-            line(out, &format!("    pub const {name}: Path = Path {{ declaration: {at}, part: {part} }};"));
+            line(out, &format!("    pub const {name}: Path = Path::new({at}, {part});"));
             line(&mut names, &format!("        \"{text}\","));
         }
         line(&mut names, "    ],");
@@ -436,7 +436,10 @@ pub(crate) fn generate(schema: &Schema) -> Output {
     if needs_box {
         line(&mut out, "use alloc::boxed::Box;");
     }
-    line(&mut out, "use skein_lib::List;\nuse skein_codec::field;\npub use skein_codec::{Path, Problem, Record};\n");
+    line(
+        &mut out,
+        "use skein_lib::List;\nuse skein_codec::field;\npub use skein_codec::Record;\npub type Path = skein_codec::Path<Limits>;\npub type Problem = skein_codec::Problem<Limits>;\n",
+    );
     line(&mut out, &format!("pub const VERSION: u16 = {};\n", literal(schema.version)));
     limits(&context, &mut out);
     paths(schema, &mut out);

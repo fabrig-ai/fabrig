@@ -1,14 +1,13 @@
 //! The playground's native world (temper/docs/design/playground.md, 9).
 
-pub mod page;
 pub mod stories;
 
 use skein_lib::Wall;
-use skein_sim_world::{Host, Printed, StateDigests, Stream, World};
-use temper_playground::{machine::Machine, programs::Process, stories::Story};
+use skein_sim_world::{Host, Printed, StateDigests, Stream};
+use temper_playground::{programs::Process, stories::Story};
 
 /// The composition without a harness.
-pub type Playground = World<Process<()>, Machine>;
+pub use temper_client_walk_world::Playground;
 
 // The composition's own startup tests use this step bound.
 const STARTUP_STEPS: u64 = 10_000;

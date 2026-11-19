@@ -284,8 +284,11 @@ For each family:
   `Record.field`, `Record (version)`, `Record (tail)` and `Enum (tag)`,
   so a step can name a refusal's field in its words without formatting
   (`../../../foundation/programming-model.md`, 3). A problem is a path
-  with `skein-codec`'s reason; the module re-exports `skein-codec`'s
-  `Path`, `Problem` and `Record`.
+  with `skein-codec`'s reason, both typed by the family's `Limits`
+  (`pub type Problem = skein_codec::Problem<Limits>`, and `Path` so);
+  the module re-exports `Record`. A `?` carrying one family's refusal
+  into another's result does not compile, so no refusal is named by
+  the wrong family's table.
 
 For each record and enumeration:
 
@@ -334,14 +337,20 @@ For each record and enumeration:
   the most of its declarations'.
 
 ```rust
-// skein_codec; Path and Problem derive Clone, Copy, Debug, equality, Hash
-pub struct Path { pub declaration: u16, pub part: u16 }
-pub struct Problem { pub path: Path, pub reason: Reason }
+// skein_codec; Path and Problem are Clone, Copy, Debug, equality and
+// Hash whatever L is: L, the family's Limits, is a marker, no bytes
+pub struct Path<L> { pub declaration: u16, pub part: u16, /* L */ }
+pub struct Problem<L> { pub path: Path<L>, pub reason: Reason }
+impl<L> Path<L> {
+    pub const fn new(declaration: u16, part: u16) -> Self;
+    pub const fn problem(self, reason: Reason) -> Problem<L>;
+}
 pub trait Record: Sized {
     type Limits;                       // the family's
-    fn measure(&self, limits: &Self::Limits) -> Result<u32, Problem>;
-    fn encode(&self, limits: &Self::Limits) -> Result<Box<[u8]>, Problem>;
-    fn decode(limits: &Self::Limits, reader: &mut Reader<'_>) -> Result<Self, Problem>;
+    fn measure(&self, limits: &Self::Limits) -> Result<u32, Problem<Self::Limits>>;
+    fn encode(&self, limits: &Self::Limits) -> Result<Box<[u8]>, Problem<Self::Limits>>;
+    fn decode(limits: &Self::Limits, reader: &mut Reader<'_>)
+        -> Result<Self, Problem<Self::Limits>>;
     fn encoded_bound(limits: &Self::Limits) -> Option<u64>;
     fn decoded_bound(limits: &Self::Limits) -> Option<u64>;
     // and what a nested value and a frame's writer call, after measuring
@@ -351,7 +360,11 @@ pub trait Record: Sized {
 `decode` reads the whole of its reader, refusing bytes left over.
 `Record` is implemented by generated code alone: hand-written code
 calls it, and makes bytes with `encode`, or with `measure` before a
-frame's writer.
+frame's writer. The helpers' own trait, `Field`, one implementation per
+kind of field, is sealed by a private supertrait, so no crate but
+`skein-codec` implements it. A boundary test refuses an implementation
+of `Record` or `Field` in any file but `skein-codec`'s and a generated
+one.
 
 `generate(schema)` writes one schema version's records' module, and
 nothing else: no tests (section 6). The module holds no bound
@@ -491,9 +504,7 @@ pub fn generate(schema: &Schema) -> Output;
     one with a record, and a `boxed` one;
   - a `bytes` and a `secret` that hold another family's type, and a
     `bytes` and a `secret` of pieces;
-  - a field with a default, and a former name;
-  - the output's shapes: a record whose booleans the generator groups
-    (more than three) and a generated function long enough to split.
+  - a field with a default, and a former name.
 
   A test of the generator fails, naming each, when `every`'s current
   text lacks a construct of the list. Each family's drift test fails,
@@ -517,31 +528,35 @@ pub fn generate(schema: &Schema) -> Output;
   - **memory,** one test per owner over its roots: each root's largest
     value (`largest`) at the ceilings, or under the test's cap at lower
     limits with its bounds at the ceilings pinned, decoded and measured
-    with the counting allocator against its decoded bound (section 4).
+    with the counting allocator against its decoded bound (section 4),
+    a root enumeration once per variant, since its decoded bound is its
+    variants' most.
 
   Their values are built at run time: the fixed-rule values of the
-  schema's text, which the test embeds, the largest values given limits
-  allow, which `largest` builds from it, or values a test writes. A
-  test of an older version builds that
-  version's values from its kept text (`command.md`, 1).
+  schema's text (`values`), the largest values given limits allow, which
+  `largest` builds from it, or values a test writes. A test of an older
+  version builds that version's values from its kept text (`command.md`, 1).
+- **Each text once.** An owner exports each family's current text as a
+  public constant, `SCHEMA`, or `<STEM>_SCHEMA` where it owns several,
+  a split schema's parts concatenated; jig's and temper's stores export
+  theirs in `STORE_FAMILIES` and `OWNER_SET`. Tests name a text by it,
+  never by its file.
 - **No generated tests.** The generator writes no tests and no crate
   keeps a `tests/generated` target: a field's round trip, bounds and
   refusals are its kind's, which `every` and the generic decoder's
   comparison with the generated code (8.3) hold for every family. A
   hand-written test pins what is its own, a projection or a
   translation, with values it builds.
-- **No test target of a library that holds no other tests:** a codec
-  crate whose library holds no tests sets `[lib] test = false`, so a
-  test build compiles its generated code once, as a dependency
-  (`tools/crates/design.md`, 3.4). A crate whose library tests need
-  private items keeps them, as the wires and smith's charter, channel
-  and transcript do.
+- **No test target of a library that holds no other tests:** such a
+  codec crate sets `[lib] test = false`, so a test build compiles its
+  generated code once (`tools/crates/design.md`, 3.4); one whose tests
+  need private items keeps them.
 - **The generator's cost grows with its schema,** not with its square:
   what it needs of a type or a field (its declaration by name, whether a
   type holds bounds, a field's path) is found once per generation. The
   limits are checked against the ceilings once per family, where their
   owner makes them, and once by each worst case asked of them; never in
-  each type, nor in a constructor or a decoder (section 4).
+  each type or decoder (section 4).
 - **Generated files** say so in their first line. They are left out of
   formatting, and pass the workspace's lints: the generator writes what
   the lints accept (functions short enough, no nesting to collapse), and
@@ -580,6 +595,12 @@ pub fn generate(schema: &Schema) -> Output;
   // given in LIMIT_NAMES order
   pub fn largest(schema: &Schema, declaration: &str, limits: &[u32])
       -> Result<Vec<u8>, Error>;
+  // an enumeration's, once per variant in order; a record's, once
+  pub fn largest_variants(schema: &Schema, declaration: &str, limits: &[u32])
+      -> Result<Vec<Vec<u8>>, Error>;
+  // made once per text for the process; a text that fails panics
+  pub struct Values { pub schema: Schema, pub goldens: Vec<Golden> }
+  pub fn values(text: &'static str) -> &'static Values;
   ```
 
   The largest value: each list at its count limit, each item, option
@@ -588,15 +609,11 @@ pub fn generate(schema: &Schema) -> Output;
   whose encoding there is longest, the first of equals. Its bytes are
   computed from the schema alone, as the fixed rule's are.
 
-- **The generator's own tests:**
-  - schemas it refuses: a type used before it is declared, a name used
-    twice, a worst case too large;
-  - small schemas' encodings, compared with byte strings written by hand;
-  - the constructs small schemas use, each construct of the list found
-    in one, and `every`'s current text using each; that text with a
-    construct's uses taken out, `missing` naming it;
-  - `largest`'s bytes for small schemas, compared with byte strings
-    written by hand.
+- **The generator's own tests:** the schemas it refuses (a type used
+  before it is declared, a name used twice, a worst case too large);
+  small schemas' encodings and largest values against bytes written by
+  hand; each construct found in a small schema and in `every`'s text,
+  and `missing` naming one taken out of it.
 
 ## 7. Schemas at run time
 
@@ -606,7 +623,10 @@ pub fn generate(schema: &Schema) -> Output;
   `parse` calls it, converts the tables into the generator's own tree,
   and adds the checks only Rust needs: names that are Rust identifiers
   of the right case and no keyword, fields not named as the generated
-  methods, and each generated name (types, paths, limits) used once.
+  methods, declarations and their parts (fields, a version, a tail)
+  numbered within a path's `u16`, and each generated name (types,
+  paths, limits) used once, and no type named `Path`, `Problem` or
+  `Record`, which the module names (section 4).
 - **Refusals as before.** A text with one fault is refused at the same
   line with the same message as before the parser moved; a text with
   several gives the first by pass: characters, then the grammar, then
@@ -864,10 +884,9 @@ impl Value {
 }
 ```
 
-A `Path` is the generated `Path` (section 4) by its parts:
-`ReportTitle` is `Report`'s field `title`, `EffectTag` the tag of
-`Effect`, `FieldTail` the bytes after `Field`, `ReportVersion` the version
-of `Report`. Reading a node as what it is not is a `Misread`, a value
+A `Path` names what the generated `Path` (section 4) names, by the
+same positions: `Report`'s field `title` (`paths::REPORT_TITLE`), the
+tag of `Effect`, the bytes after `Field`, the version of `Report`. Reading a node as what it is not is a `Misread`, a value
 the caller handles, never a panic.
 
 ### 8.2 The order of the checks

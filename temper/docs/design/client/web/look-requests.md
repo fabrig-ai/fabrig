@@ -112,7 +112,10 @@ compare, and is complete when it lands:
    page or file printed beside them, which the journeys' writer prints
    after it lands (`../journey-writer.md`, 6). A journey the reprint
    finds stale is the writer's to walk again; its comparison is the
-   render check's (section 4).
+   render check's (section 4). A journey whose `walk` is of version 2
+   is compared by a print into scratch instead, `cargo run -p
+   temper-client-walk -- print --out DIR NAME`, DIR's pages against the
+   request's commit's (`../journey-walks.md`, 6); it commits nothing.
 7. **Account** (section 5), and bring the design text in line: the
    client's `../README.md` and `README.md`, the journeys' `README.md`
    files, `journeys.md`, 9, and the mockups' `../mockups/STATUS.md`.

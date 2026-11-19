@@ -271,6 +271,15 @@ mod tests {
             ),
             "limits-held line 2: tasks.tasks (setting limits): outside its bound\n"
         );
+        std::fs::write(&path, "tasks.tasks 1024\nlive_goals 101\n").expect("held fixture");
+        let held = limits_hold(scratch.path()).expect("held fixture").expect("held fixture");
+        assert_eq!(
+            held_failure(
+                "live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for; put limits-held in the data directory to start at the stock\n",
+                &held,
+            ),
+            "limits-held line 2: live_goals (setting temper-limits): 101, past its bound of 100, the most live goals the store is sized for\n"
+        );
         std::fs::write(&path, "live_goals 20\nforge.gone 16\n").expect("held fixture");
         assert_eq!(
             limits_hold(scratch.path()).expect_err("refused held figure"),

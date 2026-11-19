@@ -20,6 +20,9 @@ A span counts its thread's allocations (`Span::made`, held by
 and skein-codec's patcher step tests show reuse by rooms and by none
 counted around each reused pass, never by an address.
 
+- **Not yet:** 4: the probe's report of a contained tree.
+  4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
+  [in flight: change 9030]
 - **Departs:** 5, 10: `skein/testing/skein-world/src/lib.rs` fences six
   items `cfg(unix)`, though these sections have the crate native, on
   Linux and macOS, so off unix it fails to build however it is fenced; no

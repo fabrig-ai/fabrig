@@ -33,6 +33,9 @@ pub const STOCK: Sources = Sources { turn: 18_431_842, payload: 63_740, inbox: 8
 pub const OUTPUT_FLOOR: u32 = 18_432_866;
 /// The stock number of goals in flight (configuration/derived.md, 5.4).
 pub const LIVE_GOALS: u32 = 40;
+/// Deployment store envelope (configuration/limit-settings.md, 3), from
+/// draft/config.md, 5.2's plan for 100 live goals.
+pub const STORE_LIVE_GOALS: u32 = 100;
 impl Sources {
     /// A process takes the larger of its setting and its agent's payload.
     #[must_use]

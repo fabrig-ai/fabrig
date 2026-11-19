@@ -59,6 +59,46 @@ fn rebinding_the_fake_model_keeps_the_split_deployments_issuer() {
 }
 
 #[test]
+fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory() {
+    let scratch = support::Scratch::startup("elsewhere-split-provider");
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    std::fs::create_dir(&config).expect("config directory");
+    std::fs::create_dir(&data).expect("data directory");
+    support::configuration(&config, &support::Forge::Unreached);
+    support::owned::producer_landing_settings(&config, 2);
+    let before = temper_agent_fixtures::providers::read(&config);
+    let peer = support::fake_llm(Box::new([]));
+    support::forgejo_elsewhere::configure_llm(scratch.path(), &peer);
+
+    // Read the startup copy through the product's reader, not the world's retained inputs.
+    let running = temper_service_shell::providers::read(
+        &data.join("providers.setting"),
+        temper_service::stock::providers(),
+        &mut Vec::new(),
+    );
+    let running = temper_agent_fixtures::providers::flat(&running);
+    assert_eq!(running["endpoints"][0]["address"]["socket"], peer.address().to_string());
+    assert_eq!(running["endpoints"][0]["transport"], "tls");
+    assert_eq!(running["endpoints"][0]["server_name"], "skein.test");
+    assert_eq!(running["endpoints"][0]["trust"], serde_json::json!(config.join("root.der")));
+    let mut expected = before;
+    expected["endpoints"][0]["address"] = serde_json::json!({"socket":peer.address().to_string()});
+    assert_eq!(running, expected, "rebinding preserves the complete provider, not stock with a new socket");
+    let settings: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(config.join("native-landing-settings.json")).expect("landing settings"))
+            .expect("settings JSON");
+    let edits = support::provider_setup::items(&running);
+    assert!(settings["items"].as_array().expect("items").ends_with(&edits), "ctl commits the running providers");
+    scratch.remove();
+}
+
+#[test]
+fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
+    support::boxed::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
+}
+
+#[test]
 fn fixture_provider_edits_keep_routes_and_leave_demo_fixed() {
     use serde_json::json;
     let mut providers = temper_service::stock::providers().into_vec();

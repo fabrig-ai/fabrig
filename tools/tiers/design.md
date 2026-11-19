@@ -1031,7 +1031,8 @@ refuses, raising `ValueError` before anything runs, what it cannot hold:
   `--test-threads` or `NEXTEST_TEST_THREADS` given;
 - `retries` other than unset or 0, in the profile, an override, `--retries` or
   `NEXTEST_RETRIES`; a `slow-timeout` with `terminate-after`; an override with
-  `threads-required`, `run-extra-args` or `platform`; a profile with `inherits`;
+  `threads-required` or `run-extra-args`, or with `platform` and a key the mode
+  honours (11.3); a profile with `inherits`;
 - `--no-run`, stress (`--stress-count`, `--stress-duration`), `--debugger`,
   `--config-file`, `--tool-config-file`; a `--profile` or `-P` other than
   `profile`;
@@ -1090,6 +1091,13 @@ profile's overrides before `default`'s, as nextest's precedence has it. Two
 keys are honoured: `priority` (0 when none sets it) and `test-group`. Every
 other key is either refused (11.1) or has no effect here (`slow-timeout`'s
 period, `leak-timeout`, output and JUnit settings).
+
+**An override with `platform`** that sets neither honoured key is passed
+over, whatever its platform: it gives no test anything here, so its filter,
+which may be absent, is never compiled. macOS's doubled slow timeouts are
+such overrides (`temper/docs/design/testing/macos.md`, section 7). One with
+`platform` that sets `priority` or `test-group` is refused (11.1): the mode
+does not evaluate platforms.
 
 **`process-of-its-own`.** A test in the test group of that name runs in a
 process of its own, still under the group's `max-threads`: the place for a

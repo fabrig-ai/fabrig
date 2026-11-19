@@ -187,7 +187,7 @@ fn prepare_given(
     let models = config::core(&engine, seeds.deployment, seeds.seed).settings.models;
     let (mut store, state) =
         open_limits(inputs, &models, path(&directories.data), &named.deployment, user, build_name, owned)?;
-    let start = service::startup::checked_start_with_limits(
+    let start = service::startup::checked_start_with_resolved(
         bytes,
         &jig_directories(directories),
         &files,
@@ -196,8 +196,7 @@ fn prepare_given(
         List::with_capacity(0),
         Some(&checked),
         given,
-        &state.in_force.jig,
-        &state.in_force.temper,
+        &state.in_force,
     );
     let mut start = match start {
         Ok(start) => start,

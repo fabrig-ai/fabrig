@@ -28,6 +28,7 @@ impl Terminal {
         let kernel = Kernel::open(Config { operations: 8 }).map_err(|_| "cannot open TUI terminal kernel")?;
         let root = skein_shell::open_root(scratch).map_err(|_| "cannot open TUI scratch directory")?;
         let mut spawn = Spawn {
+            reach: None,
             program: b"/bin/sh".as_slice().into(),
             args: vec![
                 b"-c".as_slice().into(),

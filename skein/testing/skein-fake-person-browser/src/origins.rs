@@ -9,6 +9,9 @@ use skein_io::{self as io, Request};
 use skein_lib::stream::{self, Read};
 use skein_lib::{Env, Queue, Token};
 
+#[cfg(test)]
+mod tests;
+
 /// Separate token space for origin listeners and their connections.
 pub const ORIGINS_FIRST: u64 = 1 << 40;
 pub const OWNER: Token = Token::new(ORIGINS_FIRST);
@@ -52,6 +55,7 @@ pub struct Pages {
     address: String,
     peers: Vec<(Box<[u8]>, String)>,
     streamed_path: Option<Box<[u8]>>,
+    reload: Option<(Token, Response)>,
 }
 
 impl Pages {
@@ -79,6 +83,7 @@ impl Pages {
             address: String::new(),
             peers: Vec::new(),
             streamed_path: None,
+            reload: None,
         }
     }
 
@@ -129,6 +134,7 @@ impl Pages {
             return;
         }
         self.stopping = true;
+        self.reload = None;
         self.requests.retain(|request| !matches!(request, Request::Listen { .. }));
         if let Some(listener) = self.listener {
             self.requests.push_back(Request::Close { entity: listener });
@@ -175,6 +181,9 @@ impl Pages {
             io::Event::Stream { owner, up } => self.up(owner, up),
             io::Event::Closed { owner } if owner == self.owner => self.listener = None,
             io::Event::Closed { owner } => {
+                if self.reload.as_ref().is_some_and(|(held, _)| *held == owner) {
+                    self.reload = None;
+                }
                 self.connections.remove(&owner);
             }
             io::Event::Failed { owner, error } => panic!("page server {owner:?} failed: {error:?}"),
@@ -201,6 +210,37 @@ impl Pages {
         let conn = self.connections.get_mut(&owner).expect("page connection");
         server::down(&mut conn.server, &self.env, request, &mut self.above, &mut self.below);
         self.drain(owner);
+    }
+
+    fn respond(&mut self, owner: Token, response: Response) {
+        self.down(owner, server::Request::Respond(response));
+        let length = self.connections.get(&owner).expect("page connection").reply.len();
+        if length > 0 {
+            self.down(
+                owner,
+                server::Request::Reply(stream::Down::Demand { read: Read::Nothing, room: self.env.limits.send }),
+            );
+        }
+    }
+
+    // The requests story keeps the old document live until its fetch arrives (browser.md, 9).
+    // Its rig's conversation deadline bounds the wait; no document answer precedes that fetch.
+    fn signal_leave(&mut self) -> bool {
+        if self.streamed_path.as_deref() != Some(b"/request-stream") {
+            return false;
+        }
+        let stream = self.connections.iter().find(|(_, connection)| connection.streaming).map(|(owner, _)| *owner);
+        let Some(owner) = stream else { return false };
+        let conn = self.connections.get_mut(&owner).expect("open stream");
+        let idle = conn.sent == conn.reply.len();
+        conn.reply.extend_from_slice(b"leave\n");
+        if idle {
+            self.down(
+                owner,
+                server::Request::Reply(stream::Down::Demand { read: Read::Nothing, room: self.env.limits.send }),
+            );
+        }
+        true
     }
 
     fn drain(&mut self, owner: Token) {
@@ -237,29 +277,28 @@ impl Pages {
                     conn.sent = 0;
                     conn.streaming = streaming;
                     self.down(owner, server::Request::Discard);
-                    self.down(
-                        owner,
-                        server::Request::Respond(Response {
-                            status,
-                            headers: headers.into_boxed_slice(),
-                            body: if status == 204 {
-                                Body::None
-                            } else if streaming {
-                                Body::Chunked
-                            } else {
-                                Body::Length(skein_lib::len_u64(body.len()))
-                            },
-                            close: true,
-                        }),
-                    );
-                    if !body.is_empty() {
-                        self.down(
-                            owner,
-                            server::Request::Reply(stream::Down::Demand {
-                                read: Read::Nothing,
-                                room: (u32::try_from(body.len()).expect("page length fits")).min(self.env.limits.send),
-                            }),
-                        );
+                    let response = Response {
+                        status,
+                        headers: headers.into_boxed_slice(),
+                        body: if status == 204 {
+                            Body::None
+                        } else if streaming {
+                            Body::Chunked
+                        } else {
+                            Body::Length(skein_lib::len_u64(body.len()))
+                        },
+                        close: true,
+                    };
+                    if path == b"/requests" && self.signal_leave() {
+                        assert!(self.reload.is_none(), "only one reload awaits the leaving document");
+                        self.reload = Some((owner, response));
+                    } else {
+                        self.respond(owner, response);
+                    }
+                    if path == b"/request-leave"
+                        && let Some((held, response)) = self.reload.take()
+                    {
+                        self.respond(held, response);
                     }
                 }
                 server::Event::Reply(stream::Up::Room) => {
