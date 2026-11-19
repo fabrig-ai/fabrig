@@ -511,6 +511,11 @@ Main's journey files have one writer, run after each landing, one
 offer at a time, ending `Printed: COMMIT`; no test or goal writes them
 (`client/journey-writer.md`).
 
+A browser journey whose `walk` is of version 2 is printed in one
+process, its lines acted on the shipped web host against the
+playground's composition at fixed facts, by `temper-client-walk`;
+`welcome-playground` is the first (`client/journey-walks.md`).
+
 Design documents:
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
@@ -537,6 +542,7 @@ Design documents:
 - [`client/forge/served.md`](client/forge/served.status.md)
 - [`client/journey-clock.md`](client/journey-clock.status.md)
 - [`client/journey-placeholders.md`](client/journey-placeholders.status.md)
+- [`client/journey-walks.md`](client/journey-walks.status.md)
 - [`client/journey-writer.md`](client/journey-writer.status.md)
 - [`client/line.md`](client/line.status.md)
 - [`client/pages/README.md`](client/pages/README.status.md)
