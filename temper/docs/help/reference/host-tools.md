@@ -358,7 +358,7 @@ Offered where the run's charter names the settings family and its authority hold
 
 - `setting`: object. One setting's whole value, named as a settings file names it.
   - `kind`: text; required. The setting's kind. the `kind` form, under Shared forms.
-  - `number`: integer [1, 4294967295]. Setting number; template-goal: its template's. Omit for rules, welcome and unnumbered project settings.
+  - `number`: integer [1, 4294967295]. Setting number; template-goal: its template's. Omit for rules, welcome, agents, limit kinds and unnumbered project settings.
   - `project`: integer [1, 4294967295]. Project settings: required; landing-rule: optional, absent=deployment; charter-words/template-goal/welcome: none.
 - `revision`: integer [1, 4294967295]. Alone, that revision's record: its items and who decided it. With a charter, the charter as that held revision has it.
 - `history`: object. A page of the revisions, the newest first.
@@ -380,7 +380,7 @@ Offered where the run's charter names the settings family and its authority hold
 - `items`: array. The changes, at most one per setting. Supply exactly one of items or note.
   - `setting`: object; required. The setting, named as a settings file names it.
     - `kind`: text; required. The setting's kind. the `kind` form, under Shared forms.
-    - `number`: integer >=1. Setting number; template-goal: its template's. Omit for rules, welcome and unnumbered project settings.
+    - `number`: integer >=1. Setting number; template-goal: its template's. Omit for rules, welcome, agents, limit kinds and unnumbered project settings.
     - `project`: integer [1, 4294967295]. Project settings: required; landing-rule: optional, absent=deployment; charter-words/template-goal/welcome: none.
   - `set`: any value. Its whole new value, as a settings file holds it; forge-charter takes a charter number. Read the setting first.
   - `edit`: one of `reset|removed`. In place of set: reset, to follow its default again, or removed, no longer offered.
@@ -551,6 +551,10 @@ Offered to an asking run, where its authority holds the asking family.
 - `subagents`: array. the `main` form, under Shared forms.
 - `account`: integer >=0.
 
+### kind
+
+one of `charter|template|policy|rules|model|worker|provider|limits|temper-limits|landing-rule|forge-charter|template-goal|project-policy|project-ways|project-questions|project-classes|charter-words|project-words|follow|dependency|project-areas|project-triager|welcome|agents`.
+
 ### grants
 
 - `connector`: integer >=0; required.
@@ -558,10 +562,6 @@ Offered to an asking run, where its authority holds the asking family.
 - `segments`: array; required.
 - `terminal`: text; required. the `terminal` form, under Shared forms.
 - `last`: text; required.
-
-### kind
-
-one of `charter|template|policy|rules|model|worker|provider|landing-rule|forge-charter|template-goal|project-policy|project-ways|project-questions|project-classes|charter-words|project-words|follow|dependency|project-areas|project-triager|welcome|agents`.
 
 ### words
 
