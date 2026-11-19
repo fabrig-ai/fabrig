@@ -8,6 +8,10 @@
 project's `by`, and each repository's gates and tiers with the branch
 each follows, as the forge holds them (`forge/change/branch-path.md`).
 
+- **Not yet:** 7.3, 7.4 and 16: a failed run whose gate's report its
+  run never uploaded is read as a failed receipt with its tests unknown,
+  searched and repaired, not as `unreported`, a runner's fault
+  (`temper-engine-domain-forge/src/landing.rs`, `advance`). [in flight: change 10031]
 - **Not yet:** 8: the turn's merge of a member reads no comparison of
   main's tip and its candidate, so a rule by path covers every member.
 - **Not yet:** 4.2 (*Drained*): a landing in a draining hold’s scope

@@ -4,6 +4,11 @@
 
 A stall's gaps are `stalls.status.md`'s.
 
+- **Not yet:** "A landing repair that finds no failed test" and "A
+  landing's repair", its `No test:` line: no verdict 2 is offered, read
+  or held (`temper-engine-domain-forge-vocabulary/src/change_words.rs`,
+  `repair_flake`). [in flight: change 10033]
+
 - **Not yet:** "A resolution", a file that is not text: every pull section carries both sides of each file raw, so one binary file makes the assignment carrying it unsendable and its task held for good (`temper-engine-domain-forge/src/brief.rs`, `brief_answer`).
 - **Not yet:** "The merge job" and a repair's failed-test lines: a merge job's result, and a report's test keys and job names, enter a task's words unchecked, and jig's admission refuses words that are not UTF-8 (`temper-engine-domain-forge-vocabulary/src/change_words.rs`, `resolution_words`, `repair_failure_lines`).
 

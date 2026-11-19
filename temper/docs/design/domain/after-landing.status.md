@@ -6,6 +6,8 @@ Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
+- **Not yet:** 4, *A landing gate's report*: a landing reads an absent
+  report as not read, no fault [in flight: change 10031].
 - **Not yet:** 6, *`wait`* and *Switching*: kind 4 has no `wait`, so
   every project's changes live to cleared, and a start ends no
   verifying or red change [in flight: change 8587].
