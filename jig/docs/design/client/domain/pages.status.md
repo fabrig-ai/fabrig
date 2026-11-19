@@ -2,7 +2,7 @@
 
 2026-11-19. Where jig's code lags or departs from [pages.md](pages.md).
 
-- **Not yet:** 5: a run's activity saying why it began fresh.
+- **Not yet:** 5: a run's activity saying why it began fresh. [in flight: change 9225]
 
 - **Not yet:** 3, *Live and bounded*: the needs past the engine's cached prefix are read from the store, which holds none [in flight: change 7577].
 
