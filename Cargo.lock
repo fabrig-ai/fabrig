@@ -6411,14 +6411,25 @@ dependencies = [
 name = "temper-engine"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-core",
+ "jig-protocol-config",
+ "jig-protocol-store",
  "serde_json",
  "skein-fail-stop",
+ "skein-lib",
  "skein-scratch",
  "skein-shell",
  "temper-agent-fixtures",
+<<<<<<< HEAD
  "temper-deployment-fixtures",
+=======
+ "temper-engine-service-stock",
+ "temper-engine-service-vocabulary",
+>>>>>>> refs/manual/8753
  "temper-engine-shell",
+ "temper-github-app",
  "temper-protocol-store",
+ "temper-service-core",
  "temper-shell",
  "temper-version",
 ]

@@ -51,6 +51,24 @@ fn without_projects() -> Box<[u8]> {
 }
 
 #[test]
+fn stock_items_stay_within_the_stock_numbers() {
+    let engine = engine(&generated());
+    let defaults = crate::stock::Given::Stock.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).unwrap();
+    for template in &defaults.templates {
+        assert!(template.number <= jig_domain_people::STOCK_NUMBERS, "template {}", template.number);
+    }
+    for charter in &defaults.charters {
+        assert!(charter.number <= jig_domain_people::STOCK_NUMBERS, "charter {}", charter.number);
+    }
+    for (number, _) in &defaults.policies {
+        assert!(*number <= jig_domain_people::STOCK_NUMBERS, "policy {number}");
+    }
+    for model in &defaults.models {
+        assert!(model.number <= jig_domain_people::STOCK_NUMBERS, "model {}", model.number);
+    }
+}
+
+#[test]
 fn stock_chats_can_delegate_message_and_read_the_forge() {
     let engine = single_engine();
     let defaults = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
@@ -390,6 +408,7 @@ fn ask_temper_is_charter_11_and_template_5() {
     }
     let (_, configuring) = words.split_once("## Configuring\n\n").expect("Configuring part");
     let (configuring, _) = configuring.split_once("## Showing").expect("Showing follows Configuring");
+    assert!(configuring.contains("A new template, charter or policy takes the lowest number from 33 that the settings don't hold; a model you add takes the highest free number."));
     assert!(configuring.contains("With it, write in their terms what the pages show: charter-words for each charter, what it does; project-words for the project's own way, a headline and a short lede."));
     assert!(configuring.contains("Draw in it what it describes, as Showing says: the project's path from its view, never as a list of steps, and a proposal that waits from its own view until it is decided."));
     let (_, remembering) = words.split_once("## Remembering\n\n").expect("Remembering part");

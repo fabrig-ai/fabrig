@@ -702,11 +702,11 @@ fn a_proposal_selects_the_template_it_installs() {
         let mut world = World::stock();
         let run = world.chat(ASK_TEMPLATE, world.owner, 20);
         let mut value = see_value(&mut world.driver, &run, 1, "settings template 5");
-        value["number"] = json!(9);
+        value["number"] = json!(33);
         value["tracked"] = json!(1);
-        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":9});
+        let ways = json!({"drafts":true,"goals":true,"changes":true,"way":33});
         let mut items = vec![
-            json!({"setting":{"kind":"template","number":9},"set":value}),
+            json!({"setting":{"kind":"template","number":33},"set":value}),
             json!({"setting":{"kind":"project-ways","project":PROJECT},"set":ways}),
         ];
         if reverse {
@@ -719,13 +719,13 @@ fn a_proposal_selects_the_template_it_installs() {
         };
         assert_eq!(settings.items.len(), 2);
         assert_eq!(world.head().number, 1, "proposing publishes neither item");
-        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 9"}"#);
+        let (_, error) = host_tool(&mut world.driver, &run, 12, b"see", br#"{"address":"settings template 33"}"#);
         assert!(error, "the proposed template is not published");
         let (text, _) = see_whole(&mut world.driver, &run, 13, "settings project-ways");
         assert!(text.contains("\"way\":0"), "proposing keeps the stock way: {text}");
         world.decide(&run, proposal, 21, people::ProposalDecision::Accept, people::Running::Stays);
         assert_eq!(world.head().number, 2, "one acceptance makes one revision");
-        let installed = see_value(&mut world.driver, &run, 30, "settings template 9");
+        let installed = see_value(&mut world.driver, &run, 30, "settings template 33");
         assert_eq!(installed, value);
         let (text, _) = see_whole(&mut world.driver, &run, 40, "settings project-ways");
         let body = text.lines().nth(1).expect("ways value");
@@ -749,13 +749,13 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
         .find(|value| value.number == ASK_TEMPLATE)
         .expect("asking template");
     let added = s::Item {
-        setting: s::Setting::Template(9),
-        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 9, ..template }))),
+        setting: s::Setting::Template(33),
+        edit: s::Edit::Set(s::Value::Template(Box::new(core::Template { number: 33, ..template }))),
     };
     for (name, item, way, accepted) in [
         ("zero", added.clone(), 0, true),
         ("current", added.clone(), ASK_TEMPLATE, true),
-        ("installed", added.clone(), 9, true),
+        ("installed", added.clone(), 33, true),
         ("absent", added, 10, false),
         (
             "removed",
@@ -763,7 +763,7 @@ fn direct_ways_are_checked_against_the_templates_the_decision_leaves() {
             ASK_TEMPLATE,
             false,
         ),
-        ("reset addition", s::Item { setting: s::Setting::Template(9), edit: s::Edit::Reset }, 9, false),
+        ("reset addition", s::Item { setting: s::Setting::Template(33), edit: s::Edit::Reset }, 33, false),
         (
             "reset default",
             s::Item { setting: s::Setting::Template(ASK_TEMPLATE), edit: s::Edit::Reset },
@@ -971,6 +971,42 @@ fn a_read_that_finds_nothing_says_it_was_not_read() {
         assert!(error, "{input}: {text}");
         assert_eq!(text, expected);
         assert_eq!(world.driver.store.applied, before, "a not-read answer commits nothing");
+    }
+}
+
+#[test]
+fn companion_settings_read_by_number_not_by_count() {
+    use serde_json::json;
+    let mut world = World::new(settings_config());
+    let run = world.chat(SETTINGS_TEMPLATE, world.owner, 20);
+    let asking = world.chat(ASK_TEMPLATE, world.owner, 22);
+    let mut completion = 0;
+    for kind in ["template-goal", "charter-words"] {
+        for number in [33, 64, 65] {
+            for (run, tool, input) in [
+                (&run, b"settings".as_slice(), json!({"setting":{"kind":kind,"number":number}})),
+                (&asking, b"see".as_slice(), json!({"address":format!("settings {kind} {number}")})),
+            ] {
+                completion += 1;
+                let before = world.driver.store.applied;
+                let (body, error) = host_tool(&mut world.driver, run, completion, tool, input.to_string().as_bytes());
+                let text = std::str::from_utf8(&body).expect("settings UTF-8");
+                if number <= 64 {
+                    assert!(!error, "{input}: {text}");
+                    assert!(text.contains(&format!("{kind} {number}: none kept;")), "{text}");
+                } else {
+                    assert!(error, "{input}: {text}");
+                    let refusal = if tool == b"settings" {
+                        "not read: no such setting at that revision."
+                    } else {
+                        "not read: no such setting."
+                    };
+                    assert!(text.contains(refusal), "{text}");
+                    assert!(!text.contains("none kept"), "{text}");
+                }
+                assert_eq!(world.driver.store.applied, before, "a settings read commits nothing");
+            }
+        }
     }
 }
 
@@ -1485,6 +1521,26 @@ fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
         assert_eq!(world.settings_rows(), before, "an item out of shape records no proposal or settings change");
     }
     assert_eq!(world.head().number, 2);
+}
+
+#[test]
+fn propose_settings_names_the_stock_hole_and_both_template_ranges() {
+    use serde_json::json;
+    let mut world = World::stock();
+    let run = world.chat(ASK_TEMPLATE, world.owner, 20);
+    let value = see_value(&mut world.driver, &run, 1, "settings template 1");
+    let before = world.settings_rows();
+    let input = json!({
+        "against":1, "reason":REASON,
+        "items":[{"setting":{"kind":"template","number":9},"set":value}]
+    });
+    let (answer, error) = host_tool(&mut world.driver, &run, 2, b"propose_settings", input.to_string().as_bytes());
+    assert!(error, "{}", String::from_utf8_lossy(&answer));
+    assert_eq!(
+        answer.as_ref(),
+        b"out of shape; item 0; template 9: is among the stock's numbers, 1 to 32; your own templates take 33 to 64"
+    );
+    assert_eq!(world.settings_rows(), before, "a refused proposal keeps no settings or pending review");
 }
 
 #[test]
@@ -2527,23 +2583,22 @@ fn project_area_owners_are_judged_from_the_core() {
     use temper_engine_domain_world::kinds;
     for case in 0_u8..9 {
         let mut owner_limits = limits();
-        owner_limits.tasks.charters = 14; // The owner is valid at this bound without a charter value.
+        owner_limits.tasks.charters = 14; // Charter numbers are independent of this count.
         let mut world = World::with_limits(member_config(), &owner_limits);
         world.member();
         let people::Reply::SignedIn { person: member, .. } = *world.reply(11) else { panic!("signed in") };
         let run = world.chat(ASK_TEMPLATE, world.owner, 2);
         let roles = owner_limits.authority.roles;
-        let charters = owner_limits.tasks.charters;
         let (owner, accepted, label) = match case {
             0 => (AreaOwner::Task(u64::MAX), false, format!("task {}", u64::MAX)),
             1 => (AreaOwner::Party(u64::MAX), false, format!("party {}", u64::MAX)),
             2 => (AreaOwner::Role(roles), false, format!("role {roles}")),
             3 => (AreaOwner::Charter(0), false, "charter 0".into()),
-            4 => (AreaOwner::Charter(charters + 1), false, format!("charter {}", charters + 1)),
+            4 => (AreaOwner::Charter(65), false, "charter 65".into()),
             5 => (AreaOwner::Task(run.task), true, format!("task {}", run.task)),
             6 => (AreaOwner::Party(member), true, format!("party {member}")),
             7 => (AreaOwner::Role(0), true, "role 0".into()),
-            8 => (AreaOwner::Charter(14), true, "charter 14".into()),
+            8 => (AreaOwner::Charter(33), true, "charter 33".into()),
             _ => unreachable!("nine owner cases"),
         };
         let mut key = 20_u8;

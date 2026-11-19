@@ -204,6 +204,20 @@ fn box_step_seven_names_every_ending_and_the_direct_report() {
 }
 
 #[test]
+fn template_and_charter_help_name_the_stock_and_own_number_ranges() {
+    for (kind, plural) in [("template", "templates"), ("charter", "charters")] {
+        let page = help::answer(&configured(&["help", kind])).expect("settings help");
+        let (_, what) = page.split_once("## What it is\n").expect("What it is");
+        let what = what.split("\n## ").next().expect("section");
+        let text = what.split_whitespace().collect::<Vec<_>>().join(" ");
+        let words = format!(
+            "Numbered: the stock's {plural} take 1 to 32, and your own 33 to 64; a {kind} below 33 that the stock doesn't have is refused."
+        );
+        assert!(text.contains(&words), "{kind}: {text}");
+    }
+}
+
+#[test]
 fn charter_help_explains_documents_and_host_discovery() {
     let page = help::answer(&configured(&["help", "charter"])).expect("charter help");
     let text = page.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -288,7 +302,7 @@ fn tester_recipe_copies_a_stock_charter_without_landing_tools() {
         attempt: 1,
         conversation: 1,
         live: jig_domain_host::LiveAsk::NONE,
-        charter: 3,
+        charter: 33,
         run: Box::new(engine::RunCharter {
             revision: 1,
             ended_by: tasks::EndedBy::Result,
@@ -343,18 +357,18 @@ fn tester_recipe_template_reports_without_a_goal_branch() {
         .expect("documented settings file");
     assert_eq!(items.len(), 1);
     let item = items.as_slice().first().expect("template item");
-    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 3 }));
+    assert_eq!(item.setting, Setting::Template(SettingNumber { number: 33 }));
     let SettingEdit::Set(set) = &item.edit else { panic!("example sets the template") };
     let SettingValue::Template(template) = &set.value else { panic!("template value") };
-    assert_eq!(template.number, 3);
-    assert_eq!(template.executor, TemplateExecutor::Charter(3), "the recipe's copied charter");
+    assert_eq!(template.number, 33);
+    assert_eq!(template.executor, TemplateExecutor::Charter(33), "the recipe's copied charter");
     assert_eq!(template.contract, TaskContractDocument::Report { words: 16000 });
     assert!(template.resources.is_empty(), "no goal branch");
     assert_eq!(template.flags.ended_by, settings_form::view::EndedBy::Result);
     assert_eq!(template.tracked, Some(1));
     let stock = tester_stock();
-    assert!(stock.charters.iter().all(|charter| charter.number != 3), "free charter number");
-    assert!(stock.templates.iter().all(|template| template.number != 3), "free template number");
+    assert!(stock.charters.iter().all(|charter| charter.number != 33), "free charter number");
+    assert!(stock.templates.iter().all(|template| template.number != 33), "free template number");
 }
 
 #[test]

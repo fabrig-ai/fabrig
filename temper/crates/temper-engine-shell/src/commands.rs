@@ -86,7 +86,7 @@ pub const UPGRADE_CHECK: Command = Command {
     settings: &[&directories::SETTINGS],
     switches: &[],
     variables: &[],
-    notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.",
+    notes: "Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. Names a start it refuses, including each setting out of its numbers. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.",
 };
 pub const UPGRADE_WORKERS: Command = Command {
     reach: Reach::Words(&["upgrade", "--workers"]),
