@@ -1,12 +1,14 @@
-//! The checkout's design delivery against real git and a throwaway HTTP remote.
+//! Delivery and isolation from a run's git, against real git and a throwaway HTTP remote.
+//! temper/docs/design/protocol/git.md, 3, 4.7, 9; domain/worker/checkouts.md, Two git directories.
 use skein_lib::{Env, Queue, Secret, Time, Token, Wall};
 use skein_throwaway_forgejo::{Forgejo, Init, Settings};
 use std::{
+    collections::BTreeMap,
     ffi::OsStr,
     fs,
     io::Write,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
-    path::PathBuf,
+    path::{Path, PathBuf},
     process::{Command, Stdio},
 };
 const LIMITS: checkout::Limits =
@@ -20,6 +22,41 @@ use temper_worker_protocol_git::{
 fn store_token(remote: &[u8]) -> Token {
     let hash = skein_lib::sha256::digest(remote);
     Token::new(u64::from_be_bytes(hash[..8].try_into().expect("eight bytes")))
+}
+
+fn delivery_spec(remote: &[u8], push: &[u8], start: checkout::Start) -> checkout::Spec {
+    checkout::Spec {
+        key: b"delivery".as_slice().into(),
+        repositories: Box::new([checkout::Repository {
+            prefixes: Box::new([]),
+            name: b"specimen".as_slice().into(),
+            remote: remote.into(),
+            git: None,
+            start,
+            identity: 1,
+            account: None,
+            push: Some(push.into()),
+            expected: None,
+            delivered: None,
+            landing: Some(b"goal".as_slice().into()),
+            save: None,
+        }]),
+    }
+}
+
+fn directory_bytes(directory: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+    let mut files = BTreeMap::new();
+    for entry in fs::read_dir(directory).expect("git directory") {
+        let entry = entry.expect("git entry");
+        if entry.file_type().expect("entry kind").is_dir() {
+            for (path, bytes) in directory_bytes(&entry.path()) {
+                files.insert(PathBuf::from(entry.file_name()).join(path), bytes);
+            }
+        } else {
+            files.insert(PathBuf::from(entry.file_name()), fs::read(entry.path()).expect("git file"));
+        }
+    }
+    files
 }
 
 struct World {
@@ -43,19 +80,41 @@ impl World {
         String::from_utf8(output.stdout).expect("git ids and settings")
     }
 
-    fn plant_run_configuration(&self, directory: &str) {
+    fn plant_run_configuration(&self, directory: &str, moved: &str, unrelated: &str) {
+        let run = self.root.join(directory).join(".git");
+        for reference in ["HEAD", "refs/temper/landing", "refs/temper/fetched"] {
+            // This is the run's tampering, not a worker operation. Suppress the hooks
+            // already planted by the preceding story while moving its references.
+            let output = Command::new("/usr/bin/git")
+                .current_dir(self.root.join(directory))
+                .env_clear()
+                .args(["-c", "core.hooksPath=/dev/null", "update-ref", "--no-deref", reference, moved])
+                .output()
+                .expect("run's git");
+            assert!(output.status.success(), "move run's {reference}: {:?}", output.stderr);
+        }
+        fs::write(run.join("MERGE_HEAD"), format!("{unrelated}\n")).expect("plant merge parent");
         let hooks = self.root.join("planted-hooks");
+        let markers = self.root.join("planted-markers");
         fs::create_dir_all(&hooks).expect("hook directory");
-        for name in
-            ["clean", "smudge", "pre-commit", "post-checkout", "reference-transaction", "post-index-change", "alias"]
-        {
+        fs::create_dir_all(&markers).expect("marker directory");
+        for name in [
+            "clean",
+            "smudge",
+            "pre-commit",
+            "post-checkout",
+            "reference-transaction",
+            "post-index-change",
+            "pre-push",
+            "alias",
+        ] {
             let script = hooks.join(name);
-            let marker = self.root.join(format!("planted-{name}"));
+            let marker = markers.join(name);
             fs::write(&script, format!("#!/bin/sh\nprintf planted > '{}'\ncat\n", marker.display()))
                 .expect("planted driver");
             fs::set_permissions(script, fs::Permissions::from_mode(0o700)).expect("executable driver");
         }
-        let config = self.root.join(directory).join(".git/config");
+        let config = run.join("config");
         fs::OpenOptions::new()
             .append(true)
             .open(config)
@@ -75,11 +134,130 @@ impl World {
     }
 
     fn no_planted_program_ran(&self) {
-        for name in
-            ["clean", "smudge", "pre-commit", "post-checkout", "reference-transaction", "post-index-change", "alias"]
-        {
-            assert!(!self.root.join(format!("planted-{name}")).exists(), "run's {name} ran");
+        let markers = self.root.join("planted-markers");
+        if markers.exists() {
+            let programs = fs::read_dir(markers)
+                .expect("markers")
+                .map(|entry| entry.expect("marker").file_name())
+                .collect::<Vec<_>>();
+            assert!(programs.is_empty(), "run's programs ran: {programs:?}");
         }
+    }
+
+    fn delivered_files(&self, directory: &str, commit: git::Commit, parent: &str) {
+        self.no_planted_program_ran();
+        let delivered = String::from_utf8(invocation::hex(commit).into_vec()).expect("id");
+        assert_eq!(
+            self.inspect(directory, &["show", "-s", "--format=%P", &delivered]).trim(),
+            parent,
+            "delivery has exactly the worker's parent, not the run's HEAD or MERGE_HEAD"
+        );
+        assert_eq!(self.inspect(directory, &["rev-parse", "HEAD"]).trim(), delivered, "worker advances its HEAD");
+        let delivered_paths = self.inspect(directory, &["ls-tree", "-r", "--name-only", &delivered]);
+        let mut work_tree_paths = Vec::new();
+        for entry in fs::read_dir(self.root.join(directory)).expect("work tree") {
+            let entry = entry.expect("work tree entry");
+            let name = entry.file_name().into_string().expect("fixture filename");
+            if name != ".git" {
+                assert!(entry.file_type().expect("entry kind").is_file(), "fixture files are flat");
+                work_tree_paths.push(name);
+            }
+        }
+        work_tree_paths.sort();
+        assert_eq!(delivered_paths.lines().collect::<Vec<_>>(), work_tree_paths, "exact work tree paths");
+        for name in delivered_paths.lines() {
+            assert_eq!(
+                self.inspect(directory, &["show", &format!("{delivered}:{name}")]).as_bytes(),
+                fs::read(self.root.join(directory).join(name)).expect("work tree file"),
+                "delivered {name}"
+            );
+        }
+        assert_eq!(self.inspect(directory, &["show", &format!("{delivered}:.gitattributes")]), "* filter=planted\n");
+    }
+
+    fn redirected_delivery(&mut self, workspace: Token, remote: &[u8]) {
+        let hold = self.hold.take().expect("held");
+        assert!(matches!(self.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
+        let answer = self.finish(checkout::Event::Prepare {
+            client: Token::new(1),
+            spec: delivery_spec(remote, b"change", checkout::Start::Branch { branch: b"change".as_slice().into() }),
+        });
+        assert!(
+            matches!(answer, checkout::Request::Prepared {
+            prepared: checkout::Prepared::Ready { workspace: reused, .. }, ..
+        } if reused == workspace),
+            "prepare before redirecting the run's git: {answer:?}"
+        );
+        self.no_planted_program_ran();
+        let directory = format!("workspaces/{}/specimen", workspace.raw());
+        let parent = self.inspect(&directory, &["rev-parse", "HEAD"]);
+        let moved = self.inspect(&directory, &["rev-parse", "HEAD^"]);
+        let store = format!("stores/{}", store_token(remote).raw());
+        let unrelated = self.unrelated(&store, &directory);
+        self.plant_run_configuration(&directory, moved.trim(), unrelated.trim());
+        let elsewhere = self.root.join("elsewhere");
+        let run = self.root.join(&directory).join(".git");
+        fs::rename(&run, &elsewhere).expect("move run's git outside workspace");
+        // Moving the run's directory changes the base of its borrowed object path.
+        fs::write(
+            elsewhere.join("objects/info/alternates"),
+            format!("{}/gitdirs/{}/specimen/objects\n", self.root.display(), workspace.raw()),
+        )
+        .expect("run's borrowed objects");
+        fs::write(&run, format!("gitdir: {}\n", elsewhere.display())).expect("redirect run's git");
+        let before = directory_bytes(&elsewhere);
+        let landing = self.inspect(&directory, &["rev-parse", "refs/temper/landing"]);
+        fs::write(self.root.join(&directory).join("design0.md"), b"# Files, not the run's git\n").expect("edit");
+        let answer = self.finish(checkout::Event::Push {
+            hold: self.hold.expect("held"),
+            message: checkout::Message { title: b"Redirected git".as_slice().into(), body: Box::default() },
+        });
+        let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
+            panic!("redirected delivery: {answer:?}")
+        };
+        let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("delivered: {landings:?}") };
+        assert_eq!(
+            self.perform(git::Op::Fetch {
+                store: store_token(remote),
+                at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
+                remote: remote.into(),
+                want: git::Want::Branch { branch: b"change".as_slice().into() },
+                into: git::Into::Fetched,
+                identity: 1,
+                account: None,
+            }),
+            git::Done::Fetched { commit: *commit },
+            "forge holds the redirected delivery"
+        );
+        self.delivered_files(&directory, *commit, parent.trim());
+        let after = directory_bytes(&elsewhere);
+        assert_eq!(after.keys().collect::<Vec<_>>(), before.keys().collect::<Vec<_>>(), "same redirected files");
+        for (path, bytes) in before {
+            assert_eq!(after.get(&path), Some(&bytes), "redirected file {} is untouched", path.display());
+        }
+        // Fetch updates only the worker's fetched reference; its landing pin stays put.
+        assert_eq!(self.inspect(&directory, &["rev-parse", "refs/temper/landing"]), landing);
+        assert_eq!(
+            self.inspect(&directory, &["rev-parse", "refs/temper/fetched"]).trim(),
+            String::from_utf8(invocation::hex(*commit).into_vec()).expect("id")
+        );
+    }
+
+    fn unrelated(&self, store: &str, directory: &str) -> String {
+        let tree = self.inspect(directory, &["rev-parse", "HEAD^{tree}"]);
+        self.inspect(
+            store,
+            &[
+                "-c",
+                "user.name=Writer",
+                "-c",
+                "user.email=writer@example.invalid",
+                "commit-tree",
+                tree.trim(),
+                "-m",
+                "Unrelated root",
+            ],
+        )
     }
 
     fn missing(&self, directory: &str, revision: &str) -> Vec<String> {
@@ -323,7 +501,7 @@ impl World {
 #[test]
 #[expect(
     clippy::too_many_lines,
-    reason = "one Forgejo scenario proves blob-less stores and both authenticated lazy-fetch paths"
+    reason = "one Forgejo scenario shares startup for lazy fetches and both run-git tampering stories"
 )]
 fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
@@ -367,25 +545,19 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
     let remote: Box<[u8]> = format!("{}/{}/{}.git", instance.base(), writer.login, repository.name).into_bytes().into();
     for design in [true, false] {
         let push = if design { b"goal".as_slice() } else { b"change".as_slice() };
-        let spec = checkout::Spec {
-            key: b"delivery".as_slice().into(),
-            repositories: Box::new([checkout::Repository {
-                prefixes: Box::new([]),
-                name: b"specimen".as_slice().into(),
-                remote: remote.clone(),
-                git: None,
-                start: checkout::Start::Base { branch: push.into() },
-                identity: 1,
-                account: None,
-                push: Some(push.into()),
-                expected: None,
-                delivered: None,
-                landing: Some(b"goal".as_slice().into()),
-                save: None,
-            }]),
+        let spec = || {
+            delivery_spec(
+                &remote,
+                push,
+                if design {
+                    checkout::Start::Base { branch: push.into() }
+                } else {
+                    checkout::Start::Branch { branch: b"goal".as_slice().into() }
+                },
+            )
         };
         let checkout::Request::Prepared { prepared: checkout::Prepared::Ready { workspace, .. }, .. } =
-            world.finish(checkout::Event::Prepare { client: Token::new(1), spec })
+            world.finish(checkout::Event::Prepare { client: Token::new(1), spec: spec() })
         else {
             panic!("prepared")
         };
@@ -405,22 +577,28 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             let checked_out = world.inspect(&directory, &["rev-parse", "HEAD"]);
             assert!(world.missing(&directory, checked_out.trim()).is_empty(), "checkout owns all missing contents");
         }
+        let parent = world.inspect(&directory, &["rev-parse", "HEAD"]);
         if !design {
-            world.plant_run_configuration(&directory);
-            let parent =
-                invocation::object(world.inspect(&directory, &["rev-parse", "HEAD"]).trim().as_bytes()).expect("head");
+            let moved = world.inspect(&directory, &["rev-parse", "HEAD^"]);
+            let unrelated = world.unrelated(&store, &directory);
+            let references = world.inspect(&directory, &["show-ref"]);
+            world.plant_run_configuration(&directory, moved.trim(), unrelated.trim());
+            assert_eq!(world.inspect(&directory, &["rev-parse", "HEAD"]), parent, "worker's HEAD is separate");
+            assert_eq!(world.inspect(&directory, &["show-ref"]), references, "worker's references are separate");
             fs::remove_file(world.root.join(&directory).join("README.md")).expect("force checkout to write a blob");
-            assert_eq!(
-                world.perform(git::Op::CheckOut {
-                    at: git::Place { workspace, repository: b"specimen".as_slice().into(), git: None },
-                    commit: parent,
-                    clean: false,
-                    identity: 1,
-                    account: None,
-                }),
-                git::Done::Succeeded
+            let hold = world.hold.take().expect("held");
+            assert!(matches!(world.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
+            let answer = world.finish(checkout::Event::Prepare { client: Token::new(1), spec: spec() });
+            assert!(
+                matches!(answer, checkout::Request::Prepared {
+                prepared: checkout::Prepared::Ready { workspace: reused, .. }, ..
+            } if reused == workspace),
+                "same workstream prepares its existing checkout: {answer:?}"
             );
             world.no_planted_program_ran();
+            assert_eq!(world.inspect(&directory, &["rev-parse", "HEAD"]), parent, "prepare keeps the worker's start");
+            assert_eq!(world.inspect(&directory, &["show-ref"]), references, "prepare restores worker's references");
+            fs::write(world.root.join(&directory).join(".gitattributes"), b"* filter=planted\n").expect("attributes");
         }
         for index in 0..=LIMITS.conflicts {
             fs::write(
@@ -433,6 +611,7 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             hold: world.hold.expect("held"),
             message: checkout::Message { title: b"Design".as_slice().into(), body: Box::default() },
         });
+        world.no_planted_program_ran();
         let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
             panic!("push terminal")
         };
@@ -451,31 +630,8 @@ fn a_design_delivery_reaches_its_landing_branch_through_real_git() {
             "remote branch reached the delivered commit"
         );
         if !design {
-            world.no_planted_program_ran();
-            let delivered = String::from_utf8(invocation::hex(*commit).into_vec()).expect("id");
-            let delivered_paths = world.inspect(&directory, &["ls-tree", "-r", "--name-only", &delivered]);
-            let mut work_tree_paths = Vec::new();
-            for entry in fs::read_dir(world.root.join(&directory)).expect("work tree") {
-                let entry = entry.expect("work tree entry");
-                let name = entry.file_name().into_string().expect("fixture filename");
-                if name != ".git" {
-                    assert!(entry.file_type().expect("entry kind").is_file(), "fixture files are flat");
-                    work_tree_paths.push(name);
-                }
-            }
-            work_tree_paths.sort();
-            assert_eq!(delivered_paths.lines().collect::<Vec<_>>(), work_tree_paths, "exact work tree paths");
-            for name in delivered_paths.lines() {
-                assert_eq!(
-                    world.inspect(&directory, &["show", &format!("{delivered}:{name}")]).as_bytes(),
-                    fs::read(world.root.join(&directory).join(name)).expect("work tree file"),
-                    "delivered {name}"
-                );
-            }
-            assert_eq!(
-                world.inspect(&directory, &["show", &format!("{delivered}:.gitattributes")]),
-                "* filter=planted\n"
-            );
+            world.delivered_files(&directory, *commit, parent.trim());
+            world.redirected_delivery(workspace, &remote);
         }
         if design {
             let moved = world.advance_goal(workspace, &remote);
