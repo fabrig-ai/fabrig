@@ -1,4 +1,5 @@
 //! Independently read observed payload framing (skein's data/kv.md, 6.1).
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::transcripts::frame::crc32c;
 use skein_lib::{List, Reader};
 

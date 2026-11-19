@@ -1,9 +1,10 @@
 use super::*;
+use smith_transcript::Record;
 
 mod withhold;
 
 const DIALECT: u32 = 3;
-use smith::{Block as SBlock, CEILINGS, MessageParts, TurnParts, UsageParts};
+use smith::{Block as SBlock, CEILINGS};
 
 fn limits() -> Limits {
     Limits {
@@ -13,68 +14,54 @@ fn limits() -> Limits {
     }
 }
 fn text(value: &[u8]) -> smith::Text {
-    smith::Text::new(&CEILINGS, smith::TextParts { text: Box::from(value), replay: None }).unwrap()
+    smith::Text { text: Box::from(value), replay: None }
 }
 fn call(id: &[u8]) -> SBlock {
-    SBlock::Call(
-        smith::Call::new(
-            &CEILINGS,
-            smith::CallParts {
-                id: Box::from(id),
-                name: Box::from(&b"read"[..]),
-                input: Box::from(&b"{ \"path\": \"a\" }"[..]),
-                replay: None,
-            },
-        )
-        .unwrap(),
-    )
+    SBlock::Call(smith::Call {
+        id: Box::from(id),
+        name: Box::from(&b"read"[..]),
+        input: Box::from(&b"{ \"path\": \"a\" }"[..]),
+        replay: None,
+    })
 }
 fn result(id: &[u8], returned: smith::Returned) -> SBlock {
-    SBlock::Result(smith::ToolResult::new(&CEILINGS, smith::ToolResultParts { id: Box::from(id), returned }).unwrap())
+    SBlock::Result(smith::ToolResult { id: Box::from(id), returned })
 }
 fn owned(value: smith::Outcome) -> smith::Returned {
-    smith::Returned::Outcome(smith::OwnedOutcome::new(&CEILINGS, smith::OwnedOutcomeParts { value }).unwrap())
+    smith::Returned::Outcome(smith::OwnedOutcome { value })
 }
 fn message(role: smith::Role, blocks: &[SBlock]) -> smith::Message {
     let mut list = List::with_capacity(u32::try_from(blocks.len()).unwrap());
     for block in blocks {
         list.push(block.clone()).unwrap();
     }
-    smith::Message::new(&CEILINGS, MessageParts { role, blocks: list }).unwrap()
+    smith::Message { role, blocks: list }
 }
 fn source(messages: &[smith::Message]) -> smith::Turn {
     let mut list = List::with_capacity(u32::try_from(messages.len()).unwrap());
     for message in messages {
         list.push(message.clone()).unwrap();
     }
-    smith::Turn::new(
-        &CEILINGS,
-        TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: smith::TurnKind::Ordinary,
-            opening: None,
-            endpoint: Box::from(&b"endpoint"[..]),
-            dialect: DIALECT,
-            place: 1,
-            usage: smith::Usage::new(
-                &CEILINGS,
-                UsageParts {
-                    input: Some(11),
-                    output: Some(12),
-                    cache_read: Some(13),
-                    cache_write: Some(14),
-                    reasoning: None,
-                },
-            )
-            .unwrap(),
-            spent: 15,
-            jobs: 0,
-            messages: list,
+    smith::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: smith::TurnKind::Ordinary,
+        opening: None,
+        endpoint: Box::from(&b"endpoint"[..]),
+        dialect: DIALECT,
+        place: 1,
+        usage: smith::Usage {
+            input: Some(11),
+            output: Some(12),
+            cache_read: Some(13),
+            cache_write: Some(14),
+            reasoning: None,
         },
-    )
-    .unwrap()
+        spent: 15,
+        jobs: 0,
+        messages: list,
+    }
 }
 #[test]
 #[expect(clippy::manual_map, reason = "the protocol crate matches optional fields without closures")]
@@ -85,13 +72,13 @@ fn a_turn_keeps_its_model_and_effort_outside_the_text_budget() {
         (b"", Some(b"high".as_slice())),
         (b"", None),
     ] {
-        let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]).into_parts();
+        let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]);
         parts.model = Box::from(model);
         parts.effort = match effort {
             Some(value) => Some(Box::from(value)),
             None => None,
         };
-        let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+        let bytes = encode(&parts);
         for budget in [0, 4, 6] {
             let mut limits = limits();
             limits.turn.text = budget;
@@ -115,15 +102,11 @@ fn a_turn_keeps_its_model_and_effort_outside_the_text_budget() {
 }
 
 fn encode(turn: &smith::Turn) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
-    writer.finish()
+    turn.encode(&CEILINGS).unwrap()
 }
 
 fn said(bytes: &[u8]) -> smith::Returned {
-    smith::Returned::Said(
-        smith::Said::new(&CEILINGS, smith::SaidParts { text: Box::from(bytes), error: false }).unwrap(),
-    )
+    smith::Returned::Said(smith::Said { text: Box::from(bytes), error: false })
 }
 
 fn call_at(turn: &Turn, message: u32, block: u32) -> &Call {
@@ -180,9 +163,7 @@ fn results_that_fill_the_budget_leave_every_name_whole() {
 
 #[test]
 fn texts_are_priced_after_names_and_before_the_rest() {
-    let opaque = SBlock::Opaque(
-        smith::Opaque::new(&CEILINGS, smith::OpaqueParts { dialect: DIALECT, bytes: Box::new([]) }).unwrap(),
-    );
+    let opaque = SBlock::Opaque(smith::Opaque { dialect: DIALECT, bytes: Box::new([]) });
     let source = source(&[message(
         smith::Role::Assistant,
         &[
@@ -291,36 +272,22 @@ fn whole_turn_preserves_blocks_and_joins_results_to_calls() {
                 SBlock::Text(text(b"hello")),
                 SBlock::Refusal(text(b"cannot")),
                 call(b"id"),
-                SBlock::Opaque(
-                    smith::Opaque::new(
-                        &CEILINGS,
-                        smith::OpaqueParts { dialect: DIALECT, bytes: Box::from(&[0xff, 0x00][..]) },
-                    )
-                    .unwrap(),
-                ),
+                SBlock::Opaque(smith::Opaque { dialect: DIALECT, bytes: Box::from(&[0xff, 0x00][..]) }),
             ],
         ),
         message(
             smith::Role::User,
             &[result(
                 b"id",
-                owned(smith::Outcome::Read(
-                    smith::Read::new(
-                        &CEILINGS,
-                        smith::ReadParts {
-                            content: Box::from(&b"a\nb"[..]),
-                            first: 2,
-                            lines: 2,
-                            total: 9,
-                            next: smith::Next::Line(
-                                smith::LineNumber::new(&CEILINGS, smith::LineNumberParts { number: 4 }).unwrap(),
-                            ),
-                            cut: smith::ReadCut::Line,
-                            window: smith::BytesClamp::Within,
-                        },
-                    )
-                    .unwrap(),
-                )),
+                owned(smith::Outcome::Read(smith::Read {
+                    content: Box::from(&b"a\nb"[..]),
+                    first: 2,
+                    lines: 2,
+                    total: 9,
+                    next: smith::Next::Line(smith::LineNumber { number: 4 }),
+                    cut: smith::ReadCut::Line,
+                    window: smith::BytesClamp::Within,
+                })),
             )],
         ),
     ]);
@@ -370,53 +337,33 @@ fn whole_turn_preserves_blocks_and_joins_results_to_calls() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table holds every tool outcome's summary")]
 fn outcomes_summarize_successes_command_endings_and_tool_refusals() {
     let cases: [(smith::Outcome, &[u8], bool); 34] = [
         (
-            smith::Outcome::Listed(
-                smith::Listed::new(&CEILINGS, smith::ListedParts { entries: List::with_capacity(0), more: 4 }).unwrap(),
-            ),
+            smith::Outcome::Listed(smith::Listed { entries: List::with_capacity(0), more: 4 }),
             b"Listed 0 entries; more 4",
             false,
         ),
         (
-            smith::Outcome::Found(
-                smith::Found::new(&CEILINGS, smith::FoundParts { hits: Box::from([]), more: 3, timed_out: true })
-                    .unwrap(),
-            ),
+            smith::Outcome::Found(smith::Found { hits: Box::from([]), more: 3, timed_out: true }),
             b"Found 0 hits; more 3; search timed out",
             false,
         ),
+        (smith::Outcome::Written(smith::Written { created: true }), b"Created file", false),
+        (smith::Outcome::Written(smith::Written { created: false }), b"Wrote file", false),
+        (smith::Outcome::Edited(smith::Edited { replaced: 7 }), b"Edited 7 matches", false),
         (
-            smith::Outcome::Written(smith::Written::new(&CEILINGS, smith::WrittenParts { created: true }).unwrap()),
-            b"Created file",
-            false,
-        ),
-        (
-            smith::Outcome::Written(smith::Written::new(&CEILINGS, smith::WrittenParts { created: false }).unwrap()),
-            b"Wrote file",
-            false,
-        ),
-        (
-            smith::Outcome::Edited(smith::Edited::new(&CEILINGS, smith::EditedParts { replaced: 7 }).unwrap()),
-            b"Edited 7 matches",
-            false,
-        ),
-        (
-            exited(smith::Exit::Code(smith::ExitCode::new(&CEILINGS, smith::ExitCodeParts { code: 0 }).unwrap())),
+            exited(smith::Exit::Code(smith::ExitCode { code: 0 })),
             b"Command ended: exit 0; output bytes 2; dropped 9",
             false,
         ),
         (
-            exited(smith::Exit::Code(smith::ExitCode::new(&CEILINGS, smith::ExitCodeParts { code: 1 }).unwrap())),
+            exited(smith::Exit::Code(smith::ExitCode { code: 1 })),
             b"Command ended: exit 1; output bytes 2; dropped 9",
             true,
         ),
         (
-            exited(smith::Exit::Signal(
-                smith::ExitSignal::new(&CEILINGS, smith::ExitSignalParts { signal: 9 }).unwrap(),
-            )),
+            exited(smith::Exit::Signal(smith::ExitSignal { signal: 9 })),
             b"Command ended: signal 9; output bytes 2; dropped 9",
             true,
         ),
@@ -433,13 +380,7 @@ fn outcomes_summarize_successes_command_endings_and_tool_refusals() {
         (smith::Outcome::Protected, b"Tool refused: protected path", true),
         (smith::Outcome::NotDirectory(resolved()), b"Tool refused: not a directory", true),
         (
-            smith::Outcome::TooLarge(
-                smith::TooLarge::new(
-                    &CEILINGS,
-                    smith::TooLargeParts { what: smith::SizePart::File, size: u64::MAX, bound: 1 },
-                )
-                .unwrap(),
-            ),
+            smith::Outcome::TooLarge(smith::TooLarge { what: smith::SizePart::File, size: u64::MAX, bound: 1 }),
             b"Tool refused: too large, 18446744073709551615 bytes",
             true,
         ),
@@ -447,10 +388,7 @@ fn outcomes_summarize_successes_command_endings_and_tool_refusals() {
         (smith::Outcome::Stale, b"Tool refused: stale read", true),
         (edit_failed(smith::Mismatch::NoMatch), b"Tool refused: edit 2, no match", true),
         (
-            edit_failed(smith::Mismatch::Ambiguous(
-                smith::Ambiguous::new(&CEILINGS, smith::AmbiguousParts { count: 2, lines: List::with_capacity(0) })
-                    .unwrap(),
-            )),
+            edit_failed(smith::Mismatch::Ambiguous(smith::Ambiguous { count: 2, lines: List::with_capacity(0) })),
             b"Tool refused: edit 2, ambiguous, 2 matches",
             true,
         ),
@@ -463,21 +401,15 @@ fn outcomes_summarize_successes_command_endings_and_tool_refusals() {
         (smith::Outcome::Busy, b"Tool busy", true),
         (smith::Outcome::NulByte, b"Tool refused: NUL byte", true),
         (
-            smith::Outcome::Read(
-                smith::Read::new(
-                    &CEILINGS,
-                    smith::ReadParts {
-                        content: Box::from(&b""[..]),
-                        first: 1,
-                        lines: 0,
-                        total: 0,
-                        next: smith::Next::End,
-                        cut: smith::ReadCut::Whole,
-                        window: smith::BytesClamp::Within,
-                    },
-                )
-                .unwrap(),
-            ),
+            smith::Outcome::Read(smith::Read {
+                content: Box::from(&b""[..]),
+                first: 1,
+                lines: 0,
+                total: 0,
+                next: smith::Next::End,
+                cut: smith::ReadCut::Whole,
+                window: smith::BytesClamp::Within,
+            }),
             b"Read 0 of 0 lines; skipped 0",
             false,
         ),
@@ -487,31 +419,24 @@ fn outcomes_summarize_successes_command_endings_and_tool_refusals() {
     }
 }
 fn exited(exit: smith::Exit) -> smith::Outcome {
-    smith::Outcome::Exited(
-        smith::CommandEnd::new(
-            &CEILINGS,
-            smith::CommandEndParts {
-                exit,
-                head: Box::from(&b"h"[..]),
-                last: Box::from(&b"l"[..]),
-                dropped: 9,
-                timeout: smith::TimeoutClamp::Within,
-                output: smith::BytesClamp::Within,
-            },
-        )
-        .unwrap(),
-    )
+    smith::Outcome::Exited(smith::CommandEnd {
+        exit,
+        head: Box::from(&b"h"[..]),
+        last: Box::from(&b"l"[..]),
+        dropped: 9,
+        timeout: smith::TimeoutClamp::Within,
+        output: smith::BytesClamp::Within,
+    })
 }
 fn resolved() -> smith::ResolvedFailure {
-    let path = smith::WorkingPath::new(&CEILINGS, smith::WorkingPathParts { path: Box::from(&b"a"[..]) }).unwrap();
-    smith::ResolvedFailure::new(&CEILINGS, smith::ResolvedFailureParts { path: smith::Resolved::Working(path) })
-        .unwrap()
+    let path = smith::WorkingPath { path: Box::from(&b"a"[..]) };
+    smith::ResolvedFailure { path: smith::Resolved::Working(path) }
 }
 fn edit_failed(why: smith::Mismatch) -> smith::Outcome {
-    smith::Outcome::EditFailed(smith::EditFailed::new(&CEILINGS, smith::EditFailedParts { edit: 2, why }).unwrap())
+    smith::Outcome::EditFailed(smith::EditFailed { edit: 2, why })
 }
 fn failed(fault: smith::Fault) -> smith::Outcome {
-    smith::Outcome::Failed(smith::Failed::new(&CEILINGS, smith::FailedParts { fault }).unwrap())
+    smith::Outcome::Failed(smith::Failed { fault })
 }
 fn assert_result(returned: smith::Returned, expected: &[u8], failed: bool) {
     let turn =
@@ -530,15 +455,12 @@ fn assert_result(returned: smith::Returned, expected: &[u8], failed: bool) {
 fn tool_text_and_invalid_calls_remain_distinct() {
     for error in [false, true] {
         assert_result(
-            smith::Returned::Said(
-                smith::Said::new(&CEILINGS, smith::SaidParts { text: Box::from(&b"tool words"[..]), error }).unwrap(),
-            ),
+            smith::Returned::Said(smith::Said { text: Box::from(&b"tool words"[..]), error }),
             b"tool words",
             error,
         );
     }
-    let field =
-        smith::FieldProblem::new(&CEILINGS, smith::FieldProblemParts { field: Box::from(&b"path"[..]) }).unwrap();
+    let field = smith::FieldProblem { field: Box::from(&b"path"[..]) };
     for (problem, expected) in [
         (smith::CallProblem::UnknownTool, &b"Invalid call: unknown tool"[..]),
         (smith::CallProblem::NotAnObject, b"Invalid call: input is not an object"),
@@ -547,24 +469,13 @@ fn tool_text_and_invalid_calls_remain_distinct() {
         (smith::CallProblem::BadValue(field), b"Invalid call: bad value for path"),
         (smith::CallProblem::TooLarge, b"Invalid call: input too large"),
         (
-            smith::CallProblem::Oversize(
-                smith::OversizeProblem::new(&CEILINGS, smith::OversizeProblemParts { bytes: 9, bound: 8 }).unwrap(),
-            ),
+            smith::CallProblem::Oversize(smith::OversizeProblem { bytes: 9, bound: 8 }),
             b"Invalid call: input too large, 9 bytes over 8",
         ),
-        (
-            smith::CallProblem::CutOff(
-                smith::CutProblem::new(&CEILINGS, smith::CutProblemParts { bytes: 17 }).unwrap(),
-            ),
-            b"Invalid call: input cut off after 17 bytes",
-        ),
+        (smith::CallProblem::CutOff(smith::CutProblem { bytes: 17 }), b"Invalid call: input cut off after 17 bytes"),
         (smith::CallProblem::Nesting, b"Invalid call: nested sub-agent"),
     ] {
-        assert_result(
-            smith::Returned::Invalid(smith::Invalid::new(&CEILINGS, smith::InvalidParts { problem }).unwrap()),
-            expected,
-            true,
-        );
+        assert_result(smith::Returned::Invalid(smith::Invalid { problem }), expected, true);
     }
     assert_result(smith::Returned::Withdrawn, b"Withdrawn", true);
 }
@@ -586,7 +497,8 @@ fn admission_errors_are_explicit_and_whole_records_are_required() {
     trailing.put(&bytes).unwrap();
     trailing.put(&[0]).unwrap();
     assert_eq!(decode(&limits(), &trailing.finish()), Err(Undecodable::Malformed));
-    let role_at = bytes.len() - usize::try_from(source.messages().get(0).unwrap().measure()).unwrap() - 1;
+    let role_at =
+        bytes.len() - usize::try_from(source.messages.get(0).unwrap().measure(&CEILINGS).unwrap()).unwrap() - 1;
     bytes[role_at] = 255;
     assert_eq!(decode(&limits(), &bytes), Err(Undecodable::Unknown));
 }
@@ -679,21 +591,15 @@ fn smith_full_golden_preserves_maximum_usage_at_its_whole_length() {
 
 #[test]
 fn jobs_read_as_call_outcomes() {
-    let running = smith::Outcome::Running(
-        smith::CommandRunning::new(
-            &CEILINGS,
-            smith::CommandRunningParts {
-                job: 2,
-                head: Box::from(&b"h"[..]),
-                last: Box::from(&b"l"[..]),
-                dropped: 9,
-                timeout: smith::TimeoutClamp::Within,
-                output: smith::BytesClamp::Within,
-                after: smith::TimeoutClamp::Within,
-            },
-        )
-        .unwrap(),
-    );
+    let running = smith::Outcome::Running(smith::CommandRunning {
+        job: 2,
+        head: Box::from(&b"h"[..]),
+        last: Box::from(&b"l"[..]),
+        dropped: 9,
+        timeout: smith::TimeoutClamp::Within,
+        output: smith::BytesClamp::Within,
+        after: smith::TimeoutClamp::Within,
+    });
     let mut cases: List<(smith::Outcome, &[u8], bool)> = List::with_capacity(8);
     for row in [
         (running, &b"Started as job 2; output bytes 2; dropped 9"[..], false),
@@ -705,26 +611,24 @@ fn jobs_read_as_call_outcomes() {
     }
     for (end, expected, failed) in [
         (
-            exited(smith::Exit::Code(smith::ExitCode::new(&CEILINGS, smith::ExitCodeParts { code: 0 }).unwrap())),
+            exited(smith::Exit::Code(smith::ExitCode { code: 0 })),
             &b"Job 1 ended: exit 0; output bytes 2; dropped 9"[..],
             false,
         ),
         (
-            exited(smith::Exit::Code(smith::ExitCode::new(&CEILINGS, smith::ExitCodeParts { code: 1 }).unwrap())),
+            exited(smith::Exit::Code(smith::ExitCode { code: 1 })),
             b"Job 1 ended: exit 1; output bytes 2; dropped 9",
             true,
         ),
         (
-            exited(smith::Exit::Signal(
-                smith::ExitSignal::new(&CEILINGS, smith::ExitSignalParts { signal: 9 }).unwrap(),
-            )),
+            exited(smith::Exit::Signal(smith::ExitSignal { signal: 9 })),
             b"Job 1 ended: signal 9; output bytes 2; dropped 9",
             true,
         ),
         (exited(smith::Exit::TimedOut), b"Job 1 ended: timed out; output bytes 2; dropped 9", true),
     ] {
         let smith::Outcome::Exited(end) = end else { panic!("command end fixture") };
-        let exit = smith::JobExit::new(&CEILINGS, smith::JobExitParts { exit: end.into_parts().exit }).unwrap();
+        let exit = smith::JobExit { exit: end.exit };
         cases.push((job(smith::JobEnd::Ended(exit)), expected, failed)).unwrap();
     }
     for (outcome, expected, failed) in cases.as_slice() {
@@ -732,44 +636,27 @@ fn jobs_read_as_call_outcomes() {
     }
 }
 fn job(end: smith::JobEnd) -> smith::Outcome {
-    smith::Outcome::Job(
-        smith::JobRead::new(
-            &CEILINGS,
-            smith::JobReadParts {
-                job: 1,
-                head: Box::from(&b"h"[..]),
-                last: Box::from(&b"l"[..]),
-                dropped: 9,
-                output: smith::BytesClamp::Within,
-                wait: smith::TimeoutClamp::Within,
-                end,
-            },
-        )
-        .unwrap(),
-    )
+    smith::Outcome::Job(smith::JobRead {
+        job: 1,
+        head: Box::from(&b"h"[..]),
+        last: Box::from(&b"l"[..]),
+        dropped: 9,
+        output: smith::BytesClamp::Within,
+        wait: smith::TimeoutClamp::Within,
+        end,
+    })
 }
 
 #[test]
 fn job_problems_read_as_invalid_calls() {
     for (problem, expected) in [
         (
-            smith::CallProblem::JobsFull(
-                smith::JobsFullProblem::new(&CEILINGS, smith::JobsFullProblemParts { jobs: 3 }).unwrap(),
-            ),
+            smith::CallProblem::JobsFull(smith::JobsFullProblem { jobs: 3 }),
             &b"Invalid call: jobs full, at most 3 at once"[..],
         ),
-        (
-            smith::CallProblem::UnknownJob(
-                smith::UnknownJobProblem::new(&CEILINGS, smith::UnknownJobProblemParts { job: 7 }).unwrap(),
-            ),
-            b"Invalid call: unknown job 7",
-        ),
+        (smith::CallProblem::UnknownJob(smith::UnknownJobProblem { job: 7 }), b"Invalid call: unknown job 7"),
     ] {
-        assert_result(
-            smith::Returned::Invalid(smith::Invalid::new(&CEILINGS, smith::InvalidParts { problem }).unwrap()),
-            expected,
-            true,
-        );
+        assert_result(smith::Returned::Invalid(smith::Invalid { problem }), expected, true);
     }
 }
 
@@ -777,24 +664,10 @@ fn job_problems_read_as_invalid_calls() {
 fn a_call_not_run_reads_its_why() {
     for (why, expected) in [
         (smith::NotRunWhy::Stopped, &b"Not run: stopped"[..]),
-        (
-            smith::NotRunWhy::OutsideChoice(
-                smith::OutsideChoice::new(&CEILINGS, smith::OutsideChoiceParts { only: None }).unwrap(),
-            ),
-            b"Not run: outside the tool choice",
-        ),
-        (
-            smith::NotRunWhy::AfterFailedWrite(
-                smith::AfterFailedWrite::new(&CEILINGS, smith::AfterFailedWriteParts { call: 9 }).unwrap(),
-            ),
-            b"Not run: after a failed write",
-        ),
+        (smith::NotRunWhy::OutsideChoice(smith::OutsideChoice { only: None }), b"Not run: outside the tool choice"),
+        (smith::NotRunWhy::AfterFailedWrite(smith::AfterFailedWrite { call: 9 }), b"Not run: after a failed write"),
     ] {
-        assert_result(
-            smith::Returned::NotRun(smith::NotRun::new(&CEILINGS, smith::NotRunParts { why }).unwrap()),
-            expected,
-            true,
-        );
+        assert_result(smith::Returned::NotRun(smith::NotRun { why }), expected, true);
     }
 }
 
@@ -802,9 +675,9 @@ fn a_call_not_run_reads_its_why() {
 fn a_turns_count_of_jobs_is_not_shown() {
     let source = source(&[message(smith::Role::Assistant, &[call(b"id")])]);
     let without_jobs = decode(&limits(), &encode(&source)).unwrap();
-    let mut parts = source.into_parts();
+    let mut parts = source;
     parts.jobs = 3;
-    let with_jobs = smith::Turn::new(&CEILINGS, parts).unwrap();
+    let with_jobs = parts;
     assert_eq!(without_jobs, decode(&limits(), &encode(&with_jobs)).unwrap());
 }
 
@@ -817,13 +690,7 @@ fn brief_lines_render_people_agents_calls_and_results() {
             smith::Role::User,
             &[
                 result(b"id", owned(smith::Outcome::NotGranted)),
-                result(
-                    b"other",
-                    smith::Returned::Said(
-                        smith::Said::new(&CEILINGS, smith::SaidParts { text: b"done".as_slice().into(), error: false })
-                            .unwrap(),
-                    ),
-                ),
+                result(b"other", smith::Returned::Said(smith::Said { text: b"done".as_slice().into(), error: false })),
             ],
         ),
     ]);
@@ -835,13 +702,7 @@ fn brief_lines_render_people_agents_calls_and_results() {
 fn brief_opaque_blocks_show_only_their_dialect_and_size() {
     let turn = source(&[message(
         smith::Role::Assistant,
-        &[SBlock::Opaque(
-            smith::Opaque::new(
-                &CEILINGS,
-                smith::OpaqueParts { dialect: DIALECT, bytes: Box::from(&[0xff, 0, 0x80][..]) },
-            )
-            .unwrap(),
-        )],
+        &[SBlock::Opaque(smith::Opaque { dialect: DIALECT, bytes: Box::from(&[0xff, 0, 0x80][..]) })],
     )]);
     assert_eq!(brief_text(&limits(), &encode(&turn)).unwrap().as_ref(), b"[opaque 3 block, 3 bytes]\n");
 }
@@ -855,9 +716,7 @@ fn brief_text_refuses_broken_records_as_decode_does() {
 
 #[test]
 fn brief_output_fits_its_byte_bound_and_ends_in_a_complete_utf8_line() {
-    let block = SBlock::Opaque(
-        smith::Opaque::new(&CEILINGS, smith::OpaqueParts { dialect: DIALECT, bytes: Box::new([]) }).unwrap(),
-    );
+    let block = SBlock::Opaque(smith::Opaque { dialect: DIALECT, bytes: Box::new([]) });
     let mut blocks = List::with_capacity(16);
     for _ in 0_u8..16 {
         blocks.push(block.clone()).unwrap();
@@ -884,21 +743,13 @@ fn brief_output_fits_its_byte_bound_and_ends_in_a_complete_utf8_line() {
 fn an_input_that_fills_the_budget_leaves_its_outcomes_line() {
     let input = [b'x'; 512];
     let answer = b"Wrote note 4 revision 2";
-    let note_call = SBlock::Call(
-        smith::Call::new(
-            &CEILINGS,
-            smith::CallParts {
-                id: b"note-id".as_slice().into(),
-                name: b"note".as_slice().into(),
-                input: input.as_slice().into(),
-                replay: None,
-            },
-        )
-        .unwrap(),
-    );
-    let returned = smith::Returned::Said(
-        smith::Said::new(&CEILINGS, smith::SaidParts { text: answer.as_slice().into(), error: false }).unwrap(),
-    );
+    let note_call = SBlock::Call(smith::Call {
+        id: b"note-id".as_slice().into(),
+        name: b"note".as_slice().into(),
+        input: input.as_slice().into(),
+        replay: None,
+    });
+    let returned = smith::Returned::Said(smith::Said { text: answer.as_slice().into(), error: false });
     let source = source(&[
         message(smith::Role::Assistant, &[note_call, call(b"other")]),
         message(smith::Role::User, &[result(b"note-id", returned), result(b"other", said(b"done"))]),
@@ -931,9 +782,9 @@ fn the_clients_call_name_bound_matches_the_transcript_ceiling() {
 fn supplied_system_text_survives_translation_and_missing_context() {
     let supplied = b"Selected FIRST instructions\n\n## Brief\nDocument commit: abcdef";
     let original = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]);
-    let mut parts = original.clone().into_parts();
+    let mut parts = original.clone();
     parts.system = Some(Box::from(supplied.as_slice()));
-    let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+    let bytes = encode(&parts);
     let decoded = decode(&limits(), &bytes).unwrap();
     assert_eq!(decoded.messages.get(0).unwrap().speaker, Speaker::System);
     assert_eq!(
@@ -961,19 +812,18 @@ fn supplied_system_text_survives_translation_and_missing_context() {
 
 #[test]
 fn archived_system_context_is_not_replayed_as_a_conversation_tail() {
-    let mut parts =
-        source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"conversation answer"))])]).into_parts();
+    let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"conversation answer"))])]);
     parts.system = Some(b"supplied instructions and brief".as_slice().into());
-    let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+    let bytes = encode(&parts);
     let rendered = brief_text(&limits(), &bytes).unwrap();
     assert_eq!(rendered.as_ref(), b"assistant: conversation answer\n");
 }
 
 #[test]
 fn system_inspection_does_not_displace_conversation_words() {
-    let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]).into_parts();
+    let mut parts = source(&[message(smith::Role::Assistant, &[SBlock::Text(text(b"answer"))])]);
     parts.system = Some(b"supplied instructions".as_slice().into());
-    let bytes = encode(&smith::Turn::new(&CEILINGS, parts).unwrap());
+    let bytes = encode(&parts);
     let mut small = limits();
     let page = conversation(&small, &bytes).unwrap();
     assert_eq!(page.messages.get(0).unwrap().speaker, Speaker::Assistant);

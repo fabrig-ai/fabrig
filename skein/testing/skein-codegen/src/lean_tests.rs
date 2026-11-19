@@ -28,6 +28,14 @@ fn lean_helper_fixture_has_no_drift() {
 }
 
 #[test]
+fn lean_secret_fields_need_no_box_import() {
+    let schema = parse("family hidden 1 record Row { value: option list 2 secret 8 }").expect("secret schema");
+    let output = generate_as(&schema, Form::Lean).records;
+    assert!(output.contains("pub value: Option<List<skein_lib::Secret>>"));
+    assert!(!output.contains("use alloc::boxed::Box;"), "secret fields use Secret, not Box");
+}
+
+#[test]
 fn lean_surface_is_public_and_sealed_generation_is_unchanged() {
     let schema = parse(FIXTURE).expect("helper schema");
     assert_eq!(generate_as(&schema, Form::Sealed), generate(&schema));

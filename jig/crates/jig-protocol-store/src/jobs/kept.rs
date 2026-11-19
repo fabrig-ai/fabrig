@@ -1,6 +1,7 @@
 //! Done rows are component records, kept by their own family (protocol/store/layouts.md, 3).
 use crate::{Job, OpenRefusal, Owner, Store, keys, open, registry_v1};
 use alloc::boxed::Box;
+use skein_codec::Record as _;
 use skein_lib::List;
 
 pub(crate) fn key(store: &Store, owner: Owner, job: &Job) -> Option<Box<[u8]>> {
@@ -12,7 +13,7 @@ pub(crate) fn done(store: &mut Store, owner: Owner, job: &Job) -> Result<bool, O
     let Ok(row) = registry_v1::Job::decode(&registry_v1::CEILINGS, &mut skein_lib::Reader::new(&value)) else {
         return Err(OpenRefusal::Failed);
     };
-    if row.ended() == 0 || row.ended() > store.stores.store.last() {
+    if row.ended == 0 || row.ended > store.stores.store.last() {
         return Err(OpenRefusal::Failed);
     }
     Ok(true)
@@ -29,10 +30,9 @@ pub(crate) fn pending(store: &mut Store) -> Result<bool, OpenRefusal> {
     Ok(pending)
 }
 pub(crate) fn operation(store: &Store, owner: Owner, job: &Job, ended: u64) -> Option<skein_kv::Op> {
-    let row = registry_v1::Job::new(&registry_v1::CEILINGS, registry_v1::JobParts { ended }).ok()?;
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(row.measure()));
-    row.encode(&mut writer).ok()?;
-    Some(skein_kv::Op::Put { key: key(store, owner, job)?, value: writer.finish() })
+    let row = registry_v1::Job { ended };
+    let writer = row.encode(&registry_v1::CEILINGS).ok()?;
+    Some(skein_kv::Op::Put { key: key(store, owner, job)?, value: writer })
 }
 pub(crate) fn first(store: &Store, ops: &mut List<skein_kv::Op>, number: u64) -> Option<()> {
     for set in store.owner_sets.sets {

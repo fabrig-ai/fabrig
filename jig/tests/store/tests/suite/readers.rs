@@ -1,5 +1,6 @@
 //! Read-only restore and inventory on the simulated disk (protocol/store/loads.md and protocol/store/README.md, 9).
 use jig_domain_core as core;
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{
     self as store, Restore, Row, SecretOwner, SecretValue, Secrets, Write, codec, keys, restore::Item, sizes,
 };
@@ -39,11 +40,8 @@ fn inventory(world: &mut World, rows: u32, bytes: u64) -> BTreeMap<Box<[u8]>, Bo
 
 fn empty_wires() -> Box<[u8]> {
     use jig_protocol_store::component_v3 as wire;
-    let wires = wire::Wires::new(&wire::CEILINGS, wire::WiresParts { wires: skein_lib::List::with_capacity(0) })
-        .expect("empty wires");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(wires.measure()));
-    wires.encode(&mut writer).expect("measured wires");
-    writer.finish()
+    let wires = wire::Wires { wires: skein_lib::List::with_capacity(0) };
+    wires.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured wires")
 }
 
 fn raw(record: &core::Record) -> (Box<[u8]>, Box<[u8]>) {
@@ -78,14 +76,8 @@ fn inventory_reads_component_installation_domain_and_application_without_secrets
             jig_protocol_store::format::current(root::APPLICATION.version, root::DEPLOYMENT).encode().expect("format"),
         ),
         (keys::encode_own(&keys::Own::Floor, root::limits().store.key).expect("floor key"), {
-            let floor = store::component_v3::Floor::new(
-                &store::component_v3::CEILINGS,
-                store::component_v3::FloorParts { number: store::FLOOR, build: Box::new([]) },
-            )
-            .expect("empty build");
-            let mut writer = skein_lib::Writer::new(usize::try_from(floor.measure()).unwrap());
-            floor.encode(&mut writer).unwrap();
-            writer.finish()
+            let floor = store::component_v3::Floor { number: store::FLOOR, build: Box::new([]) };
+            floor.encode(&jig_protocol_store::component_v3::CEILINGS).unwrap()
         }),
         (
             keys::installation(root::limits().store.key).expect("installation key"),
