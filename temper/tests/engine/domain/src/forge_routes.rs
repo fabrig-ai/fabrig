@@ -204,6 +204,10 @@ pub struct StoryLimits {
     pub forge_calls: Option<u32>,
     pub forge_rate: Option<u32>,
     pub forge_rows: Option<u32>,
+    pub forge_resources: Option<u32>,
+    pub forge_repositories: Option<u32>,
+    pub forge_resources_per_task: Option<u32>,
+    pub forge_tasks: Option<u32>,
     pub close_job: Option<(Option<Box<[u8]>>, bool)>,
     pub goal_closer: bool,
     pub landing_attempts: Option<u8>,
@@ -245,6 +249,14 @@ pub struct StoryLimits {
     pub tree_tasks: Option<u32>,
     pub inbox_messages: Option<u32>,
     pub inbox_bytes: Option<u32>,
+    /// Larger diagnostics use the runtime task and authority bounds in the store codec too.
+    pub message_bytes: Option<u32>,
+    /// News fixtures size the task's result without enlarging the transcript carrier.
+    pub message_result_bytes: Option<u32>,
+    pub message_inbox_bytes: Option<u32>,
+    pub subscriptions: Option<u32>,
+    pub inbox_recipients: Option<u32>,
+    pub call_records: Option<u32>,
     pub brief: Option<engine::BriefLimits>,
     pub stall: Option<Duration>,
     pub spec_bytes: Option<u32>,
@@ -1351,6 +1363,36 @@ impl World {
             if let Some(rows) = timing.forge_rows {
                 limits.forge.client.rows = rows;
             }
+            if let Some(resources) = timing.forge_resources {
+                limits.forge.client.resources = resources;
+            }
+            if let Some(repositories) = timing.forge_repositories {
+                limits.forge.client.repositories = repositories;
+            }
+            if let Some(resources) = timing.forge_resources_per_task {
+                limits.forge.resources_per_task = resources;
+            }
+            if let Some(tasks) = timing.forge_tasks {
+                limits.forge.tasks = tasks;
+            }
+            if let Some(bytes) = timing.message_bytes {
+                limits.tasks.message_bytes = bytes;
+            }
+            if let Some(bytes) = timing.message_result_bytes {
+                limits.tasks.result_bytes = bytes;
+            }
+            if let Some(bytes) = timing.message_inbox_bytes {
+                limits.tasks.inbox_bytes = bytes;
+            }
+            if let Some(subscriptions) = timing.subscriptions {
+                limits.tasks.subscriptions = subscriptions;
+            }
+            if let Some(recipients) = timing.inbox_recipients {
+                limits.people.inbox_recipients = recipients;
+            }
+            if let Some(records) = timing.call_records {
+                limits.call_records = records;
+            }
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;
             }
@@ -1579,6 +1621,18 @@ impl World {
             || timing.landing_attempts.is_some()
         {
             store_limits = limits;
+        }
+        if timing.message_bytes.is_some() {
+            // Diagnostic fixtures retain broad history pages with the runtime's task codec.
+            store_limits = temper_engine_domain_world::store::widest();
+            store_limits.tasks = limits.tasks;
+            store_limits.authority = limits.authority;
+        }
+        if timing.inbox_recipients.is_some() {
+            store_limits.people.inbox_recipients = limits.people.inbox_recipients;
+        }
+        if timing.call_records.is_some() {
+            store_limits.call_records = limits.call_records;
         }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);

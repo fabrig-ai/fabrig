@@ -3,7 +3,8 @@ use super::*;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers as policy;
 use temper_engine_domain_world::tier_runs::{
-    self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, merge, produce_delegated, restart_cut, task, tier, until,
+    self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, change_state, merge, produce_delegated, restart_cut, task,
+    tier, until,
 };
 pub(super) use temper_engine_domain_world::tier_task_show as task_show;
 #[path = "tiers/post.rs"]
@@ -99,7 +100,7 @@ pub(super) fn result(world: &World, number: u64) -> &str {
 
 pub(super) fn cleared(world: &mut World, number: u64) {
     until(world, RUN_TICKS * 3, "change cleared", |world| matches!(task(world, number).phase, tasks::Phase::Ended(_)));
-    assert!(matches!(change(world, number).change.state, State::Cleared { .. }));
+    assert!(matches!(change_state(world, number), State::Cleared { .. }));
     assert!(matches!(panel(world, number), forge_top::PanelStep::Cleared { uncleared: false, .. }));
     assert!(result(world, number).contains("Landed:"), "result is given at cleared");
 }
@@ -214,9 +215,7 @@ fn red_range() -> (World, engine::Assignment, [u64; 3]) {
     );
     let run_task = tier(&world).task.expect("range task");
     let runs = observe_range(&mut world, run_task);
-    until(&mut world, LANDING_TICKS, "blamed change red", |world| {
-        matches!(change(world, b).change.state, State::Red { .. })
-    });
+    until(&mut world, LANDING_TICKS, "blamed change red", |world| matches!(change_state(world, b), State::Red { .. }));
     assert!(!matches!(task(&world, b).phase, tasks::Phase::Ended(_)));
     let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, b) else { panic!("red panel") };
     assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns 2 tests: suite.alpha, suite.beta".as_bytes())]);
@@ -271,7 +270,7 @@ fn a_silent_runner_past_the_bound_ends_landed_uncleared() {
         matches!(task(world, number).phase, tasks::Phase::Ended(_))
     });
     assert!(world.env.wall.as_nanos() >= since.as_nanos() + Duration::from_millis(BOUND_MS).as_nanos());
-    assert!(matches!(change(&world, number).change.state, State::Uncleared { .. }));
+    assert!(matches!(change_state(&world, number), State::Uncleared { .. }));
     assert!(matches!(panel(&mut world, number), forge_top::PanelStep::Cleared { uncleared: true, .. }));
     assert!(
         result(&world, number).contains("Not cleared: no verdict within the verification bound."),
@@ -634,7 +633,7 @@ fn closing_a_chat_with_a_red_landing_leaves_the_merged_pull_untouched() {
     let number = produce(&mut world, &chat, 93, b"failures", tier_runs::FAILURES);
     verifying(&mut world, number);
     until(&mut world, RUN_TICKS * 3, "landed change red", |world| {
-        matches!(change(world, number).change.state, State::Red { .. })
+        matches!(change_state(world, number), State::Red { .. })
     });
     let row = change(&world, number);
     let pull = row.pull.expect("landed pull");
@@ -740,7 +739,7 @@ fn failed_landing(failures: &[u8], many: bool) -> (World, u64) {
     until(&mut world, RUN_TICKS, "failed landing judged", |world| {
         tier(world).record.sequence == 2 && tier(world).posting.is_none()
     });
-    until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change(world, red).change.state, State::Red { .. }));
+    until(&mut world, LANDING_TICKS, "red panel", |world| matches!(change_state(world, red), State::Red { .. }));
     (world, red)
 }
 
@@ -852,7 +851,7 @@ fn a_persons_hold_survives_flight_bound_and_restart_then_releases_the_newest_ran
                 [a, b].iter().all(|number| matches!(task(world, *number).phase, tasks::Phase::Ended(_)))
             });
             for number in [a, b] {
-                assert!(matches!(change(&world, number).change.state, State::Uncleared { .. }));
+                assert!(matches!(change_state(&world, number), State::Uncleared { .. }));
                 assert!(result(&world, number).contains("Not cleared: no verdict within the verification bound."));
             }
         }

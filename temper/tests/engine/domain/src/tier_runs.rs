@@ -21,11 +21,20 @@ pub const RUN_TICKS: u32 = 1800;
 /// The producer and landing fixture's 600 ticks, at 100 milliseconds each.
 pub const LANDING_TICKS: u32 = 600;
 pub const FAILURES: &[u8] = b"suite.alpha\nsuite.beta\n";
+// The red's full diagnostic, two change results, and eight inbox messages.
+const NEWS_MESSAGE_BYTES: u32 = 1024;
+const NEWS_RESULT_BYTES: u32 = 512;
+const NEWS_INBOX_BYTES: u32 = 4096;
+// The change world's recipient census and four retained call answers.
+const NEWS_INBOX_RECIPIENTS: u32 = 32;
+const NEWS_CALL_RECORDS: u32 = 4;
 // Four changes' CI topics, the goal's landing topic and its idle timer.
 const GOAL_SUBSCRIPTIONS: u32 = 6;
 // Result reservations and the subscription credits, with core news kept separately.
 const GOAL_INBOX_MESSAGES: u32 = 16;
 const GOAL_INBOX_BYTES: u32 = 8192;
+// The walking fixture's one role, twice the inbox, and four extra recipients.
+const GOAL_INBOX_RECIPIENTS: u32 = GOAL_INBOX_MESSAGES * 2 + 1 + 4;
 // Four change calls and the timer retain their replay answers.
 const GOAL_CALL_RECORDS: u32 = 5;
 const GOAL_SPAN_MS: u64 = 1_200_000; // after-landing.md, 2: g's 20-minute span.
@@ -102,10 +111,10 @@ pub(crate) fn workflows(tier: Option<Tier>, gates: Box<[raw::Workflow]>) -> Box<
 
 #[must_use]
 pub fn world(turn: bool, tier: Tier) -> World {
-    world_with_kinds(turn, tier, false)
+    configured(turn, tier, StoryLimits::default())
 }
 
-fn world_with_kinds(turn: bool, tier: Tier, kinds: bool) -> World {
+fn configured(turn: bool, tier: Tier, limits: StoryLimits) -> World {
     World::configured_limits(
         true,
         true,
@@ -113,14 +122,7 @@ fn world_with_kinds(turn: bool, tier: Tier, kinds: bool) -> World {
         1000,
         Gate::default(),
         None,
-        StoryLimits {
-            turn,
-            kinds,
-            tier: Some(tier),
-            tasks: Some(12),
-            spec_bytes: Some(4096),
-            ..StoryLimits::default()
-        },
+        StoryLimits { turn, tier: Some(tier), tasks: Some(12), spec_bytes: Some(4096), ..limits },
     )
 }
 
@@ -143,27 +145,23 @@ pub fn findings_world() -> World {
 }
 
 fn news_world_with(options: Tier, kinds: bool) -> World {
-    let mut world = world_with_kinds(false, options, kinds);
-    world.env.limits.tasks.message_bytes = 1024;
-    world.env.limits.tasks.result_bytes = 512;
-    world.env.limits.tasks.inbox_bytes = 4096;
+    let mut limits = StoryLimits {
+        kinds,
+        message_bytes: Some(NEWS_MESSAGE_BYTES),
+        message_result_bytes: Some(NEWS_RESULT_BYTES),
+        message_inbox_bytes: Some(NEWS_INBOX_BYTES),
+        inbox_recipients: Some(NEWS_INBOX_RECIPIENTS),
+        call_records: Some(NEWS_CALL_RECORDS),
+        ..StoryLimits::default()
+    };
     if options.goals {
-        world.env.limits.tasks.subscriptions = GOAL_SUBSCRIPTIONS;
-        world.env.limits.tasks.inbox_messages = GOAL_INBOX_MESSAGES;
-        world.env.limits.tasks.inbox_bytes = GOAL_INBOX_BYTES;
-        world.env.limits.people.inbox_recipients = GOAL_INBOX_MESSAGES * 2 + world.env.limits.authority.roles + 4;
-        world.env.limits.call_records = GOAL_CALL_RECORDS;
+        limits.subscriptions = Some(GOAL_SUBSCRIPTIONS);
+        limits.inbox_messages = Some(GOAL_INBOX_MESSAGES);
+        limits.message_inbox_bytes = Some(GOAL_INBOX_BYTES);
+        limits.inbox_recipients = Some(GOAL_INBOX_RECIPIENTS);
+        limits.call_records = Some(GOAL_CALL_RECORDS);
     }
-    let mut limits = crate::store::widest();
-    limits.tasks = world.env.limits.tasks;
-    limits.authority = world.env.limits.authority;
-    limits.call_records = world.env.limits.call_records;
-    limits.people.inbox_recipients = world.env.limits.people.inbox_recipients;
-    let mut store = crate::store::Store::with_limits(&limits);
-    store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
-    world.store = store;
-    let client = world.env.limits.forge.client;
-    world.with_forge_client(client)
+    configured(false, options, limits)
 }
 
 /// A tracked goal without a goal branch; its changes land into main.
@@ -276,24 +274,27 @@ pub fn tick(world: &mut World) {
 
 #[must_use]
 pub fn task(world: &World, number: u64) -> &tasks::TaskRecord {
-    world
-        .store
-        .rows
-        .values()
-        .find_map(|row| match row {
-            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
-                if row.number == number =>
-            {
-                Some(row.as_ref())
-            }
-            _ => None,
-        })
-        .expect("story task")
+    // Live sorts before Ended in the durable key order, including at a restart cut.
+    for key in [tasks::Key::Live(number), tasks::Key::Ended(number)] {
+        if let Some(Record::Core(jig_domain_core::Record::Tasks(
+            tasks::Stored::Live(row) | tasks::Stored::Ended(row),
+        ))) = world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(key)))
+        {
+            return row;
+        }
+    }
+    panic!("story task")
 }
 
 #[must_use]
 pub fn change(world: &World, number: u64) -> forge_top::ChangeRow {
     world.store.change(number).expect("durable change")
+}
+
+/// Poll only the changing state, without joining and cloning the change's cold fields.
+#[must_use]
+pub fn change_state(world: &World, number: u64) -> &State {
+    &world.store.change_hot(number).expect("durable change").change.state
 }
 
 #[must_use]
@@ -392,7 +393,7 @@ pub fn produce_delegated(
     );
     world.send(event);
     until(world, LANDING_TICKS, "change landed and verifying", |world| {
-        matches!(change(world, number).change.state, State::Landed { .. })
+        matches!(change_state(world, number), State::Landed { .. })
     });
     number
 }
