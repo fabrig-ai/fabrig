@@ -1205,6 +1205,14 @@ pub enum Path {
     DesignWriterRereading,
     /// Bytes after `DesignWriter`.
     DesignWriterTail,
+    /// The `head` field of `HeadBeside`.
+    HeadBesideHead,
+    /// The `waiting` field of `HeadBeside`.
+    HeadBesideWaiting,
+    /// Bytes after `HeadBeside`.
+    HeadBesideTail,
+    /// The `beside` field of `Hold`.
+    HoldBeside,
     /// The `name` field of `Hold`.
     HoldName,
     /// The `task` field of `Hold`.
@@ -4941,6 +4949,10 @@ impl Path {
             Self::DesignWriterAttempt => "DesignWriter.attempt",
             Self::DesignWriterRereading => "DesignWriter.rereading",
             Self::DesignWriterTail => "DesignWriter (tail)",
+            Self::HeadBesideHead => "HeadBeside.head",
+            Self::HeadBesideWaiting => "HeadBeside.waiting",
+            Self::HeadBesideTail => "HeadBeside (tail)",
+            Self::HoldBeside => "Hold.beside",
             Self::HoldName => "Hold.name",
             Self::HoldTask => "Hold.task",
             Self::HoldWriter => "Hold.writer",
@@ -9910,17 +9922,138 @@ impl DesignWriter {
 
 fn design_writer_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(DesignWriter::encoded_bound_within(limits)?);
-    hold_encoded_bound_family(limits, biggest)
+    head_beside_encoded_bound_family(limits, biggest)
 }
 
 fn design_writer_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(DesignWriter::decoded_bound_within(limits)?);
+    head_beside_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `HeadBeside`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HeadBesideParts {
+    /// The `head` field.
+    pub head: [u8; 32],
+    /// The `waiting` field.
+    pub waiting: Option<[u8; 32]>,
+}
+
+/// `HeadBeside` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct HeadBeside {
+    head: [u8; 32],
+    waiting: Option<[u8; 32]>,
+}
+
+impl HeadBeside {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: HeadBesideParts) -> Result<Self, Problem> {
+        let HeadBesideParts { head, waiting } = parts;
+        let value = Self { head, waiting };
+        Ok(value)
+    }
+
+    /// Reads the `head` field.
+    #[must_use]
+    pub fn head(&self) -> &[u8; 32] { &self.head }
+
+    /// Reads the `waiting` field.
+    #[must_use]
+    pub fn waiting(&self) -> &Option<[u8; 32]> { &self.waiting }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> HeadBesideParts { HeadBesideParts { head: self.head, waiting: self.waiting } }
+
+}
+
+impl HeadBeside {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_waiting = &self.waiting;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_waiting.is_some() {
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_head = &self.head;
+        writer.put(field_head)?;
+        let field_waiting = &self.waiting;
+        match field_waiting {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::HeadBesideTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_head = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::HeadBesideHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_waiting = match reader.u8().ok_or(Problem { path: Path::HeadBesideWaiting, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(32).ok_or(Problem { path: Path::HeadBesideWaiting, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::HeadBesideWaiting, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { head: decoded_head, waiting: decoded_waiting })
+    }
+}
+
+impl HeadBeside {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?.checked_add(1_u64.checked_add(u64::from(32_u32))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn head_beside_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HeadBeside::encoded_bound_within(limits)?);
+    hold_encoded_bound_family(limits, biggest)
+}
+
+fn head_beside_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(HeadBeside::decoded_bound_within(limits)?);
     hold_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `Hold`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct HoldParts {
+    /// The `beside` field.
+    pub beside: Option<HeadBeside>,
     /// The `name` field.
     pub name: Name,
     /// The `task` field.
@@ -9936,6 +10069,7 @@ pub struct HoldParts {
 /// `Hold` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Hold {
+    beside: Option<HeadBeside>,
     name: Name,
     task: u64,
     writer: Option<Writer>,
@@ -9946,11 +10080,15 @@ pub struct Hold {
 impl Hold {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: HoldParts) -> Result<Self, Problem> {
-        let HoldParts { name, task, writer, design_writers, drift } = parts;
-        let value = Self { name, task, writer, design_writers, drift };
+        let HoldParts { beside, name, task, writer, design_writers, drift } = parts;
+        let value = Self { beside, name, task, writer, design_writers, drift };
         value.check(limits)?;
         Ok(value)
     }
+
+    /// Reads the `beside` field.
+    #[must_use]
+    pub fn beside(&self) -> &Option<HeadBeside> { &self.beside }
 
     /// Reads the `name` field.
     #[must_use]
@@ -9974,7 +10112,7 @@ impl Hold {
 
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> HoldParts { HoldParts { name: self.name, task: self.task, writer: self.writer, design_writers: self.design_writers, drift: self.drift } }
+    pub fn into_parts(self) -> HoldParts { HoldParts { beside: self.beside, name: self.name, task: self.task, writer: self.writer, design_writers: self.design_writers, drift: self.drift } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.name.check(limits)?;
@@ -9991,6 +10129,11 @@ impl Hold {
     #[must_use]
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
+        let field_beside = &self.beside;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_beside {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         let field_name = &self.name;
         size = size.checked_add(field_name.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(8).expect("schema ceilings fit u32");
@@ -10012,6 +10155,14 @@ impl Hold {
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_beside = &self.beside;
+        match field_beside {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         let field_name = &self.name;
         field_name.encode(writer)?;
         let field_task = &self.task;
@@ -10048,12 +10199,13 @@ impl Hold {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_beside = match reader.u8().ok_or(Problem { path: Path::HoldBeside, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(HeadBeside::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HoldBeside, reason: skein_codec::Reason::Tag }) };
         let decoded_name = Name::decode_from(limits, reader)?;
         let decoded_task = reader.u64().ok_or(Problem { path: Path::HoldTask, reason: skein_codec::Reason::Short })?;
         let decoded_writer = match reader.u8().ok_or(Problem { path: Path::HoldWriter, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Writer::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HoldWriter, reason: skein_codec::Reason::Tag }) };
         let decoded_design_writers = { let count = match skein_codec::read_count(reader, limits.hold_design_writers.min(CEILINGS.hold_design_writers)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::HoldDesignWriters, reason }), }; if count > reader.remaining() / 17 { return Err(Problem { path: Path::HoldDesignWriters, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = DesignWriter::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         let decoded_drift = match reader.u8().ok_or(Problem { path: Path::HoldDrift, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Drift::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::HoldDrift, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { name: decoded_name, task: decoded_task, writer: decoded_writer, design_writers: decoded_design_writers, drift: decoded_drift })
+        Ok(Self { beside: decoded_beside, name: decoded_name, task: decoded_task, writer: decoded_writer, design_writers: decoded_design_writers, drift: decoded_drift })
     }
 }
 
@@ -10067,9 +10219,9 @@ impl Hold {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(Name::encoded_bound_within(limits)?)?.checked_add(8_u64)?;
-        size = size.checked_add(1_u64.checked_add(Writer::encoded_bound_within(limits)?)?)?.checked_add(4_u64.checked_add(u64::from(limits.hold_design_writers).checked_mul(DesignWriter::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(1_u64.checked_add(Drift::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(1_u64.checked_add(HeadBeside::encoded_bound_within(limits)?)?)?.checked_add(Name::encoded_bound_within(limits)?)?;
+        size = size.checked_add(8_u64)?.checked_add(1_u64.checked_add(Writer::encoded_bound_within(limits)?)?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.hold_design_writers).checked_mul(DesignWriter::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(Drift::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -10082,9 +10234,9 @@ impl Hold {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(Name::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(Writer::decoded_bound_within(limits)?)?.checked_add(List::<DesignWriter>::price(limits.hold_design_writers)?.checked_add(u64::from(limits.hold_design_writers).checked_mul(DesignWriter::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(Drift::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(HeadBeside::decoded_bound_within(limits)?)?.checked_add(Name::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Writer::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(List::<DesignWriter>::price(limits.hold_design_writers)?.checked_add(u64::from(limits.hold_design_writers).checked_mul(DesignWriter::decoded_bound_within(limits)?)?)?)?.checked_add(Drift::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

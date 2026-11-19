@@ -42,6 +42,8 @@ mod room;
 pub use restore::{RestoreFit, RestoreSet};
 #[path = "design.rs"]
 mod design;
+#[path = "written.rs"]
+mod written;
 use design::{branch_written, design_claim_permitted, goal_run, pending_writer, read_designs, unpublished_branch};
 
 /// One comparison in flight for a branch's observed tip move.
@@ -63,6 +65,7 @@ pub(crate) struct PendingLost {
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum LostWriterKind {
+    Written,
     Slot,
     Design,
 }
@@ -2628,6 +2631,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
         }
     }
+    written::cleanup(d, env, out);
     read_afresh_complete(d, out);
 }
 
@@ -2808,7 +2812,7 @@ pub(crate) fn emit(out: &mut Queue<Request>, request: Request) {
 }
 
 fn save_hold(out: &mut Queue<Request>, hold: Hold) {
-    let read_afresh = if hold.writer.is_none() { Some(hold.name.clone()) } else { None };
+    let read_afresh = if hold.writer.is_none() && !design::waiting(&hold) { Some(hold.name.clone()) } else { None };
     emit(out, Request::Save { record: Stored::Hold(hold), release: None, read_afresh });
 }
 
@@ -2819,7 +2823,8 @@ fn saved_work(d: &mut Domain, env: &Env<Limits>, task: u64, branches: &[Name], o
         if !valid_name(d, &env.limits, name) || d.holds.contains_key(name) || d.holds.len() == env.limits.holds {
             continue;
         }
-        let row = Hold { design_writers: Box::new([]), name: name.clone(), task, writer: None, drift: None };
+        let row =
+            Hold { beside: None, design_writers: Box::new([]), name: name.clone(), task, writer: None, drift: None };
         d.holds.insert(name.clone(), row.clone()).expect("saved-work hold capacity checked");
         emit(out, Request::Save { record: Stored::Hold(row), release: None, read_afresh: None });
     }
@@ -3077,7 +3082,11 @@ fn hold(
         Some(row) => row.design_writers.clone(),
         None => Box::new([]),
     };
-    let row = Hold { name: resource.clone(), task, writer, design_writers, drift };
+    let beside = match d.holds.get(&resource) {
+        Some(row) => row.beside,
+        None => None,
+    };
+    let row = Hold { name: resource.clone(), task, writer, design_writers, beside, drift };
     d.holds.insert(resource.clone(), row.clone()).expect("preflighted hold capacity");
     save_hold(out, row);
     goal_branch::start(d, env, resource, Some(entry), out);
@@ -3119,6 +3128,10 @@ fn claim(
             return;
         }
         if goal_branch::is_goal(d, name) && goal_branch::waiting(d, name) {
+            emit(out, Request::Taken { task, resource: name.clone(), by: row.task });
+            return;
+        }
+        if design::waiting(row) {
             emit(out, Request::Taken { task, resource: name.clone(), by: row.task });
             return;
         }
@@ -3211,22 +3224,9 @@ fn answered(
         if let Some(resource) = to_client(name, &env.limits) {
             for (pushed_name, commit, checked) in pushed {
                 if pushed_name == name && undrifted {
-                    let head = BranchHead { name: name.clone(), commit: *commit, owned: true };
-                    let previous = d.branch_head(name);
-                    let concerning = heads::concerning(d, name, Some(holder));
-                    let recorded = heads::record(d, env, head.clone(), concerning, out);
-                    wake_head_dependents(d, name, previous, *commit);
-                    if recorded {
-                        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
-                    }
+                    record_written_head(d, env, resource.clone(), name.clone(), *commit, holder, out);
                     record_delegate_head(d, env, task, name, *commit, *checked, out);
                     crate::change_history::delivered(d, env.wall, task, name, *commit, *checked, out);
-                    child(
-                        d,
-                        env,
-                        skein_forge_client::Event::Pushed { resource: resource.clone(), commit: *commit },
-                        out,
-                    );
                 }
             }
             let taken = branch_written(d, name, None);
@@ -3383,6 +3383,10 @@ fn lost_read(
     out: &mut Queue<Request>,
 ) {
     let Some(mut pending) = d.lost.remove(&owner) else { return };
+    if pending.kind == LostWriterKind::Written {
+        written::answered(d, env, owner, pending, result, out);
+        return;
+    }
     if !d
         .repositories
         .contains_key(&skein_forge::api::Repository { forge: pending.name.forge, repository: pending.name.repository })
@@ -3512,6 +3516,7 @@ fn lost_read(
         return;
     }
     match pending.kind {
+        LostWriterKind::Written => unreachable!("written comparison answered separately"),
         LostWriterKind::Slot => row.writer = None,
         LostWriterKind::Design => {
             let mut writers = List::with_capacity(env.limits.holds);
@@ -3535,6 +3540,11 @@ fn lost_read(
             emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
         }
         record_delegate_head(d, env, pending.task, &pending.name, commit, false, out);
+        if pending.kind == LostWriterKind::Design && design::other_written(d, &pending.name, None) {
+            let hold = d.holds.get_mut(&pending.name).expect("design writer hold");
+            hold.beside = Some(crate::HeadBeside { head: commit, waiting: None });
+            save_hold(out, hold.clone());
+        }
         child(d, env, skein_forge_client::Event::Pushed { resource: resource.clone(), commit }, out);
     }
     let taken = branch_written(d, &pending.name, None);
@@ -6206,7 +6216,7 @@ pub(crate) fn change_branch_hold(d: &Domain, row: &ChangeRow) -> Option<(u64, bo
             && name.repository == row.repository.repository
             && crate::items::branch_matches(name, &row.branch)
         {
-            return Some((hold.task, hold.writer.is_some()));
+            return Some((hold.task, hold.writer.is_some() || design::waiting(hold)));
         }
     }
     None
@@ -6963,11 +6973,28 @@ pub(crate) fn record_written_head(
     task: u64,
     out: &mut Queue<Request>,
 ) {
+    if written::defer(d, env, &name, commit, task, out) {
+        return;
+    }
+    confirm_written_head(d, env, resource, name, commit, task, out);
+}
+
+pub(super) fn confirm_written_head(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    resource: skein_forge_client::Resource,
+    name: Name,
+    commit: skein_forge::api::Commit,
+    task: u64,
+    out: &mut Queue<Request>,
+) {
+    let previous = d.branch_head(&name);
     let head = BranchHead { name: name.clone(), commit, owned: true };
     let concerning = heads::concerning(d, &name, Some(task));
     if heads::record(d, env, head.clone(), concerning, out) {
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
     }
+    wake_head_dependents(d, &name, previous, commit);
     child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
 }
 
@@ -7521,7 +7548,7 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         let mut selected = None;
         for (name, hold) in &d.holds {
             if hold.task == task {
-                selected = Some((name.clone(), hold.writer, !hold.design_writers.is_empty()));
+                selected = Some((name.clone(), hold.writer, !hold.design_writers.is_empty() || design::waiting(hold)));
                 break;
             }
         }
@@ -9641,6 +9668,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             lost_runs.push((task, attempt)).expect("runs bounded by holds");
         }
     }
+    written::restart(d, env, out);
     for (task, attempt) in &lost_runs {
         lost(d, env, *task, *attempt, out);
     }
