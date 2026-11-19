@@ -1456,6 +1456,66 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
 }
 
 #[test]
+fn a_change_round_trips_the_ask_handed_over_by_its_landing() {
+    use temper_engine_domain_forge_change::{Ask, Below, Landed, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
+    row.change.landing = None;
+    row.change.landing_ask = Some(Box::new(Ask::Repair {
+        gate: 3,
+        candidate: [4; 32],
+        below: Some(Below {
+            green: [5; 32],
+            changes: [Some(Landed { change: 6, pull: 7 }), None, None, None],
+            by_test: true,
+            top: false,
+        }),
+    }));
+    let stored = fixtures::change_hot(row);
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_change_stored_before_handed_over_asks_reads_with_none() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" landing_ask: option LandingAsk = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Ready {
+        head: [1; 32],
+        ready_since: skein_lib::Wall::from_nanos(2),
+    });
+    row.change.landing_ask = Some(Box::new(temper_engine_domain_forge_change::Ask::Landed { prefix: [3; 32] }));
+    let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.change.landing_ask = None;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
+}
+
+#[test]
 fn turn_writes_round_trip_with_their_parameters() {
     use skein_forge::api as a;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");

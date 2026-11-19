@@ -3040,8 +3040,16 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
                     Some(change::Ask::Repair { gate, candidate: red, below: Some(repair_below(&row, green)) })
                 }
             };
+            let task = m.change;
             *row.asks.get_mut(usize::from(member)).expect("ask") = ask;
-            emit(out, Request::WakeProcedure { task: m.change });
+            if let Some(change) = d.changes.get_mut(&task)
+                && change.change.landing == Some(p.task)
+            {
+                unlink(change, Some(&mut row));
+                let saved = change.clone();
+                super::domain::save_change(d, out, saved);
+            }
+            emit(out, Request::WakeProcedure { task });
         }
         policy::Decision::Repair { member, gate } => {
             *row.asks.get_mut(usize::from(member)).expect("member ask") = Some(change::Ask::Repair {
@@ -3183,16 +3191,8 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             }
         }
         policy::Decision::Finish => {
-            for (index, member) in row.landing.members.iter().enumerate() {
-                if member.landed.is_none()
-                    && row.asks.get(index).cloned().flatten().is_none()
-                    && let Some(change) = d.changes.get_mut(&member.change)
-                    && change.change.landing == Some(p.task)
-                {
-                    change.change.landing = None;
-                    let saved = change.clone();
-                    super::domain::save_change(d, out, saved);
-                }
+            unlink_all(d, &mut row, out);
+            for member in &row.landing.members {
                 emit(out, Request::WakeProcedure { task: member.change });
             }
         }
@@ -4032,7 +4032,63 @@ fn repair_below(row: &LandingRow, green: api::Commit) -> change::Below {
     below
 }
 
+/// A departing change owns any ask its landing still keeps (domain/landing.md, 4.3).
+fn unlink(change: &mut crate::ChangeRow, landing: Option<&mut LandingRow>) {
+    if let Some(row) = landing {
+        for (index, member) in row.landing.members.iter().enumerate() {
+            if member.change != change.task {
+                continue;
+            }
+            if let Some(ask) = row.asks.get_mut(index).expect("member ask").take() {
+                change.change.landing_ask = Some(Box::new(ask));
+            } else if row.landing.round.branch.is_empty()
+                && let Some(prefix) = member.landed
+            {
+                change.change.landing_ask = Some(Box::new(change::Ask::Landed { prefix }));
+            }
+        }
+    }
+    change.change.landing = None;
+}
+
+fn unlink_all(d: &mut Domain, row: &mut LandingRow, out: &mut Queue<Request>) {
+    let mut changes = List::with_capacity(d.changes.len());
+    for (task, change) in &d.changes {
+        if change.change.landing == Some(row.landing.task) {
+            changes.push(*task).expect("bounded changes");
+        }
+    }
+    for task in changes.into_boxed() {
+        let change = d.changes.get_mut(&task).expect("linked change");
+        unlink(change, Some(row));
+        let saved = change.clone();
+        super::domain::save_change(d, out, saved);
+        emit(out, Request::WakeProcedure { task });
+    }
+}
+
+/// All forge rows and both change parts are present before stale links are dropped (domain/landing.md, 15).
+pub(crate) fn drop_stale_links(d: &mut Domain) {
+    let mut changes = List::with_capacity(d.changes.len());
+    for (task, change) in &d.changes {
+        let Some(landing) = change.change.landing else { continue };
+        let ended = match d.landing.rows.get(&landing) {
+            Some(row) => matches_terminal(&row.landing.phase),
+            None => true,
+        };
+        if ended {
+            changes.push((*task, landing)).expect("bounded changes");
+        }
+    }
+    for (task, landing) in changes.into_boxed() {
+        unlink(d.changes.get_mut(&task).expect("linked change"), d.landing.rows.get_mut(&landing));
+    }
+}
+
 pub(crate) fn ask_for(d: &Domain, change: &crate::ChangeRow) -> Option<change::Ask> {
+    if let Some(ask) = change.change.landing_ask.as_deref() {
+        return Some(ask.clone());
+    }
     let row = d.landing.rows.get(&change.change.landing?)?;
     for (index, member) in row.landing.members.iter().enumerate() {
         if member.change == change.task {
@@ -4067,12 +4123,6 @@ pub(crate) fn change_advanced(
     decision: change::Decision,
     out: &mut Queue<Request>,
 ) {
-    let Some(task) = row.change.landing else {
-        return;
-    };
-    let Some(mut landing) = d.landing.rows.get(&task).cloned() else {
-        return;
-    };
     let settled = if let change::State::Preparing { .. } = prior.state {
         if let change::State::Preparing { .. } = row.change.state { false } else { true }
     } else {
@@ -4104,17 +4154,21 @@ pub(crate) fn change_advanced(
         | change::Decision::Cancel
         | change::Decision::Hold(_) => false,
     };
-    let mut left = false;
-    for member in &landing.landing.members {
-        left |= member.change == row.task && member.left.is_some();
+    let landed = if let change::Decision::Finish { .. } = decision { true } else { false };
+    let acknowledged = landed
+        || settled
+        || repair
+        || resolution
+        || (judging(&prior.state) && !judging(&row.change.state))
+        || (crate::domain::landed_commit(&prior.state).is_none()
+            && crate::domain::landed_commit(&row.change.state).is_some());
+    if acknowledged {
+        row.change.landing_ask = None;
     }
-    if (resolution || repair) && (matches_terminal(&landing.landing.phase) || left) {
-        row.change.landing = None;
-    }
+    let Some(task) = row.change.landing else { return };
+    let Some(mut landing) = d.landing.rows.get(&task).cloned() else { return };
     for (index, member) in landing.landing.members.iter().enumerate() {
-        if member.change == row.task
-            && (settled || repair || resolution || (judging(&prior.state) && !judging(&row.change.state)))
-        {
+        if member.change == row.task && acknowledged {
             *landing.asks.get_mut(index).expect("member ask") = None;
         }
     }
@@ -5264,14 +5318,20 @@ pub(crate) fn closing(
         row.landing.round.told |= !told.is_empty();
         row.landing.phase = policy::Phase::Cancelled;
         d.landing.due.remove(&task);
+        unlink_all(d, &mut row, out);
         for member in &row.landing.members {
-            if let Some(change) = d.changes.get_mut(&member.change) {
+            if member.left.is_none()
+                && let Some(change) = d.changes.get_mut(&member.change)
+                && change.change.landing.is_none()
+            {
                 let prior = change.change.clone();
-                change.change.landing = None;
                 if let Some(merge) = member.landed {
                     change.change.state = change::State::Landed { merge, since: env.wall };
                 } else if let change::State::Judging { head, ready_since, .. } = change.change.state {
                     change.change.state = change::State::Ready { head, ready_since };
+                    if let Some(change::Ask::Judge(_)) = change.change.landing_ask.as_deref() {
+                        change.change.landing_ask = None;
+                    }
                 }
                 let mut changed = change.clone();
                 if crate::domain::landed_commit(&prior.state).is_none()
@@ -5304,7 +5364,7 @@ pub(crate) fn closing(
         crate::landing_history::transition(d, env.wall, &prior, &row, out);
         remap_members(d, &mut row, &prior);
         let change = d.changes.get_mut(&task).expect("cancelled member");
-        change.change.landing = None;
+        unlink(change, Some(&mut row));
         let changed = change.clone();
         crate::domain::save_change_parts(d, out, changed);
         save(d, row, out);

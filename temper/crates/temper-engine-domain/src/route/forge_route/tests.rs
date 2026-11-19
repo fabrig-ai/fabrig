@@ -1103,6 +1103,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 7,
@@ -4894,6 +4895,32 @@ fn judge_trains(domain: &mut super::Domain, env: &skein_lib::Env<super::Limits>)
     crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &env.limits.journal, decision, true)
         .unwrap();
 }
+#[test]
+fn the_root_forms_a_train_from_a_restored_change_with_a_stale_landing_link() {
+    use super::{forge, landing};
+    use skein_lib::Queue;
+    for phase in [None, Some(landing::Phase::Landed), Some(landing::Phase::Cancelled)] {
+        let (mut domain, env) = train_root(false);
+        let mut row = domain.forge.change(7).unwrap().clone();
+        row.change.landing = Some(99);
+        let forge_env = super::super::environment_forge(&env);
+        let event = forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) };
+        forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+        if let Some(phase) = phase {
+            let (_, _, mut row) = reserved_turn_landing();
+            row.landing.task = 99;
+            row.landing.phase = phase;
+            let event = forge::Event::Restore { record: forge::Stored::Landing(row) };
+            forge::step(&mut domain.forge, &forge_env, event, &mut Queue::uncapped());
+        }
+        domain.forge.fit_restored(&env.limits.forge).unwrap();
+        judge_trains(&mut domain, &env);
+        let formed = domain.forge.change(7).unwrap().change.landing.unwrap();
+        assert_ne!(formed, 99, "the stale member is taken again, before the later task");
+        assert_eq!(domain.forge.landing(formed).unwrap().landing.members[0].change, 7);
+    }
+}
+
 #[test]
 fn the_root_forms_from_restored_readiness_and_again_when_the_train_ends() {
     use super::{Work, forge, tasks};

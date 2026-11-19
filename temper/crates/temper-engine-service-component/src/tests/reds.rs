@@ -109,6 +109,7 @@ fn check_change_row(task: u64) -> forge::ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: change::Way::Queue,
             landing: None,
             task,

@@ -33,6 +33,7 @@ fn change(state: State) -> Change {
     Change {
         ended_held: None,
         early: Early::None,
+        landing_ask: None,
         way: crate::Way::Queue,
         landing: None,
         task: 7,

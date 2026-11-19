@@ -233,7 +233,7 @@ fn decode_operation(op: w::LandingOperation) -> top::Operation {
         w::LandingOperation::Merge => top::Operation::Merge,
     }
 }
-fn encode_ask(ask: change::Ask) -> w::LandingAsk {
+pub(super) fn encode_ask(ask: change::Ask) -> w::LandingAsk {
     match ask {
         change::Ask::Judge(target) => w::LandingAsk::Judge(super::change::encode_judgement(&target)),
         change::Ask::Landed { prefix } => {
@@ -254,7 +254,7 @@ fn encode_ask(ask: change::Ask) -> w::LandingAsk {
         ),
     }
 }
-fn decode_ask(ask: w::LandingAsk) -> change::Ask {
+pub(super) fn decode_ask(ask: w::LandingAsk) -> change::Ask {
     match ask {
         w::LandingAsk::Judge(value) => change::Ask::Judge(super::change::decode_judgement(value)),
         w::LandingAsk::Landed(value) => change::Ask::Landed { prefix: *value.prefix() },

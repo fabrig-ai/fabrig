@@ -658,6 +658,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         released_resolution,
         way,
         landing,
+        landing_ask,
         ended_held,
     } = value;
     w::Change::new(
@@ -696,6 +697,10 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
                 d::Way::Turn => w::Way::Turn,
             },
             landing: *landing,
+            landing_ask: match landing_ask {
+                Some(ask) => Some(super::landing::encode_ask(ask.as_ref().clone())),
+                None => None,
+            },
         },
     )
     .expect(FITS)
@@ -723,6 +728,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         released_resolution,
         way,
         landing,
+        landing_ask,
     } = value.into_parts();
     let (state, ended_held) = decode_change_state(state);
     d::Change {
@@ -760,6 +766,10 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
             w::Way::Turn => d::Way::Turn,
         },
         landing,
+        landing_ask: match landing_ask {
+            Some(ask) => Some(Box::new(super::landing::decode_ask(ask))),
+            None => None,
+        },
     }
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {

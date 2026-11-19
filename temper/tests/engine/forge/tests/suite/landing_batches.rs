@@ -244,7 +244,8 @@ fn a_prepare_conflict_names_its_member_and_tells_branch_from_member() {
             landings::step_landing_heard(&mut world, LANDING, 200, news),
             landing::Decision::Leave { member: 1, why }
         );
-        assert_eq!(world.landing(LANDING).asks[1].is_some(), with == "branch");
+        assert_eq!(world.change(52).change.landing, None);
+        assert_eq!(world.change(52).change.landing_ask.is_some(), with == "branch");
         landings::drive_landing(&mut world, LANDING);
         let row = world.landing(LANDING);
         assert!(row.landing.members[0].landed.is_some() && row.landing.members[2].landed.is_some());

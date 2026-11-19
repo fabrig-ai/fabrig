@@ -1303,6 +1303,18 @@ impl World {
     pub fn ended_landing_fixture(&mut self, task: u64) {
         let mut row = self.landing(task).clone();
         row.landing.phase = temper_engine_domain_forge_landing::Phase::Landed;
+        for member in &mut row.landing.members {
+            let mut change = self.change(member.change).clone();
+            let merge = change.change.last_head.expect("ready member's head");
+            member.landed = Some(merge);
+            member.recorded = true;
+            member.told = true;
+            change.change.state = temper_engine_domain_forge_change::State::Landed { merge, since: self.env.wall };
+            let (_, hot) = change.split();
+            self.stored
+                .insert(top::Key::ChangeHot(hot.task), top::Stored::ChangeHot(Box::new(hot)))
+                .expect("existing member");
+        }
         self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("existing landing");
         self.restart();
     }

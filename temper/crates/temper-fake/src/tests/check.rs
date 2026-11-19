@@ -201,6 +201,7 @@ fn changed(task: u64, repository: Repository, pull: Option<u64>, head: Option<[u
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: change::Way::Queue,
             landing: None,
             task,

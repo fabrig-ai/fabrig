@@ -2199,6 +2199,30 @@ pub enum Path {
     ExecutionClockSeen,
     /// Bytes after `ExecutionClock`.
     ExecutionClockTail,
+    /// The `head` field of `LandingPrepare`.
+    LandingPrepareHead,
+    /// The `main` field of `LandingPrepare`.
+    LandingPrepareMain,
+    /// Bytes after `LandingPrepare`.
+    LandingPrepareTail,
+    /// The `gate` field of `LandingRepairAsk`.
+    LandingRepairAskGate,
+    /// The `candidate` field of `LandingRepairAsk`.
+    LandingRepairAskCandidate,
+    /// The `below` field of `LandingRepairAsk`.
+    LandingRepairAskBelow,
+    /// Bytes after `LandingRepairAsk`.
+    LandingRepairAskTail,
+    /// The `prefix` field of `LandingPrefix`.
+    LandingPrefixPrefix,
+    /// Bytes after `LandingPrefix`.
+    LandingPrefixTail,
+    /// The `base` field of `LandingResolve`.
+    LandingResolveBase,
+    /// Bytes after `LandingResolve`.
+    LandingResolveTail,
+    /// The tag of `LandingAsk`.
+    LandingAskTag,
     /// The `early` field of `Change`.
     ChangeEarly,
     /// The `task` field of `Change`.
@@ -2241,6 +2265,8 @@ pub enum Path {
     ChangeWay,
     /// The `landing` field of `Change`.
     ChangeLanding,
+    /// The `landing_ask` field of `Change`.
+    ChangeLandingAsk,
     /// Bytes after `Change`.
     ChangeTail,
     /// The `head` field of `ChangeCi`.
@@ -2835,30 +2861,6 @@ pub enum Path {
     LandingStateOwnHold,
     /// Bytes after `LandingState`.
     LandingStateTail,
-    /// The `head` field of `LandingPrepare`.
-    LandingPrepareHead,
-    /// The `main` field of `LandingPrepare`.
-    LandingPrepareMain,
-    /// Bytes after `LandingPrepare`.
-    LandingPrepareTail,
-    /// The `gate` field of `LandingRepairAsk`.
-    LandingRepairAskGate,
-    /// The `candidate` field of `LandingRepairAsk`.
-    LandingRepairAskCandidate,
-    /// The `below` field of `LandingRepairAsk`.
-    LandingRepairAskBelow,
-    /// Bytes after `LandingRepairAsk`.
-    LandingRepairAskTail,
-    /// The `prefix` field of `LandingPrefix`.
-    LandingPrefixPrefix,
-    /// Bytes after `LandingPrefix`.
-    LandingPrefixTail,
-    /// The `base` field of `LandingResolve`.
-    LandingResolveBase,
-    /// Bytes after `LandingResolve`.
-    LandingResolveTail,
-    /// The tag of `LandingAsk`.
-    LandingAskTag,
     /// The `ask` field of `LandingAskSlot`.
     LandingAskSlotAsk,
     /// Bytes after `LandingAskSlot`.
@@ -5397,6 +5399,18 @@ impl Path {
             Self::ExecutionClockAt => "ExecutionClock.at",
             Self::ExecutionClockSeen => "ExecutionClock.seen",
             Self::ExecutionClockTail => "ExecutionClock (tail)",
+            Self::LandingPrepareHead => "LandingPrepare.head",
+            Self::LandingPrepareMain => "LandingPrepare.main",
+            Self::LandingPrepareTail => "LandingPrepare (tail)",
+            Self::LandingRepairAskGate => "LandingRepairAsk.gate",
+            Self::LandingRepairAskCandidate => "LandingRepairAsk.candidate",
+            Self::LandingRepairAskBelow => "LandingRepairAsk.below",
+            Self::LandingRepairAskTail => "LandingRepairAsk (tail)",
+            Self::LandingPrefixPrefix => "LandingPrefix.prefix",
+            Self::LandingPrefixTail => "LandingPrefix (tail)",
+            Self::LandingResolveBase => "LandingResolve.base",
+            Self::LandingResolveTail => "LandingResolve (tail)",
+            Self::LandingAskTag => "LandingAsk (tag)",
             Self::ChangeEarly => "Change.early",
             Self::ChangeTask => "Change.task",
             Self::ChangeState => "Change.state",
@@ -5418,6 +5432,7 @@ impl Path {
             Self::ChangeReleasedResolution => "Change.released_resolution",
             Self::ChangeWay => "Change.way",
             Self::ChangeLanding => "Change.landing",
+            Self::ChangeLandingAsk => "Change.landing_ask",
             Self::ChangeTail => "Change (tail)",
             Self::ChangeCiHead => "ChangeCi.head",
             Self::ChangeCiStatus => "ChangeCi.status",
@@ -5715,18 +5730,6 @@ impl Path {
             Self::LandingStateRound => "LandingState.round",
             Self::LandingStateOwnHold => "LandingState.own_hold",
             Self::LandingStateTail => "LandingState (tail)",
-            Self::LandingPrepareHead => "LandingPrepare.head",
-            Self::LandingPrepareMain => "LandingPrepare.main",
-            Self::LandingPrepareTail => "LandingPrepare (tail)",
-            Self::LandingRepairAskGate => "LandingRepairAsk.gate",
-            Self::LandingRepairAskCandidate => "LandingRepairAsk.candidate",
-            Self::LandingRepairAskBelow => "LandingRepairAsk.below",
-            Self::LandingRepairAskTail => "LandingRepairAsk (tail)",
-            Self::LandingPrefixPrefix => "LandingPrefix.prefix",
-            Self::LandingPrefixTail => "LandingPrefix (tail)",
-            Self::LandingResolveBase => "LandingResolve.base",
-            Self::LandingResolveTail => "LandingResolve (tail)",
-            Self::LandingAskTag => "LandingAsk (tag)",
             Self::LandingAskSlotAsk => "LandingAskSlot.ask",
             Self::LandingAskSlotTail => "LandingAskSlot (tail)",
             Self::LandingOperationTag => "LandingOperation (tag)",
@@ -29554,11 +29557,575 @@ impl ExecutionClock {
 
 fn execution_clock_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ExecutionClock::encoded_bound_within(limits)?);
-    change_encoded_bound_family(limits, biggest)
+    landing_prepare_encoded_bound_family(limits, biggest)
 }
 
 fn execution_clock_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ExecutionClock::decoded_bound_within(limits)?);
+    landing_prepare_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `LandingPrepare`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingPrepareParts {
+    /// The `head` field.
+    pub head: [u8; 32],
+    /// The `main` field.
+    pub main: [u8; 32],
+}
+
+/// `LandingPrepare` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingPrepare {
+    head: [u8; 32],
+    main: [u8; 32],
+}
+
+impl LandingPrepare {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: LandingPrepareParts) -> Result<Self, Problem> {
+        let LandingPrepareParts { head, main } = parts;
+        let value = Self { head, main };
+        Ok(value)
+    }
+
+    /// Reads the `head` field.
+    #[must_use]
+    pub fn head(&self) -> &[u8; 32] { &self.head }
+
+    /// Reads the `main` field.
+    #[must_use]
+    pub fn main(&self) -> &[u8; 32] { &self.main }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingPrepareParts { LandingPrepareParts { head: self.head, main: self.main } }
+
+}
+
+impl LandingPrepare {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_head = &self.head;
+        writer.put(field_head)?;
+        let field_main = &self.main;
+        writer.put(field_main)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingPrepareTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_head = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingPrepareHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_main = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingPrepareMain, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        Ok(Self { head: decoded_head, main: decoded_main })
+    }
+}
+
+impl LandingPrepare {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_prepare_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingPrepare::encoded_bound_within(limits)?);
+    landing_repair_ask_encoded_bound_family(limits, biggest)
+}
+
+fn landing_prepare_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingPrepare::decoded_bound_within(limits)?);
+    landing_repair_ask_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `LandingRepairAsk`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingRepairAskParts {
+    /// The `gate` field.
+    pub gate: u16,
+    /// The `candidate` field.
+    pub candidate: [u8; 32],
+    /// The `below` field.
+    pub below: Option<LandingBelow>,
+}
+
+/// `LandingRepairAsk` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingRepairAsk {
+    gate: u16,
+    candidate: [u8; 32],
+    below: Option<LandingBelow>,
+}
+
+impl LandingRepairAsk {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: LandingRepairAskParts) -> Result<Self, Problem> {
+        let LandingRepairAskParts { gate, candidate, below } = parts;
+        let value = Self { gate, candidate, below };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `gate` field.
+    #[must_use]
+    pub fn gate(&self) -> u16 { self.gate }
+
+    /// Reads the `candidate` field.
+    #[must_use]
+    pub fn candidate(&self) -> &[u8; 32] { &self.candidate }
+
+    /// Reads the `below` field.
+    #[must_use]
+    pub fn below(&self) -> &Option<LandingBelow> { &self.below }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingRepairAskParts { LandingRepairAskParts { gate: self.gate, candidate: self.candidate, below: self.below } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.below.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl LandingRepairAsk {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        let field_below = &self.below;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_below {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_gate = &self.gate;
+        writer.put(&field_gate.to_be_bytes())?;
+        let field_candidate = &self.candidate;
+        writer.put(field_candidate)?;
+        let field_below = &self.below;
+        match field_below {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingRepairAskTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_gate = reader.u16().ok_or(Problem { path: Path::LandingRepairAskGate, reason: skein_codec::Reason::Short })?;
+        let decoded_candidate = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingRepairAskCandidate, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        let decoded_below = match reader.u8().ok_or(Problem { path: Path::LandingRepairAskBelow, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingBelow::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRepairAskBelow, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { gate: decoded_gate, candidate: decoded_candidate, below: decoded_below })
+    }
+}
+
+impl LandingRepairAsk {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(u64::from(32_u32))?;
+        size = size.checked_add(1_u64.checked_add(LandingBelow::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
+        heap = heap.checked_add(LandingBelow::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_repair_ask_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingRepairAsk::encoded_bound_within(limits)?);
+    landing_prefix_encoded_bound_family(limits, biggest)
+}
+
+fn landing_repair_ask_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingRepairAsk::decoded_bound_within(limits)?);
+    landing_prefix_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `LandingPrefix`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingPrefixParts {
+    /// The `prefix` field.
+    pub prefix: [u8; 32],
+}
+
+/// `LandingPrefix` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingPrefix {
+    prefix: [u8; 32],
+}
+
+impl LandingPrefix {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: LandingPrefixParts) -> Result<Self, Problem> {
+        let LandingPrefixParts { prefix } = parts;
+        let value = Self { prefix };
+        Ok(value)
+    }
+
+    /// Reads the `prefix` field.
+    #[must_use]
+    pub fn prefix(&self) -> &[u8; 32] { &self.prefix }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingPrefixParts { LandingPrefixParts { prefix: self.prefix } }
+
+}
+
+impl LandingPrefix {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_prefix = &self.prefix;
+        writer.put(field_prefix)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingPrefixTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_prefix = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingPrefixPrefix, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        Ok(Self { prefix: decoded_prefix })
+    }
+}
+
+impl LandingPrefix {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_prefix_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?);
+    landing_resolve_encoded_bound_family(limits, biggest)
+}
+
+fn landing_prefix_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?);
+    landing_resolve_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `LandingResolve`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingResolveParts {
+    /// The `base` field.
+    pub base: [u8; 32],
+}
+
+/// `LandingResolve` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct LandingResolve {
+    base: [u8; 32],
+}
+
+impl LandingResolve {
+    /// Makes a value within the given limits.
+    pub fn new(_limits: &Limits, parts: LandingResolveParts) -> Result<Self, Problem> {
+        let LandingResolveParts { base } = parts;
+        let value = Self { base };
+        Ok(value)
+    }
+
+    /// Reads the `base` field.
+    #[must_use]
+    pub fn base(&self) -> &[u8; 32] { &self.base }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> LandingResolveParts { LandingResolveParts { base: self.base } }
+
+}
+
+impl LandingResolve {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(32).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_base = &self.base;
+        writer.put(field_base)?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingResolveTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_base = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingResolveBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
+        Ok(Self { base: decoded_base })
+    }
+}
+
+impl LandingResolve {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(u64::from(32_u32))?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
+        heap.checked_add(0)
+    }
+}
+
+fn landing_resolve_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingResolve::encoded_bound_within(limits)?);
+    landing_ask_encoded_bound_family(limits, biggest)
+}
+
+fn landing_resolve_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingResolve::decoded_bound_within(limits)?);
+    landing_ask_decoded_bound_family(limits, biggest)
+}
+
+/// `LandingAsk` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum LandingAsk {
+    /// `prepare` carrying `LandingPrepare`.
+    Prepare(LandingPrepare),
+    /// `repair` carrying `LandingRepairAsk`.
+    Repair(LandingRepairAsk),
+    /// `landed` carrying `LandingPrefix`.
+    Landed(LandingPrefix),
+    /// `resolve` carrying `LandingResolve`.
+    Resolve(LandingResolve),
+    /// `judge` carrying `Judgement`.
+    Judge(Judgement),
+}
+
+impl LandingAsk {
+    /// Checks the payload against the given limits.
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Repair(record) => LandingRepairAsk::check(record, limits),
+            Self::Judge(record) => Judgement::check(record, limits),
+            Self::Prepare(_) | Self::Landed(_) | Self::Resolve(_) => Ok(()),
+        }?;
+        Ok(())
+    }
+}
+
+impl LandingAsk {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Prepare(record) => 1_u32.checked_add(LandingPrepare::measure(record)).expect("schema ceilings fit u32"),
+            Self::Repair(record) => 1_u32.checked_add(LandingRepairAsk::measure(record)).expect("schema ceilings fit u32"),
+            Self::Landed(record) => 1_u32.checked_add(LandingPrefix::measure(record)).expect("schema ceilings fit u32"),
+            Self::Resolve(record) => 1_u32.checked_add(LandingResolve::measure(record)).expect("schema ceilings fit u32"),
+            Self::Judge(record) => 1_u32.checked_add(Judgement::measure(record)).expect("schema ceilings fit u32"),
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Prepare(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
+            Self::Repair(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
+            Self::Landed(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
+            Self::Resolve(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
+            Self::Judge(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::LandingAskTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::LandingAskTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Prepare(LandingPrepare::decode_from(limits, reader)?),
+            1 => Self::Repair(LandingRepairAsk::decode_from(limits, reader)?),
+            2 => Self::Landed(LandingPrefix::decode_from(limits, reader)?),
+            3 => Self::Resolve(LandingResolve::decode_from(limits, reader)?),
+            4 => Self::Judge(Judgement::decode_from(limits, reader)?),
+            _ => return Err(Problem { path: Path::LandingAskTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl LandingAsk {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(LandingPrepare::encoded_bound_within(limits)?).max(LandingRepairAsk::encoded_bound_within(limits)?);
+        biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?).max(LandingResolve::encoded_bound_within(limits)?);
+        biggest = biggest.max(Judgement::encoded_bound_within(limits)?);
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(LandingPrepare::decoded_bound_within(limits)?).max(LandingRepairAsk::decoded_bound_within(limits)?);
+        biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?).max(LandingResolve::decoded_bound_within(limits)?);
+        biggest = biggest.max(Judgement::decoded_bound_within(limits)?);
+        biggest.checked_add(0)
+    }
+}
+
+fn landing_ask_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
+    change_encoded_bound_family(limits, biggest)
+}
+
+fn landing_ask_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
     change_decoded_bound_family(limits, biggest)
 }
 
@@ -29607,6 +30174,8 @@ pub struct ChangeParts {
     pub way: Way,
     /// The `landing` field.
     pub landing: Option<u64>,
+    /// The `landing_ask` field.
+    pub landing_ask: Option<LandingAsk>,
 }
 
 /// `Change` in this codec family.
@@ -29633,13 +30202,14 @@ pub struct Change {
     released_resolution: bool,
     way: Way,
     landing: Option<u64>,
+    landing_ask: Option<LandingAsk>,
 }
 
 impl Change {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ChangeParts) -> Result<Self, Problem> {
-        let ChangeParts { early, task, state, gates, clean, repairs, resolutions, updates, stale, since, clock, ready_since, owns_turn, last_head, last_checked, last_checked_by, gate_failures, released, released_resolution, way, landing } = parts;
-        let value = Self { early, task, state, gates, clean, repairs, resolutions, updates, stale, since, clock, ready_since, owns_turn, last_head, last_checked, last_checked_by, gate_failures, released, released_resolution, way, landing };
+        let ChangeParts { early, task, state, gates, clean, repairs, resolutions, updates, stale, since, clock, ready_since, owns_turn, last_head, last_checked, last_checked_by, gate_failures, released, released_resolution, way, landing, landing_ask } = parts;
+        let value = Self { early, task, state, gates, clean, repairs, resolutions, updates, stale, since, clock, ready_since, owns_turn, last_head, last_checked, last_checked_by, gate_failures, released, released_resolution, way, landing, landing_ask };
         value.check(limits)?;
         Ok(value)
     }
@@ -29728,9 +30298,13 @@ impl Change {
     #[must_use]
     pub fn landing(&self) -> &Option<u64> { &self.landing }
 
+    /// Reads the `landing_ask` field.
+    #[must_use]
+    pub fn landing_ask(&self) -> &Option<LandingAsk> { &self.landing_ask }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ChangeParts { ChangeParts { early: self.early, task: self.task, state: self.state, gates: self.gates, clean: self.clean, repairs: self.repairs, resolutions: self.resolutions, updates: self.updates, stale: self.stale, since: self.since, clock: self.clock, ready_since: self.ready_since, owns_turn: self.owns_turn, last_head: self.last_head, last_checked: self.last_checked, last_checked_by: self.last_checked_by, gate_failures: self.gate_failures, released: self.released, released_resolution: self.released_resolution, way: self.way, landing: self.landing } }
+    pub fn into_parts(self) -> ChangeParts { ChangeParts { early: self.early, task: self.task, state: self.state, gates: self.gates, clean: self.clean, repairs: self.repairs, resolutions: self.resolutions, updates: self.updates, stale: self.stale, since: self.since, clock: self.clock, ready_since: self.ready_since, owns_turn: self.owns_turn, last_head: self.last_head, last_checked: self.last_checked, last_checked_by: self.last_checked_by, gate_failures: self.gate_failures, released: self.released, released_resolution: self.released_resolution, way: self.way, landing: self.landing, landing_ask: self.landing_ask } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         self.early.check(limits)?;
@@ -29738,6 +30312,9 @@ impl Change {
         if self.gates.capacity() > limits.change_gates.min(CEILINGS.change_gates) { return Err(Problem { path: Path::ChangeGates, reason: skein_codec::Reason::Bound }); }
         if self.clean.capacity() > limits.change_clean.min(CEILINGS.change_clean) { return Err(Problem { path: Path::ChangeClean, reason: skein_codec::Reason::Bound }); }
         if self.gate_failures.capacity() > limits.change_gate_failures.min(CEILINGS.change_gate_failures) { return Err(Problem { path: Path::ChangeGateFailures, reason: skein_codec::Reason::Bound }); }
+        if let Some(some_0) = self.landing_ask.as_ref() {
+        some_0.check(limits)?;
+        }
         Ok(())
     }
 }
@@ -29808,6 +30385,11 @@ impl Change {
         if field_landing.is_some() {
         size = size.checked_add(8).expect("schema ceilings fit u32");
         }
+        let field_landing_ask = &self.landing_ask;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_landing_ask {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -29834,6 +30416,7 @@ impl Change {
         Self::encode_released_resolution_field(self, writer)?;
         Self::encode_way_field(self, writer)?;
         Self::encode_landing_field(self, writer)?;
+        Self::encode_landing_ask_field(self, writer)?;
         Ok(())
     }
 
@@ -29866,7 +30449,8 @@ impl Change {
         let decoded_released_resolution = match reader.u8().ok_or(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ChangeReleasedResolution, reason: skein_codec::Reason::Bool }) };
         let decoded_way = Way::decode_from(limits, reader)?;
         let decoded_landing = match reader.u8().ok_or(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u64().ok_or(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ChangeLanding, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { early: decoded_early, task: decoded_task, state: decoded_state, gates: decoded_gates, clean: decoded_clean, repairs: decoded_repairs, resolutions: decoded_resolutions, updates: decoded_updates, stale: decoded_stale, since: decoded_since, clock: decoded_clock, ready_since: decoded_ready_since, owns_turn: decoded_owns_turn, last_head: decoded_last_head, last_checked: decoded_last_checked, last_checked_by: decoded_last_checked_by, gate_failures: decoded_gate_failures, released: decoded_released, released_resolution: decoded_released_resolution, way: decoded_way, landing: decoded_landing })
+        let decoded_landing_ask = match reader.u8().ok_or(Problem { path: Path::ChangeLandingAsk, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingAsk::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ChangeLandingAsk, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { early: decoded_early, task: decoded_task, state: decoded_state, gates: decoded_gates, clean: decoded_clean, repairs: decoded_repairs, resolutions: decoded_resolutions, updates: decoded_updates, stale: decoded_stale, since: decoded_since, clock: decoded_clock, ready_since: decoded_ready_since, owns_turn: decoded_owns_turn, last_head: decoded_last_head, last_checked: decoded_last_checked, last_checked_by: decoded_last_checked_by, gate_failures: decoded_gate_failures, released: decoded_released, released_resolution: decoded_released_resolution, way: decoded_way, landing: decoded_landing, landing_ask: decoded_landing_ask })
     }
 }
 
@@ -30095,6 +30679,20 @@ impl Change {
         Ok(())
     }
 }
+
+impl Change {
+    fn encode_landing_ask_field(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_landing_ask = &self.landing_ask;
+        match field_landing_ask {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+}
 impl Change {
     /// Maximum encoded bytes under these limits.
     #[must_use]
@@ -30115,7 +30713,7 @@ impl Change {
         size = size.checked_add(1_u64.checked_add(u64::from(32_u32))?)?.checked_add(1_u64.checked_add(8_u64)?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::encoded_bound_within(limits)?)?)?)?.checked_add(1_u64.checked_add(ChangeHold::encoded_bound_within(limits)?)?)?;
         size = size.checked_add(1_u64)?.checked_add(Way::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64.checked_add(8_u64)?)?;
+        size = size.checked_add(1_u64.checked_add(8_u64)?)?.checked_add(1_u64.checked_add(LandingAsk::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -30138,7 +30736,7 @@ impl Change {
         heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap = heap.checked_add(List::<GateFailure>::price(limits.change_gate_failures)?.checked_add(u64::from(limits.change_gate_failures).checked_mul(GateFailure::decoded_bound_within(limits)?)?)?)?.checked_add(ChangeHold::decoded_bound_within(limits)?)?;
         heap = heap.checked_add(0_u64)?.checked_add(Way::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(LandingAsk::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }
@@ -42251,12 +42849,12 @@ impl LandingState {
 
 fn landing_state_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LandingState::encoded_bound_within(limits)?);
-    landing_prepare_encoded_bound_family(limits, biggest)
+    landing_ask_slot_encoded_bound_family(limits, biggest)
 }
 
 fn landing_state_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(LandingState::decoded_bound_within(limits)?);
-    landing_prepare_decoded_bound_family(limits, biggest)
+    landing_ask_slot_decoded_bound_family(limits, biggest)
 }
 
 fn check_landing_state_record_limits(limits: &Limits) -> Result<(), Problem> {
@@ -42271,570 +42869,6 @@ impl Limits {
         values.push(self.landing_state_branch).expect("room for every named limit");
         self.values_for_history_job_record_record(values);
     }
-}
-
-/// Movable fields of `LandingPrepare`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingPrepareParts {
-    /// The `head` field.
-    pub head: [u8; 32],
-    /// The `main` field.
-    pub main: [u8; 32],
-}
-
-/// `LandingPrepare` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingPrepare {
-    head: [u8; 32],
-    main: [u8; 32],
-}
-
-impl LandingPrepare {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: LandingPrepareParts) -> Result<Self, Problem> {
-        let LandingPrepareParts { head, main } = parts;
-        let value = Self { head, main };
-        Ok(value)
-    }
-
-    /// Reads the `head` field.
-    #[must_use]
-    pub fn head(&self) -> &[u8; 32] { &self.head }
-
-    /// Reads the `main` field.
-    #[must_use]
-    pub fn main(&self) -> &[u8; 32] { &self.main }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> LandingPrepareParts { LandingPrepareParts { head: self.head, main: self.main } }
-
-}
-
-impl LandingPrepare {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_head = &self.head;
-        writer.put(field_head)?;
-        let field_main = &self.main;
-        writer.put(field_main)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LandingPrepareTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_head = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingPrepareHead, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_main = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingPrepareMain, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        Ok(Self { head: decoded_head, main: decoded_main })
-    }
-}
-
-impl LandingPrepare {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(u64::from(32_u32))?.checked_add(u64::from(32_u32))?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn landing_prepare_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingPrepare::encoded_bound_within(limits)?);
-    landing_repair_ask_encoded_bound_family(limits, biggest)
-}
-
-fn landing_prepare_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingPrepare::decoded_bound_within(limits)?);
-    landing_repair_ask_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `LandingRepairAsk`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingRepairAskParts {
-    /// The `gate` field.
-    pub gate: u16,
-    /// The `candidate` field.
-    pub candidate: [u8; 32],
-    /// The `below` field.
-    pub below: Option<LandingBelow>,
-}
-
-/// `LandingRepairAsk` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingRepairAsk {
-    gate: u16,
-    candidate: [u8; 32],
-    below: Option<LandingBelow>,
-}
-
-impl LandingRepairAsk {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: LandingRepairAskParts) -> Result<Self, Problem> {
-        let LandingRepairAskParts { gate, candidate, below } = parts;
-        let value = Self { gate, candidate, below };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `gate` field.
-    #[must_use]
-    pub fn gate(&self) -> u16 { self.gate }
-
-    /// Reads the `candidate` field.
-    #[must_use]
-    pub fn candidate(&self) -> &[u8; 32] { &self.candidate }
-
-    /// Reads the `below` field.
-    #[must_use]
-    pub fn below(&self) -> &Option<LandingBelow> { &self.below }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> LandingRepairAskParts { LandingRepairAskParts { gate: self.gate, candidate: self.candidate, below: self.below } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if let Some(some_0) = self.below.as_ref() {
-        some_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-impl LandingRepairAsk {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        let field_below = &self.below;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if let Some(some_0) = field_below {
-        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
-        }
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_gate = &self.gate;
-        writer.put(&field_gate.to_be_bytes())?;
-        let field_candidate = &self.candidate;
-        writer.put(field_candidate)?;
-        let field_below = &self.below;
-        match field_below {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        some_0.encode(writer)?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LandingRepairAskTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_gate = reader.u16().ok_or(Problem { path: Path::LandingRepairAskGate, reason: skein_codec::Reason::Short })?;
-        let decoded_candidate = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingRepairAskCandidate, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_below = match reader.u8().ok_or(Problem { path: Path::LandingRepairAskBelow, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(LandingBelow::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::LandingRepairAskBelow, reason: skein_codec::Reason::Tag }) };
-        Ok(Self { gate: decoded_gate, candidate: decoded_candidate, below: decoded_below })
-    }
-}
-
-impl LandingRepairAsk {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(2_u64)?.checked_add(u64::from(32_u32))?;
-        size = size.checked_add(1_u64.checked_add(LandingBelow::encoded_bound_within(limits)?)?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap = heap.checked_add(LandingBelow::decoded_bound_within(limits)?)?;
-        heap.checked_add(0)
-    }
-}
-
-fn landing_repair_ask_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingRepairAsk::encoded_bound_within(limits)?);
-    landing_prefix_encoded_bound_family(limits, biggest)
-}
-
-fn landing_repair_ask_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingRepairAsk::decoded_bound_within(limits)?);
-    landing_prefix_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `LandingPrefix`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingPrefixParts {
-    /// The `prefix` field.
-    pub prefix: [u8; 32],
-}
-
-/// `LandingPrefix` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingPrefix {
-    prefix: [u8; 32],
-}
-
-impl LandingPrefix {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: LandingPrefixParts) -> Result<Self, Problem> {
-        let LandingPrefixParts { prefix } = parts;
-        let value = Self { prefix };
-        Ok(value)
-    }
-
-    /// Reads the `prefix` field.
-    #[must_use]
-    pub fn prefix(&self) -> &[u8; 32] { &self.prefix }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> LandingPrefixParts { LandingPrefixParts { prefix: self.prefix } }
-
-}
-
-impl LandingPrefix {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_prefix = &self.prefix;
-        writer.put(field_prefix)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LandingPrefixTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_prefix = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingPrefixPrefix, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        Ok(Self { prefix: decoded_prefix })
-    }
-}
-
-impl LandingPrefix {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(u64::from(32_u32))?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn landing_prefix_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?);
-    landing_resolve_encoded_bound_family(limits, biggest)
-}
-
-fn landing_prefix_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?);
-    landing_resolve_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `LandingResolve`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingResolveParts {
-    /// The `base` field.
-    pub base: [u8; 32],
-}
-
-/// `LandingResolve` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct LandingResolve {
-    base: [u8; 32],
-}
-
-impl LandingResolve {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: LandingResolveParts) -> Result<Self, Problem> {
-        let LandingResolveParts { base } = parts;
-        let value = Self { base };
-        Ok(value)
-    }
-
-    /// Reads the `base` field.
-    #[must_use]
-    pub fn base(&self) -> &[u8; 32] { &self.base }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> LandingResolveParts { LandingResolveParts { base: self.base } }
-
-}
-
-impl LandingResolve {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(32).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_base = &self.base;
-        writer.put(field_base)?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LandingResolveTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_base = { let bytes = reader.bytes(32).ok_or(Problem { path: Path::LandingResolveBase, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        Ok(Self { base: decoded_base })
-    }
-}
-
-impl LandingResolve {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(u64::from(32_u32))?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn landing_resolve_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingResolve::encoded_bound_within(limits)?);
-    landing_ask_encoded_bound_family(limits, biggest)
-}
-
-fn landing_resolve_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingResolve::decoded_bound_within(limits)?);
-    landing_ask_decoded_bound_family(limits, biggest)
-}
-
-/// `LandingAsk` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum LandingAsk {
-    /// `prepare` carrying `LandingPrepare`.
-    Prepare(LandingPrepare),
-    /// `repair` carrying `LandingRepairAsk`.
-    Repair(LandingRepairAsk),
-    /// `landed` carrying `LandingPrefix`.
-    Landed(LandingPrefix),
-    /// `resolve` carrying `LandingResolve`.
-    Resolve(LandingResolve),
-    /// `judge` carrying `Judgement`.
-    Judge(Judgement),
-}
-
-impl LandingAsk {
-    /// Checks the payload against the given limits.
-    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        match self {
-            Self::Repair(record) => LandingRepairAsk::check(record, limits),
-            Self::Judge(record) => Judgement::check(record, limits),
-            Self::Prepare(_) | Self::Landed(_) | Self::Resolve(_) => Ok(()),
-        }?;
-        Ok(())
-    }
-}
-
-impl LandingAsk {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Prepare(record) => 1_u32.checked_add(LandingPrepare::measure(record)).expect("schema ceilings fit u32"),
-            Self::Repair(record) => 1_u32.checked_add(LandingRepairAsk::measure(record)).expect("schema ceilings fit u32"),
-            Self::Landed(record) => 1_u32.checked_add(LandingPrefix::measure(record)).expect("schema ceilings fit u32"),
-            Self::Resolve(record) => 1_u32.checked_add(LandingResolve::measure(record)).expect("schema ceilings fit u32"),
-            Self::Judge(record) => 1_u32.checked_add(Judgement::measure(record)).expect("schema ceilings fit u32"),
-        }
-    }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Prepare(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
-            Self::Repair(record) => { writer.put(&[1_u8])?; record.encode(writer)?; }
-            Self::Landed(record) => { writer.put(&[2_u8])?; record.encode(writer)?; }
-            Self::Resolve(record) => { writer.put(&[3_u8])?; record.encode(writer)?; }
-            Self::Judge(record) => { writer.put(&[4_u8])?; record.encode(writer)?; }
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::LandingAskTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::LandingAskTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Prepare(LandingPrepare::decode_from(limits, reader)?),
-            1 => Self::Repair(LandingRepairAsk::decode_from(limits, reader)?),
-            2 => Self::Landed(LandingPrefix::decode_from(limits, reader)?),
-            3 => Self::Resolve(LandingResolve::decode_from(limits, reader)?),
-            4 => Self::Judge(Judgement::decode_from(limits, reader)?),
-            _ => return Err(Problem { path: Path::LandingAskTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl LandingAsk {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(LandingPrepare::encoded_bound_within(limits)?).max(LandingRepairAsk::encoded_bound_within(limits)?);
-        biggest = biggest.max(LandingPrefix::encoded_bound_within(limits)?).max(LandingResolve::encoded_bound_within(limits)?);
-        biggest = biggest.max(Judgement::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(LandingPrepare::decoded_bound_within(limits)?).max(LandingRepairAsk::decoded_bound_within(limits)?);
-        biggest = biggest.max(LandingPrefix::decoded_bound_within(limits)?).max(LandingResolve::decoded_bound_within(limits)?);
-        biggest = biggest.max(Judgement::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-fn landing_ask_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingAsk::encoded_bound_within(limits)?);
-    landing_ask_slot_encoded_bound_family(limits, biggest)
-}
-
-fn landing_ask_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(LandingAsk::decoded_bound_within(limits)?);
-    landing_ask_slot_decoded_bound_family(limits, biggest)
 }
 
 /// Movable fields of `LandingAskSlot`.

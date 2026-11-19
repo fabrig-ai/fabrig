@@ -140,6 +140,7 @@ fn ended_change(repository: Repository) -> forge::Stored {
             way: change::Way::Queue,
             state: change::State::Ended,
             early: change::Early::None,
+            landing_ask: None,
             landing: None,
             ended_held: None,
             gates: Box::new([]),

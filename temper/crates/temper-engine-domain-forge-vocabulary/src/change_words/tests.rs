@@ -815,6 +815,7 @@ fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 7,

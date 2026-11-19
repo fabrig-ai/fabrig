@@ -2206,6 +2206,7 @@ pub(super) fn start_recovered_change(
                 change: forge_change::Change {
                     ended_held: None,
                     early: forge_change::Early::None,
+                    landing_ask: None,
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
