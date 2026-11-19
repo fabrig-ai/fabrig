@@ -651,8 +651,7 @@ mod tests {
         super::welcome_provider(&mut value, &sign_in);
         let path = scratch.path().join("temper.json");
         super::configuration::private(&path, &serde_json::to_vec(&value).expect("two-provider deployment JSON"));
-        value.document =
-            serde_json::from_slice(&fs::read(path).expect("written deployment")).expect("deployment JSON");
+        value.document = serde_json::from_slice(&fs::read(path).expect("written deployment")).expect("deployment JSON");
         assert_turn_admission(&value, scratch.path());
         let agent = temper_agent_fixtures::at(&value, scratch.path());
         value["world_providers"] = temper_agent_fixtures::providers::read(scratch.path());

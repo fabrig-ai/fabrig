@@ -980,7 +980,11 @@ pub fn count(setting: Setting, counts: &mut [u32; 3], limits: &Limits) -> Result
         Setting::Charter(_) => (0, limits.tasks.charters),
         Setting::Template(_) => (1, limits.templates),
         Setting::Policy(_) => (2, limits.authority.projects),
-        Setting::Limits | Setting::Model(_) | Setting::Rules | Setting::Application { .. } | Setting::ProjectPolicy { .. } => {
+        Setting::Limits
+        | Setting::Model(_)
+        | Setting::Rules
+        | Setting::Application { .. }
+        | Setting::ProjectPolicy { .. } => {
             return Ok(());
         }
     };

@@ -15,8 +15,12 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         .output()
         .expect("init");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    fs::write(scratch.path().join("limits-held"), "core.policy_bytes 100
-").expect("held limit");
+    fs::write(
+        scratch.path().join("limits-held"),
+        "core.policy_bytes 100
+",
+    )
+    .expect("held limit");
     let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
         .arg("serve")
         .args(support::configuration::flags(scratch.path()))

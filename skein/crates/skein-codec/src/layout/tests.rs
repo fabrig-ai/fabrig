@@ -42,10 +42,7 @@ fn refused(old: &str, new: &str, why: Why, part: Option<&[u8]>, in_old: bool) {
 
 #[test]
 fn repeated_named_reaches_share_readers_and_conversions() {
-    let plan = plan(
-        "record L { n: u8 } record R { z: L a: L }",
-        "record L { n: u16 } record R { z: L a: L }",
-    );
+    let plan = plan("record L { n: u8 } record R { z: L a: L }", "record L { n: u16 } record R { z: L a: L }");
     assert_eq!(plan.nodes.len(), 5, "one conversion per reached location pair");
     assert_eq!(plan.reads.len(), 5, "one reader per reached old location");
     check(&plan, &[5, 7], &[0, 5, 0, 7], false);

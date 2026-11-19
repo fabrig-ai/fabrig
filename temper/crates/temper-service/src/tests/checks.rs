@@ -774,7 +774,9 @@ fn each_document_shape_is_read_from_its_members() {
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
-    ].into_boxed_slice() {
+    ]
+    .into_boxed_slice()
+    {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
     }
 }

@@ -157,7 +157,9 @@ impl Shape {
                 .expect("cluster directories");
         }
         let document = configuration;
-        document["world_settings"] = serde_json::from_slice(&std::fs::read(data.join("world-settings.json")).expect("world settings")).expect("world JSON");
+        document["world_settings"] =
+            serde_json::from_slice(&std::fs::read(data.join("world-settings.json")).expect("world settings"))
+                .expect("world JSON");
         // Link deadlines exceed PATIENCE, so load cannot lose a link or run in this story.
         // A restart closes the socket explicitly rather than waiting on a link timer.
         // The stop bound stays below fleet grace (protocol/cluster.md, 3).
@@ -393,10 +395,14 @@ mod tests {
         let data = scratch.path().join("data");
         let address = ([127, 0, 0, 1], 0).into();
         let mut configuration = fixtures::write(&data, address, address).expect("fixture documents");
-        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }
-            .write(scratch.path(), false, &mut configuration);
+        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }.write(
+            scratch.path(),
+            false,
+            &mut configuration,
+        );
 
-        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data, &configuration) else {
+        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data, &configuration)
+        else {
             panic!("world startup defaults")
         };
         let agents = forge.iter().find(|row| row.kind == 21).expect("initial agent figures");

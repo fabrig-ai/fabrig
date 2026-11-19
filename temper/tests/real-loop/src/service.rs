@@ -137,7 +137,8 @@ impl ServiceHost {
         let address = forge
             .as_ref()
             .map_or(([127, 0, 0, 1], 0).into(), |listener| listener.local_addr().expect("held forge address"));
-        let mut configuration = fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
+        let mut configuration =
+            fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
         if direct_key {
             fixtures::key_documents(&path, &mut configuration).expect("standard key route");
         }
@@ -152,9 +153,9 @@ impl ServiceHost {
             configuration.document =
                 serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
                     .expect("deployment JSON");
-            configuration["world_settings"] = serde_json::from_slice(
-                &std::fs::read(path.join("world-settings.json")).expect("world settings")
-            ).expect("world settings JSON");
+            configuration["world_settings"] =
+                serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
+                    .expect("world settings JSON");
             fixtures::finish_configuration(&path, &mut configuration).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {

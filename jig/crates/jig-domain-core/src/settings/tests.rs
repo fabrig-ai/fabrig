@@ -22,7 +22,12 @@ fn numbered_value(current: &Current, kind: Setting, number: u32) -> (Setting, Va
             v.number = number;
             Setting::Model(number)
         }
-        Value::Overlay(_) | Value::Rules(_) | Value::Limits(_) | Value::Provider(_) | Value::Worker(_) | Value::Application(_) => {
+        Value::Overlay(_)
+        | Value::Rules(_)
+        | Value::Limits(_)
+        | Value::Provider(_)
+        | Value::Worker(_)
+        | Value::Application(_) => {
             unreachable!("numbered value")
         }
     };
@@ -69,7 +74,12 @@ fn settings_numbers_reserve_stock_holes_and_bound_own_items() {
             Value::Template(v) => v.grace = Some(Duration::from_secs(1)),
             Value::Model(v) => v.picker = false,
             Value::Charter(_) | Value::Policy(_) => {}
-            Value::Overlay(_) | Value::Rules(_) | Value::Limits(_) | Value::Provider(_) | Value::Worker(_) | Value::Application(_) => {
+            Value::Overlay(_)
+            | Value::Rules(_)
+            | Value::Limits(_)
+            | Value::Provider(_)
+            | Value::Worker(_)
+            | Value::Application(_) => {
                 unreachable!("numbered value")
             }
         }

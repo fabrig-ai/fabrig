@@ -135,8 +135,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
             .as_bytes()
         );
         let refused =
-            named(&limited(&document, name.as_bytes(), needed - 1), &config::Directories::working())
-                .unwrap_err();
+            named(&limited(&document, name.as_bytes(), needed - 1), &config::Directories::working()).unwrap_err();
         assert_eq!(crate::startup::lines(&refused), crate::startup::lines(&problems));
     }
 }
@@ -314,8 +313,7 @@ fn a_documents_models_are_refused_at_their_paths() {
     for value in [serde_json::json!({"models":[]}), serde_json::json!({"providers":[{"models":[]}]})] {
         let mut document = init.clone();
         document["engine"]["llm"] = value;
-        let problems =
-            named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
+        let problems = named(&serde_json::to_vec(&document).unwrap(), &config::Directories::working()).unwrap_err();
         assert_eq!(problems.problems.len(), 1);
         assert_eq!(
             crate::startup::lines(&problems).as_ref(),

@@ -49,10 +49,12 @@ impl Given {
     pub fn copied(&self) -> Self {
         match self {
             Self::Stock => Self::Stock,
-            Self::Own { jig, forge, ways } => Self::Own { jig: copy_defaults(jig), forge: forge.clone(), ways: ways.clone() },
-            Self::Running { given, providers, fixed } => Self::Running {
-                given: Box::new(given.copied()), providers: providers.clone(), fixed: fixed.clone(),
-            },
+            Self::Own { jig, forge, ways } => {
+                Self::Own { jig: copy_defaults(jig), forge: forge.clone(), ways: ways.clone() }
+            }
+            Self::Running { given, providers, fixed } => {
+                Self::Running { given: Box::new(given.copied()), providers: providers.clone(), fixed: fixed.clone() }
+            }
         }
     }
     #[must_use]

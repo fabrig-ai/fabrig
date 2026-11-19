@@ -74,7 +74,9 @@ fn moved_worker_members_print_their_paths_and_destinations_in_every_shape() {
             assert_eq!(startup::lines(&found).as_ref(), format!("workers[0].{name}: {words}\n").as_bytes());
         }
     }
-    for document in vec![fixtures::document(), fixtures::worker_alone_document(), fixtures::engine_alone_document()].into_boxed_slice() {
+    for document in vec![fixtures::document(), fixtures::worker_alone_document(), fixtures::engine_alone_document()]
+        .into_boxed_slice()
+    {
         let mut input: Value = serde_json::from_slice(&document).unwrap();
         input["application"]["workers"] = Value::Null;
         let input = serde_json::to_vec(&input).unwrap();

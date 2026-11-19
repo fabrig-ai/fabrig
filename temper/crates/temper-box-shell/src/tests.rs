@@ -148,7 +148,10 @@ fn open_without_two_arguments_prints_its_usage() {
 pub(crate) mod configuration;
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "the comparison retains typed limits and the scripted listener for both startup routes")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the comparison retains typed limits and the scripted listener for both startup routes"
+)]
 fn the_standalone_operations_check_retains_no_descriptors() {
     use std::{fs, os::unix::fs::PermissionsExt};
     let directory = std::env::temp_dir().join(format!("temper-operations-{}", std::process::id()));

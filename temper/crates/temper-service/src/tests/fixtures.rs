@@ -19,7 +19,6 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 "budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
 }}]"#;
 
-
 /// Startup guards keep the small policy bound; they never make the core.
 pub fn guard_engine() -> settings::Engine {
     let mut settings = engine();
@@ -262,8 +261,8 @@ pub fn worker_digests(_settings: &settings::Engine) -> settings::Files {
 }
 
 pub use link_setup::{
-    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, parse_engine_over, repository, small_model, wire_limits,
-    worker_runtime,
+    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, parse_engine_over, repository,
+    small_model, wire_limits, worker_runtime,
 };
 pub(crate) use temper_service_link_fixtures::link_setup;
 

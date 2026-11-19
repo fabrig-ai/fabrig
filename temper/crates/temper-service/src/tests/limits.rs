@@ -225,8 +225,9 @@ fn tier_limits_at_the_signature_bounds_pass_both_startup_routes() {
     );
     let directories = jig_protocol_config::Directories::working();
     fixtures::named(&document, &directories).expect("the signature's tier bounds pass startup");
-    let reading = fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-        .expect("the signature's tier bounds pass its reader");
+    let reading =
+        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .expect("the signature's tier bounds pass its reader");
     assert_eq!(reading.forge.tiers.failing_tests, 64);
     assert_eq!(reading.forge.tiers.test_id_bytes, 512);
 }
@@ -237,8 +238,9 @@ fn the_stock_without_overrides_passes_both_startup_routes() {
     let document = fixtures::Start::stock(&document);
     let directories = jig_protocol_config::Directories::working();
     fixtures::named(&document, &directories).expect("the stock passes startup");
-    let reading = fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
-        .expect("the stock passes its reader");
+    let reading =
+        fixtures::document_store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .expect("the stock passes its reader");
     assert_eq!(reading.forge.changes, 768);
     assert_eq!(reading.forge.tiers.test_id_bytes, 512);
 }
