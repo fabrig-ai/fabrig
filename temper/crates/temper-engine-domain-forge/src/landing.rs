@@ -1089,7 +1089,7 @@ pub(crate) fn step(
             out,
             Request::LandingDecision {
                 task,
-                decision: policy::Decision::Wait { until: None },
+                decision: policy::Decision::Wait { until: None, on: policy::Awaited::Release },
                 entry: None,
                 evidence: None,
             },
@@ -1310,7 +1310,10 @@ fn wait(
         out,
         Request::LandingDecision {
             task,
-            decision: policy::Decision::Wait { until: Some(wall_at(env, d.poll_at(env, repository))) },
+            decision: policy::Decision::Wait {
+                until: Some(wall_at(env, d.poll_at(env, repository))),
+                on: policy::Awaited::Read,
+            },
             entry: None,
             evidence: None,
         },
@@ -2736,8 +2739,8 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         env.wall,
     );
     let writing = write_member(stepped.decision);
-    if let Some(member) = writing
-        && !admit_entry(d, env, p.task, p.entry, &row, member, out)
+    if let Some((member, on)) = writing
+        && !admit_entry(d, env, p.task, p.entry, &row, (member, on), out)
     {
         return;
     }
@@ -3322,8 +3325,10 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     };
     // A terminal round still owns its dispatched runs until their receipts
     // settle the outbox (domain/landing.md, 7.1), while its members are free to land again.
-    let decision = if decision == policy::Decision::Finish && following(d, p.task) {
-        policy::Decision::Wait { until: Some(poll_at(d, env, p.task)) }
+    let decision = if decision == policy::Decision::Finish
+        && let Some(on) = following_wait(d, p.task)
+    {
+        policy::Decision::Wait { until: Some(poll_at(d, env, p.task)), on }
     } else {
         decision
     };
@@ -4538,14 +4543,17 @@ fn continue_flake_rerun(
             out,
             Request::LandingDecision {
                 task: row.landing.task,
-                decision: policy::Decision::Wait { until: None },
+                decision: policy::Decision::Wait {
+                    until: Some(poll_at(d, env, row.landing.task)),
+                    on: policy::Awaited::Run { member, gate },
+                },
                 entry: None,
                 evidence: None,
             },
         );
         return true;
     }
-    if !admit_entry(d, env, row.landing.task, entry, row, member, out) {
+    if !admit_entry(d, env, row.landing.task, entry, row, (member, policy::Awaited::Run { member, gate }), out) {
         return true;
     }
     let flight = d.landing.flights.get_mut(&key).expect("pending flake rerun");
@@ -4639,7 +4647,10 @@ fn continue_retry(
             out,
             Request::LandingDecision {
                 task: row.landing.task,
-                decision: policy::Decision::Wait { until: None },
+                decision: policy::Decision::Wait {
+                    until: Some(poll_at(d, env, row.landing.task)),
+                    on: policy::Awaited::Run { member, gate },
+                },
                 entry: None,
                 evidence: None,
             },
@@ -4659,14 +4670,17 @@ fn continue_retry(
             out,
             Request::LandingDecision {
                 task: row.landing.task,
-                decision: policy::Decision::Wait { until: None },
+                decision: policy::Decision::Wait {
+                    until: Some(poll_at(d, env, row.landing.task)),
+                    on: policy::Awaited::Run { member, gate },
+                },
                 entry: None,
                 evidence: None,
             },
         );
         return true;
     }
-    if !admit_entry(d, env, row.landing.task, entry, row, member, out) {
+    if !admit_entry(d, env, row.landing.task, entry, row, (member, policy::Awaited::Run { member, gate }), out) {
         return true;
     }
     let flight = d.landing.flights.get_mut(&key).expect("admitted reruns");
@@ -4686,12 +4700,28 @@ fn continue_retry(
 }
 
 fn following(d: &Domain, task: u64) -> bool {
+    following_flight(d, task).is_some()
+}
+#[expect(clippy::manual_find, reason = "the strict subset uses no closures")]
+fn following_flight(d: &Domain, task: u64) -> Option<&runs::Follow> {
     for (_, flight) in &d.landing.flights {
         if flight.task == task {
-            return true;
+            return Some(flight);
         }
     }
-    false
+    None
+}
+fn following_wait(d: &Domain, task: u64) -> Option<policy::Awaited> {
+    let flight = following_flight(d, task)?;
+    let Some(crate::purpose::EffectPurpose::Landing { member, gate, .. }) =
+        crate::purpose::EffectPurpose::decode(&flight.purpose)
+    else {
+        unreachable!("landing flight names its member and gate");
+    };
+    Some(match &flight.run {
+        Some(run) if run.state == api::RunState::Completed => policy::Awaited::Receipt { member, gate },
+        Some(_) | None => policy::Awaited::Run { member, gate },
+    })
 }
 
 /// Startup's fresh-read wake may precede task activation; rebuild the poll after settlement
@@ -5418,16 +5448,18 @@ fn mark_key(d: &Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
     }
 }
 
-fn write_member(decision: policy::Decision) -> Option<u16> {
+fn write_member(decision: policy::Decision) -> Option<(u16, policy::Awaited)> {
     match decision {
         // Every member of a round names its train's repository.
-        policy::Decision::Open | policy::Decision::Close => Some(0),
-        policy::Decision::Delete { member }
-        | policy::Decision::Record { member, .. }
-        | policy::Decision::Dispatch { member, .. }
-        | policy::Decision::Retry { member, .. }
-        | policy::Decision::Post { member, .. }
-        | policy::Decision::Merge { member, .. } => Some(member),
+        policy::Decision::Open => Some((0, policy::Awaited::Open)),
+        policy::Decision::Close => Some((0, policy::Awaited::Close)),
+        policy::Decision::Delete { member } => Some((member, policy::Awaited::Delete { member })),
+        policy::Decision::Record { member, .. } => Some((member, policy::Awaited::Record { member })),
+        policy::Decision::Dispatch { member, gate, .. } | policy::Decision::Retry { member, gate, .. } => {
+            Some((member, policy::Awaited::Run { member, gate }))
+        }
+        policy::Decision::Post { member, gate, .. } => Some((member, policy::Awaited::Post { member, gate })),
+        policy::Decision::Merge { member, .. } => Some((member, policy::Awaited::Merge)),
         policy::Decision::None
         | policy::Decision::Wait { .. }
         | policy::Decision::Prepare { .. }
@@ -5456,9 +5488,10 @@ fn admit_entry(
     task: u64,
     entry: u64,
     row: &LandingRow,
-    member: u16,
+    waiting: (u16, policy::Awaited),
     out: &mut Queue<Request>,
 ) -> bool {
+    let (member, on) = waiting;
     if d.entries.contains_key(&entry) {
         let mut prior = d.landing.rows.get(&task).expect("pending landing").clone();
         if prior.room.is_some() {
@@ -5481,7 +5514,7 @@ fn admit_entry(
         out,
         Request::LandingDecision {
             task,
-            decision: policy::Decision::Wait { until: None },
+            decision: policy::Decision::Wait { until: None, on },
             entry: None,
             evidence: None,
         },

@@ -1035,7 +1035,7 @@ fn a_prepare_finishing_after_a_partial_read_takes_the_reported_suffix_once() {
     world.prepare_subset(LANDING, false, &[0]);
     assert_eq!(
         landings::step_landing_heard(&mut world, LANDING, 200, heard(landing::Preparation::Running, b"")),
-        landing::Decision::Wait { until: None }
+        landing::Decision::Wait { until: None, on: landing::Awaited::Prepare }
     );
     assert!(world.landing(LANDING).landing.members[0].candidate.is_some());
     world.prepare_landing(LANDING, false);

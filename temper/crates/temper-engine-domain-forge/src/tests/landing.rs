@@ -1332,7 +1332,8 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
     );
     let mut until = None;
     while let Some(request) = out.pop() {
-        if let Request::LandingDecision { decision: policy::Decision::Wait { until: found }, .. } = request {
+        if let Request::LandingDecision { decision: policy::Decision::Wait { until: found, on }, .. } = request {
+            assert_eq!(on, policy::Awaited::Read);
             until = found;
         }
     }
@@ -2755,7 +2756,11 @@ fn a_hearing_without_preparation_reaches_policy_as_running() {
             decision = Some(found);
         }
     }
-    assert_eq!(decision, Some(policy::Decision::Wait { until: None }), "the policy waits on a running prepare");
+    assert_eq!(
+        decision,
+        Some(policy::Decision::Wait { until: None, on: policy::Awaited::Prepare }),
+        "the policy waits on a running prepare"
+    );
     assert_eq!(d.landing.rows.get(&61).expect("waiting round").landing.phase, policy::Phase::Preparing);
 }
 
@@ -3439,4 +3444,18 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     );
     assert_eq!(d.receipt(&key).unwrap().run.id, 57);
     assert!(d.receipt(&key).unwrap().passed);
+}
+
+#[test]
+fn the_tops_held_wait_names_its_release() {
+    let mut d = landing_fixture();
+    d.landing.held = true;
+    let out = outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: preparing_heard(None) });
+    let mut decision = None;
+    for request in &out {
+        if let Request::LandingDecision { decision: found, .. } = request {
+            decision = Some(*found);
+        }
+    }
+    assert_eq!(decision, Some(policy::Decision::Wait { until: None, on: policy::Awaited::Release }));
 }

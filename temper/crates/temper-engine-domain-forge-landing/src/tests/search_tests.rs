@@ -1,8 +1,8 @@
 //! A selected probe proves only its cases (domain/landing-search-by-test.md, 3–7).
 use super::step::{prefix, stacked};
 use crate::{
-    Decision, Facts, Flight, GateProof, Landing, Leave, Limits, Phase, Posted, Posting, Probed, Project, Proof,
-    RoundEnd, Search, SearchTests, Searched, Status, Stepped, TestId, Verdict, step,
+    Awaited, Decision, Facts, Flight, GateProof, Landing, Leave, Limits, Phase, Posted, Posting, Probed, Project,
+    Proof, RoundEnd, Search, SearchTests, Searched, Status, Stepped, TestId, Verdict, step,
 };
 use skein_lib::{Duration, Wall};
 
@@ -165,7 +165,10 @@ fn flights_wait_and_probes_post_no_pending_or_success_now_or_later() {
     landing.members[1].gates[0] = landing.members[0].gates[0];
     f.members[1].gates[0].flight = Flight::Mine { run: Some(Verdict::Running) };
     let next = decide(&landing, &f);
-    assert_eq!(next.decision, Decision::Wait { until: Some(Wall::from_nanos(5_000_000_010)) });
+    assert_eq!(
+        next.decision,
+        Decision::Wait { until: Some(Wall::from_nanos(5_000_000_010)), on: Awaited::Run { member: 1, gate: 0 } }
+    );
     bounds(&next.landing, 0, 5);
     f.members[0].gates[0].receipt = Status::Passed;
     f.members[1].gates[0].receipt = Status::Passed;

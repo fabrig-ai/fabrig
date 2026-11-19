@@ -435,7 +435,7 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
     }
     domain.forge.offered_landing(task);
     let end = match choice {
-        landing::Decision::Wait { until } => {
+        landing::Decision::Wait { until, on: _ } => {
             domain.forge.wait_landing(&super::super::environment_forge(env), task, until);
             StepEnd::Wait
         }

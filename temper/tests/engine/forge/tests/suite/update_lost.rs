@@ -122,11 +122,14 @@ fn lost_prepare(found: bool) {
     world.restart();
     world.run_for(1);
     let next = landings::step_landing_raw(&mut world, LANDING, 102);
-    assert_eq!(
-        next,
-        if found { landing::Decision::Open } else { landing::Decision::Wait { until: None } },
-        "an unfinished prepare is retried by its job, without another delegation"
-    );
+    if found {
+        assert_eq!(next, landing::Decision::Open);
+    } else {
+        assert!(
+            matches!(next, landing::Decision::Wait { until: Some(_), on: landing::Awaited::Prefixes }),
+            "the idle job's unread prefixes are polled, without another delegation"
+        );
+    }
     if !found {
         world.prepare_landing(LANDING, false);
     }
