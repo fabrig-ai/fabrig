@@ -206,7 +206,7 @@ fn largest_writable_items_count_the_own_delivery_head() {
             expected: Some([1; 32]),
             landing: Some(zeroed(usize::try_from(limits.writable_landing_some).unwrap())),
             delivered: Some([7; 32]),
-            pin: None,
+            pin: Some([2; 32]),
         },
     )
     .unwrap();
