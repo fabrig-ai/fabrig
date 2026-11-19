@@ -2,8 +2,8 @@
 //! Keeps its I/O queues and one Exchange; holds the credential until the request is written.
 //! `Process::new` adopts the supplied faces; `run_decoded` supplies the native kernel.
 
-#[cfg(unix)]
 use smith_channel::Record;
+#[cfg(unix)]
 use std::{io::Write, path::Path};
 
 use skein_io::{
