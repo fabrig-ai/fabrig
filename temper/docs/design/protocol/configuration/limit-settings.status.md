@@ -1,6 +1,7 @@
 # limit-settings: status
 
-2026-11-18. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
+2026-11-19. Where the tree's code lags or departs from [limit-settings.md](limit-settings.md).
+
 
 - **Design lags:** 3: stopped-tool preparation resolves `limits-held` without opening a store, but the upgrade rehearsal restores stored limit-setting records without resolving them into its engine's runtime figures as a start does. Without `limits-held`, that engine uses stock-derived figures (`temper-engine-shell/src/stopped.rs`).
 

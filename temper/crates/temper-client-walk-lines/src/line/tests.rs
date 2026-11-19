@@ -1,6 +1,15 @@
 use super::*;
 
 #[test]
+fn mark_parses_prints_and_takes_no_fields() {
+    let line = Line::parse(b"web mark").expect("mark line");
+    assert_eq!(line.record(), &Record::Web(Web::Mark));
+    assert_eq!(line.print(), b"web mark");
+    assert!(line.kept());
+    assert!(Line::parse(b"web mark extra").expect_err("no fields").contains("extra field"));
+}
+
+#[test]
 fn requests_parse_print_are_kept_and_name_extra_fields() {
     let line = Line::parse(b"web requests").expect("requests line");
     assert_eq!(line.record(), &Record::Web(Web::Requests));

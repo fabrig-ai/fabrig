@@ -23,7 +23,7 @@ use temper_client_shell_web::journey::{self, Control, SetupStep, Step};
 /// Every part of `again` takes this start (temper/docs/design/client/journey-clock.md, 4.4).
 pub(crate) const FIXED_START: &str = "1767690000,7";
 
-const HORIZON: Duration = Duration::from_secs(600);
+pub(crate) const HORIZON: Duration = Duration::from_secs(600);
 const POLL: Duration = Duration::from_millis(50);
 
 /// What `again` starts from, found by `main` (client/web/journeys.md, 8.1).
@@ -44,6 +44,7 @@ pub fn again(
     name: &str,
     paths: &Paths,
     environment: &[crate::EnvironmentEntry],
+    horizon: Duration,
 ) -> Result<(), Refusal> {
     let committed = recorded(journeys, name)?;
     let steps = walked(name, &committed)?;
@@ -56,7 +57,7 @@ pub fn again(
         crate::isolation::program("env", environment).ok_or_else(|| fail("cannot find env on PATH".into()))?;
     let mut harness = Harness::new(box_setup(paths, launcher, &isolated, Some(downloads)))
         .page_query(&page_query(true))
-        .horizon(HORIZON);
+        .horizon(horizon);
     let mut walker = Walker::new(name, steps, prepared);
     let outcome = harness.run(&mut [&mut walker]);
     if let Some(refusal) = walker.refusal.take() {

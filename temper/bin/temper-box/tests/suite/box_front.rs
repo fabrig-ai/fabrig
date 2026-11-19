@@ -47,6 +47,7 @@ impl Pipes {
         arguments.extend(command.get_args().map(|word| Box::from(word.as_bytes())));
         let root_fd = skein_shell::open_root(root).expect("scratch root");
         let mut spawn = Spawn {
+            reach: None,
             program: b"/bin/sh".as_slice().into(),
             args: arguments.into_boxed_slice(),
             env: environment

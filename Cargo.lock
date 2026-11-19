@@ -1261,6 +1261,7 @@ dependencies = [
  "jig-test-profile",
  "skein-codec",
  "skein-codegen",
+ "skein-heap",
  "skein-lib",
  "skein-scratch",
  "skein-world",
@@ -1281,11 +1282,14 @@ dependencies = [
  "jig-client-test-protocol-wire",
  "jig-client-test-records",
  "jig-client-view",
+ "jig-client-view-codec",
  "jig-core-kit",
  "jig-domain-people",
  "jig-protocol-transcript",
  "jig-test-profile",
+ "skein-codegen",
  "skein-fake-person",
+ "skein-heap",
  "skein-lib",
  "skein-scratch",
  "skein-ui",
@@ -1596,6 +1600,7 @@ dependencies = [
  "jig-test-service",
  "serde_json",
  "skein-codegen",
+ "skein-heap",
  "skein-http",
  "skein-lib",
  "skein-oauth-issuer",
@@ -1864,7 +1869,9 @@ dependencies = [
  "jig-test-profile",
  "jig-test-service",
  "sha2",
+ "skein-codegen",
  "skein-fake-person",
+ "skein-heap",
  "skein-http",
  "skein-io",
  "skein-json",
@@ -2442,8 +2449,10 @@ version = "0.0.0"
 dependencies = [
  "jig-test-connector",
  "jig-test-connector-kit",
+ "jig-test-store",
  "jig-test-system",
  "sha2",
+ "skein-codegen",
  "skein-heap",
  "skein-lib",
 ]
@@ -3145,6 +3154,7 @@ dependencies = [
 name = "skein-conformance"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
 ]
@@ -3156,6 +3166,8 @@ dependencies = [
  "libc",
  "skein-conformance",
  "skein-fail-stop",
+ "skein-fake-machine",
+ "skein-fork",
  "skein-io",
  "skein-lib",
  "skein-scratch",
@@ -3360,6 +3372,7 @@ dependencies = [
  "skein-heap",
  "skein-io",
  "skein-lib",
+ "skein-rows",
  "skein-sim",
  "skein-sim-world",
 ]
@@ -3684,6 +3697,7 @@ name = "skein-io"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
+ "skein-rows",
 ]
 
 [[package]]
@@ -4198,6 +4212,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-fake-person",
+ "skein-heap",
  "skein-http",
  "skein-lib",
  "skein-ui",
@@ -4678,6 +4693,7 @@ dependencies = [
  "smith-charter",
  "smith-events",
  "smith-events-fixtures",
+ "smith-local-protocol",
  "smith-transcript",
  "smith-transcript-patches",
 ]
@@ -5811,6 +5827,7 @@ dependencies = [
  "temper-playground-world",
  "temper-service",
  "temper-service-core",
+ "temper-settings-form",
  "temper-shell",
  "temper-test-env",
 ]
@@ -5958,7 +5975,6 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-ui",
- "skein-ui-bundle",
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "skein-ui-web",
@@ -5966,6 +5982,7 @@ dependencies = [
  "temper-client-shell-tui",
  "temper-client-shell-web",
  "temper-client-tui",
+ "temper-client-walk-lines",
  "temper-fake",
  "temper-shell",
 ]
@@ -6289,6 +6306,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-client-walk-lines"
+version = "0.0.0"
+dependencies = [
+ "skein-scratch",
+ "skein-ui",
+ "skein-ui-bundle",
+ "skein-ui-screen",
+ "skein-ui-screen-terminal",
+ "skein-ui-web",
+ "temper-client-shell-tui",
+ "temper-client-shell-web",
+ "temper-client-tui",
+]
+
+[[package]]
+name = "temper-client-walk-world"
+version = "0.0.0"
+dependencies = [
+ "jig-client-shell-web",
+ "skein-fake-person",
+ "skein-lib",
+ "skein-playground",
+ "skein-sim-world",
+ "skein-ui",
+ "skein-ui-web",
+ "temper-client-domain",
+ "temper-client-shell-web",
+ "temper-client-view",
+ "temper-fake",
+ "temper-playground",
+]
+
+[[package]]
 name = "temper-client-web-page"
 version = "0.0.0"
 dependencies = [
@@ -6374,6 +6424,7 @@ dependencies = [
  "skein-forge-client",
  "skein-forge-connection",
  "skein-forge-setup",
+ "skein-heap",
  "skein-io",
  "skein-lib",
  "skein-scratch",
@@ -7597,7 +7648,6 @@ dependencies = [
 name = "temper-playground-world"
 version = "0.0.0"
 dependencies = [
- "jig-client-shell-web",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
  "serde_json",
@@ -7614,7 +7664,7 @@ dependencies = [
  "skein-ui-web",
  "temper-client-domain",
  "temper-client-shell-web",
- "temper-client-view",
+ "temper-client-walk-world",
  "temper-playground",
  "temper-service",
  "temper-test-env",

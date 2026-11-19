@@ -709,6 +709,7 @@ fn spawn_parent_slots_are_empty_until_a_successful_completion() {
     use crate::kernel::{Pipe, Spawn, Way};
     let mut kind = Op::Spawn {
         spawn: Box::new(Spawn {
+            reach: None,
             program: name(b"child"),
             args: Box::default(),
             env: Box::default(),
@@ -782,6 +783,7 @@ fn given_slots_are_resolved_before_submission_and_retained_on_failure() {
     use crate::kernel::{Pipe, Spawn, Way};
     let mut kind = Op::Spawn {
         spawn: Box::new(Spawn {
+            reach: None,
             program: name(b"child"),
             args: Box::default(),
             env: Box::default(),

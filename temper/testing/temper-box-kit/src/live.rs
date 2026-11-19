@@ -507,7 +507,7 @@ fn count_completions(config: &Path, directories: &temper_box_shell::directories:
     Ok(count)
 }
 
-/// Redact link secrets and structured credential values before diagnostic output.
+/// Redact link secrets, API headers, Anthropic keys and structured credentials before diagnostic output.
 #[must_use]
 pub fn redact(text: &str) -> String {
     let mut output = text.to_owned();
@@ -548,6 +548,29 @@ pub fn redact(text: &str) -> String {
                 at = value + "\"…\"".len();
             }
         }
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].to_ascii_lowercase().find("x-api-key:") {
+        let header = at + found + "x-api-key:".len();
+        let start = output.len() - output[header..].trim_start().len();
+        let end = output[start..]
+            .find(|c: char| c.is_whitespace() || matches!(c, '&' | '"' | '\'' | '<' | '>'))
+            .map_or(output.len(), |n| start + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].find("sk-ant-") {
+        let start = at + found;
+        at = start + "sk-ant-".len();
+        if output[..start].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let end = output[at..]
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+            .map_or(output.len(), |n| at + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
     }
     output
 }

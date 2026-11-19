@@ -31,3 +31,8 @@ mod fuzzy {
     mod layout;
     mod patch;
 }
+
+mod codec_memory {
+    include!("../../../../testing/codec-memory.rs");
+}
+mod largest_memory;

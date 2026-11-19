@@ -2,7 +2,7 @@
 use crate::{Job, JobLayout, OpenRefusal, Owner, Store};
 use alloc::boxed::Box;
 use skein_codec::{
-    layout::{Plan, Workspace},
+    layout::{Misconverted, Plan, Workspace},
     schema::Schema,
 };
 use skein_lib::{Buffer, List, Map, Queue};
@@ -15,23 +15,53 @@ mod rows;
 mod tests;
 mod texts;
 
-/// Fitted at open beside the plans (protocol/store/layouts.md, 7). A store
-/// whose plans all keep needs no conversion buffer; its reads only rehead.
+/// Workspace fitted at open beside the plans; the buffer grows only on
+/// converted reads, up to the value bound (protocol/store/layouts.md, 7).
 #[derive(Debug)]
 pub(crate) struct ReadWork {
     pub(crate) workspace: Workspace,
     buffer: Buffer,
+    bound: u32,
 }
 impl ReadWork {
     pub(crate) fn new() -> Self {
-        Self { workspace: Workspace::new(), buffer: Buffer::with_capacity(0) }
+        Self { workspace: Workspace::new(), buffer: Buffer::with_capacity(0), bound: 0 }
     }
-    fn fit(layouts: &Layouts, workspace: Workspace, bound: u32) -> Self {
-        let mut converts = false;
-        for ty in &layouts.types {
-            converts |= !ty.plans.is_empty();
+    fn fit(workspace: Workspace, bound: u32) -> Self {
+        Self { workspace, buffer: Buffer::with_capacity(0), bound }
+    }
+    fn convert(&mut self, plan: &Plan, value: &[u8]) -> bool {
+        if !self.workspace.fits(plan) {
+            return false;
         }
-        Self { workspace, buffer: Buffer::with_capacity(if converts { bound } else { 0 }) }
+        let length = u32::try_from(value.len()).unwrap_or(self.bound);
+        let twice = length.checked_mul(2).unwrap_or(self.bound);
+        let room = twice.checked_next_power_of_two().unwrap_or(self.bound).max(4096).min(self.bound);
+        if self.buffer.capacity() < room {
+            self.buffer = Buffer::with_capacity(room);
+        }
+        // Even a Room unrelated to output space stops at the bound: at most 32 doublings of a u32 capacity.
+        for _ in 0..=u32::BITS {
+            match plan.convert(value, &mut self.buffer, &mut self.workspace) {
+                Ok(()) => return true,
+                Err(Misconverted::Room) => {
+                    if self.buffer.capacity() >= self.bound {
+                        return false;
+                    }
+                    let room = self.buffer.capacity().checked_mul(2).unwrap_or(self.bound).min(self.bound);
+                    self.buffer = Buffer::with_capacity(room);
+                }
+                Err(
+                    Misconverted::Short
+                    | Misconverted::Tag
+                    | Misconverted::Bool
+                    | Misconverted::Bound
+                    | Misconverted::Trailing
+                    | Misconverted::Dropped(_),
+                ) => return false,
+            }
+        }
+        false
     }
 }
 
@@ -117,19 +147,13 @@ impl Layouts {
         rehead(value, ty.binary);
         Ok(())
     }
-    pub(crate) fn read<'a>(
-        &self,
-        key: &[u8],
-        value: &'a mut [u8],
-        out: &'a mut Buffer,
-        work: &mut Workspace,
-    ) -> &'a [u8] {
+    pub(crate) fn read<'a>(&self, key: &[u8], value: &'a mut [u8], work: &'a mut ReadWork) -> &'a [u8] {
         if !self.active {
             return value;
         }
-        self.read_layout(key, value, out, work)
+        self.read_layout(key, value, work)
     }
-    fn read_layout<'a>(&self, key: &[u8], value: &'a mut [u8], out: &'a mut Buffer, work: &mut Workspace) -> &'a [u8] {
+    fn read_layout<'a>(&self, key: &[u8], value: &'a mut [u8], work: &'a mut ReadWork) -> &'a [u8] {
         let Some(ty) = self.resolve(key) else {
             return value;
         };
@@ -147,7 +171,7 @@ impl Layouts {
         let Some(plan) = ty.plans.get(&id) else {
             return value;
         };
-        if plan.convert(value, out, work).is_ok() { out.as_slice() } else { value }
+        if work.convert(plan, value) { work.buffer.as_slice() } else { value }
     }
     pub(crate) fn activate(&mut self) {
         self.active = true;
@@ -264,9 +288,9 @@ fn owned(store: &mut Store, key: &[u8], value: &mut Box<[u8]>, before_active: bo
     let original = value.as_ptr();
     let work = &mut store.layout_work;
     let mapped = if before_active {
-        store.registry.read_layout(key, value, &mut work.buffer, &mut work.workspace)
+        store.registry.read_layout(key, value, work)
     } else {
-        store.registry.read(key, value, &mut work.buffer, &mut work.workspace)
+        store.registry.read(key, value, work)
     };
     if mapped.as_ptr() != original {
         *value = Box::from(mapped);
@@ -319,7 +343,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         layouts.pending = Queue::uncapped();
     }
     layouts.active = seeded && !changed;
-    *store.layout_work = ReadWork::fit(&layouts, work, store.limits.store.value);
+    *store.layout_work = ReadWork::fit(work, store.limits.store.value);
     *store.registry = layouts;
     Ok(writing)
 }

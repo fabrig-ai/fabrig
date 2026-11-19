@@ -33,6 +33,9 @@ mod darwin;
 mod drive;
 #[cfg(unix)]
 mod group;
+/// First-line dispatch for the service's spawn helper.
+#[cfg(unix)]
+pub mod helper;
 #[cfg(unix)]
 pub mod keeper;
 #[cfg(unix)]

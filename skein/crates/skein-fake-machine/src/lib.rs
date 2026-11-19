@@ -28,7 +28,16 @@ extern crate alloc;
 
 mod face;
 mod fs;
+pub mod probe;
 mod rooted;
+
+/// Landlock available to the fake machine (testing/README.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
+pub enum Landlock {
+    Abi(u32),
+    Absent,
+    Disabled,
+}
 #[cfg(test)]
 mod tests;
 

@@ -410,7 +410,15 @@ impl Harness {
             return;
         }
 
-        if let Ask::Spawn { args, .. } = &mut call.ask {
+        if let Ask::Spawn { args, reach, .. } = &mut call.ask {
+            if reach.is_some() {
+                self.answers.push(Answer {
+                    ticket: call.ticket,
+                    result: Err(skein_io::kernel::Error::Reach(skein_io::kernel::Unenforced::Unsupported)),
+                });
+                self.sim.answer(&mut self.answers);
+                return;
+            }
             // The fake executes the wrapped fixture; launches retain the whole exec boundary.
             *args = Box::from(fixture_arguments(args));
         }

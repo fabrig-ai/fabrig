@@ -19,6 +19,8 @@ jig-test-system.workspace = true
 skein-lib.workspace = true
 
 [dev-dependencies]
+skein-codegen.workspace = true
+jig-test-store.workspace = true
 sha2.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2

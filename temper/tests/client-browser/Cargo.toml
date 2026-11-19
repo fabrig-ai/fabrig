@@ -16,6 +16,7 @@ temper-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
 temper-box-kit.workspace = true
 temper-playground.workspace = true
+temper-fake.workspace = true
 skein-fake-person-browser.workspace = true
 skein-fake-person.workspace = true
 skein-fake-peers.workspace = true
@@ -41,9 +42,9 @@ jig-client-protocol-link.workspace = true
 jig-client-fake-person-browser.workspace = true
 
 [dev-dependencies]
+settings-form.workspace = true
 jig-domain-core.workspace = true
 temper-init.workspace = true
-temper-fake.workspace = true
 temper-client-domain.workspace = true
 temper-playground-world.workspace = true
 skein-playground.workspace = true

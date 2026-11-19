@@ -10,6 +10,7 @@ use skein_sim_tests::World;
 fn child(world: &mut World, parent: Pid, root: Fd, program: Program, output: bool) -> (Fd, Option<Fd>) {
     world.serving = false;
     let spawn = Spawn {
+        reach: None,
         root,
         dir: Box::from(b".".as_slice()),
         program: Box::from(b"modeled".as_slice()),

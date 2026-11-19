@@ -121,6 +121,13 @@ pub struct Worker {
 }
 // Runtime starts and offline store readers judge the same fixed tier carriers.
 fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
+    let bound = temper_service_core::derived::STORE_LIVE_GOALS;
+    if limits.live_goals > bound {
+        problems.push(
+            super::checks::own(b"live_goals"),
+            What::Half(crate::startup::EngineWhat::StoreLiveGoals { count: u64::from(limits.live_goals), bound }),
+        );
+    }
     let bound = temper_protocol_store::forge_changes_bound().expect("schema tier rows hold at least one landing");
     if limits.forge.changes > bound {
         problems.push(

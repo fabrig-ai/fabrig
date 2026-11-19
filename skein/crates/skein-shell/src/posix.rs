@@ -104,6 +104,7 @@ fn login_read_error(why: crate::Unread) -> String {
         Unread::Unsafe(_) => "user: readable by others or reached through a link".into(),
         Unread::Kernel(error) => {
             let errno = match error {
+                Error::Reach(why) => return format!("user: {why}"),
                 Error::Refused => 111,
                 Error::Busy => 11,
                 Error::Reset => 104,

@@ -60,6 +60,11 @@ fn release_preparations(driver: &mut Driver) {
 /// Keep the final two restore loads retired through the opening pass. A load
 /// slot is occupied until reclaim even when its archive waiter has ended.
 fn restart_preparations(driver: &mut Driver) {
+    open_preparations(driver);
+    driver.pump();
+}
+
+fn open_preparations(driver: &mut Driver) {
     const STEPS: u32 = 200; // The direct fixture's settlement horizon.
     let mut opening = false;
     for _ in 0..STEPS {
@@ -104,9 +109,7 @@ fn restart_preparations(driver: &mut Driver) {
             driver.root.reclaim();
             opening = false;
             if driver.root.ready() {
-                // After the opening pass, reclaim between inputs and their
-                // continuations as the direct world does for runtime work.
-                driver.pump();
+                // Runtime work now follows the caller's input/reclaim schedule.
                 return;
             }
         }
@@ -164,6 +167,10 @@ fn parked_chats(window_len: usize) -> (Driver, Vec<(engine::Assignment, u8)>) {
 }
 
 fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) {
+    parked_windows_with_results(lengths, false)
+}
+
+fn parked_windows_with_results(lengths: &[usize], with_results: bool) -> (Driver, Vec<(engine::Assignment, u8)>) {
     // Take the shipped task/request capacities; leave the world's other bounds,
     // including root.loads.loads=2, unchanged.
     let jig = jig_protocol_config_fixtures::small();
@@ -183,9 +190,13 @@ fn parked_windows(lengths: &[usize]) -> (Driver, Vec<(engine::Assignment, u8)>) 
     driver.settle();
     let mut parked = Vec::new();
     for (key, turns) in CHAT_KEYS.into_iter().zip(lengths) {
+        let dependency = with_results.then(|| ended_dependency(&mut driver, key));
         let people::Ask::Create { project, mut batch } = driver.chat_ask(PROJECT, b"standing chat") else {
             panic!("chat template creates a task")
         };
+        if let Some(task) = dependency {
+            batch[0].dependencies = Box::new([people::Dependency::Existing(task)]);
+        }
         batch[0].flags.ended_by = people::EndedBy::Requester;
         batch[0].budget = people::Budget::Named;
         batch[0].authority.spend = CHAT_SPEND;
@@ -381,6 +392,341 @@ fn tasks_due_together_past_the_load_slots_each_load_their_window() {
             assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
         }
     }
+}
+
+fn ended_dependency(driver: &mut Driver, key: u8) -> u64 {
+    let people::Ask::Create { project, mut batch } = driver.chat_ask(PROJECT, b"result producer") else {
+        panic!("chat template creates a task")
+    };
+    batch[0].flags.ended_by = people::EndedBy::Result;
+    driver.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(1001)),
+        sign_in: driver.session(),
+        key: [key + 60; 16],
+        ask: people::Ask::Create { project, batch },
+    }));
+    driver.settle();
+    let run = driver.last_assignment();
+    driver.answer(
+        CHANNEL,
+        run.task,
+        run.attempt,
+        0,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: format!("dependency proof {key}").into_bytes().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    driver.settle();
+    assert!(driver.task(run.task).is_none(), "the dependency ended durably");
+    let (rows, next) = driver.store.page(&Range::Core(CoreRange::TaskResult { task: run.task }), None, 1);
+    assert!(
+        matches!(rows.as_ref(), [engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))] if row.number == run.task)
+    );
+    assert!(next.is_none(), "the history log supplies the ended record");
+    run.task
+}
+
+fn drain_result_preparations(driver: &mut Driver) {
+    let mut quiet = 0;
+    for _ in 0..200 {
+        if let Some(event) = driver.events.pop_front() {
+            let window = matches!(&event, engine::Event::Store(engine::StoreInput::Loaded { owner, .. })
+                if driver.loads.iter().any(|(issued, range)| issued == owner && matches!(range, Range::Core(CoreRange::TaskTranscript { .. }))));
+            engine::try_step(&mut driver.root, &driver.env, event).expect("preparation input admitted");
+            if window {
+                release_preparations(driver);
+            }
+        }
+        if !driver.store.pending.is_empty() {
+            let number = driver.store.apply();
+            engine::try_step(
+                &mut driver.root,
+                &driver.env,
+                engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }),
+            )
+            .expect("commit admitted");
+        }
+        temper_engine_domain_world::poll(&mut driver.root, &driver.env, &mut driver.out);
+        let empty = driver.out.is_empty();
+        driver.collect();
+        no_brief_failure(driver);
+        driver.root.reclaim();
+        quiet = if empty && driver.events.is_empty() && driver.store.pending.is_empty() && driver.root.held_bytes() == 0
+        {
+            quiet + 1
+        } else {
+            0
+        };
+        if quiet == 2 {
+            return;
+        }
+    }
+    panic!("preparation inputs did not drain");
+}
+
+fn no_brief_failure(driver: &mut Driver) {
+    while let Some(fact) = driver.root.pop_fact() {
+        if let engine::Fact::BriefFailed { task, counts, reason } = fact {
+            panic!("task {task}: no preparation may fail: {counts}: {}", String::from_utf8_lossy(&reason));
+        }
+    }
+}
+
+/// temper/docs/design/domain/root.md, 7: results wait while windows and restore loads hold the slots.
+#[test]
+fn tasks_due_together_past_the_load_slots_each_read_their_ended_dependency() {
+    let (mut driver, parked) = parked_windows_with_results(&[3, 3, 3], true);
+    no_brief_failure(&mut driver);
+    eprintln!("all dependencies ended and chats parked");
+    for (run, key) in &parked {
+        driver.send(say_ask(driver.session(), run.task, key + 20));
+    }
+    while !driver.store.pending.is_empty() {
+        let number = driver.store.apply();
+        driver.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+    }
+    no_brief_failure(&mut driver);
+    eprintln!("reopening with wakes committed");
+    driver.reopen(walking::config(91));
+    driver.loads.clear();
+    driver.hello(CHANNEL);
+    open_preparations(&mut driver);
+    drain_result_preparations(&mut driver);
+    eprintln!("restart preparations drained");
+    let mut resumed = Vec::new();
+    for _ in &parked {
+        no_brief_failure(&mut driver);
+        let next = driver
+            .delivered
+            .iter()
+            .find_map(|delivery| match delivery {
+                engine::Delivery::Assigned { assignment, .. } if !resumed.contains(&assignment.task) => {
+                    Some(assignment.clone())
+                }
+                _ => None,
+            })
+            .expect("every preparation starts its run");
+        let (previous, key) = parked.iter().find(|(run, _)| run.task == next.task).expect("a parked task resumed");
+        assert!(next.attempt > previous.attempt);
+        let proof = format!("dependency proof {key}");
+        assert!(next.sections.iter().any(|section| section.kind == engine::BriefKind::Core(jig_domain_brief::Core::Results)
+            && matches!(&section.body, engine::BriefBody::Text(text) if text.windows(proof.len()).any(|part| part == proof.as_bytes()))), "each brief carries its dependency's result");
+        if *key == CHAT_KEYS[0] {
+            assert_eq!(
+                next.transcript.as_ref(),
+                &[Box::<[u8]>::from([*key, 1]), Box::from([*key, 2]), Box::from([*key, 3])]
+            );
+        }
+        resumed.push(next.task);
+        let read = next.messages.last().expect("wake message offered").number;
+        park_turn(&mut driver, &next, Some(read), b"resumed");
+        driver.fire_at(Duration::from_secs(1));
+        driver.pump();
+    }
+    no_brief_failure(&mut driver);
+    for (run, _) in &parked {
+        let row = driver.task(run.task).expect("chat remains live");
+        assert_eq!(row.tries, tasks::Tries::NONE, "waiting spends no try");
+        assert!(row.retry_notice.is_none(), "waiting leaves no retry notice");
+        assert!(resumed.contains(&run.task));
+    }
+}
+
+// These helpers leave reclaim to the story, as the service does at iteration end.
+fn preparation_step(driver: &mut Driver, event: engine::Event) {
+    engine::try_step(&mut driver.root, &driver.env, event).expect("preparation input admitted");
+    release_preparations(driver);
+}
+
+fn preparation_commits(driver: &mut Driver) {
+    for _ in 0..20 {
+        release_preparations(driver);
+        if driver.store.pending.is_empty() {
+            return;
+        }
+        let number = driver.store.apply();
+        preparation_step(driver, engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+    }
+    panic!("preparation writes drained");
+}
+
+fn wake_window(driver: &mut Driver, run: &engine::Assignment, key: u8) {
+    preparation_step(driver, say_ask(driver.session(), run.task, key + 20));
+    preparation_commits(driver);
+}
+
+fn take_window(driver: &mut Driver, task: u64) -> engine::Event {
+    let owner = driver
+        .loads
+        .iter()
+        .find_map(|(owner, range)| match range {
+            Range::Core(CoreRange::TaskTranscript { task: found, .. }) if *found == task => Some(*owner),
+            _ => None,
+        })
+        .expect("window issued");
+    let index = driver
+        .events
+        .iter()
+        .position(|event| {
+            matches!(event,
+        engine::Event::Store(engine::StoreInput::Loaded { owner: found, .. }) if *found == owner)
+        })
+        .expect("window's store answer held");
+    driver.events.remove(index).expect("held window")
+}
+
+fn result_tasks(driver: &Driver) -> Vec<u64> {
+    driver
+        .loads
+        .iter()
+        .filter_map(|(_, range)| match range {
+            Range::Core(CoreRange::TaskResult { task }) => Some(*task),
+            _ => None,
+        })
+        .collect()
+}
+
+fn waiting_results() -> (Driver, Vec<(engine::Assignment, u8)>, Vec<u64>) {
+    let (mut driver, parked) = parked_windows_with_results(&[1, 1, 1], true);
+    driver.loads.clear();
+    driver.delivered.retain(|delivery| !matches!(delivery, engine::Delivery::Assigned { .. }));
+    let dependencies =
+        parked.iter().map(|(run, _)| driver.task(run.task).expect("parked chat").dependencies[0]).collect();
+    for (run, key) in parked.iter().take(2) {
+        wake_window(&mut driver, run, *key);
+    }
+    for (run, _) in parked.iter().take(2) {
+        let window = take_window(&mut driver, run.task);
+        preparation_step(&mut driver, window);
+        no_brief_failure(&mut driver);
+        assert!(result_tasks(&driver).is_empty(), "results wait for retired slots' reclaim");
+    }
+    (driver, parked, dependencies)
+}
+
+#[test]
+fn ended_tasks_wait_for_reclaim_and_keep_arrival_order() {
+    let (mut driver, parked, dependencies) = waiting_results();
+    let mark = Token::new(1201);
+    let session = driver.session();
+    preparation_step(
+        &mut driver,
+        engine::Event::Party(engine::PartyInput::Ask {
+            models: Box::new([]),
+            reply_to: ReplyTo::new(mark),
+            sign_in: session,
+            key: [97; 16],
+            ask: people::Ask::MarkSeen { seen: people::Seen::Conversation { task: dependencies[0], through: 1 } },
+        }),
+    );
+    preparation_commits(&mut driver);
+    assert!(driver.delivered.iter().any(|delivery| matches!(delivery,
+        engine::Delivery::WebReply { to, reply: people::Reply::Again(people::Again::Busy) } if *to == ReplyTo::new(mark))),
+        "other ended reads still answer busy on a full table");
+    let (last, key) = parked.last().expect("third task");
+    assert_eq!(result_tasks(&driver), [] as [u64; 0]);
+    // A later-issued result must still wait behind this earlier decision's commit.
+    preparation_step(
+        &mut driver,
+        engine::Event::Party(engine::PartyInput::SignedIn {
+            until: None,
+            held: None,
+            reply_to: ReplyTo::new(Token::new(1202)),
+            identity: people::Identity {
+                key: temper_engine_domain_forge::user_key(1, 7_u64),
+                login: b"person".as_slice().into(),
+                name: b"Person".as_slice().into(),
+            },
+        }),
+    );
+    assert!(!driver.store.pending.is_empty(), "a preceding write is not durable yet");
+    driver.root.reclaim();
+    release_preparations(&mut driver);
+    assert!(result_tasks(&driver).is_empty(), "reclaimed loads remain held behind the commit");
+    preparation_commits(&mut driver);
+    assert_eq!(result_tasks(&driver), dependencies[..2], "oldest results own reclaimed slots");
+    // The later task still needs its first window page; it cannot pass the queued results.
+    assert!(!driver.loads.iter().any(|(_, range)| matches!(range,
+        Range::Core(CoreRange::TaskTranscript { task, .. }) if *task == last.task)));
+    drain_result_preparations(&mut driver);
+    wake_window(&mut driver, last, *key);
+    driver.root.reclaim();
+    drain_result_preparations(&mut driver);
+    driver.fire_at(Duration::from_secs(1));
+    drain_result_preparations(&mut driver);
+    let mut resumed = Vec::new();
+    for _ in &parked {
+        let next = driver
+            .delivered
+            .iter()
+            .find_map(|delivery| match delivery {
+                engine::Delivery::Assigned { assignment, .. } if !resumed.contains(&assignment.task) => {
+                    Some(assignment.clone())
+                }
+                _ => None,
+            })
+            .expect("waiting task starts");
+        resumed.push(next.task);
+        let read = next.messages.last().expect("wake message offered").number;
+        park_turn(&mut driver, &next, Some(read), b"resumed");
+        driver.fire_at(Duration::from_secs(1));
+        drain_result_preparations(&mut driver);
+    }
+    let asked = result_tasks(&driver);
+    assert_eq!(&asked[..2], &dependencies[..2], "later reads follow both waiting reads");
+    assert!(asked[2..].contains(&dependencies[2]), "the later result also loads");
+    no_brief_failure(&mut driver);
+}
+
+#[test]
+fn an_issued_ended_task_load_that_fails_still_answers_busy_once() {
+    let (mut driver, _, _) = waiting_results();
+    driver.root.reclaim();
+    release_preparations(&mut driver);
+    let (owner, _) = driver
+        .loads
+        .iter()
+        .find(|(_, range)| matches!(range, Range::Core(CoreRange::TaskResult { .. })))
+        .expect("result issued");
+    let owner = *owner;
+    let index = driver
+        .events
+        .iter()
+        .position(|event| {
+            matches!(event,
+        engine::Event::Store(engine::StoreInput::Loaded { owner: found, .. }) if *found == owner)
+        })
+        .expect("result pending");
+    driver.events.remove(index);
+    preparation_step(&mut driver, engine::Event::Store(engine::StoreInput::Unloaded { owner }));
+    preparation_step(&mut driver, engine::Event::Store(engine::StoreInput::Unloaded { owner }));
+    preparation_commits(&mut driver);
+    let mut failures = Vec::new();
+    while let Some(fact) = driver.root.pop_fact() {
+        if let engine::Fact::BriefFailed { task, .. } = fact {
+            failures.push(task);
+        }
+    }
+    assert_eq!(failures.len(), 1, "a failed issued result fails its preparation exactly once");
+    assert!(driver.task(failures[0]).expect("failed preparation").retry_notice.is_some());
+    driver.pump();
+}
+
+#[test]
+fn waiting_ended_tasks_are_dropped_at_stop() {
+    let (mut driver, _, _) = waiting_results();
+    driver.broken("deliberately stopped root cannot settle ready for the restart oracle");
+    preparation_step(&mut driver, engine::Event::Stop);
+    driver.pump();
+    assert!(result_tasks(&driver).is_empty(), "stop never issues a waiting result");
+    assert!(
+        driver.delivered.iter().any(|delivery| matches!(delivery, engine::Delivery::Drained))
+            || driver.immediate.iter().any(|request| matches!(request, engine::Request::Drained)),
+        "waiting results do not prevent the engine's drain"
+    );
 }
 
 /// temper/docs/design/domain/root.md, 7: later pages keep the first page's slot.

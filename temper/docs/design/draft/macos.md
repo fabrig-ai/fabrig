@@ -14,7 +14,10 @@ and everything only Linux can give (containment, trees, io_uring).
 
 The user's rule for all of it (2026-11-04): keep it cheap. What matters
 is that 2.4's story basically works. Whatever is Linux's may be degraded
-or less sophisticated on macOS, and rough edges are fine.
+or less sophisticated on macOS, and rough edges are fine. Since
+2026-11-18, macOS is tested after landing, best effort and last in
+priority, and its reds are filed and repaired as Linux's are
+(`macos-tiers.md`): the rest of section 2 comes that way.
 
 ## 1. In one page
 
@@ -26,9 +29,9 @@ or less sophisticated on macOS, and rough edges are fine.
   where macOS differs, it gets the simplest thing that lets the story
   pass, a degraded behaviour or a Linux-only entry, never a port for its
   own sake.
-- **Then the rest, as it stays cheap** (section 2): the suites, tree by
-  tree (2.1); a person on a real Mac (2.3); the first-run demo in a
-  browser, best effort (2.2).
+- **Then the rest, after landing** (section 2; `macos-tiers.md`): the
+  suites, tree by tree (2.1); a person on a real Mac (2.3); the
+  first-run demo in a browser, best effort (2.2).
 - **The bulk is skein's readiness backend** (skein's `runtime/readiness.md`
   ): one backend for hosts without io_uring, kqueue's on macOS
   and epoll's on Linux. Step code never knows which backend runs; no
@@ -43,9 +46,9 @@ or less sophisticated on macOS, and rough edges are fine.
   forge fetch` takes Forgejo and its runner from Homebrew's bottles, at
   addresses fixed by the pins' digests. No `brew`, nothing under
   `/opt/homebrew`; the rest is temper's, as on Linux.
-- **CI is GitHub Actions,** a macOS workflow in the repository, run on
-  the newest `main` a few times a day. A red run blocks nothing: the
-  gate stays Linux's (section 5).
+- **CI is GitHub Actions,** a macOS workflow in the repository, run
+  after landing by fabrig's own macOS tiers (`macos-tiers.md`). A red run
+  blocks nothing: the gate stays Linux's (section 5).
 - **What macOS cannot give stays Linux-only, by name:** each tree
   lists its Linux-only tests in one place, each with its reason. None is
   skipped silently (5.2).
@@ -301,9 +304,10 @@ or less sophisticated on macOS, and rough edges are fine.
 
 ### 5.1 The workflows
 
-- **One workflow,** `.github/workflows/macos.yml`: on `macos-26`, on
-  the newest `main` a few times a day by a schedule, and by hand. Not on
-  each push: `main` takes over a hundred landings on a busy day.
+- **One workflow,** `.github/workflows/macos.yml`: on `macos-26`,
+  dispatched by fabrig's macOS tiers after landing, and by hand
+  (`macos-tiers.md`, section 4). Not on each push: `main` takes over a
+  hundred landings on a busy day.
 - **It grows with the stages** (section 6): every target compiled, then
   2.4's story, then each tree's suites as they pass. When they all do it
   runs what the gate runs: formatting, clippy over every target, the
@@ -317,8 +321,10 @@ or less sophisticated on macOS, and rough edges are fine.
   GitHub's table. Line tables only for debug information, the
   dependencies' build cached by the lock, and each run reports its disk,
   so that what no longer fits shows as a number before it fails.
-- **Its own budgets:** a `macos` nextest profile, measured there, since
-  a test takes about twice as long as on our machines.
+- **Its own timeouts:** a test takes about twice as long as on our
+  machines, so each profile's slow timeout doubles on macOS
+  (`macos-tiers.md`, 4.3); its budgets come later, measured there
+  (`macos-tiers.md`, section 11).
 - **A failure reads without a login:** the repository is public and
   each failing check annotates its run, so its failing tests and the
   end of their output come through the public API.

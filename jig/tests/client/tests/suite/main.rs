@@ -28,3 +28,8 @@ mod fuzzy {
     mod memory;
     mod random_regressions;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

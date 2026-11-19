@@ -71,15 +71,19 @@ impl Child {
 }
 
 pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, alone: bool, subs: &mut Queue<Submit>) {
+    if !kernel::reach_admitted(&spawn) {
+        io.tables.refused.push((owner, Error::Reach(kernel::Unenforced::Bounds)));
+        return;
+    }
     for (at, spec) in spawn.pipes.iter().enumerate() {
         if spec.way == Way::Inherit && spec.child > 2 {
-            io.tables.refused.push(owner);
+            io.tables.refused.push((owner, Error::Busy));
             return;
         }
         let before = spawn.pipes.get(..at).expect("entry prefix is within the table");
         for prior in before {
             if prior.child == spec.child {
-                io.tables.refused.push(owner);
+                io.tables.refused.push((owner, Error::Busy));
                 return;
             }
         }
@@ -100,7 +104,7 @@ pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, alone: bool, su
                     | None => None,
                 };
                 let Some(fd) = fd else {
-                    io.tables.refused.push(owner);
+                    io.tables.refused.push((owner, Error::Busy));
                     return;
                 };
                 spec.parent = Some(fd);
@@ -109,15 +113,15 @@ pub(crate) fn spawn(io: &mut Io, owner: Token, mut spawn: Spawn, alone: bool, su
         }
     }
     let Some(count) = pipe_count(&spawn) else {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     };
     let Some(needed) = count.checked_add(1) else {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     };
     if needed > io.entities.capacity().saturating_sub(io.entities.len()) {
-        io.tables.refused.push(owner);
+        io.tables.refused.push((owner, Error::Busy));
         return;
     }
     let mut pipes = List::with_capacity(count);
@@ -364,6 +368,7 @@ pub(crate) fn release(io: &mut Io, id: Id<Entity>, subs: &mut Queue<Submit>) {
 
 fn spawn_error(error: kernel::Error) -> Error {
     match error {
+        kernel::Error::Reach(why) => Error::Reach(why),
         kernel::Error::TooManyOpenFiles | kernel::Error::NoBufferSpace => Error::Busy,
         kernel::Error::Refused
         | kernel::Error::Reset

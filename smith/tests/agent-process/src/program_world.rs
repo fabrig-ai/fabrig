@@ -469,6 +469,7 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
 
 fn fake_launch(spawn: &Spawn) -> Spawn {
     let mut launch = Spawn {
+        reach: None,
         program: spawn.program.clone(),
         args: spawn.args.clone(),
         env: spawn.env.clone(),
