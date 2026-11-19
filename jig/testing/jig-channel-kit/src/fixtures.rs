@@ -1,6 +1,7 @@
 //! One bounded chat deployment and independent provider script (protocol/channel/README.md, 11).
 use crate::world::{Script, Settings};
 use jig_domain_link::EndpointBound;
+use jig_protocol_worker_wire::Record;
 use jig_test_service::{Files, Seeds};
 use skein_lib::{Duration, List, Secret};
 
@@ -411,46 +412,38 @@ pub(crate) fn engine_window_document() -> Vec<u8> {
 
 pub(crate) fn peer_hello() -> skein_channel::Frame {
     use jig_protocol_worker_wire as wire;
-    let codec = &wire::CEILINGS;
     let mut models = List::with_capacity(1);
-    models
-        .push(
-            wire::EndpointBound::new(codec, wire::EndpointBoundParts { endpoint: 1, window: 1_048_576, output: 512 })
-                .expect("peer model"),
-        )
-        .expect("one model");
-    let bounds = wire::Bounds::new(
-        codec,
-        wire::BoundsParts {
-            program_endpoints: List::with_capacity(0),
-            endpoints: models,
-            turns: 8,
-            spend: 100,
-            time: Duration::from_secs(300),
-            waiting: Duration::from_secs(60),
-            checks: Duration::from_secs(60),
-            message_bytes: 65_536,
-            inbox: 8,
-            unacknowledged: 8,
-            reply_bytes: None,
-        },
+    models.push(wire::EndpointBound { endpoint: 1, window: 1_048_576, output: 512 }).expect("one model");
+    let bounds = wire::Bounds {
+        program_endpoints: List::with_capacity(0),
+        endpoints: models,
+        turns: 8,
+        spend: 100,
+        time: Duration::from_secs(300),
+        waiting: Duration::from_secs(60),
+        checks: Duration::from_secs(60),
+        message_bytes: 65_536,
+        inbox: 8,
+        unacknowledged: 8,
+        reply_bytes: None,
+    };
+    let hello = wire::Hello {
+        slots: 1,
+        stop_bound: Duration::from_secs(15),
+        workstreams: List::with_capacity(0),
+        hosting: List::with_capacity(0),
+        jobs: List::with_capacity(0),
+        bounds,
+    };
+    let mut body = skein_lib::Writer::new(
+        hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits") as usize,
+    );
+    hello.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("peer hello");
+    let mut frame = skein_channel::frame_writer(
+        0x0100,
+        hello.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     )
-    .expect("peer bounds");
-    let hello = wire::Hello::new(
-        codec,
-        wire::HelloParts {
-            slots: 1,
-            stop_bound: Duration::from_secs(15),
-            workstreams: List::with_capacity(0),
-            hosting: List::with_capacity(0),
-            jobs: List::with_capacity(0),
-            bounds,
-        },
-    )
-    .expect("peer hello");
-    let mut body = skein_lib::Writer::new(hello.measure() as usize);
-    hello.encode(&mut body).expect("peer hello");
-    let mut frame = skein_channel::frame_writer(0x0100, hello.measure()).expect("hello frame");
+    .expect("hello frame");
     frame.put(&body.finish()).expect("hello body");
     frame.finish().expect("hello frame")
 }

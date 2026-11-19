@@ -46,6 +46,10 @@ all. Then temper's:
      red of known flakes rerun before its receipt, and a failed receipt
      superseded once a repair found only flakes and a person released
      its change.
+   - `landing-forming.md`: a landing's forming made whole: its task
+     made before anything of it is saved, a refused make forming
+     nothing while its train waits a queue window, and a start ending a
+     landing whose task was never made.
    - `landing-preparing.md`: a round at preparing reading at each step
      whether its prepare lives, has answered or is absent, and
      recovering across a restart, a worker's loss and a release.
@@ -61,6 +65,9 @@ all. Then temper's:
    turn.
 8. **findings.md:** findings as labelled issues read back, matched,
    triaged and closed when their fix clears; QA after landing.
+   - `red-findings.md`: under `wait: landed`, each red after landing a
+     finding blamed on the landing and goal behind it, held until a run
+     passes its tests.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
 10. **milestones.md:** a milestone, a set of goals on jig's gathering:

@@ -83,7 +83,7 @@ pub use away::{
 pub use findings::{
     AreaRow, FileFinding, FileFindingAnswer, Filer, Finding, FindingAnswer, FindingDone, FindingKind, FindingRefusal,
     FindingReply, FindingRow, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity,
-    Triage, TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    Triage, TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod dismissed;
@@ -147,6 +147,7 @@ use temper_engine_domain_forge_vocabulary::red;
 use temper_engine_domain_forge_vocabulary::result;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod reconcile;
+mod unmade;
 pub use refusal::branch_name;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::refusal;

@@ -1,6 +1,7 @@
 use jig_channel_world::program_runs::{self, Case, Run};
 use serde_json::json;
 use smith_fake_claude::{Decision, End, Seen, Step, Story, Turn};
+use smith_transcript::Record;
 fn finish() -> Turn {
     Turn {
         steps: vec![],
@@ -56,12 +57,12 @@ fn a_program_finish_with_live_delegates_parks_without_a_try() {
     }];
     let run = program_runs::run(Case::Delegated, &story(vec![turn]));
     for turn in &run.turns {
-        for message in transcript(turn).messages() {
-            for block in message.blocks() {
+        for message in &transcript(turn).messages {
+            for block in &message.blocks {
                 if let smith_transcript::Block::Result(result) = block
-                    && let smith_transcript::Returned::Said(said) = result.returned()
+                    && let smith_transcript::Returned::Said(said) = (&result.returned)
                 {
-                    assert!(!said.error(), "{}", String::from_utf8_lossy(said.text()));
+                    assert!(!said.error, "{}", String::from_utf8_lossy(said.text.as_ref()));
                 }
             }
         }
@@ -89,7 +90,7 @@ fn limited(reset: Option<u64>) -> Run {
         &story(vec![Turn { steps: vec![Step::RateLimit { resets_at: reset }], end: End::default() }]),
     );
     assert_eq!(run.limited.len(), 1, "{run:?}");
-    assert_eq!(run.limited[0].account(), 1);
+    assert_eq!(run.limited[0].account, 1);
     assert_eq!(run.authenticated_failures, vec![1], "notice reaches the recorded core binding");
     run
 }
@@ -97,14 +98,14 @@ fn limited(reset: Option<u64>) -> Run {
 fn a_usage_limit_reaches_the_core_as_limited() {
     let reset = skein_sim::Config::calm().wall.as_nanos() / 1_000_000_000 + 123;
     let run = limited(Some(reset));
-    let remaining = run.limited[0].reset().expect("remaining reset");
+    let remaining = run.limited[0].reset.expect("remaining reset");
     assert!(remaining > skein_lib::Duration::from_secs(120) && remaining <= skein_lib::Duration::from_secs(123));
     assert!(matches!(run.held.as_slice(), [(1, Some(jig_domain_accounts::Held::Limited { reset: Some(_) }))]));
 }
 #[test]
 fn a_usage_limit_without_a_reset_reaches_the_core_as_limited() {
     let run = limited(None);
-    assert_eq!(*run.limited[0].reset(), None);
+    assert_eq!(run.limited[0].reset, None);
     assert_eq!(run.held, vec![(1, Some(jig_domain_accounts::Held::Limited { reset: None }))]);
 }
 #[test]
@@ -114,8 +115,8 @@ fn a_login_lost_mid_run_reaches_the_core_as_unauthorized() {
         &story(vec![Turn { steps: vec![Step::LoseLogin, Step::Text("continue".into())], end: End::default() }]),
     );
     assert_eq!(run.unauthorized.len(), 1, "{run:?}");
-    assert_eq!(run.unauthorized[0].account(), 1);
-    assert_eq!(run.unauthorized[0].generation(), 2);
+    assert_eq!(run.unauthorized[0].account, 1);
+    assert_eq!(run.unauthorized[0].generation, 2);
     assert_eq!(run.authenticated_failures, vec![1], "notice crosses the core's source authentication");
     assert!(run.terminals.iter().any(|answer| matches!(answer.end, jig_domain_tasks::End::Failed(_))));
 }
@@ -176,10 +177,10 @@ fn an_open_program_run_replies_parks_and_resumes() {
     for turn in &run.turns {
         let transcript = transcript(turn);
         assert!(
-            transcript.messages().iter().any(|message| {
-                *message.role() == smith_transcript::Role::Assistant
-                    && message.blocks().iter().any(
-                        |block| matches!(block, smith_transcript::Block::Text(text) if text.text() == REPLY.as_bytes()),
+            transcript.messages.iter().any(|message| {
+                message.role == smith_transcript::Role::Assistant
+                    && message.blocks.iter().any(
+                        |block| matches!(block, smith_transcript::Block::Text(text) if text.text.as_ref() == REPLY.as_bytes()),
                     )
             }),
             "each activation commits its text reply"
@@ -231,11 +232,11 @@ fn a_granted_built_in_call_asks_smith_s_policy() {
     let mut told = false;
     for turn in &run.turns {
         let transcript = transcript(turn);
-        for message in transcript.messages().as_slice() {
+        for message in transcript.messages.as_slice() {
             told |= message
-                .blocks()
+                .blocks
                 .iter()
-                .any(|block| matches!(block,smith_transcript::Block::Call(call) if call.name()==b"Read"));
+                .any(|block| matches!(block,smith_transcript::Block::Call(call) if call.name.as_ref()==b"Read"));
         }
     }
     assert!(told, "the core's transcript shows the call");

@@ -895,6 +895,40 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
 }
 
 #[test]
+fn unmade_landing_and_dropped_hold_warnings_name_the_repaired_rows() {
+    use temper_engine_service::Note;
+    assert_eq!(
+        note_line(
+            "temper-box",
+            Note::LandingUnmade {
+                task: 10030,
+                repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                branch: b"main".as_slice().into(),
+                changes: Box::new([8975, 9104, 9885, 10023]),
+            }
+        ),
+        "temper-box serve: warning: landing 10030 into main of repository 1/7 has no task: ended; its changes 8975, 9104, 9885, 10023 wait again\n"
+    );
+    assert_eq!(
+        note_line(
+            "temper-box",
+            Note::HoldDropped {
+                name: temper_engine_domain_forge::Name {
+                    forge: 1,
+                    repository: 7,
+                    what: temper_engine_domain_forge::What::Branch(Box::new([
+                        b"temper610030".as_slice().into(),
+                        b"l10030".as_slice().into(),
+                    ])),
+                },
+                task: 10030,
+            }
+        ),
+        "temper-box serve: warning: hold on temper610030/l10030 of repository 1/7 by task 10030, which has no task: dropped\n"
+    );
+}
+
+#[test]
 fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
     use temper_engine_domain_forge::{Key, MissingLink, Need, RecordKind};
     let arguments =
@@ -937,6 +971,15 @@ fn start_numbers_name_every_source_kind_and_both_ranges() {
             ])
         }),
         "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed template 9, changed charter 17, default policy 40, changed model 70"
+    );
+}
+
+#[test]
+fn start_taken_names_settings_and_the_move_before_upgrade() {
+    use jig_domain_core::{settings::Setting, start::Failure};
+    assert_eq!(
+        start_failure(&Failure::Taken { settings: Box::new([Setting::Charter(17), Setting::Template(16)]) }),
+        "the stock's new settings take numbers a deployment's own hold (the stock's 1 to 32, a deployment's own 33 to 64): charter 17, template 16; move each to 33 to 64 on the build that runs now, then start this one"
     );
 }
 
@@ -1089,6 +1132,28 @@ fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
         assert_eq!(
             ending_with_binary("temper", Some(&end), false, &directories, b"/data/deployment", &[]),
             (format!("temper serve: restore tasks: {words}\n"), 1)
+        );
+    }
+}
+
+#[test]
+fn a_landing_refusal_names_its_train_reason_and_stack() {
+    for (why, words) in [(Some(jig_domain_tasks::Refusal::Live), "Live"), (None, "unknown")] {
+        let line = note_line(
+            "temper-box",
+            temper_engine_service::Note::LandingRefused {
+                task: 10030,
+                repository: skein_forge::api::Repository { forge: 1, repository: 7 },
+                branch: b"main".as_slice().into(),
+                why,
+                changes: Box::new([8975, 9104]),
+            },
+        );
+        assert_eq!(
+            line,
+            format!(
+                "temper-box serve: warning: landing 10030 into main of repository 1/7 not formed: jig refused its task: {words}; its changes 8975, 9104 wait\n"
+            )
         );
     }
 }

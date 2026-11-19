@@ -3,6 +3,7 @@
 //! protocol/channel.md, section 10).
 
 use skein_lib::{Reader, Rng, Writer};
+use smith_transcript::Record;
 
 macro_rules! check {
     ($bytes:expr, $family:ident, $record:ident) => {
@@ -17,7 +18,9 @@ macro_rules! check {
 fn check_all(bytes: &[u8]) {
     check!(bytes, smith_charter, Charter);
     check!(bytes, smith_charter, RunResult);
-    check!(bytes, smith_transcript, Turn);
+    if let Ok(value) = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(bytes)) {
+        assert_eq!(value.encode(&smith_transcript::CEILINGS).expect("decoded turn").as_ref(), bytes);
+    }
     check!(bytes, smith_channel, Start);
     check!(bytes, smith_channel, Message);
     check!(bytes, smith_channel, MessageRefused);

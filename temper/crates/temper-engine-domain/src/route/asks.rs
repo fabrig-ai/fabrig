@@ -515,7 +515,13 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             }
             None
         }
-        core::Ask::RepairRefused { repair } => {
+        core::Ask::RepairRefused { repair, number, why } => {
+            if connector == domain.config.forge_connector
+                && let Some((forming, reason)) = &mut domain.forge_forming
+                && *forming == number
+            {
+                *reason = Some(why);
+            }
             if connector == domain.config.forge_connector
                 && let Some(task) = repair
                 && let Some((party, project)) = domain.forge.status_owner(task)

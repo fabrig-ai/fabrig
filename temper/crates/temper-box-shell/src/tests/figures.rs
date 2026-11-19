@@ -216,7 +216,7 @@ fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
         .expect("box start")
         .expect("worker");
         assert_eq!(part.worker.jig.slots, places);
-        assert_eq!(part.figures.as_ref().expect("figures").places(), places);
+        assert_eq!(part.figures.as_ref().expect("figures").places, places);
         assert_eq!(part.limits.checkout.workspaces, places);
         assert_eq!(part.limits.git_component.operations, places);
         let expected = temper_service::startup::operations_with_worker(

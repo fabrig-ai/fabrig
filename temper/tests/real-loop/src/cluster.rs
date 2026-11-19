@@ -300,7 +300,7 @@ impl Runs {
                             &mut skein_lib::Reader::new(&self.bytes[HEADER_BYTES..end]),
                         )
                         .expect("assignment");
-                        self.pending = Some(assignment.task());
+                        self.pending = Some(assignment.task);
                         self.assigned_at.get_or_insert(now);
                         self.assignments.push(assignment);
                     }

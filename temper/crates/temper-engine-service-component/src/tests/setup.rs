@@ -2052,6 +2052,9 @@ fn insert_runtime_forge(engine: &mut crate::engine::Engine, record: &domain::For
         root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })),
     );
 }
+#[path = "setup_start.rs"]
+mod start_tests;
+
 #[test]
 fn a_kept_owned_record_is_served_by_the_host_with_its_entry() {
     let mut service = local_service(runtime_config(), local_store(false));

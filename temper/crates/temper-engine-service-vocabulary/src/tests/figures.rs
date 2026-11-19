@@ -59,62 +59,68 @@ fn compose_keeps_startup_limits_profile_and_endpoint_order_with_named_or_fallbac
         fallback: fallback.clone(),
     };
     let figures = figures::compose(&engine, &agents);
-    assert_eq!(figures.places(), 0);
-    let profile = figures.agents().profile();
+    assert_eq!(figures.places, 0);
+    let profile = &figures.agents.profile;
     assert_eq!(profile.len(), 1);
-    assert_eq!((profile.as_slice()[0].name(), profile.as_slice()[0].value()), (b"policy.max_turns".as_slice(), 19));
-    assert_eq!(figures.agents().endpoints().len(), 2);
+    assert_eq!(
+        (profile.as_slice()[0].name.as_ref(), profile.as_slice()[0].value),
+        (b"policy.max_turns".as_slice(), 19)
+    );
+    assert_eq!(figures.agents.endpoints.len(), 2);
     for (index, expected_limits) in [&named, &fallback].iter().enumerate() {
         let source = &engine.jig.llm.endpoints[index];
-        let endpoint = &figures.agents().endpoints().as_slice()[index];
+        let endpoint = &figures.agents.endpoints.as_slice()[index];
         assert_eq!(
-            (endpoint.name(), endpoint.number(), endpoint.dialect()),
+            (endpoint.name.as_ref(), endpoint.number, endpoint.dialect),
             (source.name.as_ref(), source.number, source.dialect)
         );
         assert_eq!(
-            (endpoint.provider(), endpoint.program().as_deref()),
+            (endpoint.provider.as_ref(), endpoint.program.as_deref()),
             (source.provider.as_ref(), source.program.as_deref())
         );
-        assert_eq!((endpoint.connect(), endpoint.handshake()), (source.connect, source.handshake));
-        assert_eq!(endpoint.headers().len(), u32::try_from(source.headers.len()).unwrap());
-        for (header, expected) in endpoint.headers().iter().zip(source.headers.iter()) {
-            assert_eq!((header.name(), header.value()), (expected.name.as_ref(), expected.value.as_ref()));
+        assert_eq!((endpoint.connect, endpoint.handshake), (source.connect, source.handshake));
+        assert_eq!(endpoint.headers.len(), u32::try_from(source.headers.len()).unwrap());
+        for (header, expected) in endpoint.headers.iter().zip(source.headers.iter()) {
+            assert_eq!(
+                (header.name.as_ref(), header.value.as_ref()),
+                (expected.name.as_ref(), expected.value.as_ref())
+            );
         }
-        let limits = endpoint.limits();
+        let limits = &endpoint.limits;
         assert_eq!(
-            (limits.window(), limits.output(), limits.reasoning_item()),
+            (limits.window, limits.output, limits.reasoning_item),
             (expected_limits.window, expected_limits.output, expected_limits.reasoning_item)
         );
         assert_eq!(
-            (limits.head(), limits.idle()),
+            (limits.head, limits.idle),
             (Duration::from_millis(expected_limits.head_ms), Duration::from_millis(expected_limits.idle_ms))
         );
     }
-    let openai = &figures.agents().endpoints().as_slice()[0];
-    assert_eq!((openai.host(), openai.port()), (b"endpoint.example".as_slice(), 7443));
-    let w::Transport::Tls(tls) = openai.transport() else {
+    let openai = &figures.agents.endpoints.as_slice()[0];
+    assert_eq!((openai.host.as_ref(), openai.port), (b"endpoint.example".as_slice(), 7443));
+    let w::Transport::Tls(tls) = &openai.transport else {
         panic!("TLS kept");
     };
     assert_eq!(
-        (tls.server_name(), tls.trust().as_deref()),
+        (tls.server_name.as_ref(), tls.trust.as_deref()),
         (b"server.example".as_slice(), Some(b"trust.pem".as_slice()))
     );
-    assert_eq!(openai.limits().oversized(), &w::Oversized::Drop);
-    let local = &figures.agents().endpoints().as_slice()[1];
-    assert_eq!((local.host(), local.port()), (b"127.0.0.1".as_slice(), 8080));
-    assert_eq!(local.transport(), &w::Transport::Plaintext);
-    assert_eq!(local.limits().oversized(), &w::Oversized::Fail);
-    let mut unique = skein_lib::Set::with_capacity(figures.limits().len());
-    for limit in figures.limits() {
-        assert!(unique.insert(limit.name()).unwrap());
+    assert_eq!((&openai.limits.oversized), &w::Oversized::Drop);
+    let local = &figures.agents.endpoints.as_slice()[1];
+    assert_eq!((local.host.as_ref(), local.port), (b"127.0.0.1".as_slice(), 8080));
+    assert_eq!((&local.transport), &w::Transport::Plaintext);
+    assert_eq!((&local.limits.oversized), &w::Oversized::Fail);
+    let mut unique = skein_lib::Set::with_capacity(figures.limits.len());
+    for limit in &figures.limits {
+        assert!(unique.insert(limit.name.as_ref()).unwrap());
     }
     let mut jig = config::stock();
     let mut own = limits::stock();
-    for limit in figures.limits() {
-        if limits::find(limit.name()).is_some() {
-            limits::apply(&mut own, limit.name(), limit.value()).unwrap();
+    for limit in &figures.limits {
+        if limits::find(limit.name.as_ref()).is_some() {
+            limits::apply(&mut own, limit.name.as_ref(), limit.value).unwrap();
         } else {
-            config::overrides::apply(&mut jig, limit.name(), limit.value()).unwrap();
+            config::overrides::apply(&mut jig, limit.name.as_ref(), limit.value).unwrap();
         }
     }
     assert_eq!(config::overrides::list(&jig), config::overrides::list(&engine.jig.limits));
@@ -132,6 +138,6 @@ fn compose_takes_only_the_first_64_endpoints_of_an_unchecked_value() {
     }
     engine.jig.llm.endpoints = endpoints.into_boxed();
     let figures = figures::compose(&engine, &crate::stock::agents());
-    assert_eq!(figures.agents().endpoints().len(), 64);
-    assert_eq!(figures.agents().endpoints().as_slice().last().unwrap().number(), 64);
+    assert_eq!(figures.agents.endpoints.len(), 64);
+    assert_eq!(figures.agents.endpoints.as_slice().last().unwrap().number, 64);
 }

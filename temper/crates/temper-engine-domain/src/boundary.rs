@@ -658,7 +658,29 @@ pub enum Missing {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
-    ForgeLink { forge: u16, note: forge::LinkNote },
+    ForgeLink {
+        forge: u16,
+        note: forge::LinkNote,
+    },
+    /// A train's task make was refused (domain/landing-forming.md, 3).
+    LandingRefused {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        why: Option<tasks::Refusal>,
+        changes: Box<[u64]>,
+    },
+    /// Start's Link repairs (domain/landing-forming.md, 4).
+    LandingUnmade {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        changes: Box<[u64]>,
+    },
+    HoldDropped {
+        name: forge::Name,
+        task: u64,
+    },
     /// A forge read refused locally or by the connector, for operator diagnostics.
     ReadRefused {
         task: u64,
@@ -680,15 +702,36 @@ pub enum Fact {
         error: Option<skein_forge::api::Error>,
     },
     /// A branch head did not fit (temper/docs/design/domain/forge/keeping-up.md, 1).
-    HeadRefused { task: Option<u64>, words: Box<[u8]> },
+    HeadRefused {
+        task: Option<u64>,
+        words: Box<[u8]>,
+    },
     /// A whole brief failed with its count and fixed reason (jig/docs/design/domain/engine/briefs.md, 1.1).
-    BriefFailed { task: u64, counts: &'static str, reason: Box<[u8]> },
+    BriefFailed {
+        task: u64,
+        counts: &'static str,
+        reason: Box<[u8]>,
+    },
     /// A decoded call refused at admission, before any tool runs.
-    CallAdmissionRefused { task: u64, attempt: u64, tool: Box<[u8]>, layer: &'static str, reason: &'static str },
+    CallAdmissionRefused {
+        task: u64,
+        attempt: u64,
+        tool: Box<[u8]>,
+        layer: &'static str,
+        reason: &'static str,
+    },
     /// A fenced answer reported a permanent preparation failure.
-    PreparationFailed { task: u64, attempt: u64, preparation: Preparation },
+    PreparationFailed {
+        task: u64,
+        attempt: u64,
+        preparation: Preparation,
+    },
     /// The core refused a procedure's step; the root decides nothing (domain/root.md, 3 and 6.4).
-    StepRefused { task: u64, step: u64, problem: jig_domain_tasks::Problem },
+    StepRefused {
+        task: u64,
+        step: u64,
+        problem: jig_domain_tasks::Problem,
+    },
 }
 
 #[derive(Hash, Debug)]
@@ -1220,6 +1263,7 @@ pub(crate) enum Work {
     Fleet(fleet::Event),
     Brief(brief::GatherEvent),
     Forge(forge::Event),
+    LandingAdmission { row: forge::LandingRow, names: Box<[forge::Name]> },
     ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
     ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },

@@ -12,6 +12,7 @@ use crate::{
     codec::component::{Checkpoint, CheckpointFile, Manifest},
 };
 use crate::{CheckpointRefusal, Event, Request};
+use skein_codec::Record as _;
 use skein_lib::{List, Reader, Token, Writer};
 mod keeping;
 
@@ -226,8 +227,9 @@ fn checkpoint_and_manifest_fixed_rule_values_round_trip_at_both_bounds() {
     for bytes in [value("checkpoint_file", "smallest"), value("checkpoint_file", "full")] {
         let record =
             CheckpointFile::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes)).expect("file value");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("file size"));
-        record.encode(&mut writer).expect("measured file");
+        let mut writer =
+            Writer::new(usize::try_from(record.measure(&crate::component_v3::CEILINGS).unwrap()).expect("file size"));
+        record.write(&crate::component_v3::CEILINGS, &mut writer).expect("measured file");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     for bytes in [value("manifest", "smallest"), value("manifest", "full")] {

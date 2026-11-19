@@ -2,66 +2,43 @@
 use jig_engine_workers_world::{World, fixtures as f};
 use jig_protocol_engine_workers::{Event, Loss, Request};
 use jig_protocol_worker_wire as w;
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, List, Reader, Writer};
 
 fn figures() -> w::Figures {
-    let limit =
-        |name: &[u8], value| w::Limit::new(&w::CEILINGS, w::LimitParts { name: name.into(), value }).expect("limit");
-    let endpoint = w::AgentEndpoint::new(
-        &w::CEILINGS,
-        w::AgentEndpointParts {
-            name: b"one".as_slice().into(),
-            number: 7,
-            dialect: 3,
-            provider: b"provider".as_slice().into(),
-            program: Some(b"program".as_slice().into()),
-            host: b"localhost".as_slice().into(),
-            port: 443,
-            transport: w::Transport::Tls(
-                w::Tls::new(
-                    &w::CEILINGS,
-                    w::TlsParts {
-                        server_name: b"localhost".as_slice().into(),
-                        trust: Some(b"roots.pem".as_slice().into()),
-                    },
-                )
-                .expect("tls"),
-            ),
-            headers: List::from_boxed(Box::new([w::Header::new(
-                &w::CEILINGS,
-                w::HeaderParts { name: b"X-Test".as_slice().into(), value: b"value".as_slice().into() },
-            )
-            .expect("header")])),
-            connect: Duration::from_secs(1),
-            handshake: Duration::from_secs(2),
-            limits: w::EndpointLimits::new(
-                &w::CEILINGS,
-                w::EndpointLimitsParts {
-                    window: 8192,
-                    output: 1024,
-                    reasoning_item: 512,
-                    head: Duration::from_secs(3),
-                    idle: Duration::from_secs(4),
-                    oversized: w::Oversized::Drop,
-                },
-            )
-            .expect("endpoint limits"),
+    let limit = |name: &[u8], value| w::Limit { name: name.into(), value };
+    let endpoint = w::AgentEndpoint {
+        name: b"one".as_slice().into(),
+        number: 7,
+        dialect: 3,
+        provider: b"provider".as_slice().into(),
+        program: Some(b"program".as_slice().into()),
+        host: b"localhost".as_slice().into(),
+        port: 443,
+        transport: w::Transport::Tls(w::Tls {
+            server_name: b"localhost".as_slice().into(),
+            trust: Some(b"roots.pem".as_slice().into()),
+        }),
+        headers: List::from_boxed(Box::new([w::Header {
+            name: b"X-Test".as_slice().into(),
+            value: b"value".as_slice().into(),
+        }])),
+        connect: Duration::from_secs(1),
+        handshake: Duration::from_secs(2),
+        limits: w::EndpointLimits {
+            window: 8192,
+            output: 1024,
+            reasoning_item: 512,
+            head: Duration::from_secs(3),
+            idle: Duration::from_secs(4),
+            oversized: w::Oversized::Drop,
         },
-    )
-    .expect("endpoint");
-    let agents = w::Agents::new(
-        &w::CEILINGS,
-        w::AgentsParts {
-            profile: List::from_boxed(Box::new([limit(b"policy.max_turns", 800)])),
-            endpoints: List::from_boxed(Box::new([endpoint])),
-        },
-    )
-    .expect("agents");
-    w::Figures::new(
-        &w::CEILINGS,
-        w::FiguresParts { places: 999, limits: List::from_boxed(Box::new([limit(b"hub.slots", 4)])), agents },
-    )
-    .expect("figures")
+    };
+    let agents = w::Agents {
+        profile: List::from_boxed(Box::new([limit(b"policy.max_turns", 800)])),
+        endpoints: List::from_boxed(Box::new([endpoint])),
+    };
+    w::Figures { places: 999, limits: List::from_boxed(Box::new([limit(b"hub.slots", 4)])), agents }
 }
 fn peer(name: &[u8], secret: &[u8], schema: skein_channel::Schema) -> skein_fake_channel::ScriptedPeer {
     stating(name, secret, schema, f::APPLICATION_VERSION, f::LIMITS.room)
@@ -74,13 +51,15 @@ fn stating(
     output: u32,
 ) -> skein_fake_channel::ScriptedPeer {
     let mut parts = w::Credential::decode(&w::CEILINGS, &mut Reader::new(&f::credential(name, secret, version)))
-        .expect("credential")
-        .into_parts();
+        .expect("credential");
     parts.opening = w::Opening::Figures;
     parts.output = output;
-    let record = w::Credential::new(&w::CEILINGS, parts).expect("figures credential");
-    let mut bytes = Writer::new(usize::try_from(record.measure()).expect("credential size"));
-    record.encode(&mut bytes).expect("credential");
+    let record = parts;
+    let mut bytes = Writer::new(
+        usize::try_from(record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"))
+            .expect("credential size"),
+    );
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut bytes).expect("credential");
     skein_fake_channel::ScriptedPeer::new(
         schema,
         skein_channel::Role::Initiator,
@@ -131,9 +110,9 @@ fn figures_take_no_place_and_replace_no_live_link() {
         let connection = world.connect(peer(name, secret, schema()));
         world.run();
         let got = heard(&world, connection);
-        assert_eq!(got.places(), 4);
-        assert_eq!(got.limits(), owner.limits());
-        assert_eq!(got.agents(), owner.agents());
+        assert_eq!(got.places, 4);
+        assert_eq!((&got.limits), (&owner.limits));
+        assert_eq!((&got.agents), (&owner.agents));
         assert!(world.gone(connection), "finished after figures drain");
         assert_eq!(world.refusal(connection), None);
     }
@@ -154,9 +133,9 @@ fn figures_with_unequal_output_room_are_answered_and_closed() {
     let connection = world.connect(stating(f::WORKER_A, f::SECRET_A, schema(), f::APPLICATION_VERSION, WORKER_ROOM));
     world.run();
     let got = heard(&world, connection);
-    assert_eq!(got.places(), 4);
-    assert_eq!(got.limits(), owner.limits());
-    assert_eq!(got.agents(), owner.agents());
+    assert_eq!(got.places, 4);
+    assert_eq!((&got.limits), (&owner.limits));
+    assert_eq!((&got.agents), (&owner.agents));
     assert!(world.gone(connection), "finished after figures drain");
     assert_eq!(world.refusal(connection), None, "no skein limits refusal");
     assert!(matches!(world.openings(), [Request::FiguresTaken { worker: 0 }]));
@@ -182,7 +161,7 @@ fn figures_refusals_check_authentication_and_wires_before_starting() {
     world.down(Event::Figures { figures: figures() });
     let connection = world.connect(peer(f::WORKER_A, f::SECRET_A, schema()));
     world.run();
-    assert_eq!(heard(&world, connection).places(), 4);
+    assert_eq!(heard(&world, connection).places, 4);
 }
 #[test]
 fn figures_terms_require_only_wires_and_figures() {
@@ -205,7 +184,7 @@ fn figures_terms_require_only_wires_and_figures() {
     }
     let connection = world.connect(peer(f::WORKER_A, f::SECRET_A, schema));
     world.run();
-    assert_eq!(heard(&world, connection).places(), 4);
+    assert_eq!(heard(&world, connection).places, 4);
     assert!(world.root().is_empty());
 }
 #[test]
@@ -217,10 +196,10 @@ fn link_openings_and_new_figures_keep_the_hello_unchanged() {
     let owner = figures();
     world.down(Event::Figures { figures: owner.clone() });
     world.run();
-    assert_eq!(heard(&world, first).limits(), owner.limits());
+    assert_eq!((&heard(&world, first).limits), (&owner.limits));
     let second = world.connect(link_peer(f::WORKER_B, f::SECRET_B));
     world.run();
-    assert_eq!(heard(&world, second).agents(), owner.agents());
+    assert_eq!((&heard(&world, second).agents), (&owner.agents));
     world.play(first, f::hello_frame());
     world.play(second, f::hello_frame());
     world.run();
@@ -232,7 +211,7 @@ fn link_openings_and_new_figures_keep_the_hello_unchanged() {
         let records = world.observed(connection);
         assert_eq!(records.len(), 3);
         let got = w::Figures::decode(&w::CEILINGS, &mut Reader::new(&records[2].body)).expect("updated figures");
-        assert_eq!(got.agents(), owner.agents());
-        assert_eq!(got.places(), 4);
+        assert_eq!((&got.agents), (&owner.agents));
+        assert_eq!(got.places, 4);
     }
 }

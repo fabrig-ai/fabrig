@@ -99,6 +99,37 @@ fn two_prints_have_identical_bytes() {
 }
 
 #[test]
+fn owned_setup_marks_a_live_step_and_the_end_with_repeatable_pages() {
+    let f = Fixture::new();
+    f.journey(
+        "owned",
+        r#"walk 2
+web press link "Set up temper"
+web see "Forgejo"
+web press link "Run on this machine"
+web press button "Run on this machine"
+web see "Fetching Forgejo \xc2\xb7 25%"
+web mark
+web see "work/hello made"
+web mark
+"#,
+    );
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["owned"]));
+    ok(&f.print(&b, &["owned"]));
+    let pages = bytes(&a.join(WEB).join("owned"));
+    assert_eq!(pages, bytes(&b.join(WEB).join("owned")), "both prints have the same page bytes");
+    assert_eq!(pages.len(), 2);
+    let first = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(first.contains("Fetching Forgejo · 25%"));
+    assert!(first.contains("under way"));
+    let last = String::from_utf8_lossy(&pages[Path::new("02.html")]);
+    assert!(last.contains("work/hello made"));
+    assert!(last.contains("connected as temper"));
+}
+
+#[test]
 fn stopped_walks_and_unreadable_chains_do_not_stop_other_journeys() {
     let f = Fixture::new();
     f.journey("x", "walk 2\nweb press button \"No such control\"\n");

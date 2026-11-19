@@ -1050,6 +1050,9 @@ pub struct ChangeRow {
     /// The tracked goal served at admission.
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
     pub ending: Option<Ending>,
     /// Whole-life delegate account; a release resets retry counts alone.
     pub repair_tasks: Box<[u64]>,
@@ -1131,6 +1134,9 @@ pub struct ChangeCold {
     pub base: Box<[u8]>,
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
     pub base_repair: bool,
     pub producing_charter: u32,
     pub review_charter: u32,
@@ -1197,6 +1203,9 @@ impl ChangeRow {
             signed,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -1248,6 +1257,9 @@ impl ChangeRow {
                 base,
                 goal,
                 milestone,
+                person,
+                goal_title,
+                draft,
                 base_repair,
                 producing_charter,
                 review_charter,
@@ -1309,6 +1321,9 @@ impl ChangeRow {
             base,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             base_repair,
             producing_charter,
             review_charter,
@@ -1367,6 +1382,9 @@ impl ChangeRow {
             signed,
             goal,
             milestone,
+            person,
+            goal_title,
+            draft,
             ending,
             repair_tasks,
             resolution_tasks,
@@ -2792,6 +2810,11 @@ pub enum Request {
         follow: Option<u32>,
         finding: crate::FileFinding,
     },
+    /// File a landing tier's verdict in the decision keeping it (domain/red-findings.md, 9).
+    FileVerdict {
+        task: u64,
+        filing: crate::findings::VerdictFiling,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,
@@ -3129,6 +3152,18 @@ pub enum Request {
         request: Token,
         carried: jig_domain_core_vocabulary::Carried,
     },
+    /// A taskless landing ended in Link (domain/landing-forming.md, 4).
+    LandingUnmade {
+        task: u64,
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        changes: Box<[u64]>,
+    },
+    /// A taskless hold with no live writer dropped in Link.
+    HoldDropped {
+        name: Name,
+        task: u64,
+    },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     LinkNoted {
         forge: u16,
@@ -3188,6 +3223,8 @@ pub struct TierRow {
     pub many: Option<temper_engine_domain_forge_tiers::ManyTests>,
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
+    pub waiting: Box<[crate::findings::VerdictFiling]>,
+    pub unkept: u32,
     pub repository: skein_forge::api::Repository,
     pub tier: Box<[u8]>,
     pub record: temper_engine_domain_forge_tiers::Record,
@@ -3352,12 +3389,17 @@ pub enum LoggedVerdict {
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
+    /// Sorted distinct finding numbers named by the pull request's body, at most eight.
+    pub fixes: Box<[u32]>,
     pub signed: Box<[SignOff]>,
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
     pub goal: Option<u64>,
     pub milestone: Option<u64>,
+    pub person: Option<u64>,
+    pub goal_title: Option<Box<[u8]>>,
+    pub draft: Option<Box<[u8]>>,
 }
 
 /// The landing transitions reported to its member's goal (domain/landing.md, 4.2).

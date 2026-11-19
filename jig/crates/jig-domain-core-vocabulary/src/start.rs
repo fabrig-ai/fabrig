@@ -1,4 +1,5 @@
-//! Load, link and sweep before durable opening (jig/docs/design/domain/engine/restart.md).
+//! Load, link and sweep before durable opening (jig/docs/design/domain/engine/restart.md;
+//! jig/docs/design/domain/engine/settings.md, 7).
 
 pub mod census;
 pub mod cursor;
@@ -40,6 +41,10 @@ pub struct Numbered {
 pub enum Failure {
     Numbers {
         settings: Box<[Numbered]>,
+    },
+    /// A release's new defaults take numbers held by stored values (domain/engine/settings.md, 7).
+    Taken {
+        settings: Box<[core_settings::Setting]>,
     },
     Settings {
         failure: core_settings::Failure,

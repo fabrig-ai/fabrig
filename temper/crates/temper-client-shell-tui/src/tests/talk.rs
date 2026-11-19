@@ -1,5 +1,6 @@
 //! Talk commands and leaving through the shipped host (client/tui/pages/talk.md, 1).
 use super::*;
+use smith_transcript::Record;
 use temper_client_view::shared;
 
 const ROLE: u64 = 7;
@@ -153,16 +154,17 @@ fn talk_setup(open: bool, cost: bool, choices: bool, proposed: bool) -> (Host, D
     };
     if choices {
         use smith_transcript as s;
-        let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap().into_parts();
-        let text = s::Block::Text(s::Text::new(&s::CEILINGS, s::TextParts { text: "Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes().into(), replay: None }).unwrap());
-        turn.messages = List::from_boxed(Box::new([s::Message::new(
-            &s::CEILINGS,
-            s::MessageParts { role: s::Role::Assistant, blocks: List::from_boxed(Box::new([text])) },
-        )
-        .unwrap()]));
-        let turn = s::Turn::new(&s::CEILINGS, turn).unwrap();
-        let mut writer = Writer::new(usize::try_from(turn.measure()).unwrap());
-        turn.encode(&mut writer).unwrap();
+        let mut turn = s::decode_archived(&s::CEILINGS, &records::full_turn()).unwrap();
+        let text = s::Block::Text(s::Text { text: "Add it to my rules?\n\n1. Yes, add it — it applies from my next run\n2. Just for this port\n3. Tell it something else".as_bytes().into(), replay: None });
+        turn.messages = List::from_boxed(Box::new([s::Message {
+            role: s::Role::Assistant,
+            blocks: List::from_boxed(Box::new([text])),
+        }]));
+        let turn = turn;
+        let mut writer = Writer::new(
+            usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+        );
+        turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
         rows.push(records::turn_line(3, 0, 1, &writer.finish()));
     }
     if proposed {

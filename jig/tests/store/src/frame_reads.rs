@@ -1,6 +1,7 @@
 //! Public transcript decode against fixture bytes, with deterministic file replies.
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
 use crate::root;
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{self as store, Event, Owner, OwnerSets, Request, Root, TranscriptRead, codec, format, keys};
 use jig_test_patches_jig::frames;
 use jig_test_patches_smith::patches as smith;
@@ -13,14 +14,8 @@ pub const FRAME_KEY_BYTES: usize = 18;
 pub use crate::patches::FRAME_SETS as SETS;
 #[must_use]
 pub fn floor() -> Box<[u8]> {
-    let row = store::component_v3::Floor::new(
-        &store::component_v3::CEILINGS,
-        store::component_v3::FloorParts { number: store::FLOOR, build: Box::new([]) },
-    )
-    .expect("floor fits");
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(row.measure()));
-    row.encode(&mut writer).expect("measured floor");
-    writer.finish()
+    let row = store::component_v3::Floor { number: store::FLOOR, build: Box::new([]) };
+    row.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured floor")
 }
 fn env(limits: &store::Limits) -> Env<store::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }

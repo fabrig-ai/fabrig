@@ -1,6 +1,7 @@
 //! Resident frame machines, bounded independently of map records (protocol/store/transcripts.md, 6, protocol/store/README.md, 8).
 use crate::{Frames, Limits, Owner, OwnerSets, codec};
 use alloc::boxed::Box;
+use skein_codec::Record as _;
 use skein_codec::{
     patch::{Capacity, Halt, Patcher},
     schema::{self, DeclIx, FieldIx, Schema, Shape, Type, TypeIx, VariantIx},

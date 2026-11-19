@@ -1,6 +1,7 @@
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT};
 use crate::Kind;
 use crate::sizes::{Cap, Sizes, WorkerCap, engine_cap, largest_body, limits, worker_cap};
+use crate::v17::Record;
 
 #[test]
 fn the_largest_turn_kept_body_is_twenty_bytes() {
@@ -42,7 +43,7 @@ fn the_worker_cap_reserves_the_facts_share_last() {
 fn the_largest_turn_body_matches_a_measured_fullest_turn() {
     let turn = fixtures::fullest_turn();
     // Fixed28 + read9 + window1 + refusal list13 + body20 =71.
-    assert_eq!(turn.measure(), 71);
+    assert_eq!(turn.measure(&crate::CEILINGS).expect("record within limits"), 71);
     assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Turn), Some(71));
 }
 
@@ -51,7 +52,7 @@ fn the_largest_assignment_body_matches_a_measured_fullest_assignment() {
     let assignment = fixtures::fullest_assignment();
     // Fixed32 + workspace29 + save1 + live3 + charter20 + transcript20 + calls66
     // + messages53 + grants118 =342 (two full program names).
-    assert_eq!(assignment.measure(), 342);
+    assert_eq!(assignment.measure(&crate::CEILINGS).expect("record within limits"), 342);
     assert_eq!(largest_body(&SIZES_ONE_SLOT, Kind::Assignment), Some(342));
 }
 
@@ -62,9 +63,9 @@ fn the_largest_grant_body_holds_a_four_kib_credential() {
     // Task8 + attempt8 + number4 + generation8 + valid8 + arm1, and the
     // largest arm, credential: scheme1 + token7938 =7976.
     assert_eq!(largest_body(&sizes, Kind::Grant), Some(7976));
-    let granted = fixtures::granted_key(&limits(&sizes).expect("the profile's bounds"), &[b'k'; 4096]);
+    let granted = fixtures::granted_key(&[b'k'; 4096]);
     // Up to the arm 37 + scheme1 + key4100 =4138.
-    assert_eq!(granted.measure(), 4138);
+    assert_eq!(granted.measure(&crate::CEILINGS).expect("record within limits"), 4138);
 }
 
 #[test]
@@ -151,12 +152,10 @@ fn application_asks_and_answers_have_their_own_limits_and_output_room() {
     assert_eq!(Kind::Asked.number(), 0x018e);
     assert_eq!(largest_body(&sizes, Kind::Ask), Some(24 + 4 + 4));
     assert_eq!(largest_body(&sizes, Kind::Asked), Some(24 + 1 + 4 + 5));
-    crate::Ask::new(&limits, crate::AskParts { run: 1, attempt: 2, number: 3, bytes: b"xxxx".as_slice().into() })
-        .unwrap();
-    crate::Ask::new(&limits, crate::AskParts { run: 1, attempt: 2, number: 3, bytes: b"xxxxx".as_slice().into() })
-        .unwrap_err();
-    crate::AskBytes::new(&limits, crate::AskBytesParts { bytes: b"yyyyy".as_slice().into() }).unwrap();
-    crate::AskBytes::new(&limits, crate::AskBytesParts { bytes: b"yyyyyy".as_slice().into() }).unwrap_err();
+    crate::Ask { run: 1, attempt: 2, number: 3, bytes: b"xxxx".as_slice().into() }.encode(&limits).unwrap();
+    (crate::Ask { run: 1, attempt: 2, number: 3, bytes: b"xxxxx".as_slice().into() }).encode(&limits).unwrap_err();
+    crate::AskBytes { bytes: b"yyyyy".as_slice().into() }.encode(&limits).unwrap();
+    (crate::AskBytes { bytes: b"yyyyyy".as_slice().into() }).encode(&limits).unwrap_err();
     let larger = Sizes { application_ask: 5, application_answer: 6, ..sizes };
     assert_eq!(
         worker_cap(&larger).expect("cap").cap.bytes,

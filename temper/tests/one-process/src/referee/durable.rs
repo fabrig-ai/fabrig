@@ -7,6 +7,7 @@ pub(crate) mod snapshots;
 mod tests;
 use jig_channel_kit::world::store::logs;
 use jig_domain_core as core;
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{codec, keys, transcripts};
 use skein_io::kernel::{Complete, Done, Fd, Op};
 use skein_lib::Reader;

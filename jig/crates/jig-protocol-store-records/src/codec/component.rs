@@ -1,8 +1,8 @@
 //! The component's own durable rows (protocol/store/records.md, section 3, and protocol/store/transcripts.md, section 1).
-use crate::component_v3 as wire;
+use crate::component_v3::{self as wire, Record};
 use alloc::boxed::Box;
-use skein_lib::{List, Reader, Writer};
-pub use wire::{CheckpointFile, CheckpointFileParts, Count, CountParts};
+use skein_lib::{List, Reader};
+pub use wire::{CheckpointFile, Count};
 
 /// Each owner's applied patch level (protocol/store/records.md 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -14,14 +14,10 @@ pub struct Levels {
 }
 impl Levels {
     fn encoded(self) -> wire::Levels {
-        wire::Levels::new(
-            &wire::CEILINGS,
-            wire::LevelsParts { skein: self.skein, smith: self.smith, jig: self.jig, application: self.application },
-        )
-        .expect("levels have no bounded fields")
+        wire::Levels { skein: self.skein, smith: self.smith, jig: self.jig, application: self.application }
     }
     fn decoded(row: wire::Levels) -> Self {
-        let wire::LevelsParts { skein, smith, jig, application } = row.into_parts();
+        let wire::Levels { skein, smith, jig, application } = row;
         Self { skein, smith, jig, application }
     }
 }
@@ -44,40 +40,25 @@ pub struct Format {
 impl Format {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Format::new(
-            &wire::CEILINGS,
-            wire::FormatParts {
-                component: self.component,
-                core: self.core,
-                tasks: self.tasks,
-                people: self.people,
-                notes: self.notes,
-                accounts: self.accounts,
-                settings: self.settings,
-                application: self.application,
-                deployment: self.deployment,
-                levels: self.levels.encoded(),
-            },
-        )?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        Ok(writer.finish())
+        let row = wire::Format {
+            component: self.component,
+            core: self.core,
+            tasks: self.tasks,
+            people: self.people,
+            notes: self.notes,
+            accounts: self.accounts,
+            settings: self.settings,
+            application: self.application,
+            deployment: self.deployment,
+            levels: self.levels.encoded(),
+        };
+        row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::FormatParts {
-            component,
-            core,
-            tasks,
-            people,
-            notes,
-            accounts,
-            settings,
-            application,
-            deployment,
-            levels,
-        } = wire::Format::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::Format { component, core, tasks, people, notes, accounts, settings, application, deployment, levels } =
+            wire::Format::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self {
             component,
             core,
@@ -115,27 +96,21 @@ pub struct Manifest {
 impl Manifest {
     #[must_use]
     pub fn encode(self) -> Box<[u8]> {
-        let row = wire::Manifest::new(
-            &wire::CEILINGS,
-            wire::ManifestParts {
-                generation: self.generation,
-                from: self.from,
-                before: self.before.encoded(),
-                after: self.after.encoded(),
-                counts: self.counts,
-                store: self.store,
-                secrets: self.secrets,
-                written: self.written,
-            },
-        )
-        .expect("manifest counts fit the checked sets");
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured manifest room");
-        writer.finish()
+        let row = wire::Manifest {
+            generation: self.generation,
+            from: self.from,
+            before: self.before.encoded(),
+            after: self.after.encoded(),
+            counts: self.counts,
+            store: self.store,
+            secrets: self.secrets,
+            written: self.written,
+        };
+        row.encode(&wire::CEILINGS).expect("manifest counts fit the checked sets")
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::ManifestParts { generation, from, before, after, counts, store, secrets, written } =
-            wire::Manifest::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::Manifest { generation, from, before, after, counts, store, secrets, written } =
+            wire::Manifest::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self {
             generation,
             from,
@@ -162,25 +137,20 @@ pub struct Checkpoint {
 }
 impl Checkpoint {
     pub fn encode(self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Checkpoint::new(
-            &wire::CEILINGS,
-            wire::CheckpointParts {
-                store: self.store,
-                secrets: self.secrets,
-                made: self.made,
-                build: self.build,
-                deployment: self.deployment,
-                levels: self.levels.encoded(),
-                files: self.files,
-            },
-        )?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured checkpoint room");
-        Ok(writer.finish())
+        let row = wire::Checkpoint {
+            store: self.store,
+            secrets: self.secrets,
+            made: self.made,
+            build: self.build,
+            deployment: self.deployment,
+            levels: self.levels.encoded(),
+            files: self.files,
+        };
+        row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::CheckpointParts { store, secrets, made, build, deployment, levels, files } =
-            wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::Checkpoint { store, secrets, made, build, deployment, levels, files } =
+            wire::Checkpoint::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self { store, secrets, made, build, deployment, levels: Levels::decoded(levels), files })
     }
 }
@@ -195,17 +165,13 @@ pub struct Transcript {
 impl Transcript {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row =
-            wire::Transcript::new(&wire::CEILINGS, wire::TranscriptParts { length: self.length, window: self.window })?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        Ok(writer.finish())
+        let row = wire::Transcript { length: self.length, window: self.window };
+        row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::TranscriptParts { length, window } =
-            wire::Transcript::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::Transcript { length, window } = wire::Transcript::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self { length, window })
     }
 }
@@ -219,16 +185,13 @@ pub struct Attempt {
 impl Attempt {
     /// Encode this row with the component family's version.
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::Attempt::new(&wire::CEILINGS, wire::AttemptParts { first: self.first })?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        Ok(writer.finish())
+        let row = wire::Attempt { first: self.first };
+        row.encode(&wire::CEILINGS)
     }
 
     /// Decode one row, refusing another version or trailing bytes.
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::AttemptParts { first } =
-            wire::Attempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::Attempt { first } = wire::Attempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self { first })
     }
 }
@@ -240,14 +203,11 @@ pub struct HistoryLog {
 }
 impl HistoryLog {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::HistoryLog::new(&wire::CEILINGS, wire::HistoryLogParts { record: self.record })?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured log place");
-        Ok(writer.finish())
+        let row = wire::HistoryLog { record: self.record };
+        row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::HistoryLogParts { record } =
-            wire::HistoryLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::HistoryLog { record } = wire::HistoryLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self { record })
     }
 }
@@ -259,14 +219,11 @@ pub struct TurnLog {
 }
 impl TurnLog {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::TurnLog::new(&wire::CEILINGS, wire::TurnLogParts { window: self.window })?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured log place");
-        Ok(writer.finish())
+        let row = wire::TurnLog { window: self.window };
+        row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::TurnLogParts { window } =
-            wire::TurnLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::TurnLog { window } = wire::TurnLog::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self { window })
     }
 }
@@ -278,14 +235,11 @@ pub struct LogAttempt {
 }
 impl LogAttempt {
     pub fn encode(&self) -> Result<Box<[u8]>, wire::Problem> {
-        let row = wire::LogAttempt::new(&wire::CEILINGS, wire::LogAttemptParts { first: self.first })?;
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured log place");
-        Ok(writer.finish())
+        let row = wire::LogAttempt { first: self.first };
+        row.encode(&wire::CEILINGS)
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, wire::Problem> {
-        let wire::LogAttemptParts { first } =
-            wire::LogAttempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?.into_parts();
+        let wire::LogAttempt { first } = wire::LogAttempt::decode(&wire::CEILINGS, &mut Reader::new(bytes))?;
         Ok(Self { first })
     }
 }

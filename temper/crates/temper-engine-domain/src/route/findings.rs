@@ -127,6 +127,29 @@ pub fn file_finding(
         Err(why) => forge::FileFindingAnswer::Refused(why),
     }
 }
+/// Trusted landing-tier filing, with the follow's standing area (domain/red-findings.md, 2 and 9).
+pub fn file_verdict(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    task: u64,
+    filing: forge::VerdictFiling,
+) -> forge::FileFindingAnswer {
+    let result = domain.forge.prepare_verdict_filing(&env.limits.forge, env.wall, Filer::Task(task), &filing);
+    let result = match result {
+        Ok(mut write) => {
+            if let Some(follow) = filing.follow {
+                write.row.area = follow_area(domain, filing.project, follow);
+            }
+            Ok(write)
+        }
+        Err(why) => Err(why),
+    };
+    match commit_prepared(domain, env, decision, result, false) {
+        Ok(number) => forge::FileFindingAnswer::Filed { number },
+        Err(why) => forge::FileFindingAnswer::Refused(why),
+    }
+}
 pub fn hand_finding(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -226,7 +249,7 @@ pub(super) fn settings_holders(domain: &Domain, items: &[forge::settings::Asked]
     let mut holders = List::uncapped();
     for (&project, ()) in &projects {
         for (_, row) in domain.forge.findings(project) {
-            if !row.state.ended() {
+            if !row.state.ended() && !row.needs_no_triage() {
                 holders
                     .push((project, row.number, holder(domain, project, row.area.as_deref())))
                     .expect("one old holder per open finding");
@@ -352,7 +375,7 @@ pub fn document(
         if (match state {
             Some(state) => state != row.state,
             None => false,
-        }) || (only_mine && !mine(domain, project, party, held))
+        }) || (only_mine && (row.needs_no_triage() || !mine(domain, project, party, held)))
         {
             continue;
         }
