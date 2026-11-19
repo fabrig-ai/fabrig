@@ -33,7 +33,12 @@ fn worker_wire_schema_matches_generated_code_and_pinned_constructs() {
 #[test]
 fn client_wire_schema_matches_generated_code_and_pinned_constructs() {
     client_layout(temper_client_protocol_wire::CLIENT_SCHEMA, "temper-client-wire");
-    schema_matches("temper-client-protocol-wire", "client-wire", "client_wire", temper_client_protocol_wire::CLIENT_SCHEMA);
+    schema_matches(
+        "temper-client-protocol-wire",
+        "client-wire",
+        "client_wire",
+        temper_client_protocol_wire::CLIENT_SCHEMA,
+    );
 }
 
 // Client layouts have no bridge; preserve every older line and append kept
@@ -94,7 +99,12 @@ fn client_layout(source: &str, family: &str) {
 
 #[test]
 fn store_schema_matches_generated_code_and_pinned_constructs() {
-    schema_matches("temper-protocol-store-codec", "store", "store", temper_protocol_store::OWNER_SET.families.first().expect("store family").current);
+    schema_matches(
+        "temper-protocol-store-codec",
+        "store",
+        "store",
+        temper_protocol_store::OWNER_SET.families.first().expect("store family").current,
+    );
 }
 
 #[test]

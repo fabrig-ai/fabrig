@@ -13,7 +13,8 @@ const FIELDS: &str = include_str!("../../schema/public-v1.fields");
 
 #[test]
 fn the_public_schema_names_nothing_from_elsewhere() {
-    shape::closed_schema(&skein_codegen::values(SCHEMA).schema, panels()).expect("the public schema is closed and apart from the panels");
+    shape::closed_schema(&skein_codegen::values(SCHEMA).schema, panels())
+        .expect("the public schema is closed and apart from the panels");
 }
 
 #[test]

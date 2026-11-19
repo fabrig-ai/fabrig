@@ -333,7 +333,7 @@ mod tests {
         }
         assert_eq!(crate::decode_charter(&[0, 3], &wire::CEILINGS, &endpoints), Err(run::Invalid::CharterVersion));
     }
-        fn charter_fixture() -> Box<[u8]> {
+    fn charter_fixture() -> Box<[u8]> {
         let values = skein_codegen::values(smith_charter::SCHEMA);
         for value in values.goldens.clone() {
             if value.name == "record_charter_smallest.bin" {

@@ -353,7 +353,8 @@ pub(super) fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>
     if let Some(family) =
         store.owner_sets.sets.iter().flat_map(|set| set.families).find(|family| family.name == "jig-store-core")
     {
-        let from = skein_codec::schema::parse(crate::STORE_FAMILIES.get(3).expect("store family").current.as_bytes()).unwrap();
+        let from =
+            skein_codec::schema::parse(crate::STORE_FAMILIES.get(3).expect("store family").current.as_bytes()).unwrap();
         let to = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
         let plan = skein_codec::layout::Plan::derive(
             &from,

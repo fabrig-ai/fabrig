@@ -12,8 +12,7 @@ use skein_lib::Reader;
 fn version_constants_match_their_schemas() {
     let client = &skein_codegen::values(CLIENT_SCHEMA).schema;
     assert_eq!(VERSION, u32::from(client.version), "jig-client-wire VERSION must equal its family version");
-    let public =
-        &skein_codegen::values(PUBLIC_SCHEMA).schema;
+    let public = &skein_codegen::values(PUBLIC_SCHEMA).schema;
     assert_eq!(PUBLIC_VERSION, public.version, "jig-public-wire PUBLIC_VERSION must equal its family version");
 }
 

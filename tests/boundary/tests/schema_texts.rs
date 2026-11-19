@@ -139,7 +139,8 @@ fn inspect(file: &Path, source: &str, owners: &BTreeMap<PathBuf, Vec<PathBuf>>) 
 
 #[test]
 fn schema_includes_are_confined_to_the_owner_constant() {
-    let owners = owners("owner/src/generated/current.rs owner/schema/current-v1.schema owner/schema/current-v1-part1.schema");
+    let owners =
+        owners("owner/src/generated/current.rs owner/schema/current-v1.schema owner/schema/current-v1-part1.schema");
     let owner = Path::new("owner/src/lib.rs");
     let good = r#"pub const SCHEMA: &str = concat!(include_str!("../schema/current-v1.schema"), include_str!("../schema/current-v1-part1.schema"));"#;
     let (seen, failures) = inspect(owner, good, &owners);
@@ -165,7 +166,8 @@ fn each_current_schema_text_is_embedded_once_by_its_owner() {
     let root = skein_scratch::paths::workspace();
     let list = fs::read_to_string(root.join("tools/merge/codecs.txt")).expect("codec list");
     let owners = owners(&list);
-    let output = Command::new("git").args(["ls-files", "-z", "--", "*.rs"]).current_dir(&root).output().expect("tracked Rust");
+    let output =
+        Command::new("git").args(["ls-files", "-z", "--", "*.rs"]).current_dir(&root).output().expect("tracked Rust");
     assert!(output.status.success(), "git ls-files: {}", String::from_utf8_lossy(&output.stderr));
     let mut counts = BTreeMap::<_, usize>::new();
     let mut failures = Vec::new();

@@ -2,7 +2,7 @@
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, values, unpinned};
+use skein_codegen::{generate, unpinned, values};
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";

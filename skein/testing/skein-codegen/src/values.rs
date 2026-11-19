@@ -14,7 +14,10 @@ pub struct Values {
 
 /// Returns the process's values for this text, panicking with its parse error.
 #[must_use]
-#[expect(clippy::panic, reason = "invalid author-owned schema text panics with its parse error (data/codec/README.md, 6)")]
+#[expect(
+    clippy::panic,
+    reason = "invalid author-owned schema text panics with its parse error (data/codec/README.md, 6)"
+)]
 pub fn values(text: &'static str) -> &'static Values {
     static TEXTS: OnceLock<Mutex<BTreeMap<&'static str, &'static OnceLock<Values>>>> = OnceLock::new();
     let cell = {

@@ -89,7 +89,10 @@ pub const JIG: OwnerSet = OwnerSet {
     level: None,
     families: &[KeptFamily {
         retired: &[],
-        current: { let [.., secrets] = crate::STORE_FAMILIES; secrets.current },
+        current: {
+            let [.., secrets] = crate::STORE_FAMILIES;
+            secrets.current
+        },
         types: &[],
         name: "jig-store-secrets",
         map: KeptMap::Secrets,

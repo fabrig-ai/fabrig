@@ -6,8 +6,7 @@ use skein_lib::{Reader, Writer};
 
 #[test]
 fn cursor_version_equals_the_header_and_the_codec() {
-    let schema =
-        &skein_codegen::values(crate::SCHEMA).schema;
+    let schema = &skein_codegen::values(crate::SCHEMA).schema;
     assert_eq!(schema.family.as_bytes(), b"jig-engine-cursor");
     assert_eq!(CURSOR_VERSION, schema.version);
 

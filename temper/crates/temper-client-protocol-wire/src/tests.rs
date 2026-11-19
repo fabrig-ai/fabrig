@@ -15,15 +15,13 @@ use skein_lib::{List, Reader};
 /// A version is its schema's family line (jig/docs/design/protocol/client/README.md, section 6).
 #[test]
 fn version_constants_match_their_schemas() {
-    let client =
-        &skein_codegen::values(crate::CLIENT_SCHEMA).schema;
+    let client = &skein_codegen::values(crate::CLIENT_SCHEMA).schema;
     assert_eq!(
         crate::CLIENT_VERSION,
         u32::from(client.version),
         "temper-client-wire CLIENT_VERSION must equal its family version"
     );
-    let public =
-        &skein_codegen::values(crate::PUBLIC_SCHEMA).schema;
+    let public = &skein_codegen::values(crate::PUBLIC_SCHEMA).schema;
     assert_eq!(
         crate::PUBLIC_VERSION,
         public.version,

@@ -1,5 +1,5 @@
 //! Records' drift and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, values, unpinned};
+use skein_codegen::{generate, unpinned, values};
 use std::fs;
 
 #[test]

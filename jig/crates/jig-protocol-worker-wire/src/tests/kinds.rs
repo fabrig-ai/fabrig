@@ -66,8 +66,7 @@ fn record(kind: Kind) -> &'static [u8] {
 
 #[test]
 fn kinds_follow_every_schema_variant() {
-    let schema = skein_codec::schema::parse(crate::SCHEMA.as_bytes())
-        .expect("current schema");
+    let schema = skein_codec::schema::parse(crate::SCHEMA.as_bytes()).expect("current schema");
     let mut seen = 0;
     for (name, base, direction) in [
         (b"FromWorker".as_slice(), 0x0100_u16, Direction::FromInitiator),

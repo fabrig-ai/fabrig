@@ -1,5 +1,5 @@
 //! Each jig codec's records and pinned constructs (skein's data/codec/README.md, 6).
-use skein_codegen::{form_of, generate_as, values, unpinned};
+use skein_codegen::{form_of, generate_as, unpinned, values};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs,

@@ -108,11 +108,7 @@ pub fn families() -> [Family; 7] {
             roots: roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
                 OptionalPayload, BoxedChoice, InlineChoice, FixedWidthItems, LongRecord),
         },
-        Family {
-            name: "secrets",
-            text: skein_codec_tests::SECRETS_SCHEMA,
-            roots: roots!(secrets; Credential),
-        },
+        Family { name: "secrets", text: skein_codec_tests::SECRETS_SCHEMA, roots: roots!(secrets; Credential) },
         Family {
             name: "every",
             text: include_str!("../../schema/every-v1.schema"),

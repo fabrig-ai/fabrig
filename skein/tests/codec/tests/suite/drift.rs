@@ -66,7 +66,8 @@ mod tests {
         let source = current.map_or_else(|| fs::read_to_string(schema_path).expect("schema readable"), str::to_owned);
         let missing = unpinned(&source).expect("schema valid");
         assert!(missing.is_empty(), "{schema_path}: unpinned constructs: {missing:?}");
-        let schema = current.map_or_else(|| parse(&source).expect("schema valid"), |text| skein_codegen::values(text).schema.clone());
+        let schema = current
+            .map_or_else(|| parse(&source).expect("schema valid"), |text| skein_codegen::values(text).schema.clone());
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
         let form = form_of(Path::new(schema_path).parent().expect("schema directory"), &schema.family)
             .expect("owner's lean mark readable");
@@ -78,7 +79,11 @@ mod tests {
             check_text("src/growth/v1_lean.rs", &generate_as(&schema, Form::Lean).records, write);
         }
         if let Some(directory) = golden_directory {
-            check_goldens(directory, current.map_or_else(|| goldens(&schema), |text| skein_codegen::values(text).goldens.clone()), write);
+            check_goldens(
+                directory,
+                current.map_or_else(|| goldens(&schema), |text| skein_codegen::values(text).goldens.clone()),
+                write,
+            );
         }
     }
 
