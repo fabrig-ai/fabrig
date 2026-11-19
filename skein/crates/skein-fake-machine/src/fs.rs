@@ -329,6 +329,27 @@ impl Machine {
         }
     }
 
+    /// Copy the filesystem as held, including unsynced work, without open handles.
+    /// A crash of either copy makes its own seeded durability choices.
+    #[must_use]
+    pub fn fork(&self) -> Machine {
+        Machine {
+            nodes: self.nodes.clone(),
+            durable_nodes: self.durable_nodes.clone(),
+            pending_writes: self.pending_writes.clone(),
+            pending_dirs: self.pending_dirs.clone(),
+            pending_links: self.pending_links.clone(),
+            pending_moves: self.pending_moves.clone(),
+            next_node: self.next_node,
+            handles: BTreeMap::new(),
+            next_handle: self.next_handle,
+            top: self.top,
+            owner: self.owner,
+            roots: self.roots,
+            landlock: self.landlock,
+        }
+    }
+
     /// A new root, laid out as `items` say, opened as a directory: what the
     /// shell opens at startup.
     pub fn lay(&mut self, items: &[Item]) -> Opened {

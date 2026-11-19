@@ -6,6 +6,7 @@
 use crate::{DecodeError, Limits, TokenResponse, common, documents, jwt, v3};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Reader, Secret, Wall, Writer, usize_of};
+use v3::Record;
 
 /// Caller-selected nested JWT claim to keep as opaque metadata.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -179,9 +180,8 @@ fn problem(problem: v3::Problem) -> DecodeError {
 
 #[expect(clippy::manual_map, reason = "programming-model.md, 10.3 forbids closures in step code")]
 fn generated(record: &SavedToken, limits: &Limits) -> Result<v3::SavedToken, DecodeError> {
-    let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;
     validate(record, limits)?;
-    let parts = v3::SavedTokenParts {
+    Ok(v3::SavedToken {
         key: record.key,
         generation: record.generation,
         expires_at: record.expires_at.as_nanos(),
@@ -196,14 +196,14 @@ fn generated(record: &SavedToken, limits: &Limits) -> Result<v3::SavedToken, Dec
             Some(wall) => Some(wall.as_nanos()),
             None => None,
         },
-    };
-    match v3::SavedToken::new(&schema_limits, parts) {
-        Ok(value) => Ok(value),
-        Err(error) => Err(problem(error)),
-    }
+    })
 }
 
-fn record_length(len: u32, limits: &Limits) -> Result<u32, DecodeError> {
+fn record_length(value: &v3::SavedToken, schema_limits: &v3::Limits, limits: &Limits) -> Result<u32, DecodeError> {
+    let len = match value.measure(schema_limits) {
+        Ok(len) => len,
+        Err(error) => return Err(problem(error)),
+    };
     if len > limits.record_bytes {
         return Err(DecodeError::TooLarge);
     }
@@ -211,14 +211,16 @@ fn record_length(len: u32, limits: &Limits) -> Result<u32, DecodeError> {
 }
 
 fn measured(record: &SavedToken, limits: &Limits) -> Result<u32, DecodeError> {
-    record_length(generated(record, limits)?.measure(), limits)
+    let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;
+    record_length(&generated(record, limits)?, &schema_limits, limits)
 }
 
 pub fn encode_record(record: &SavedToken, limits: &Limits) -> Result<Box<[u8]>, DecodeError> {
+    let schema_limits = record_limits(limits).ok_or(DecodeError::TooLarge)?;
     let value = generated(record, limits)?;
-    let len = record_length(value.measure(), limits)?;
+    let len = record_length(&value, &schema_limits, limits)?;
     let mut out = Writer::new(usize_of(len));
-    value.encode(&mut out).expect("record measured");
+    value.write(&schema_limits, &mut out).expect("record measured");
     Ok(out.finish())
 }
 
@@ -232,20 +234,19 @@ pub fn decode_record(input: &[u8], limits: &Limits) -> Result<SavedToken, Decode
         Ok(value) => value,
         Err(error) => return Err(problem(error)),
     };
-    let _length = record_length(value.measure(), limits)?;
-    let parts = value.into_parts();
+    let _length = record_length(&value, &schema_limits, limits)?;
     let record = SavedToken {
-        key: parts.key,
-        generation: parts.generation,
-        expires_at: Wall::from_nanos(parts.expires_at),
-        access_token: parts.access_token,
-        refresh_token: parts.refresh_token,
-        metadata: parts.metadata,
-        issued_client_id: parts.issued_client_id,
-        granted_scopes: parts.granted_scopes,
-        subject: parts.subject,
-        id_token: parts.id_token,
-        earliest_refresh_at: match parts.earliest_refresh_at {
+        key: value.key,
+        generation: value.generation,
+        expires_at: Wall::from_nanos(value.expires_at),
+        access_token: value.access_token,
+        refresh_token: value.refresh_token,
+        metadata: value.metadata,
+        issued_client_id: value.issued_client_id,
+        granted_scopes: value.granted_scopes,
+        subject: value.subject,
+        id_token: value.id_token,
+        earliest_refresh_at: match value.earliest_refresh_at {
             Some(nanos) => Some(Wall::from_nanos(nanos)),
             None => None,
         },

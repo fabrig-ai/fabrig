@@ -402,7 +402,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_records::SCHEMA,
-        temper_protocol_records::v1, sealed,
+        temper_protocol_records::v1, lean,
         limits [
             admin_token_value,
             api_token_value,

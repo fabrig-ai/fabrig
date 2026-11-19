@@ -8,11 +8,12 @@ use std::{sync::Mutex, thread::ThreadId};
 pub(super) struct Counts {
     pub(super) parses: BTreeMap<Digest, u32>,
     pub(super) layouts: u32,
+    pub(super) plans: u32,
     pub(super) held: BTreeMap<Digest, u32>,
 }
 impl Counts {
     fn new() -> Self {
-        Self { parses: BTreeMap::new(), layouts: 0, held: BTreeMap::new() }
+        Self { parses: BTreeMap::new(), layouts: 0, plans: 0, held: BTreeMap::new() }
     }
     fn apply(&mut self, event: Event) {
         match event {
@@ -27,6 +28,7 @@ impl Counts {
                 self.held.insert(key, count.checked_add(1).expect("held count fits"));
             }
             Event::Layout => self.layouts = self.layouts.checked_add(1).expect("layout count fits"),
+            Event::Plan => self.plans = self.plans.checked_add(1).expect("plan count fits"),
             Event::Read => {}
         }
     }
@@ -36,6 +38,7 @@ enum Event {
     Parse(Digest),
     Held(Digest),
     Layout,
+    Plan,
     Read,
 }
 static COUNTS: Mutex<Vec<(ThreadId, Counts)>> = Mutex::new(Vec::new());
@@ -65,6 +68,9 @@ pub(super) fn held(digest: Digest) {
 }
 pub(super) fn layout() {
     record(Event::Layout);
+}
+pub(super) fn plan() {
+    record(Event::Plan);
 }
 pub(super) fn get() -> Counts {
     record(Event::Read)

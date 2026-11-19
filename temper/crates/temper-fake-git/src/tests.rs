@@ -85,6 +85,7 @@ fn spawn(command: &Command) -> k::Spawn {
         | Command::SnapshotReachable { .. }
         | Command::SnapshotReset { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffPaths { .. }
         | Command::DiffIndex { .. }
@@ -128,7 +129,11 @@ fn a_metadata_command_never_scans_the_worktree_or_unneeded_git_directories() {
     let mut disk = Disk::new(&files);
     let mut net = Net::new(vec![]);
     let remote = b"http://127.0.0.1:4000/acme/app.git";
-    let answer = disk.run(spawn(&Command::Remote { remote: remote.as_slice().into() }), &mut net, b"");
+    let answer = disk.run(
+        spawn(&Command::Remote { remote: remote.as_slice().into(), format: invocation::Format::Sha1 }),
+        &mut net,
+        b"",
+    );
     assert_eq!(answer, crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
     assert_eq!(disk.read(b"repo/.git/temper-remote").as_deref(), Some(remote.as_slice()));
     assert_eq!(disk.read(b"repo/untracked/nested/file").as_deref(), Some(b"untracked\n".as_slice()));
@@ -166,6 +171,60 @@ fn a_bare_format_query_leaves_the_object_store_unscanned() {
     assert_eq!(answer, crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
     assert_eq!(disk.read(b"repo/objects/1").as_deref(), Some(b"".as_slice()));
     assert!(!disk.opened.iter().any(|path| path.starts_with(b"repo/objects")), "format needs no object scan");
+}
+
+fn worker_files() -> Vec<(Vec<u8>, Vec<u8>)> {
+    let mut files: Vec<_> = files(REMOTE)
+        .into_iter()
+        .map(|(path, bytes)| {
+            let path = path
+                .strip_prefix(b"repo/.git/")
+                .map_or_else(|| path.clone(), |name| [b"worker-git/".as_slice(), name].concat());
+            (path, bytes)
+        })
+        .collect();
+    files.push((b"repo/.git".to_vec(), b"gitdir: untrusted\n".to_vec()));
+    files
+}
+
+#[test]
+fn explicit_metadata_never_discovers_the_runs_git_or_scans_objects() {
+    let remote = b"http://127.0.0.1:4000/acme/app.git";
+    let command = Command::Remote { remote: remote.as_slice().into(), format: invocation::Format::Sha1 };
+    // Explicit bare metadata and metadata paired with a work tree use the same selection.
+    for work_tree in [None, Some(b"repo".as_slice())] {
+        let mut disk = Disk::new(&worker_files());
+        let mut net = Net::new(vec![]);
+        let mut spawn = spawn(&command);
+        spawn.args = invocation::arguments_at(&command, Some(b"worker-git"), work_tree);
+        let answer = disk.run(spawn, &mut net, b"");
+        assert_eq!(answer, crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
+        assert_eq!(disk.read(b"worker-git/temper-remote").as_deref(), Some(remote.as_slice()));
+        assert_eq!(disk.read(b"repo/.git").as_deref(), Some(b"gitdir: untrusted\n".as_slice()));
+        assert_eq!(disk.read(b"worker-git/objects/1").as_deref(), Some(b"".as_slice()));
+        for path in &disk.opened {
+            assert!(path.starts_with(b"worker-git"), "explicit metadata opened {}", String::from_utf8_lossy(path));
+            assert!(!path.starts_with(b"worker-git/objects"), "remote configuration needs no object scan");
+        }
+    }
+}
+
+#[test]
+fn explicit_staging_skips_the_runs_git_and_the_workers_object_store() {
+    let mut files = worker_files();
+    files.push((b"repo/new/file".to_vec(), b"new\n".to_vec()));
+    let mut disk = Disk::new(&files);
+    let mut net = Net::new(vec![]);
+    let mut spawn = spawn(&Command::Add);
+    spawn.args = invocation::arguments_at(&Command::Add, Some(b"worker-git"), Some(b"repo"));
+    let answer = disk.run(spawn, &mut net, b"");
+    assert_eq!(answer.exit, 0, "{}", String::from_utf8_lossy(&answer.stderr));
+    assert_eq!(disk.read(b"worker-git/temper-index/new/file").as_deref(), Some(b"new\n".as_slice()));
+    assert_eq!(disk.read(b"repo/.git").as_deref(), Some(b"gitdir: untrusted\n".as_slice()));
+    assert_eq!(disk.read(b"worker-git/objects/1").as_deref(), Some(b"".as_slice()));
+    assert!(disk.opened.iter().any(|path| path == b"repo/new/file"));
+    assert!(!disk.opened.iter().any(|path| path.starts_with(b"repo/.git")), "the run's metadata is never read");
+    assert!(!disk.opened.iter().any(|path| path.starts_with(b"worker-git/objects")), "staging needs no object scan");
 }
 
 fn object_call(commit: u64) -> Call {

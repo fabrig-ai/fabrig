@@ -16,7 +16,12 @@ pub type Credential = (Box<[u8]>, Secret);
 #[derive(Debug)]
 pub struct Checked {
     pub command: Command,
+    /// The named work tree, or the bare directory for commands without one.
     pub at: Box<[u8]>,
+    /// Explicit metadata selection; no repository discovery reads the work tree.
+    pub git_dir: Option<Box<[u8]>>,
+    /// The spawn's directory, beneath which init and clone resolve their operands.
+    pub root: Box<[u8]>,
     pub home: Box<[u8]>,
     pub committer: Author,
     pub author: Option<Author>,
@@ -45,12 +50,12 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         }
     }
     let rest = args.get(invocation::SETTINGS.len() * 2..).ok_or(Refusal::Broken("git settings"))?;
-    let command = parse(rest).ok_or(Refusal::Usage)?;
-    if invocation::arguments(&command) != spawn.args {
+    let (command, git_dir, work_tree) = parse_directories(rest).ok_or(Refusal::Usage)?;
+    if invocation::arguments_at(&command, git_dir.as_deref(), work_tree.as_deref()) != spawn.args {
         return Err(Refusal::Usage);
     }
     if let Some(remote) = remote(&command)
-        .or_else(|| if let Command::Remote { remote } = &command { Some(remote.as_ref()) } else { None })
+        .or_else(|| if let Command::Remote { remote, .. } = &command { Some(remote.as_ref()) } else { None })
     {
         check_remote(remote)?;
     }
@@ -91,7 +96,8 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::DiffIndex { .. }
             | Command::WriteTree
             | Command::CommitTree { .. } => {}
-            Command::Reds(_)
+            Command::UpdateIndex { .. }
+            | Command::Reds(_)
             | Command::Origin { .. }
             | Command::Version
             | Command::Clone { .. }
@@ -148,7 +154,9 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
         .find_map(|e| e.strip_prefix(b"GIT_CONFIG_VALUE_0=Authorization: ").map(|value| Secret::new(value.into())));
     Ok(Checked {
         command,
-        at: spawn.dir.clone(),
+        at: work_tree.or_else(|| git_dir.clone()).unwrap_or_else(|| spawn.dir.clone()),
+        git_dir,
+        root: spawn.dir.clone(),
         home,
         committer,
         author,
@@ -227,6 +235,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Clean
         | Command::Merge { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::WriteTree
@@ -238,12 +247,34 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::IsAncestor { .. } => None,
     }
 }
+type Directories = (Command, Option<Box<[u8]>>, Option<Box<[u8]>>);
+fn parse_directories(mut args: &[&[u8]]) -> Option<Directories> {
+    // Look carries its sole directory in the command.
+    if let Some(command @ Command::Origin { .. }) = parse(args) {
+        return Some((command, None, None));
+    }
+    let promisor = args.starts_with(&[b"-c", b"remote.origin.promisor=true"]);
+    if promisor {
+        args = &args[2..];
+    }
+    let git_dir = args.first().and_then(|arg| arg.strip_prefix(b"--git-dir=")).map(Box::from);
+    if git_dir.is_some() {
+        args = &args[1..];
+    }
+    let work_tree = args.first().and_then(|arg| arg.strip_prefix(b"--work-tree=")).map(Box::from);
+    if work_tree.is_some() {
+        args = &args[1..];
+    }
+    let mut words = Vec::new();
+    if promisor {
+        words.extend([b"-c".as_slice(), b"remote.origin.promisor=true"]);
+    }
+    words.extend_from_slice(args);
+    Some((parse(&words)?, git_dir, work_tree))
+}
 fn parse(args: &[&[u8]]) -> Option<Command> {
     Some(match args {
         [b"rev-parse", b"--verify", b"--quiet", b"refs/temper/landing^{commit}"] => Command::Reds(CheckCommand::Pin),
-        [b"rev-parse", b"--path-format=relative", b"--git-path", b"temper"] => {
-            Command::Reds(CheckCommand::Path { kept: Box::new([]) })
-        }
         [b"merge-base", b"refs/temper/landing", b"HEAD"] => Command::Reds(CheckCommand::Base { merging: false }),
         [b"merge-base", b"refs/temper/landing", b"HEAD", b"MERGE_HEAD"] => {
             Command::Reds(CheckCommand::Base { merging: true })
@@ -270,17 +301,20 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"reset", b"--mixed", b"-q", commit] => Command::SnapshotReset { commit: invocation::object(commit)? },
         [b"version"] => Command::Version,
         [git_dir, b"config", b"--local", b"--get", b"remote.origin.url"] => {
-            Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.strip_suffix(b"/.git")?.into() }
+            Command::Origin { directory: git_dir.strip_prefix(b"--git-dir=")?.into() }
         }
         [b"rev-parse", b"--show-object-format"] => Command::Format,
-        [b"init", b"--quiet", format, b"--", dir] => Command::Clone {
-            directory: (*dir).into(),
-            format: match format.strip_prefix(b"--object-format=")? {
-                b"sha1" => invocation::Format::Sha1,
-                b"sha256" => invocation::Format::Sha256,
-                _ => return None,
-            },
-        },
+        [b"init", b"--quiet", format, b"--", dir] | [b"init", b"--quiet", b"--bare", format, b"--", dir] => {
+            Command::Clone {
+                directory: (*dir).into(),
+                bare: args.get(2) == Some(&b"--bare".as_slice()),
+                format: match format.strip_prefix(b"--object-format=")? {
+                    b"sha1" => invocation::Format::Sha1,
+                    b"sha256" => invocation::Format::Sha256,
+                    _ => return None,
+                },
+            }
+        }
         [
             b"clone",
             b"--bare",
@@ -292,7 +326,9 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             remote,
             directory,
         ] => Command::Store { remote: (*remote).into(), directory: (*directory).into() },
-        [b"remote", b"add", b"origin", b"--", remote] => Command::Remote { remote: (*remote).into() },
+        [b"remote", b"add", b"origin", b"--", remote] => {
+            Command::Remote { remote: (*remote).into(), format: invocation::Format::Sha1 }
+        }
         [b"update-ref", reference, commit] => Command::UpdateRef {
             into: match *reference {
                 b"refs/temper/fetched" => git::Into::Fetched,

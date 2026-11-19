@@ -74,8 +74,9 @@ pub enum Op {
         account: Option<u64>,
         git: Option<Box<[u8]>>,
     },
-    /// Whether the directory holds a clone of remote. Local and read-only; ends Looked.
-    Look { at: Place, remote: Box<[u8]> },
+    /// Whether the worker's directory holds remote, taking on a kept work tree from its store if needed.
+    /// Local; ends Looked.
+    Look { at: Place, remote: Box<[u8]>, store: Token },
     /// Make an empty repository borrowing its store, without reaching the forge.
     Clone { at: Place, remote: Box<[u8]>, store: Token },
     /// Fetch `want` into the store and point the repository at it. Ends
