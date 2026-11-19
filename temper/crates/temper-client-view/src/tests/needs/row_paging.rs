@@ -93,7 +93,6 @@ fn answer(root: &mut d::Domain, read: Token, value: c::ReadValue, out: &mut Queu
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    clippy::too_many_lines,
     reason = "the fixture answers its independent needs reads and findings and decisions watches together"
 )]
 fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {

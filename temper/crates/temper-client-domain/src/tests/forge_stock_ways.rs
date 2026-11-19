@@ -842,10 +842,6 @@ fn role_me() -> c::Me {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one act follows its settings, missing role creation and refusal without rollback"
-)]
 fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_refusal() {
     const WORDS: &[u8] = b"Routes what comes in to its area's owner, and triages what fits no area.";
     for running in [false, true] {

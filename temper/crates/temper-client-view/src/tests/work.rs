@@ -178,7 +178,6 @@ impl Fixture {
         }
         reads.into_boxed()
     }
-    #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
     fn populate(&mut self, full: bool) {
         self.drafts(&[]);
         let mut goal = line(GOAL, b"membership-handoff");

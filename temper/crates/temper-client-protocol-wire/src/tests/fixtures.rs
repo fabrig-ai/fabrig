@@ -206,7 +206,6 @@ pub fn panel_parts() -> v1::ChangePanel {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "table covers every step and the optional panel facts")]
 pub fn panel_rows() -> List<v1::ChangePanel> {
     use v1::{Ci, Hold, Reason, Step};
     let limits = limits();
