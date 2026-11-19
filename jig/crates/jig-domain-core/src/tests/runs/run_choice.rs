@@ -475,6 +475,7 @@ fn claim_account_run(core: &mut Core, env: &Env<Limits>, attempt: u64) {
         &mut core.tasks,
         &child,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             offered: tasks::Reasons::ALL,
             reasons: tasks::Reasons::FIRST,

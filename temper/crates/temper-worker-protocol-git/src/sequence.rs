@@ -509,7 +509,8 @@ pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
         | git::Op::Merge { at, .. }
         | git::Op::Commit { at, .. }
         | git::Op::Reset { at, .. } => Some(at),
-        git::Op::Make { .. }
+        git::Op::Pack { .. }
+        | git::Op::Make { .. }
         | git::Op::Store { .. }
         | git::Op::Look { .. }
         | git::Op::Create { .. }
@@ -568,6 +569,8 @@ pub(crate) fn after_view(
         }
         Command::Clone { .. } if code == 0 => return Next::View { done: Box::new(done.clone()), retry: true },
         Command::Reds(_)
+        | Command::CountObjects { .. }
+        | Command::Repack { .. }
         | Command::Format
         | Command::SnapshotHead
         | Command::SnapshotMerge { .. }

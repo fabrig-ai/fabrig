@@ -376,7 +376,8 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
     let (at, what) = match op {
         Op::Fetch { at, want, into, .. } => (at, Git::Fetch { want: want.clone(), into: *into }),
         Op::CheckOut { at, commit, .. } => (at, Git::CheckOut { commit: *commit }),
-        Op::Reset { .. }
+        Op::Pack { .. }
+        | Op::Reset { .. }
         | Op::Reds { .. }
         | Op::Make { .. }
         | Op::Store { .. }

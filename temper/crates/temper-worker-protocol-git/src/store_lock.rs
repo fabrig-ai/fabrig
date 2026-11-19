@@ -58,6 +58,7 @@ impl Access {
             | Command::Clean
             | Command::Merge { .. }
             | Command::Unmerged
+            | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffIndex { .. }
             | Command::DiffPaths { .. }

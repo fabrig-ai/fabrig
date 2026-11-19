@@ -13,11 +13,23 @@ fn check_invocation(s: &Started, directory: &[u8], suffix: &[&[u8]]) {
     let mut seen = false;
     for request in &s.below.out.io {
         if let skein_io::Request::Spawn { spawn, .. } = request {
-            assert_eq!(spawn.dir.as_ref(), directory);
+            assert_eq!(spawn.dir.as_ref(), b"");
             let mut expected = List::with_capacity(40);
             for setting in crate::invocation::SETTINGS {
                 expected.push(Box::from(b"-c".as_slice())).expect("fixed argv");
                 expected.push(Box::from(setting)).expect("fixed argv");
+            }
+            let suffix = if suffix.starts_with(&[b"-c", b"remote.origin.promisor=true"]) {
+                for argument in suffix.get(..2).expect("promisor setting") {
+                    expected.push(Box::from(*argument)).expect("fixed argv");
+                }
+                suffix.get(2..).expect("command after setting")
+            } else {
+                suffix
+            };
+            expected.push(crate::invocation::joined(&[b"--git-dir=", directory])).expect("fixed argv");
+            if directory == b"gitdirs/7/app" {
+                expected.push(Box::from(b"--work-tree=workspaces/7/app".as_slice())).expect("fixed argv");
             }
             for argument in suffix {
                 expected.push(Box::from(*argument)).expect("fixed argv");
@@ -73,9 +85,9 @@ fn a_pack_counts_and_repacks_the_store_then_its_repository_only_above_fifty() {
         if store_repack {
             invocation(&mut s, b"stores/7", REPACK, b"");
         }
-        invocation(&mut s, b"workspaces/7/app", COUNT, repository_count);
+        invocation(&mut s, b"gitdirs/7/app", COUNT, repository_count);
         if repository_repack {
-            invocation(&mut s, b"workspaces/7/app", REPACK, b"");
+            invocation(&mut s, b"gitdirs/7/app", REPACK, b"");
         }
         assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
         assert!(s.below.out.io.is_empty());
@@ -118,9 +130,9 @@ fn a_pack_without_a_store_counts_only_its_repository() {
         assert!(!op.is_remote(), "Pack uses the local deadline");
         assert_eq!(op.kind(), git::Kind::Pack);
         s.down(Request::Io { owner: fixtures::OWNER, op, deadline: fixtures::DEADLINE, identity: None });
-        invocation(&mut s, b"workspaces/7/app", COUNT, stdout);
+        invocation(&mut s, b"gitdirs/7/app", COUNT, stdout);
         if repack {
-            invocation(&mut s, b"workspaces/7/app", REPACK, b"");
+            invocation(&mut s, b"gitdirs/7/app", REPACK, b"");
         }
         assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
         assert!(s.below.out.io.is_empty());
@@ -133,7 +145,7 @@ fn a_pack_reads_counts_in_both_places_and_stops_at_an_unreadable_count() {
         let mut s = Started::new();
         request(&mut s, fixtures::OWNER, fixtures::at(), Some(Token::new(7)));
         invocation(&mut s, b"stores/7", COUNT, stdout);
-        invocation(&mut s, b"workspaces/7/app", COUNT, stdout);
+        invocation(&mut s, b"gitdirs/7/app", COUNT, stdout);
         assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Succeeded)));
         assert!(s.below.out.io.is_empty());
     }
@@ -144,7 +156,7 @@ fn a_pack_reads_counts_in_both_places_and_stops_at_an_unreadable_count() {
             if !in_store {
                 invocation(&mut s, b"stores/7", COUNT, b"packs: 50\n");
             }
-            let directory = if in_store { b"stores/7".as_slice() } else { b"workspaces/7/app".as_slice() };
+            let directory = if in_store { b"stores/7".as_slice() } else { b"gitdirs/7/app".as_slice() };
             invocation(&mut s, directory, COUNT, stdout);
             assert_eq!(
                 s.done(),
@@ -171,7 +183,7 @@ fn a_pack_stops_on_each_failed_local_invocation_and_keeps_its_diagnostic() {
                 invocation(&mut s, b"stores/7", COUNT, b"packs: 51\n");
                 invocation(&mut s, b"stores/7", REPACK, b"");
             }
-            let directory = if in_store { b"stores/7".as_slice() } else { b"workspaces/7/app".as_slice() };
+            let directory = if in_store { b"stores/7".as_slice() } else { b"gitdirs/7/app".as_slice() };
             if repack {
                 invocation(&mut s, directory, COUNT, b"packs: 51\n");
             }

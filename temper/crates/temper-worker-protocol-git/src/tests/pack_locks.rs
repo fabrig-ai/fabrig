@@ -19,13 +19,13 @@ fn started() -> Started {
     let mut limits = fixtures::limits();
     limits.operations = 4;
     let settings =
-        crate::Settings { serial: fixtures::SERIAL.checked_sub(3).expect("layout names"), ..fixtures::settings() };
+        crate::Settings { serial: fixtures::SERIAL.checked_sub(4).expect("layout names"), ..fixtures::settings() };
     s.component = Component::new(&limits, &fixtures::checkout(), settings).expect("four operations");
     s.component.start(s.now, &mut s.below.out);
     let version = spawn(&mut s, b"", b"version");
     finish(&mut s, &version, b"git version 2.47.3\n", 0);
     s.component.reclaim();
-    for _ in 0_u8..12 {
+    for _ in 0_u8..15 {
         s.file_operation();
         s.complete_ok();
     }
@@ -66,11 +66,23 @@ fn spawn(s: &mut Started, directory: &[u8], word: &[u8]) -> Running {
     let request = s.below.out.io.pop().expect("next invocation");
     match &request {
         io::Request::Spawn { spawn, .. } => {
-            assert_eq!(spawn.dir.as_ref(), directory);
+            assert_eq!(spawn.dir.as_ref(), b"");
             let offset = invocation::SETTINGS.len().checked_mul(2).expect("fixed settings");
-            let arguments = spawn.args.get(offset..).expect("settings precede command");
-            let subcommand = if word == b"repack" { arguments.get(2) } else { arguments.first() };
-            assert_eq!(subcommand.expect("subcommand").as_ref(), word);
+            let mut arguments = spawn.args.get(offset..).expect("settings precede command");
+            if word == b"repack" {
+                assert_eq!(arguments.first().expect("setting flag").as_ref(), b"-c");
+                assert_eq!(arguments.get(1).expect("promisor setting").as_ref(), b"remote.origin.promisor=true");
+                arguments = arguments.get(2..).expect("command after setting");
+            }
+            if !directory.is_empty() {
+                assert_eq!(arguments.first().expect("git directory"), &invocation::joined(&[b"--git-dir=", directory]));
+                arguments = arguments.get(1..).expect("command after git directory");
+                if directory == b"gitdirs/7/app" {
+                    assert_eq!(arguments.first().expect("work tree").as_ref(), b"--work-tree=workspaces/7/app");
+                    arguments = arguments.get(1..).expect("command after work tree");
+                }
+            }
+            assert_eq!(arguments.first().expect("subcommand").as_ref(), word);
         }
         other @ (io::Request::Listen { .. }
         | io::Request::Connect { .. }
@@ -118,13 +130,15 @@ fn done(s: &mut Started, owner: Token, expected: git::Done) {
     assert_eq!(s.done(), Some((owner, expected)));
 }
 fn repository(s: &mut Started, owner: Token) {
-    let running = spawn(s, b"workspaces/7/app", b"count-objects");
+    let running = spawn(s, b"gitdirs/7/app", b"count-objects");
     finish(s, &running, b"packs: 50\n", 0);
     done(s, owner, git::Done::Succeeded);
 }
 fn update(s: &mut Started, owner: Token) {
-    let running = spawn(s, b"workspaces/7/app", b"update-ref");
+    let running = spawn(s, b"gitdirs/7/app", b"update-ref");
     finish(s, &running, b"", 0);
+    assert_eq!(s.done(), None, "the fetched terminal waits for its view");
+    super::view::empty(s);
     done(s, owner, git::Done::Fetched { commit: fixtures::COMMIT });
 }
 fn repacking(s: &mut Started) -> Running {
@@ -162,7 +176,7 @@ fn fetch_waits_until_the_pack_store_part_ends_not_its_repository_part() {
         fetch(&mut s, SECOND, Token::new(7));
         assert!(directories(&s).is_empty(), "Fetch waits for Pack's exclusive store part");
         finish(&mut s, &holding, if repack { b"" } else { b"packs: 50\n" }, 0);
-        let counting_repository = spawn(&mut s, b"workspaces/7/app", b"count-objects");
+        let counting_repository = spawn(&mut s, b"gitdirs/7/app", b"count-objects");
         let fetching = spawn(&mut s, b"stores/7", b"fetch");
         finish(&mut s, &fetching, FETCHED, 0);
         update(&mut s, SECOND);
@@ -180,7 +194,7 @@ fn a_second_pack_waits_and_a_repository_only_pack_takes_no_store_lock() {
     pack(&mut s, THIRD, None, LATER);
     repository(&mut s, THIRD);
     finish(&mut s, &holding, b"", 0);
-    let first_repository = spawn(&mut s, b"workspaces/7/app", b"count-objects");
+    let first_repository = spawn(&mut s, b"gitdirs/7/app", b"count-objects");
     let second_count = spawn(&mut s, b"stores/7", b"count-objects");
     finish(&mut s, &second_count, b"packs: 50\n", 0);
     repository(&mut s, SECOND);
@@ -232,7 +246,7 @@ fn a_fetch_arriving_after_a_waiting_pack_stays_behind_it() {
     let counting = spawn(&mut s, b"stores/7", b"count-objects");
     assert!(directories(&s).is_empty(), "the later reader waits through the store count");
     finish(&mut s, &counting, b"packs: 50\n", 0);
-    let repository_count = spawn(&mut s, b"workspaces/7/app", b"count-objects");
+    let repository_count = spawn(&mut s, b"gitdirs/7/app", b"count-objects");
     let later = spawn(&mut s, b"stores/7", b"fetch");
     let last = spawn(&mut s, b"stores/7", b"fetch");
     finish(&mut s, &later, FETCHED, 0);
@@ -367,7 +381,7 @@ fn shutdown_closes_its_directories_when_the_last_store_waiter_expires() {
     );
     done(&mut s, SECOND, git::Done::Failed { fault: git::Fault::TimedOut });
     assert!(!s.below.out.kernel.is_empty(), "shutdown must close directories after its last waiter ends");
-    for _ in 0_u8..4 {
+    for _ in 0_u8..5 {
         s.file_operation();
         s.complete_ok();
     }

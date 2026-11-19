@@ -1,7 +1,7 @@
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT};
 use crate::Kind;
+use crate::Record;
 use crate::sizes::{Cap, Sizes, WorkerCap, engine_cap, largest_body, limits, worker_cap};
-use crate::v17::Record;
 
 #[test]
 fn the_largest_turn_kept_body_is_twenty_bytes() {

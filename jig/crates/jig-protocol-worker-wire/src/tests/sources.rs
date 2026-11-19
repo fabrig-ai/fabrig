@@ -1,5 +1,5 @@
 use super::fixtures::SIZES_ONE_SLOT;
-use crate::v17::Record;
+use crate::Record;
 use crate::{
     self as wire,
     sizes::{self, Sizes},

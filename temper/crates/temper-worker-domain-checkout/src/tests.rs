@@ -1335,7 +1335,8 @@ fn a_named_pin_reuses_a_fetched_start_or_push_commit() {
                     assert_eq!(*commit, pin);
                     pointed = true;
                 }
-                Op::Reset { .. }
+                Op::Pack { .. }
+                | Op::Reset { .. }
                 | Op::Reds { .. }
                 | Op::Make { .. }
                 | Op::Store { .. }
@@ -1375,7 +1376,8 @@ fn saved_and_resolution_starts_fetch_the_named_pin_before_checkout() {
                     assert!(pinned, "pin before checkout or merge");
                     assert_eq!(*start, commit(1));
                 }
-                Op::Reset { .. }
+                Op::Pack { .. }
+                | Op::Reset { .. }
                 | Op::Reds { .. }
                 | Op::Make { .. }
                 | Op::Store { .. }

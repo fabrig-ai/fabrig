@@ -61,7 +61,8 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                 let done = match op {
                     Op::Fetch { .. } => Done::Fetched { commit: COMMIT },
                     Op::Look { .. } => Done::Looked { holds: false },
-                    Op::Reds { .. }
+                    Op::Pack { .. }
+                    | Op::Reds { .. }
                     | Op::Reset { .. }
                     | Op::Make { .. }
                     | Op::Store { .. }
@@ -158,6 +159,8 @@ fn a_prepared_hold_notes_only_fetch_and_check_out_before_forwarding_io() {
             Op::CheckOut { at: at.clone(), commit: COMMIT, clean: true, identity: 0, account: None },
             Some(Git::CheckOut { commit: COMMIT }),
         ),
+        (Op::Pack { at: at.clone(), store: Some(Token::new(0)) }, None),
+        (Op::Pack { at: at.clone(), store: None }, None),
         (Op::Point { at: at.clone(), into: Into::Landing, commit: COMMIT }, None),
         (Op::Merge { at: at.clone(), theirs: COMMIT, identity: 0, account: None }, None),
         (

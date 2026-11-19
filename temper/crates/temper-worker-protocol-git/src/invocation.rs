@@ -377,7 +377,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
     for setting in SETTINGS {
         words(&mut out, &[b"-c", setting]);
     }
-    if let Command::CheckOut { .. } | Command::Merge { .. } = command {
+    if let Command::CheckOut { .. } | Command::Merge { .. } | Command::Repack { .. } = command {
         words(&mut out, &[b"-c", b"remote.origin.promisor=true"]);
     }
     if let Some(directory) = git_dir {
@@ -427,10 +427,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
             words(&mut out, &[&git_dir, b"config", b"--local", b"--get", b"remote.origin.url"]);
         }
         Command::CountObjects { .. } => words(&mut out, &[b"count-objects", b"-v"]),
-        Command::Repack { .. } => words(
-            &mut out,
-            &[b"-c", b"remote.origin.promisor=true", b"repack", b"-A", b"-d", b"-l", b"-q", b"--no-write-bitmap-index"],
-        ),
+        Command::Repack { .. } => words(&mut out, &[b"repack", b"-A", b"-d", b"-l", b"-q", b"--no-write-bitmap-index"]),
         Command::Format => words(&mut out, &[b"rev-parse", b"--show-object-format"]),
         Command::Clone { directory, format, bare } => {
             words(&mut out, &[b"init", b"--quiet"]);

@@ -5,7 +5,7 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 pub const CLIENT_SCHEMA: &str =
-    concat!(include_str!("../schema/client-v37.schema"), include_str!("../schema/client-v37-part1.schema"));
+    concat!(include_str!("../schema/client-v38.schema"), include_str!("../schema/client-v38-part1.schema"));
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
