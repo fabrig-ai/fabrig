@@ -267,8 +267,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     merge, naming the operation, its resource and the refusal or forge
     answer, with its outbox entry and the task's release command;
   - its pull request refused for a cause not stale, `turn: WHY`; its
-    merge not made and read again, its branch at the round's base and
-    its pull request not closed (section 8), `turn: merge of #N: WHY;
+    merge not made, read again at the round's base with its pull request
+    not closed, refused or past its bound (section 8), `turn: merge of #N: WHY;
     read #N STATE, BRANCH at TIP`.
 
   A step a member's change makes (its judgement, its repair) is
@@ -703,19 +703,23 @@ The default, for a project with no prepare command:
   raced by a push to the branch, a goal's design delivery among them
   (`forge/branches.md`, 1), is one: Forgejo answers it `500`, which the
   client keeps as a lost answer (skein's `forge/forgejo.md`, 1.2). An
-  outcome but made, a refusal or a merge unknown past those tries, reads
-  afresh the train's tip, whether it holds the candidate, and the
-  round's pull request:
+  outcome but made reads afresh the train's tip, whether it holds the
+  candidate, and the round's pull request; one not known refused (lost
+  past those tries, withdrawn before completion, held uncertain) is
+  unknown, never failed:
   - the tip holds the candidate, or the pull request reads merged at
     it: every member lands, as by readback;
   - the tip is another than the round's base: the round is stale;
   - the pull request reads closed, not merged: the round ends unlanded
     and the landing prepares again in a new round, keeping its
     receipts, as after a release (4.2);
-  - else the tries ran out: the landing holds, `turn: merge of #N: WHY;
-    read #N STATE, BRANCH at TIP`, WHY the forge's last answer in its
-    effect's words (`forge timed out`), STATE `open` or `merged at
-    COMMIT`, commits in hexadecimal at the forge's length. Its release
+  - else, the tip at the base, an unknown merge is asked again while
+    the round's merges number fewer than `forge.client.write_attempts`;
+    a refusal, or the round's merges at that bound, holds: `turn: merge
+    of #N: WHY; read #N STATE, BRANCH at TIP`, WHY the last outcome in
+    its effect's words (`forge timed out`, `withdrawn before
+    completion`), STATE `open` or `merged at COMMIT`, commits in
+    hexadecimal at the forge's length. Its release
     prepares it again in a new round (4.2), and it holds its own train
     alone (section 9).
 - **On GitHub,** which merges no pull request fast-forward, the turn
@@ -1034,7 +1038,8 @@ ceilings on the shipped capacities; a goal's delivery leaving its
 landing mid-proof, or sharing its run; a turn's merge not made (8):
 raced by a goal's design delivery and answered `500`, its round ending
 with no hold and the next landing; lost and found merged, landed; lost
-with its pull request open, made again and landed; closed unmerged,
+with its pull request open, made again and landed; withdrawn with it
+open, asked again and landed; closed unmerged,
 prepared again; past its tries, held with what it read, another goal's
 train landing beside it; two goals' changes, each
 approved by its review and waiting on one person task, released
