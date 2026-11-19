@@ -127,7 +127,7 @@ pub fn decode_request(value: &Json, limits: &Limits) -> Result<Request, DecodeEr
     match super::request::validate(&prompt, u32::MAX, limits) {
         Ok(()) => Ok(Request { prompt, marks }),
         Err(crate::Error::Limit { which, bound }) => Err(DecodeError::TooLarge { which, bound }),
-        Err(crate::Error::Invalid | crate::Error::Unsupported) => Err(DecodeError::Malformed),
+        Err(crate::Error::Invalid { .. } | crate::Error::Unsupported { .. }) => Err(DecodeError::Malformed),
     }
 }
 

@@ -31,9 +31,9 @@ impl Error {
     #[must_use]
     pub const fn from_client(error: skein_llm::Error) -> Self {
         match error {
-            skein_llm::Error::Invalid => Self::Invalid,
+            skein_llm::Error::Invalid { .. } => Self::Invalid,
             skein_llm::Error::Limit { which, bound } => Self::PathLimit { which: crate::failure::cap(which), bound },
-            skein_llm::Error::Unsupported => Self::Unsupported,
+            skein_llm::Error::Unsupported { .. } => Self::Unsupported,
         }
     }
 }
