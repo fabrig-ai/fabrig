@@ -284,17 +284,11 @@ fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
     let mut counts = skein_lib::List::with_capacity(ceilings.manifest_counts);
     for _ in 0..ceilings.manifest_counts {
         counts
-            .push(
-                codec::component::Count::new(
-                    ceilings,
-                    codec::component::CountParts {
-                        family: Box::from("f".repeat(skein_lib::length::usize_of(ceilings.count_family)).as_bytes()),
-                        before: u64::MAX,
-                        after: u64::MAX,
-                    },
-                )
-                .expect("family name at its bound"),
-            )
+            .push(codec::component::Count {
+                family: Box::from("f".repeat(skein_lib::length::usize_of(ceilings.count_family)).as_bytes()),
+                before: u64::MAX,
+                after: u64::MAX,
+            })
             .expect("families at their bound");
     }
     let levels = crate::upgrade::admission::Levels {

@@ -1,4 +1,5 @@
 //! Temper's worlds over jig's real store and the service's store routing.
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
 use jig_test_store_files::Files;
 use skein_lib::{Env, Queue, Time, Token, Wall};

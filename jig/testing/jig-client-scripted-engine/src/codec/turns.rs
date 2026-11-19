@@ -1,5 +1,6 @@
 //! Committed turns use the engine's transcript codec (client/domain/contract/README.md, 8).
-use super::{List, bytes, c, encoded, problem, w};
+use super::{List, bytes, c, problem, w};
+use smith_transcript::Record;
 use smith_transcript::v7 as t;
 
 pub(super) fn turn_bytes(value: &c::TurnRead, limits: &w::Limits) -> Result<w::TurnBytes, w::Problem> {
@@ -17,42 +18,34 @@ pub(super) fn turn_bytes(value: &c::TurnRead, limits: &w::Limits) -> Result<w::T
 fn turn(value: &c::Turn) -> Result<Box<[u8]>, w::Problem> {
     let limits = &t::CEILINGS;
     let messages = turn_messages(value)?;
-    let usage = t::Usage::new(
-        limits,
-        t::UsageParts {
-            input: Some(value.used.input),
-            output: Some(value.used.output),
-            cache_read: Some(value.used.cached),
-            cache_write: Some(value.used.cache_written),
-            reasoning: None,
-        },
-    )
-    .map_err(|_| problem())?;
+    let usage = t::Usage {
+        input: Some(value.used.input),
+        output: Some(value.used.output),
+        cache_read: Some(value.used.cached),
+        cache_write: Some(value.used.cache_written),
+        reasoning: None,
+    };
     let (model, effort) = match &value.llm {
         Some(llm) => {
             (bytes::copy_of(llm.model.bytes()), llm.effort.as_ref().map(|effort| bytes::copy_of(effort.bytes())))
         }
         None => (bytes::copy_of(&[]), None),
     };
-    let turn = t::Turn::new(
-        limits,
-        t::TurnParts {
-            system: None,
-            kind: t::TurnKind::Ordinary,
-            opening: None,
-            endpoint: Box::new([]),
-            model,
-            effort,
-            dialect: 3,
-            place: 0,
-            usage,
-            spent: value.spent,
-            jobs: 0,
-            messages,
-        },
-    )
-    .map_err(|_| problem())?;
-    encoded(&turn, t::Turn::measure, t::Turn::encode)
+    let turn = t::Turn {
+        system: None,
+        kind: t::TurnKind::Ordinary,
+        opening: None,
+        endpoint: Box::new([]),
+        model,
+        effort,
+        dialect: 3,
+        place: 0,
+        usage,
+        spent: value.spent,
+        jobs: 0,
+        messages,
+    };
+    turn.encode(limits).map_err(|_| problem())
 }
 
 fn has_result(turn: &c::Turn, number: u64) -> bool {
@@ -61,24 +54,15 @@ fn has_result(turn: &c::Turn, number: u64) -> bool {
     })
 }
 
-fn result(call: u64, text: &c::Text, failed: bool) -> Result<t::Block, w::Problem> {
-    let limits = &t::CEILINGS;
-    let said = t::Said::new(limits, t::SaidParts { text: bytes::copy_of(text.bytes()), error: failed })
-        .map_err(|_| problem())?;
-    Ok(t::Block::Result(
-        t::ToolResult::new(
-            limits,
-            t::ToolResultParts {
-                id: bytes::copy_of(skein_lib::Decimal::of(call).as_bytes()),
-                returned: t::Returned::Said(said),
-            },
-        )
-        .map_err(|_| problem())?,
-    ))
+fn result(call: u64, text: &c::Text, failed: bool) -> t::Block {
+    let said = t::Said { text: bytes::copy_of(text.bytes()), error: failed };
+    t::Block::Result(t::ToolResult {
+        id: bytes::copy_of(skein_lib::Decimal::of(call).as_bytes()),
+        returned: t::Returned::Said(said),
+    })
 }
 
 fn turn_messages(value: &c::Turn) -> Result<List<t::Message>, w::Problem> {
-    let limits = &t::CEILINGS;
     let mut messages = Vec::new();
     for message in &value.messages {
         let role = match message.speaker {
@@ -94,13 +78,10 @@ fn turn_messages(value: &c::Turn) -> Result<List<t::Message>, w::Problem> {
                 && let Some(outcome) = &call.outcome
                 && !has_result(value, call.number)
             {
-                blocks.push(result(call.number, outcome, call.failed)?);
+                blocks.push(result(call.number, outcome, call.failed));
             }
         }
-        messages.push(
-            t::Message::new(limits, t::MessageParts { role, blocks: List::from_boxed(blocks.into_boxed_slice()) })
-                .map_err(|_| problem())?,
-        );
+        messages.push(t::Message { role, blocks: List::from_boxed(blocks.into_boxed_slice()) });
     }
     Ok(List::from_boxed(messages.into_boxed_slice()))
 }
@@ -108,39 +89,24 @@ fn turn_messages(value: &c::Turn) -> Result<List<t::Message>, w::Problem> {
 fn turn_block(block_source: &c::Block) -> Result<t::Block, w::Problem> {
     let limits = &t::CEILINGS;
     Ok(match block_source {
-        c::Block::Text(value) => t::Block::Text(
-            t::Text::new(limits, t::TextParts { text: bytes::copy_of(value.bytes()), replay: None })
-                .map_err(|_| problem())?,
-        ),
-        c::Block::Call(value) => t::Block::Call(
-            t::Call::new(
-                limits,
-                t::CallParts {
-                    id: bytes::copy_of(skein_lib::Decimal::of(value.number).as_bytes()),
-                    name: bytes::copy_of(value.tool.bytes()),
-                    input: bytes::copy_of(value.input.bytes()),
-                    replay: None,
-                },
-            )
-            .map_err(|_| problem())?,
-        ),
-        c::Block::Result { call, summary, failed } => result(*call, summary, *failed)?,
+        c::Block::Text(value) => t::Block::Text(t::Text { text: bytes::copy_of(value.bytes()), replay: None }),
+        c::Block::Call(value) => t::Block::Call(t::Call {
+            id: bytes::copy_of(skein_lib::Decimal::of(value.number).as_bytes()),
+            name: bytes::copy_of(value.tool.bytes()),
+            input: bytes::copy_of(value.input.bytes()),
+            replay: None,
+        }),
+        c::Block::Result { call, summary, failed } => result(*call, summary, *failed),
         c::Block::Opaque { dialect, size } => {
             let dialect =
                 core::str::from_utf8(dialect.bytes()).map_err(|_| problem())?.parse::<u32>().map_err(|_| problem())?;
             if *size > u64::from(limits.opaque_bytes) {
                 return Err(problem());
             }
-            t::Block::Opaque(
-                t::Opaque::new(
-                    limits,
-                    t::OpaqueParts {
-                        dialect,
-                        bytes: vec![0; usize::try_from(*size).map_err(|_| problem())?].into_boxed_slice(),
-                    },
-                )
-                .map_err(|_| problem())?,
-            )
+            t::Block::Opaque(t::Opaque {
+                dialect,
+                bytes: vec![0; usize::try_from(*size).map_err(|_| problem())?].into_boxed_slice(),
+            })
         }
     })
 }

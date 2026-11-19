@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(3).expect("store family").current,
-        jig_protocol_store::core_v6, sealed,
+        jig_protocol_store::core_v6, lean,
         limits [
             escalation_decision_reject_reason,
             settled_answer_host_body,
@@ -44,7 +44,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(7).expect("store family").current,
-        jig_protocol_store::accounts_v2, sealed,
+        jig_protocol_store::accounts_v2, lean,
         limits [
             account_uses_some,
             account_subject,
@@ -63,7 +63,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.first().expect("store family").current,
-        jig_protocol_store::component_v3, sealed,
+        jig_protocol_store::component_v3, lean,
         limits [
             wire_name,
             wires_wires,
@@ -92,7 +92,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(6).expect("store family").current,
-        jig_protocol_store::notes_v1, sealed,
+        jig_protocol_store::notes_v1, lean,
         limits [
             segment_bytes,
             pattern_segments,
@@ -108,7 +108,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(1).expect("store family").current,
-        jig_protocol_store::openings_v1, sealed,
+        jig_protocol_store::openings_v1, lean,
         limits [
             opened_wire_name,
             opened_wire_layouts,
@@ -123,7 +123,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(2).expect("store family").current,
-        jig_protocol_store::registry_v1, sealed,
+        jig_protocol_store::registry_v1, lean,
         limits [
             layout_root,
             layout_variant_some,
@@ -139,7 +139,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(9).expect("store family").current,
-        jig_protocol_store::secrets_v1, sealed,
+        jig_protocol_store::secrets_v1, lean,
         limits [
             source_record_record,
             source_key_key,
@@ -268,7 +268,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_store::STORE_FAMILIES.get(8).expect("store family").current,
-        jig_protocol_store::settings_v3, sealed,
+        jig_protocol_store::settings_v3, lean,
         limits [
             text_bytes,
             override_name,

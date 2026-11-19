@@ -8,7 +8,8 @@ use skein_fake_llm_domain::{self as fake, api};
 use skein_fake_llm_protocol::documents;
 use skein_lib::{Env, Queue, ReplyTo, Time, Token, Wall, Writer};
 use skein_llm::openai::{self, Output, Part};
-use smith_transcript::{self as smith, Block, Turn, TurnParts};
+use smith_transcript::Record;
+use smith_transcript::{self as smith, Block, Turn};
 use temper_twin_tool::{Input, Replace, twin};
 
 // The checked fixtures contain six chat, five work, four coding and one review turn.
@@ -64,10 +65,7 @@ pub(super) fn decoded(answer: &api::Answer) -> (Vec<Block>, smith::Usage) {
             }
             Output::Part(Part::ToolCall { call_id, name, input, too_large, cut, .. }) => {
                 assert!(!too_large && !cut, "whole scripted call");
-                blocks.push(Block::Call(
-                    smith::Call::new(&smith::CEILINGS, smith::CallParts { id: call_id, name, input, replay: None })
-                        .expect("replayed call"),
-                ));
+                blocks.push(Block::Call(smith::Call { id: call_id, name, input, replay: None }));
             }
             Output::Completed { stop, usage } => {
                 let expected = match answer.finish {
@@ -86,17 +84,13 @@ pub(super) fn decoded(answer: &api::Answer) -> (Vec<Block>, smith::Usage) {
         }
     }
     let usage = terminal.expect("completion terminal");
-    let usage = smith::Usage::new(
-        &smith::CEILINGS,
-        smith::UsageParts {
-            input: usage.input,
-            output: usage.output,
-            cache_read: usage.cache_read,
-            cache_write: usage.cache_write,
-            reasoning: usage.reasoning,
-        },
-    )
-    .expect("replayed usage");
+    let usage = smith::Usage {
+        input: usage.input,
+        output: usage.output,
+        cache_read: usage.cache_read,
+        cache_write: usage.cache_write,
+        reasoning: usage.reasoning,
+    };
     (blocks, usage)
 }
 
@@ -134,13 +128,13 @@ fn replay(input: &Input, document: &[u8]) {
             assert!(out.is_empty(), "one reply per turn");
             let answer = result.expect("scripted answer");
             let (blocks, usage) = decoded(&answer);
-            let mut parts =
-                smith::decode_archived(&smith::CEILINGS, &record.transcript).expect("recorded turn").into_parts();
+            let mut parts = smith::decode_archived(&smith::CEILINGS, &record.transcript).expect("recorded turn");
             completion(&mut parts, blocks);
             parts.usage = usage;
-            let turn = Turn::new(&smith::CEILINGS, parts).expect("replayed turn");
-            let mut writer = Writer::new(turn.measure() as usize);
-            turn.encode(&mut writer).expect("Smith turn encoding");
+            let turn = parts;
+            let mut writer =
+                Writer::new(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript") as usize);
+            turn.write(&smith_transcript::CEILINGS, &mut writer).expect("Smith turn encoding");
             record.transcript = writer.finish();
             let mut results = Vec::new();
             for part in &answer.parts {
@@ -188,10 +182,8 @@ fn recorded_tasks_keep_their_scripts_through_a_round_trip() {
 #[test]
 fn dropped_and_replaced_blocks_stay_normalized_through_a_round_trip() {
     let (_scratch, mut input) = fixture(&TASKS);
-    let mut parts: TurnParts = first(&input);
-    let opaque =
-        smith::Opaque::new(&smith::CEILINGS, smith::OpaqueParts { dialect: 1, bytes: b"opaque".as_slice().into() })
-            .expect("opaque block");
+    let mut parts: Turn = first(&input);
+    let opaque = smith::Opaque { dialect: 1, bytes: b"opaque".as_slice().into() };
     completion(
         &mut parts,
         vec![
@@ -220,9 +212,9 @@ fn text_and_missing_tokens_stay_normalized_through_a_round_trip() {
     let (_scratch, input) = fixture(&TASKS);
     let mut parts = first(&input);
     completion(&mut parts, vec![text("CSV reply")]);
-    let mut usage = parts.usage.into_parts();
+    let mut usage = parts.usage;
     usage.output = None;
-    parts.usage = smith::Usage::new(&smith::CEILINGS, usage).expect("missing output tokens");
+    parts.usage = usage;
     save_first(&input, parts);
     let document = round_trip(input, &NO_DROPS, &[]);
     assert_eq!(document["cued"][0]["turns"][0], json!({"lines":[{"text":"CSV reply"}], "finish":"stop", "tokens":1}));

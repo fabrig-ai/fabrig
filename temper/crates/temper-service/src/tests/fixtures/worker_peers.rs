@@ -8,6 +8,7 @@ use jig_protocol_worker_link as link;
 use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{Intake, List, Queue, Time, Token, Wall, stream};
+use smith_transcript::Record;
 use temper_worker_domain as root;
 
 pub(crate) use super::link_peer::{LinkPeer, demanded_bytes};
@@ -285,48 +286,27 @@ pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]
     use smith_transcript::v7 as transcript;
     let limits = &agent.limits.transcript;
     let mut blocks = List::with_capacity(1);
-    blocks
-        .push(transcript::Block::Text(
-            transcript::Text::new(limits, transcript::TextParts { text: text.into(), replay: None }).unwrap(),
-        ))
-        .unwrap();
+    blocks.push(transcript::Block::Text(transcript::Text { text: text.into(), replay: None })).unwrap();
     let mut messages = List::with_capacity(1);
-    messages
-        .push(
-            transcript::Message::new(limits, transcript::MessageParts { role: transcript::Role::Assistant, blocks })
-                .unwrap(),
-        )
-        .unwrap();
-    let turn = transcript::Turn::new(
-        limits,
-        transcript::TurnParts {
-            system: None,
-            kind: transcript::TurnKind::Ordinary,
-            opening: turn_opening(limits, number),
-            endpoint: b"fake".as_slice().into(),
-            model: b"small".as_slice().into(),
-            effort: None,
-            dialect: fixtures::DIALECT,
-            place: number,
-            usage: transcript::Usage::new(
-                limits,
-                transcript::UsageParts {
-                    input: None,
-                    output: None,
-                    cache_read: None,
-                    cache_write: None,
-                    reasoning: None,
-                },
-            )
-            .unwrap(),
-            spent: 0,
-            jobs: 0,
-            messages,
-        },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(turn.measure()).unwrap());
-    turn.encode(&mut writer).unwrap();
+    messages.push(transcript::Message { role: transcript::Role::Assistant, blocks }).unwrap();
+    let turn = transcript::Turn {
+        system: None,
+        kind: transcript::TurnKind::Ordinary,
+        opening: turn_opening(limits, number),
+        endpoint: b"fake".as_slice().into(),
+        model: b"small".as_slice().into(),
+        effort: None,
+        dialect: fixtures::DIALECT,
+        place: number,
+        usage: transcript::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+        spent: 0,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+    );
+    turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 
@@ -341,22 +321,12 @@ fn agent_spawn(worker: &mut crate::Worker) -> Token {
     panic!("assigned process spawn");
 }
 
-fn turn_opening(limits: &smith_transcript::v7::Limits, number: u32) -> Option<smith_transcript::v7::Opening> {
+fn turn_opening(_limits: &smith_transcript::v7::Limits, number: u32) -> Option<smith_transcript::v7::Opening> {
     use smith_transcript::v7 as t;
     if number != 1 {
         return None;
     }
-    Some(
-        t::Opening::new(
-            limits,
-            t::OpeningParts {
-                affinity: t::Affinity::new(limits, t::AffinityParts { key: [0; 16], thread: 0 }).unwrap(),
-                account: None,
-                backend: t::Backend::Direct,
-            },
-        )
-        .unwrap(),
-    )
+    Some(t::Opening { affinity: t::Affinity { key: [0; 16], thread: 0 }, account: None, backend: t::Backend::Direct })
 }
 
 // Each peer leaves the other peer's IO queued. This lets the same concrete
