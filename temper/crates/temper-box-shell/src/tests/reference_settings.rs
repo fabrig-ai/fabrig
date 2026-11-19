@@ -283,13 +283,12 @@ fn reference_engine(reference: bool) -> jig_protocol_config::Engine {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16384, depth: 32 },
     )
     .expect("engine document");
-    let mut engine = jig_protocol_config::engine_over(
+    let mut engine = temper_service::startup::engine_over(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &temper_service::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        &base,
+        &temper_service::stock::Given::Stock,
+        &mut base,
     )
     .expect("reference engine");
     let stock = temper_service::stock::defaults(&engine.llm, engine.limits.core.tasks.result_bytes);
