@@ -36,6 +36,13 @@ pub enum Fault {
     DifferentDecision,
 }
 
+/// Construct the testing application with one selected boundary corruption.
+#[must_use]
+pub fn world(fault: Fault) -> jig_conformance::Harness<Testing> {
+    let scenario = (fault == Fault::StaleVerdict).then_some(jig_conformance::scenarios::Scenario::ChangedJudge);
+    jig_conformance::Harness::new(Config::new(31, false, 2, scenario).broken(fault), 31)
+}
+
 type EngineOutput = Output<root::Write, Delivery>;
 
 pub(crate) fn input(
