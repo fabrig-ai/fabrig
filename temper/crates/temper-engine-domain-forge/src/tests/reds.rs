@@ -15,7 +15,8 @@ pub(crate) fn name(goal: u64) -> Name {
 }
 pub(crate) fn take(d: &mut Domain, limits: &Limits, goal: u64) {
     d.restore_begin(Wall::EPOCH);
-    let hold = Hold { name: name(goal), task: goal, writer: None, design_writers: Box::new([]), drift: None };
+    let hold =
+        Hold { name: name(goal), task: goal, writer: None, beside: None, design_writers: Box::new([]), drift: None };
     step(d, &env().with(*limits), Event::Restore { record: Stored::Hold(hold) }, &mut Queue::uncapped());
 }
 pub(crate) fn call(goal: u64, key: &[u8]) -> RecordRed {
@@ -119,6 +120,7 @@ fn only_a_task_holding_a_goal_branch_can_record_or_end() {
                 name: ordinary,
                 task: 8,
                 writer: None,
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),

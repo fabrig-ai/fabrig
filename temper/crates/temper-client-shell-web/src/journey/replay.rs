@@ -54,7 +54,10 @@ impl Replay {
     pub fn new(recording: &[u8]) -> Result<Self, Refusal> {
         Self::from_lines(lines(recording).map_err(Refusal::Unreadable)?)
     }
-    /// Start from parsed records, checking the same ordered facts and final end as `new`.
+    /// Start from already parsed lines, with the same envelope checks as `new`.
+    ///
+    /// # Errors
+    /// Refuses malformed facts, versions and a missing final end.
     pub fn from_lines(lines: Vec<Line>) -> Result<Self, Refusal> {
         let (lines, facts, at) = read_lines(lines).map_err(Refusal::Unreadable)?;
         let (host, page) = facts.start();
@@ -360,9 +363,20 @@ pub fn prove(recording: &[u8]) -> Result<Box<[u8]>, Refusal> {
 /// # Errors
 /// Refuses a stale replay, a bare mark or the first differing html byte.
 pub fn prove_drawn(recording: &[u8], drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Box<[u8]>, Refusal> {
+    let lines = prove_lines_drawn(lines(recording).map_err(Refusal::Unreadable)?, drawn)?;
     let mut out = Vec::new();
-    for line in Replay::new(recording)?.prove_drawn(drawn)? {
+    for line in lines {
         line.write(&mut out);
     }
     Ok(out.into())
+}
+/// Prove parsed lines, then drop the live html, without writing and reading them again.
+///
+/// # Errors
+/// Refuses an unreadable envelope, a stale replay, a bare mark or differing html.
+pub fn prove_lines(lines: Vec<Line>) -> Result<Vec<Line>, Refusal> {
+    prove_lines_drawn(lines, &mut |_, _| {})
+}
+fn prove_lines_drawn(lines: Vec<Line>, drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Vec<Line>, Refusal> {
+    Replay::from_lines(lines)?.prove_drawn(drawn)
 }

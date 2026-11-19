@@ -691,7 +691,17 @@ fn the_launchpad_says_each_state() {
         ("before me", &before, &ordinary, &["Connecting to 127.0.0.1:8367"][..], None),
         ("starting", &starting, &ordinary, &["Connecting to 127.0.0.1:8367"][..], None),
         ("signing", &signed_out, &signing, &["Connecting to 127.0.0.1:8367"][..], None),
-        ("out of date", &stale, &ordinary, &["This temper is out of date: run the temper the engine runs."][..], None),
+        (
+            "out of date",
+            &stale,
+            &ordinary,
+            &[
+                "temper",
+                "127.0.0.1:8367 runs another build of temper.",
+                "Start the build 127.0.0.1:8367 runs, then try again.",
+            ][..],
+            None,
+        ),
         (
             "not kept",
             &start,
@@ -722,7 +732,9 @@ fn the_launchpad_says_each_state() {
         for line in lines {
             expected.push(line.as_bytes()).unwrap();
         }
-        start_lines(&mut expected, part.project.as_deref(), part.drafts);
+        if !crate::refused(root, tui) {
+            start_lines(&mut expected, part.project.as_deref(), part.drafts);
+        }
         if tui.notice().is_some() {
             let notice = f::find(view.tree(), Role::Text, "Unknown command /unknown · /help lists them".as_bytes());
             assert_eq!(notice.styles.as_slice(), &[look::SIGNAL]);
@@ -742,7 +754,7 @@ fn the_launchpad_says_each_state() {
                 good &= node.styles.as_slice() == [look::REFUSED];
             }
         }
-        if !good || bound != 1 {
+        if !good || bound != u32::from(!crate::refused(root, tui)) {
             failures.push(name).unwrap();
         }
         words = view.into_words();
@@ -763,7 +775,6 @@ fn the_launchpad_says_each_state() {
         (&starting, &ordinary, "● Connecting", look::WAITING, "● Connecting"),
         (&signed_out, &signing, "● Connecting", look::WAITING, "● Connecting"),
         (&offline, &ordinary, "● Offline", look::DOWN, "● Offline · Hello"),
-        (&stale, &ordinary, "● Out of date", look::DOWN, "● Out of date"),
     ] {
         let view = build_with_words(root, tui, words);
         let (left, right) = f::bottom_halves(view.tree());
@@ -1716,4 +1727,35 @@ fn needs_and_the_quiet_line_cross_projects_only_on_the_launchpad() {
     );
     let chat = home_projects(Some(false), &[], &[], true, None, Address::Chat { task: CHAT }, LEDE.as_bytes(), true);
     assert_eq!(foot::read(&chat, &Tui::new(f::ADDRESS), &f::words(), NOW).needs.count, 1);
+}
+
+#[test]
+fn named_launchpad_places_and_open_pages_follow_the_origin() {
+    for (port, place, origin) in [
+        (443, b"dev.fabrig.ai".as_slice(), b"https://dev.fabrig.ai".as_slice()),
+        (8443, b"dev.fabrig.ai:8443", b"https://dev.fabrig.ai:8443"),
+    ] {
+        let tui = Tui::new(&super::origin::named(port));
+        let root = home(Some(true), &[]);
+        let view = build(&root, &tui);
+        assert_eq!(f::find(view.tree(), Role::Text, place).styles.as_slice(), &[look::HINT]);
+        let before = f::live(None).0;
+        let view = build(&before, &tui);
+        f::find(view.tree(), Role::Paragraph, &skein_lib::bytes::concat(&[b"Connecting to ", place]));
+        let none = f::live(Some(f::me(&[]))).0;
+        let view = build(&none, &tui);
+        f::find(
+            view.tree(),
+            Role::Paragraph,
+            &skein_lib::bytes::concat(&[
+                b"Setting temper up makes your first project: open ",
+                origin,
+                b" in a browser.",
+            ]),
+        );
+        let chat = surface_root(SurfacePage::Chat);
+        let view = build(&chat, &tui);
+        let url = skein_lib::bytes::concat(&[origin, b"/chats/9"]);
+        assert_eq!(crate::focus(&view), Some(url.as_ref()));
+    }
 }

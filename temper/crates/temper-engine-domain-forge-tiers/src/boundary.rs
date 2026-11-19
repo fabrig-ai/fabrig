@@ -44,6 +44,17 @@ pub enum Failures {
     Many,
 }
 
+/// What a report read as many still names (after-landing.md, section 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ManyTests {
+    /// Failed ids read whole within `test_id_bytes`: the lowest `failing_tests`, sorted, unique.
+    pub tests: Box<[TestId]>,
+    /// The report's other failed cases or lines: each listing of an id not kept.
+    pub more: u32,
+    /// The read was cut at its bound: `more` is a floor.
+    pub cut: bool,
+}
+
 /// A report file its format cannot read.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unreadable;

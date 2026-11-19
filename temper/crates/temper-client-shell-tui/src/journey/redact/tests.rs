@@ -376,15 +376,27 @@ impl World {
             plain: false,
             version: Box::default(),
             boxed: false,
-            address: address.into(),
+            address: temper_client_tui::Origin::Http(
+                std::str::from_utf8(address).unwrap().parse().expect("fixture socket"),
+            ),
             front,
             local: front,
             note: None,
             kept: Vec::new(),
             credential: None,
         };
+        Self::with_facts(&facts)
+    }
+    pub fn with_version(version: &[u8]) -> Self {
+        let mut facts = super::super::tests::fixture::facts();
+        facts.version = version.into();
+        facts.size = Size { rows: 16, columns: 100 };
+        facts.credential = Some(skein_lib::Secret::new(Box::new([7; 40])));
+        Self::with_facts(&facts)
+    }
+    fn with_facts(facts: &Facts) -> Self {
         let (host, start) = facts.start();
-        let mut world = Self { host, recorder: Recorder::new(&facts), now: 1 };
+        let mut world = Self { host, recorder: Recorder::new(facts), now: 1 };
         world.report(start);
         world
     }
@@ -469,10 +481,6 @@ fn redacted_approval_proves_and_replays_to_its_end() {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one table checks found links in either form and the unsent welcome's redaction"
-)]
 fn found_links_are_redacted_even_when_never_sent() {
     let url = printed_link();
     let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)

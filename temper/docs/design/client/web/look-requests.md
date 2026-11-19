@@ -16,10 +16,13 @@ A look request's round trip: drawing it, landing it, accounting for it and check
   page change into the stylesheets and view, for every state the
   request names, at every width, in the browser and the terminal
   (section 3).
-- **The render check follows the landing:** the request's pages under
-  their overlay against the reprint under the landed stylesheets, at
-  three widths with each disclosure and menu open, on main; what differs
-  goes back as a finding (section 4).
+- **Compared by a reprint, never committed:** whoever lands a request
+  reprints in its own tree and compares; main's pages follow from the
+  journeys' writer (`../journey-writer.md`) after the landing (section 3).
+- **The render check follows the writer's print:** the request's pages
+  under their overlay against main's pages under the landed stylesheets,
+  at three widths with each disclosure and menu open; what differs goes
+  back as a finding (section 4).
 - **A landing accounts for each item:** a table in its last commit,
   each rule and change landed, differing with its reason, or deferred
   to a named owner; the plan is complete when it lands with no row left
@@ -32,9 +35,10 @@ A look request's round trip: drawing it, landing it, accounting for it and check
 ## 2. The request
 
 - **On the latest prints.** Before a request is drawn, its branch is on
-  `origin/main` through `look-refresh.sh` and a stale journey recorded
-  again, so that the reprint can equal the request's pages
-  (`journeys.md`, 8; `../tui/journeys.md`, 8).
+  `origin/main` through `look-refresh.sh`, on main's pages as the
+  journeys' writer last printed them (`../journey-writer.md`, 6). A
+  journey whose print lags a landing is the writer's to walk again,
+  never the person's.
 - **The diff is the request:** the overlay's rules and the pages'
   changes. The browser's print, selectors, stylesheet and overlay files
   are `journeys.md`, 7; the TUI's frames and theme are
@@ -95,15 +99,20 @@ compare, and is complete when it lands:
    The TUI's rules go into `temper-client-tui`'s theme, its frames'
    changes into its view and words (`../tui/journeys.md`, 10). The
    request's own commit, edited pages and overlay are never landed;
-   main's overlays stay empty (`journeys.md`, 6 and 7;
-   `../tui/journeys.md`, 10).
+   main's overlays stay empty, which the delivery check holds
+   (`../journey-writer.md`, 5).
 5. **The terminal:** a region, heading or order the request moves or
    removes is checked in the terminal's prints, which keep their
    meaning: a heading the browser drops by style stays a heading.
-6. **Reprint** every journey whose pages change, and record one again
-   where it has gone stale (`journeys.md`, 8; `../tui/journeys.md`, 8).
-   The reprint equals the request's pages where their facts agree; a
-   hand-made page's values need not be a journey's.
+6. **Compare by a reprint,** `cargo run -p temper-client-journeys`, in
+   the landing's own tree: each page the request changes against the
+   request's commit's. They are equal where their facts agree; a
+   hand-made page's values need not be a journey's. Then restore the
+   journeys' files to the base's: the landing commits no recording,
+   page or file printed beside them, which the journeys' writer prints
+   after it lands (`../journey-writer.md`, 6). A journey the reprint
+   finds stale is the writer's to walk again; its comparison is the
+   render check's (section 4).
 7. **Account** (section 5), and bring the design text in line: the
    client's `../README.md` and `README.md`, the journeys' `README.md`
    files, `journeys.md`, 9, and the mockups' `../mockups/STATUS.md`.
@@ -116,15 +125,15 @@ requests take the reprint as it is.
 
 ## 4. The render check
 
-After the landing, on main, outside the plan. Whoever owns the
-after-landing check carries out this comparison; it is not the journeys'
-print test. That test compares the reprint with the committed pages
-alone, byte for byte, and refuses a nonempty overlay (`journeys.md`, 6).
-It establishes no rendered equality with a request.
+After the landing, once the journeys' writer has printed it on main
+(`../journey-writer.md`, 4), outside the plan. Whoever owns the
+after-landing check carries out this comparison; a reprint compared
+byte for byte establishes no rendered equality with a request.
 
 - **What is compared:** each page the request changes, from its own
-  commit with the overlay as it stood there, against the same page
-  reprinted with the landed stylesheets and an empty overlay.
+  commit with the overlay as it stood there, against the same page as
+  the writer printed it on main, with the landed stylesheets and an
+  empty overlay.
 - **How:** headless Chromium at 1440, 1000 and 420 pixels wide, with
   each disclosure and menu forced open, comparing each element's
   computed style and box, then the screenshots for what styles miss.
@@ -153,8 +162,9 @@ per page change and per state the message names.
   check files every difference (section 4). A deferred row is carried by
   the design status or draft status that names its owner, not by the request.
 - **A request is dropped** from its branch by `look-refresh.sh` once
-  main carries its trailer; a deferred row survives it only where the
-  account put it (`journeys.md`, 7).
+  the last `Printed:` on main covers the commit carrying its trailer; a
+  deferred row survives it only where the account put it (`journeys.md`,
+  7; `../journey-writer.md`, 6).
 
 ## 6. More than the look
 

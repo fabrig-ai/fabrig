@@ -417,6 +417,7 @@ fn add_holds(name: &top::Name, rows: &mut List<(&'static str, top::Stored)>) {
         rows.push((
             label,
             top::Stored::Hold(top::Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 1,
@@ -1148,6 +1149,7 @@ pub fn tier_row() -> top::TierRow {
             .unwrap();
     }
     top::TierRow {
+        many: None,
         posting: None,
         hold: None,
         observations: Box::new([b'o'; 8192]),

@@ -1,24 +1,25 @@
-//! The engine's place (temper/docs/design/client/tui/README.md, 2 and temper/docs/design/client/tui/pages/README.md).
+//! The engine's place (temper/docs/design/client/tui/pages/chat.md, 1).
+use crate::Origin;
 use alloc::boxed::Box;
-use skein_lib::{Writer, bytes::copy_of};
+use skein_lib::{
+    Decimal,
+    bytes::{concat, copy_of},
+};
 
-/// A box's name and non-default port, or the address as given.
+/// A box's name and non-default port, or the engine's place unboxed.
 #[must_use]
-pub fn place(address: &[u8], boxed: bool) -> Box<[u8]> {
-    if !boxed {
-        return copy_of(address);
-    }
-    let mut port = b"8367".as_slice();
-    for (at, byte) in address.iter().enumerate() {
-        if *byte == b':' {
-            port = address.get(at.saturating_add(1)..).expect("port follows colon");
+pub fn place(origin: &Origin, boxed: bool) -> Box<[u8]> {
+    match origin {
+        Origin::Http(socket) => {
+            if !boxed {
+                origin.authority()
+            } else if socket.port() == 8367 {
+                copy_of(b"box")
+            } else {
+                concat(&[b"box:", Decimal::of(u64::from(socket.port())).as_bytes()])
+            }
         }
+        Origin::Https { name, port: 443 } => name.clone(),
+        Origin::Https { .. } => origin.authority(),
     }
-    if port == b"8367" {
-        return copy_of(b"box");
-    }
-    let mut out = Writer::new(port.len().checked_add(4).expect("place fits memory"));
-    out.put(b"box:").expect("place measured");
-    out.put(port).expect("place measured");
-    out.finish()
 }

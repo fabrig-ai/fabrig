@@ -142,7 +142,7 @@ fn finish(d: &mut Domain, base: api::Commit) -> Box<[Request]> {
                 }
             }
             Op::Read(Read::Commits { before, after, .. }) => Ok(Answer::Commits {
-                commits: if before == fixtures::BASE && after == fixtures::HEAD {
+                commits: if (before == fixtures::BASE || before == [9; 32]) && after == fixtures::HEAD {
                     Box::new([api::CommitMessage {
                         id: fixtures::HEAD,
                         parents: Box::new([fixtures::BASE, fixtures::HEAD]),

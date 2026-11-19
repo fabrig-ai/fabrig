@@ -64,6 +64,7 @@ impl Engine {
 
 fn event_tag(event: &root::Event) -> EngineEvent {
     match event {
+        root::Event::LimitsRaised => EngineEvent::LimitsRaised,
         root::Event::Setup { .. } => EngineEvent::Setup,
         root::Event::Store(_) => EngineEvent::Store,
         root::Event::Worker(_) => EngineEvent::Worker,

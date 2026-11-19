@@ -222,12 +222,15 @@ impl Frozen {
     #[must_use]
     pub fn new(path: &std::path::Path) -> Self {
         let mut service = crate::service::ServiceHost::new(path.into(), skein_io::kernel::Fd::new(0), true);
-        let prepared = temper_box_shell::prepare_in_with_program(
+        let prepared = temper_box_shell::prepare_in_with_inputs_and_limits(
+            "temper",
             &[],
             b"/",
             &crate::service::directories(path),
-            &crate::fixtures::given(path),
+            &crate::fixtures::given(path, &service.configuration),
             Some(&path.join("temper-agent")),
+            &[],
+            Some((&service.configuration.jig, &service.configuration.limits)),
         )
         .expect("prepared service");
         service.service = Some(crate::service::Driven::new(prepared));

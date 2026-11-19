@@ -100,6 +100,8 @@ pub enum Role {
     Tab,
     /// A progress node.
     Progress,
+    /// A value in a known range.
+    Meter,
     /// A time node.
     Time,
     /// A code node.
@@ -170,7 +172,7 @@ impl Role {
             | Self::Drawing => 0,
             Banner | Navigation | Complementary | ContentInfo | Form | Search | Region | Log | Tabs => REGION,
             Self::Main => REGION | FOCUS,
-            Self::Text | Self::Progress => RUNS,
+            Self::Text | Self::Progress | Self::Meter => RUNS,
             Self::List | Self::Tree => COLLECTION | LIST,
             Self::Item => POSITIONED | LIST_ITEM | KEYED | WORDS_INSIDE | DESCRIPTION_INSIDE,
             Self::Table => COLLECTION,
@@ -320,6 +322,8 @@ pub enum State {
     SubmitsOnEnter,
     /// A disclosure folds on an outside press or Escape.
     FoldsAway,
+    /// A disclosure child shown in its head, folded or not.
+    ShownFolded,
     /// The log's last entry is not its list's last.
     Continues,
     /// A button takes the page's logs to their ends before its press reaches its owner where bound.

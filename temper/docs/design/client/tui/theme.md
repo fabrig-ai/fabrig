@@ -19,7 +19,7 @@
   | ink | `#e8e3da` | `#34312c` | nothing on a terminal: the stand-in for its default text there |
   | dim | `#9a9388` | `#7a736a` | the hints, "Connecting", the sign-in's progress, the address, the byline, a run's line, the running line's words, an option's words, the notes |
   | faint | `#6a655c` | `#b5aea3` | the border and the rules, the placeholder, the separators " · " and " / ", the three dots |
-  | accent | `#e08a68` | `#b8664e` | the title, the focus, "Offline", "Signed out", "Out of date", a refusal, "✦", what needs the person, a failed run, the mark before the person's words with no band |
+  | accent | `#e08a68` | `#b8664e` | the title, the focus, "Offline", "Signed out", "Out of date", "Refused", a refusal, "✦", what needs the person, a failed run, the mark before the person's words with no band |
   | good | `#8fc28f` | `#3f7d4e` | "Live" |
 
   The terminal's `--line` is left out: a border's glyphs in it would
@@ -72,7 +72,7 @@
   | `tui-hint` | dim | | hints, the quiet line's words; the header's build and place; on the launchpad a row's kind, time and state, a need's " · asked AGO", "/chats N", "n walks them", Start's words, "n to walk"; the chat's number; a delegated task's state on its card in a chat; in a printed view, code's mark and words, a way's line and " · now", a card's `who`, "Drawing ADDRESS…" |
   | `tui-live` | good | | "Live" |
   | `tui-waiting` | dim | | "Connecting", the sign-in's progress |
-  | `tui-down` | accent | | "Offline", "Signed out", "Out of date" |
+  | `tui-down` | accent | | "Offline" and why (`pages/README.md`, *The link's state*), "Signed out", "Out of date", "Refused" |
   | `tui-refused` | accent | | a refusal |
   | `tui-name` | bold | | "temper" and "temper box" in the header; the project's name, a row's project on the launchpad, Start's command names, a chat's heading; a printed way's or card's name |
   | `tui-faint` | faint | | " · " in a title and the header, and before a delegated task's state on its card in a chat; " / " in the rule above the box; a printed branch's bar `┃` |

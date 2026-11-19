@@ -56,7 +56,7 @@ const TUI: Command = Command {
     line: "Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.",
     arguments: &[Argument {
         shown: "ADDRESS",
-        line: "Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.",
+        line: "Engine origin, http://HOST:PORT on loopback or https://NAME[:PORT]; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.",
     }],
     settings: &[&directories::SETTINGS],
     switches: &[],

@@ -806,7 +806,7 @@ fn reuse_keeps_effective_edits_peer_addresses_and_data() {
     let data = crate::path(&first.directories.data).join("retained-fixture");
     write(&data, b"keep this data", false).expect("fixture data");
     let mut edited = read_json(&first.directories.document());
-    edited["engine"]["memory_bytes"] = 1_152_921_504_606_846_976_u64.into();
+    edited["engine"]["owners"][0]["subject"] = "retained-owner".into();
     let retained_bundle = provision_bundle(&scratch.0.join("retained-bundle"));
     edited["application"]["clients"]["bundle"] = retained_bundle.to_str().expect("retained bundle path").into();
     store_json(&first.directories.document(), &edited);
@@ -824,7 +824,7 @@ fn reuse_keeps_effective_edits_peer_addresses_and_data() {
 
 fn edit_retained(prepared: &Prepared) -> serde_json::Value {
     let mut edited = read_json(&prepared.directories.document());
-    edited["engine"]["memory_bytes"] = 1_152_921_504_606_846_976_u64.into();
+    edited["engine"]["owners"][0]["subject"] = "retained-owner".into();
     store_json(&prepared.directories.document(), &edited);
     edited
 }

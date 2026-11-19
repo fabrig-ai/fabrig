@@ -26,7 +26,7 @@ pub(super) fn facts() -> Facts {
         plain: false,
         version: Box::default(),
         boxed: false,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         front: false,
         local: false,
         note: None,
@@ -201,7 +201,9 @@ impl World {
     pub(super) fn with_front(address: &[u8], front: bool) -> Self {
         let mut facts = facts();
         facts.size = Size { rows: 16, columns: 100 };
-        facts.address = address.into();
+        facts.address = temper_client_tui::Origin::Http(
+            core::str::from_utf8(address).expect("fixture authority").parse().expect("fixture socket"),
+        );
         facts.front = front;
         facts.local = front;
         let (host, start) = facts.start();

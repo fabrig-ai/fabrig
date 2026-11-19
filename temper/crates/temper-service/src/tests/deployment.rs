@@ -11,19 +11,31 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
         let document = if standalone { fixtures::document() } else { fixtures::engine_alone_document() };
         let line = b"'/box/temper' program-login --config '/box/config' --data '/box/data' --cache '/box/cache'";
         let agent = fixtures::startup_agent();
-        let service = crate::startup::with_setup_given(
+        let files = fixtures::files();
+        let seeds = fixtures::seeds();
+        let checked = crate::startup::checked_start_with_limits(
             &document,
             &jig_protocol_config::Directories::working(),
-            &fixtures::files(),
+            &files,
             if standalone { Some(&agent) } else { None },
-            &fixtures::seeds(),
-            None,
-            if standalone { Some(fixtures::worker_runtime()) } else { None },
+            &seeds,
             fixtures::forge_runtime(),
             None,
+            &fixtures::given(&document, &jig_protocol_config::Directories::working()),
+            None,
+            &document.jig,
+            &document.own,
+        )
+        .unwrap();
+        let service = crate::startup::from_checked(
+            checked,
+            &files,
+            if standalone { Some(&agent) } else { None },
+            &seeds,
+            None,
+            if standalone { Some(fixtures::worker_runtime()) } else { None },
             if under_box { Some(fixtures::system::BOX_BYTES) } else { None },
             Some(line.as_slice().into()),
-            &fixtures::given(&document, &jig_protocol_config::Directories::working()),
             Box::new([]),
         )
         .unwrap();

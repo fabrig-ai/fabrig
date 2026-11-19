@@ -1,11 +1,12 @@
 //! Upgrade commands share serve's configuration checks (protocol/binaries.md).
 use crate::{path, prefixed, stopped};
-use std::os::unix::ffi::OsStrExt;
+use std::os::{fd::IntoRawFd, unix::ffi::OsStrExt};
 use temper_engine_service as service;
 use temper_service_shell::close;
 use temper_shell::directories::{self, Directories, EnvironmentEntry};
 
 mod report;
+mod scratch;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) use report::job_counts;
@@ -70,21 +71,28 @@ fn run_inner(
     let mut owned = vec![directory];
     let scratch = match request {
         Request::Check(_) | Request::Workers(_) => {
-            let seed = match skein_shell::seed() {
-                Ok(seed) => seed,
-                Err(errno) => {
+            for line in scratch::sweep(binary, path(&directories.cache)) {
+                println!("{line}");
+            }
+            let (scratch, file) = match scratch::make(path(&directories.cache)) {
+                Ok(scratch) => scratch,
+                Err(why) => {
                     close(owned);
-                    return Err(format!("scratch seed: errno {errno}"));
+                    return Err(why);
                 }
             };
-            let scratch = path(&directories.cache).join(format!("upgrade-{seed:016x}"));
-            let fd = match skein_shell::make_root(&scratch, 0o700) {
-                Ok(fd) => fd,
-                Err(errno) => {
+            // The store owns the adopted descriptor; its clone holds the lock through removal.
+            let held = match file.try_clone().map_err(|why| scratch::failure(&why)) {
+                Ok(held) => held,
+                Err(why) => {
+                    if let Some(line) = scratch::remove(binary, &scratch, file) {
+                        println!("{line}");
+                    }
                     close(owned);
-                    return Err(format!("scratch: errno {errno}"));
+                    return Err(why);
                 }
             };
+            let fd = skein_io::kernel::Fd::new(file.into_raw_fd());
             owned.push(fd);
             let reach = match request {
                 Request::Check(_) => jig_protocol_store::Reach::Whole,
@@ -94,7 +102,7 @@ fn run_inner(
             service
                 .rehearse_store(directory, fd, skein_shell::effective_user(), reach)
                 .expect("new rehearsal adopts roots");
-            Some(scratch)
+            Some((scratch, held))
         }
         Request::Back => {
             service.back_store(directory, skein_shell::effective_user()).expect("new back adopts root");
@@ -114,11 +122,13 @@ fn run_inner(
         Request::Back => true,
     };
     let exit = stopped::drive(binary, directories, service, source, report, copy_providers);
+    if let Some((scratch, held)) = scratch
+        && let Some(line) = scratch::remove(binary, &scratch, held)
+    {
+        println!("{line}");
+    }
     if exit.is_err() {
         close(owned);
-    }
-    if let Some(scratch) = scratch {
-        let _removed = std::fs::remove_dir(scratch);
     }
     exit
 }

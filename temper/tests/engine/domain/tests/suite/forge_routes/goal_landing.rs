@@ -84,7 +84,10 @@ fn settle_scope_question(
     }
     for _ in 0..STEPS {
         world.tick();
-        if row(world, child)
+        if world
+            .store
+            .change_hot(child)
+            .expect("durable change")
             .questions
             .open
             .first()
@@ -106,9 +109,10 @@ fn await_landed(world: &mut World, change: u64) {
     let mut reviewed = None;
     for _ in 0..STEPS {
         world.tick();
-        if let Some((task, temper_engine_domain_forge_change::Delegate::Gate { .. })) = row(world, change).delegate
-            && let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned()
+        if let Some((task, temper_engine_domain_forge_change::Delegate::Gate { .. })) =
+            world.store.change_hot(change).expect("durable change").delegate
             && reviewed != Some(task)
+            && let Some(run) = world.assigned.iter().find(|run| run.task == task).cloned()
         {
             reviewed = Some(task);
             reviews::finish_review(

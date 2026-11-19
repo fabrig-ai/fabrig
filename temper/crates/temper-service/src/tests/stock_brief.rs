@@ -449,11 +449,11 @@ fn measure_worker() {
         &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 },
     )
     .unwrap();
-    let mut jig = jig_protocol_config::worker(
+    let mut jig = temper_service_core::derived::worker_document(
         &document,
         0,
         &jig_protocol_config::Directories::working(),
-        &temper_service_core::startup::fixed_worker(),
+        temper_service_core::derived::STOCK,
     )
     .unwrap();
     jig.limits = Some(engine(&generated()).limits);
@@ -464,7 +464,7 @@ fn measure_worker() {
     });
     let worker =
         crate::settings::Worker { jig, root: b"/worker".as_slice().into(), git: Some(b"/bin/git".as_slice().into()) };
-    let agent = worker_agent(configured());
+    let agent = worker_agent(fixtures::stock_configuration(63_740, 48_000).expect("stock agent"));
     let mut files = crate::settings::Files { entries: skein_lib::List::with_capacity(1) };
     files
         .entries

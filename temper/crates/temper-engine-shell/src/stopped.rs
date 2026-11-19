@@ -8,6 +8,7 @@ use temper_shell::directories::Directories;
 /// No worker root, listener or external system is started.
 pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Service, Box<[u8]>), String> {
     let bytes = directories.read()?;
+    let held = crate::serve::limits_hold(crate::path(&directories.data))?;
     if matches!(
         service::startup::nearest(&bytes),
         Some(service::startup::Shape::Standalone | service::startup::Shape::WorkerAlone)
@@ -34,16 +35,39 @@ pub fn prepare(binary: &str, directories: &Directories) -> Result<(service::Serv
     let engine = crate::serve::settings(&bytes, directories, &given);
     let accounts = crate::serve::accounts(&engine)?;
     let seeds = crate::serve::seeds(None, None)?;
-    let mut service = service::startup::restoring_with(
+    let inputs = service::startup::LimitInputs::new(
         &bytes,
         &jig_directories(directories),
         &files,
         None,
         &seeds,
-        Some(accounts),
         &given,
+        false,
+        None,
+    );
+    let (jig, temper) = held.as_ref().map_or((&[][..], &[][..]), |held| (held.jig.as_ref(), held.temper.as_ref()));
+    let resolved = service::startup::resolve_limits(&inputs, jig, temper).map_err(|why| {
+        let line = String::from_utf8_lossy(&service::startup::lines(&why)).into_owned();
+        held.as_ref().map_or_else(|| line.clone(), |held| crate::serve::held_failure(&line, held))
+    })?;
+    if let Some(held) = &held {
+        eprintln!("{}", held.line);
+    }
+    let service::startup::CheckedStart { engine, io, forges, .. } = service::startup::checked_start_with_limits(
+        &bytes,
+        &jig_directories(directories),
+        &files,
+        None,
+        &seeds,
+        skein_lib::List::with_capacity(0),
+        None,
+        &given,
+        &resolved.jig,
+        &resolved.temper,
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    let mut service = service::startup::restoring_prepared(engine, &seeds, Some(accounts), forges, io)
+        .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_forge_runtime(github, roots);
     service.configure_google_endpoints(google);
     if let Some(bundle) = bundle {

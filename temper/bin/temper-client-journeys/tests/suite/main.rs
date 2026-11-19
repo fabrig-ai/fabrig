@@ -14,7 +14,7 @@ fn opening(text: &str) -> String {
 
 fn help(text: &str) -> bool {
     opening(text) == "temper-client-journeys: recorded walks, replayed through the shipped hosts and printed."
-        && !text.split_whitespace().any(|word| ["add", "normalise", "again"].contains(&word))
+        && !text.split_whitespace().any(|word| ["add", "normalise", "again", "pages"].contains(&word))
         && text
             .split_once("environment:\n")
             .is_some_and(|(_, environment)| environment.contains("PATH") && environment.contains("CARGO_TARGET_DIR"))
@@ -41,6 +41,15 @@ fn normalise_help(text: &str) -> bool {
         && words.contains("Reads no configuration, environment, clock or network.")
 }
 
+fn pages_help(text: &str) -> bool {
+    let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    internal(text)
+        && words.contains("temper-client-journeys pages [--prepared DIR]")
+        && words.contains("Walk each stale journey again")
+        && words.contains("Directory holding temper-box, fake-claude, temper-client for TUI, and bundle/index.html.")
+        && words.contains("Exit 0: every journey printed; 1: a walk stopped or a recording stayed stale; 2: usage; 3: printing or removal failed.")
+}
+
 fn version(text: &str) -> bool {
     let prefix = format!("temper-client-journeys {} (", env!("CARGO_PKG_VERSION"));
     let Some(commit) = text.strip_prefix(&prefix).and_then(|text| text.strip_suffix(")\n")) else {
@@ -59,6 +68,13 @@ const ROWS: &[Case] = &[
     (&["--version"], 0, version, ""),
     (&["add", "--help"], 0, add_help, ""),
     (&["again", "--help"], 0, internal, ""),
+    (&["pages", "--help"], 0, pages_help, ""),
+    (
+        &["pages", "extra"],
+        2,
+        empty,
+        "temper-client-journeys pages: expected [--prepared DIR]\nusage:\n  temper-client-journeys pages [--prepared DIR]\n",
+    ),
     (&["normalise", "--help"], 0, normalise_help, ""),
     (&["normalise", "-h"], 0, normalise_help, ""),
     (

@@ -46,16 +46,13 @@ fn codes_and_shapes_are_scanned_in_fields_and_turn_frames() {
         // The renderer drops a zero-width character. No recorded field holds
         // the whole shape, but the first turn's frame does. A resize clears
         // that frame before the end, and there are no intermediate marks.
-        let address = [&bytes[..3], "\u{200b}".as_bytes(), &bytes[3..], b"&"].concat();
-        let mut world = World::at_address(&address);
-        let exchange = world.exchange(false);
-        let mut asked = vec![0];
-        asked.extend_from_slice(&32_u32.to_be_bytes());
-        asked.extend_from_slice(&[7; 32]);
-        asked.extend_from_slice(b"WDJBMJHT");
-        asked.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
-        world.report(Report::Heard(jig_client::Event::Reply { exchange, message: asked.into() }));
-        world.report(Report::Opened { opened: true });
+        // Known approval codes need a browse duty to enter the allowlist;
+        // their allowance is checked above. Other shapes reach the header.
+        if name == "approval code" {
+            continue;
+        }
+        let version = [&bytes[..3], "\u{200b}".as_bytes(), &bytes[3..], b"&"].concat();
+        let mut world = World::with_version(&version);
         world.report(Report::Resize(Size { rows: 0, columns: 0 }));
         let mut records = crate::journey::lines(&world.save()).expect("world lines");
         for record in &mut records {

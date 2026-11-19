@@ -1269,3 +1269,98 @@ fn two_drawings_paint_their_fades_by_ids_of_their_own() {
         assert_eq!(html.matches(&format!("id=\"{id}\"")).count(), 1, "drawing {} has a unique id", node.0);
     }
 }
+
+fn account(builder: &mut Builder, words: Option<&[u8]>) {
+    main(builder);
+    builder.open(Role::Disclosure);
+    builder.name(b"Claude subscription");
+    builder.description(b"Ready");
+    if let Some(words) = words {
+        builder.open(Role::Group);
+        builder.state(State::ShownFolded);
+        builder.text(Run::Plain, words);
+        builder.close();
+    }
+    builder.open(Role::Paragraph);
+    builder.text(Run::Plain, b"Sources");
+    builder.close();
+    builder.close();
+    end(builder);
+}
+
+#[test]
+fn shown_folded_children_render_after_the_summary_description() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| account(b, Some(b"Week"))), &mut Vec::new());
+    assert_eq!(page.html(), include_str!("golden/shown-folded.html").trim_end());
+}
+
+#[test]
+fn shown_folded_inserts_text_changes_and_removals_patch_the_summary() {
+    let (mut page, mut view) = (page(), View::new(&LIMITS));
+    page.apply(&fixtures::patches(&mut view, 0, |b| account(b, None)), &mut Vec::new());
+    let mut ops = Vec::new();
+    page.apply(&fixtures::patches(&mut view, 1, |b| account(b, Some(b"Week"))), &mut ops);
+    let (head, text) = ops
+        .iter()
+        .find_map(|op| match op {
+            Op::Insert { node, parent: NodeId(3), shown_folded: true, element, .. } => {
+                assert_eq!(
+                    crate::dom::print(element),
+                    format!(
+                        r#"<div data-node="{}" role="group"><span data-node="{}">Week</span></div>"#,
+                        node.0,
+                        node.0 + 1
+                    )
+                );
+                Some((*node, NodeId(node.0 + 1)))
+            }
+            Op::Insert { .. }
+            | Op::Remove { .. }
+            | Op::Move { .. }
+            | Op::Replace { .. }
+            | Op::Attributes { .. }
+            | Op::Value { .. }
+            | Op::Choice { .. }
+            | Op::Options { .. }
+            | Op::Href { .. }
+            | Op::Focus { .. }
+            | Op::Reveal { .. }
+            | Op::ScrollEnd { .. }
+            | Op::HoldView { .. }
+            | Op::PutView { .. }
+            | Op::Measure { .. }
+            | Op::ScrollScreen { .. }
+            | Op::Component { .. }
+            | Op::Text { .. } => None,
+        })
+        .expect("insert routes the shown-folded subtree into the disclosure summary");
+    assert!(page.html().contains(&format!(r#"> Ready</span><div data-node="{}" role="group">"#, head.0)));
+    ops.clear();
+    page.apply(&fixtures::patches(&mut view, 2, |b| account(b, Some(b"Month"))), &mut ops);
+    assert!(ops.iter().any(|op| match op {
+        Op::Text { node, element } => *node == text && crate::dom::print(element).contains(">Month</span>"),
+        Op::Insert { .. }
+        | Op::Remove { .. }
+        | Op::Move { .. }
+        | Op::Replace { .. }
+        | Op::Attributes { .. }
+        | Op::Value { .. }
+        | Op::Choice { .. }
+        | Op::Options { .. }
+        | Op::Href { .. }
+        | Op::Focus { .. }
+        | Op::Reveal { .. }
+        | Op::ScrollEnd { .. }
+        | Op::HoldView { .. }
+        | Op::PutView { .. }
+        | Op::Measure { .. }
+        | Op::ScrollScreen { .. }
+        | Op::Component { .. } => false,
+    }));
+    assert!(page.html().contains(">Month</span></div></summary><p"));
+    ops.clear();
+    page.apply(&fixtures::patches(&mut view, 3, |b| account(b, None)), &mut ops);
+    assert!(ops.iter().any(|op| matches!(op, Op::Remove { node } if *node == head)));
+    assert!(page.html().contains("> Ready</span></summary><p"));
+}
