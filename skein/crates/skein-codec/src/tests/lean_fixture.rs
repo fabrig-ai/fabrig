@@ -3,7 +3,9 @@
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_codec::field;
-pub use skein_codec::{Path, Problem, Record};
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 7;
 
@@ -58,17 +60,17 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
 // Paths: declaration and part positions, with one naming table.
 pub mod paths {
     use super::Path;
-    pub const EMPTY_TAIL: Path = Path { declaration: 0, part: 0 };
-    pub const WORDS_WORDS: Path = Path { declaration: 1, part: 0 };
-    pub const WORDS_TAIL: Path = Path { declaration: 1, part: 1 };
-    pub const CHOICE_TAG: Path = Path { declaration: 2, part: 0 };
-    pub const ROW_CHOICE: Path = Path { declaration: 3, part: 0 };
-    pub const ROW_VERSION: Path = Path { declaration: 3, part: 1 };
-    pub const ROW_TAIL: Path = Path { declaration: 3, part: 2 };
-    pub const NESTED_WORDS: Path = Path { declaration: 4, part: 0 };
-    pub const NESTED_MAYBE: Path = Path { declaration: 4, part: 1 };
-    pub const NESTED_RECORDS: Path = Path { declaration: 4, part: 2 };
-    pub const NESTED_TAIL: Path = Path { declaration: 4, part: 3 };
+    pub const EMPTY_TAIL: Path = Path::new(0, 0);
+    pub const WORDS_WORDS: Path = Path::new(1, 0);
+    pub const WORDS_TAIL: Path = Path::new(1, 1);
+    pub const CHOICE_TAG: Path = Path::new(2, 0);
+    pub const ROW_CHOICE: Path = Path::new(3, 0);
+    pub const ROW_VERSION: Path = Path::new(3, 1);
+    pub const ROW_TAIL: Path = Path::new(3, 2);
+    pub const NESTED_WORDS: Path = Path::new(4, 0);
+    pub const NESTED_MAYBE: Path = Path::new(4, 1);
+    pub const NESTED_RECORDS: Path = Path::new(4, 2);
+    pub const NESTED_TAIL: Path = Path::new(4, 3);
 }
 
 const PATH_NAMES: &[&[&str]] = &[

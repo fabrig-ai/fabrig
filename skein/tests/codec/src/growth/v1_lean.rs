@@ -2,7 +2,9 @@
 
 use skein_lib::List;
 use skein_codec::field;
-pub use skein_codec::{Path, Problem, Record};
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 1;
 
@@ -37,8 +39,8 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
 // Paths: declaration and part positions, with one naming table.
 pub mod paths {
     use super::Path;
-    pub const GROWTH_ITEMS: Path = Path { declaration: 0, part: 0 };
-    pub const GROWTH_TAIL: Path = Path { declaration: 0, part: 1 };
+    pub const GROWTH_ITEMS: Path = Path::new(0, 0);
+    pub const GROWTH_TAIL: Path = Path::new(0, 1);
 }
 
 const PATH_NAMES: &[&[&str]] = &[
