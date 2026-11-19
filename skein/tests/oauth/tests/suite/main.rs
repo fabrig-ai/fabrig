@@ -13,3 +13,7 @@ mod fuzzy {
     mod record;
     mod world;
 }
+
+#[path = "../../../../testing/codec-memory.rs"]
+mod codec_memory;
+mod largest_memory;

@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dev-dependencies]
+skein-heap.workspace = true
 jig-test-profile.workspace = true
 skein-world.workspace = true
 skein-scratch.workspace = true

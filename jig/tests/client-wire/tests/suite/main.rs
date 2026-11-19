@@ -23,3 +23,7 @@ mod fuzzy {
 
 #[path = "../../../client-values.rs"]
 mod client_values;
+
+#[path = "../../../../../skein/testing/codec-memory.rs"]
+mod codec_memory;
+mod largest_memory;

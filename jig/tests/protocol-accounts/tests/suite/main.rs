@@ -13,3 +13,7 @@ mod stories;
 mod fuzzy {
     mod moved;
 }
+
+#[path = "../../../../../skein/testing/codec-memory.rs"]
+mod codec_memory;
+mod largest_memory;

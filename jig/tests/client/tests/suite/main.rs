@@ -28,3 +28,7 @@ mod fuzzy {
     mod memory;
     mod random_regressions;
 }
+
+#[path = "../../../../../skein/testing/codec-memory.rs"]
+mod codec_memory;
+mod largest_memory;

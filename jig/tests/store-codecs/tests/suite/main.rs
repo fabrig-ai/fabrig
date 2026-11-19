@@ -13,3 +13,7 @@ mod values;
 mod fuzzy {
     mod decode;
 }
+
+#[path = "../../../../../skein/testing/codec-memory.rs"]
+mod codec_memory;
+mod largest_memory;
