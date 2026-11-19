@@ -14,7 +14,7 @@ pub const SETTINGS: Settings = Settings {
         Setting {
             name: "config",
             value: "CONFIG",
-            about: "Configuration, including temper.json.",
+            about: "Configuration, including temper.toml.",
             fallback: Fallback::Base(Base::Config),
             set: skein_shell::Set::Public,
             twin: Some("TEMPER_CONFIG"),

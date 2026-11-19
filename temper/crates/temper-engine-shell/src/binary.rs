@@ -69,7 +69,17 @@ fn dispatch(
     let refused = |why: &str| (2, table::refused(&ENGINE, command, why));
     match command.reach {
         Reach::Words(["help"]) => {
-            print!("{}", table::help(&ENGINE, arguments)?);
+            if let [page] = arguments
+                && page.as_ref() == b"config"
+            {
+                print!(
+                    "{}",
+                    std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::EngineAlone))
+                        .expect("help UTF-8")
+                );
+            } else {
+                print!("{}", table::help(&ENGINE, arguments)?);
+            }
             Ok(0)
         }
         Reach::Words(["versions"]) => {

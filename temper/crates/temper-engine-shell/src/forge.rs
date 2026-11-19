@@ -585,7 +585,7 @@ pub const SIGN_IN: Row = Row {
     line: "Make what people need to sign in to temper through a Forgejo, and print the Forgejo command that registers temper.",
     arguments: &[DIRECTORIES, FORGE],
     settings: &[&directories::SETTINGS],
-    notes: "For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
+    notes: "For a Forgejo of [[sign_in.forges]], on temper's host, before temper-engine serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.",
 };
 
 pub const FORGE_CHILD: Row = Row {

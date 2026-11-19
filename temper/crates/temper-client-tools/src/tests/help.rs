@@ -666,7 +666,7 @@ fn public_reading_walk_names_every_figure_and_visibility_remedy() {
         "core.public.ended",
         "core.public.lines",
         "core.public.depth",
-        "engine.limits.overrides",
+        "`limits` setting",
         "restart",
         "project amend PROJECT --visibility public --key KEY",
         "project show PROJECT",

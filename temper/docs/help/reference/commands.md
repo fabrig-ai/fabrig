@@ -195,7 +195,7 @@ Make what people need to sign in to temper through a Forgejo, and print the Forg
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `FORGE`: A forge's number in the configuration.
 
-For a Forgejo of application.sign_in.forges, on temper's host, before temper serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
+For a Forgejo of [[sign_in.forges]], on temper's host, before temper-engine serve. Writes the provider's key and the forge's client secret where they are missing, private, and leaves any already there; prints Forgejo's add-oauth command, never running it.
 
 ### temper-engine forge source
 
@@ -330,13 +330,13 @@ Write a deployment that starts, with temper's default configuration, into the th
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 
-Init reserves loopback 8367 for clients and 8371 for webhooks, falling back to the kernel when taken. `temper.json` keeps those addresses, never LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
+Init reserves loopback 8367 for clients and 8371 for webhooks, falling back to the kernel when taken. `temper.toml` keeps those addresses, never LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
 
 To choose ports for another box, keep the first running and give init separate empty configuration, data and cache directories; no port flag or coordinated edits. See temper help box, step 1.
 
 Saved addresses are fixed; later starts reuse them or refuse an occupied address. Separate `temper-box init` closes its reservations on exit. On empty directories `temper-box` runs init itself and keeps both reservations through startup, avoiding a selection/startup gap.
 
-Refused without changes if the configuration directory holds temper.json.
+Refused without changes if the configuration directory holds temper.toml or temper.json.
 
 ### temper-box serve
 

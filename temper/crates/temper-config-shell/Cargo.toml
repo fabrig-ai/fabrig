@@ -17,6 +17,8 @@ temper-service-core.workspace = true
 temper-shell.workspace = true
 
 [dev-dependencies]
+temper-test-env.workspace = true
+temper-docs.workspace = true
 serde_json.workspace = true
 skein-scratch.workspace = true
 temper-service.workspace = true

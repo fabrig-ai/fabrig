@@ -1,12 +1,15 @@
 //! The file's vocabulary and reader (temper/docs/design/protocol/configuration/file.md, 2–7).
 mod document;
 mod machine;
+mod merge;
+mod pages;
 mod parse;
 mod render;
 pub mod rows;
 mod source;
 
 pub use machine::read;
+pub use pages::{help, reference};
 pub use parse::parse;
 pub use render::render;
 pub use source::{Keys, Refusal};

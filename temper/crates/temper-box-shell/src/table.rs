@@ -133,13 +133,13 @@ const COMMANDS: [Command; 33] = [
         settings: &[&directories::SETTINGS],
         switches: &[Switch { name: "box", set: Set::Internal, line: "Also write the box's parts: the welcome, the owned Forgejo and the playground.", notes: "" }],
         variables: &[&environment::PATH],
-        notes: "Init reserves loopback 8367 for clients and 8371 for webhooks, falling back to the kernel when taken. `temper.json` keeps those addresses, never LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
+        notes: "Init reserves loopback 8367 for clients and 8371 for webhooks, falling back to the kernel when taken. `temper.toml` keeps those addresses, never LLM providers or the scripted model's port. `--box` prepares playground directories and its git launcher. At start the box chooses the scripted listener: 8370 when free, else the kernel's; forges choose their places at setup. Worker figures come from the engine; init writes no agent configuration.
 
 To choose ports for another box, keep the first running and give init separate empty configuration, data and cache directories; no port flag or coordinated edits. See temper help box, step 1.
 
 Saved addresses are fixed; later starts reuse them or refuse an occupied address. Separate `temper-box init` closes its reservations on exit. On empty directories `temper-box` runs init itself and keeps both reservations through startup, avoiding a selection/startup gap.
 
-Refused without changes if the configuration directory holds temper.json.",
+Refused without changes if the configuration directory holds temper.toml or temper.json.",
     },
     Command {
         reach: Reach::Words(&["serve"]),

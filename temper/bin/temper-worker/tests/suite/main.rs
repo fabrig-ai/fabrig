@@ -58,6 +58,10 @@ fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(WORKER.binary, &temper_shell::help::Request::Index).expect("index page")
 }
 
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::WorkerAlone).as_ref()
+}
+
 fn commands_page(text: &str) -> bool {
     text == temper_shell::table::commands_page(&WORKER)
 }
@@ -88,6 +92,7 @@ const ROWS: &[Case] = &[
     (&["help"], None, 0, help, Exact("")),
     (&["help", "pages"], None, 0, pages, Exact("")),
     (&["help", "commands"], None, 0, commands_page, Exact("")),
+    (&["help", "config"], None, 0, config_page, Exact("")),
     (&["frobnicate"], None, 2, empty, Exact("temper-worker: no command frobnicate; temper-worker --help lists them\n")),
     (&[], None, 2, empty, Exact("temper-worker: no command; temper-worker --help lists them\n")),
     (

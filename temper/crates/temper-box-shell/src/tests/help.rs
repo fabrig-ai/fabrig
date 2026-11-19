@@ -38,9 +38,9 @@ fn box_help_configures_coding_run_tools() {
     let (_, recipe) = before_start.split_once("**Coding runs:**").expect("coding run tools recipe before startup");
     let text = recipe.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`CONFIG/temper.json`",
+        "`CONFIG/temper.toml`",
         "preserve the rest of the document",
-        "`application.environment`",
+        "`[environment]`",
         "Absent: the worker's own `HOME` and `PATH`",
         "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
         "no other process variables",
@@ -54,11 +54,23 @@ fn box_help_configures_coding_run_tools() {
     ] {
         assert!(text.contains(required), "coding run tools recipe missing {required}");
     }
-    let example = recipe.split("```json\n").nth(1).expect("command environment example");
-    let example: serde_json::Value =
-        serde_json::from_str(example.split("```").next().expect("JSON fence")).expect("valid environment JSON");
+    let example = recipe.split("```toml\n").nth(1).expect("command environment example");
+    let example = example.split("```").next().expect("TOML fence");
+    let parsed = temper_config_shell::parse(
+        example.as_bytes(),
+        temper_config_shell::Shape::Standalone,
+        &temper_config_shell::Facts { login: "coder".into(), hostname: "local".into(), provider_key: false },
+    )
+    .expect("environment TOML");
     let mut document = coding_run_agent_document();
-    document["environment"] = example["environment"].clone();
+    document["environment"] = serde_json::Value::Array(
+        parsed
+            .file
+            .environment
+            .into_iter()
+            .map(|(name, value)| serde_json::json!({"name": name, "value": value}))
+            .collect(),
+    );
     let configured = smith_agent_shell::config::from_value(document).expect("documented command environment");
     let entries = configured.service.environment.command_entries();
     for expected in
@@ -75,34 +87,25 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`application.environment`: optional list, not a map; unique names:",
+        "`[environment]`: optional table of strings; unique names",
         "Absent: the worker's own `HOME` and `PATH`",
         "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
         "no other process variables",
-        "top-level only `workers` and `application`",
-        "Remove `application.workers`",
+        "`secrets/worker.secret`",
         "No `claude` member",
         "temper help box",
     ] {
         assert!(text.contains(required), "step 5 must explain {required}");
     }
-    let (_, recipe) = step.split_once("`application.environment`: optional list").expect("agent environment");
-    let example = recipe.split('`').nth(1).expect("environment entries example");
-    let environment: serde_json::Value = serde_json::from_str(example).expect("valid environment JSON");
-    let mut document = coding_run_agent_document();
-    document["environment"] = environment.clone();
-    let configured = smith_agent_shell::config::from_value(document.clone()).expect("documented entries parse");
-    assert_eq!(
-        configured.service.environment.command_entries().as_ref(),
-        [Box::from(b"PATH=/usr/bin:/bin".as_slice())]
-    );
-    let mut map = serde_json::Map::new();
-    for entry in environment.as_array().expect("environment entries") {
-        map.insert(entry["name"].as_str().expect("entry name").into(), entry["value"].clone());
-    }
-    document["environment"] = map.into();
-    let why = smith_agent_shell::config::from_value(document).err().expect("environment map is refused").detail();
-    assert!(why.contains("invalid type: map, expected a sequence"), "{why}");
+    let example = step.split_once("```toml\n").expect("worker file").1.split_once("```").expect("fence").0;
+    let read = temper_config_shell::parse(
+        example.as_bytes(),
+        temper_config_shell::Shape::WorkerAlone,
+        &temper_config_shell::Facts { login: "coder".into(), hostname: "local".into(), provider_key: false },
+    )
+    .expect("worker TOML");
+    assert_eq!(read.file.environment, [("PATH".into(), "/usr/bin:/bin".into())]);
+    assert_eq!(read.file.name.as_deref(), Some("w1"));
 }
 
 #[test]
@@ -161,7 +164,7 @@ fn server_walk_says_when_a_forges_sign_in_meta_appears() {
         }),
     );
     assert!(text.contains(line.trim_end_matches('\n')), "step 3 must give the printed diagnostic: {line}");
-    assert!(text.contains("With `application.sign_in.forges` on a new store, `serve`'s stderr says"));
+    assert!(text.contains("With `[[sign_in.forges]]` on a new store, `serve`'s stderr says"));
     assert!(text.contains("until step 6 connects it"));
     let (_, steps) = page.split_once("\n## 6. ").expect("step 6");
     let (step, _) = steps.split_once("\n## 7. ").expect("step 7");
@@ -842,7 +845,7 @@ fn account_and_deployment_help_explain_offering_another_model() {
         "`sources`",
         "`endpoint` names an entry in its `endpoints` list",
         "`address.socket`",
-        "`CONFIG/temper.json`",
+        "`CONFIG/temper.toml`",
         "claude-haiku-5-5",
         "output",
         "reasoning_item",
@@ -886,7 +889,7 @@ fn box_and_tier_help_name_the_host_runners_node_prerequisite() {
             "JavaScript `uses:` actions",
             "`actions/checkout@v4`",
             "`actions/upload-artifact@v3`",
-            "`application.machine.owned.runner.path`",
+            "`--runner-path` at forge preparation",
             "`/usr/local/bin:/usr/bin:/bin`",
             "restart",
             shell,
@@ -929,7 +932,7 @@ fn box_help_names_delivery_checks_path_and_tools() {
         "`PATH=/home/box/.cargo/bin:W/bin:/usr/local/bin:/usr/bin:/bin`",
         "absolute paths",
         "restart the box unit after changing its environment",
-        "`application.machine.owned.runner.path` configures the runner alone",
+        "`--runner-path` at forge preparation configures the runner alone",
     ] {
         assert!(prerequisites.contains(required), "delivery checks missing {required}: {prerequisites}");
     }
@@ -945,14 +948,14 @@ fn box_and_tier_help_explain_shared_capacity_and_existing_boxes() {
         for required in [
             "CI and tiers",
             "`temper-host`",
-            "`application.machine.owned.runner.capacity`",
+            "`--runner-capacity` at forge preparation",
             default,
             "2 for one single-job tier plus CI, or 3 for two such tiers plus CI",
             "multi-job workflows",
             "other repositories",
             "Ctrl-C or SIGTERM",
             wait,
-            "`CONFIG/temper.json`",
+            "`temper.toml`",
             "same",
             "registration and secrets",
         ] {

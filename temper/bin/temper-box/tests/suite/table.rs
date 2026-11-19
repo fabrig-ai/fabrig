@@ -68,6 +68,10 @@ fn pages(text: &str) -> bool {
     text == temper_shell::help::answer(TABLE.binary, &temper_shell::help::Request::Index).expect("index page")
 }
 
+fn config_page(text: &str) -> bool {
+    text.as_bytes() == temper_config_shell::help(temper_config_shell::Shape::Standalone).as_ref()
+}
+
 fn commands_page(text: &str) -> bool {
     text == temper_shell::table::commands_page(&TABLE)
 }
@@ -107,6 +111,7 @@ const ROWS: &[Case] = &[
     (&["forge", "fetch", "--help"], 0, internal_help, ""),
     (&["help", "pages"], 0, pages, ""),
     (&["help", "commands"], 0, commands_page, ""),
+    (&["help", "config"], 0, config_page, ""),
     (&["help", "nope"], 1, empty, "temper-box: no page nope; temper-box help lists them\n"),
     (
         &["help", "--search"],

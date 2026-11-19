@@ -4,9 +4,7 @@ mod limit_settings;
 pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
-mod reference;
 pub use crate::limits::{engine_reference, reference};
-pub use reference::{configuration_reference, engine_configuration_reference};
 
 mod checkout;
 

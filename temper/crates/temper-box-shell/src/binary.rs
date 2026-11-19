@@ -51,7 +51,17 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
         Reached::Unknown(why) => return Err((2, why)),
         Reached::Command(command, arguments) => {
             if command.reach == Reach::Words(&["help"]) {
-                print!("{}", temper_shell::table::help(&TABLE, arguments)?);
+                if let [page] = arguments
+                    && page.as_ref() == b"config"
+                {
+                    print!(
+                        "{}",
+                        std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::Standalone))
+                            .expect("help UTF-8")
+                    );
+                } else {
+                    print!("{}", temper_shell::table::help(&TABLE, arguments)?);
+                }
                 return Ok(ExitCode::SUCCESS);
             }
             if command.reach == Reach::Words(&["versions"]) {

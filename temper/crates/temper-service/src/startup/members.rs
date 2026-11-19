@@ -69,7 +69,7 @@ pub static MEMBERS: [Member; 53] = [
         kind: "engine",
         bound: "absent for a worker alone",
         required: false,
-        line: "The engine’s configuration; see temper help configuration-engine.",
+        line: "The engine’s configuration; see temper help configuration.",
         gone: None,
     },
     Member {
@@ -78,7 +78,7 @@ pub static MEMBERS: [Member; 53] = [
         kind: "list of worker",
         bound: "one in standalone or worker alone; empty for engine alone",
         required: true,
-        line: "The workers’ configurations; see temper help configuration-engine.",
+        line: "The workers’ configurations; see temper help configuration.",
         gone: None,
     },
     Member {
