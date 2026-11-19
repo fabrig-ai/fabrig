@@ -1692,7 +1692,6 @@ pub(crate) fn step_core(
         }
     }
     let mut requests = jig_domain_core::step(&mut domain.core, &super::environment_core(env), event);
-    landing_route::settled_steps(domain, env);
     let mut routed = Queue::uncapped();
     while let Some(request) = requests.pop() {
         if let jig_domain_core::Request::Write(jig_domain_core::Write::Save(jig_domain_core::Record::Tasks(
@@ -2192,15 +2191,6 @@ pub(super) fn start_recovered_change(
         let record = domain.core.tasks.task(task).expect("released change");
         let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
         domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
-    }
-    if let Some(row) = domain.forge.change(task)
-        && row.change.way == forge_change::Way::Turn
-        && row.change.landing.is_none()
-    {
-        if let forge_change::State::Ready { .. } = row.change.state {
-        } else {
-            domain.forge_settling.insert(task).expect("one settling step per bounded change");
-        }
     }
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));

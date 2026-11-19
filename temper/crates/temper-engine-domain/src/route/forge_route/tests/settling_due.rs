@@ -137,6 +137,10 @@ fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
         assert_eq!(domain.forge.change(7).unwrap().change.landing, None);
         settle(&mut domain, &env, 8);
         // Leave no waiting unit while proving the old hold has been spent.
+        let ready_seven = domain.forge.change(7).unwrap().clone();
+        let mut checking = ready_seven.clone();
+        checking.change.state = change::State::Checking { head: super::SHA1 };
+        restore(&mut domain, &env, checking);
         wake(&mut domain, &env, 7);
         wake(&mut domain, &env, 8);
         super::judge_trains(&mut domain, &env);
@@ -152,6 +156,7 @@ fn a_new_head_or_a_return_to_gating_can_hold_for_one_step_again() {
             row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([1]) };
         }
         restore(&mut domain, &env, row);
+        restore(&mut domain, &env, ready_seven);
         settle(&mut domain, &env, 7);
         super::judge_trains(&mut domain, &env);
         assert_eq!(domain.forge.change(7).unwrap().change.landing, None, "the new gating episode settles again");

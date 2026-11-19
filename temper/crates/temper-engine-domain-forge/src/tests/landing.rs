@@ -1378,6 +1378,52 @@ fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     outputs(d, Event::Landing { row });
 }
 
+#[test]
+fn a_ready_change_joined_during_its_gather_keeps_its_landing_at_the_same_head() {
+    use skein_forge::api::Answer;
+    use temper_engine_domain_forge_change as change;
+    let mut d = landing_fixture_with(fixtures::connected_domain());
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    row.change.way = change::Way::Turn;
+    row.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    row.change.ready_since = Some(env().wall);
+    fixtures::step_change(&mut d);
+    assert!(!d.steps.is_empty(), "the change gather is in flight before joining");
+    member_landing(&mut d);
+    assert_eq!(d.change(fixtures::CHANGE).unwrap().change.landing, Some(61));
+    let mut finished: Box<[Request]> = Box::new([]);
+    for answer in [
+        Answer::Commit(fixtures::HEAD),
+        Answer::Commit(fixtures::BASE),
+        Answer::Pull(fixtures::open_pull()),
+        fixtures::checks(skein_forge::api::Check::Passed),
+        Answer::Commits { commits: Box::new([]), more: false },
+        Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+    ] {
+        finished = fixtures::answer_next(&mut d, Ok(answer));
+    }
+    let mut decided = false;
+    for request in &finished {
+        if let Request::ChangeDecision { .. } = request {
+            decided = true;
+        }
+    }
+    assert!(decided, "{finished:?}");
+    assert!(d.steps.is_empty(), "all gather reads answered");
+    let row = d.change(fixtures::CHANGE).unwrap();
+    assert_eq!(row.change.state, change::State::Ready { head: fixtures::HEAD, ready_since: env().wall });
+    assert_eq!(row.change.landing, Some(61));
+    let members = &d.landing(61).unwrap().landing.members;
+    assert_eq!(members.len(), 1);
+    assert_eq!(members[0].change, fixtures::CHANGE);
+    assert_eq!(members[0].left, None);
+}
+
 fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
     use skein_forge::api::{Answer, Op, Read, Write};
     let mut d = domain();
