@@ -506,6 +506,7 @@ fn a_pull_section_reads_its_own_tasks_moved_head() {
                     name: run_branch(b"51"),
                     task: fixtures::CHANGE,
                     writer: Some(writer),
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -600,6 +601,7 @@ fn another_writers_pull_head_pauses_the_brief_and_wakes_the_change() {
                     name: run_branch(b"51"),
                     task: fixtures::CHANGE,
                     writer,
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -1200,6 +1202,7 @@ fn kept_candidate_failure(d: &mut Domain) {
         }]),
         policy::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

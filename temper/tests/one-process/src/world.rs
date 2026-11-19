@@ -57,6 +57,8 @@ pub struct Outcome {
     pub claims_settled_at_restart: u32,
     pub adoptions_answered: u32,
     pub adoption_pending_at_restart: bool,
+    /// Submission window from saving a pending adoption to its durable engine commit.
+    pub adoption_window: Option<(u32, u32)>,
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
 }
@@ -168,12 +170,12 @@ impl Harness for OneProcess {
     fn github() -> bool {
         crate::lower::github::active()
     }
-    fn configure(document: &mut serde_json::Value) {
+    fn configure(document: &mut temper_playground::documents::Configuration) {
         if REFUSE_START.with(std::cell::Cell::get) {
             document["application"]["webhooks"]["listener"] =
                 serde_json::json!({"socket": crate::box_listener::ADDRESS.to_string()});
             // No seed policies on this start; its persisted policy exceeds the smaller read bound.
-            document["engine"]["limits"]["overrides"]["core.policy_bytes"] = REFUSED_POLICY_BYTES.into();
+            document.jig_over("core.policy_bytes", u64::from(REFUSED_POLICY_BYTES));
         }
     }
     fn spawned(role: Role, inherited: &Inherited, base: &[u8]) {
@@ -221,7 +223,10 @@ impl Harness for OneProcess {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &serde_json::Value) {
+    fn configure_engine(
+        engine: &mut jig_protocol_config::Engine,
+        document: &temper_playground::documents::Configuration,
+    ) {
         if REFUSE_START.with(std::cell::Cell::get) || stories::playground() {
             return;
         }
@@ -230,14 +235,14 @@ impl Harness for OneProcess {
         document["world_settings"] = world["world_settings"].clone();
         temper_playground::documents::settings::seed_configuration(engine, &document);
     }
-    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         if stories::playground() {
             return temper_playground::documents::given(document);
         }
         if stories::adoption() {
             return fixtures::adoption_given();
         }
-        stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON"))
+        stories::given(&fixtures::document())
     }
 }
 /// Scope the harness's scenario documents and shared forge around its world.
@@ -970,6 +975,28 @@ pub fn run(settings: Settings, scenario: Story) -> Outcome {
     )
     .0
 }
+/// Run adoption with the fixture equivalence checks used by its pending-window story.
+#[must_use]
+pub fn adoption(settings: Settings) -> Outcome {
+    PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
+    let mut seen = None;
+    assert_eq!(saved_adoptions(&mut seen), Some(std::collections::BTreeSet::new()), "initial empty saved keys");
+    stories::set(Story::Adoption);
+    stories::setup_settings(Phase::Story);
+    let fresh = stories::given(&fixtures::document());
+    assert_eq!(format!("{:?}", fixtures::adoption_given()), format!("{fresh:?}"), "cached adoption defaults");
+    assert_eq!(
+        format!("{:?}", fixtures::adoption_codec()),
+        format!("{:?}", fixtures::codec()),
+        "cached adoption codec bounds"
+    );
+    assert_eq!(
+        stories::settings_file(),
+        temper_playground::documents::settings_file().as_slice(),
+        "cached stock settings bytes"
+    );
+    run(settings, Story::Adoption)
+}
 #[must_use]
 pub fn drain_mid_run(settings: Settings, scenario: Story, restart: bool) -> Outcome {
     let run = Rc::new(RefCell::new(referee::Run::default()));
@@ -1157,6 +1184,15 @@ fn forge_for_run(run: &Rc<RefCell<referee::Run>>, scenario: Story, phase: Phase)
     }
     transport
 }
+/// Restart over the held change on the same disk, store and fake forge, then sign in again.
+#[must_use]
+pub fn restart_held_change(settings: Settings) -> Outcome {
+    let run = Rc::new(RefCell::new(referee::Run::default()));
+    let (_, disk, store) =
+        run_phase(settings, Story::HeldChange, Phase::Story, machine::fresh(), Store::new(), run.clone());
+    run_phase(settings, Story::HeldChange, Phase::SignIn, disk, store, run).0
+}
+
 /// Restore a persisted policy past a smaller read bound, with the box's held listener.
 #[must_use]
 pub fn refused_restore(settings: Settings) -> Outcome {
@@ -1220,9 +1256,8 @@ pub(crate) fn run_phase(
     run.borrow_mut().disk = Some(machine.0.clone());
     let mut parameters = parameters(&machine, transport.clone());
     let peers = start.map(|start| {
-        parameters.route =
-            temper_playground::story::route(&serde_json::from_slice(&start.deployment).expect("story A's deployment"));
-        parameters.deployment = start.deployment;
+        parameters.route = temper_playground::story::route(&start.deployment);
+        parameters.deployment = start.deployment.into();
         parameters.seed = start.seed;
         parameters.links = start.links;
         (start.fakes.llm, start.fakes.peer)
@@ -1343,6 +1378,7 @@ pub(crate) fn run_phase(
         claims_settled_at_restart: run.borrow().settled,
         adoptions_answered: u32::try_from(run.borrow().answers.len()).expect("adoption answers"),
         adoption_pending_at_restart: run.borrow().pending_adoption,
+        adoption_window: run.borrow().window,
         playground: matches!(scenario, Story::PlaygroundA).then(|| stories::playground::outcome(&transport)),
         model_list: matches!(scenario, Story::ModelsList).then(|| crate::model_list::outcome(&outcome.procs, &records)),
     };

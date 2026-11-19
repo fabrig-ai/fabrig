@@ -120,7 +120,8 @@ fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2]) {
     panic!("did not settle seed {seed} in {bound} steps: {trace:?}, {:?}", world.pending);
 }
 
-const LIMITS: crate::Limits = crate::Limits { members: 6, gates: 4, poll: Duration::from_secs(5), tests_bytes: 16 };
+const LIMITS: crate::Limits =
+    crate::Limits { members: 6, gates: 4, poll: Duration::from_secs(5), tests_bytes: 16, write_attempts: 2 };
 
 fn invariants(
     seed: u64,

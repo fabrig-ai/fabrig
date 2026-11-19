@@ -257,6 +257,7 @@ impl Round {
                 writer: None,
                 design_writers: Box::new([]),
                 drift: None,
+                beside: None,
             }),
         });
         r.env.limits.authority.segments = 8;
@@ -354,8 +355,9 @@ impl Round {
             }
             Read::Reviews { .. } => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             Read::Commits { before, after, .. } => Ok(Answer::Commits {
-                commits: if before == self.main && after == HEAD {
-                    Box::new([api::CommitMessage { id: HEAD, parents: Box::new([]), message: Box::new([]) }])
+                // The outside tip contains neither the source head nor the prepared prefix.
+                commits: if before == self.main && (after == HEAD || (self.main == [19; 32] && after == GREEN)) {
+                    Box::new([api::CommitMessage { id: after, parents: Box::new([]), message: Box::new([]) }])
                 } else {
                     Box::new([])
                 },

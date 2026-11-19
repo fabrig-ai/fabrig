@@ -17,6 +17,7 @@ pub mod boundary;
 pub mod brief;
 pub mod brief_words;
 pub mod change_words;
+pub mod checks;
 pub mod closer;
 pub mod commit;
 pub mod devices;
@@ -97,8 +98,8 @@ pub use making::{
 };
 pub use public::{PublicAsk, PublicMade, PublicTask};
 pub use status::{
-    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
-    StatusView, status_paragraphs, status_subject,
+    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, PersonBrief, ProjectFacts, SITTING,
+    StatusRunning, StatusView, status_paragraphs, status_subject,
 };
 pub use workflows::{WORKFLOW_BYTES, WORKFLOWS};
 
@@ -332,6 +333,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::LandingLog(row) => Key::LandingLog { repository: row.repository },
         Stored::Milestone(row) => Key::Milestone(row.task),
         Stored::ProjectFacts(row) => Key::ProjectFacts { project: row.project },
+        Stored::PersonBrief(row) => Key::PersonBrief { party: row.party, project: row.project },
         Stored::Device(row) => Key::Device { party: row.party, number: row.number },
         Stored::LandedDraft(row) => Key::LandedDraft { repository: row.repository, path: row.path.clone() },
         Stored::Away(row) => Key::Away { party: row.party, project: row.project },
@@ -343,6 +345,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Call { key, .. } => Key::Call(*key),
         Stored::Repository(row) => Key::Repository(row.provider),
         Stored::Hold(row) => Key::Hold(row.name.clone()),
+        Stored::LimitHold(row) => Key::LimitHold(row.task),
         Stored::Names { task, .. } => Key::Names(*task),
         Stored::Subscription(row) => Key::Subscription { task: row.task, topic: row.topic.clone() },
         Stored::BranchHead(row) => Key::BranchHead(row.name.clone()),
@@ -505,6 +508,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             Some(held)
         }
         Stored::Setting(row) => match &row.edit {
+            settings::Edit::Set(settings::SizedValue { value: settings::Value::Limits(values), .. }) => {
+                let mut held = skein_lib::len_u64(values.len())
+                    .checked_mul(u64::try_from(size_of::<jig_domain_core_vocabulary::settings::Override>()).ok()?)?;
+                for value in values {
+                    held = held.checked_add(bytes(&value.name))?.checked_add(bytes(&value.reason))?;
+                }
+                Some(held)
+            }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Landing(value), .. }) => {
                 let mut held = 0_u64;
                 for command in [&value.merge_job, &value.close_job].into_iter().flatten() {
@@ -621,6 +632,22 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Verification(row) => verification::row_bytes(row),
         Stored::LandingLog(row) => landing_log::row_bytes(row),
         Stored::Milestone(row) => Some(skein_lib::len_u64(row.name.len())),
+        Stored::LimitHold(row) => {
+            let bytes = skein_lib::len_u64(row.member.len());
+            match &row.set {
+                LimitSet::DesignWriters(resource) => bytes.checked_add(name(resource)?),
+                LimitSet::Operation
+                | LimitSet::Entries
+                | LimitSet::Holds
+                | LimitSet::Tasks
+                | LimitSet::Changes
+                | LimitSet::Steps
+                | LimitSet::Subscriptions
+                | LimitSet::Watches
+                | LimitSet::Heads
+                | LimitSet::Repositories => Some(bytes),
+            }
+        }
         Stored::RedPass(row) => Some(skein_lib::len_u64(row.key.len())),
         Stored::Red(row) => skein_lib::len_u64(row.key.len())
             .checked_add(skein_lib::len_u64(row.head.len()))?
@@ -651,7 +678,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             }
             Some(bytes)
         }
-        Stored::ProjectFacts(row) => Some(match &row.brief {
+        Stored::PersonBrief(row) => Some(match &row.brief {
             Some(brief) => {
                 skein_lib::len_u64(brief.sentence.len()).checked_add(skein_lib::len_u64(brief.lede.len()))?
             }
@@ -795,6 +822,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         | Stored::RedNumber { .. }
         | Stored::RefusedSetting(_)
         | Stored::Away(_)
+        | Stored::ProjectFacts(_)
         | Stored::Looked(_)
         | Stored::Dismissed { .. }
         | Stored::ForgeNumber { .. }

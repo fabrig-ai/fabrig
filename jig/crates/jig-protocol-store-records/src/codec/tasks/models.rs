@@ -6,7 +6,7 @@ use skein_lib::List;
 pub(super) fn encode(
     row: &d::Stored,
     names: &[jig_domain_core_vocabulary::settings::ModelName],
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<(List<w::ModelName>, [u64; 64]), w::Problem> {
     let bits = referenced(row);
     let mut moved = [0; 64];
@@ -28,14 +28,11 @@ pub(super) fn encode(
             }
         }
         let Some(at) = next else {
-            return Err(w::Problem { path: w::Path::RowModels, reason: skein_codec::Reason::Bound });
+            return Err(w::Problem { path: w::paths::ROW_MODELS, reason: skein_codec::Reason::Bound });
         };
         *moved.get_mut(at).expect("selected bit fits") = 1_u64.checked_shl(bit).expect("selected models fit");
         result
-            .push(w::ModelName::new(
-                limits,
-                w::ModelNameParts { value: names.get(at).expect("selected name").name.clone() },
-            )?)
+            .push(w::ModelName { value: names.get(at).expect("selected name").name.clone() })
             .expect("same selected count");
     }
     Ok((result, moved))
@@ -125,7 +122,7 @@ pub(super) fn moves(kept: &List<w::ModelName>, names: &[jig_domain_core_vocabula
     let mut moved = [0; 64];
     for (old, name) in kept.iter().enumerate() {
         *moved.get_mut(old).expect("bounded names") =
-            jig_domain_core_vocabulary::settings::model_bit(name.value(), names);
+            jig_domain_core_vocabulary::settings::model_bit(&name.value, names);
     }
     moved
 }

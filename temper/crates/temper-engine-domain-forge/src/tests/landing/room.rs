@@ -146,7 +146,7 @@ fn finish(d: &mut Domain, base: api::Commit) -> Box<[Request]> {
                 }
             }
             Op::Read(Read::Commits { before, after, .. }) => Ok(Answer::Commits {
-                commits: if before == fixtures::BASE && after == fixtures::HEAD {
+                commits: if (before == fixtures::BASE || before == [9; 32]) && after == fixtures::HEAD {
                     Box::new([api::CommitMessage {
                         id: fixtures::HEAD,
                         parents: Box::new([fixtures::BASE, fixtures::HEAD]),
@@ -451,7 +451,7 @@ fn a_closing_round_keeps_the_close_wait_on_its_row() {
     let row = d.landing.rows.get_mut(&TASK).unwrap();
     row.landing.phase = policy::Phase::Proving;
     row.landing.round.ending = Some(policy::RoundEnd::Leave);
-    d.landing.results.insert((TASK, 0, 0, 7), policy::Status::Pending).unwrap();
+    d.landing.results.insert((TASK, 0, 0, 7), (policy::Status::Pending, false)).unwrap();
     assert_wait(&drive(&mut d, TASK, 91), policy::Awaited::Close);
     assert_eq!(d.landing(TASK).unwrap().waiting, Some(policy::Awaited::Close));
     let Document::Landing(view) =

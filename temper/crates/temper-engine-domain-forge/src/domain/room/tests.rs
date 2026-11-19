@@ -1,6 +1,6 @@
 use super::*;
 use crate::tests::{domain, env, fixtures};
-use crate::{Class, Ending, Event, Name, News, RefusalCause, Subscriber, Topic, What, topics};
+use crate::{Class, Ending, Event, News, RefusalCause, Subscriber, Topic, topics};
 use alloc::boxed::Box;
 use skein_forge::api;
 
@@ -491,10 +491,14 @@ fn register_change_names_each_limit_and_unadopted_but_keeps_malformed_and_duplic
             Some(cause) => Request::ResourceRefused {
                 task,
                 operation: b"register change",
-                resource: Some(Name {
-                    forge: row.repository.forge,
-                    repository: row.repository.repository,
-                    what: What::Repository,
+                resource: Some(if let RefusalCause::Limit { .. } = cause {
+                    crate::branch_name(row.repository, &row.branch)
+                } else {
+                    crate::Name {
+                        forge: row.repository.forge,
+                        repository: row.repository.repository,
+                        what: crate::What::Repository,
+                    }
                 }),
                 cause,
             },

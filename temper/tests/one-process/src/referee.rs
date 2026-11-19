@@ -62,6 +62,7 @@ pub(crate) struct Referee {
     client_seen: usize,
     saved_seen: Option<usize>,
     window_at: Option<u64>,
+    held_at: Option<(u64, bool)>,
     client_life: u32,
     party: Option<u64>,
     handed: bool,
@@ -141,8 +142,7 @@ impl Referee {
             story_steps: 100_000,
         };
         if matches!(scenario, crate::world::Story::PlaygroundA) {
-            let document =
-                serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
+            let document = temper_playground::stories::A.configuration();
             let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
                 panic!("the composition supplies story A's defaults")
             };
@@ -176,6 +176,7 @@ impl Referee {
             client_seen: 0,
             saved_seen: None,
             window_at: None,
+            held_at: None,
             client_life: 0,
             party: None,
             handed: false,
@@ -350,7 +351,19 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
     snapshot
 }
 impl Referee {
-    fn phase_complete(&self, other: &[Proc]) -> Result<bool, String> {
+    fn change_held(&mut self) -> bool {
+        let store = self.store.borrow();
+        if let Some((at, held)) = self.held_at
+            && at == store.applied
+        {
+            return held;
+        }
+        // This predicate reads only durable rows, which change at a commit.
+        let held = crate::stories::change_held(&store.rows);
+        self.held_at = Some((store.applied, held));
+        held
+    }
+    fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
                 crate::world::Phase::Refused => return Err(String::from("refused starts send no shutdown signal")),
@@ -383,7 +396,7 @@ impl Referee {
                         forge.complete() && forge::Forge::hooks_complete(other)
                     }
                     crate::world::Story::Merge | crate::world::Story::PlaygroundA => self.forge.borrow().complete(),
-                    crate::world::Story::HeldChange => crate::stories::change_held(&self.store.borrow().rows),
+                    crate::world::Story::HeldChange => self.change_held(),
                     crate::world::Story::CodingAtStop => return Err(String::from("stop story uses drain and restart")),
                 },
             }
@@ -416,6 +429,7 @@ impl Referee {
                 self.say(now, rules::Observed::Restart)?;
                 self.store.borrow_mut().recovering();
                 self.settled_at = None;
+                self.held_at = None;
                 self.adopted = 0;
                 self.cold = Some(());
                 self.handed = false;

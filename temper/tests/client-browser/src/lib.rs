@@ -216,7 +216,10 @@ impl Tier {
     #[must_use]
     pub fn with_model(self) -> Self {
         let path = self.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
+        value["world_providers"] = temper_agent_fixtures::providers::read(self.scratch.path());
         // As in jig's browser deployment, a provider offering no credential source gets a
         // deployment-held None account at startup: the view's demo_accounts fixture has this shape.
         temper_agent_fixtures::providers::input(&mut value)["providers"][0]["sources"] = serde_json::json!({});
@@ -258,7 +261,9 @@ impl Tier {
         fs::write(path.with_extension("css.gz"), compressed).expect("private compressed stylesheet");
         fs::write(path, css).expect("private stylesheet");
         let path = tier.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
         value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
         configuration::private(&path, &serde_json::to_vec(&value).expect("private bundle JSON"));
         tier.with_replies(&reading::replies())
@@ -267,7 +272,9 @@ impl Tier {
     #[must_use]
     fn with_replies(self, replies: &[(String, String)]) -> Self {
         let path = self.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
         reading::configure(&mut value, replies);
         configuration::private(&path, &serde_json::to_vec(&value).expect("scripted demo JSON"));
         self
@@ -284,7 +291,9 @@ impl Tier {
     pub fn accounts(name: &str) -> Self {
         let tier = Self::reserved(name);
         let path = tier.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
         let private_bundle = tier.scratch.path().join("bundle");
         copy_bundle(&bundle(), &private_bundle);
         let digest = fs::read_dir(&private_bundle)
@@ -300,7 +309,7 @@ impl Tier {
         let keys =
             format!("http://{socket}/bundle/{}/issuer.webmanifest", digest.file_name().to_str().expect("digest"));
         value["application"]["clients"]["bundle"] = serde_json::json!(private_bundle);
-        value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 2000.into();
+        value.jig_over("accounts.sign_in_deadline_ms", 2000);
         let mut sign_in = account_registration("http://127.0.0.1:9");
         sign_in["keys"] = keys.into();
         account_provider(&mut value, &sign_in);
@@ -316,7 +325,9 @@ impl Tier {
         let address = listener.local_addr().expect("issuer address");
         let origin = format!("http://{address}");
         let path = tier.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
         let sign_in = account_registration(&origin);
         account_provider(&mut value, &sign_in);
         welcome_provider(&mut value, &sign_in);
@@ -339,15 +350,17 @@ impl Tier {
         let listener = TcpListener::bind("127.0.0.1:0").expect("reserve GitHub port");
         let address = listener.local_addr().expect("GitHub address");
         let path = tier.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
         value["application"]["test"]["github"] = serde_json::json!({
             "api":{"socket":address.to_string()}, "transport":"plaintext",
             "remote":format!("http://{address}"), "web":format!("http://{address}")
         });
         github::project_creation(&mut value, address);
-        value["application"]["limits"]["overrides"]["picker.page"] = page.into();
+        value.temper_over("picker.page", page);
         // repo-NN is longer than the single-repository fixture's app.
-        value["engine"]["limits"]["overrides"]["people.amendment_bytes"] = 2048.into();
+        value.jig_over("people.amendment_bytes", 2048);
         configuration::private(&path, &serde_json::to_vec(&value).expect("GitHub deployment JSON"));
         let mut peer = github::peer_repositories(address, repositories, page);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held GitHub listener");
@@ -387,7 +400,9 @@ impl Tier {
         let tier = Self::new(name);
         let address = temper_fixtures::ports::addresses::<1>(&[])[0];
         let path = tier.scratch.path().join("temper.json");
-        let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+        let mut value = temper_playground::documents::Configuration::from_jig(
+            serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON"),
+        );
         value["application"]["clients"]["listener"]["socket"] = serde_json::json!(address.to_string());
         configuration::private(&path, &serde_json::to_vec(&value).expect("reserved deployment JSON"));
         tier
@@ -454,10 +469,10 @@ fn account_registration(origin: &str) -> serde_json::Value {
 }
 
 /// The two account stories share their provider and room for its driver.
-fn account_provider(value: &mut serde_json::Value, sign_in: &serde_json::Value) {
+fn account_provider(value: &mut temper_playground::documents::Configuration, sign_in: &serde_json::Value) {
     // One git operation leaves the small profile's sockets room for the accounts driver.
-    value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
+    value.temper_over("git_component.operations", 1);
+    value.temper_over("checkout.workspaces", 1);
     let mut endpoint = temper_agent_fixtures::providers::input(value)["endpoints"][0].clone();
     endpoint["provider"] = "Test provider".into();
     endpoint["name"] = "fake".into();
@@ -506,8 +521,29 @@ fn copy_bundle(from: &Path, to: &Path) {
 
 #[cfg(test)]
 mod tests {
-    use super::configuration::{UNREACHED, documents};
-    use std::path::Path;
+    use super::configuration::{UNREACHED, typed_documents as documents};
+    use std::{fs, path::Path};
+    #[test]
+    fn a_model_without_credentials_keeps_the_world_provider_for_every_start() {
+        let scratch = skein_scratch::Scratch::new("browser-model-provider");
+        super::configuration::write(scratch.path(), &scratch.path().join("bundle"));
+        let tier = super::Tier { scratch, forged: Box::new([]) }.with_model();
+        let wanted = temper_agent_fixtures::providers::read(tier.scratch.path());
+        assert_eq!(wanted["endpoints"][0]["address"]["socket"], UNREACHED);
+        assert_eq!(wanted["providers"][0]["sources"], serde_json::json!({}));
+        let settings: serde_json::Value =
+            serde_json::from_slice(&fs::read(tier.scratch.path().join("browser-agents.json")).expect("ctl settings"))
+                .expect("settings JSON");
+        let providers: Vec<_> = settings["items"]
+            .as_array()
+            .expect("settings items")
+            .iter()
+            .filter(|item| item["setting"]["kind"] == "provider")
+            .cloned()
+            .collect();
+        assert_eq!(providers, temper_box_kit::provider_setup::items(&wanted));
+    }
+
     #[test]
     fn the_page_excludes_only_the_three_decimal_github_routes() {
         for (path, page) in [
@@ -541,19 +577,51 @@ mod tests {
         }
     }
 
-    fn tier_configuration() -> (serde_json::Value, serde_json::Value) {
+    fn tier_configuration() -> (serde_json::Value, temper_playground::documents::Configuration) {
         let (agent, value) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
-        (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
+        (serde_json::from_slice(&agent).expect("agent JSON"), value)
     }
-    fn stock_defaults(value: &serde_json::Value) -> jig_domain_core::settings::Defaults {
+    fn stock_defaults(value: &temper_playground::documents::Configuration) -> jig_domain_core::settings::Defaults {
         let engine = super::configuration::stock_engine(value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         core.defaults
     }
+    fn written_tier(directory: &Path) -> temper_playground::documents::Configuration {
+        let mut value = super::configuration::write(directory, Path::new("/test/bundle"));
+        value.document = serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("written deployment"))
+            .expect("deployment JSON");
+        value
+    }
+    fn assert_turn_admission(value: &temper_playground::documents::Configuration, directory: &Path) {
+        let agent = temper_agent_fixtures::at(value, directory);
+        assert!(
+            agent["endpoints"]
+                .as_array()
+                .expect("composed endpoints")
+                .iter()
+                .any(|endpoint| { endpoint["name"] == "demo" && endpoint["number"] == 3 }),
+            "the box includes its scripted provider"
+        );
+        let turn = u64::from(temper_playground::documents::turn_bounds::turn_body(&agent));
+        let hub = value.jig.hub.turn_bytes;
+        let transcript = u64::from(value.limits.root.loads.transcript_bytes);
+        let loaded = u64::from(value.limits.root.loads.bytes);
+        let row = u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");
+        assert!(
+            value["workers"].as_array().expect("workers").iter().all(|worker| worker.get("limits").is_none()),
+            "workers inherit the engine's turn bound"
+        );
+        assert!(
+            hub >= turn && transcript >= turn && loaded >= turn + row,
+            "turn admission: T={turn}, engine and inherited worker hub.turn_bytes={hub}, root.loads.transcript_bytes={transcript}, root.loads.bytes={loaded}, row={row}"
+        );
+    }
     #[test]
     fn the_tier_passes_startup_validation_with_stock_defaults() {
-        let (_, deployment) = documents(Path::new("/private/test"), Path::new("/test/bundle"));
-        let shape = super::configuration::shape(serde_json::from_slice(&deployment).expect("deployment JSON"));
+        let scratch = skein_scratch::Scratch::new("browser-turn-admission");
+        let value = written_tier(scratch.path());
+        assert_turn_admission(&value, scratch.path());
+        let shape = super::configuration::shape(value.document);
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
     }
     #[test]
@@ -576,11 +644,18 @@ mod tests {
     }
     #[test]
     fn the_sign_in_tiers_two_providers_pass_startup_validation() {
-        let (agent, mut value) = tier_configuration();
+        let scratch = skein_scratch::Scratch::new("browser-sign-in-turn-admission");
+        let mut value = written_tier(scratch.path());
         let sign_in = super::account_registration("http://127.0.0.1:9");
         super::account_provider(&mut value, &sign_in);
         super::welcome_provider(&mut value, &sign_in);
-        let shape = super::configuration::shape(value.clone());
+        let path = scratch.path().join("temper.json");
+        super::configuration::private(&path, &serde_json::to_vec(&value).expect("two-provider deployment JSON"));
+        value.document = serde_json::from_slice(&fs::read(path).expect("written deployment")).expect("deployment JSON");
+        assert_turn_admission(&value, scratch.path());
+        let agent = temper_agent_fixtures::at(&value, scratch.path());
+        value["world_providers"] = temper_agent_fixtures::providers::read(scratch.path());
+        let shape = super::configuration::shape(value.document.clone());
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
         let engine = super::configuration::stock_engine(&value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);

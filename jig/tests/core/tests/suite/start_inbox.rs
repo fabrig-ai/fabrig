@@ -59,6 +59,10 @@ fn next_chat(world: &mut World, key: u8) -> u64 {
 }
 
 fn stored_world() -> World {
+    stored_world_with_proposal(false)
+}
+
+fn stored_world_with_proposal(amendment: bool) -> World {
     let limits = limits();
     let mut world = World::new(Setup { seed: SEED, configuration: Some(configuration()), limits, ..Setup::default() });
     let read = finish(&mut world);
@@ -98,17 +102,34 @@ fn stored_world() -> World {
         "message answer: {:?}",
         world.answers.last()
     );
+    let action = if amendment {
+        people::Action::Amend {
+            task: target,
+            revision: 0,
+            amendment: Box::new(people::Amendment {
+                spec: Some(people::Spec {
+                    asks: false,
+                    words: Box::from(b"amended conversation".as_slice()),
+                    parameters: Box::new([]),
+                    inputs: Box::new([]),
+                }),
+                ..jig_test_profile::fixtures::person_unchanged(b"review the waiting task")
+            }),
+        }
+    } else {
+        people::Action::Batch(Box::new([people_member(b"proposed work", 150)]))
+    };
     ask_as(
         &mut world,
         sign_in,
         105,
-        people::Ask::Propose {
-            project: 1,
-            action: people::Action::Batch(Box::new([people_member(b"proposed work", 150)])),
-            reason: Box::from(b"please approve".as_slice()),
-        },
+        people::Ask::Propose { project: 1, action, reason: Box::from(b"please approve".as_slice()) },
     );
-    assert!(matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Proposed { .. }))));
+    assert!(
+        matches!(world.people_answers.last(), Some(people::Reply::Outcome(people::Outcome::Proposed { .. }))),
+        "party proposal: {:?}",
+        world.people_answers.last(),
+    );
     world
 }
 
@@ -206,6 +227,70 @@ fn through_wires(domain: &mut core::Core, limits: &root::Limits) {
         while out.pop().is_some() {}
     }
     panic!("bounded start finishes Wires");
+}
+
+#[test]
+fn start_restores_a_party_amendment_beside_its_targets_question() {
+    let world = stored_world_with_proposal(true);
+    let limits = limits();
+    let proposal = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(proposal))) = record
+                && matches!(proposal.action, tasks::PersonAction::Amend { .. })
+            {
+                Some(proposal)
+            } else {
+                None
+            }
+        })
+        .expect("committed party amendment");
+    let target = proposal.first();
+    let object = core::documents::InboxObject::Proposal {
+        proposer: people::Proposer::Party(proposal.proposer),
+        number: proposal.number,
+    };
+    let mut restored = load_core(&world.store.rows, &limits);
+    load_inbox(&mut restored, &world.store.rows, &limits);
+    through_wires(&mut restored, &limits);
+    let window = core::documents::Window { rows: 16, after: None };
+    let core::documents::Document::Inbox(inbox) = core::documents::make(
+        &restored,
+        &limits.core,
+        1,
+        &core::documents::Subject::Inbox { party: 1 },
+        &window,
+        Wall::EPOCH,
+    )
+    .expect("restored inbox") else {
+        panic!("inbox")
+    };
+    assert_eq!(inbox.needs.len(), 2, "question and amendment proposal");
+    assert_eq!(inbox.cached_needs, 2);
+    let linked: Vec<_> = inbox
+        .needs
+        .iter()
+        .filter(|entry| matches!(&entry.task, core::documents::TaskLink::Live(chip) if chip.number == target))
+        .map(|entry| entry.object)
+        .collect();
+    assert_eq!(linked.len(), 2, "both sources keep the amended task's link");
+    assert!(linked.contains(&object));
+    assert!(linked.iter().any(|object| matches!(object, core::documents::InboxObject::Question { .. })));
+    let core::documents::Document::Frame(me) = core::documents::make(
+        &restored,
+        &limits.core,
+        1,
+        &core::documents::Subject::Frame { party: 1 },
+        &window,
+        Wall::EPOCH,
+    )
+    .expect("restored me") else {
+        panic!("me")
+    };
+    assert_eq!(me.needs, 2);
+    assert_eq!(me.need_counts, people::Needs { questions: 1, proposals: 1, escalations: 0, person_tasks: 0 });
 }
 
 #[test]

@@ -10,7 +10,9 @@ the root at `Talk { project, task }`, drawn as a chat under a head of its
 own (`talk.md`, section 1). Over the launchpad, a chat or a talk, a
 place of the TUI's own not yet started, for `/ask`, `/change`, `/draft`
 or `/tell` pressed alone, is drawn as a chat before its first message
-(section 2, *Not yet started*). Signing in has a framed top, the
+(section 2, *Not yet started*). Out of front, a build the engine
+refuses draws its own screen in place of any of them (`refused.md`).
+Signing in has a framed top, the
 region `tui-top`, titled "temper", and a bottom row, the region
 `tui-bottom`, spread: the link's state, and what closes the TUI. The
 launchpad opens with the header, two lines, the mark, the build and the
@@ -29,7 +31,8 @@ launchpad's place, both under the header, the playground's project says so, Ctrl
 the foot and the commands (`../box.md`).
 
 - **The TUI's state,** `temper-client-tui`'s `Tui`, holds what the root
-  does not: the address, the link field's value, the no-project command
+  does not: the origin (`../README.md`, 1), the native shell's last TLS
+  failure (`../README.md`, 3, *The handshake*), the link field's value, the no-project command
   composer's value, the sign-in's progress
   (asked, answered, lost, or the TUI's own refusal of what was pasted),
   whether it signs in from the engine's link and whether that ended,
@@ -65,7 +68,17 @@ the foot and the commands (`../box.md`).
   row's first words, at its first column: a status in the view's words
   after the TUI's own `●`, "Live" once `me` is read on a live link,
   "Connecting" while it starts or before `me`, "Offline", "Signed out",
-  "Out of date", each in its token's paint (`../theme.md`). On the
+  "Out of date", each in its token's paint (`../theme.md`); out of
+  front, a build refused reads "Refused" in place of "Out of date"
+  (`refused.md`). At a name, while the native shell's last handshake
+  failed (`../README.md`, 3, *The handshake*), the state reads
+  "Offline: " and why, in place of "Offline", "Signed out" or
+  "Connecting", PLACE the place (`chat.md`, 1, *The place*): "Offline:
+  PLACE's certificate isn't trusted" (`Untrusted`), "… has expired"
+  (`Expired`), "… isn't valid yet" (`NotYetValid`), "… is for another
+  name" (`OtherName`), and "Offline: the secure connection to PLACE
+  failed" (`Failed`), each the TUI's own words, until a handshake
+  succeeds; a narrow row cuts it at its end. On the
   sign-in screen it is the row's left half, what closes the TUI its
   right; on every other screen it begins the quiet line, Live included
   (section 1, *The quiet line*). The user's request `tui-21` of
@@ -75,6 +88,7 @@ the foot and the commands (`../box.md`).
   talk.
 
 - `sign-in.md`: signing in and renewing from the engine's link.
+- `refused.md`: the screen for a build the engine refuses.
 - `launchpad.md`: the launchpad, its rows and walking what needs you.
 - `chat.md`: a chat's conversation and its question.
 - `design-session.md`: the draft pane, reply choices and starting a goal.
@@ -243,8 +257,8 @@ chat, the running line above them.
   - *Not a notice:* a note of more than a line stays in the
     conversation, `/help`'s and `/log`'s among them, and so do `/brief`'s
     note, `/open`'s "Open ADDRESS in your browser.", which holds an
-    address to copy, and the box's give up note, which stands for good
-    (`../box.md`).
+    address to copy, `/web`'s, which holds the printed link to copy, and
+    the box's give up note, which stands for good (`../box.md`).
 
 ## 2. The commands
 
@@ -294,15 +308,18 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   root's, and `/brief` while
   the header holds a brief, `/needs` while Needs you stands, `/open`
   after `/chats` and `/tell` after it; on a chat and on a talk `/open`
-  and `/tell` after `/chats`. So the launchpad's
+  and `/tell` after `/chats`; in front of a box, `/web` right after
+  `/open`, and first on the welcome, which offers no `/open`
+  (`../box.md`, *`/web`, temper in the browser*). So the launchpad's
   order is `/draft`, `/change`, `/talk`, `/ask`, `/model`, `/effort`, `/new`, `/chats`,
-  `/brief`, `/needs`, `/open`, `/tell`, `/theme`, `/help`, `/quit`. `/theme` is
+  `/brief`, `/needs`, `/open`, `/web` in front, `/tell`, `/theme`, `/help`, `/quit`. `/theme` is
   the TUI's own wherever it is offered (*`/theme`*), in the place the
   root's held. Their words,
   the TUI's: "A design session that ends in a draft and a goal", "One
   change, run as the project's way says", "A role, about its area", "Ask
   temper", "The brief, whole", "Walk what needs you", "Open this on the
-  web", "Tell temper what's off", "Auto, light or dark".
+  web", "Open temper in your browser", "Tell temper what's off", "Auto,
+  light or dark".
   - *`/draft`* on the launchpad, pressed or sent alone, goes to a design
     session not yet started (*Not yet started*); sent with words, `/draft WORDS` starts a
     design session as the browser's new chat with a draft does (`../../pages/README.md`, *A
@@ -390,7 +407,8 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
   - *`/brief`* writes `/brief`'s note (`launchpad.md`, 7).
   - *`/needs`* walks what needs the person, as `n` does.
   - *`/open`* opens the object in focus on the web, the opener given
-    `http://HOST:PORT` and the page's path (`address::print`) as one
+    the origin printed (`Origin::print`, `../README.md`, 1),
+    `http://HOST:PORT` or `https://NAME`, and the page's path (`address::print`) as one
     argument, as the approval's tab is opened (`../../README.md`, 4.1): on the launchpad
     the selected row's page, a chat's (`/chats/T`) or the goal's
     (`/tasks/T`), else the project's Home (`/projects/P`); on a chat
@@ -398,6 +416,11 @@ The browser terminal's (`../../pages/chat/terminal.md`, 1,
     (`/tasks/T`, `design-session.md`, section 1, *A linked goal*). Only the page's address: never a link, a code or a
     secret. Where no browser opened (no opener, or it failed), the TUI
     notes "Open ADDRESS in your browser." until the next send or screen.
+  - *`/web`,* in front of a box alone, opens temper in the browser: the
+    box's printed link while it is live, which signs the browser in as
+    the owner, and once a browser has signed in by it the web's Home, as
+    `/open` opens it; with no opener, the link in a note to copy
+    (`../box.md`, *`/web`, temper in the browser*).
   - *`/chats N`,* sent on the launchpad, opens the Nth chat of Where you
     left off (`launchpad.md`, 4), whatever its project, as Enter on it
     does; a number with no chat there gives the notice an unknown
@@ -597,10 +620,15 @@ out of front, the first row blank in both:
   1, *Its frame*), " · " (`tui-faint`) and "a whole deployment on this
   machine" (`tui-hint`), the TUI's own words, where the browser's
   welcome keeps "on this machine, to try it" (the user's word);
-  elsewhere, the address the TUI is on, `HOST:PORT` (`tui-hint`).
+  elsewhere, the place the TUI is on, as the origin names it
+  (`tui-hint`): `HOST:PORT` on loopback, a box out of front among them,
+  and at a name NAME, `dev.fabrig.ai`, with `:PORT` where the port
+  isn't 443 (`../../../draft/tui-remote.md`, 3): `place(origin, false)`
+  (`chat.md`, 1, *The place*).
 - **What the framed top held** goes under it: on the launchpad, the
-  headline, the briefs and their byline, "Connecting to HOST:PORT", out
-  of date, a sign-in not kept and the playground's banner, its first
+  headline, the briefs and their byline, "Connecting to PLACE" (PLACE
+  as the second line names it), out
+  of date in front, a sign-in not kept and the playground's banner, its first
   section (`launchpad.md`, 3); on the welcome, out of date, its first
   section (`../box.md`, *The welcome*). The project's name and
   "playground" are the quiet line's alone (section 1, *The quiet line*;

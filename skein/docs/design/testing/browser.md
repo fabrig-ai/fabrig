@@ -1,6 +1,6 @@
 # Browser
 
-Provisional, 2026-10-06, revised 2026-10-26. The design of
+Provisional, 2026-10-06, revised 2026-11-18. The design of
 `skein-browser`: a testing kit that drives a real, headless Chromium from
 a service's loop, so that a service with a web can test it as a person
 uses it. It is a step machine over the child's pipes, speaking the
@@ -38,6 +38,11 @@ example's browser tier through it, are others (../ui/web/testing.md).
   exceptions, console errors, log errors (a content security policy
   violation among them), crashes and the native dialogs it dismissed.
   Whether one fails the test is the test's call.
+- **A page's requests, where its test asks.** A page opened to report
+  them reports each request its main frame sends, in order, with the
+  document load that sent it, and the first answer to each: what a test
+  counts a page's round trips by. No header or body is kept, and none
+  is judged (sections 5 and 6).
 - **Bounded like the rest of skein.** Persons, pages, operations,
   commands in flight and each message are counted under limits, checked
   by `valid`.
@@ -150,7 +155,8 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
   nodes, a scope's object, their boxes, the hit test, focus, scrolling
   into view); `Input` (mouse, keys, text, composition); and `Runtime`,
   `Log` and `Inspector` (the document's object, exceptions, console and
-  log entries, crashes). Several of these commands are experimental in
+  log entries, crashes); and `Network`, on a page that asks for its
+  requests alone (sections 5 and 6). Several of these commands are experimental in
   CDP, which is why the real browser is checked (section 9).
 - **A selector is a parameter, never an expression.** The kit sends an
   attribute read's selector as `DOM.querySelector`'s own, and Chromium
@@ -173,7 +179,7 @@ actions into it.
 ```rust
 pub enum Request {                                       // from the test
     Person { person: Token, downloads: Option<Box<[u8]>> },  // a browser context: its own cookies, storage and downloads
-    Page   { person: Token, page: Token, url: Box<[u8]> },
+    Page   { person: Token, page: Token, url: Box<[u8]>, requests: bool },  // requests: report its requests (below)
     Go     { page: Token, op: Token, to: Go },           // an address, reload, back, forward
     Find   { page: Token, op: Token, query: Query },     // one look
     Await  { page: Token, op: Token, query: Query, expect: Expect, within: Duration },
@@ -206,7 +212,10 @@ pub enum Event {                                         // to the test
     Tabs    { op: Token, tabs: List<Tab>, more: u32 },   // more: tabs past the limit, counted
     Attribute { op: Token, read: Read },
     Downloaded { person: Token, name: Box<[u8]>, path: Box<[u8]> },  // a file one of its pages saved, complete
-    Trouble { page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed
+    Trouble { page: Token, trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },  // an exception, a console or log error, a crash, a dialog, a download failed, a request past the limit
+    Sent    { page: Token, id: Box<[u8]>, load: Box<[u8]>, document: bool,
+              method: Box<[u8]>, url: Box<[u8]> },        // a request its main frame sent, on a page that asks
+    Answered { page: Token, id: Box<[u8]> },             // the first answer to a request reported Sent
     Closed  { owner: Token },                            // terminal
 }
 
@@ -246,6 +255,38 @@ pub struct Tab   { url: Box<[u8]>, title: Box<[u8]>, opener: bool }  // opener: 
     and none is reported after its `Closed`.
   - The directory is the test's: the kit never reads, moves or removes a
     file in it.
+- **A page's requests are reported where its `Page` asks** (`requests`),
+  as a browser's network panel lists them, so that a test counts what a
+  page sends and in how many round trips. A page that does not ask
+  reports none, and the kit enables nothing for it (section 6).
+  - **`Sent`:** each request the page's main frame sends, in the order
+    Chromium reports them sent: `id`, Chromium's request id; `load`, the
+    id of the document load that sent it, Chromium's loader id;
+    `document`, whether it is the main frame's own navigation, a new
+    document's request, whose `id` is its `load`; its method; and its
+    URL as Chromium gives it, the query and the fragment among them.
+    Each is cut to `Limits::text`. A redirect followed is the same
+    request, reported once. A request of a frame within the page, or of
+    a worker, is not the page's and is not reported.
+  - **`Answered`:** once for each request reported `Sent`, at the first
+    of its answer's first body bytes, its end, and its failure, a
+    cancellation among them. So a streamed answer, which may never end,
+    is answered as its first bytes come; its later bytes and its end are
+    not reported.
+  - **A request keeps the load that sent it.** One the leaving document
+    sends as a navigation begins, even after the new document's
+    request, is reported with the leaving document's `load`, as Chromium
+    tags it (a fact the real browser checks, section 9). So a test tells
+    the page's current document's requests from the one before by
+    `load`, never by their order.
+  - **What the kit keeps:** each request reported `Sent` whose
+    `Answered` has not come, by its page and id, at most
+    `Limits::requests` across the browser. One sent past them is
+    reported `Sent`, its answer is not followed, and it is its page's
+    `Trouble` (section 7). A page's close drops its requests, and
+    nothing of them is reported after its `Closed`. The kit keeps no
+    header and no body, and judges none: which requests count, and how,
+    is the test's.
 - **A node is the browser's backend node id,** which names one element
   for as long as it lives. A node since removed is `Gone`, as a stale
   handle is.
@@ -336,6 +377,7 @@ to the next command, never a closure waiting on a reply:
 | keys | the node focused; for each character of the text, in order, its key down and up, the character its key and its text |
 | key | the key down and up, with the text it makes; with `shift`, Shift's modifier on both; select-all, A's key down and up with Control's modifier and no text; a letter, its code (`KeyS`), its key and Windows key code (upper case with Shift), its text unless `alt`, and with `alt` Alt's modifier on both |
 | download | not an operation: the browser-level `Browser.downloadWillBegin` names the frame, which is a page's when it is the page's target, and the suggested name, kept by the download's id; `Browser.downloadProgress` completed is `Downloaded`, its path the person's directory and the id; canceled is the page's `Trouble`; past `Limits::downloads`, `Browser.cancelDownload` |
+| requests | not an operation: on a page opened with `requests`, `Network.enable` among the domains it reports on, before it navigates; each `Network.requestWillBeSent` of its main frame without a `redirectResponse` is `Sent`, `document` where its `type` is `Document`; the first `Network.dataReceived`, `Network.loadingFinished` or `Network.loadingFailed` of a request the kit keeps is `Answered`, and the request leaves what it keeps; any other of them is skipped, a kept request's later ones and those of a request it never kept alike |
 | address | the page's navigation history (`Page.getNavigationHistory`); its current entry's URL, `Address` |
 | tabs | the browser's targets (`Target.getTargets`), those of type `page` in the page's person's context that no `Page` request opened, in the reply's order; each one's URL, title and `canAccessOpener`, within `Limits::matches`, the rest counted; `Tabs`. No script runs in them, and the kit attaches to none: what a person's tab strip and address bar show, and the browser's own word on the opener |
 | attribute | the current document's root (`DOM.getDocument`, its root alone); the first element under it the selector finds (`DOM.querySelector`), `NoElement` if none; its attributes (`DOM.getAttributes`), the named one's value, or `NoAttribute`; refused `Protocol` for a selector Chromium cannot parse, and `Limit` for a value past `Limits::text`, which is never cut, since a test uses it whole |
@@ -450,6 +492,9 @@ wrong, and reports each as `Trouble` with its text, cut to
 - a download the page started that was cancelled, denied, past
   `Limits::downloads`, or whose name or path is past `Limits::text`
   (section 5). Its text is the name the page suggested.
+- a request its page sent past `Limits::requests` (section 5), whose
+  answer the kit does not follow. Its text is `requests past the
+  limit`.
 
 A dismissed dialog commits the page to nothing: a confirm answers no, a
 prompt gives nothing, and a `beforeunload` prompt keeps the page where
@@ -459,8 +504,10 @@ and no request would answer it.
 
 A log entry's `url` is the resource it names, cut to `Limits::text`,
 beside its text and never in it, so that a test's expected words are
-read in the text alone and never match a port or a digest; it is empty
-where the entry names none and for every other trouble.
+read in the text alone and never match a port or a digest. A request's
+trouble's `url` is that request's, cut the same way, so that its text
+never holds a URL's query. It is empty where the entry names none and
+for every other trouble.
 
 The kit judges none of them. A test fails on any `Trouble` it did not
 expect, and a scenario that provokes one (a page made to fail, for
@@ -469,7 +516,7 @@ example) expects it. That is the test's harness, not the kit.
 ## 8. Limits and memory
 
 `Limits` bound persons, pages, operations in flight, commands in flight,
-downloads in flight,
+downloads in flight, requests awaiting their first answer,
 a message each way, matches kept per query, the bytes of a name or
 value, a snapshot, a screenshot, a `Trouble`'s text and
 stderr's tail.
@@ -489,6 +536,16 @@ named scenario ceiling with headroom.
   read, one past the limit), command encoding, bounded decoding, and
   operation transitions use synthetic CDP replies. The separate browser
   suite checks those assumptions against Chromium.
+- **A page's requests,** step tests on synthetic `Network` events: a
+  page opened with `requests` enables `Network`, and one without
+  enables nothing and reports none; `Sent` for the main frame's
+  requests alone, in order, the navigation's `document` with its id as
+  its `load`, a redirect's second `requestWillBeSent` not reported;
+  `Answered` once, at the first of a request's first body bytes, its
+  end or its failure, a streamed answer's later bytes and end not
+  reported; a request past `Limits::requests` reported `Sent` and as its
+  page's `Trouble`, its `url` the request's; a page's close dropping its
+  kept requests, none reported after its `Closed`.
 - **The machine world:** the kit against a fake browser, a scripted CDP
   peer over in-memory pipes. Its pages and accessibility trees come from
   the scenario, and the seed drives what goes wrong:
@@ -496,11 +553,14 @@ named scenario ceiling with headroom.
     steps of a press;
   - replies that come late, interleaved with events, or never;
   - a page or the browser crashing in the middle of an operation;
-  - a message past the limit.
+  - a message past the limit;
+  - on a page that asks for its requests, requests sent and answered
+    among the operations, streamed answers' bytes among them.
 
   A referee holds the contracts: one terminal per operation, nothing
-  after `Closed`, every command answered or failed, and a press never
-  dispatched on a node that was refused. Each of its checks returns the
+  after `Closed`, every command answered or failed, a press never
+  dispatched on a node that was refused, and a request's `Answered` at
+  most once, after its `Sent`. Each of its checks returns the
   first contract broken as a finding, and the world or the test that
   drives it fails on it (../../foundation/programming-model.md, 10.4). A
   few seeds run in the focused suite, and many in the fuzzy one.
@@ -518,7 +578,12 @@ named scenario ceiling with headroom.
   modifiers and the text it made, and a page whose press opens a tab, names
   it and cuts its opener, and which opens another at its start, with no press;
   and a page whose full-width heading measures 420 then 1440 CSS pixels
-  after its viewport changes.
+  after its viewport changes; and a page, opened with `requests`, whose
+  script fetches a streamed answer that stays open and sends a
+  `keepalive` request at `pagehide`, then is reloaded: its document and
+  its fetch reported `Sent` with its load, the streamed one `Answered`
+  while it stays open, and the leaving document's request with the old
+  load, after the new document's `Sent`.
   These tests check the facts the fake browser assumes: the framing,
   flattened sessions, what the accessibility queries match, with a name and
   without one, boxes and the hit test, on an element and on a shape of an
@@ -529,8 +594,10 @@ named scenario ceiling with headroom.
   directory with the page's bytes, `Downloaded` naming it, and a person
   with no directory saving none), a tab (a press's listed with its title,
   `canAccessOpener` false once its opener is cut, and an opening with no
-  press refused by Chromium's pop-up rule), and a letter (alone, it types; with
-  Alt and Shift, the page hears its code, both modifiers and no text).
+  press refused by Chromium's pop-up rule), a letter (alone, it types; with
+  Alt and Shift, the page hears its code, both modifiers and no text), and
+  a page's requests (its main frame's, a streamed answer's first bytes
+  before its end, and each request tagged with the load that sent it).
   Chromium's targets trail a press: when the press's `Done` comes, the
   tab it opened may still be titled `about:blank`, and its
   `canAccessOpener` may still read as before a cut. So the tab story asks
@@ -578,6 +645,9 @@ The kit's tests are a crate of their own, `tests/browser`
 - **Chromium's own sandbox** under a service's containment: whether the
   namespaces it needs are there, or the real loop's sandbox stands in for
   it.
+- **A page's other requests:** its frames' and its workers' are not
+  reported (section 5), nor are a request's headers, status or timing.
+  Default: none until a test needs them.
 - **Other browsers.** CDP is Chromium's; Firefox and WebKit would need
   WebDriver BiDi, a second wire, if a bug ever shows only there.
 - **Text by pattern beyond words,** should words in a name prove too

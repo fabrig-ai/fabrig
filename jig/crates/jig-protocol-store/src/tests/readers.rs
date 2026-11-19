@@ -102,6 +102,146 @@ fn restore_decode_faults_name_keys_without_values() {
 }
 
 #[test]
+fn lowered_byte_bounds_keep_the_held_figure_and_row_site() {
+    let mut identity = jig_protocol_store_kit::identity();
+    identity.name = Box::new([b'x'; 24]);
+    let record = Record::People(jig_domain_people::Stored::Person { number: ALICE, identity });
+    let key = keys::encode(&record.key(), fixtures::KEY_LIMIT).unwrap();
+    let mut store = raw_store(&[put(record.clone())]);
+    let stock = store.limits.core;
+    let mut lower = stock;
+    lower.people.identity_bytes = 16;
+    store.limits.commits.writes = 3;
+    store.install_limits(&lower, fixtures::APPLICATION, 64).unwrap();
+    let error = restore::page(&mut store, live(), None, ROWS, BYTES).unwrap_err();
+    assert_eq!(
+        error.cause,
+        Cause::Decode(DecodeFailure::Lowered(codec::Lowered {
+            name: b"people.identity_bytes",
+            configured: 16,
+            held: 24,
+        }))
+    );
+    assert_eq!(error.row, Some(restore::site(&store, &key)));
+    assert!(!alloc::fmt::format(format_args!("{error:?}")).contains("xxxxxxxx"));
+    let mut stock_store = raw_store(&[put(record.clone())]);
+    let page =
+        restore::page(&mut stock_store, Restore::Jig(Box::new([RestoreRange::People])), None, ROWS, BYTES).unwrap();
+    let [Item::Row(Row::Jig(restored))] = page.items.as_ref() else { panic!("stock row") };
+    assert_eq!(restored, &record);
+}
+
+#[test]
+fn split_live_rows_report_lowered_cold_bytes_and_hot_lists() {
+    for bytes in [true, false] {
+        let mut task = fixtures::task_record();
+        task.spec.words = Box::new([b'x'; 24]);
+        task.spec.parameters = Box::new([]);
+        task.dependencies = Box::new([1, 2]);
+        let cold = fixtures::cold_task(&task);
+        let record = Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(task)));
+        let mut store = raw_store(&[put(record.clone()), put(cold)]);
+        let mut lower = store.limits.core;
+        let bound = if bytes {
+            lower.tasks.spec_bytes = 16;
+            lower.people.spec_bytes = 16;
+            codec::Lowered { name: b"tasks.spec_bytes", configured: 16, held: 24 }
+        } else {
+            lower.tasks.dependencies = 1;
+            codec::Lowered { name: b"tasks.dependencies", configured: 1, held: 2 }
+        };
+        store.limits.commits.writes = 3;
+        store.install_limits(&lower, fixtures::APPLICATION, 64).unwrap();
+        let error =
+            restore::page(&mut store, Restore::Jig(Box::new([RestoreRange::Tasks])), None, ROWS, BYTES).unwrap_err();
+        assert_eq!(error.cause, Cause::Decode(DecodeFailure::Lowered(bound)));
+        let key = keys::encode(&record.key(), fixtures::KEY_LIMIT).unwrap();
+        assert_eq!(error.row, Some(restore::site(&store, &key)));
+        let events =
+            fixtures::run(&mut store, crate::Request::Get { owner: OWNER, key: crate::Get::Jig(record.key()) });
+        let [crate::Event::Corrupt { .. }] = events.as_ref() else { panic!("refused live read") };
+        assert_eq!(store.read_failure(), Some(&error), "the serving join retains the same cause");
+    }
+}
+
+#[test]
+fn composite_carriers_measure_the_needed_setting_not_one_field_length() {
+    let mut task = fixtures::task_record();
+    task.spec.words = Box::new([b'x'; 24]);
+    // The fixture's byte parameter holds another six bytes in the same spec budget.
+    let cold = fixtures::cold_task(&task);
+    let record = Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(task)));
+    let mut store = raw_store(&[put(record), put(cold)]);
+    let mut lower = store.limits.core;
+    lower.tasks.spec_bytes = 16;
+    lower.people.spec_bytes = 16;
+    store.limits.commits.writes = 3;
+    store.install_limits(&lower, fixtures::APPLICATION, 64).unwrap();
+    let error =
+        restore::page(&mut store, Restore::Jig(Box::new([RestoreRange::Tasks])), None, ROWS, BYTES).unwrap_err();
+    assert_eq!(
+        error.cause,
+        Cause::Decode(DecodeFailure::Lowered(codec::Lowered { name: b"tasks.spec_bytes", configured: 16, held: 30 }))
+    );
+}
+
+#[test]
+fn a_maximum_names_a_lowered_source_not_an_unchanged_one() {
+    use jig_domain_core_vocabulary::{CoreRecord, MilestoneId, ProjectionMilestone, ProjectionRecord};
+    let record = Record::Core(CoreRecord::Projection(ProjectionRecord::Milestone {
+        goal: 1,
+        milestone: ProjectionMilestone {
+            identity: MilestoneId::Lifecycle { task: 1, position: 1 },
+            phase: None,
+            change: None,
+            words: Box::new([b'x'; 24]),
+        },
+    }));
+    for lower_result in [false, true] {
+        let mut store = raw_store(&[put(record.clone())]);
+        let mut lower = store.limits.core;
+        if lower_result {
+            lower.tasks.result_bytes = 16;
+        }
+        store.limits.commits.writes = 3;
+        store.install_limits(&lower, fixtures::APPLICATION, 64).unwrap();
+        let page = restore::page(&mut store, Restore::Jig(Box::new([RestoreRange::Core])), None, ROWS, BYTES);
+        if lower_result {
+            let Cause::Decode(DecodeFailure::Lowered(bound)) = page.unwrap_err().cause else {
+                panic!("lowered maximum")
+            };
+            assert_eq!(bound.name, b"tasks.result_bytes", "the maximum's other source is unchanged");
+            assert_eq!((bound.configured, bound.held), (16, 24));
+        } else {
+            let page = page.unwrap();
+            let [Item::Row(Row::Jig(restored))] = page.items.as_ref() else { panic!("maximum still holds the row") };
+            assert_eq!(restored, &record);
+        }
+    }
+}
+
+#[test]
+fn malformed_values_remain_value_failures_under_lowered_bounds() {
+    let mut identity = jig_protocol_store_kit::identity();
+    identity.name = Box::new([b'x'; 24]);
+    let record = Record::People(jig_domain_people::Stored::Person { number: ALICE, identity });
+    let key = keys::encode(&record.key(), fixtures::KEY_LIMIT).unwrap();
+    let encoded = codec::encode(&record, &fixtures::codec_limits(), &[]).unwrap();
+    let trailing = skein_lib::bytes::concat(&[&encoded, &[255]]);
+    for value in [Box::from(b"undecodable private value".as_slice()), trailing] {
+        let mut store = raw_store(&[skein_kv::Op::Put { key: key.clone(), value }]);
+        let mut lower = store.limits.core;
+        lower.people.identity_bytes = 16;
+        store.limits.commits.writes = 3;
+        store.install_limits(&lower, fixtures::APPLICATION, 64).unwrap();
+        let error = restore::page(&mut store, live(), None, ROWS, BYTES).unwrap_err();
+        assert_eq!(error.cause, Cause::Decode(DecodeFailure::Value));
+        assert_eq!(error.row, Some(restore::site(&store, &key)));
+        assert!(!alloc::fmt::format(format_args!("{error:?}")).contains("private value"));
+    }
+}
+
+#[test]
 fn diagnostics_bound_raw_keys_and_retain_original_lengths() {
     let mut store = fixtures::opened();
     store.limits.store.key = 3;

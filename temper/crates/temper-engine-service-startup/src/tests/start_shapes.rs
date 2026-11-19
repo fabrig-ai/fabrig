@@ -29,33 +29,6 @@ fn an_engine_without_an_agent_derives_from_stock() {
     let mut input: serde_json::Value = serde_json::from_slice(&stock::generated()).unwrap();
     input["workers"] = serde_json::from_slice(b"[]").unwrap();
     input["engine"]["hosts"]["listener"] = serde_json::from_slice(br#"[{"socket":"127.0.0.1:7200"}]"#).unwrap();
-    let jig = input["engine"]["limits"]["overrides"].as_object_mut().unwrap();
-    for name in [
-        "core.resume_bytes",
-        "hub.turn_bytes",
-        "hub.transcript_bytes",
-        "hub.turn_queue_bytes",
-        "io.output",
-        "tasks.message_bytes",
-        "tasks.result_bytes",
-        "tasks.inbox_bytes",
-    ] {
-        jig.remove(name);
-    }
-    let own = input["application"]["limits"]["overrides"].as_object_mut().unwrap();
-    for name in [
-        "root.journal.transcript_bytes",
-        "root.loads.transcript_bytes",
-        "root.loads.bytes",
-        "root.loads.reply_bytes",
-        "root.loads.read_bytes",
-        "checkout.message_bytes",
-        "forge.client.op_bytes",
-        "forge.client.answer_bytes",
-        "forge_component.body_bytes",
-    ] {
-        own.remove(name);
-    }
     let input = serde_json::to_vec(&input).unwrap();
     let dirs = config::Directories::working();
     let seeds = settings::Seeds {

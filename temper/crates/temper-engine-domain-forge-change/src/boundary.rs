@@ -239,6 +239,14 @@ pub enum Way {
     Turn,
 }
 
+/// Whether a change into a branch a tier follows lives to cleared or ends at landed
+/// (temper/docs/design/domain/after-landing.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Wait {
+    Cleared,
+    Landed,
+}
+
 /// A pending dependency of the change as the top reads it each step
 /// (temper/docs/design/domain/forge/change/questions.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -377,6 +385,7 @@ pub enum Verification {
 #[expect(clippy::struct_excessive_bools, reason = "independent root-supplied facts")]
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
+    pub wait: Wait,
     /// The head selected once from the source (temper/docs/design/domain/forge/change/opened.md, 4).
     pub taken: Option<Commit>,
     /// The failed checks at `ci.head`, or Change when CI did not fail or its runs could not be read.

@@ -114,6 +114,7 @@ pub fn is_application(setting: Setting) -> bool {
         | Setting::Worker(_)
         | Setting::Model(_)
         | Setting::Rules
+        | Setting::Limits
         | Setting::ProjectPolicy { .. } => false,
     }
 }

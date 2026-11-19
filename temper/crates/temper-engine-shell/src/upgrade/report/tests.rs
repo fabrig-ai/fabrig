@@ -57,13 +57,8 @@ fn check_lines_name_decoded_count_and_undecodable_places() {
 }
 
 #[test]
-fn workers_lines_are_the_checks_verdict_alone_for_yes_no_and_unknown() {
-    let dirs = Directories {
-        config: b"/config".as_slice().into(),
-        data: b"/data".as_slice().into(),
-        cache: b"/cache".as_slice().into(),
-        origins: [skein_shell::Origin::Flag; 3],
-    };
+fn workers_lines_count_files_before_the_checks_verdict_for_yes_no_and_unknown() {
+    let dirs = directories();
     for verdict in ["yes", "no", "unknown"] {
         let mut w1 = opening("w1");
         let mut w2 = opening("w2");
@@ -76,6 +71,8 @@ fn workers_lines_are_the_checks_verdict_alone_for_yes_no_and_unknown() {
             owner: Token::new(1),
             wires: if verdict == "unknown" { None } else { Some(kept()) },
             openings: Box::new([w1, w2]),
+            linked: 12,
+            copied: 3,
         });
         report.restored = true;
         report.events.push(Event::Decoded { owner: Token::new(1), records: 123 });
@@ -91,6 +88,8 @@ fn workers_lines_are_the_checks_verdict_alone_for_yes_no_and_unknown() {
         for binary in ["temper-engine", "temper-box"] {
             let (check, check_code) = lines(binary, &report, &dirs, b"/checkpoint");
             assert_eq!(check_code, 0);
+            assert!(!check.contains("upgrade: rehearsal linked "), "{check}");
+            let counts = format!("{binary} upgrade: rehearsal linked 12 files, copied 3\n");
             let expected = check
                 .split_inclusive('\n')
                 .filter(|line| {
@@ -101,17 +100,20 @@ fn workers_lines_are_the_checks_verdict_alone_for_yes_no_and_unknown() {
                 })
                 .collect::<String>();
             let (text, code) = workers_lines(binary, &report, &dirs, b"/checkpoint");
-            assert_eq!(text, expected);
+            assert_eq!(text, format!("{counts}{expected}"));
             assert_eq!(code, 0, "{verdict} changes no exit code");
             if verdict == "yes" {
                 assert_eq!(
                     text,
                     format!(
-                        "{binary} upgrade: worker w1 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: worker w2 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: workers may stay: yes\n"
+                        "{counts}{binary} upgrade: worker w1 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: worker w2 may stay: opened 2026-11-18T02:20:42Z\n{binary} upgrade: workers may stay: yes\n"
                     )
                 );
             } else if verdict == "unknown" {
-                assert_eq!(text, format!("{binary} upgrade: workers may stay: unknown; the copy keeps no wires\n"));
+                assert_eq!(
+                    text,
+                    format!("{counts}{binary} upgrade: workers may stay: unknown; the copy keeps no wires\n")
+                );
             } else {
                 assert!(text.contains("worker w1 may not stay: limits:"), "{text}");
                 assert!(text.ends_with("workers may stay: no\n"), "{text}");
@@ -122,17 +124,10 @@ fn workers_lines_are_the_checks_verdict_alone_for_yes_no_and_unknown() {
 
 #[test]
 fn workers_opening_refusals_keep_the_checks_words_and_fail() {
-    let dirs = Directories {
-        config: b"/config".as_slice().into(),
-        data: b"/data".as_slice().into(),
-        cache: b"/cache".as_slice().into(),
-        origins: [skein_shell::Origin::Flag; 3],
-    };
+    let dirs = directories();
     for why in [jig_protocol_store::Generations::Busy, jig_protocol_store::Generations::Unfinished] {
         let why = jig_protocol_store::OpenRefusal::Generations { why };
-        let mut report =
-            super::tests::report(Event::Rehearsing { owner: Token::new(1), wires: None, openings: Box::new([]) });
-        report.events.push(Event::OpenRefused { owner: Token::new(1), why: why.clone() });
+        let mut report = super::tests::report(Event::OpenRefused { owner: Token::new(1), why: why.clone() });
         report.events.push(Event::Closed { owner: Token::new(1), removed: true });
         report.end = Some(temper_engine_service::End::Stopped(temper_engine_service::Stop::StoreOpen { why }));
         for binary in ["temper-engine", "temper-box"] {
@@ -142,8 +137,121 @@ fn workers_opening_refusals_keep_the_checks_words_and_fail() {
             assert_eq!(code, 1);
             assert_eq!(text, check.split_once('\n').expect("check timing line").1);
             assert!(text.contains("/checkpoint"), "{text}");
+            assert!(!text.contains("upgrade: rehearsal linked "), "{text}");
         }
     }
+}
+
+#[test]
+fn workers_lines_exclude_whole_rehearsal_progress() {
+    let mut report = rehearsal();
+    report.restored = true;
+    report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
+    report.events.push(Event::Ran {
+        owner: Token::new(1),
+        of: Owner::Application,
+        job: "fixture-job".into(),
+        rows: 2,
+        commits: 1,
+        counts: Box::new([]),
+    });
+    let dirs = directories();
+    assert_eq!(workers_lines("temper-box", &report, &dirs, b"/checkpoint"), (format!("{COUNTS}{COMPATIBLE}"), 0));
+    assert_eq!(
+        lines("temper-box", &report, &dirs, b"/checkpoint"),
+        (
+            format!(
+                "temper-box upgrade: decoded 17 records\n\
+                 temper-box upgrade: ran temper fixture-job: 2 rows in 1 commits; time unavailable\n\
+                 temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\n\
+                 temper-box upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed\n\
+                 {COMPATIBLE}"
+            ),
+            0,
+        )
+    );
+}
+
+#[test]
+fn workers_lines_fail_without_rehearsal() {
+    let mut report = super::tests::report(Event::Decoded { owner: Token::new(1), records: 17 });
+    report.restored = true;
+    assert_eq!(workers_lines("temper-box", &report, &directories(), b"/checkpoint"), (String::new(), 1));
+}
+
+#[test]
+fn workers_event_refusals_keep_the_checks_words_and_fail() {
+    let dirs = directories();
+    for (event, refusal) in [
+        (
+            Event::Undecodable {
+                owner: Token::new(1),
+                family: "temper-store".into(),
+                version: 11,
+                at: Undecoded::Record { map: KeptMap::Store, key: Box::new([0xab]) },
+            },
+            "temper-box upgrade: record not decodable: temper-store 11, store key ab\n",
+        ),
+        (
+            Event::Closed { owner: Token::new(1), removed: false },
+            "temper-box upgrade: scratch cleanup failed; check the cache directory\n",
+        ),
+    ] {
+        let mut report = rehearsal();
+        report.events.push(Event::Decoded { owner: Token::new(1), records: 17 });
+        report.events.push(event);
+        let (check, check_code) = lines("temper-box", &report, &dirs, b"/checkpoint");
+        assert_eq!(check_code, 1);
+        assert_eq!(
+            check,
+            format!(
+                "temper-box upgrade: decoded 17 records\n{refusal}\
+                 temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\n{COMPATIBLE}"
+            )
+        );
+        assert_eq!(
+            workers_lines("temper-box", &report, &dirs, b"/checkpoint"),
+            (format!("{refusal}{COUNTS}{COMPATIBLE}"), 1)
+        );
+    }
+}
+
+#[test]
+fn workers_open_failures_keep_the_checks_words_and_fail() {
+    let mut report = rehearsal();
+    report.open_failure =
+        Some(jig_protocol_store::restore::OpenFailure::Refused(jig_protocol_store::OpenRefusal::Generations {
+            why: jig_protocol_store::Generations::Busy,
+        }));
+    let dirs = directories();
+    let refusal = "temper-box upgrade: store opening failed: Refused(Generations { why: Busy })\n";
+    assert_eq!(
+        lines("temper-box", &report, &dirs, b"/checkpoint"),
+        (format!("temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\n{refusal}{COMPATIBLE}"), 1)
+    );
+    assert_eq!(
+        workers_lines("temper-box", &report, &dirs, b"/checkpoint"),
+        (format!("{refusal}{COUNTS}{COMPATIBLE}"), 1)
+    );
+}
+
+fn directories() -> Directories {
+    Directories {
+        config: b"/config".as_slice().into(),
+        data: b"/data".as_slice().into(),
+        cache: b"/cache".as_slice().into(),
+        origins: [skein_shell::Origin::Flag; 3],
+    }
+}
+
+fn rehearsal() -> Report {
+    super::tests::report(Event::Rehearsing {
+        owner: Token::new(1),
+        wires: Some(kept()),
+        openings: Box::new([opening("w1"), opening("w2")]),
+        linked: 12,
+        copied: 3,
+    })
 }
 
 // A single sending kind keeps the report tests about routing judge's verdict, not schema derivation.
@@ -192,7 +300,8 @@ fn opening(name: &str) -> WorkerOpening {
 }
 
 fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> String {
-    let mut report = super::tests::report(Event::Rehearsing { owner: Token::new(1), wires, openings });
+    let mut report =
+        super::tests::report(Event::Rehearsing { owner: Token::new(1), wires, openings, linked: 12, copied: 3 });
     report.workers = configured();
     report.restored = true;
     let dirs =
@@ -204,6 +313,7 @@ fn verdict(wires: Option<Box<[KeptWire]>>, openings: Box<[WorkerOpening]>) -> St
     text.strip_prefix("temper-box upgrade: whole rehearsal/tool time: 1000000000 ns\ntemper-box upgrade: registry commit, jobs and restores pass; what follows the switch is not rehearsed\n").expect("other rehearsal lines unchanged").into()
 }
 
+const COUNTS: &str = "temper-box upgrade: rehearsal linked 12 files, copied 3\n";
 const COMPATIBLE: &str = "temper-box upgrade: worker w1 may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: worker w2 may stay: opened 2026-11-13T10:00:00Z\ntemper-box upgrade: workers may stay: yes\n";
 const NO: &str = "temper-box upgrade: workers may stay: no\n";
 

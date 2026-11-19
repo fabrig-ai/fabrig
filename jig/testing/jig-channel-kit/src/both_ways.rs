@@ -191,6 +191,11 @@ impl Judge {
         } else if waiting(procs)? {
             // The first run still owns its slot while the worker's periodic check
             // reports the host-local change. The next activation sees that inventory.
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    host.service.engine().ok_or("engine")?.hold_workspaces();
+                }
+            }
             self.login.set(Some(signed_in));
             self.check_after = Some(engine_wire(procs)?.frames.len());
         }
@@ -502,6 +507,21 @@ impl Judge {
             if answer.end == jig_domain_tasks::End::Parked)
         });
         self.cross(procs, parked)?;
+        // The parked finite task may self-wake. Hold its preparation until the
+        // requester's waking words have committed, before giving it a new backend.
+        let heard = self.store.rows.values().any(|row| {
+            matches!(row,
+            jig_test_domain::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))
+                if task.inbox.iter().any(|word| word.words.as_ref() == b"Continue on the other source"))
+        });
+        if heard {
+            for proc in procs.iter_mut() {
+                if let Proc::Engine(host) = proc {
+                    let engine = host.service.engine().ok_or("engine")?;
+                    engine.release_workspaces();
+                }
+            }
+        }
         let mut run = self.shared.borrow_mut();
         run.turns = world::turns(&self.store).into_iter().cloned().collect();
         run.terminals = self

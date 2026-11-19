@@ -7,7 +7,7 @@ use crate::{
 use skein_lib::{Duration, Wall};
 
 const KEY: [u8; 32] = [4; 32];
-const LIMITS: Limits = Limits { members: 6, gates: 4, poll: Duration::from_secs(5), tests_bytes: 4 };
+const LIMITS: Limits = Limits { members: 6, gates: 4, poll: Duration::from_secs(5), tests_bytes: 4, write_attempts: 2 };
 pub(crate) fn ids(names: &[&[u8]]) -> Box<[TestId]> {
     let mut ids = skein_lib::List::with_capacity(u32::try_from(names.len()).unwrap());
     for id in names {

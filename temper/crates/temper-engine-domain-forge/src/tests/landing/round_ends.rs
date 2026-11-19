@@ -111,6 +111,7 @@ impl World {
             Box::new([RepositoryGates { repository: REPO, gates, tiers: Box::new([]) }]),
             policy::Project::DEFAULT,
             AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -173,8 +174,11 @@ impl World {
             }
             Read::Reviews { .. } => Ok(Answer::Reviews { reviews: Box::new([]), more: false, cut: false }),
             Read::Commits { before, after, .. } => Ok(Answer::Commits {
-                commits: if after == fixtures::HEAD && before == self.main {
-                    Box::new([api::CommitMessage { id: fixtures::HEAD, parents: Box::new([]), message: Box::new([]) }])
+                // The outside tip contains neither the source head nor the prepared prefix.
+                commits: if before == self.main
+                    && (after == fixtures::HEAD || (self.main == [19; 32] && after == GREEN))
+                {
+                    Box::new([api::CommitMessage { id: after, parents: Box::new([]), message: Box::new([]) }])
                 } else {
                     Box::new([])
                 },

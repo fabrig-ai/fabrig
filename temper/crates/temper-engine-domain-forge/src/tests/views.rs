@@ -185,6 +185,7 @@ fn setup() -> Domain {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -417,10 +418,18 @@ fn tasks(view: &ChangesView) -> Box<[u64]> {
 }
 fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
     LoggedLanding {
+        tiers: Box::new([]),
         commit: [commit; 32],
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
-        changes: Box::new([LoggedChange { signed: Box::new([]), task, pull: None, title: Box::from(TITLE) }]),
+        changes: Box::new([LoggedChange {
+            goal: None,
+            milestone: None,
+            signed: Box::new([]),
+            task,
+            pull: None,
+            title: Box::from(TITLE),
+        }]),
     }
 }
 fn log(d: &mut Domain, repository: skein_forge::api::Repository, landings: Box<[LoggedLanding]>) {
@@ -613,6 +622,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         }]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

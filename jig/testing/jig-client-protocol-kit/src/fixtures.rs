@@ -147,6 +147,7 @@ pub fn connections_limits() -> jig_client_shell_native::Limits {
         exchanges: 8,
         body_bytes: MESSAGE_BYTES,
         deadline: Duration::from_secs(1),
+        tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
         http: skein_http::client::Limits { head: 4096, headers: 16, request: 4096, read: 1024, send: 1024 },
     }
 }
@@ -305,8 +306,9 @@ pub const TURN_TEXT: &[u8] = b"abc";
 // The optional talk occupies another 32 bytes in the task owner.
 // The question wake watermark occupies eight bytes in the task owner.
 // The task owner's open attempt and optional summary join occupy 64 inline bytes.
+// Its loaded row carriers include the saved main endpoint.
 // Its joined activity line remains past this exact single-row budget.
-pub const TURN_OVERLAP_BYTES: u64 = 2817;
+pub const TURN_OVERLAP_BYTES: u64 = 2841;
 #[must_use]
 pub fn turn_overlap_limits() -> jig_test_domain::Limits {
     let mut limits = owner_limits();

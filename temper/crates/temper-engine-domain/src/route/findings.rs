@@ -3,8 +3,9 @@
 mod tests;
 use super::{Decision, Domain, Env, Limits, Work, forge, forge_route, tasks};
 use alloc::boxed::Box;
+pub(crate) use forge::findings::{cut_words, news_words, ownership_words};
 use forge::{Filer, FindingRefusal, Holder, settings::AreaOwner};
-use skein_lib::{Decimal, List, Map, Queue};
+use skein_lib::{List, Map, Queue};
 
 fn live(row: &tasks::TaskRecord, project: u32) -> bool {
     if row.project != project {
@@ -178,6 +179,7 @@ fn commit_prepared(
 ) -> Result<u32, FindingRefusal> {
     commit(domain, env, decision, write?, hand)
 }
+#[expect(clippy::unnecessary_wraps, reason = "keep the finding commit result used by forge routes")]
 pub(crate) fn commit(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -194,17 +196,17 @@ pub(crate) fn commit(
         forge::FindingState::Routed => row.goal,
         forge::FindingState::Backlog | forge::FindingState::Dropped => None,
     };
-    if let Some(task) = recipient {
-        let subscription = subscribe(domain, env, decision, task, row.project)?;
-        if let Some(event) = domain.core.connector_news(
+    if let Some(task) = recipient
+        && let Some(subscription) = subscribe(domain, env, decision, task, row.project)
+        && let Some(event) = domain.core.connector_news(
             task,
             subscription,
             tasks::NewsClass::Wakes,
             news_words(row, hand, env.limits.tasks.message_bytes),
             env.wall,
-        ) {
-            domain.work.push(Work::Tasks(event));
-        }
+        )
+    {
+        domain.work.push(Work::Tasks(event));
     }
     let number = row.number;
     let mut output = Queue::uncapped();
@@ -280,88 +282,34 @@ pub(crate) fn tell_owner(
     task: u64,
     words: Box<[u8]>,
 ) {
-    if let Ok(subscription) = subscribe(domain, env, decision, task, project)
+    if let Some(subscription) = subscribe(domain, env, decision, task, project)
         && let Some(event) = domain.core.connector_news(task, subscription, tasks::NewsClass::Wakes, words, env.wall)
     {
         domain.work.push(Work::Tasks(event));
     }
 }
 
-fn ownership_words(project: u32, numbers: &[u32], limit: u32) -> Box<[u8]> {
-    let mut out = List::uncapped();
-    append(&mut out, b"Findings on project ");
-    append(&mut out, Decimal::of(u64::from(project)).as_bytes());
-    append(&mut out, b" are yours now:");
-    let header = out.as_slice().len();
-    for (index, &number) in numbers.iter().enumerate() {
-        if index == 0 {
-            append(&mut out, b" ");
-        } else {
-            append(&mut out, b", ");
-        }
-        append(&mut out, Decimal::of(u64::from(number)).as_bytes());
-    }
-    let limit = skein_lib::usize_of(limit);
-    if out.as_slice().len() <= limit {
-        return out.into_boxed();
-    }
-    let mut end = header;
-    let mut kept = header;
-    let mut count = 0_usize;
-    for (index, &number) in numbers.iter().enumerate() {
-        end = end.saturating_add(if index == 0 { 1 } else { 2 });
-        end = end.saturating_add(Decimal::of(u64::from(number)).as_bytes().len());
-        let remaining = numbers.len().saturating_sub(index).saturating_sub(1);
-        let suffix = Decimal::of(skein_lib::len_u64(remaining));
-        if end.saturating_add(11).saturating_add(suffix.as_bytes().len()) <= limit {
-            kept = end;
-            count = index.saturating_add(1);
-        }
-    }
-    let more = Decimal::of(skein_lib::len_u64(numbers.len().saturating_sub(count)));
-    let mut words = List::uncapped();
-    if count == 0 {
-        // A tiny message bound may not fit even the header and the omitted count.
-        let prefix = cut_words(
-            out.as_slice().get(..header).expect("header prefix"),
-            u32::try_from(limit.saturating_sub(10).saturating_sub(more.as_bytes().len())).expect("message bound"),
-        );
-        append(&mut words, &prefix);
-    } else {
-        append(&mut words, out.as_slice().get(..kept).expect("fitting number prefix"));
-    }
-    if count != 0 {
-        append(&mut words, b", ");
-    } else {
-        append(&mut words, b" ");
-    }
-    append(&mut words, b"and ");
-    append(&mut words, more.as_bytes());
-    append(&mut words, b" more");
-    words.into_boxed()
-}
-
-fn subscribe(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    decision: &mut Decision,
-    task: u64,
-    project: u32,
-) -> Result<u64, FindingRefusal> {
+fn subscribe(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, task: u64, project: u32) -> Option<u64> {
     let topic = forge::Topic::Findings { project };
-    if let Some(row) = domain.forge.topic_subscriber(task, &topic) {
-        return Ok(row.number);
-    }
-    let number = crate::fresh(&mut domain.core.counters, crate::Family::Message).expect("admitted message number");
+    let existing = domain.forge.topic_subscriber(task, &topic);
+    let number = if let Some(row) = existing {
+        if subscribed(domain, task, row.number) {
+            return Some(row.number);
+        }
+        row.number
+    } else {
+        crate::fresh(&mut domain.core.counters, crate::Family::Message).expect("admitted message number")
+    };
+    let existing = existing.is_some();
     let subscriber =
         forge::Subscriber { task, number, topic, own_change: None, goal_tasks: None, paths: Box::default() };
-    if !domain.forge.can_subscribe(&env.limits.forge, &subscriber) {
-        return Err(subscription_refused(task, b"forge.subscriptions"));
+    if !existing && !domain.forge.can_subscribe(&env.limits.forge, &subscriber) {
+        return None;
     }
     let requests = forge_route::step_core(
         domain,
         env,
-        super::core::Event::Tasks(tasks::Event::SubscribeTopic {
+        super::core::Event::Tasks(tasks::Event::SubscribeTopicApart {
             reply_to: super::internal(u64::MAX),
             task,
             subscription: tasks::Subscription {
@@ -371,106 +319,23 @@ fn subscribe(
         }),
     );
     super::route_core_requests(domain, env, decision, requests);
-    let mut present = false;
+    if !subscribed(domain, task, number) {
+        return None;
+    }
+    if !existing {
+        super::forge_event(domain, env, decision, forge::Event::Subscribe { subscription: subscriber });
+    }
+    Some(number)
+}
+fn subscribed(domain: &Domain, task: u64, number: u64) -> bool {
     if let Some(row) = domain.core.tasks.task(task) {
         for sub in &row.subscriptions {
-            present |= sub.number == number;
-        }
-    }
-    if !present {
-        return Err(subscription_refused(task, b"tasks.subscriptions or inbox bound"));
-    }
-    super::forge_event(domain, env, decision, forge::Event::Subscribe { subscription: subscriber });
-    Ok(number)
-}
-fn subscription_refused(task: u64, bound: &[u8]) -> FindingRefusal {
-    let mut words = List::uncapped();
-    append(&mut words, b"task ");
-    append(&mut words, Decimal::of(task).as_bytes());
-    append(&mut words, b" cannot subscribe to findings: ");
-    append(&mut words, bound);
-    FindingRefusal::Words(words.into_boxed())
-}
-fn append(out: &mut List<u8>, words: &[u8]) {
-    for &byte in words {
-        out.push(byte).expect("bounded finding words");
-    }
-}
-fn news_words(row: &forge::Finding, hand: bool, limit: u32) -> Box<[u8]> {
-    let mut out = List::uncapped();
-    for words in [
-        b"Finding ".as_slice(),
-        Decimal::of(u64::from(row.project)).as_bytes(),
-        b"/",
-        Decimal::of(u64::from(row.number)).as_bytes(),
-        if row.state == forge::FindingState::Routed { b" for you: ".as_slice() } else { b" is yours: " },
-        &row.title,
-        b"\n",
-    ] {
-        append(&mut out, words);
-    }
-    let kind: &[u8] = match row.kind {
-        forge::FindingKind::Qa => b"qa",
-        forge::FindingKind::Flake => b"flake",
-        forge::FindingKind::Red => b"red",
-        forge::FindingKind::Review => b"review",
-        forge::FindingKind::Feedback => b"feedback",
-    };
-    let severity: &[u8] = match row.severity {
-        forge::Severity::Low => b"low",
-        forge::Severity::Medium => b"medium",
-        forge::Severity::High => b"high",
-    };
-    append(&mut out, kind);
-    append(&mut out, b", ");
-    append(&mut out, severity);
-    append(&mut out, b", ");
-    match &row.area {
-        Some(area) => {
-            append(&mut out, b"area ");
-            append(&mut out, area);
-        }
-        None => append(&mut out, b"no area"),
-    }
-    append(&mut out, b"\n");
-    if hand && let (Some(by), Some(why)) = (row.hander, &row.why) {
-        append(&mut out, b"Handed on by ");
-        match by {
-            Filer::Task(number) => {
-                append(&mut out, b"task ");
-                append(&mut out, Decimal::of(number).as_bytes());
-            }
-            Filer::Party(number) => {
-                append(&mut out, b"party ");
-                append(&mut out, Decimal::of(number).as_bytes());
+            if sub.number == number {
+                return true;
             }
         }
-        append(&mut out, b": ");
-        append(&mut out, why);
-        append(&mut out, b"\n");
     }
-    append(&mut out, &row.body);
-    cut_words(out.as_slice(), limit)
-}
-pub(crate) fn cut_words(words: &[u8], limit: u32) -> Box<[u8]> {
-    let limit = skein_lib::usize_of(limit);
-    if words.len() <= limit {
-        return words.into();
-    }
-    let marker = b"[cut]";
-    let mut end = limit.saturating_sub(marker.len());
-    while end > 0
-        && match words.get(end) {
-            Some(byte) => byte & 0xc0 == 0x80,
-            None => false,
-        }
-    {
-        end = end.saturating_sub(1);
-    }
-    let mut out = List::uncapped();
-    append(&mut out, words.get(..end).expect("prefix within message"));
-    append(&mut out, marker.get(..marker.len().min(limit)).expect("cut marker prefix"));
-    out.into_boxed()
+    false
 }
 #[must_use]
 pub fn document(

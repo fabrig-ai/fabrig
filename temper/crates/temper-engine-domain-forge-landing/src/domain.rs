@@ -310,7 +310,7 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
                 let member = next.members.get(usize::from(index)).expect("top");
                 let fresh = facts.members.get(usize::from(index)).expect("top facts");
                 match next.phase {
-                    Phase::Turn { .. } => member.candidate == Some(fresh.main),
+                    Phase::Turn { .. } => turn_readback(member, fresh, facts.round_pull),
                     Phase::Waiting
                     | Phase::Preparing
                     | Phase::Proving
@@ -578,6 +578,7 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
         }
     }
     landing.round.pull = None;
+    landing.round.merges = 0;
     landing.round.ending = None;
     landing.round.changed = None;
     for member in landing.members.get_mut(usize::from(first)..).expect("changed member") {
@@ -910,13 +911,29 @@ fn red(mut landing: Landing, facts: &Facts, limits: &Limits, gate: u16, run: u64
     done(landing, decision)
 }
 
+fn ask_merge(mut landing: Landing, member: u16, candidate: crate::Commit) -> Stepped {
+    landing.round.merges = landing.round.merges.saturating_add(1);
+    done(landing, Decision::Merge { member, candidate })
+}
+
+fn turn_readback(member: &Member, fresh: &crate::MemberFacts, pull: crate::RoundPull) -> bool {
+    member.candidate == Some(fresh.main)
+        || fresh.contains_candidate == Status::Passed
+        || (fresh.merge == Status::Failed
+            && member.base == Some(fresh.main)
+            && match pull {
+                crate::RoundPull::Merged(commit) => member.candidate == Some(commit),
+                crate::RoundPull::Unread | crate::RoundPull::Open | crate::RoundPull::Closed => false,
+            })
+}
+
 fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Stepped {
     let top = top(&landing);
     if let Some(top) = top {
         let member = landing.members.get(usize::from(top)).expect("top");
         let fresh = facts.members.get(usize::from(top)).expect("top facts");
         let candidate = member.candidate.expect("proved candidate");
-        if fresh.main == candidate {
+        if turn_readback(member, fresh, facts.round_pull) {
             landing.phase = Phase::Turn { at: now };
             for (index, member) in landing.members.iter_mut().enumerate() {
                 if active(member) && position(index) <= top {
@@ -930,13 +947,25 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
                 return done(landing, Decision::None);
             }
             return match fresh.merge {
-                Status::Unknown => done(landing, Decision::Merge { member: top, candidate }),
+                Status::Unknown if landing.round.merges < limits.write_attempts => ask_merge(landing, top, candidate),
                 Status::Pending => wait(landing, None, Awaited::Merge),
                 Status::Passed => wait(landing, Some(poll_at(limits, now)), Awaited::Merge),
-                Status::Failed => {
-                    landing.phase = Phase::Held { was: Box::new(landing.phase), why: Hold::Turn };
-                    done(landing, Decision::Hold(Hold::Turn))
-                }
+                Status::Failed | Status::Unknown => match facts.round_pull {
+                    crate::RoundPull::Unread => wait(landing, None, Awaited::Merge),
+                    crate::RoundPull::Closed => {
+                        landing.phase = Phase::Preparing;
+                        landing.round.ending = Some(crate::RoundEnd::Stale);
+                        landing.round.changed = Some(0);
+                        done(landing, Decision::None)
+                    }
+                    crate::RoundPull::Open if !facts.merge_refused && landing.round.merges < limits.write_attempts => {
+                        ask_merge(landing, top, candidate)
+                    }
+                    crate::RoundPull::Open | crate::RoundPull::Merged(_) => {
+                        landing.phase = Phase::Held { was: Box::new(landing.phase), why: Hold::Turn };
+                        done(landing, Decision::Hold(Hold::Turn))
+                    }
+                },
             };
         }
     }
@@ -982,6 +1011,7 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
         if active(member) {
             landing.round.search = None;
             landing.round.pull = None;
+            landing.round.merges = 0;
             landing.phase = Phase::Preparing;
             return done(landing, Decision::None);
         }

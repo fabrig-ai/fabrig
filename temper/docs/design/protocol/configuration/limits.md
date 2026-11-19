@@ -14,15 +14,17 @@
   `box.line_bytes`, its pipe's (../setup/box.md).
 - **One stock** (`../../draft/config.md`, 5.1): temper's figures are
   one set, the stock, which is jig's stock with temper's figures over it,
-  and a document chooses no profile. A document's `limits.profile` may
-  be absent or `standard`, and either reads the stock. Any other name,
+  and a document chooses no profile. The engine's and the box's limits
+  are two kinds of settings over the stock (`limit-settings.md`), and
+  their documents refuse `limits` by name (`moved.md`). A worker alone's
+  `limits.profile` may be absent or `standard`, and either reads the
+  stock. Any other name,
   `small` among them, refuses the start, naming it. `small`'s figures
   are a test's, in the fixtures crate `temper-limits-fixtures` (jig's
   are in `jig-protocol-config-fixtures`), and never a document's. Where
   this document gives `standard`'s figure, that is the stock's, and
   `small`'s is the fixtures'. `temper-box init`'s
-  document names `standard` for the engine's, the worker's and the
-  application's limits alike (`../setup/init.md`, 3). Their numbers are
+  worker part names `standard` (`../setup/init.md`, 3). Their numbers are
   constants in `temper-service`'s limits module, and the setup's and
   the box's in their own crates, each documented with what it bounds;
   the design names limits and what they bound (jig's
@@ -60,8 +62,19 @@
     dev's 379 rounded, its store raised for it: the tier rows hold 1,537
     landings, since a failing test's id is within 1,024 bytes (below).
   - **A failing test's id:** `forge.tiers.test_id_bytes` is 512, twice
-    the longest id today (about 221 bytes, a fuzzy case's), within the
-    store's 1,024 (below).
+    the longest id today (about 221 bytes, a fuzzy case's), the most a
+    finding's signature holds of an id (`../../domain/findings.md`,
+    section 4), within the store's 1,024 (below).
+  - **A tier's failing tests:** `forge.tiers.failing_tests` is 64, the
+    most ids a finding's signature holds (`../../domain/findings.md`,
+    section 4), so that a run's failures are named by test as far as a
+    red finding can take them whole
+    (`../../draft/after-landing-repairs.md`, section 4): dev's main tier
+    failed 28 to 48 tests a run on 2026-11-17 and 18. It bounds each
+    list of failing tests it bounds in the stock, a tier's record's
+    failures and flakes, a gate's selection and a receipt's among them
+    (`../../domain/after-landing.md`, sections 4 and 10). `small`'s
+    figure, a test's, stays 16.
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
     example.
@@ -146,6 +159,18 @@
   first past it (`../../domain/landing-history.md`, 4.5 and 6). Each
   applies to every project; the events are demand-loaded and take no
   forge memory.
+- **A repository's landing log:** `forge.landings_kept`, the landings
+  every tier following their branch has judged, 16 in both profiles;
+  and `forge.landings_pending`, those some tier has still to judge, 64
+  in both, at least 1, so that a project whose changes end at landing
+  (`../../domain/after-landing.md`, section 6) keeps a slow tier's
+  backlog of landings with their members until it is judged, past which
+  the oldest is judged with no member to comment on (section 10 there).
+  Their sum is at most the store's 256 a log holds, and with
+  `forge.landing_members` and `forge.changes` it bounds a tier's posted
+  comments, `(forge.landings_kept + forge.landings_pending) *
+  forge.landing_members + forge.changes` within the store's 8,192, both
+  checked at start (below).
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -383,12 +408,23 @@
   - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
     a party's facts on the client's wire
     (`../../client/forge/records.md`);
-  - the store's failing tests' ids: `forge.tiers.test_id_bytes` at most
-    the least of the store schema's ceilings on a failing test's id and
-    a flake's (`../store.md`, 4), 1,024, checked before the store's
-    sizing, which would otherwise refuse it naming a schema field:
-    `application.limits.overrides.forge.tiers.test_id_bytes: 1025, past
-    its bound of 1024, the most the store holds of a failing test's id`;
+  - a tier's failing tests, within a finding's signature, so that a
+    tier's ids always fit a finding whole (`../../domain/findings.md`,
+    section 4; `../../draft/after-landing-repairs.md`, section 4):
+    `forge.tiers.failing_tests` at most 64, the most ids a signature
+    holds, and `forge.tiers.test_id_bytes` at most 512, the most bytes
+    it holds of an id. Each names its field and its bound:
+    `application.limits.overrides.forge.tiers.failing_tests: 65, past
+    its bound of 64, the most a finding's signature holds of a tier's
+    failing tests` and
+    `application.limits.overrides.forge.tiers.test_id_bytes: 513, past
+    its bound of 512, the most a finding's signature holds of a test's
+    id`. Both bounds are the signature's own, which the finding's
+    check of a signature reads too. The signature's 512 is within the
+    store schema's ceilings on a failing test's id and a flake's
+    (`../store.md`, 4), 1,024, which a focused test pins, so this check
+    stands for the store's too, run before the store's sizing, which
+    would otherwise refuse a longer id naming a schema field;
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
     tier row's five lists of landings (`../store.md`, 4), 768 at their
@@ -401,6 +437,15 @@
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;
+  - the landing log's: `forge.landings_kept + forge.landings_pending`
+    at most the store schema's ceiling on a log's landings, 256, and a
+    tier's posted comments, `(forge.landings_kept +
+    forge.landings_pending) * forge.landing_members + forge.changes`,
+    at most its ceiling on them, 8,192 (`../store.md`, 4), each checked
+    before the store's sizing and naming `forge.landings_pending`:
+    `application.limits.overrides.forge.landings_pending: 241, past its
+    bound of 240, the most the store's landing log holds beside
+    forge.landings_kept 16 (within 256)`;
   - the webhooks' listener's: each of its limits above 0;
     `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
     HTTP server's largest read within io's intake; `hooks` within the
@@ -620,18 +665,20 @@
   `tasks.authority_grants` (../setup/init.md, 1). A long authority shows
   in part, with jig's mark (`temper/docs/design/client/view.md`, 4). The test above holds
   the engine's bounds on an authority's lists to temper's client's.
-- **The engine's byte budget** is `engine.memory_bytes`, metered at
+- **The engine's byte budget** is the limit `transcript_memory`, a
+  setting (`limit-settings.md`, 2.3), metered at
   the root (`../../domain/root.md`, 4.1). No start compares a memory
   declaration with a composed sum or names a memory deficit
   (skein/docs/foundation/programming-model.md, 6.3). Edge bounds and compatibility checks
-  still refuse invalid limits. The owned example's `engine.limits`,
-  worker `limits` and `memory_bytes` are ../setup/init.md, 1's.
+  still refuse invalid limits. The owned example's worker `limits` are
+  ../setup/init.md, 1's.
 
 - **A worker alone's ring** holds its io's and its worker's kernel
   operations, staged and in flight, independently of its domain's room.
   With the owned example's worker it fits the kernel's 32,768 entries.
 
-A goal's deployment capacity is sized with `engine.limits.overrides`:
+A goal's deployment capacity is sized with jig's limits setting
+(`limit-settings.md`, 2.2), or with `live_goals`:
 `tasks.tasks` and `tasks.project_tasks` bound live concurrency;
 `tasks.tree_tasks` counts lifetime tasks including the root, and
 `tasks.depth` counts depth below that root at zero. `tasks.delegates`

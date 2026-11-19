@@ -8,7 +8,7 @@ use jig_client::{Event, Request};
 use skein_lib::{Secret, Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme};
 
 /// The start's facts, in the file's order.
 #[expect(
@@ -24,7 +24,7 @@ pub struct Facts {
     pub background: Option<Rgb>,
     pub plain: bool,
     pub version: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: Origin,
     pub local: bool,
     pub front: bool,
     pub set_up: bool,
@@ -75,7 +75,7 @@ impl Recorder {
     pub fn new(facts: &Facts) -> Self {
         let mut this = Self { file: Vec::new(), turn: None, kept: false };
         for line in [
-            Line::Journey { version: 3 },
+            Line::Journey { version: 4 },
             Line::Seed(facts.seed),
             Line::Clocks { now: facts.now, wall: facts.wall },
             Line::Screen { size: facts.size, scheme: facts.scheme },
@@ -91,7 +91,7 @@ impl Recorder {
         if !facts.version.is_empty() {
             this.keep(&Line::Version(facts.version.clone()));
         }
-        this.keep(&Line::Address(facts.address.clone()));
+        this.keep(&Line::Address(facts.address.print()));
         if facts.local {
             this.keep(&Line::Local);
         }
@@ -129,6 +129,7 @@ impl Recorder {
             Report::Lent { number, exit } => Line::Lent { number: *number, exit: *exit },
             Report::Front(line) => Line::BoxLine(line.print()),
             Report::Stage(stage) => Line::BoxStage(stage.print()),
+            Report::Handshake { failed } => Line::Handshake(*failed),
             Report::Local { link } => Line::Found(link.as_ref().map(|link| link.expose().into())),
             Report::Start(_) => Line::Start,
             Report::Due => Line::Due,
@@ -262,7 +263,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
         lines.push(Line::Note(note));
     }
     if let Some(address) = &duties.address {
-        lines.push(Line::Signed(address.clone()));
+        lines.push(Line::Signed(address.print()));
     }
     if duties.local {
         lines.push(Line::Read);
@@ -343,9 +344,14 @@ pub(super) fn duty_order(line: &Line) -> Option<u8> {
         | Line::Unsaved
         | Line::Kept { .. }
         | Line::Opened { .. }
+        | Line::Handshake(_)
         | Line::Found(_)
         | Line::Deadline(_)
         | Line::Mark(_)
         | Line::End(_) => None,
     }
 }
+
+#[cfg(test)]
+#[path = "record/tests.rs"]
+mod tests;

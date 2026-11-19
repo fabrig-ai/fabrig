@@ -70,7 +70,24 @@ pub(super) fn design_claim_permitted(
 /// The keep remains written until the last slot, design writer or merge ends.
 pub(super) fn branch_written(d: &Domain, name: &Name, ending: Option<u64>) -> bool {
     if let Some(hold) = d.holds.get(name)
-        && (hold.writer.is_some() || !hold.design_writers.is_empty())
+        && (!hold.design_writers.is_empty() || waiting(hold))
+    {
+        return true;
+    }
+    other_written(d, name, ending)
+}
+
+pub(super) fn waiting(hold: &Hold) -> bool {
+    match hold.beside {
+        Some(beside) => beside.waiting.is_some(),
+        None => false,
+    }
+}
+
+/// Slot writers and handed merges, without design writers or waiting records.
+pub(super) fn other_written(d: &Domain, name: &Name, ending: Option<u64>) -> bool {
+    if let Some(hold) = d.holds.get(name)
+        && hold.writer.is_some()
     {
         return true;
     }
@@ -119,6 +136,10 @@ pub(super) fn unpublished_branch(d: &Domain, name: &Name) -> bool {
 
 pub(super) fn pending_writer(hold: &Hold, pending: &PendingLost) -> bool {
     match pending.kind {
+        LostWriterKind::Written => match (hold.beside, pending.comparison) {
+            (Some(beside), Some((write, head))) => beside.head == head && beside.waiting == Some(write),
+            (Some(_), None) | (None, Some(_) | None) => false,
+        },
         LostWriterKind::Slot => hold.writer == Some(Writer::Lost { task: pending.task, attempt: pending.attempt }),
         LostWriterKind::Design => hold.design_writers.contains(&crate::DesignWriter {
             task: pending.task,

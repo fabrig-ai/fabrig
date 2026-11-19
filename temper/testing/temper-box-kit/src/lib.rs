@@ -1,6 +1,8 @@
 //! Shared processes, forges, people and fixtures for temper-box tests.
 //!
 //! Compiled once for the binaries (tools/crates/design.md, 3.2).
+mod admission;
+pub use admission::admission;
 pub mod account_move;
 pub mod account_transfer;
 pub mod batch_landing;
@@ -19,6 +21,7 @@ pub mod github;
 pub mod github_land;
 pub mod held_login;
 pub mod landing_by_turn;
+pub mod limit_settings;
 pub mod owned;
 pub mod screen;
 pub mod socket;
@@ -43,6 +46,7 @@ pub mod patience;
 pub mod person;
 pub mod playground;
 pub mod program_login;
+pub mod provider_setup;
 pub mod relay;
 pub mod restart;
 pub mod sign_in;
@@ -128,7 +132,8 @@ pub fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, rendered.as_deref().unwrap_or(bytes)).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
-pub fn configuration(directory: &Path, forge: &Forge<'_>) {
+#[expect(clippy::must_use_candidate, reason = "fixture writers are also called just for their file effects")]
+pub fn configuration(directory: &Path, forge: &Forge<'_>) -> temper_playground::documents::Configuration {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
@@ -144,14 +149,33 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
     write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     write_private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, value) =
-        configuration::documents(directory, skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"));
-    let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
+    let (agent, mut value) = configuration::typed_documents(
+        directory,
+        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
+    );
     forgejo::configuration(directory, forge, &mut value);
     temper_agent_fixtures::apply(&mut value, directory, &serde_json::from_slice(&agent).expect("agent JSON"));
     let composed = temper_agent_fixtures::at(&value, directory);
     configuration::turn_bounds::apply(&mut value, configuration::turn_bounds::turn_body(&composed));
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    value.agent_bounds(&temper_agent_fixtures::prepared(directory).agent);
+    limit_settings::remember(directory, &value);
+    value
+}
+
+/// A subprocess story without a limit boundary uses the shipped agent's figures.
+pub fn stock_agent(directory: &Path) {
+    let pending = directory.join("fixture-limits.json");
+    if pending.exists() {
+        fs::remove_file(pending).expect("stock fixture has no limit change");
+    }
+    let mut agent = temper_agent_fixtures::read(directory);
+    agent["profile"] = temper_agent_fixtures::stock(true)["profile"].clone();
+    for endpoint in agent["endpoints"].as_array_mut().expect("endpoints") {
+        endpoint["limits"]["output"] = 48_000.into();
+        endpoint["limits"]["reasoning_item"] = 65_536.into();
+    }
+    temper_agent_fixtures::install(directory, &agent);
 }
 
 /// A case's scratch, retained if a test panics.
@@ -205,6 +229,7 @@ use skein_world::{
 
 #[must_use]
 pub fn serve(directory: &Path) -> Binary {
+    limit_settings::install(directory);
     Binary::start(serve_command(directory), Mode::Pipes, 65_536).expect("temper serve starts")
 }
 fn serve_command(directory: &Path) -> Command {
@@ -789,7 +814,7 @@ const HINTED_SETTLE_MS: u64 = 3000;
 /// and shortens the hinted story's settle.
 pub fn raise_paces(directory: &Path) {
     let path = directory.join("temper.json");
-    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = limit_settings::configuration(directory);
     for name in [
         "forge.client.poll_ms",
         "forge.client.poll_max_ms",
@@ -797,12 +822,12 @@ pub fn raise_paces(directory: &Path) {
         "forge.change_policy.stall_ms",
         "forge.change_policy.unknown_grace_ms",
     ] {
-        value["application"]["limits"]["overrides"][name] = RAISED_MS.into();
+        value.temper_over(name, RAISED_MS);
     }
-    value["application"]["limits"]["overrides"]["forge.change_policy.runner_wait_ms"] =
-        RAISED_MS.saturating_mul(8).into();
-    value["application"]["limits"]["overrides"]["forge.client.settle_ms"] = HINTED_SETTLE_MS.into();
+    value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
+    value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
     write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
+    limit_settings::remember(directory, &value);
 }
 #[must_use]
 pub fn run_until_landed(
@@ -886,6 +911,7 @@ fn run_story(
     if let Some(peer) = &peer {
         peer.configure(directory);
     }
+    limit_settings::install(directory);
     let agents = if peer.is_some() && directory.join("agents.setting").exists() {
         Some(agents_value(&fs::read(directory.join("agents.setting")).expect("agents setting copy")))
     } else {

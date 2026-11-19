@@ -110,9 +110,14 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             row.provider.repository = number;
             Stored::Repository(row)
         }
-        RecordKind::Hold => {
-            Stored::Hold(Hold { design_writers: Box::new([]), name: name(number), task: n, writer: None, drift: None })
-        }
+        RecordKind::Hold => Stored::Hold(Hold {
+            beside: None,
+            design_writers: Box::new([]),
+            name: name(number),
+            task: n,
+            writer: None,
+            drift: None,
+        }),
         RecordKind::Names => Stored::Names { task: n, resources: Box::new([]) },
         RecordKind::Subscription => Stored::Subscription(Subscriber {
             task: n,
@@ -178,12 +183,13 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
+        RecordKind::PersonBrief => {
+            Stored::PersonBrief(PersonBrief { party: n, project: 0, brief: None, running: None, unpaid: None })
+        }
         RecordKind::ProjectFacts => Stored::ProjectFacts(ProjectFacts {
             project: u32::try_from(n).unwrap(),
             landed: 0,
             last_landed: Wall::EPOCH,
-            brief: None,
-            running: None,
         }),
         RecordKind::Looked => {
             Stored::Looked(Looked { party: n, project: 0, previous: None, latest: Wall::EPOCH, seen: 0, next_seen: 0 })
@@ -1132,10 +1138,13 @@ fn landing_logs_restore_and_report_their_missing_repository() {
     let record = Stored::LandingLog(LandingLog {
         repository: REPO,
         landings: Box::new([LoggedLanding {
+            tiers: Box::new([]),
             commit: [7; 32],
             branch: b"main".as_slice().into(),
             at: Wall::from_nanos(123),
             changes: Box::new([LoggedChange {
+                goal: None,
+                milestone: None,
                 signed: Box::new([]),
                 task: 51,
                 pull: None,
@@ -1161,19 +1170,29 @@ fn landing_logs_restore_and_report_their_missing_repository() {
 #[test]
 fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
     let landing = LoggedLanding {
+        tiers: Box::new([]),
         commit: [7; 32],
         branch: vec![b'x'; usize::try_from(LIMITS.name_bytes).unwrap()].into(),
         at: Wall::EPOCH,
         changes: vec![
-            LoggedChange { signed: Box::new([]), task: 1, pull: None, title: Box::new([]) };
+            LoggedChange {
+                goal: None,
+                milestone: None,
+                signed: Box::new([]),
+                task: 1,
+                pull: None,
+                title: Box::new([])
+            };
             usize::try_from(LIMITS.landing_members).unwrap()
         ]
         .into(),
     };
     for (field, bound, set) in [
-        (0_u8, LIMITS.landings_kept, RestoreSet::LandingsKept),
+        (0_u8, LIMITS.landings_kept + LIMITS.landings_pending, RestoreSet::LandingsKept),
         (1, LIMITS.landing_members, RestoreSet::LandingMembers),
         (2, LIMITS.name_bytes, RestoreSet::NameBytes),
+        (3, 32, RestoreSet::LoggedTiers),
+        (4, 32, RestoreSet::NameBytes),
     ] {
         for extra in [0, 1] {
             let mut row = LandingLog {
@@ -1185,6 +1204,15 @@ fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
                 0 => row.landings = vec![landing.clone(); count].into(),
                 1 => row.landings[0].changes = vec![landing.changes[0].clone(); count].into(),
                 2 => row.landings[0].branch = vec![b'x'; count].into(),
+                3 => {
+                    row.landings[0].tiers =
+                        vec![LoggedTier { tier: b"tier".as_slice().into(), verdict: LoggedVerdict::Verifying }; count]
+                            .into();
+                }
+                4 => {
+                    row.landings[0].tiers =
+                        Box::new([LoggedTier { tier: vec![b't'; count].into(), verdict: LoggedVerdict::Verifying }]);
+                }
                 _ => unreachable!("fixture field"),
             }
             let mut d = domain();
@@ -1211,7 +1239,17 @@ fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
 
 #[test]
 fn landings_kept_is_positive_and_fits_the_store_ceiling() {
-    for (landings_kept, accepted) in [(0, false), (1, true), (256, true), (257, false)] {
+    for (landings_kept, accepted) in [(0, false), (1, true), (192, true), (193, false), (u32::MAX, false)] {
         assert_eq!(valid(&Limits { landings_kept, ..LIMITS }), accepted);
+    }
+}
+
+#[test]
+fn landings_pending_is_positive_and_shares_the_store_and_comment_ceilings() {
+    for (landings_pending, accepted) in [(0, false), (1, true), (240, true), (241, false), (u32::MAX, false)] {
+        assert_eq!(valid(&Limits { landings_pending, ..LIMITS }), accepted);
+    }
+    for (landings_pending, accepted) in [(111, true), (112, false)] {
+        assert_eq!(valid(&Limits { landings_pending, landing_members: 64, ..LIMITS }), accepted);
     }
 }

@@ -11,14 +11,15 @@ pub(super) fn code() -> ApprovalCode {
 
 #[test]
 fn the_approval_address_uses_the_tuis_address_and_shown_code() {
-    let rows: &[(&[u8], &[u8], &[u8])] = &[
-        (b"127.0.0.1:8367", b"WDJBMJHT", b"http://127.0.0.1:8367/terminal?code=WDJB-MJHT"),
-        (b"127.0.0.1:9000", b"bcdfghjk", b"http://127.0.0.1:9000/terminal?code=BCDF-GHJK"),
-        (b"[::1]:8367", b"bcdf-ghjk", b"http://[::1]:8367/terminal?code=BCDF-GHJK"),
+    use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
+    let rows: &[(SocketAddr, &[u8], &[u8])] = &[
+        (SocketAddr::from((Ipv4Addr::LOCALHOST, 8367)), b"WDJBMJHT", b"http://127.0.0.1:8367/terminal?code=WDJB-MJHT"),
+        (SocketAddr::from((Ipv4Addr::LOCALHOST, 9000)), b"bcdfghjk", b"http://127.0.0.1:9000/terminal?code=BCDF-GHJK"),
+        (SocketAddr::from((Ipv6Addr::LOCALHOST, 8367)), b"bcdf-ghjk", b"http://[::1]:8367/terminal?code=BCDF-GHJK"),
     ];
     for (address, letters, expected) in rows {
         let code = ApprovalCode::parse(letters).unwrap();
-        let actual = approval_address(address, code);
+        let actual = approval_address(&crate::Origin::Http(*address), code);
         assert_eq!(actual.as_ref(), *expected);
         assert!(actual.ends_with(&code.shown()));
     }

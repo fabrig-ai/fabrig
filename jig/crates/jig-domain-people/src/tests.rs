@@ -377,11 +377,16 @@ fn waiting_cache_keeps_newest_references_and_removes_one_task() {
     assert!(domain.start_complete(&env));
     for task in 1..=3 {
         let entry = Entry { task, project: 1, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH };
-        step(&mut domain, &env, Event::Waiting { task, entries: Box::new([entry]) }, &mut out);
+        step(
+            &mut domain,
+            &env,
+            Event::Waiting { source: NeedSource::Task(task), entries: Box::new([entry]) },
+            &mut out,
+        );
     }
     let cached = domain.cached_waiting(&LIMITS, 1).expect("restored person");
     assert_eq!(cached.iter().map(|entry| entry.task).collect::<Vec<_>>(), [3, 2]);
-    step(&mut domain, &env, Event::Waiting { task: 3, entries: Box::new([]) }, &mut out);
+    step(&mut domain, &env, Event::Waiting { source: NeedSource::Task(3), entries: Box::new([]) }, &mut out);
     let cached = domain.cached_waiting(&LIMITS, 1).expect("restored person");
     assert_eq!(cached.iter().map(|entry| entry.task).collect::<Vec<_>>(), [2]);
 }
@@ -757,14 +762,14 @@ fn policy_role_receives_shared_waiting_and_replays_its_key_after_restart() {
         kind: EntryKind::PersonTask,
         at: Wall::EPOCH,
     };
-    live.send(Event::Waiting { task: 7, entries: Box::new([entry]) });
+    live.send(Event::Waiting { source: NeedSource::Task(7), entries: Box::new([entry]) });
     assert_eq!(live.d.cached_waiting(&LIMITS, 1).as_deref(), Some(&[entry][..]));
     assert_eq!(live.d.cached_waiting(&LIMITS, 2).as_deref(), Some(&[entry][..]));
     let ask = Ask::TakePerson { project: 1, task: 7 };
     let request = route(&live.request(10, 1, ask.clone()));
     let answered = live.send(Event::Decided { request, outcome: Outcome::PersonTaken { task: 7 } });
     let saved = saved_answer(&answered);
-    live.send(Event::Waiting { task: 7, entries: Box::new([]) });
+    live.send(Event::Waiting { source: NeedSource::Task(7), entries: Box::new([]) });
     assert_eq!(live.d.cached_waiting(&LIMITS, 1).as_deref(), Some(&[][..]));
     assert_eq!(live.d.cached_waiting(&LIMITS, 2).as_deref(), Some(&[][..]));
 
@@ -826,9 +831,9 @@ fn only_held_policy_roles_consume_inbox_cache_room() {
         kind: EntryKind::PersonTask,
         at: Wall::EPOCH,
     };
-    test.send(Event::Waiting { task: 7, entries: Box::new([absent]) });
+    test.send(Event::Waiting { source: NeedSource::Task(7), entries: Box::new([absent]) });
     let held = Entry { task: 8, whom: Whom::Role { project: 1, role: 99 }, ..absent };
-    test.send(Event::Waiting { task: 8, entries: Box::new([held]) });
+    test.send(Event::Waiting { source: NeedSource::Task(8), entries: Box::new([held]) });
     assert_eq!(test.d.cached_waiting(&test.env.limits, 1).as_deref(), Some(&[held][..]));
     test.send(Event::Roles { project: 1, holdings: Box::new([]) });
     assert_eq!(test.d.cached_waiting(&test.env.limits, 1).as_deref(), Some(&[][..]));
@@ -1679,12 +1684,12 @@ fn needs_count_every_live_entry_across_projects_past_the_cache() {
     for task in 1..=5 {
         let project = if task % 2 == 0 { 2 } else { 1 };
         let entry = Entry { task, project, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH };
-        test.send(Event::Waiting { task, entries: Box::new([entry]) });
+        test.send(Event::Waiting { source: NeedSource::Task(task), entries: Box::new([entry]) });
     }
     assert_eq!(test.d.needs(1), Some(5));
     assert_eq!(test.d.cached_waiting(&LIMITS, 1).unwrap().len(), 2);
-    assert!(test.d.task_needs(1, 1), "oldest need remains counted after cache eviction");
-    test.send(Event::Waiting { task: 1, entries: Box::new([]) });
+    assert!(test.d.source_needs(1, NeedSource::Task(1)), "oldest need remains counted after cache eviction");
+    test.send(Event::Waiting { source: NeedSource::Task(1), entries: Box::new([]) });
     assert_eq!(test.d.needs(1), Some(4));
     test.send(Event::Roles { project: 2, holdings: Box::new([]) });
     assert_eq!(test.d.needs(1), Some(2), "only current project roles contribute");
@@ -1707,13 +1712,13 @@ fn a_role_need_leaves_every_holders_count_when_one_acts() {
             kind: EntryKind::PersonTask,
             at: Wall::EPOCH,
         };
-        test.send(Event::Waiting { task, entries: Box::new([entry]) });
+        test.send(Event::Waiting { source: NeedSource::Task(task), entries: Box::new([entry]) });
     }
     assert_eq!(test.d.needs(1), Some(3));
     assert_eq!(test.d.needs(2), Some(3));
     let request = route(&test.request(10, 1, Ask::TakePerson { project: 1, task: 1 }));
     test.send(Event::Decided { request, outcome: Outcome::PersonTaken { task: 1 } });
-    test.send(Event::Waiting { task: 1, entries: Box::new([]) });
+    test.send(Event::Waiting { source: NeedSource::Task(1), entries: Box::new([]) });
     assert_eq!(test.d.needs(1), Some(2));
     assert_eq!(test.d.needs(2), Some(2));
 }

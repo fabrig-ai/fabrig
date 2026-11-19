@@ -359,8 +359,8 @@ pub static MEMBERS: [Member; 276] = [
         name: "limits",
         kind: "limits",
         bound: "",
-        required: true,
-        line: "Selects a limits profile and its named overrides.",
+        required: false,
+        line: "Selects a limits profile and named overrides; absent, reads the application's base.",
         gone: None,
     },
     Member {
@@ -485,7 +485,7 @@ pub static MEMBERS: [Member; 276] = [
         name: "memory_bytes",
         kind: "integer",
         bound: "0 to 18446744073709551615 bytes",
-        required: true,
+        required: false,
         line: "Gives the application's byte budget for the engine.",
         gone: None,
     },
@@ -2745,7 +2745,7 @@ pub static MEMBERS: [Member; 276] = [
         kind: "limits",
         bound: "",
         required: false,
-        line: "Selects the worker's limits profile and overrides.",
+        line: "Selects the worker's limits profile and overrides; absent, reads the application's base.",
         gone: None,
     },
     Member {

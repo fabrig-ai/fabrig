@@ -195,11 +195,6 @@ pub fn action(
     })
 }
 pub fn proposal(models: &[crate::Model], value: &d::Proposal, limits: &w::Limits) -> Result<w::Proposal, w::Problem> {
-    if let d::Proposer::Party(_) = value.proposer
-        && let d::ProposalAction::Amend { .. } = value.action
-    {
-        return Err(super::super::problem(skein_codec::Reason::Malformed));
-    }
     let mut funding = List::with_capacity(value.funding.len());
     for row in &value.funding {
         funding

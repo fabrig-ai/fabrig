@@ -121,14 +121,14 @@ fn versions(world: &World) -> usize {
 fn a_set_model_is_in_the_next_tasks_charter_with_no_charter_change() {
     let (mut world, signed) = setup(1);
     let original = world.domain.settings().charter(1).expect("set charter").clone();
-    let value = added(&world, 9);
+    let value = added(&world, 33);
     apply(&mut world, signed, set(value.clone()));
     assert_eq!(world.domain.settings().charter(1), Some(&original));
     assert_eq!(world.domain.core_mut().charter(1).expect("resolution").policy.alternatives.as_ref(), &[value.model]);
     host(&mut world);
     let me = frame(&mut world, signed);
-    assert!(me.projects.as_slice()[0].offer.as_slice().iter().any(|row| row.model == 8));
-    let task = make(&mut world, signed, Some(8));
+    assert!(me.projects.as_slice()[0].offer.as_slice().iter().any(|row| row.model == 32));
+    let task = make(&mut world, signed, Some(32));
     assert_eq!(fixtures::live_row(&world, task).settings.task, 2);
     assert_eq!(world.assigned.as_ref().expect("new model run").run.policy.model.name.as_ref(), b"person-model");
     fixtures::finish_chat(&mut world, 0, b"Done");
@@ -341,7 +341,7 @@ fn past_its_bound_a_charter_leaves_models_out() {
 #[test]
 fn a_change_asks_the_root_to_tell_the_catalogue_before_its_commit() {
     let (mut world, signed) = setup(1);
-    let value = added(&world, 9);
+    let value = added(&world, 33);
     let env = world.env().with(world.env().limits.core);
     let mut out = core::step(
         world.domain.core_mut(),

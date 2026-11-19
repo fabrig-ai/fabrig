@@ -52,6 +52,7 @@ pub(super) fn seed_reds(service: &mut crate::Service, task: u64) {
         },
         task,
         writer: None,
+        beside: None,
         design_writers: Box::new([]),
         drift: None,
     };

@@ -316,6 +316,7 @@ fn tracked(part: &Part) -> bool {
         Part::Jig(Answer::Ended(ended)) => match &ended.value {
             core::reads::EndedValue::Task { document, .. } => document.priority.is_some(),
             core::reads::EndedValue::Proposal(_)
+            | core::reads::EndedValue::PartyProposal(_)
             | core::reads::EndedValue::PersonProposal { .. }
             | core::reads::EndedValue::Escalation { .. }
             | core::reads::EndedValue::Question { .. }
@@ -435,6 +436,7 @@ pub(crate) fn is_reading(domain: &Domain, right: Token) -> bool {
         | FlightRender::ProjectRead
         | FlightRender::TaskRead
         | FlightRender::ForgeRead(_)
+        | FlightRender::BranchFile { .. }
         | FlightRender::Settings { see: None, .. }
         | FlightRender::Amended(_)
         | FlightRender::Change(_)
@@ -463,6 +465,7 @@ fn flight_context(render: &mut FlightRender) -> (&mut SeeFlight, u32) {
         | FlightRender::ProjectRead
         | FlightRender::TaskRead
         | FlightRender::ForgeRead(_)
+        | FlightRender::BranchFile { .. }
         | FlightRender::Settings { see: None, .. }
         | FlightRender::Amended(_)
         | FlightRender::Change(_)

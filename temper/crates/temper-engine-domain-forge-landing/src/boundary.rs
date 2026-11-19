@@ -193,6 +193,8 @@ pub struct Round {
     pub judging: bool,
     pub ending: Option<RoundEnd>,
     pub failure: Box<[u8]>,
+    /// Merge effects asked in this round, bounded by the client's write attempts.
+    pub merges: u32,
     /// First branch to delete when the round ends unlanded.
     pub changed: Option<u16>,
     pub search: Option<Search>,
@@ -240,6 +242,7 @@ impl Round {
             judging: false,
             ending: None,
             failure: Box::new([]),
+            merges: 0,
             changed: None,
             search: None,
         }
@@ -310,6 +313,8 @@ pub struct MemberFacts {
     pub main: Commit,
     /// Whether head contains main.
     pub contains_main: Status,
+    /// The train's tip contains the proved candidate (domain/landing.md, 8).
+    pub contains_candidate: Status,
     pub asked: bool,
     /// This landing's own merge effect: Unknown until asked, then Pending,
     /// Passed when made or Failed when refused.
@@ -331,6 +336,15 @@ pub struct MemberFacts {
     pub deleted: Status,
 }
 
+/// The round's pull request read afresh after a merge not made (domain/landing.md, 8).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum RoundPull {
+    Unread,
+    Open,
+    Merged(Commit),
+    Closed,
+}
+
 /// The coherent snapshot supplied by the top.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Facts {
@@ -339,6 +353,9 @@ pub struct Facts {
     pub released: bool,
     pub opened: Option<u64>,
     pub opening: Status,
+    pub round_pull: RoundPull,
+    /// The last merge was a known refusal, rather than an unknown outcome.
+    pub merge_refused: bool,
     pub closed: Status,
     pub preparation: Preparation,
 }
@@ -482,4 +499,5 @@ pub struct Limits {
     pub gates: u32,
     pub poll: Duration,
     pub tests_bytes: u32,
+    pub write_attempts: u32,
 }

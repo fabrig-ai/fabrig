@@ -56,8 +56,8 @@ pub use closer::CloserRow;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod status;
 pub use status::{
-    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, ProjectFacts, SITTING, StatusRunning,
-    StatusView, status_paragraphs, status_subject,
+    BRIEF_LEDE_BYTES, BRIEF_SENTENCE_BYTES, Brief, Looked, LookedAnswer, PersonBrief, ProjectFacts, SITTING,
+    StatusRunning, StatusView, status_paragraphs, status_subject,
 };
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod drafts;
@@ -145,6 +145,7 @@ use temper_engine_domain_forge_vocabulary::red;
 use temper_engine_domain_forge_vocabulary::result;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod reconcile;
+pub use refusal::branch_name;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 use temper_engine_domain_forge_vocabulary::refusal;
 mod removal;

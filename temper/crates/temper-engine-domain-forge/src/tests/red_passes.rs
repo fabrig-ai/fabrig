@@ -6,7 +6,10 @@ fn carrying() -> Domain {
     let mut d = configured_domain(&[]);
     let name = tests::reds::name(7);
     d.holds
-        .insert(name.clone(), Hold { name, task: 7, writer: None, design_writers: Box::new([]), drift: None })
+        .insert(
+            name.clone(),
+            Hold { name, task: 7, writer: None, beside: None, design_writers: Box::new([]), drift: None },
+        )
         .unwrap();
     add_change(&mut d, CHANGE, b"temper/7/g7");
     d.record_red(&LIMITS, tests::reds::call(7, b"X"), &mut Queue::uncapped()).unwrap();

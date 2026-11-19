@@ -35,12 +35,19 @@ pub(crate) struct PlacedSlot {
     index: u32,
 }
 
+#[derive(Debug)]
+struct OpenNode {
+    index: u32,
+    // This node's own charged bytes, excluding its children.
+    text_bytes: u32,
+}
+
 /// A tree under construction and its bounded parent stack.
 #[derive(Debug)]
 pub struct Builder {
     pub(crate) tree: Tree,
     pub(crate) limits: Limits,
-    open: Stack<u32>,
+    open: Stack<OpenNode>,
     text_bytes: u32,
     bindings: u32,
     focused: bool,
@@ -98,18 +105,22 @@ impl Builder {
         self.open_with_runs(role, runs);
     }
 
-    fn open_with_runs(&mut self, role: Role, runs: u32) {
+    fn check_node_room(&self) {
         assert!(self.tree.nodes.room() > 0, "tree fits its node capacity");
         assert!(self.open.len() < self.limits.depth, "tree fits its depth capacity");
+    }
+
+    fn open_with_runs(&mut self, role: Role, runs: u32) {
+        self.check_node_room();
         let index = self.tree.len();
         let node = Node::new(role, &self.limits, runs);
         self.tree.nodes.push(node).expect("tree fits its node capacity");
-        self.open.push(index).expect("tree fits its depth capacity");
+        self.open.push(OpenNode { index, text_bytes: 0 }).expect("tree fits its depth capacity");
     }
 
     /// End the innermost node and record its full subtree's size.
     pub fn close(&mut self) {
-        let index = self.open.pop().expect("a node is open");
+        let index = self.open.pop().expect("a node is open").index;
         let size = self.tree.len().checked_sub(index).expect("node precedes its children");
         let node = self.tree.nodes.get_mut(index).expect("open node exists");
         assert!(node.fraction.is_none() || !node.text.is_empty(), "a fraction has its words");
@@ -117,7 +128,7 @@ impl Builder {
     }
 
     fn index(&self) -> u32 {
-        *self.open.top().expect("an attribute has an open node")
+        self.open.top().expect("an attribute has an open node").index
     }
     fn node(&self) -> &Node {
         self.tree.get(self.index()).expect("open node exists")
@@ -128,25 +139,35 @@ impl Builder {
     }
 
     fn charge(&mut self, old: u32, new: u32) {
-        let node_bytes = self
-            .node()
-            .text_bytes()
-            .checked_sub(old)
-            .expect("old bytes are held")
-            .checked_add(new)
-            .expect("node bytes fit u32");
+        if old == new {
+            return;
+        }
+        let held = self.open.top().expect("an attribute has an open node").text_bytes;
+        let bytes = self.charge_bytes(held, old, new);
+        self.open.top_mut().expect("an attribute has an open node").text_bytes = bytes;
+    }
+
+    fn charge_bytes(&mut self, held: u32, old: u32, new: u32) -> u32 {
+        let node_bytes =
+            held.checked_sub(old).expect("old bytes are held").checked_add(new).expect("node bytes fit u32");
         assert!(node_bytes <= self.limits.text_per_node, "node fits its text capacity");
         let total =
             self.text_bytes.checked_sub(old).expect("old bytes are held").checked_add(new).expect("tree bytes fit u32");
         assert!(total <= self.limits.text_bytes, "tree fits its text capacity");
         self.text_bytes = total;
+        node_bytes
     }
 
-    /// Build a text leaf with one run.
+    /// Build a text leaf with one run, without entering the parent stack.
     pub fn text(&mut self, run: Run, bytes: &[u8]) {
-        self.open_with_runs(Role::Text, 1);
-        self.run(run, bytes);
-        self.close();
+        self.check_node_room();
+        let mut node = Node::new(Role::Text, &self.limits, 1);
+        if !bytes.is_empty() {
+            self.charge_bytes(0, 0, length(bytes));
+            let text = copy_of(bytes);
+            node.text.push(TextRun { run, text }).expect("one run fits the text capacity");
+        }
+        self.tree.nodes.push(node).expect("tree fits its node capacity");
     }
 
     /// Append a nonempty run to an open text node or progress; empty spans take no storage.

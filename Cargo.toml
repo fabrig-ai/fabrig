@@ -325,6 +325,7 @@ members = [
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
     "temper/testing/temper-test-env",
+    "temper/testing/temper-deployment-fixtures",
     "temper/crates/temper-box-shell",
     "temper/bin/temper-box",
     "temper/bin/temper",
@@ -349,6 +350,7 @@ members = [
     "temper/crates/temper-client-view-work",
     "temper/crates/temper-client-view-setup",
     "temper/testing/temper-client-view-kit",
+    "temper/testing/temper-client-journeys-kit",
     "temper/crates/temper-client-tui",
     "temper/crates/temper-client-domain",
     "temper/crates/temper-client-domain-forge",
@@ -364,6 +366,7 @@ members = [
     "temper/crates/temper-engine-service-component",
     "temper/crates/temper-worker-service",
     "temper/testing/temper-worker-service-fixtures",
+    "temper/testing/temper-service-link-fixtures",
     "temper/tests/worker/protocol-git",
     "temper/crates/temper-forge-setup",
     "temper/crates/temper-fetch",
@@ -393,6 +396,7 @@ members = [
     "temper/crates/temper-protocol-brief",
     "temper/crates/temper-charter-set",
     "temper/crates/temper-engine-domain",
+    "temper/crates/temper-engine-domain-store",
     "temper/crates/temper-engine-domain-calendar",
     "temper/crates/temper-engine-domain-room",
     "temper/crates/temper-engine-domain-translate",
@@ -546,6 +550,7 @@ skein-world = { path = "skein/testing/skein-world" }
 wasm-bindgen-cli-support = { version = "=0.2.126" }
 io-uring = { version = "0.7.15" }
 libc = { version = "0.2.186" }
+rustix = { version = "1.1.6", features = ["stdio", "fs"] }
 ring = { version = "0.17", features = ["wasm32_unknown_unknown_js"] }
 # rustls, pinned, without std and with ring for its cryptography (skein/docs/design/net/tls.md, 4).
 # Named in wasm32-unknown-unknown tables alone (skein/docs/foundation/cli.md, 3).
@@ -707,6 +712,7 @@ settings-form = { package = "temper-settings-form", path = "temper/crates/temper
 temper-docs = { path = "temper/crates/temper-docs" }
 temper-github-app = { path = "temper/testing/temper-github-app" }
 temper-test-env = { path = "temper/testing/temper-test-env" }
+temper-deployment-fixtures = { path = "temper/testing/temper-deployment-fixtures" }
 temper-box-kit = { path = "temper/testing/temper-box-kit" }
 temper-process-guard = { path = "temper/testing/temper-process-guard" }
 temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
@@ -746,6 +752,7 @@ temper-client-view-parts = { path = "temper/crates/temper-client-view-parts" }
 temper-client-view-work = { path = "temper/crates/temper-client-view-work" }
 temper-client-view-setup = { path = "temper/crates/temper-client-view-setup" }
 temper-client-view-kit = { path = "temper/testing/temper-client-view-kit" }
+temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit" }
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }
@@ -764,6 +771,7 @@ temper-client-tools = { path = "temper/crates/temper-client-tools" }
 temper-client-tools-jig = { path = "temper/crates/temper-client-tools-jig" }
 temper-box-shell = { path = "temper/crates/temper-box-shell" }
 temper-worker-service-fixtures = { path = "temper/testing/temper-worker-service-fixtures" }
+temper-service-link-fixtures = { path = "temper/testing/temper-service-link-fixtures" }
 temper-worker-service = { path = "temper/crates/temper-worker-service" }
 temper-service-core = { path = "temper/crates/temper-service-core" }
 temper-service = { path = "temper/crates/temper-service" }
@@ -781,6 +789,7 @@ temper-protocol-store-codec = { path = "temper/crates/temper-protocol-store-code
 temper-protocol-brief = { path = "temper/crates/temper-protocol-brief" }
 temper-charter-set = { path = "temper/crates/temper-charter-set" }
 temper-engine-domain = { path = "temper/crates/temper-engine-domain" }
+temper-engine-domain-store = { path = "temper/crates/temper-engine-domain-store" }
 temper-engine-domain-calendar = { path = "temper/crates/temper-engine-domain-calendar" }
 temper-engine-domain-room = { path = "temper/crates/temper-engine-domain-room" }
 temper-engine-domain-translate = { path = "temper/crates/temper-engine-domain-translate" }

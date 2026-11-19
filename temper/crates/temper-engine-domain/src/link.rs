@@ -560,6 +560,7 @@ mod tests {
                     task,
                     attempt: 1,
                     conversation: 1,
+                    endpoint: None,
                     credentials: Box::new([]),
                     accounts: Box::new([]),
                     placement: Some(Token::new(7)),

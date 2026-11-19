@@ -59,7 +59,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
             let kind = match rng.below(4) {
                 0 => p::EntryKind::PersonTask,
                 1 => p::EntryKind::Question { message: task },
-                2 => p::EntryKind::Proposal { number: task },
+                2 => p::EntryKind::Proposal { proposer: p::Proposer::Task(task), number: task },
                 3 => p::EntryKind::Escalation { revision: task },
                 _ => unreachable!(),
             };
@@ -74,11 +74,14 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
         while !pending.is_empty() {
             let index = usize::try_from(rng.below(len_u64(pending.len()))).expect("index into eight items");
             let entry = pending.swap_remove(index);
-            assert!(selected.start_project(&limits, P::Waiting { task: entry.task, entries: Box::new([entry]) }));
+            assert!(selected.start_project(
+                &limits,
+                P::Waiting { source: p::NeedSource::Task(entry.task), entries: Box::new([entry]) }
+            ));
             p::step(
                 &mut ordinary,
                 &env,
-                p::Event::Waiting { task: entry.task, entries: Box::new([entry]) },
+                p::Event::Waiting { source: p::NeedSource::Task(entry.task), entries: Box::new([entry]) },
                 &mut ordinary_out,
             );
         }

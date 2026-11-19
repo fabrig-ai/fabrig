@@ -11,6 +11,8 @@ pub struct Limits {
     pub commands: u32,
     /// Downloads in flight across the browser.
     pub downloads: u32,
+    /// Requests awaiting their first answer across the browser.
+    pub requests: u32,
     pub message: u32,
     pub command: u32,
     pub matches: u32,
@@ -30,6 +32,7 @@ impl Default for Limits {
             ops: 64,
             commands: 128,
             downloads: 4,
+            requests: 256,
             message: 4_194_304,
             command: 65_536,
             matches: 128,

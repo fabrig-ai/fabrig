@@ -1,6 +1,53 @@
 use super::*;
 
 #[test]
+fn a_lowered_limit_names_its_setting_figure_and_held_work() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
+    let end = End::Stopped(Stop::LimitRestore {
+        name: b"forge.repositories",
+        kind: temper_engine_service::startup::LimitKind::Temper,
+        configured: 1,
+        held: 2,
+    });
+    assert_eq!(ending_with_binary("temper-engine",Some(&end),false,&directories,b"/data/deployment",&[]),
+        ("temper-engine serve: forge.repositories (setting temper-limits): its figure is 1, but the store holds 2; put limits-held in the data directory to start at the stock\n".into(),1));
+}
+
+#[test]
+fn a_codec_lowering_names_its_setting_and_figures_without_row_values() {
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").unwrap();
+    for (name, kind, setting) in [
+        (b"forge.name_bytes".as_slice(), temper_engine_service::startup::LimitKind::Temper, "temper-limits"),
+        (b"people.identity_bytes".as_slice(), temper_engine_service::startup::LimitKind::Jig, "limits"),
+    ] {
+        let end = End::Stopped(Stop::CodecRestore {
+            bound: jig_protocol_store::codec::Lowered { name, configured: 200, held: 300 },
+            kind,
+            row: Some(jig_protocol_store::restore::RowSite {
+                family: Some(jig_protocol_store::Family::Application),
+                key: Box::new([2, 2]),
+                key_bytes: 2,
+                truncated: false,
+            }),
+        });
+        let (words, code) =
+            ending_with_binary("temper-engine", Some(&end), false, &directories, b"/data/deployment", &[]);
+        assert_eq!(code, 1);
+        assert_eq!(
+            words,
+            format!(
+                "temper-engine serve: {} (setting {setting}): its figure is 200, but the store holds a record that needs 300, key [02, 02]; put limits-held in the data directory to start at the stock\n",
+                String::from_utf8_lossy(name)
+            )
+        );
+    }
+}
+
+#[test]
 fn ran_lines_include_declared_counts_in_order_or_no_suffix() {
     use jig_protocol_store::{JobCount, Owner};
     for (binary, shown) in [("temper-box", "temper-box"), ("temper-engine", "temper-engine"), ("temper", "temper-box")]
@@ -875,6 +922,25 @@ fn forge_link_refusals_name_the_phase_kind_key_and_missing_target() {
 }
 
 #[test]
+fn start_numbers_name_every_source_kind_and_both_ranges() {
+    use jig_domain_core::{
+        settings::Setting,
+        start::{Failure, Numbered},
+    };
+    assert_eq!(
+        start_failure(&Failure::Numbers {
+            settings: Box::new([
+                Numbered { setting: Setting::Template(9), changed: true },
+                Numbered { setting: Setting::Charter(17), changed: true },
+                Numbered { setting: Setting::Policy(40), changed: false },
+                Numbered { setting: Setting::Model(70), changed: true },
+            ])
+        }),
+        "settings out of their numbers (the stock's 1 to 32, a deployment's own 33 to 64): changed template 9, changed charter 17, default policy 40, changed model 70"
+    );
+}
+
+#[test]
 fn start_failures_name_the_set_key_setting_and_measured_limit() {
     use jig_domain_core::{
         HeldLimit, Key, settings,
@@ -968,7 +1034,9 @@ fn unreadable_temper_rows_end_with_the_named_recovery_words_and_exit_one() {
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
     let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
     for (tag, name) in [(21, "Flight"), (9, "Landed"), (20, "Setting"), (47, "ChangeCold"), (48, "ChangeHot")] {
-        let end = End::Stopped(Stop::StoreRow { row: temper_engine_service::UnreadableRow { key: Box::from([tag]) } });
+        let end = End::Stopped(Stop::StoreRow {
+            row: temper_engine_service::UnreadableRow { key: Box::from([tag]), lowered: None },
+        });
         for deployment in ["/data/deployment", "/elsewhere/store"] {
             for binary in ["temper", "temper-engine"] {
                 assert_eq!(

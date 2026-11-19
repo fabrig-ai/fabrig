@@ -572,6 +572,13 @@ fn select_all_sends_control_a_and_the_select_all_command_without_text_and_ignori
 }
 
 #[test]
+fn seeded_requests_and_streamed_answers_hold_the_contract() {
+    for seed in 0..8 {
+        crate::request_scenario::run(seed);
+    }
+}
+
+#[test]
 fn seeded_downloads_end_once_and_survive_page_close() {
     use crate::referee::Referee;
     for seed in 0..8 {

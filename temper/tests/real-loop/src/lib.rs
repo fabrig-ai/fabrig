@@ -26,7 +26,7 @@ mod cancel_kills;
 pub mod ending;
 mod patience;
 pub mod service;
-mod world;
+pub mod world;
 pub use skein_io::kernel::Exit;
 pub use skein_lib::Time;
 pub use skein_scratch::Scratch;
@@ -269,7 +269,7 @@ pub fn run_forge(
 #[must_use]
 pub fn run_configured(
     recipe: impl FnOnce() -> llm::Recipe,
-    configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Ran {
     let scratch = Scratch::new("real-configured");

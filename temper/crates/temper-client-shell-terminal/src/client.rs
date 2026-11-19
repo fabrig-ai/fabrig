@@ -80,10 +80,11 @@ impl NativeClient {
         start: Start,
     ) -> Result<Self, jig_client_protocol_http::Unlinked> {
         let bounds = settings.limits;
-        assert!(limits::valid(&bounds), "native capacities are checked");
-        let (view_limits, forge_words) = limits::view(&bounds).expect("native view capacities are checked");
+        let (view_limits, forge_words) = limits::checked(&bounds).expect("native capacities are checked");
         let mut shell = Shell::new(jig_client_shell_native::Settings {
-            engine: settings.engine,
+            mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
+                .expect("temper mapping"),
+            engine: jig_client_shell_native::Engine::Plain(settings.engine),
             directory: settings.directory,
             limits: bounds.connections,
             io: bounds.io,

@@ -24,6 +24,7 @@ mod follow_tool;
 mod goal;
 mod kinds;
 pub(crate) mod landing;
+mod limit_settings;
 mod milestones;
 pub(crate) mod now;
 mod panels;
@@ -82,7 +83,21 @@ pub(crate) use tools::relay_payload;
 pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     crate::domain::invalidate_input(domain, &event);
     assert!(domain.application.is_none(), "application value cleared in its admission step");
-    assert!(domain.limits == env.limits, "root uses configured limits");
+    let raising = match &event {
+        Event::LimitsRaised => true,
+        Event::Setup { .. }
+        | Event::Store(_)
+        | Event::Worker(_)
+        | Event::Party(_)
+        | Event::Account(_)
+        | Event::Credential { .. }
+        | Event::Forge(_)
+        | Event::Released(_)
+        | Event::Restart { .. }
+        | Event::Resume
+        | Event::Stop => false,
+    };
+    assert!(raising || domain.limits == env.limits, "root uses configured limits");
     if domain.journal.stopped() || domain.start_stop().is_some() {
         discard_after_stop(domain, event);
         return;
@@ -96,6 +111,26 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
     };
     match event {
         Event::Setup { .. } => return, // The root keeps nothing of a plan's terminal.
+        Event::LimitsRaised => {
+            let before = domain.limits;
+            assert!(env.limits.transcript_memory >= before.transcript_memory, "transcript budget only rises");
+            let mut next = before;
+            next.transcript_memory = env.limits.transcript_memory;
+            next.forge = env.limits.forge;
+            assert_eq!(next, env.limits, "other root limits wait for the next start");
+            domain.limits = next;
+            domain.work.push(Work::Forge(forge::Event::LimitsRaised));
+            for (member, old, new) in [
+                (b"forge.tasks".as_slice(), before.forge.tasks, env.limits.forge.tasks),
+                (b"forge.holds".as_slice(), before.forge.holds, env.limits.forge.holds),
+                (b"forge.entries".as_slice(), before.forge.entries, env.limits.forge.entries),
+                (b"forge.client.entries".as_slice(), before.forge.client.entries, env.limits.forge.client.entries),
+            ] {
+                if new > old {
+                    domain.end_forge_limit_holds(member, u64::from(new));
+                }
+            }
+        }
         Event::Resume => {
             crate::domain::resume_routed(domain, env, out);
             return;
@@ -419,6 +454,7 @@ fn route_core_with_job(
     requests: Queue<core::Request>,
     job_answer: Option<forge_route::job_history::Answer>,
 ) {
+    forge_route::limit_holds::reconcile(domain, env, decision);
     standing::saved(domain, env, decision, &requests);
     let note_projects = parts::note_projects(&requests);
     let mut output = requests;
@@ -430,6 +466,7 @@ fn route_core_with_job(
                 forge_route::follow_route::saved(domain, &record);
                 trials::saved(domain, env, &record);
                 ways::saved(domain, &record);
+                limit_settings::saved(domain, env, decision, &record);
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);
@@ -517,6 +554,7 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 route_core_requests(domain, env, decision, output);
                 if phase == core::start::Phase::Open && domain.start_phase().is_none() {
                     domain.opened = true;
+                    forge_route::limit_holds::restart(domain);
                     // Open admits task control; a later resume takes the first due task.
                     trials::restarted(domain);
                 }
@@ -558,6 +596,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                 let routed = forge_route::step_core(domain, env, core::Event::Brief(event));
                 route_core_requests(domain, env, decision, routed);
             }
+            Work::ForgeLimitHold { row, words } => {
+                forge_route::limit_holds::apply_hold(domain, env, decision, row, words);
+            }
+            Work::ForgeLimitRelease { task, revision } => {
+                forge_route::limit_holds::release(domain, env, decision, task, revision);
+            }
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
                 if let Some(key) = domain.forge.unjoined_change() {
@@ -584,10 +628,11 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Wall },
                 );
             }
-            Work::Forge(forge::Event::StatusTask { project, task }) => {
-                let event = forge_route::status_route::admission(domain, project, task);
+            Work::Forge(forge::Event::StatusTask { project, party, task }) => {
+                let event = forge_route::status_route::admission(domain, project, party, task);
                 forge_event(domain, env, decision, event);
             }
+            Work::StatusAccount { procedure } => forge_route::status_route::check_account(domain, procedure),
             Work::Forge(event) => forge_event(domain, env, decision, event),
             Work::ForgeSettings(mut output) => forge_route::outputs(domain, env, decision, &mut output),
             Work::ProjectGoal(goal) => forge_route::project_goal(domain, env, &goal, decision),
@@ -785,6 +830,7 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Credential { .. }
         | Event::Setup { .. }
         | Event::Restart { .. }
+        | Event::LimitsRaised
         | Event::Resume
         | Event::Stop
         | Event::Store(
@@ -863,6 +909,7 @@ pub(crate) fn room_refusal(domain: &Domain, items: &[core::settings::Item]) -> O
                 | Value::Policy(_)
                 | Value::Rules(_)
                 | Value::Model(_)
+                | Value::Limits(_)
                 | Value::Provider(_)
                 | Value::Worker(_)
                 | Value::Application(_) => {

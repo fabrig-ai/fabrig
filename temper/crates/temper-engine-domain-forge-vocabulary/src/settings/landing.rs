@@ -24,6 +24,7 @@ pub struct ProjectLanding {
     pub gate_timeout_ms: u64,
     pub tier_retries: u8,
     pub verification_bound_ms: u64,
+    pub wait: temper_engine_domain_forge_change::Wait,
 }
 impl Default for ProjectLanding {
     fn default() -> Self {
@@ -40,6 +41,7 @@ impl Default for ProjectLanding {
             gate_timeout_ms: 3_600_000,
             tier_retries: 2,
             verification_bound_ms: 7_200_000,
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
         }
     }
 }
@@ -67,6 +69,10 @@ pub fn landing_record(v: &ProjectLanding) -> w::ProjectLanding {
             gate_timeout_ms: v.gate_timeout_ms,
             tier_retries: v.tier_retries,
             verification_bound_ms: v.verification_bound_ms,
+            wait: match v.wait {
+                temper_engine_domain_forge_change::Wait::Cleared => w::SettingsLandingWait::Cleared,
+                temper_engine_domain_forge_change::Wait::Landed => w::SettingsLandingWait::Landed,
+            },
         },
     )
     .expect("admitted landing fits codec")
@@ -89,6 +95,10 @@ pub fn landing_from(v: w::ProjectLanding) -> ProjectLanding {
         gate_timeout_ms: v.gate_timeout_ms,
         tier_retries: v.tier_retries,
         verification_bound_ms: v.verification_bound_ms,
+        wait: match v.wait {
+            w::SettingsLandingWait::Cleared => temper_engine_domain_forge_change::Wait::Cleared,
+            w::SettingsLandingWait::Landed => temper_engine_domain_forge_change::Wait::Landed,
+        },
     }
 }
 fn combine_record(v: Combine) -> w::SettingsCombine {

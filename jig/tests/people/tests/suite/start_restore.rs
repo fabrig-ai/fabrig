@@ -189,12 +189,12 @@ fn selected_census_projects_needs_results_and_chats_without_opening() {
         for (task, kind) in [
             (11, p::EntryKind::PersonTask),
             (QUESTION_TASK, p::EntryKind::Question { message: QUESTION_MESSAGE }),
-            (13, p::EntryKind::Proposal { number: 1 }),
+            (13, p::EntryKind::Proposal { proposer: p::Proposer::Task(13), number: 1 }),
         ] {
             assert!(domain.start_project(
                 &limits,
                 P::Waiting {
-                    task,
+                    source: p::NeedSource::Task(task),
                     entries: Box::new([p::Entry { task, project: PROJECT, whom, kind, at: Wall::EPOCH }])
                 }
             ));

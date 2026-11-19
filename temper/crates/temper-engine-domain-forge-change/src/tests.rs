@@ -95,6 +95,7 @@ fn facts() -> Facts {
         settling: None,
         verification: crate::Verification::Unfollowed,
         verification_bound: Duration::from_secs(7200),
+        wait: crate::Wait::Cleared,
     }
 }
 fn heard() -> Heard {

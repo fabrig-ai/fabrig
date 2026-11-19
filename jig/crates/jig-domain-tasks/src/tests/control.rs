@@ -1,4 +1,4 @@
-//! Deployment control cancels its project's tasks and releases procedures' own holds
+//! Deployment control cancels its project's tasks and releases connector-owned holds
 //! (jig/docs/design/domain/tasks/lifecycle.md, section 6 and jig/docs/design/domain/tasks/changes.md).
 use super::revisions::{Harness, task, to};
 use crate::{
@@ -89,6 +89,76 @@ fn a_deployment_releases_a_procedure_from_its_own_hold() {
 }
 
 #[test]
+fn a_deployment_releases_an_agents_connector_resource_account() {
+    let mut test = control_task(Executor::Agent { charter: 1 });
+    test.send(Event::HoldFrom {
+        task: CONTROLLED,
+        why: Hold::ResourceUnavailable,
+        source: Box::new(HoldSource::Account {
+            connector: 1,
+            entry: None,
+            words: b"resource has room".as_slice().into(),
+        }),
+    });
+    let by = Party::Deployment { project: PROJECT };
+    let out = test.send(Event::Release {
+        reply_to: to(),
+        by,
+        operation: Release { task: CONTROLLED, again: None, message: None },
+    });
+    let Some(Request::Done { .. }) = out.last() else { panic!("{out:?}") };
+    let row = test.domain.task(CONTROLLED).unwrap();
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(row.due_reason, Why::Released);
+    let Stored::History(history) = test.stored.get(&Key::History { task: CONTROLLED, revision: row.revision }).unwrap()
+    else {
+        panic!("release history")
+    };
+    assert_eq!((history.change, history.by), (Change::Released, by));
+}
+
+#[test]
+fn connector_resource_release_does_not_cross_project_placed_reason_or_source_guards() {
+    for (project, placed, why, account) in [
+        (PROJECT, true, Hold::ResourceUnavailable, true),
+        (OTHER_PROJECT, false, Hold::ResourceUnavailable, true),
+        (PROJECT, false, Hold::Exceeded(crate::Exceeded { bound: crate::Bound::Answer, value: 1 }), true),
+        (PROJECT, false, Hold::ResourceUnavailable, false),
+    ] {
+        let mut test = control_task(Executor::Agent { charter: 1 });
+        if placed {
+            place_control_hold(&mut test);
+        }
+        if account {
+            test.send(Event::HoldFrom {
+                task: CONTROLLED,
+                why,
+                source: Box::new(HoldSource::Account {
+                    connector: 1,
+                    entry: None,
+                    words: b"resource".as_slice().into(),
+                }),
+            });
+        } else {
+            test.send(Event::Hold { task: CONTROLLED, why });
+        }
+        let before = test.domain.task(CONTROLLED).unwrap().clone();
+        let stored = test.stored.clone();
+        let out = test.send(Event::Release {
+            reply_to: to(),
+            by: Party::Deployment { project },
+            operation: Release { task: CONTROLLED, again: None, message: None },
+        });
+        let [Request::Refused { problem, .. }] = out.as_slice() else {
+            panic!("{project}, placed={placed}, {why:?}, account={account}: {out:?}")
+        };
+        assert_eq!(problem.why, Refusal::Reference);
+        assert_eq!(test.domain.task(CONTROLLED), Some(&before));
+        assert_eq!(test.stored, stored);
+    }
+}
+
+#[test]
 fn a_deployment_releases_nothing_else() {
     for (executor, why, placed, project) in [
         (PROCEDURE, Some(Hold::Procedure), false, OTHER_PROJECT),
@@ -109,7 +179,6 @@ fn a_deployment_releases_nothing_else() {
         (PROCEDURE, Some(Hold::Uncertain { entry: 1 }), false, PROJECT),
         (PROCEDURE, Some(Hold::Deadline), false, PROJECT),
         (PROCEDURE, Some(Hold::HoldsWaited), false, PROJECT),
-        (PROCEDURE, Some(Hold::ResourceUnavailable), false, PROJECT),
         (PROCEDURE, Some(Hold::ResourceAccess), false, PROJECT),
         (PROCEDURE, Some(Hold::PoolLost { pool: 1 }), false, PROJECT),
         (PROCEDURE, Some(Hold::Circle), false, PROJECT),

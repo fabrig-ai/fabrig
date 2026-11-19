@@ -14,20 +14,26 @@ fn a_requesters_question_arrival_is_a_held_output() {
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::People(people::Event::Waiting { task: 7, entries: Box::new([first]) }),
+        Event::People(people::Event::Waiting { source: people::NeedSource::Task(7), entries: Box::new([first]) }),
     );
     assert_arrival(&out, 1);
     let second = people::Entry { kind: people::EntryKind::Question { message: 12 }, ..first };
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::People(people::Event::Waiting { task: 7, entries: Box::new([first, second]) }),
+        Event::People(people::Event::Waiting {
+            source: people::NeedSource::Task(7),
+            entries: Box::new([first, second]),
+        }),
     );
     assert_arrival(&out, 2);
     let out = watch_outputs(
         &mut core,
         &limits,
-        Event::People(people::Event::Waiting { task: 7, entries: Box::new([first, second]) }),
+        Event::People(people::Event::Waiting {
+            source: people::NeedSource::Task(7),
+            entries: Box::new([first, second]),
+        }),
     );
     assert!(out.is_empty(), "the same task saved again tells nothing");
 }

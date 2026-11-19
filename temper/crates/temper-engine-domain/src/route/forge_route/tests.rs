@@ -3,6 +3,7 @@ use alloc::boxed::Box;
 
 mod call_room;
 mod flake;
+mod limit_holds;
 mod reds;
 mod room;
 mod round_ends;
@@ -296,6 +297,10 @@ fn holdings_asks_keep_the_refused_symbol() {
 }
 
 fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
+    goal_holds_branch_beneath(false)
+}
+
+fn goal_holds_branch_beneath(beneath: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::tasks;
     let (mut domain, mut env) = two_forges();
     // These tasks report one byte; their delegate result reserves that byte in the inbox.
@@ -326,8 +331,40 @@ fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
         },
         &mut out,
     );
-    make_goal_task(&mut domain, &env, GOAL_TASK, tasks::Party::Deployment { project: GOAL_PROJECT }, holdings);
+    let creator = if beneath {
+        make_goal_task(&mut domain, &env, GOAL_ROOT, tasks::Party::Deployment { project: GOAL_PROJECT }, Box::new([]));
+        tasks::Party::Task(GOAL_ROOT)
+    } else {
+        tasks::Party::Deployment { project: GOAL_PROJECT }
+    };
+    make_goal_task(&mut domain, &env, GOAL_TASK, creator, holdings);
     (domain, env)
+}
+
+#[test]
+fn a_nested_goal_holding_its_branch_under_its_own_number_keeps_the_default_destination() {
+    use super::forge;
+    let (mut domain, env) = goal_holds_branch_beneath(true);
+    assert_eq!(domain.core.tasks.root(GOAL_TASK), Some(GOAL_ROOT));
+    let name = forge::Name {
+        forge: 1,
+        repository: 1,
+        what: super::branch_what(b"temper/8/g8", env.limits.forge.name_bytes).unwrap(),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Hold { entry: 0, task: GOAL_TASK, resource: name.clone(), from: None },
+        &mut out,
+    );
+    assert_eq!(domain.forge.hold(&name).expect("old branch held").task, GOAL_TASK);
+    let change = crate::ChangeCall::words(b"Small fix".as_slice().into(), None);
+    assert_eq!(change.landing, None);
+    let Ok(destination) = super::change_destination(&domain, &env, GOAL_TASK, &adopted(1), &change) else {
+        panic!("legacy goal's change admitted")
+    };
+    assert_eq!(destination.as_ref(), b"main");
 }
 
 fn make_goal_task(
@@ -845,6 +882,7 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
             &forge_env,
             forge::Event::Restore {
                 record: forge::Stored::Hold(forge::Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name,
                     task: 7,
@@ -927,6 +965,7 @@ fn a_parked_answers_checked_push_reaches_the_change_before_lost_writer_reads() {
                 name: name.clone(),
                 task: 7,
                 writer: Some(forge::Writer::Run { task: 41, attempt: 1 }),
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),
@@ -1268,6 +1307,7 @@ fn a_change_drift_account_prefers_the_forges_pair_including_unknown() {
             &env.with(env.limits.forge),
             forge::Event::Restore {
                 record: forge::Stored::Hold(forge::Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: name.clone(),
                     task: 7,
@@ -2251,6 +2291,7 @@ fn reserved_turn_landing_with_limits(
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -4627,7 +4668,7 @@ fn follow_parameter_admission_names_missing_wrong_requester_and_live_commits() {
 #[test]
 fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
     use super::{Work, forge, tasks};
-    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources = 2; required usage 3; reduce the named work or raise this limit in the deployment configuration, restart, then release";
+    const WORDS: &[u8] = b"record branch head on branch temper/2/c2 in org/repo: forge.client.resources is 2, and this needs 3: a limit in temper-limits. Ask temper to raise it, or raise it from Needs you. This goes on by itself once room frees or the limit rises.";
     for concerned in [false, true] {
         let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
         let repository = adopted(1);
@@ -4663,10 +4704,10 @@ fn head_refusal_logs_full_account_and_holds_only_a_concerned_task() {
         assert_eq!(words.as_ref(), WORDS);
         assert!(domain.pop_fact().is_none());
         if let Some(task) = task {
-            let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+            let Some(Work::ForgeLimitHold { row, words }) = domain.work.pop() else {
                 panic!("the concerned task is held");
             };
-            tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+            super::limit_holds::apply_hold(&mut domain, &env, &mut decision, row, words);
             let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase
             else {
                 panic!("retained resource hold");
@@ -4692,10 +4733,10 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     });
     let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
     super::outputs(&mut domain, &env, &mut decision, &mut out);
-    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+    let Some(Work::ForgeLimitHold { row, words }) = domain.work.pop() else {
         panic!("resource refusal routes a hold");
     };
-    tasks::step(&mut domain.core.tasks, &env.with(env.limits.tasks), event, &mut skein_lib::Queue::uncapped());
+    super::limit_holds::apply_hold(&mut domain, &env, &mut decision, row, words);
     let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
         panic!("refused task is held");
     };
@@ -4703,8 +4744,8 @@ fn a_configured_resource_limit_reaches_the_held_tasks_words() {
     let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained limit cause") };
     for text in [
         b"subscribe".as_slice(),
-        b"forge.paths_per_subscription = 4; required usage 5",
-        b"deployment configuration, restart, then release",
+        b"forge.paths_per_subscription is 4, and this needs 5",
+        b"This goes on by itself once room frees or the limit rises.",
     ] {
         let mut found = false;
         for part in words.windows(text.len()) {
@@ -4880,6 +4921,7 @@ fn turn_project(domain: &mut super::Domain) {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         super::forge::AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,

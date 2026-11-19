@@ -20,7 +20,7 @@ mod execution;
 mod findings;
 pub(crate) mod fixtures;
 mod flight;
-mod follow_check;
+pub(crate) mod follow_check;
 mod goal_branch;
 mod goal_start;
 mod held_branch;
@@ -117,6 +117,7 @@ pub(crate) const LIMITS: Limits = Limits {
     landings: 8,
     landing_members: 2,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -239,6 +240,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -457,6 +459,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: Some(name.clone()),
             release: None,
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: name.clone(),
                 task: 7,
@@ -515,6 +518,7 @@ fn a_hold_and_writer_slot_are_exclusive_until_answered() {
             read_afresh: None,
             release: None,
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name,
                 task: 7,
@@ -1666,6 +1670,7 @@ fn restarted_lost_writer() -> Domain {
         &mut d,
         Event::Restore {
             record: Stored::Hold(Hold {
+                beside: None,
                 design_writers: Box::new([]),
                 name: run_branch(b"7"),
                 task: 7,
@@ -1846,6 +1851,7 @@ fn a_superseded_lost_reread_records_only_its_undrifted_delegates_head() {
                     name: name.clone(),
                     task: fixtures::CHANGE,
                     writer: Some(Writer::Run { task: 9, attempt: 1 }),
+                    beside: None,
                     design_writers: Box::new([]),
                     drift: None,
                 }),
@@ -2031,6 +2037,7 @@ fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() 
             &mut d,
             Event::Restore {
                 record: Stored::Hold(Hold {
+                    beside: None,
                     design_writers: Box::new([]),
                     name: run_branch(b"7"),
                     task: 7,
@@ -3353,6 +3360,7 @@ fn turn_refuses_github_but_queue_remains_available() {
                 }]),
                 temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -3395,6 +3403,7 @@ fn repository_gate_and_ignored_path_counts_hold_at_their_bounds() {
                 Box::new([RepositoryGates { tiers: Box::new([]), repository: REPO, gates: gates.into_boxed() }]),
                 temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect

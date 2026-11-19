@@ -9,7 +9,7 @@ const HEAD: [u8; 32] = [1; 32];
 const MAIN: [u8; 32] = [2; 32];
 const NEW: [u8; 32] = [3; 32];
 const KEY: [u8; 32] = [4; 32];
-const LIMITS: Limits = Limits { members: 6, gates: 4, tests_bytes: 0, poll: Duration::from_secs(5) };
+const LIMITS: Limits = Limits { members: 6, gates: 4, tests_bytes: 0, poll: Duration::from_secs(5), write_attempts: 2 };
 const PROJECT: Project = Project::DEFAULT;
 fn at(seconds: u64) -> Wall {
     Wall::from_nanos(seconds.saturating_mul(1_000_000_000))
@@ -52,6 +52,8 @@ fn facts() -> Facts {
     Facts {
         opened: Some(10),
         opening: Status::Passed,
+        round_pull: crate::RoundPull::Unread,
+        merge_refused: false,
         closed: Status::Unknown,
         preparation: crate::Preparation::Idle,
         members: Box::new([MemberFacts {
@@ -71,6 +73,7 @@ fn facts() -> Facts {
             head: HEAD,
             main: MAIN,
             contains_main: Status::Passed,
+            contains_candidate: Status::Unknown,
             asked: false,
             merge: Status::Unknown,
             merged: None,
@@ -456,6 +459,8 @@ fn a_cancelled_member_keeps_its_candidate_and_proofs_until_cleanup() {
 #[test]
 fn a_refused_merge_holds_without_discarding_its_candidate() {
     let mut f = facts();
+    f.round_pull = crate::RoundPull::Open;
+    f.merge_refused = true;
     f.members[0].merge = Status::Failed;
     let next = decide(&turn(), &f);
     assert_eq!(next.decision, Decision::Hold(Hold::Turn));
@@ -1297,4 +1302,111 @@ fn a_single_landing_names_its_run_receipt_post_and_merge_waits() {
     assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: None, on: Awaited::Merge });
     f.members[0].merge = Status::Passed;
     assert_eq!(decide(&landing, &f).decision, Decision::Wait { until: Some(at(15)), on: Awaited::Merge });
+}
+
+#[test]
+fn a_failed_merge_is_settled_by_its_tip_and_fresh_round_pull() {
+    use crate::{RoundEnd, RoundPull};
+    // Each row changes a rule, rather than repeating the policy's state list.
+    for (name, main, contains, pull, decision, landed, ending) in [
+        (
+            "tip holds candidate",
+            [9; 32],
+            Status::Passed,
+            RoundPull::Closed,
+            Decision::Landed { member: 0, prefix: HEAD },
+            Some(HEAD),
+            None,
+        ),
+        (
+            "pull merged at candidate",
+            MAIN,
+            Status::Failed,
+            RoundPull::Merged(HEAD),
+            Decision::Landed { member: 0, prefix: HEAD },
+            Some(HEAD),
+            None,
+        ),
+        (
+            "tip elsewhere",
+            [9; 32],
+            Status::Failed,
+            RoundPull::Merged(HEAD),
+            Decision::None,
+            None,
+            Some(RoundEnd::Stale),
+        ),
+        ("closed unmerged", MAIN, Status::Failed, RoundPull::Closed, Decision::None, None, Some(RoundEnd::Stale)),
+        ("open at base", MAIN, Status::Failed, RoundPull::Open, Decision::Hold(Hold::Turn), None, None),
+        (
+            "merged elsewhere at base",
+            MAIN,
+            Status::Failed,
+            RoundPull::Merged([9; 32]),
+            Decision::Hold(Hold::Turn),
+            None,
+            None,
+        ),
+        (
+            "unread",
+            MAIN,
+            Status::Failed,
+            RoundPull::Unread,
+            Decision::Wait { until: None, on: Awaited::Merge },
+            None,
+            None,
+        ),
+    ] {
+        let mut f = facts();
+        f.round_pull = pull;
+        f.merge_refused = true;
+        f.members[0].main = main;
+        f.members[0].contains_candidate = contains;
+        f.members[0].merge = Status::Failed;
+        f.members[0].merged = Some(HEAD);
+        let next = decide(&turn(), &f);
+        assert_eq!(next.decision, decision, "{name}");
+        assert_eq!(next.landing.members[0].landed, landed, "{name}");
+        assert_eq!(next.landing.round.ending, ending, "{name}");
+        if pull == RoundPull::Closed && main == MAIN {
+            assert_eq!(next.landing.phase, Phase::Preparing, "a closed pull restacks as a release does");
+        }
+        let held = match next.landing.phase {
+            Phase::Held { .. } => true,
+            Phase::Waiting
+            | Phase::Preparing
+            | Phase::Proving
+            | Phase::Proved { .. }
+            | Phase::Turn { .. }
+            | Phase::Landed
+            | Phase::Cancelled => false,
+        };
+        assert_eq!(held, decision == Decision::Hold(Hold::Turn), "{name}");
+    }
+}
+
+#[test]
+fn unknown_merges_are_counted_and_reasked_only_below_the_rounds_bound() {
+    use crate::RoundPull;
+    let mut f = facts();
+    f.round_pull = RoundPull::Open;
+    let first = decide(&turn(), &f);
+    assert_eq!(first.decision, Decision::Merge { member: 0, candidate: HEAD });
+    assert_eq!(first.landing.round.merges, 1);
+    f.members[0].merge = Status::Failed;
+    let second = decide(&first.landing, &f);
+    assert_eq!(second.decision, Decision::Merge { member: 0, candidate: HEAD });
+    assert_eq!(second.landing.round.merges, 2);
+    let held = decide(&second.landing, &f);
+    assert_eq!(held.decision, Decision::Hold(Hold::Turn));
+    assert_eq!(held.landing.round.merges, 2);
+    f.released = true;
+    let released = decide(&held.landing, &f);
+    let cleaned = close_round(&released.landing, &f);
+    assert_eq!(cleaned.landing.round.merges, 0, "a release starts its next round at zero");
+    f.released = false;
+    f.round_pull = RoundPull::Unread;
+    let unread = decide(&first.landing, &f);
+    assert_eq!(unread.decision, Decision::Wait { until: None, on: Awaited::Merge });
+    assert_eq!(unread.landing.round.merges, 1);
 }

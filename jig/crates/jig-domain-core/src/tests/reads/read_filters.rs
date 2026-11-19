@@ -213,7 +213,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
     assert_eq!(core.tasks.task(1).unwrap().replies.len(), 1, "the reply has an owner-issued activity position");
     let mut out = Queue::uncapped();
     let kinds = [
-        people::EntryKind::Proposal { number: 1 },
+        people::EntryKind::Proposal { proposer: Proposer::Task(1), number: 1 },
         people::EntryKind::Escalation { revision: 1 },
         people::EntryKind::Question { message: 1 },
         people::EntryKind::PersonTask,
@@ -234,7 +234,7 @@ fn each_inbox_kind_selects_its_owner_objects_and_the_cursor_keeps_that_kind() {
     people::step(
         &mut core.people,
         &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
-        people::Event::Waiting { task: 1, entries: entries.into_boxed() },
+        people::Event::Waiting { source: people::NeedSource::Task(1), entries: entries.into_boxed() },
         &mut out,
     );
     core.people.remember_result(

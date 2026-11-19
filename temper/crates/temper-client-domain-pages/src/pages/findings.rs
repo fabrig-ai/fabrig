@@ -576,6 +576,7 @@ impl needs::Session {
         for need in &existing {
             if let needs::Need::Card(card) = need
                 && card.page.is_none()
+                && !card.withdraw_unread
             {
                 continue;
             }
@@ -597,7 +598,7 @@ impl needs::Session {
             }
             let mut read = false;
             for card in inbox.needs() {
-                read |= card.object == row.card_key() && card.page.is_some();
+                read |= card.object == row.card_key() && (card.page.is_some() || card.withdraw_unread);
             }
             if !read {
                 rows.push(Need::Row(row)).expect("needs rows fit");

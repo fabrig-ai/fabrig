@@ -162,6 +162,8 @@ pub enum SetupEnd {
 /// The input union, with one variant for each typed peer.
 #[derive(Hash, Debug)]
 pub enum Event {
+    /// Take the checked at-once raises supplied by the service's environment.
+    LimitsRaised,
     /// Terminal of the protocol-owned plan named by `run`.
     Setup {
         run: Token,
@@ -441,6 +443,13 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    /// The service supplies rows after the root authorizes the read and counts held bytes.
+    Limits {
+        after: Option<Box<[u8]>>,
+    },
+    LimitHolds {
+        after: Option<u64>,
+    },
     Milestone {
         project: u32,
         task: u64,
@@ -476,6 +485,14 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Limits {
+        after: Option<Box<[u8]>>,
+        held: u64,
+    },
+    LimitHolds {
+        rows: Box<[forge::LimitHold]>,
+        next: Option<u64>,
+    },
     Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
@@ -645,6 +662,12 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Both limit-setting lists at this durable revision (configuration/limit-settings.md, 4).
+    LimitSettingsCommitted {
+        revision: u32,
+        jig: Box<[jig_domain_core::settings::Override]>,
+        temper: Box<[jig_domain_core::settings::Override]>,
+    },
     ChoosePlace {
         request: Token,
         kind: forge::BoxKind,
@@ -861,6 +884,9 @@ pub(crate) enum Work {
     Forge(forge::Event),
     ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
+    ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },
+    ForgeLimitRelease { task: u64, revision: u64 },
+    StatusAccount { procedure: u64 },
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
@@ -1035,6 +1061,9 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         Delivery::PartLoad { waiter, range } => Request::Store(StoreRequest::PartRead { waiter, range }),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
         Delivery::Restarting { wait } => Request::Restarting { wait },
+        Delivery::LimitSettingsCommitted { revision, jig, temper } => {
+            Request::LimitSettingsCommitted { revision, jig, temper }
+        }
         Delivery::Drained => Request::Drained,
         Delivery::Bound { request, answer } => Request::Bound { request, answer },
         Delivery::ForgeCall { call, repository, op } => Request::Forge { call, repository, op },

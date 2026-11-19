@@ -52,8 +52,7 @@ pub struct Replay {
 impl Replay {
     pub fn new(recording: &[u8]) -> Result<Self, Unreadable> {
         let lines = lines(recording)?;
-        let (facts, at) = facts(&lines)?;
-        envelope(&lines, at)?;
+        let (facts, at) = checked_facts(&lines)?;
         let (host, start) = facts.start();
         Ok(Self { lines, at, turn: 0, host, start: Some(start), ended: false, failed: None })
     }
@@ -138,6 +137,7 @@ impl Replay {
                 | Line::BoxLine(_)
                 | Line::BoxStage(_)
                 | Line::Lent { .. }
+                | Line::Handshake(_)
                 | Line::Found(_)
                 | Line::Opened { .. }
                 | Line::Send { .. }
@@ -171,7 +171,13 @@ impl Replay {
     }
 
     fn compare(&mut self, line: &Line) -> Result<(), Stale> {
-        if self.lines.get(self.at) != Some(line) {
+        let same = match (self.lines.get(self.at), line) {
+            (Some(Line::Signed(kept)), Line::Signed(current)) => {
+                recorded_origin(kept).is_some_and(|kept| Some(kept) == recorded_origin(current))
+            }
+            _ => self.lines.get(self.at) == Some(line),
+        };
+        if !same {
             return Err(self.stale(text(line)));
         }
         self.at += 1;
@@ -219,6 +225,7 @@ impl Replay {
             Line::Saved => Report::Heard(jig_client::Event::Stored),
             Line::Unsaved => Report::Heard(jig_client::Event::NotStored),
             Line::Kept { written } => Report::Kept { written: *written },
+            Line::Handshake(failed) => Report::Handshake { failed: *failed },
             Line::Found(bytes) => Report::Local { link: bytes.clone().map(Secret::new) },
             Line::BoxLine(bytes) => Report::Front(temper_client_tui::BoxLine::read(bytes).expect("validated box line")),
             Line::BoxStage(bytes) => {
@@ -285,11 +292,17 @@ fn text(line: &Line) -> Box<[u8]> {
     bytes.into()
 }
 
+pub(super) fn checked_facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
+    let (facts, at) = facts(lines)?;
+    envelope(lines, at)?;
+    Ok((facts, at))
+}
+
 #[expect(clippy::too_many_lines, reason = "one reader checks the recording's ordered start facts and their defaults")]
 pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
-    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2 or 3" };
+    let error = |at| Unreadable { line: number(at), why: "expected ordered start facts for journey 2, 3 or 4" };
     let mut at = 0;
-    if !matches!(lines.get(at), Some(Line::Journey { version: 2 | 3 })) {
+    if !matches!(lines.get(at), Some(Line::Journey { version: 2..=4 })) {
         return Err(error(at));
     }
     at += 1;
@@ -324,6 +337,7 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     let Some(Line::Address(address)) = lines.get(at) else {
         return Err(error(at));
     };
+    let address = recorded_origin(address).ok_or(Unreadable { line: number(at), why: "not an origin" })?;
     at += 1;
     let local = lines.get(at) == Some(&Line::Local);
     if local {
@@ -380,7 +394,7 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             plain,
             version,
             boxed,
-            address: address.clone(),
+            address,
             local,
             front,
             set_up,
@@ -455,6 +469,7 @@ fn envelope(lines: &[Line], at: usize) -> Result<(), Unreadable> {
             | Line::BoxLine(_)
             | Line::BoxStage(_)
             | Line::Lent { .. }
+            | Line::Handshake(_)
             | Line::Found(_)
             | Line::Opened { .. } => {
                 if !in_turn || !started {
@@ -555,4 +570,14 @@ fn difference(left: &[u8], right: &[u8]) -> u32 {
             (Some(_) | None, Some(_) | None) => return line,
         }
     }
+}
+
+// The text keeps its original bytes; only replay interprets older authorities.
+fn recorded_origin(bytes: &[u8]) -> Option<temper_client_tui::Origin> {
+    let bytes = if bytes.starts_with(b"http://") || bytes.starts_with(b"https://") {
+        bytes.into()
+    } else {
+        skein_lib::bytes::concat(&[b"http://", bytes])
+    };
+    temper_client_tui::Origin::parse(&bytes).ok()
 }

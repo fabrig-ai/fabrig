@@ -69,8 +69,8 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
 - **Judged when saved** (`../protocol/configuration/settings.md`, 2):
   `task N` must be a live task of the project, `party N` a party with a
   role in it, `role N` within jig's `authority.roles`, and `charter N`
-  within 1 to jig's `tasks.charters`, read by the root from the core as
-  a way's template is. What stands later is section 4's to read.
+  within 1 to 64, a charter's numbers (jig's `domain/engine/settings.md`,
+  1), read by the root from the core as a way's template is. What stands later is section 4's to read.
 
 ## 4. Who owns a finding
 
@@ -129,6 +129,27 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   `P/N` the project's and the finding's numbers; `no area` where it has
   none; the third line for a hand-off alone, `WHO` as `task N` or
   `party N`; the body cut from its end, marked `[cut]`.
+- **Its subscription is apart from the task's room.** The root asks
+  for it as the topic jig admits one past the task's
+  `tasks.subscriptions` (jig's `domain/tasks/messages.md`, 4), so a
+  holder whose own subscriptions fill that bound, as a triager waiting
+  on four people's answers does in stock, is subscribed all the same,
+  and no later subscription can take its place: the task's own stop at
+  the bound, counting it, as they did when it came first. Its news has
+  a merged slot in the task's inbox, kept from the subscription on
+  (jig's `domain/tasks/messages.md`, 2). A goal a finding is routed to
+  is subscribed the same way (`findings.md`, section 6).
+- **A finding never waits on it.** A filing, a hand-off or a route is
+  written whatever its holder's room, and refused only for its own
+  (`findings.md`, section 4). Where the subscription can't be made,
+  the holder's inbox having no room for its slot or the forge's
+  subscriptions full (`forge.subscriptions`), the finding is written
+  and its holder isn't told: it reads it with its `finding` tool's
+  `list` (section 7), and its next finding asks for the subscription
+  again. A task keeps the subscription until it ends. One without it,
+  as a task that held findings before this rule or one whose run
+  unsubscribed it, is subscribed at its next finding, under the number
+  the forge keeps for it where it keeps one.
 - **A person hears** in Needs you: a party's `new` findings whose holder
   is that party, or a role they hold, are listed for them by the forge's
   `findings` read with `mine` (`../client/forge/records.md`), each a card
@@ -138,7 +159,8 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   the one that saved it, each task holding open findings, `new` or
   `backlog`, that it didn't hold before the save hears one news,
   `Findings on project P are yours now: N1, N2, …`, their numbers in
-  order, cut to `tasks.message_bytes` with `and K more`.
+  order, cut to `tasks.message_bytes` with `and K more`, through the
+  same subscription, made as above.
 
 ## 6. The triager
 
@@ -198,7 +220,8 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   what it owns (`../draft/standing-roles.md`, section 8).
 - **Refused** in words: `finding P/N is not yours: its owner is
   HOLDER`; `no area NAME in project P; its areas: A, B`; `the project's
-  findings are full: K new` (`findings.md`, section 9).
+  findings are full: K new` (`findings.md`, section 9). Never for the
+  holder's room (section 5).
 - **Through** `temper ctl`'s `finding` group (`../client/ctl/tools.md`)
   and the agents' `finding` tool (`agent/tools.md`), each a request of
   the forge's family (`../client/forge/records.md`).
@@ -212,7 +235,11 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   reaching the area's owner with its why; a finding no area fits staying
   with the triager; an act by one who doesn't own it refused; kinds 14
   and 15 judged; a save moving open findings and telling their new
-  owners.
+  owners; a triager whose subscriptions fill `tasks.subscriptions`,
+  each on a person task still waiting, taking a filed finding and a
+  handed-on one and hearing each through the findings topic; a holder
+  whose inbox has no room for the subscription's slot keeping the
+  finding unheard.
 - **Fuzzy:** random areas, triagers, owners standing or not, filings,
   hand-offs and saves: after each step every finding has exactly one
   holder, the rule's, and each news went to the holder the rule gave

@@ -558,7 +558,9 @@ impl<'a> BrowserFace<'a> {
                     self.trouble.push(text.clone());
                 }
             }
-            Event::Ready { .. }
+            Event::Sent { .. }
+            | Event::Answered { .. }
+            | Event::Ready { .. }
             | Event::Opened { .. }
             | Event::Met { .. }
             | Event::Missed { .. }

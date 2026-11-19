@@ -1804,6 +1804,13 @@ pub enum Event {
         task: u64,
         subscription: Subscription,
     },
+    /// Root-authorized connector topic admitted one past the task's `subscriptions`
+    /// (domain/tasks/messages.md, 4).
+    SubscribeTopicApart {
+        reply_to: ReplyTo,
+        task: u64,
+        subscription: Subscription,
+    },
     /// Remove one interest owned by a current task.
     Unsubscribe {
         reply_to: ReplyTo,

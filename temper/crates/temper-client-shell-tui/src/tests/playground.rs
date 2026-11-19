@@ -22,7 +22,7 @@ fn messages(duties: &Duties) -> Vec<(ReplySlot, Message)> {
     messages
 }
 
-fn forges_watch(duties: &Duties) -> u64 {
+pub(super) fn forges_watch(duties: &Duties) -> u64 {
     messages(duties)
         .into_iter()
         .find_map(|(_, message)| {

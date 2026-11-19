@@ -35,6 +35,7 @@ fn an_in_flight_change_takes_its_projects_way_before_becoming_ready() {
             Box::new([]),
             temper_engine_domain_forge_landing::Project::DEFAULT,
             AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -3003,6 +3004,7 @@ fn an_ended_writers_slot_stops_waiting_after_its_branch_is_read() {
                 },
                 task: fixtures::CHANGE,
                 writer: Some(Writer::Run { task: 52, attempt: 1 }),
+                beside: None,
                 design_writers: Box::new([]),
                 drift: None,
             }),

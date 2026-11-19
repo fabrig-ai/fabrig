@@ -32,6 +32,10 @@ fn only_the_services_output_link_supplies_a_path_and_query() {
         line: b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=example&extra=kept".as_slice().into(),
     };
     assert_eq!(printed_link(&printed), Some("/jig/v1/sign-in/link?secret=example&extra=kept"));
+    for scheme in ["http", "https"] {
+        printed.line = format!("{scheme}://127.0.0.1:7100/sign-in?secret=example&extra=kept").into_bytes().into();
+        assert_eq!(printed_link(&printed), Some("/sign-in?secret=example&extra=kept"));
+    }
     printed.stream = Stream::Error;
     assert_eq!(printed_link(&printed), None);
     printed.stream = Stream::Output;
@@ -50,6 +54,10 @@ fn only_the_services_output_link_supplies_a_path_and_query() {
         "http://host/jig/v1/sign-in/link?secret=two words",
         "http://host/?next=/jig/v1/sign-in/link?secret=example",
         "ftp://host/jig/v1/sign-in/link?secret=example",
+        "http://host/sign-in",
+        "http://host/sign-in?other=example",
+        "http://host/sign-in?secret=",
+        "http://host/sign-in?secret=example#fragment",
     ] {
         printed.line = line.as_bytes().into();
         assert_eq!(printed_link(&printed), None, "{line:?}");

@@ -35,6 +35,7 @@ mod task_settings;
 
 pub(super) mod projects;
 
+mod proposal;
 mod replays;
 
 mod specification;
