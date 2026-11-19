@@ -74,8 +74,9 @@ mod tests {
                 count = count.checked_add(1).expect("golden count");
             }
         }
-        // The codec fixtures contribute 152 goldens; the UI schema contributes 12.
-        assert_eq!(count, 164);
+        // The codec fixtures contribute 154 goldens, including growth's two;
+        // the UI schema contributes 12.
+        assert_eq!(count, 166);
         assert_eq!(compared, 152);
     }
 }
