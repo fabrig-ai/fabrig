@@ -214,3 +214,17 @@ fn a_by_test_repair_keeps_its_top_fact() {
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
 }
+
+#[test]
+fn a_held_round_keeps_its_merge_count_and_last_read_across_storage() {
+    let mut row = seed();
+    row.landing.round.merges = 2;
+    row.landing.round.failure = b"merge of #7: withdrawn before completion; read #7 open, temper/g1 at 0000000000000000000000000000000000000000".as_slice().into();
+    row.landing.phase = landing::Phase::Held {
+        was: Box::new(landing::Phase::Turn { at: skein_lib::Wall::EPOCH }),
+        why: landing::Hold::Turn,
+    };
+    let row = forge::Stored::Landing(row);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}

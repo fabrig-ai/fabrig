@@ -10,7 +10,7 @@ use temper_engine_forge_world::{
     translate,
 };
 
-fn batch(count: u64) -> World {
+pub(crate) fn batch(count: u64) -> World {
     batch_root(count).0
 }
 fn batch_root(count: u64) -> (World, Trains) {
