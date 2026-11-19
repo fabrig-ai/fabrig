@@ -236,9 +236,17 @@
   refused*; or *unknown*.
 - **`TriageFinding`:** of the project it names, from the same: `project`,
   u32; `number`, u32; `act`, a `Triage`: `route`, the goal's task (u64);
-  `backlog`, no fields; or `drop`, its reason, 1 to 400 bytes
-  (`../../domain/findings.md`, section 6). Its outcome: *triaged*,
-  `triaged`, no fields, once committed; *finding refused*; or *unknown*.
+  `backlog`, no fields; `drop`, its reason, 1 to 400 bytes
+  (`../../domain/findings.md`, section 6); `repair`, `more`, the
+  findings after `number`, at most 15 u32s, and `words`, 1 to 4,096
+  bytes (`../../domain/red-repairs.md`, section 4); or `blame`,
+  `landing`, option, a commit of 20 or 32 bytes, none for no landing,
+  and `why`, 1 to 200 bytes (`../../domain/red-repairs.md`, section
+  3). Its outcome: *triaged*, `triaged`, with `goal`, option u64, the
+  goal a `repair` made, none for the other acts, once committed;
+  *finding refused*; or *unknown*. `repair`, `blame` and `goal` came
+  with the wire's next layout, unbridged (`../../protocol/wires.md`,
+  section 9).
 - **`TierActRequest`,** `tier_act`, appended after `TriageFinding`: of
   the project it names, from a project owner or the deployment's owner,
   as `FollowActRequest` (`../../domain/after-landing.md`, section 3, *A
@@ -278,8 +286,10 @@
   16; `full`, how many are `new`; `not_yours`, its holder, a `Holder`,
   `task`, `party` or `role` with its number; `no_finding`; `no_goal`, a
   route's task not a live goal of the project; `ended`, the finding
-  already `routed` or `dropped`; or `words`, a field past its bounds or
-  not UTF-8, naming it.
+  already `routed` or `dropped`; or `words`, at most 1,024 bytes: a
+  field past its bounds or not UTF-8, naming it, or a `repair`'s or
+  `blame`'s refusal in its words (`../../domain/red-repairs.md`, 4.2
+  and section 3).
 - **`Connect`:** of the deployment's scope (`../engine.md`): the forge,
   `Making`, a kept forge or a new GitHub, managed or connected Forgejo,
   and how it connects, `How`: `github_app`, `GitHubApp`,

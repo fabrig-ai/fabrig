@@ -198,7 +198,16 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
     any goal is made, then routes it there;
   - **to the backlog:** `backlog`, until a later triage;
   - **dropped,** with a reason: `dropped`, the reason kept, and its
-    issue closed with the reason as a comment.
+    issue closed with the reason as a comment;
+  - **repaired,** for red findings filed under `wait: landed`: one
+    repair goal for several, made as the triager's delegate and each
+    routed to it, its attempt counted (`red-repairs.md`, section 4);
+  - **blamed,** for the same: its blame moved to another landing or to
+    none (`red-repairs.md`, section 3).
+
+  A red finding routed to a goal is judged at that goal's end, and goes
+  back to its holder `new` where its tests still fail
+  (`red-repairs.md`, section 5).
 - **News to a goal,** for a route: `Finding P/N for you: TITLE`, then
   its kind, severity and area as `areas.md`, section 5's second line,
   then its body, cut to `tasks.message_bytes` as there, through the
@@ -276,7 +285,8 @@ findings, kept in the store and never read back. What is open is `findings.md`, 
   name, color }` makes one, `Exists` when the name is taken.
 - **Views and acts** (`../client/ctl/tools.md`, a group `finding` and a
   group `qa`): `finding file`, `finding list`, `finding show`, `finding
-  hand`, `finding route`, `finding backlog` and `finding drop`; `qa
+  hand`, `finding route`, `finding backlog`, `finding drop`, `finding
+  repair` and `finding blame`; `qa
   marks --project PROJECT`, `qa choose LANDING`, `qa passes --project
   PROJECT`. They are the forge's requests `FileFinding`, `HandFinding`
   and `TriageFinding`, its subject `findings` and its read `Finding`
