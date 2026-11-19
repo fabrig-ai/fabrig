@@ -5,4 +5,3 @@
 - **Not yet:**
   - 2.4, 3.2's `walk`, 4.2, 4.3 and 5: the walker walks no `tui` line and returns the browser's marks alone, and `temper-client-walk` prints and writes the browser's root alone.
   - 6: `sign-in-approved` has a `walk` of version 1.
-- **Not yet:** 6: `welcome-set-up` has no `walk` of version 2 and keeps its `setup`.

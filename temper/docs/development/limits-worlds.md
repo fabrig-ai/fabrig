@@ -318,6 +318,29 @@ user plus system, build and cargo overhead excluded. Two preceding
 welcome-playground` runs warmed the binary and printed byte-identical
 scratch trees. An independently idle host was not established.
 
+2026-11-19, based on `e82aba53cb532fbdc3b5d83d36add6d8a930dd33`:
+`welcome-set-up`'s twenty-line version-2 walk prints seven pages,
+from the welcome through the owned Forgejo's set-up on the world's
+box's peer to `work/hello` made. On Linux x86_64, `nproc` = 8, CPU
+model AMD EPYC-Genoa Processor, three warm runs of the built,
+unoptimized `target/debug/temper-client-walk print --out DIR
+welcome-set-up` (each DIR fresh, using Cargo's configured target
+directory) took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.739301 | 0.129276 | 0.868577 |
+| 2 | 0.740045 | 0.043532 | 0.783577 |
+| 3 | 0.734798 | 0.047663 | 0.782461 |
+
+**Median: 0.783577 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run;
+user plus system, build and cargo overhead excluded. Preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+--out DIR welcome-set-up` runs warmed the binary and printed
+byte-identical scratch trees. An independently idle host was not
+established.
+
 The walker and program tests added by change 9774, each run alone by
 exact name with `cargo nextest run`, default (focused) profile:
 nextest's per-test elapsed seconds below, not CPU or build time. The
