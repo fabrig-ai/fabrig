@@ -93,6 +93,10 @@
   flake finding names it, or it passes when run again at this head) and
   nothing needs changing, finish with verdict 1, naming each test and how
   you saw it pass; a person then releases the change to run its gate once
+  more.`, or where it offers the no-test verdict (*A landing repair that
+  finds no failed test*), `No test: if no test failed in the run below
+  and nothing needs changing, finish with verdict 2, saying what its
+  jobs show; a person then releases the change to run its gate once
   more.`; then
   `Gate run: RUN at PREFIX, base BASE: LINK`, RUN the run's id as the
   forge's API gives it, the one `read_ci what=job` takes, PREFIX the commit the
@@ -201,7 +205,7 @@
   gate's, a review's or a check's repair, a person's request for changes,
   a landing's, a resolution and a queue's ejection that change nothing
   hold the change as before (1, *A repair of another reason that changes
-  nothing*), but for a landing repair's flake verdict (below).
+  nothing*), but for a landing repair's flake or no-test verdict (below).
 - **A landing repair that finds only flakes** (`../../landing-regate.md`,
   3) says so with a verdict, rather than a no-change taken as a failure:
   - **Offered** where the repair's reason is a landing's gate
@@ -236,6 +240,19 @@
     landing's failure, its repair counted against the allowance the
     release reset; a flake verdict holds every time, so only a person's
     release runs a gate once more.
+- **A landing repair that finds no failed test** (`../../landing-regate.md`,
+  1) says so with verdict 2, as a flake's (above) but for these:
+  - **Offered** where the repair's reason is a landing's gate and the
+    failed receipt it resolves to names no failed test when the repair
+    is asked: `Failed tests: not known`, or a report read naming none.
+    Its contract's one choice is code 2, `no_test`, its words carrying
+    the `No test:` line; never beside the flake's.
+  - **Its result** holds the change, its cause `NoTest`, its account
+    `its repair, task N, found no failed test: WORDS; release this
+    change to run its gate once more, or cancel it`, WORDS cut and
+    marked as a flake's.
+  - **Its release** asks no repair and regates once, as a flake's;
+    bounded as a flake's.
 - **The merge job** comes before a resolution where the change's
   project names a `merge_job` and the change's authority delegates to
   the merge kind (`../../../protocol/configuration/engine.md`): a job of
