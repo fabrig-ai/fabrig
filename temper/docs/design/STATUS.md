@@ -508,7 +508,7 @@ keep the host's clock; hand-walked recordings keep their times (`client/journey-
 `draft/journey-clock.status.md`).
 
 Main's journey files have one writer, run after each landing, one
-change at a time, ending `Printed: COMMIT`; no test or goal writes them
+offer at a time, ending `Printed: COMMIT`; no test or goal writes them
 (`client/journey-writer.md`).
 
 Design documents:

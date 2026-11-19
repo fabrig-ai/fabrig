@@ -1,11 +1,8 @@
 # journeys: status
 
-2026-11-18. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 5.1: no `pages` command [in flight: change 8894].
-- **Not yet:** 6: the print's test reprints every committed journey and holds its recording to its normalisation, and redaction and the scan read the committed recordings [in flight: change 8893].
-- **Not yet:** 7: `scripts/look-refresh.sh` drops a request once main carries its trailer, whatever `Printed:` says [in flight: change 8896].
-- **Not yet:** 7: the delivery check refuses no request's pages and no overlay [in flight: change 8897].
+- **Not yet:** 5.1: `pages` takes no `--within` and no `--check` [in flight: change 9579].
 
 
 Section 9 has the `ask-temper-start` account (`b14f146fc5`), the

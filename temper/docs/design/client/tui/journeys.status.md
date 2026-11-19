@@ -1,9 +1,7 @@
 # journeys: status
 
-2026-11-18. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
 
-- **Not yet:** 7: the print's test reprints every committed TUI journey and holds its recording to its normalisation [in flight: change 8893].
-- **Not yet:** 1 and 10: the delivery check refuses no request's frames and no TUI overlay [in flight: change 8897].
 - **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
   change 3431].
 - **Not yet:** 3.2: no start facts `set-up` and `box-log` [in flight:
