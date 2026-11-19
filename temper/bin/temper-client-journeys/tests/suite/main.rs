@@ -44,10 +44,15 @@ fn normalise_help(text: &str) -> bool {
 fn pages_help(text: &str) -> bool {
     let words = text.split_whitespace().collect::<Vec<_>>().join(" ");
     internal(text)
-        && words.contains("temper-client-journeys pages [--prepared DIR]")
+        && words.contains("temper-client-journeys pages [--prepared DIR] [--within DURATION]")
+        && words.contains("temper-client-journeys pages --check")
+        && words.contains("Digits then s, m or h (90m).")
+        && words.contains("Every other word goes to stderr.")
         && words.contains("Walk each stale journey again")
         && words.contains("Directory holding temper-box, fake-claude, temper-client for TUI, and bundle/index.html.")
-        && words.contains("Exit 0: every journey printed; 1: a walk stopped or a recording stayed stale; 2: usage; 3: printing or removal failed.")
+        && words.contains(
+            "Exit 0: every journey printed; 1: a journey left unprinted; 2: usage; 3: a root unreadable or unwritable.",
+        )
 }
 
 fn version(text: &str) -> bool {
@@ -73,7 +78,19 @@ const ROWS: &[Case] = &[
         &["pages", "extra"],
         2,
         empty,
-        "temper-client-journeys pages: expected [--prepared DIR]\nusage:\n  temper-client-journeys pages [--prepared DIR]\n",
+        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
+    ),
+    (
+        &["pages", "--within", "90"],
+        2,
+        empty,
+        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
+    ),
+    (
+        &["pages", "--check", "--prepared", "DIR"],
+        2,
+        empty,
+        "temper-client-journeys pages: expected [--prepared DIR] [--within DURATION] or --check\nusage:\n  temper-client-journeys pages [--prepared DIR] [--within DURATION]\n  temper-client-journeys pages --check\n",
     ),
     (&["normalise", "--help"], 0, normalise_help, ""),
     (&["normalise", "-h"], 0, normalise_help, ""),
