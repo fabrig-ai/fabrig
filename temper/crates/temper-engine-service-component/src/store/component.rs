@@ -3,13 +3,14 @@ use super::{KERNEL_HANDOFF_ENTRIES, OWNER_SETS, WIRES, route};
 use jig_protocol_store as protocol;
 use protocol::host::{Hosted, Lane, NotReady};
 use route::Up;
-use skein_io::kernel::{Complete, Fd, Op, Submit};
+use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Queue, Time, Token};
 use temper_engine_domain as root;
 
 const MASK: u64 = (1_u64 << 60) - 1;
 #[derive(Debug)]
 pub struct Store {
+    logs: skein_lib::List<Fd>,
     #[cfg(test)]
     pub(crate) forge_loads: skein_lib::List<Option<u64>>,
     #[cfg(test)]
@@ -45,12 +46,11 @@ impl Store {
         seeds: &crate::settings::Seeds,
     ) -> Self {
         let installation = seeds.installation;
-        let routes = route::Routes::new(
-            application.loads.loads,
+        let routes = Self::routes(
             application,
             temper_protocol_store::bounds(&application.forge, application.tasks.spec_bytes)
                 .expect("checked family bounds"),
-            skein_lib::CryptoRng::new(&seeds.crypto, 0x4348_5054).expect("validated cryptographic seed"),
+            seeds,
         );
         let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
             .expect("checked application sizes");
@@ -60,6 +60,7 @@ impl Store {
         host.component.owner_sets(OWNER_SETS);
         host.component.keyspaces(temper_protocol_store::KEYSPACES);
         Self {
+            logs: skein_lib::List::uncapped(),
             #[cfg(test)]
             forge_loads: skein_lib::List::with_capacity(128),
             #[cfg(test)]
@@ -79,8 +80,20 @@ impl Store {
             installation,
         }
     }
+    pub(crate) fn routes(
+        application: &root::Limits,
+        bounds: temper_protocol_store::Bounds,
+        seeds: &crate::settings::Seeds,
+    ) -> route::Routes {
+        route::Routes::new(
+            application.loads.loads,
+            application,
+            bounds,
+            skein_lib::CryptoRng::new(&seeds.crypto, 0x4348_5054).expect("validated cryptographic seed"),
+        )
+    }
     /// The binary's name for the floor row, supplied before adopting the store.
-    pub(crate) fn build_name(&mut self, name: &'static str) {
+    pub fn build_name(&mut self, name: &'static str) {
         self.host.component.build_name(name);
     }
     /// Replace the binary's sets before adopting its deployment directory.
@@ -163,7 +176,88 @@ impl Store {
             let _up = self.routed.pop();
         }
     }
+    /// The opened log handles, including opens completed before a root existed.
+    /// Worlds observing a durable write can seed their ordinary completion observer.
+    #[must_use]
+    pub fn log_descriptors(&self) -> &[Fd] {
+        self.logs.as_slice()
+    }
+    fn observe_log(&mut self, complete: &Complete) {
+        match &complete.kind {
+            Op::Open { path, .. } => {
+                let mut leaf = path.as_ref();
+                for (index, byte) in path.iter().enumerate() {
+                    if *byte == b'/' {
+                        leaf = path.get(index.checked_add(1).expect("path index")..).expect("leaf");
+                    }
+                }
+                if let Some(number) = leaf.strip_prefix(b"log-") {
+                    let mut numeric = number.len() == 20;
+                    for byte in number {
+                        numeric &= byte.is_ascii_digit();
+                    }
+                    if numeric && let Ok(result) = &complete.result {
+                        match result {
+                            Done::Fd(fd) => {
+                                if !self.logs.as_slice().contains(fd) {
+                                    self.logs.push(*fd).expect("owned log handles");
+                                }
+                            }
+                            Done::Nothing
+                            | Done::Count(_)
+                            | Done::Accepted { .. }
+                            | Done::Bound(_)
+                            | Done::Stat(_)
+                            | Done::Spawned { .. }
+                            | Done::Exit(_)
+                            | Done::Signalled(_)
+                            | Done::Window(_)
+                            | Done::Usage(_) => {}
+                        }
+                    }
+                }
+            }
+            Op::Close { fd } => {
+                for index in 0..self.logs.len() {
+                    if self.logs.get(index) == Some(fd) {
+                        let _closed = self.logs.swap_remove(index);
+                        break;
+                    }
+                }
+            }
+            Op::Socket { .. }
+            | Op::Bind { .. }
+            | Op::Listen { .. }
+            | Op::Accept { .. }
+            | Op::Connect { .. }
+            | Op::Recv { .. }
+            | Op::Send { .. }
+            | Op::Shutdown { .. }
+            | Op::Read { .. }
+            | Op::Write { .. }
+            | Op::Append { .. }
+            | Op::Truncate { .. }
+            | Op::Sync { .. }
+            | Op::Lock { .. }
+            | Op::Stat { .. }
+            | Op::Rename { .. }
+            | Op::HardLink { .. }
+            | Op::Remove { .. }
+            | Op::MakeDirectory { .. }
+            | Op::List { .. }
+            | Op::Spawn { .. }
+            | Op::Wait { .. }
+            | Op::Signal { .. }
+            | Op::Usage
+            | Op::Window { .. }
+            | Op::ReadSignal { .. }
+            | Op::PipeRead { .. }
+            | Op::PipeWrite { .. }
+            | Op::Cancel { .. } => {}
+        }
+    }
     pub fn complete(&mut self, mut complete: Complete) {
+        self.observe_log(&complete);
         let index = match complete.op.raw() >> 60_u32 {
             8 => 0,
             9 => 1,
@@ -189,6 +283,23 @@ impl Store {
             }
             self.submitted.push(submit);
         }
+    }
+    pub fn clock(&mut self, now: Time, wall: skein_lib::Wall) {
+        self.host.clock(now, wall);
+    }
+    #[must_use]
+    pub fn next_deadline(&self) -> Option<Time> {
+        self.host.next_deadline()
+    }
+    pub fn opening_site(&mut self, event: protocol::Event) -> bool {
+        route::site(&mut self.routes, &mut self.host.component, event, &mut self.routed);
+        for _ in 0..self.routed.len() {
+            match self.routed.pop().expect("opening route") {
+                Up::Ask(request) => self.host.ask(request),
+                Up::Root(_) | Up::Failed { .. } | Up::FrameTooLarge { .. } => return false,
+            }
+        }
+        true
     }
     pub fn iterate(&mut self) {
         self.host.iterate();

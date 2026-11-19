@@ -278,7 +278,7 @@ impl Words {
             }
             Setting::Application { number, .. } => (number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
             Setting::ProjectPolicy { project } => (project, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
-            Setting::Rules => (0, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
+            Setting::Rules | Setting::Limits => (0, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
         };
         let phrase = if number <= STOCK_NUMBERS { stock } else { past };
         self.text(
@@ -314,6 +314,7 @@ impl Words {
                 let text = skein_lib::bytes::concat(&[b"Model ", number.as_bytes()]);
                 b.text(skein_ui::Run::Plain, &text);
             }
+            Setting::Limits => self.text(b, JigPhrase::SettingLimits, &[]),
             Setting::Worker(n) => {
                 let number = skein_lib::Decimal::of(u64::from(n.number));
                 let text = skein_lib::bytes::concat(&[b"Worker ", number.as_bytes()]);

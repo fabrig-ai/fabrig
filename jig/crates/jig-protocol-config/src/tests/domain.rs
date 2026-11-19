@@ -388,16 +388,12 @@ fn a_message_bound_below_a_delegate_result_is_refused() {
 #[test]
 fn an_engines_memory_bytes_is_handed_on_unchecked() {
     let document = fixtures::with(fixtures::ENGINE_SMALL, br#""memory_bytes": 34359738368"#, br#""memory_bytes": 1"#);
-    assert_eq!(fixtures::engine(&document).unwrap().memory, 1);
+    assert_eq!(fixtures::engine(&document).unwrap().memory, Some(1));
 }
 #[test]
-fn an_engine_without_memory_bytes_is_refused() {
+fn an_engine_without_memory_bytes_keeps_it_absent() {
     let document = fixtures::with(fixtures::ENGINE_SMALL, br#""memory_bytes": 34359738368,"#, b"");
-    let problems = fixtures::engine(&document).unwrap_err();
-    assert_eq!(problems.problems.len(), 1);
-    let problem = problems.problems.get(0).unwrap();
-    assert_eq!(problem.path, fixtures::path(&[b"memory_bytes"]));
-    assert_eq!(problem.what, What::Missing);
+    assert_eq!(fixtures::engine(&document).unwrap().memory, None);
 }
 fn instruction_file(files: &[crate::File]) -> &crate::File {
     for file in files {

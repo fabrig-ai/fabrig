@@ -78,8 +78,16 @@ impl Domain {
         row: &crate::ChangeRow,
         repository: &Repository,
         touched: Touched,
-    ) -> Option<Box<[change::Gate]>> {
-        let selected = self.held_gates(limits, repository, &row.base, touched)?;
+    ) -> Result<Box<[change::Gate]>, crate::RefusalCause> {
+        let cause = crate::RefusalCause::Limit {
+            member: "forge.change_policy.gates",
+            configured: u64::from(limits.change_policy.gates),
+            needed: u64::from(limits.change_policy.gates).saturating_add(1),
+        };
+        if branch_resource_name(repository, &row.base).is_none() {
+            return Err(crate::RefusalCause::InvalidName);
+        }
+        let selected = self.held_gates(limits, repository, &row.base, touched).ok_or(cause)?;
         let rules = self.landing_rules(repository.project);
         let mut gates: List<change::Gate> = List::with_capacity(limits.change_policy.gates);
         for gate in &row.change.gates {
@@ -107,8 +115,8 @@ impl Domain {
                     by_path |= *gate == configured;
                 }
             }
-            if !by_path {
-                gates.push(*gate).ok()?;
+            if !by_path && gates.push(*gate).is_err() {
+                return Err(cause);
             }
         }
         for gate in selected {
@@ -125,11 +133,11 @@ impl Domain {
                     }
                 }
             }
-            if !present {
-                gates.push(gate).ok()?;
+            if !present && gates.push(gate).is_err() {
+                return Err(cause);
             }
         }
-        Some(gates.into_boxed())
+        Ok(gates.into_boxed())
     }
 
     pub(crate) fn judge_held_landing(

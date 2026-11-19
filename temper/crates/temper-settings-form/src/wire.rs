@@ -80,6 +80,7 @@ pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c
         w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind(), scope: v.scope(), number: v.number() },
         w::Setting::Rules => c::Setting::Rules,
+        w::Setting::Limits => c::Setting::Limits,
         w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item, limits)),
         w::Setting::Worker(item) => c::Setting::Worker(settings_restore_setting_number(item, limits)),
         w::Setting::Provider(item) => c::Setting::Provider(settings_restore_setting_number(item, limits)),
@@ -219,6 +220,15 @@ pub(crate) fn settings_restore_setting_value(
             withdrawn: item.withdrawn(),
         })),
         w::SettingValue::Model(item) => c::SettingValue::Model(Box::new(restore_catalogue(item, limits)?)),
+        w::SettingValue::Limits(value) => {
+            let mut overrides = List::with_capacity(value.overrides().len());
+            for item in value.overrides() {
+                overrides
+                    .push(c::Override { name: item.name().into(), value: item.value(), reason: item.reason().into() })
+                    .expect("override count");
+            }
+            c::SettingValue::Limits(overrides.into_boxed())
+        }
         w::SettingValue::Rules(item) => c::SettingValue::Rules(Box::new(settings_restore_rules(item, limits)?)),
     })
 }
@@ -1155,6 +1165,18 @@ pub(crate) fn settings_wire_setting_value(
             },
         )?)),
         c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item, limits)?)),
+        c::SettingValue::Limits(values) => {
+            let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+            for item in values {
+                overrides
+                    .push(w::Override::new(
+                        limits,
+                        w::OverrideParts { name: item.name.clone(), value: item.value, reason: item.reason.clone() },
+                    )?)
+                    .expect("override count");
+            }
+            w::SettingValue::Limits(w::LimitsValue::new(limits, w::LimitsValueParts { overrides })?)
+        }
         c::SettingValue::Rules(item) => w::SettingValue::Rules(Box::new(settings_wire_rules(item, limits)?)),
     })
 }
@@ -1807,6 +1829,7 @@ pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Re
             w::ApplicationSettingParts { kind, scope, number },
         )?),
         c::Setting::Rules => w::Setting::Rules,
+        c::Setting::Limits => w::Setting::Limits,
         c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
         c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item, limits)?),
         c::Setting::Provider(item) => w::Setting::Provider(settings_wire_setting_number(item, limits)?),

@@ -111,6 +111,7 @@ pub fn command(line: &[u8], numbers: Option<&[NodeId]>, tree: &Tree, longest: u3
         | Role::Tabs
         | Role::Tab
         | Role::Progress
+        | Role::Meter
         | Role::Time
         | Role::Code
         | Role::Quote

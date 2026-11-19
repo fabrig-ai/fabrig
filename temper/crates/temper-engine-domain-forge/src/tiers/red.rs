@@ -164,6 +164,7 @@ pub(super) fn landed(
         let verification = d.verifications.get(&(row.repository, *commit));
         let result = row.result.as_ref().expect("kept final receipt");
         let red = RedNews {
+            many: row.many.clone(),
             tier: row.tier.clone(),
             run: row.record.run.as_ref().expect("judged range").number,
             url: if result.run.url.is_empty() { None } else { Some(result.run.url.clone()) },

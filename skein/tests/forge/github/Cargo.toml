@@ -42,3 +42,7 @@ disallowed_methods = "deny"
 
 [dev-dependencies]
 skein-scratch.workspace = true
+
+[[test]]
+name = "suite"
+path = "tests/suite/main.rs"

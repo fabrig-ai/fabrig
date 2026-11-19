@@ -1,6 +1,6 @@
 # after-landing: status
 
-2026-11-18. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-19. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
@@ -22,6 +22,7 @@ in section 14. The log's other gaps and the retained change rows remain below.
   member has no goal or milestone, a landing no tiers' entries, and the
   ring drops its oldest landing whether or not a tier has judged it
   [in flight: change 8589].
+- **Not yet:** 10, *Limits*: `failing_tests` is 16 in the stock, and no start holds it or `test_id_bytes` within a finding's signature [in flight: change 8564].
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 11: the suspects' rule and a

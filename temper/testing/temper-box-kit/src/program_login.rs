@@ -18,7 +18,7 @@ pub fn printed(stderr: &[u8], name: &str) -> Option<Box<[u8]>> {
 }
 
 pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Path) {
-    let (agent, deployment) = super::configuration::documents(
+    let (agent, mut value) = super::configuration::typed_documents(
         directory,
         skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
     );
@@ -31,13 +31,15 @@ pub fn configuration(directory: &Path, programs: Option<&Path>, executable: &Pat
         fs::create_dir_all(&bin).expect("fixture program directory");
         std::os::unix::fs::symlink(executable, bin.join("claude")).expect("program lookup");
     }
-    fs::write(directory.join("temper.json"), deployment).expect("deployment configuration");
+    fs::write(directory.join("temper.json"), serde_json::to_vec(&value).expect("deployment JSON"))
+        .expect("deployment configuration");
     temper_agent_fixtures::install(directory, &agent);
     let document = directory.join("temper.json");
-    let mut value = serde_json::from_slice(&fs::read(&document).expect("deployment")).expect("deployment JSON");
+    value.document = serde_json::from_slice(&fs::read(&document).expect("deployment")).expect("deployment JSON");
     let composed = temper_agent_fixtures::read(directory);
     super::configuration::turn_bounds::apply(&mut value, super::configuration::turn_bounds::turn_body(&composed));
     super::write_private(&document, &serde_json::to_vec(&value).expect("deployment JSON"));
+    super::limit_settings::remember(directory, &value);
     fs::write(directory.join("root.der"), skein_tls_kit::pki::ROOT).expect("public trust");
 }
 

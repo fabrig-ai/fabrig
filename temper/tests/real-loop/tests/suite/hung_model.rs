@@ -17,7 +17,11 @@ const REPORT: &str = "The shell result reached the model after its retry.";
 const CHAT: usize = 3;
 const READ: usize = 4;
 
-fn configure(deployment: &mut Value, agent: &mut Value, forge: std::net::SocketAddr) {
+fn configure(
+    deployment: &mut temper_playground::documents::Configuration,
+    agent: &mut Value,
+    forge: std::net::SocketAddr,
+) {
     temper_real_loop_world::landing::configure(deployment, agent, forge);
     // A held response also exercises transport teardown. Keep its close tail
     // below the endpoint's idle bound instead of paying the stock five seconds.
@@ -25,7 +29,7 @@ fn configure(deployment: &mut Value, agent: &mut Value, forge: std::net::SocketA
     agent["endpoints"][0]["limits"]["head"] = HEAD_MS.into();
     agent["endpoints"][0]["limits"]["idle"] = IDLE_MS.into();
     // Observe one failed run, not the engine's separate retries of whole runs.
-    deployment["engine"]["limits"]["overrides"]["tasks.retries.run.retries"] = 0.into();
+    deployment.jig_over("tasks.retries.run.retries", 0);
 }
 
 fn scripts(_forge: std::net::SocketAddr) -> Box<[Script]> {
@@ -219,7 +223,12 @@ fn a_model_request_held_once_retries_and_finishes() {
     let cluster = run(true);
     check(&cluster, true);
     let read: Value = serde_json::from_slice(&cluster.calls()[READ].stdout).expect("task JSON");
-    assert_eq!(read["task"]["result"]["value"]["report"]["bytes"], REPORT, "accepted result: {read}");
+    // Until-ended can observe the live terminal row or its reclaimed result.
+    let report = read
+        .pointer("/task/result/value/report/bytes")
+        .or_else(|| read.pointer("/task/result/ending/done/report/bytes"))
+        .expect("accepted report in the live ending or reclaimed result");
+    assert_eq!(report, REPORT, "accepted result: {read}");
 }
 
 #[test]

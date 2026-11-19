@@ -445,7 +445,7 @@ fn an_untooled_wait_keeps_its_account_source_and_worker() {
     let wait =
         d::TaskRunWait::Account { account: Some(4), source: Some(7), why: d::TaskWaitWhy::Untooled { worker: 2 } };
     let wire = translate::task_wait::waiting(Some(wait), &limits).unwrap().unwrap();
-    assert_eq!(w::VERSION, 36);
+    assert_eq!(w::VERSION, 37);
     let w::TaskRunWait::Account(row) = wire else { panic!("account wait") };
     assert_eq!((*row.account(), *row.source()), (Some(4), Some(7)));
     let w::TaskWaitWhy::Untooled(why) = row.why() else { panic!("untooled wait") };

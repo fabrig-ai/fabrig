@@ -54,7 +54,13 @@ pub(crate) fn application(intervals: &[Range], limit: u32) -> Option<Box<[Range]
 
 pub(crate) fn decode(store: &mut Store, row: skein_kv::Row) -> Option<(Row, u64)> {
     let source = crate::restore::site(store, &row.key);
-    crate::restore::reader::decode_row(store, row, &source).ok()
+    match crate::restore::reader::decode_row(store, row, &source) {
+        Ok(row) => Some(row),
+        Err(failure) => {
+            store.read_failure = Some(failure);
+            None
+        }
+    }
 }
 
 pub(crate) fn map_limits(store: &Store, map: KeptMap) -> skein_kv::Limits {

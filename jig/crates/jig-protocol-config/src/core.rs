@@ -70,6 +70,7 @@ pub fn core(engine: &Engine, deployment: [u8; 16], seed: u64) -> domain::Config 
         kinds: Box::default(),
         fixed_providers: engine.fixed_llm_providers.clone(),
         defaults: domain::settings::Defaults {
+            limits: Box::default(),
             providers: match &engine.provider_defaults {
                 Some(values) => values.clone(),
                 None => crate::llm::provider_values(&engine.llm),

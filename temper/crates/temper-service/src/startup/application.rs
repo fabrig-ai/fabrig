@@ -40,6 +40,19 @@ pub fn parse_over(
     problems: &mut Problems,
 ) -> Option<Members> {
     let engine = engine::parse_over(document, at, jig, directories, sources, problems)?;
+    Some(from_engine(engine, document, problems))
+}
+pub fn parse_with_limits(
+    document: &Document,
+    at: u32,
+    jig: &config::Engine,
+    directories: &config::Directories,
+    limits: &limits::Limits,
+    problems: &mut Problems,
+) -> Option<Members> {
+    Some(from_engine(engine::parse_with_limits(document, at, jig, directories, limits, problems)?, document, problems))
+}
+fn from_engine(engine: engine::Members, document: &Document, problems: &mut Problems) -> Members {
     let mut found = temper_worker_service::startup::Problems::empty();
     let environment = match engine.environment {
         Some(at) => temper_worker_service::startup::worker::application::environment(
@@ -60,7 +73,7 @@ pub fn parse_over(
             .push(Worker { root: worker.root, git: None, claude: None, environment: environment.clone() })
             .expect("bounded workers");
     }
-    Some(Members {
+    Members {
         clients: engine.clients,
         sign_in: engine.sign_in,
         push: engine.push,
@@ -70,7 +83,7 @@ pub fn parse_over(
         limits: engine.limits,
         overrides: engine.overrides,
         workers: workers.into_boxed(),
-    })
+    }
 }
 #[must_use]
 pub fn files(members: &Members) -> Box<[config::File]> {

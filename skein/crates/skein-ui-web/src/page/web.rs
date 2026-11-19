@@ -442,15 +442,23 @@ impl Mounted {
             }
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one dispatch applies every page operation before tree, dialog and measurement updates"
+    )]
     fn apply(&self, ops: &[Op]) {
         let mut trees = Vec::new();
         let mut measures = Vec::new();
         for op in ops {
             self.affected_trees(op, &mut trees);
             match op {
-                Op::Insert { node, parent, before, element } => self.insert(*node, *parent, *before, element),
+                Op::Insert { node, parent, before, shown_folded, element } => {
+                    self.insert(*node, *parent, *before, *shown_folded, element);
+                }
                 Op::Remove { node } => self.remove(*node),
-                Op::Move { node, parent, before } => self.move_group(*node, *parent, *before),
+                Op::Move { node, parent, before, shown_folded } => {
+                    self.move_group(*node, *parent, *before, *shown_folded);
+                }
                 Op::Replace { node, element } => self.refresh(*node, element, true),
                 Op::Attributes { node, element } | Op::Text { node, element } => self.refresh(*node, element, false),
                 Op::Component { node, component, made } => self.component(*node, *component, made),
@@ -704,7 +712,7 @@ impl Mounted {
         }
     }
 
-    fn insert(&self, node: NodeId, parent: NodeId, before: Option<NodeId>, model: &Model) {
+    fn insert(&self, node: NodeId, parent: NodeId, before: Option<NodeId>, shown_folded: bool, model: &Model) {
         let semantic = super::semantic(model);
         if parent == NodeId(0) && semantic.attribute("data-node").is_none() {
             attributes(&self.mount, semantic, true);
@@ -728,8 +736,11 @@ impl Mounted {
             self.scan(&self.mount);
             return;
         }
-        let parent = if parent == NodeId(0) { self.mount.clone() } else { self.destination(parent) };
-        let anchor = before.map(|node| self.group(node).roots[0].clone()).or_else(|| trailing_own(&parent));
+        let parent = if parent == NodeId(0) { self.mount.clone() } else { self.destination(parent, shown_folded) };
+        let anchor = before
+            .map(|node| self.group(node).roots[0].clone())
+            .filter(|anchor| anchor.parent_node().is_some_and(|owner| owner.is_same_node(Some(&parent))))
+            .or_else(|| if shown_folded { None } else { trailing_own(&parent) });
         for root in self.make(model, false) {
             let description =
                 root.dyn_ref::<Element>().is_some_and(|root| root.id().starts_with("skein-ui-description-"));
@@ -745,7 +756,7 @@ impl Mounted {
         }
         self.scan(&parent);
     }
-    fn destination(&self, node: NodeId) -> Element {
+    fn destination(&self, node: NodeId, shown_folded: bool) -> Element {
         let element = self.group(node).element;
         if element.get_attribute("role").as_deref() == Some("treeitem") {
             let active = self.document.active_element().filter(|active| element.contains(Some(active)));
@@ -758,7 +769,9 @@ impl Mounted {
                 }
             }
         }
-        if element.tag_name() == "PRE" {
+        if shown_folded {
+            element.first_element_child().expect("disclosure has a summary")
+        } else if element.tag_name() == "PRE" {
             element.query_selector("code").expect("code selector").expect("pre holds code")
         } else {
             element
@@ -840,15 +853,18 @@ impl Mounted {
             root.parent_node().expect("removed node has parent").remove_child(&root).expect("held child");
         }
     }
-    fn move_group(&self, node: NodeId, parent: NodeId, before: Option<NodeId>) {
+    fn move_group(&self, node: NodeId, parent: NodeId, before: Option<NodeId>, shown_folded: bool) {
         let group = self.subtree_group(node);
         let active = self
             .document
             .active_element()
             .filter(|element| group.roots.iter().any(|root| root.contains(Some(element))));
         let selection = active.as_ref().and_then(selection);
-        let parent = self.destination(parent);
-        let anchor = before.map(|node| self.group(node).roots[0].clone()).or_else(|| trailing_own(&parent));
+        let parent = self.destination(parent, shown_folded);
+        let anchor = before
+            .map(|node| self.group(node).roots[0].clone())
+            .filter(|anchor| anchor.parent_node().is_some_and(|owner| owner.is_same_node(Some(&parent))))
+            .or_else(|| if shown_folded { None } else { trailing_own(&parent) });
         for root in group.roots {
             let description =
                 root.dyn_ref::<Element>().is_some_and(|root| root.id().starts_with("skein-ui-description-"));
@@ -884,9 +900,14 @@ impl Mounted {
                 replacement.clone()
             };
             for child in children {
-                destination
-                    .insert_before(&child, trailing_own(&destination).as_ref())
-                    .expect("replacement accepts semantic children");
+                let in_summary = child.parent_element().is_some_and(|parent| parent.tag_name() == "SUMMARY");
+                let destination = if in_summary {
+                    replacement.first_element_child().expect("disclosure has a summary")
+                } else {
+                    destination.clone()
+                };
+                let anchor = if in_summary { None } else { trailing_own(&destination) };
+                destination.insert_before(&child, anchor.as_ref()).expect("replacement accepts semantic children");
             }
             group
                 .element
@@ -962,7 +983,8 @@ impl Mounted {
                 element.namespace_uri().as_deref() == Some("http://www.w3.org/2000/svg"),
             ) {
                 let trailing = node.dyn_ref::<Element>().is_some_and(|e| {
-                    e.id().starts_with("skein-ui-description-") || e.id().starts_with("skein-ui-state-")
+                    (element.tag_name() != "SUMMARY" && e.id().starts_with("skein-ui-description-"))
+                        || e.id().starts_with("skein-ui-state-")
                 });
                 let before = if trailing { None } else { anchor.as_ref() };
                 element.insert_before(&node, before).expect("own content surrounds semantic children");

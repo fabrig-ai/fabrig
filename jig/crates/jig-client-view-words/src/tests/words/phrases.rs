@@ -40,6 +40,16 @@ fn english_loads_beside_the_reference_ui_s_phrases_in_one_phrasebook() {
 }
 
 #[test]
+fn the_live_task_limit_names_its_setting_without_a_wire_figure() {
+    let book = crate::words::phrases::english::english(TEXT).unwrap();
+    let phrase = crate::words::phrases::jig::JigPhrase::EngineLimitLiveTasks;
+    assert_eq!(
+        book.say(0, phrase.id(), &[]).unwrap().text.as_ref(),
+        b"Engine admission limit: live tasks (tasks.tasks)"
+    );
+}
+
+#[test]
 fn replacing_words_recomputes_capacity_without_changing_a_clone() {
     let mut words = Words::new(crate::words::phrases::english::english(TEXT).unwrap(), 0, 60);
     let original = words.clone();

@@ -51,7 +51,7 @@ impl Signing {
                     temper_client_domain_forge::sign_in::LINK_PAGE,
                 )
                 .expect("temper mapping"),
-                engine,
+                engine: jig_client_shell_native::Engine::Plain(engine),
                 directory: leaf,
                 limits: connections,
                 io,
@@ -95,8 +95,13 @@ impl Signing {
         address.extend_from_slice(&parsed.host);
         address.push(b'\n');
         let engine = directory::address(&address)?;
-        let mut shell =
-            Shell::new(jig_client_shell_native::Settings { mapping, engine, directory: leaf, limits: connections, io });
+        let mut shell = Shell::new(jig_client_shell_native::Settings {
+            mapping,
+            engine: jig_client_shell_native::Engine::Plain(engine),
+            directory: leaf,
+            limits: connections,
+            io,
+        });
         let with = shell.sign_in(bytes).map_err(|_| b"the sign-in link was refused".as_slice())?;
         out.push(Submit {
             op: OPEN,

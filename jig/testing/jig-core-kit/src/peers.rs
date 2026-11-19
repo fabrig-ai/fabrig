@@ -555,6 +555,7 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
                 people::Setting::Worker(n) => parties::Setting::Worker(n),
                 people::Setting::Provider(n) => parties::Setting::Provider(n),
                 people::Setting::Rules => parties::Setting::Rules,
+                people::Setting::Limits => parties::Setting::Limits,
                 people::Setting::Application { kind, scope, number } => {
                     parties::Setting::Application { kind, scope, number }
                 }

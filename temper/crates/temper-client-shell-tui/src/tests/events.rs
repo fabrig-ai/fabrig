@@ -509,3 +509,16 @@ fn answers_wait_for_the_hold_then_send_their_words() {
         assert!(passed, "words={words}");
     }
 }
+
+#[test]
+fn open_on_a_named_chat_uses_its_https_origin() {
+    let mut host = left_off_host();
+    give(&mut host, Event::Act { act: Act::Go { address: Address::Chat { task: NEWEST } } });
+    host.tell(Told::Address {
+        address: temper_client_tui::Origin::Https { name: b"dev.fabrig.ai".as_slice().into(), port: 443 },
+    });
+    typed(&mut host, b"/open");
+    host.frame();
+    let duties = host.report(Report::Key(Key::Enter));
+    assert_eq!(duties.open.as_deref(), Some(b"https://dev.fabrig.ai/chats/9".as_slice()));
+}

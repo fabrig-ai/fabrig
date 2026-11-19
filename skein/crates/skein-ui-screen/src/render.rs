@@ -176,6 +176,7 @@ fn actionable(role: Role) -> bool {
         | Role::TreeItem
         | Role::Tabs
         | Role::Progress
+        | Role::Meter
         | Role::Time
         | Role::Code
         | Role::Quote
@@ -627,7 +628,7 @@ fn node(
         Role::Tabs => Some(roles::named(tree, at, info, focused, out, frame)),
         Role::Tab => control(tree, at, info, theme, focus, out, frame),
         Role::Log => Some(roles::named(tree, at, info, focused, out, frame)),
-        Role::Progress => roles::line(tree, at, info, theme, focused, out, frame),
+        Role::Progress | Role::Meter => roles::line(tree, at, info, theme, focused, out, frame),
         Role::Code => roles::line(tree, at, info, theme, focused, out, frame),
         Role::Quote => roles::line(tree, at, info, theme, focused, out, frame),
         Role::Figure => Some(roles::named(tree, at, info, focused, out, frame)),
@@ -805,6 +806,7 @@ fn content_part(
     if !found
         && (part.is_none() || part == Some(info.get(at).expect("root information exists").align))
         && root.role != Role::Progress
+        && root.role != Role::Meter
         && let Some(name) = &root.name
     {
         let mut paint = info.get(at).expect("node information exists").paint;

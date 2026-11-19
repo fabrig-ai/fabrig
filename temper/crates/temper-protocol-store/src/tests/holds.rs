@@ -134,6 +134,7 @@ fn name_piece_words_read_their_full_fixtures() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     let name = fixtures::named_branch();
     let row = forge::Stored::Hold(forge::Hold {
+        beside: None,
         design_writers: Box::new([]),
         name: name.clone(),
         task: 1,

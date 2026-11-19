@@ -235,7 +235,7 @@ impl<L, T, F: Field<L, T>> Field<L, List<T>> for Sequence<F> {
         {
             return Err(path.problem(Reason::Short));
         }
-        let mut items = List::with_capacity(count);
+        let mut items = List::allocated(count);
         for _ in 0..count {
             let item = self.item.read(limits, reader, path)?;
             assert!(items.push(item).is_ok(), "count within capacity");

@@ -14,6 +14,11 @@ use skein_fake_machine::Item;
 use skein_io::kernel::Error;
 use skein_lib::{Token, Wall};
 
+// source() seals a snapshot and two segments, leaving its third segment writable.
+const LINKED_FILES: u32 = 3;
+// Refusing the snapshot leaves only the two sealed segments linked.
+const LINKS_AFTER_REFUSAL: u32 = 2;
+
 fn opening(name: &str) -> WorkerOpening {
     WorkerOpening {
         worker: name.into(),
@@ -92,7 +97,17 @@ fn openings_matches_whole_rows_and_self_closes_without_copying_task_logs() {
     );
     let whole_events = rehearse(&mut whole, Reach::Whole);
     assert_eq!(whole.contents(), before);
-    let Some(Event::Rehearsing { wires, openings, .. }) = whole_events.first() else { panic!("{whole_events:?}") };
+    let Some(Event::Rehearsing { wires, openings, linked: 0, copied, .. }) = whole_events.first() else {
+        panic!("{whole_events:?}")
+    };
+    let files = before
+        .iter()
+        .filter(|(path, kind, _, _)| {
+            *kind == skein_io::kernel::Kind::File
+                && (path.starts_with(b"generations/1/store/") || path.starts_with(b"generations/1/secrets/"))
+        })
+        .count();
+    assert_eq!(usize::try_from(*copied).expect("fixture count fits"), files);
     assert_eq!(*wires, Some(Box::from([KeptWire { name: "fixture-wire".into(), version: 1 }])));
     assert_eq!(openings.as_ref(), &[opening("w1"), opening("w2")]);
     assert!(
@@ -134,151 +149,43 @@ fn openings_matches_whole_rows_and_self_closes_without_copying_task_logs() {
     assert_eq!(shallow.contents(), before, "source bytes, modes and tree unchanged");
 }
 
-/// The newest segment lies beyond a page, after two sealed segments and other files.
-fn paged_items() -> Vec<Item> {
+#[test]
+fn openings_links_the_same_files_as_a_patch() {
     let mut items = source().items();
-    for number in 0..crate::generations::PAGE {
-        let path = [
-            b"generations/1/store/log-00000000000000000002-other-".as_slice(),
-            skein_lib::Decimal::of(u64::from(number)).as_bytes(),
-        ]
-        .concat();
-        items.push(Item::file(&path, b"other store file").mode(0o600));
-    }
-    items
-}
-
-fn paged_disk(items: &[Item]) -> Disk {
-    let limits = fixtures::disk::file_limits();
-    Disk::with_file_limits(items, skein_io::file_layer::Limits { entries: 128, ..limits })
-}
-
-fn linked(disk: &Disk) -> Vec<Box<[u8]>> {
-    disk.requests()
-        .iter()
-        .filter_map(|(driver, request)| {
-            if let Seen::Link { from, to } = request {
-                assert_eq!(*driver, 2, "generation copy uses the transcripts driver");
-                assert_eq!(from, to);
-                Some(from.clone())
-            } else {
-                None
-            }
-        })
-        .collect()
-}
-
-/// Each copy reads without following links, creates exclusively 0o600, writes and syncs.
-fn copied(disk: &Disk) -> Vec<(Box<[u8]>, u64)> {
-    let mut copied = Vec::new();
-    for (index, pair) in disk.requests().windows(2).enumerate() {
-        let [(_, previous), (driver, Seen::Create { name, mode })] = pair else { continue };
-        assert_eq!(*driver, 2);
-        assert_eq!(previous, &Seen::ReadOpen { name: name.clone() });
-        assert_eq!(*mode, 0o600);
-        let transfer = disk.requests().iter().skip(index.checked_add(2).expect("trace index fits"));
-        let mut read = Vec::new();
-        let mut written = Vec::new();
-        let mut synced = false;
-        for (_, request) in transfer {
-            if *request == Seen::SyncFile {
-                synced = true;
-                break;
-            }
-            if let Seen::Read { max } = request {
-                read.push(*max);
-            }
-            if let Seen::Write { bytes } = request {
-                written.push(*bytes);
-            }
-        }
-        assert!(synced, "copied file synced");
-        assert_eq!(read, written, "each bounded read written whole");
-        copied.push((name.clone(), written.into_iter().map(u64::from).sum()));
-    }
-    copied.sort();
-    copied
-}
-
-fn source_files(items: &[Item], reach: Reach, refused: Option<&[u8]>) -> Vec<(Box<[u8]>, u64)> {
-    let mut files = Vec::new();
-    for item in items {
-        let skein_fake_machine::Made::File(bytes) = &item.made else { continue };
-        let store = item.path.strip_prefix(b"generations/1/store/");
-        let secrets = item.path.strip_prefix(b"generations/1/secrets/");
-        let Some(name) = store.or(secrets) else { continue };
-        if reach == Reach::Openings && store.is_some() {
-            if name.starts_with(b"logs/") {
-                continue;
-            }
-            if [b"snapshot".as_slice(), b"log-00000000000000000001", b"log-00000000000000000002"].contains(&name)
-                && refused != Some(name)
-            {
-                continue;
-            }
-        }
-        files.push((
-            Box::from(name.rsplit(|byte| *byte == b'/').next().expect("file name")),
-            u64::try_from(bytes.len()).expect("fixture length"),
-        ));
-    }
-    files.sort();
-    files
-}
-
-#[test]
-fn openings_links_snapshot_and_sealed_segments_across_roots_and_pages() {
-    let items = paged_items();
-    let mut whole = paged_disk(&items);
-    let before = whole.contents();
-    let whole_events = rehearse(&mut whole, Reach::Whole);
-    assert!(linked(&whole).is_empty(), "Whole copies even linkable files");
-    assert_eq!(copied(&whole), source_files(&items, Reach::Whole, None));
-    assert_eq!(whole.contents(), before);
-
-    let mut disk = paged_disk(&items);
-    let events = rehearse(&mut disk, Reach::Openings);
-    let [Event::Rehearsing { wires, openings, .. }, Event::Closed { removed: true, .. }] = events.as_ref() else {
-        panic!("{events:?}")
-    };
-    let Some(Event::Rehearsing { wires: whole_wires, openings: whole_openings, .. }) = whole_events.first() else {
-        panic!("{whole_events:?}")
-    };
-    assert_eq!(wires, whole_wires);
-    assert_eq!(openings, whole_openings);
+    // Compare their common reach: patches also link task logs, which Openings skips.
+    items.retain(|item| !item.path.starts_with(b"generations/1/store/logs"));
+    let mut patch = Disk::new(&items);
     assert_eq!(
-        linked(&disk),
-        [b"log-00000000000000000001".as_slice(), b"log-00000000000000000002", b"snapshot"].map(Box::from)
+        super::operations::copy(&mut patch, 1, fixtures::store_limits().store.chunk),
+        crate::generations::Progress::Done
     );
-    assert_eq!(copied(&disk), source_files(&items, Reach::Openings, None));
-    assert_eq!(disk.contents(), before, "all source bytes, modes and names survive recovery and close");
-}
-
-#[test]
-fn openings_copies_one_refused_link_and_still_self_closes() {
-    let items = source().items();
-    let mut disk = Disk::new(&items);
-    let before = disk.contents();
-    disk.refuse_link_once(b"snapshot", Error::Other(18)); // EXDEV
-    let events = rehearse(&mut disk, Reach::Openings);
-    assert!(
-        {
-            if let [Event::Rehearsing { wires: Some(_), openings, .. }, Event::Closed { removed: true, .. }] =
-                events.as_ref()
-            {
-                openings.as_ref() == [opening("w1"), opening("w2")]
-            } else {
-                false
-            }
-        },
-        "{events:?}"
-    );
-    assert_eq!(
-        linked(&disk),
-        [b"log-00000000000000000001".as_slice(), b"log-00000000000000000002", b"snapshot"].map(Box::from)
-    );
-    assert_eq!(copied(&disk), source_files(&items, Reach::Openings, Some(b"snapshot")));
-    assert_eq!(disk.contents(), before, "fallback and close leave every source file unchanged");
+    for refused in [false, true] {
+        let mut disk = Disk::new(&items);
+        let before = disk.contents();
+        let files = before
+            .iter()
+            .filter(|(path, kind, _, _)| {
+                *kind == skein_io::kernel::Kind::File
+                    && (path.starts_with(b"generations/1/store/") || path.starts_with(b"generations/1/secrets/"))
+                    && !path.starts_with(b"generations/1/store/logs/")
+            })
+            .count();
+        if refused {
+            disk.refuse_link_once(b"snapshot", Error::Other(18)); // EXDEV
+        }
+        let events = rehearse(&mut disk, Reach::Openings);
+        let [Event::Rehearsing { wires: Some(_), openings, linked, copied, .. }, Event::Closed { removed: true, .. }] =
+            events.as_ref()
+        else {
+            panic!("{events:?}")
+        };
+        assert_eq!(*linked, if refused { LINKS_AFTER_REFUSAL } else { LINKED_FILES });
+        assert_eq!(usize::try_from(linked + copied).expect("fixture count fits"), files);
+        assert_eq!(openings.as_ref(), [opening("w1"), opening("w2")], "scratch recovered the rows");
+        // Link requests include the refused attempt; only the reported counts change.
+        assert_eq!(disk.linked(), patch.linked());
+        assert_eq!(disk.contents(), before, "recovery, fallback and close leave the source unchanged");
+    }
 }
 
 #[test]

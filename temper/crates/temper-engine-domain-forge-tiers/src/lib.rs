@@ -11,14 +11,16 @@
 extern crate alloc;
 
 mod boundary;
+#[cfg(test)]
+mod fuzzy;
 mod report;
 #[cfg(test)]
 mod tests;
 mod verdict;
 
 pub use boundary::{
-    Blame, Commit, Failures, Finding, Flake, Format, Group, Judged, Key, Landing, Limits, Next, Outcome, Part, Receipt,
-    Record, Run, Selection, Settings, Suspects, TestId, Unreadable, Verdict,
+    Blame, Commit, Failures, Finding, Flake, Format, Group, Judged, Key, Landing, Limits, ManyTests, Next, Outcome,
+    Part, Receipt, Record, Run, Selection, Settings, Suspects, TestId, Unreadable, Verdict,
 };
-pub use report::{NamedFailures, NamedTest, failed, named_report, report, selection};
+pub use report::{NamedFailures, NamedTest, failed, many_tests, named_report, report, selection};
 pub use verdict::{due, judged, repaired, start, step};

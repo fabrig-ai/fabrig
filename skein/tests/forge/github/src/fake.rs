@@ -16,9 +16,10 @@ use skein_shell::Host;
 use skein_sim::{Pid, Sim};
 use std::{cell::RefCell, rc::Rc};
 
-pub(crate) const BOT: u64 = 9;
-pub(crate) const PERSON: u64 = 31;
-pub(crate) fn boxed(b: &[u8]) -> Box<[u8]> {
+pub const BOT: u64 = 9;
+pub const PERSON: u64 = 31;
+#[must_use]
+pub fn boxed(b: &[u8]) -> Box<[u8]> {
     bytes::copy_of(b)
 }
 pub(crate) fn bounds() -> skein_forge::github::limits::Limits {
@@ -85,18 +86,16 @@ fn config() -> domain::Config {
         ..domain::Config::test()
     }
 }
-pub(crate) struct World {
-    pub peer: Peer,
-    pub forge: Rc<RefCell<Forge>>,
+pub struct World {
+    pub(crate) peer: Peer,
+    pub(crate) forge: Rc<RefCell<Forge>>,
     sim: Sim,
     peer_pid: Pid,
     client_pid: Pid,
     serial: u64,
-    #[cfg(test)]
+    pub record_wire: bool,
     pub last_wire: Vec<u8>,
-    #[cfg(test)]
     pub refuse_issue_patch_for: Option<String>,
-    #[cfg(test)]
     pub null_next_merged_pull_commit: bool,
 }
 impl World {
@@ -105,7 +104,7 @@ impl World {
     }
     #[expect(clippy::too_many_lines, reason = "one declared fixture binds domain, service and peer limits")]
     /// Scenario tables over the shared defaults (skein/docs/design/testing/fakes/github.md, 1.6).
-    pub(crate) fn with_organization(organization: bool) -> Result<Self> {
+    pub fn with_organization(organization: bool) -> Result<Self> {
         let config = config();
         let mut d = domain::Domain::new(&config, 23);
         for (id, name) in [(2, b"acme/widgets".as_slice()), (4, b"globex/gadgets"), (6, b"acme/spare")] {
@@ -223,11 +222,9 @@ impl World {
             peer_pid,
             client_pid,
             serial: 0,
-            #[cfg(test)]
+            record_wire: false,
             last_wire: vec![],
-            #[cfg(test)]
             refuse_issue_patch_for: None,
-            #[cfg(test)]
             null_next_merged_pull_commit: false,
         };
         for _ in 0..1000 {
@@ -263,20 +260,19 @@ impl World {
         }
         Err("fake client progress bound".into())
     }
-    pub fn now(&self) -> Wall {
+    pub(crate) fn now(&self) -> Wall {
         self.sim.wall()
     }
-    pub fn wait(&mut self, seconds: u64) {
+    pub(crate) fn wait(&mut self, seconds: u64) {
         self.sim.advance_to(self.sim.now().saturating_add(Duration::from_secs(seconds)));
         for _ in 0..16 {
             self.pass();
         }
     }
-    pub fn exchange(&mut self, request: &Request) -> Result<(Vec<u8>, Response)> {
+    pub(crate) fn exchange(&mut self, request: &Request) -> Result<(Vec<u8>, Response)> {
         let wire = request.wire("127.0.0.1")?;
-        #[cfg(test)]
-        {
-            self.last_wire = wire.clone();
+        if self.record_wire {
+            self.last_wire.clone_from(&wire);
             // A scoped issue-PATCH refusal models a restricted person token.
             if request.method == skein_forge::github::request::Method::Patch
                 && request.target.rsplit_once("/issues/").is_some_and(|(_, number)| number.parse::<u64>().is_ok())
@@ -333,10 +329,9 @@ impl World {
         }
         self.client(Op::Close { fd })?.result.map_err(|_| "fake close refused")?;
         let response = crate::wire::read(&wire, &received, true)?.ok_or("fake answer incomplete")?;
-        #[cfg(test)]
         let response = {
             let mut response = response;
-            if self.null_next_merged_pull_commit && request.target == "/graphql" {
+            if self.record_wire && self.null_next_merged_pull_commit && request.target == "/graphql" {
                 let document = response.json()?;
                 let pull = document.root().get("data").get("repository").get("pullRequest");
                 if pull.get("mergeCommit").get("oid").str().is_some() {
@@ -408,7 +403,7 @@ impl World {
         }
         Err("fixture domain reply absent".into())
     }
-    pub fn commit(
+    pub(crate) fn commit(
         &mut self,
         repo: &str,
         parent: &str,

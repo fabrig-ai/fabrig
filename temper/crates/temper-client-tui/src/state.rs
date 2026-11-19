@@ -10,7 +10,8 @@ use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
     reason = "the TUI holds independent sign-in, credential, front and note facts"
 )]
 pub struct Tui {
-    address: Box<[u8]>,
+    address: crate::Origin,
+    handshake: Option<Handshake>,
     field: Box<[u8]>,
     command_words: Box<[u8]>,
     signing: Signing,
@@ -133,6 +134,9 @@ pub enum Notice {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Told {
+    Handshake {
+        failed: Option<Handshake>,
+    },
     /// A chat before its first words, over the root's page (client/tui/pages/README.md, 2).
     Place {
         command: Option<Own>,
@@ -226,7 +230,7 @@ pub enum Told {
     MeRead,
     /// The authority of the first local link handed by the box.
     Address {
-        address: Box<[u8]>,
+        address: crate::Origin,
     },
     Stage {
         stage: BoxStage,
@@ -251,11 +255,22 @@ pub enum Told {
         open: bool,
     },
 }
+/// The last TLS failure's words (temper/docs/design/client/tui/README.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Handshake {
+    Untrusted,
+    Expired,
+    NotYetValid,
+    OtherName,
+    Failed,
+}
+
 impl Tui {
     #[must_use]
-    pub fn new(address: &[u8]) -> Tui {
+    pub fn new(address: &crate::Origin) -> Tui {
         Tui {
-            address: copy_of(address),
+            address: address.clone(),
+            handshake: None,
             field: copy_of(b""),
             command_words: Box::default(),
             signing: Signing::Idle,
@@ -313,7 +328,11 @@ impl Tui {
         }
     }
     #[must_use]
-    pub fn address(&self) -> &[u8] {
+    pub const fn handshake(&self) -> Option<Handshake> {
+        self.handshake
+    }
+    #[must_use]
+    pub fn address(&self) -> &crate::Origin {
         &self.address
     }
     #[must_use]
@@ -720,6 +739,11 @@ impl Tui {
     #[expect(clippy::too_many_lines, reason = "one dispatch updates the TUI's independent surface facts")]
     pub fn step(&mut self, told: Told) {
         let changed = match told {
+            Told::Handshake { failed } => {
+                let changed = self.handshake != failed;
+                self.handshake = failed;
+                changed
+            }
             Told::Place { command } => {
                 if let Some(Own::Talk | Own::Brief | Own::Needs | Own::Open | Own::Web | Own::Theme) = command {
                     return;

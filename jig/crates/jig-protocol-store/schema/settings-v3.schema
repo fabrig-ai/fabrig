@@ -40,7 +40,7 @@ record TemplateNumber { number: u32 }
 record PolicyNumber { number: u32 }
 record ApplicationSetting { kind: u32 scope: u32 number: u32 }
 record ProjectPolicySetting { project: u32 }
-enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: ModelNumber, worker: WorkerNumber, provider: ProviderNumber }
+enum Setting { charter: CharterNumber, template: TemplateNumber, policy: PolicyNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: ModelNumber, worker: WorkerNumber, provider: ProviderNumber, limits }
 record LastExact { bytes: bytes 4096 }
 record LastOpen { bytes: bytes 4096 }
 enum Last { exact: LastExact, open: LastOpen }
@@ -95,7 +95,9 @@ record LlmLater { main: ModelEffort subagents: list 64 ModelEffort }
 record LlmChoice { account: option u32 main: ModelEffort subagents: list 64 ModelEffort later: option LlmLater }
 record Symbol { connector: u16 symbol: u16 }
 record Template { number: u32 name: bytes 65536 executor: TemplateExecutor contract: Contract shallower: u32 budget: TemplateBudget deadline: TemplateDeadline tracked: option u32 flags: Flags label: u32 grace: option duration llm: option LlmChoice resources: list 32 Symbol }
-enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel, overlay: boxed Overlay, worker: boxed WorkerSetting, provider: boxed ProviderSetting }
+record Override { name: bytes 64 value: u64 reason: bytes 120 }
+record LimitsValue { overrides: list 256 Override }
+enum Value { charter: boxed Charter, template: boxed Template, policy: boxed ConfiguredPolicy, rules: boxed Rules, model: boxed CatalogueModel, overlay: boxed Overlay, worker: boxed WorkerSetting, provider: boxed ProviderSetting, limits: LimitsValue }
 record Party { number: u64 }
 record ListDecider { provider: u32 }
 enum Decider { first_start, release, party: Party, list: ListDecider }

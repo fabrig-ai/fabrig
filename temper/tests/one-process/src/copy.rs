@@ -52,7 +52,7 @@ type Proc = programs::Process<CopyWorld>;
 impl Harness for CopyWorld {
     type Service = ServiceObserver;
     type Process = HarnessProcess;
-    fn configure(document: &mut serde_json::Value) {
+    fn configure(document: &mut temper_playground::documents::Configuration) {
         document["world_settings"]["adopt_only"] = true.into();
     }
     fn seeds(_: u64) -> temper_service::settings::Seeds {
@@ -61,7 +61,7 @@ impl Harness for CopyWorld {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         stories::given(document)
     }
     fn spawned(role: Role, _: &skein_world::Inherited, _: &[u8]) {

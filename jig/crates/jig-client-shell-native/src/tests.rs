@@ -1,4 +1,5 @@
 mod client_store;
+mod tls;
 use super::*;
 use jig_client_protocol_http::{Mapping, Unlinked};
 const EXCHANGE: u64 = 42;
@@ -17,6 +18,7 @@ pub(crate) fn limits() -> Limits {
         exchanges: 2,
         body_bytes: 128,
         deadline: skein_lib::Duration::from_secs(1),
+        tls: crate::TlsLimits { read: 4096, send: 4096, records: 131_072 },
         http: skein_http::client::Limits { head: 1024, headers: 8, request: 1024, read: 64, send: 64 },
     }
 }
@@ -166,7 +168,7 @@ fn the_stream_s_bytes_reach_the_link_in_order() {
         }
     }
     assert_eq!(bytes, b"firstsecond");
-    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=36 HTTP/1.1\r\n"));
+    assert!(peer.wire.received.starts_with(b"GET /jig/v1/stream?version=37 HTTP/1.1\r\n"));
     peer.shell.down(Time::ZERO, client::Request::CloseStream, &mut peer.below);
     peer.drive();
     assert!(peer.wire.finished);
@@ -204,7 +206,7 @@ fn the_application_mapping_reads_page_links_and_keeps_its_exchange_prefix() {
     for host in ["127.0.0.1:8367", "[::1]:9400"] {
         for prefix in [b"/jig".as_slice(), b"/application"] {
             let mut shell = Shell::new(Settings {
-                engine: skein_io::Addr::Ip(host.parse().unwrap()),
+                engine: Engine::Plain(skein_io::Addr::Ip(host.parse().unwrap())),
                 directory: b"private".as_slice().into(),
                 limits: limits(),
                 io: file_io_limits(),
@@ -251,7 +253,7 @@ impl Disk {
         }
         let mut shell = Shell::new(Settings {
             mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
-            engine: skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 8080).into()),
+            engine: Engine::Plain(skein_io::Addr::Ip((std::net::Ipv4Addr::LOCALHOST, 8080).into())),
             directory: b"private".as_slice().into(),
             limits: bounds,
             io: file_io_limits(),
@@ -562,7 +564,7 @@ fn an_exchange_past_its_deadline_is_answered_lost() {
 fn the_native_shell_sends_its_engine_s_address_as_host() {
     let shell = Shell::new(Settings {
         mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
-        engine: skein_io::Addr::Ip("[::1]:7180".parse().expect("engine address")),
+        engine: Engine::Plain(skein_io::Addr::Ip("[::1]:7180".parse().expect("engine address"))),
         directory: Box::from(b"private".as_slice()),
         limits: limits(),
         io: file_io_limits(),
@@ -581,7 +583,7 @@ fn transport_tags_socket_events_and_waits_for_connection() {
     let engine = skein_io::Addr::Ip("127.0.0.1:8080".parse().expect("engine"));
     for (tag, expected) in [(0, Token::new(1)), (OWNER, Token::new(OWNER | 1))] {
         let mut transport = Transport::new(
-            engine,
+            Engine::Plain(engine),
             &limits(),
             file_io_limits().sockets,
             tag,
@@ -597,16 +599,16 @@ fn transport_tags_socket_events_and_waits_for_connection() {
                 version: jig_client_protocol_wire::VERSION,
             },
         );
-        transport.iterate(Time::ZERO, &mut events, &mut requests);
+        transport.iterate(Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &mut requests);
         let Some(skein_io::Request::Connect { owner, .. }) = requests.pop() else { panic!("connect first") };
         assert_eq!(owner, expected);
-        transport.iterate(Time::ZERO, &mut events, &mut requests);
+        transport.iterate(Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &mut requests);
         assert!(requests.is_empty());
         assert!(transport.owns(owner));
         let socket = Token::new(7);
         transport.event(Time::ZERO, skein_io::Event::Connecting { owner, socket });
         transport.event(Time::ZERO, skein_io::Event::Connected { owner });
-        transport.iterate(Time::ZERO, &mut events, &mut requests);
+        transport.iterate(Time::ZERO, skein_lib::Wall::EPOCH, &mut events, &mut requests);
         assert!(matches!(requests.pop(), Some(skein_io::Request::Stream { stream, .. }) if stream == socket));
     }
 }
@@ -615,6 +617,10 @@ fn transport_tags_socket_events_and_waits_for_connection() {
 fn valid_refuses_each_unrepresentable_limit() {
     let base = limits();
     assert!(crate::valid(&base));
+    assert!(crate::valid(&Limits {
+        tls: TlsLimits { read: 1024, send: 1024, records: skein_tls::client::MAX_RECORD },
+        ..base
+    }));
     let cases = [
         Limits { exchanges: 0, ..base },
         Limits { body_bytes: 0, ..base },
@@ -625,6 +631,9 @@ fn valid_refuses_each_unrepresentable_limit() {
         Limits { http: skein_http::client::Limits { read: u32::MAX, ..base.http }, ..base },
         Limits { body_bytes: u32::MAX, ..base },
         Limits { body_bytes: 3_221_225_400, ..base },
+        Limits { tls: TlsLimits { read: 1023, ..base.tls }, ..base },
+        Limits { tls: TlsLimits { send: 1023, ..base.tls }, ..base },
+        Limits { tls: TlsLimits { records: 0, ..base.tls }, ..base },
     ];
     for (case, limits) in cases.into_iter().enumerate() {
         assert!(!crate::valid(&limits), "case {case}");
