@@ -168,28 +168,14 @@ pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event 
 
 #[must_use]
 pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::ForgeRow> {
-<<<<<<< HEAD
-    let first = w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .unwrap();
-=======
     let first = w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state,
         label: Box::from(b"temper-host".as_slice()),
     };
->>>>>>> refs/hand6/10247
     let mut rows = List::with_capacity(1);
     rows.push(w::ForgeRow {
         starts_with: w::StartsWith::Repository,

@@ -3483,30 +3483,14 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
     let first = if github || name.starts_with("home-add-repository") {
         None
     } else {
-<<<<<<< HEAD
-        Some(
-            w::FirstRepository::new(
-                &w::CEILINGS,
-                w::FirstRepositoryParts {
-                    playground: false,
-                    sample: false,
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 1 }).expect("made")),
-                    label: b"main".as_slice().into(),
-                },
-            )
-            .expect("first"),
-        )
-=======
         Some(w::FirstRepository {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state: w::FirstState::Made(w::Made { id: 1 }),
             label: b"main".as_slice().into(),
         })
->>>>>>> refs/hand6/10247
     };
     rows.push(w::ForgeRow {
         starts_with: if name.starts_with("home-add-repository") {

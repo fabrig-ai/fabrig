@@ -472,46 +472,17 @@ fn box_setup(
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = stand.service.engine.as_mut().unwrap();
     let limits = engine.client_wire();
-<<<<<<< HEAD
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    sample: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-=======
     let request = w::Requesting {
         request: w::Request::SetUp(w::SetUp {
             forge: w::Making::Kept(w::Kept { forge }),
             first: w::SetUpFirst::Empty(w::FirstEmpty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             }),
         }),
     };
->>>>>>> refs/hand6/10247
     let family = j::FamilyRequest::new(
         limits,
         j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },

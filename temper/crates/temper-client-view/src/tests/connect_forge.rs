@@ -1169,28 +1169,14 @@ fn admin_stops_name_the_reason_and_keep_an_empty_token_field() {
     }
 }
 fn admin_first(state: w::FirstState) -> w::FirstRepository {
-<<<<<<< HEAD
-    w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: b"linux-arm".as_slice().into(),
-        },
-    )
-    .unwrap()
-=======
     w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state,
         label: b"linux-arm".as_slice().into(),
     }
->>>>>>> refs/hand6/10247
 }
 #[test]
 fn each_admin_create_step_returns_to_details_with_its_repository() {

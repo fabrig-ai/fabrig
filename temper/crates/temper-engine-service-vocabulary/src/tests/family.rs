@@ -1016,46 +1016,17 @@ fn requesting() -> w::Requesting {
 
 #[test]
 fn setup_requests_preserve_the_keyed_envelope_and_forge() {
-<<<<<<< HEAD
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    sample: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-=======
     let request = w::Requesting {
         request: w::Request::SetUp(w::SetUp {
             forge: w::Making::Kept(w::Kept { forge: 3 }),
             first: w::SetUpFirst::Empty(w::FirstEmpty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             }),
         }),
     };
->>>>>>> refs/hand6/10247
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1364,46 +1335,17 @@ fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
 
 #[test]
 fn setup_and_first_repository_states_translate_without_losing_fields() {
-<<<<<<< HEAD
-    let record = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    sample: true,
-                                    org: b"team".as_slice().into(),
-                                    repository: b"widget".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
-=======
     let record = w::Requesting {
         request: w::Request::SetUp(w::SetUp {
             forge: w::Making::Kept(w::Kept { forge: 3 }),
             first: w::SetUpFirst::Empty(w::FirstEmpty {
                 playground: false,
+                sample: true,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into(),
             }),
         }),
     };
->>>>>>> refs/hand6/10247
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -1453,18 +1395,11 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         row.first = Some(first);
         let value = forge::Forges { rows: Box::new([row]) };
         let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
-<<<<<<< HEAD
-        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
-        let first = rows.get(0).unwrap().first().as_ref().unwrap();
-        assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
-        assert!(first.sample());
-        match (state, first.state()) {
-=======
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
         let first = rows.get(0).unwrap().first.as_ref().unwrap();
         assert_eq!((first.org.as_ref(), first.repository.as_ref()), (b"team".as_slice(), b"widget".as_slice()));
+        assert!(first.sample);
         match (state, &first.state) {
->>>>>>> refs/hand6/10247
             (forge::FirstState::Making, w::FirstState::Making) => {}
             (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id),
             (forge::FirstState::Failed { step }, w::FirstState::Failed(value)) => assert_eq!(
@@ -2079,9 +2014,9 @@ fn a_landing_view_encodes_to_its_panel() {
         family::document(forge::Document::Landing(landing_view()), &fixtures::forge_table(&forges), &w::CEILINGS)
             .unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-    let wait = got.waits().as_ref().unwrap();
+    let wait = got.waits.as_ref().unwrap();
     assert_eq!(
-        (wait.on(), wait.change(), wait.gate().as_deref(), wait.run(), wait.landing()),
+        (&wait.on, &wait.change, wait.gate.as_deref(), &wait.run, &wait.landing),
         (&w::LandingWaitFor::Run, &Some(51), Some(b"tests".as_slice()), &Some(412), &None)
     );
     assert_eq!(
@@ -2143,25 +2078,15 @@ fn a_landings_view_encodes_to_its_list() {
     };
     let bytes = family::document(forge::Document::Landings(value), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landings_panel(&bytes, &w::CEILINGS).unwrap();
-<<<<<<< HEAD
-    assert_eq!((got.project(), got.turn()), (7, &Some(61)));
-    assert_eq!((got.now(), got.turn_since()), (100, &Some(40)));
-    assert_eq!(got.landings().len(), 1);
-    let row = got.landings().get(0).unwrap();
-    assert_eq!((row.task(), row.phase()), (61, &w::LandingPhase::Turn));
-    assert_eq!((row.step(), row.last_event()), (&Some(w::LandingStep::Turn), &Some(80)));
-    assert_eq!(row.changes().as_slice(), &[51]);
-    assert_eq!(row.repositories().as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);
-    assert_eq!(row.landed().as_slice(), &[[3; 32]]);
-=======
     assert_eq!((got.project, &got.turn), (7, &Some(61)));
+    assert_eq!((got.now, &got.turn_since), (100, &Some(40)));
     assert_eq!(got.landings.len(), 1);
     let row = got.landings.get(0).unwrap();
     assert_eq!((row.task, &row.phase), (61, &w::LandingPhase::Turn));
+    assert_eq!((&row.step, &row.last_event), (&Some(w::LandingStep::Turn), &Some(80)));
     assert_eq!(row.changes.as_slice(), &[51]);
     assert_eq!(row.repositories.as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);
     assert_eq!(row.landed.as_slice(), &[[3; 32]]);
->>>>>>> refs/hand6/10247
 }
 #[test]
 fn the_landings_subject_names_no_task() {
@@ -2316,38 +2241,15 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
         let making = w::Making::New(w::NewForge { forge: asked });
         for (request, expected) in [
             (
-<<<<<<< HEAD
-                w::Request::SetUp(
-                    w::SetUp::new(
-                        &w::CEILINGS,
-                        w::SetUpParts {
-                            forge: making.clone(),
-                            first: w::SetUpFirst::Empty(
-                                w::FirstEmpty::new(
-                                    &w::CEILINGS,
-                                    w::FirstEmptyParts {
-                                        org: b"work".as_slice().into(),
-                                        repository: b"hello".as_slice().into(),
-                                        playground: false,
-                                        sample: false,
-                                    },
-                                )
-                                .expect("setup names fit wire ceilings"),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                ),
-=======
                 w::Request::SetUp(w::SetUp {
                     forge: making.clone(),
                     first: w::SetUpFirst::Empty(w::FirstEmpty {
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         playground: false,
+                        sample: false,
                     }),
                 }),
->>>>>>> refs/hand6/10247
                 forge::Ask::SetUp {
                     forge: forge::Making::New(expected.clone()),
                     first: forge::SetUpFirst::Empty {

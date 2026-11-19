@@ -439,28 +439,14 @@ fn concat(parts: &[&[u8]]) -> Box<[u8]> {
 }
 
 fn first_record(state: w::FirstState) -> w::FirstRepository {
-<<<<<<< HEAD
-    w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: b"docker".as_slice().into(),
-        },
-    )
-    .unwrap()
-=======
     w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state,
         label: b"docker".as_slice().into(),
     }
->>>>>>> refs/hand6/10247
 }
 fn made() -> w::FirstState {
     w::FirstState::Made(w::Made { id: 42 })

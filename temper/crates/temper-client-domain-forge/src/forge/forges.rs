@@ -200,8 +200,7 @@ pub fn watch(limits: &super::Limits) -> Option<Watchable> {
 #[must_use]
 pub fn ask(forge: u16, org: Box<[u8]>, repository: Box<[u8]>, playground: bool, limits: &super::Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
-<<<<<<< HEAD
-    let forge = w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?);
+    let forge = w::Making::Kept(w::Kept { forge });
     ask_target(forge, empty(org, repository, playground, false, &bounds)?, &bounds)
 }
 fn empty(
@@ -211,18 +210,9 @@ fn empty(
     sample: bool,
     bounds: &w::Limits,
 ) -> Option<SetUpFirst> {
-    Some(SetUpFirst::Empty(
-        w::FirstEmpty::new(bounds, w::FirstEmptyParts { org, repository, playground, sample }).ok()?,
-    ))
-=======
-    let forge = w::Making::Kept(w::Kept { forge });
-    ask_target(forge, empty(org, repository, playground, &bounds)?, &bounds)
-}
-fn empty(org: Box<[u8]>, repository: Box<[u8]>, playground: bool, bounds: &w::Limits) -> Option<SetUpFirst> {
-    let first = w::FirstEmpty { org, repository, playground };
+    let first = w::FirstEmpty { org, repository, playground, sample };
     first.measure(bounds).ok()?;
     Some(SetUpFirst::Empty(first))
->>>>>>> refs/hand6/10247
 }
 fn ask_target(forge: w::Making, first: SetUpFirst, bounds: &w::Limits) -> Option<Ask> {
     let value = w::SetUp { forge, first };

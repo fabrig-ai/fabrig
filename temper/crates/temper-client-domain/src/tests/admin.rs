@@ -181,28 +181,14 @@ fn connected() -> w::Connection {
     w::Connection::Connected(w::Connected { id: 7, login: b"temper".as_slice().into() })
 }
 fn first() -> w::FirstRepository {
-<<<<<<< HEAD
-    w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap()),
-            label: b"docker".as_slice().into(),
-        },
-    )
-    .unwrap()
-=======
     w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state: w::FirstState::Made(w::Made { id: 42 }),
         label: b"docker".as_slice().into(),
     }
->>>>>>> refs/hand6/10247
 }
 #[test]
 fn connecting_then_ready_makes_no_project_and_adopts_nothing() {

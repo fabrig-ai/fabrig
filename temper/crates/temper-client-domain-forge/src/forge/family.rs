@@ -211,27 +211,12 @@ pub fn set_up(
     playground: bool,
     limits: &w::Limits,
 ) -> Option<jig_client::Family> {
-<<<<<<< HEAD
-    let request = w::SetUp::new(
-        limits,
-        w::SetUpParts {
-            first: w::SetUpFirst::Empty(
-                w::FirstEmpty::new(limits, w::FirstEmptyParts { org, repository, playground, sample: false }).ok()?,
-            ),
-            forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
-        },
-    )
-    .ok()?;
-    let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::SetUp(request) }).ok()?;
-    Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
-=======
     let request = w::SetUp {
-        first: w::SetUpFirst::Empty(w::FirstEmpty { org, repository, playground }),
+        first: w::SetUpFirst::Empty(w::FirstEmpty { org, repository, playground, sample: false }),
         forge: w::Making::Kept(w::Kept { forge }),
     };
     let record = w::Requesting { request: w::Request::SetUp(request) };
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(limits).ok()? })
->>>>>>> refs/hand6/10247
 }
 #[must_use]
 pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<forge::forges::SetUpOutcome> {

@@ -298,26 +298,12 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         &crate::key::Name::new(skein_lib::Decimal::of(side.serial).as_bytes()).expect("serial fits"),
     );
     side.set_up = Some(Box::new(forges::SetUp {
-<<<<<<< HEAD
-        first: w::SetUpFirst::Empty(
-            w::FirstEmpty::new(
-                &bounds,
-                w::FirstEmptyParts {
-                    playground: false,
-                    sample: false,
-                    org: draft.fields[0].clone(),
-                    repository: draft.fields[1].clone(),
-                },
-            )
-            .expect("validated first repository"),
-        ),
-=======
         first: w::SetUpFirst::Empty(w::FirstEmpty {
             playground: false,
+            sample: false,
             org: draft.fields[0].clone(),
             repository: draft.fields[1].clone(),
         }),
->>>>>>> refs/hand6/10247
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         request: skein_lib::Token::new(side.serial),
         progress: None,

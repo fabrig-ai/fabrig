@@ -491,28 +491,14 @@ fn first_repository_decodes_each_state_and_creation_step() {
             .unwrap();
     }
     for (wire_state, state) in states.into_boxed() {
-<<<<<<< HEAD
-        let first = w::FirstRepository::new(
-            &limits(),
-            w::FirstRepositoryParts {
-                playground: false,
-                sample: false,
-                org: b"team".as_slice().into(),
-                repository: b"widget".as_slice().into(),
-                state: wire_state.clone(),
-                label: Box::from(b"docker_1.x-y".as_slice()),
-            },
-        )
-        .unwrap();
-=======
         let first = w::FirstRepository {
             playground: false,
+            sample: false,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state: wire_state.clone(),
             label: Box::from(b"docker_1.x-y".as_slice()),
         };
->>>>>>> refs/hand6/10247
         let mut forges = List::with_capacity(1);
         forges
             .push(w::ForgeRow {

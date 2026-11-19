@@ -40,34 +40,16 @@ fn panel(phase: w::LandingPhase) -> w::LandingPanel {
     } else {
         None
     };
-<<<<<<< HEAD
-    w::LandingPanel::new(
-        &w::CEILINGS,
-        w::LandingPanelParts {
-            waits: if phase == w::LandingPhase::Landed || phase == w::LandingPhase::Cancelled {
-                None
-            } else {
-                Some(wait(if phase == w::LandingPhase::Held {
-                    w::LandingWaitFor::Release
-                } else {
-                    w::LandingWaitFor::Close
-                }))
-            },
-            train: None,
-            round: None,
-            task: 61,
-            project: 1,
-            phase,
-            hold,
-            members,
-            preparation: 1,
-            stale_proofs: 0,
-            turn: None,
-        },
-    )
-    .unwrap()
-=======
     w::LandingPanel {
+        waits: if phase == w::LandingPhase::Landed || phase == w::LandingPhase::Cancelled {
+            None
+        } else {
+            Some(wait(if phase == w::LandingPhase::Held {
+                w::LandingWaitFor::Release
+            } else {
+                w::LandingWaitFor::Close
+            }))
+        },
         train: None,
         round: None,
         task: 61,
@@ -79,7 +61,6 @@ fn panel(phase: w::LandingPhase) -> w::LandingPanel {
         stale_proofs: 0,
         turn: None,
     }
->>>>>>> refs/hand6/10247
 }
 fn deliver(root: &mut f::Harness, subject: client::Watchable, bytes: Box<[u8]>) {
     let token = root.watch_token(&subject);
@@ -216,50 +197,9 @@ fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
             landed.push([0x11; 32]).unwrap();
         }
         landings
-<<<<<<< HEAD
-            .push(
-                w::LandingLine::new(
-                    &w::CEILINGS,
-                    w::LandingLineParts {
-                        step: if *task == 61 { Some(w::LandingStep::Turn) } else { None },
-                        last_event: if *task == 61 { Some(1_000_000_000) } else { None },
-                        train: Some(
-                            w::Train::new(
-                                &w::CEILINGS,
-                                w::TrainParts {
-                                    forge: 1,
-                                    repository: 9,
-                                    owner: b"work".as_slice().into(),
-                                    name: b"hello".as_slice().into(),
-                                    branch: b"release".as_slice().into(),
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        task: *task,
-                        phase: if *task == 61 { w::LandingPhase::Turn } else { w::LandingPhase::Landed },
-                        changes,
-                        repositories,
-                        landed,
-                    },
-                )
-                .unwrap(),
-            )
-            .unwrap();
-    }
-    w::LandingsPanel::new(
-        &w::CEILINGS,
-        w::LandingsPanelParts {
-            now: if turn.is_some() { 16_261_000_000_000 } else { 0 },
-            turn_since: if turn.is_some() { Some(1_000_000_000) } else { None },
-            project: 1,
-            turn,
-            landings,
-        },
-    )
-    .unwrap()
-=======
             .push(w::LandingLine {
+                step: if *task == 61 { Some(w::LandingStep::Turn) } else { None },
+                last_event: if *task == 61 { Some(1_000_000_000) } else { None },
                 train: Some(w::Train {
                     forge: 1,
                     repository: 9,
@@ -275,8 +215,13 @@ fn list(turn: Option<u64>, tasks: &[u64]) -> w::LandingsPanel {
             })
             .unwrap();
     }
-    w::LandingsPanel { project: 1, turn, landings }
->>>>>>> refs/hand6/10247
+    w::LandingsPanel {
+        now: if turn.is_some() { 16_261_000_000_000 } else { 0 },
+        turn_since: if turn.is_some() { Some(1_000_000_000) } else { None },
+        project: 1,
+        turn,
+        landings,
+    }
 }
 fn read_list(panel: &w::LandingsPanel, json: bool) -> jig::Printed {
     let mut root = f::signed_in(f::PARTY);
@@ -432,15 +377,9 @@ fn a_line_can_name_several_changes_repositories_and_landed_commits() {
     line.landed.push([0x11; 32]).unwrap();
     line.landed.push([0x22; 32]).unwrap();
     parts.landings = List::with_capacity(1);
-<<<<<<< HEAD
-    parts.landings.push(w::LandingLine::new(&w::CEILINGS, line).unwrap()).unwrap();
-    let answer = read_list(&w::LandingsPanel::new(&w::CEILINGS, parts).unwrap(), false);
-    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · turn · last event 0s ago · change 51, 52 · work/hello, work/lib · train: work/hello on forge 1 into release · landed at 111111111111 · landed at 222222222222\n".as_bytes());
-=======
     parts.landings.push(line).unwrap();
     let answer = read_list(&parts, false);
-    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · change 51, 52 · work/hello, work/lib · train: work/hello on forge 1 into release · landed at 111111111111 · landed at 222222222222\n".as_bytes());
->>>>>>> refs/hand6/10247
+    assert_eq!(answer.stdout.as_ref(), "landings of project 1 · turn: free\nlanding 61 · in its turn · turn · last event 0s ago · change 51, 52 · work/hello, work/lib · train: work/hello on forge 1 into release · landed at 111111111111 · landed at 222222222222\n".as_bytes());
 }
 
 #[test]
@@ -806,8 +745,7 @@ fn a_stack_shows_each_head_prefix_and_outcome_in_order_in_text_and_json() {
 }
 
 fn wait(on: w::LandingWaitFor) -> w::LandingWait {
-    w::LandingWait::new(&w::CEILINGS, w::LandingWaitParts { on, change: None, gate: None, run: None, landing: None })
-        .unwrap()
+    w::LandingWait { on, change: None, gate: None, run: None, landing: None }
 }
 
 #[test]
@@ -851,47 +789,41 @@ fn landing_waits_name_the_needed_fact_or_the_next_step() {
         (w::LandingWaitFor::Read, "a fresh read of its facts from the forge", "read"),
         (w::LandingWaitFor::Nothing, "nothing; it steps next", "nothing"),
     ] {
-        let mut parts = panel(w::LandingPhase::Proving).into_parts();
+        let mut parts = panel(w::LandingPhase::Proving);
         parts.waits = Some(wait(on));
-        let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+        let panel = parts;
         assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
         assert!(contains(
             &read_panel(&panel, true).stdout,
             &format!("\"waits\":{{\"for\":\"{key}\",\"change\":null,\"gate\":null,\"run\":null,\"landing\":null}}")
         ));
     }
-    let mut parts = panel(w::LandingPhase::Proving).into_parts();
-    parts.waits = Some(
-        w::LandingWait::new(
-            &w::CEILINGS,
-            w::LandingWaitParts {
-                on: w::LandingWaitFor::Run,
-                change: Some(8414),
-                gate: Some(b"tests".as_slice().into()),
-                run: Some(412),
-                landing: None,
-            },
-        )
-        .unwrap(),
-    );
-    let running = w::LandingPanel::new(&w::CEILINGS, parts.clone()).unwrap();
+    let mut parts = panel(w::LandingPhase::Proving);
+    parts.waits = Some(w::LandingWait {
+        on: w::LandingWaitFor::Run,
+        change: Some(8414),
+        gate: Some(b"tests".as_slice().into()),
+        run: Some(412),
+        landing: None,
+    });
+    let running = parts.clone();
     assert!(contains(&read_panel(&running, false).stdout, "waits for: gate tests's run 412 at change 8414's prefix"));
     assert!(contains(
         &read_panel(&running, true).stdout,
         "\"waits\":{\"for\":\"run\",\"change\":8414,\"gate\":\"tests\",\"run\":412,\"landing\":null}"
     ));
-    let mut waiting = parts.waits.take().unwrap().into_parts();
+    let mut waiting = parts.waits.take().unwrap();
     waiting.run = None;
-    parts.waits = Some(w::LandingWait::new(&w::CEILINGS, waiting).unwrap());
-    let unknown = w::LandingPanel::new(&w::CEILINGS, parts.clone()).unwrap();
+    parts.waits = Some(waiting);
+    let unknown = parts.clone();
     assert!(contains(&read_panel(&unknown, false).stdout, "waits for: gate tests's run at change 8414's prefix"));
     parts.waits = None;
-    let next = w::LandingPanel::new(&w::CEILINGS, parts.clone()).unwrap();
+    let next = parts.clone();
     assert!(contains(&read_panel(&next, false).stdout, "waits for: nothing; it steps next\n"));
     assert!(contains(&read_panel(&next, true).stdout, "\"waits\":{\"for\":\"nothing\""));
     parts.waits = Some(wait(w::LandingWaitFor::Close));
     parts.phase = w::LandingPhase::Landed;
-    let ended = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+    let ended = parts;
     assert!(!contains(&read_panel(&ended, false).stdout, "waits for:"));
     assert!(contains(&read_panel(&ended, true).stdout, "\"waits\":null"));
 }
@@ -907,50 +839,50 @@ fn landing_waits_resolve_member_gate_and_turn_names() {
         (w::LandingWaitFor::Post, "gate tests's status at change 8414's prefix", true),
         (w::LandingWaitFor::Receipt, "gate tests's receipt for change 8414's prefix", true),
     ] {
-        let mut parts = panel(w::LandingPhase::Proving).into_parts();
-        let mut waiting = wait(on).into_parts();
+        let mut parts = panel(w::LandingPhase::Proving);
+        let mut waiting = wait(on);
         waiting.change = Some(8414);
         waiting.gate = if gate { Some(b"tests".as_slice().into()) } else { None };
-        parts.waits = Some(w::LandingWait::new(&w::CEILINGS, waiting).unwrap());
-        let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+        parts.waits = Some(waiting);
+        let panel = parts;
         assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
     }
     for (holder, words, json) in
         [(None, "the turn", "\"landing\":null"), (Some(8458), "the turn, held by landing 8458", "\"landing\":8458")]
     {
-        let mut parts = panel(w::LandingPhase::Proving).into_parts();
-        let mut waiting = wait(w::LandingWaitFor::Turn).into_parts();
+        let mut parts = panel(w::LandingPhase::Proving);
+        let mut waiting = wait(w::LandingWaitFor::Turn);
         waiting.landing = holder;
-        parts.waits = Some(w::LandingWait::new(&w::CEILINGS, waiting).unwrap());
-        let panel = w::LandingPanel::new(&w::CEILINGS, parts).unwrap();
+        parts.waits = Some(waiting);
+        let panel = parts;
         assert!(contains(&read_panel(&panel, false).stdout, &format!("\nwaits for: {words}\n")));
         assert!(contains(&read_panel(&panel, true).stdout, json));
     }
 }
 #[test]
 fn landing_list_shows_unknown_last_event_and_engine_relative_ages() {
-    let mut parts = list(Some(61), &[61]).into_parts();
+    let mut parts = list(Some(61), &[61]);
     parts.now = 16_261_000_000_000;
     parts.turn_since = Some(1_000_000_000);
-    let mut row = parts.landings.get(0).unwrap().clone().into_parts();
+    let mut row = parts.landings.get(0).unwrap().clone();
     row.step = Some(w::LandingStep::Probing);
     row.phase = w::LandingPhase::Proving;
     row.last_event = Some(parts.now - 2_232_000_000_000);
-    *parts.landings.get_mut(0).unwrap() = w::LandingLine::new(&w::CEILINGS, row.clone()).unwrap();
-    let known = w::LandingsPanel::new(&w::CEILINGS, parts.clone()).unwrap();
+    *parts.landings.get_mut(0).unwrap() = row.clone();
+    let known = parts.clone();
     let text = read_list(&known, false);
     assert!(contains(&text.stdout, "turn: landing 61 for 4h 31m"));
     assert!(contains(&text.stdout, "proving · probing · last event 37m 12s ago · change 51"));
     row.last_event = None;
-    *parts.landings.get_mut(0).unwrap() = w::LandingLine::new(&w::CEILINGS, row).unwrap();
-    let unknown = w::LandingsPanel::new(&w::CEILINGS, parts).unwrap();
+    *parts.landings.get_mut(0).unwrap() = row;
+    let unknown = parts;
     assert!(contains(&read_list(&unknown, false).stdout, "last event unknown"));
     assert!(contains(&read_list(&unknown, true).stdout, "\"step\":\"probing\",\"last_event\":null"));
-    let mut parts = known.into_parts();
-    let mut row = parts.landings.get(0).unwrap().clone().into_parts();
+    let mut parts = known;
+    let mut row = parts.landings.get(0).unwrap().clone();
     row.phase = w::LandingPhase::Landed;
-    *parts.landings.get_mut(0).unwrap() = w::LandingLine::new(&w::CEILINGS, row).unwrap();
-    let ended = w::LandingsPanel::new(&w::CEILINGS, parts).unwrap();
+    *parts.landings.get_mut(0).unwrap() = row;
+    let ended = parts;
     assert!(!contains(&read_list(&ended, false).stdout, "last event"));
     assert!(contains(&read_list(&ended, true).stdout, "\"step\":null,\"last_event\":14029000000000"));
 }

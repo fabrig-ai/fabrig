@@ -1530,38 +1530,15 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
     } else {
         w::Making::Kept(w::Kept { forge: intent.forge })
     };
-<<<<<<< HEAD
-    let request = w::Request::SetUp(
-        w::SetUp::new(
-            &bounds,
-            w::SetUpParts {
-                forge,
-                first: w::SetUpFirst::Empty(
-                    w::FirstEmpty::new(
-                        &bounds,
-                        w::FirstEmptyParts {
-                            org: intent.org.clone(),
-                            repository: intent.repository.clone(),
-                            playground: intent.playground,
-                            sample: false,
-                        },
-                    )
-                    .ok()?,
-                ),
-            },
-        )
-        .ok()?,
-    );
-=======
     let request = w::Request::SetUp(w::SetUp {
         forge,
         first: w::SetUpFirst::Empty(w::FirstEmpty {
             org: intent.org.clone(),
             repository: intent.repository.clone(),
             playground: intent.playground,
+            sample: false,
         }),
     });
->>>>>>> refs/hand6/10247
     lifecycle::ask(request, limits)
 }
 

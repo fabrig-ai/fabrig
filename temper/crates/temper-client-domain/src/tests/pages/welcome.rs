@@ -102,68 +102,6 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
     let mut forges = List::with_capacity(1);
     if let Some(number) = number {
         forges
-<<<<<<< HEAD
-            .push(
-                w::ForgeRow::new(
-                    &limits,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        makings: List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number,
-                        kind: w::Kind::Forgejo,
-                        mode: if number == wire::FORGE { w::Mode::Fake } else { w::Mode::Connected },
-                        connection: w::Connection::Connected(
-                            w::Connected::new(&limits, w::ConnectedParts { id: 42, login: b"bot".as_slice().into() })
-                                .unwrap(),
-                        ),
-                        offer: w::Offer::NotOffered,
-                        first: Some(
-                            w::FirstRepository::new(
-                                &limits,
-                                w::FirstRepositoryParts {
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                    state: w::FirstState::Made(w::Made::new(&limits, w::MadeParts { id: 1 }).unwrap()),
-                                    label: Box::new([]),
-                                    playground: false,
-                                    sample: false,
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: {
-                            let mut repositories = List::with_capacity(1);
-                            if adopted {
-                                repositories
-                                    .push(
-                                        w::Adoption::new(
-                                            &limits,
-                                            w::AdoptionParts {
-                                                owner: b"work".as_slice().into(),
-                                                name: b"hello".as_slice().into(),
-                                                project: f::PROJECT,
-                                            },
-                                        )
-                                        .unwrap(),
-                                    )
-                                    .unwrap();
-                            }
-                            repositories
-                        },
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .unwrap(),
-            )
-=======
             .push(w::ForgeRow {
                 starts_with: w::StartsWith::Repository,
                 makings: List::with_capacity(0),
@@ -179,6 +117,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                     state: w::FirstState::Made(w::Made { id: 1 }),
                     label: Box::new([]),
                     playground: false,
+                    sample: false,
                 }),
                 installations: List::with_capacity(0),
                 ended: None,
@@ -202,7 +141,6 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
                 read_only: false,
                 ended_stop: None,
             })
->>>>>>> refs/hand6/10247
             .unwrap();
     }
     up(

@@ -1689,30 +1689,11 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             for member in value.members {
                 members.push(landing_member(member, forges, limits)?).ok()?;
             }
-<<<<<<< HEAD
-            let panel = w::LandingPanel::new(
-                limits,
-                w::LandingPanelParts {
-                    waits: match value.waits {
-                        Some(wait) => Some(landing_views::wait(wait, limits)?),
-                        None => None,
-                    },
-                    task: value.task,
-                    project: value.project,
-                    phase: landing_phase(&value.phase),
-                    hold,
-                    members,
-                    preparation: value.preparation,
-                    stale_proofs: value.stale_proofs,
-                    turn: value.turn,
-                    train,
-                    round,
-                },
-            )
-            .ok()?;
-            Some(wire::landing_panel(&panel))
-=======
             let panel = w::LandingPanel {
+                waits: match value.waits {
+                    Some(wait) => Some(landing_views::wait(wait, limits)?),
+                    None => None,
+                },
                 task: value.task,
                 project: value.project,
                 phase: landing_phase(&value.phase),
@@ -1725,7 +1706,6 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                 round,
             };
             panel.encode(limits).ok()
->>>>>>> refs/hand6/10247
         }
         forge::Document::Devices(value) => devices(value, limits),
         forge::Document::Findings(value) => findings::document(value, limits),
@@ -1750,51 +1730,15 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     landed.push(commit).ok()?;
                 }
                 landings
-<<<<<<< HEAD
-                    .push(
-                        w::LandingLine::new(
-                            limits,
-                            w::LandingLineParts {
-                                step: match line.step {
-                                    Some(step) => Some(landing_views::step(step)),
-                                    None => None,
-                                },
-                                last_event: match line.last_event {
-                                    Some(at) => Some(at.as_nanos()),
-                                    None => None,
-                                },
-                                train: match line.train {
-                                    Some(train) => Some(landing_views::train(train, limits)?),
-                                    None => None,
-                                },
-                                task: line.task,
-                                phase: landing_phase(&line.phase),
-                                changes,
-                                repositories,
-                                landed,
-                            },
-                        )
-                        .ok()?,
-                    )
-                    .ok()?;
-            }
-            let panel = w::LandingsPanel::new(
-                limits,
-                w::LandingsPanelParts {
-                    now: value.now.as_nanos(),
-                    turn_since: match value.turn_since {
-                        Some(at) => Some(at.as_nanos()),
-                        None => None,
-                    },
-                    project: value.project,
-                    turn: value.turn,
-                    landings,
-                },
-            )
-            .ok()?;
-            Some(wire::landings_panel(&panel))
-=======
                     .push(w::LandingLine {
+                        step: match line.step {
+                            Some(step) => Some(landing_views::step(step)),
+                            None => None,
+                        },
+                        last_event: match line.last_event {
+                            Some(at) => Some(at.as_nanos()),
+                            None => None,
+                        },
                         train: match line.train {
                             Some(train) => Some(landing_views::train(train, limits)?),
                             None => None,
@@ -1807,9 +1751,17 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     })
                     .ok()?;
             }
-            let panel = w::LandingsPanel { project: value.project, turn: value.turn, landings };
+            let panel = w::LandingsPanel {
+                now: value.now.as_nanos(),
+                turn_since: match value.turn_since {
+                    Some(at) => Some(at.as_nanos()),
+                    None => None,
+                },
+                project: value.project,
+                turn: value.turn,
+                landings,
+            };
             panel.encode(limits).ok()
->>>>>>> refs/hand6/10247
         }
     }
 }
@@ -2244,13 +2196,8 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
 fn setup_first(first: w::SetUpFirst) -> forge::SetUpFirst {
     match first {
         w::SetUpFirst::Empty(first) => {
-<<<<<<< HEAD
-            let w::FirstEmptyParts { org, repository, playground, sample } = first.into_parts();
+            let w::FirstEmpty { org, repository, playground, sample } = first;
             forge::SetUpFirst::Empty { org, repository, playground, sample }
-=======
-            let w::FirstEmpty { org, repository, playground } = first;
-            forge::SetUpFirst::Empty { org, repository, playground }
->>>>>>> refs/hand6/10247
         }
         w::SetUpFirst::Copies(copies) => {
             let mut addresses = List::with_capacity(copies.addresses.len());

@@ -83,30 +83,13 @@ impl Frame {
     }
     pub(super) fn deliver_setup(&mut self, made: bool) {
         let mut forges = skein_lib::List::with_capacity(1);
-<<<<<<< HEAD
-        let first = made.then(|| {
-            f::FirstRepository::new(
-                &f::CEILINGS,
-                f::FirstRepositoryParts {
-                    playground: false,
-                    sample: false,
-                    label: b"cold".as_slice().into(),
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    state: f::FirstState::Made(
-                        f::Made::new(&f::CEILINGS, f::MadeParts { id: 42 }).expect("valid setup fixture"),
-                    ),
-                },
-            )
-            .expect("valid setup fixture")
-=======
         let first = made.then(|| f::FirstRepository {
             playground: false,
+            sample: false,
             label: b"cold".as_slice().into(),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state: f::FirstState::Made(f::Made { id: 42 }),
->>>>>>> refs/hand6/10247
         });
         forges
             .push(f::ForgeRow {

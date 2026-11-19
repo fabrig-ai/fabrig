@@ -159,32 +159,15 @@ fn row(number: u16) -> w::ForgeRow {
 fn first() -> First {
     First { forge: FORGE, org: b"work".as_slice().into(), name: b"hello".as_slice().into() }
 }
-<<<<<<< HEAD
-fn with_first(mut row: w::ForgeRowParts) -> w::ForgeRowParts {
-    row.first = Some(
-        w::FirstRepository::new(
-            &w::CEILINGS,
-            w::FirstRepositoryParts {
-                playground: false,
-                sample: false,
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
-                state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 1 }).unwrap()),
-                label: b"main".as_slice().into(),
-            },
-        )
-        .unwrap(),
-    );
-=======
 fn with_first(mut row: w::ForgeRow) -> w::ForgeRow {
     row.first = Some(w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state: w::FirstState::Made(w::Made { id: 1 }),
         label: b"main".as_slice().into(),
     });
->>>>>>> refs/hand6/10247
     row
 }
 fn adopted(mut row: w::ForgeRow, project: u32, name: &[u8]) -> w::ForgeRow {

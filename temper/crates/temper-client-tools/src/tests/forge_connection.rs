@@ -412,29 +412,14 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
 }
 
 fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstState, stop: Option<w::AdminStop>) {
-<<<<<<< HEAD
-    let l = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
-    let first = w::FirstRepository::new(
-        &l,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            label: b"docker".as_slice().into(),
-            state,
-        },
-    )
-    .unwrap();
-=======
     let first = w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         label: b"docker".as_slice().into(),
         state,
     };
->>>>>>> refs/hand6/10247
     let mut rows = skein_lib::List::with_capacity(1);
     rows.push(w::ForgeRow {
         starts_with: w::StartsWith::Repository,

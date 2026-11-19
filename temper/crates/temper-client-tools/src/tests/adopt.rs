@@ -344,48 +344,18 @@ fn a_saved_setup_request_is_not_restored_as_an_adoption() {
     let mut records = fixtures::restored_adoption(fixtures::PARTY);
     let held = records.get_mut(fixtures::EMPTY).expect("one saved request");
     let client::Ask::Family { record, .. } = &mut held.request.request else { panic!("family request") };
-<<<<<<< HEAD
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    sample: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .expect("forge"),
-            ),
-        },
-    )
-    .expect("setup request");
-    record.bytes = temper_client_protocol_wire::requesting(&request);
-=======
     let request = w::Requesting {
         request: w::Request::SetUp(w::SetUp {
             forge: w::Making::Kept(w::Kept { forge: 3 }),
             first: w::SetUpFirst::Empty(w::FirstEmpty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             }),
         }),
     };
     record.bytes = request.encode(&w::CEILINGS).expect("setup request");
->>>>>>> refs/hand6/10247
     let mut root = fixtures::started(records);
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
     root.adopt_outcome(fixtures::RESTORED_PREFIX, client::Outcome::Unknown);

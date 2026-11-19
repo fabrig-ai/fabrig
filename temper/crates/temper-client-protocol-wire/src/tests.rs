@@ -355,38 +355,15 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
     let limits = fixtures::limits();
     for request in [
         v1::Request::Adopt(fixtures::adopt()),
-<<<<<<< HEAD
-        v1::Request::SetUp(
-            v1::SetUp::new(
-                &limits,
-                v1::SetUpParts {
-                    forge: kept(u16::MAX),
-                    first: v1::SetUpFirst::Empty(
-                        v1::FirstEmpty::new(
-                            &v1::CEILINGS,
-                            v1::FirstEmptyParts {
-                                playground: true,
-                                sample: false,
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into(),
-                            },
-                        )
-                        .expect("setup names fit wire ceilings"),
-                    ),
-                },
-            )
-            .expect("forge number"),
-        ),
-=======
         v1::Request::SetUp(v1::SetUp {
             forge: kept(u16::MAX),
             first: v1::SetUpFirst::Empty(v1::FirstEmpty {
                 playground: true,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             }),
         }),
->>>>>>> refs/hand6/10247
     ] {
         let record = v1::Requesting { request };
         let bytes = crate::requesting(&record);
@@ -986,11 +963,9 @@ fn landing_panels_round_trip_smallest_and_full_goldens() {
     {
         let panel = crate::decode_landing_panel(bytes, &v1::CEILINGS).expect("landing golden");
         assert_eq!(crate::landing_panel(&panel).as_ref(), bytes);
-        assert_eq!(panel.waits().is_some(), full);
-        if let Some(wait) = panel.waits() {
-            assert!(
-                wait.change().is_some() && wait.gate().is_some() && wait.run().is_some() && wait.landing().is_some()
-            );
+        assert_eq!(panel.waits.is_some(), full);
+        if let Some(wait) = &panel.waits {
+            assert!(wait.change.is_some() && wait.gate.is_some() && wait.run.is_some() && wait.landing.is_some());
         }
         assert_eq!(crate::decode_landing_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -1002,12 +977,12 @@ fn landings_panels_round_trip_smallest_and_full_goldens() {
     {
         let panel = crate::decode_landings_panel(bytes, &v1::CEILINGS).expect("landings golden");
         assert_eq!(crate::landings_panel(&panel).as_ref(), bytes);
-        assert_eq!(panel.now() != 0, full);
-        assert_eq!(panel.turn_since().is_some(), full);
-        if !panel.landings().is_empty() {
-            assert!(panel.turn_since().is_some());
-            let line = panel.landings().get(0).unwrap();
-            assert!(line.step().is_some() && line.last_event().is_some());
+        assert_eq!(panel.now != 0, full);
+        assert_eq!(panel.turn_since.is_some(), full);
+        if !panel.landings.is_empty() {
+            assert!(panel.turn_since.is_some());
+            let line = panel.landings.get(0).unwrap();
+            assert!(line.step.is_some() && line.last_event.is_some());
         }
         assert_eq!(crate::decode_landings_panel(&fixtures::trailing(bytes), &v1::CEILINGS), None);
     }
@@ -1205,51 +1180,16 @@ fn managed(host: &[u8], port: u16) -> v1::ForgeAsk {
 }
 fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
     [
-<<<<<<< HEAD
-        v1::Request::SetUp(
-            v1::SetUp::new(
-                &limits,
-                v1::SetUpParts {
-                    forge: forge.clone(),
-                    first: v1::SetUpFirst::Empty(
-                        v1::FirstEmpty::new(
-                            &v1::CEILINGS,
-                            v1::FirstEmptyParts {
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into(),
-                                playground: false,
-                                sample: false,
-                            },
-                        )
-                        .expect("setup names fit wire ceilings"),
-                    ),
-                },
-            )
-            .unwrap(),
-        ),
-        v1::Request::Connect(
-            v1::Connect::new(
-                &limits,
-                v1::ConnectParts {
-                    forge,
-                    how: v1::How::ForgejoAdmin(
-                        v1::ForgejoAdmin::new(&limits, v1::ForgejoAdminParts { first: None }).unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-        ),
-=======
         v1::Request::SetUp(v1::SetUp {
             forge: forge.clone(),
             first: v1::SetUpFirst::Empty(v1::FirstEmpty {
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 playground: false,
+                sample: false,
             }),
         }),
         v1::Request::Connect(v1::Connect { forge, how: v1::How::ForgejoAdmin(v1::ForgejoAdmin { first: None }) }),
->>>>>>> refs/hand6/10247
     ]
 }
 #[test]
@@ -1689,42 +1629,11 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
     let limits = fixtures::limits();
     assert_eq!(v1::CEILINGS.copy_addresses_addresses, crate::FIRST_COPIES);
     for first in [
-<<<<<<< HEAD
-        v1::SetUpFirst::Empty(
-            v1::FirstEmpty::new(
-                &limits,
-                v1::FirstEmptyParts {
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    playground: true,
-                    sample: true,
-                },
-            )
-            .unwrap(),
-        ),
-        v1::SetUpFirst::Copies(
-            v1::CopyAddresses::new(&limits, v1::CopyAddressesParts { addresses: List::with_capacity(0) }).unwrap(),
-        ),
-        v1::SetUpFirst::Copies(
-            v1::CopyAddresses::new(
-                &limits,
-                v1::CopyAddressesParts {
-                    addresses: {
-                        let mut addresses = List::with_capacity(crate::FIRST_COPIES);
-                        for _ in 0..crate::FIRST_COPIES {
-                            addresses.push(skein_lib::bytes::zeroed(crate::source::ADDRESS_BYTES)).unwrap();
-                        }
-                        addresses
-                    },
-                },
-            )
-            .unwrap(),
-        ),
-=======
         v1::SetUpFirst::Empty(v1::FirstEmpty {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             playground: true,
+            sample: true,
         }),
         v1::SetUpFirst::Copies(v1::CopyAddresses { addresses: List::with_capacity(0) }),
         v1::SetUpFirst::Copies(v1::CopyAddresses {
@@ -1736,7 +1645,6 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
                 addresses
             },
         }),
->>>>>>> refs/hand6/10247
         v1::SetUpFirst::Nothing,
     ] {
         let request =
@@ -1745,20 +1653,14 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
         let mut row = installation_row(0, 0);
         row.starts_with = match first {
             v1::SetUpFirst::Empty(first) => {
-                row.first = Some(
-                    v1::FirstRepository::new(
-                        &limits,
-                        v1::FirstRepositoryParts {
-                            org: first.org().into(),
-                            repository: first.repository().into(),
-                            playground: first.playground(),
-                            sample: first.sample(),
-                            state: v1::FirstState::Making,
-                            label: b"temper-host".as_slice().into(),
-                        },
-                    )
-                    .unwrap(),
-                );
+                row.first = Some(v1::FirstRepository {
+                    org: first.org,
+                    repository: first.repository,
+                    playground: first.playground,
+                    sample: first.sample,
+                    state: v1::FirstState::Making,
+                    label: b"temper-host".as_slice().into(),
+                });
                 v1::StartsWith::Repository
             }
             v1::SetUpFirst::Copies(copies) => v1::StartsWith::Copies(copies),

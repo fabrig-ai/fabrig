@@ -110,23 +110,6 @@ fn the_welcome_says_each_state() {
     let forgejo = welcome_root(&[row(w::Kind::Forgejo, w::Connection::Connecting)], false, Some(false), None);
     let github_setup = welcome_root(&[row(w::Kind::Github, setting(None))], false, Some(false), None);
     let unaccepted = welcome_root(&[row(w::Kind::Github, self::connected())], false, Some(false), None);
-<<<<<<< HEAD
-    let mut making = row(w::Kind::Forgejo, w::Connection::Connecting).into_parts();
-    making.first = Some(
-        w::FirstRepository::new(
-            &w::CEILINGS,
-            w::FirstRepositoryParts {
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
-                state: w::FirstState::Making,
-                label: Box::new([]),
-                playground: false,
-                sample: false,
-            },
-        )
-        .unwrap(),
-    );
-=======
     let mut making = row(w::Kind::Forgejo, w::Connection::Connecting);
     making.first = Some(w::FirstRepository {
         org: b"work".as_slice().into(),
@@ -134,8 +117,8 @@ fn the_welcome_says_each_state() {
         state: w::FirstState::Making,
         label: Box::new([]),
         playground: false,
+        sample: false,
     });
->>>>>>> refs/hand6/10247
     // A connected Forgejo counts as connected in the domain, including while its first repository is made.
     making.connection = self::connected();
     making.number = 1;
@@ -169,30 +152,6 @@ fn the_welcome_says_each_state() {
     );
     let first_failed = welcome_root(
         &[{
-<<<<<<< HEAD
-            let mut failed = row(w::Kind::Forgejo, w::Connection::NotSetUp).into_parts();
-            failed.first = Some(
-                w::FirstRepository::new(
-                    &w::CEILINGS,
-                    w::FirstRepositoryParts {
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
-                        state: w::FirstState::Failed(
-                            w::CreateFailed::new(
-                                &w::CEILINGS,
-                                w::CreateFailedParts { step: w::CreateStep::Repository },
-                            )
-                            .unwrap(),
-                        ),
-                        label: Box::new([]),
-                        playground: false,
-                        sample: false,
-                    },
-                )
-                .unwrap(),
-            );
-            w::ForgeRow::new(&w::CEILINGS, failed).unwrap()
-=======
             let mut failed = row(w::Kind::Forgejo, w::Connection::NotSetUp);
             failed.first = Some(w::FirstRepository {
                 org: b"work".as_slice().into(),
@@ -200,9 +159,9 @@ fn the_welcome_says_each_state() {
                 state: w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository }),
                 label: Box::new([]),
                 playground: false,
+                sample: false,
             });
             failed
->>>>>>> refs/hand6/10247
         }],
         false,
         Some(false),

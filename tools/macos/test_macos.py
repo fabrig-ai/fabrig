@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 """Offline fixtures for macos.md, 4–5; no builds, network or credentials."""
 
-<<<<<<< HEAD
 import contextlib
-import io
-=======
 import hashlib
->>>>>>> refs/hand6/10457
+import io
 import json
 import os
 from pathlib import Path

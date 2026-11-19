@@ -436,47 +436,6 @@ fn first_rows(
     use temper_client_protocol_wire::v1 as w;
     let mut rows = skein_lib::List::with_capacity(3);
     for (number, mode) in [(1, w::Mode::Fake), (2, w::Mode::Owned), (3, w::Mode::Owned)] {
-<<<<<<< HEAD
-        rows.push(
-            w::ForgeRow::new(
-                &w::CEILINGS,
-                w::ForgeRowParts {
-                    starts_with: w::StartsWith::Repository,
-                    makings: skein_lib::List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number,
-                    kind: w::Kind::Forgejo,
-                    mode,
-                    connection: w::Connection::NotConnected,
-                    offer: w::Offer::NotOffered,
-                    first: Some(
-                        w::FirstRepository::new(
-                            &w::CEILINGS,
-                            w::FirstRepositoryParts {
-                                playground: number == 1,
-                                sample: false,
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into(),
-                                state: state.clone(),
-                                label: b"docker".as_slice().into(),
-                            },
-                        )
-                        .unwrap(),
-                    ),
-                    installations: skein_lib::List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: skein_lib::List::with_capacity(1),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .unwrap(),
-        )
-=======
         rows.push(w::ForgeRow {
             starts_with: w::StartsWith::Repository,
             makings: skein_lib::List::with_capacity(0),
@@ -488,6 +447,7 @@ fn first_rows(
             offer: w::Offer::NotOffered,
             first: Some(w::FirstRepository {
                 playground: number == 1,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 state: state.clone(),
@@ -503,7 +463,6 @@ fn first_rows(
             read_only: false,
             ended_stop: None,
         })
->>>>>>> refs/hand6/10247
         .unwrap();
     }
     rows

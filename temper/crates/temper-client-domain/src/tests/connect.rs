@@ -470,28 +470,14 @@ fn deliver_first(
     connection: w::Connection,
     state: w::FirstState,
 ) -> Queue<Request> {
-<<<<<<< HEAD
-    let first = w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .unwrap();
-=======
     let first = w::FirstRepository {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state,
         label: Box::from(b"temper-host".as_slice()),
     };
->>>>>>> refs/hand6/10247
     deliver_first_record(root, watch, connection, first)
 }
 fn deliver_first_record(
@@ -691,30 +677,14 @@ fn invalid_refusals_say_their_words() {
 #[test]
 fn set_up_again_on_another_client_uses_the_rows_fields() {
     let (mut root, _, watch) = opened(true);
-<<<<<<< HEAD
-    let value = w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: true,
-            sample: false,
-            org: b"playground".as_slice().into(),
-            repository: b"widget".as_slice().into(),
-            state: w::FirstState::Failed(
-                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::File }).unwrap(),
-            ),
-            label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .unwrap();
-=======
     let value = w::FirstRepository {
         playground: true,
+        sample: false,
         org: b"playground".as_slice().into(),
         repository: b"widget".as_slice().into(),
         state: w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::File }),
         label: Box::from(b"temper-host".as_slice()),
     };
->>>>>>> refs/hand6/10247
     deliver_first_record(&mut root, watch, w::Connection::Connecting, value);
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
     assert_eq!(
@@ -726,29 +696,23 @@ fn set_up_again_on_another_client_uses_the_rows_fields() {
 #[test]
 fn set_up_again_without_a_last_request_keeps_the_rows_sample() {
     let (mut root, _, watch) = opened(true);
-    let value = w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: true,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state: w::FirstState::Failed(
-                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::File }).unwrap(),
-            ),
-            label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .unwrap();
+    let value = w::FirstRepository {
+        playground: false,
+        sample: true,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state: w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::File }),
+        label: Box::from(b"temper-host".as_slice()),
+    };
     assert!(root.forge().set_up().is_none());
     deliver_first_record(&mut root, watch, w::Connection::Connecting, value);
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
     assert_eq!(
-        (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+        (empty_setup(&value.first).org.as_ref(), empty_setup(&value.first).repository.as_ref()),
         (b"work".as_slice(), b"hello".as_slice())
     );
-    assert!(!empty_setup(value.first()).playground());
-    assert!(empty_setup(value.first()).sample());
+    assert!(!empty_setup(&value.first).playground);
+    assert!(empty_setup(&value.first).sample);
 }
 #[test]
 fn signing_out_forgets_the_setup_intent() {
@@ -983,16 +947,10 @@ fn the_sheets_run_sets_up_owned_with_the_sample_by_default() {
     assert_eq!(new.forge, w::ForgeAsk::Owned);
     assert_eq!(
         (
-<<<<<<< HEAD
-            empty_setup(request.first()).org(),
-            empty_setup(request.first()).repository(),
-            empty_setup(request.first()).playground(),
-            empty_setup(request.first()).sample()
-=======
             empty_setup(&request.first).org.as_ref(),
             empty_setup(&request.first).repository.as_ref(),
-            empty_setup(&request.first).playground
->>>>>>> refs/hand6/10247
+            empty_setup(&request.first).playground,
+            empty_setup(&request.first).sample
         ),
         (b"work".as_slice(), b"hello".as_slice(), false, true)
     );
@@ -1031,13 +989,8 @@ fn the_sheets_copies_and_nothing_send_their_intent_and_move_on_after_acceptance(
                     ]
                 );
             }
-<<<<<<< HEAD
-            forges::Start::Nothing => assert_eq!(request.first(), &w::SetUpFirst::Nothing),
-            forges::Start::Empty | forges::Start::Sample => unreachable!(),
-=======
             forges::Start::Nothing => assert_eq!(&request.first, &w::SetUpFirst::Nothing),
-            forges::Start::Empty => unreachable!(),
->>>>>>> refs/hand6/10247
+            forges::Start::Empty | forges::Start::Sample => unreachable!(),
         }
         let mut out = reply(&mut root, attempt, w::Outcome::SettingUp);
         assert_eq!(

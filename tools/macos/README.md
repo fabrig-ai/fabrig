@@ -33,12 +33,16 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   cancellation signals to the helper (temper/docs/design/testing/macos.md, 10).
 - `install`, `build`, `fetch-forge`, `run`, `verdict`, `prune`: the jobs' common
   operations, using `RUN`, `RUNNER_TEMP`, `IDS`, `GIVEN` and the tested tree's
-<<<<<<< HEAD
   metadata and tier tools. `build` writes `build_red` and `run_tests` outputs,
   gives each command a notice counting compiled dependencies and workspace
   crates, and appends `MACOS_BUILT=true` to `GITHUB_ENV` only after every command
   succeeds. Browser pair runs warn on any compiled crates without changing
   their verdict. `verdict` fails on a failed case, after its file is uploaded.
+  `fetch-forge`
+  exports `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` after the build
+  for `process`, `live` and `temper`. Only `temper` restores and saves its fetch
+  cache between runs; configuration and data start empty, and `process` and
+  `live` start with an empty cache too.
   `prune` keeps each profile's `deps`, `build` and `.fingerprint`, less workspace
   package/target entries matched by whole name, optional sixteen-hex cargo hash
   and extension, in either spelling. Only sourced packages in the tested
@@ -50,14 +54,6 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   warn without failing the save step. Cache saves use the complete key after a
   successful build, otherwise a run/attempt-specific partial key; restore tries that lock's
   newest partial before older locks of the same toolchain.
-=======
-  metadata and tier tools. `build` writes `build_red` and `run_tests` outputs;
-  `verdict` fails on a failed case, after its file is uploaded. `fetch-forge`
-  exports `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` after the build
-  for `process`, `live` and `temper`. Only `temper` restores and saves its fetch
-  cache between runs; configuration and data start empty, and `process` and
-  `live` start with an empty cache too.
->>>>>>> refs/hand6/10457
 
 Nextest completeness uses its JSON selection listing, with the run's profile,
 package and filter arguments and ignored-test policy, rather than relying on a

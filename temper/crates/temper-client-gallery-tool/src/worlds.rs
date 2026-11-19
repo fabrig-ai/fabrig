@@ -1417,71 +1417,6 @@ fn forges(world: World) -> Box<[u8]> {
             23 => w::Connection::NotConnected,
             _ => w::Connection::NotSetUp,
         };
-<<<<<<< HEAD
-        rows.push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 3,
-                    kind: w::Kind::Forgejo,
-                    mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
-                    connection,
-                    offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
-                    first: if matches!(step, 6 | 7 | 9 | 24 | 25) {
-                        Some(
-                            w::FirstRepository::new(
-                                &limits,
-                                w::FirstRepositoryParts {
-                                    playground: false,
-                                    sample: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                    state: if step == 7 {
-                                        w::FirstState::Made(
-                                            w::Made::new(&limits, w::MadeParts { id: 42 }).expect("made"),
-                                        )
-                                    } else {
-                                        w::FirstState::Making
-                                    },
-                                    label: b"temper-host".as_slice().into(),
-                                },
-                            )
-                            .expect("first repository"),
-                        )
-                    } else {
-                        None
-                    },
-                    installations: List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: if step == 23 { Some(b"http://forgejo.test".as_slice().into()) } else { None },
-                    repositories,
-                    owned: if step == 23 {
-                        None
-                    } else {
-                        Some(
-                            w::OwnedForge::new(
-                                &limits,
-                                w::OwnedForgeParts {
-                                    forgejo: b"17.0.0".as_slice().into(),
-                                    runner: Some(b"13.2.0".as_slice().into()),
-                                    password: b"/fake/forge/person_password".as_slice().into(),
-                                },
-                            )
-                            .expect("owned pins"),
-                        )
-                    },
-                    admin: step == 23,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .expect("owned Forgejo"),
-        )
-=======
         rows.push(w::ForgeRow {
             starts_with: w::StartsWith::Repository,
             makings: List::with_capacity(0),
@@ -1494,6 +1429,7 @@ fn forges(world: World) -> Box<[u8]> {
             first: if matches!(step, 6 | 7 | 9 | 24 | 25) {
                 Some(w::FirstRepository {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                     state: if step == 7 { w::FirstState::Made(w::Made { id: 42 }) } else { w::FirstState::Making },
@@ -1520,7 +1456,6 @@ fn forges(world: World) -> Box<[u8]> {
             read_only: false,
             ended_stop: None,
         })
->>>>>>> refs/hand6/10247
         .expect("forge row");
     }
     wire::forges(&w::Forges { forges: rows, linked: false })

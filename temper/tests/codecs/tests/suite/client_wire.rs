@@ -47,28 +47,14 @@ fn current_request_answer_and_forges_goldens_round_trip() {
 }
 
 fn first(state: v1::FirstState) -> v1::FirstRepository {
-<<<<<<< HEAD
-    v1::FirstRepository::new(
-        &v1::CEILINGS,
-        v1::FirstRepositoryParts {
-            playground: false,
-            sample: true,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: Box::from(b"temper-host".as_slice()),
-        },
-    )
-    .expect("record within schema ceilings")
-=======
     v1::FirstRepository {
         playground: false,
+        sample: true,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state,
         label: Box::from(b"temper-host".as_slice()),
     }
->>>>>>> refs/hand6/10247
 }
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
@@ -112,48 +98,17 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
 }
 
 fn setup_request() -> v1::Requesting {
-<<<<<<< HEAD
-    v1::Requesting::new(
-        &v1::CEILINGS,
-        v1::RequestingParts {
-            request: v1::Request::SetUp(
-                v1::SetUp::new(
-                    &v1::CEILINGS,
-                    v1::SetUpParts {
-                        forge: v1::Making::Kept(
-                            v1::Kept::new(&v1::CEILINGS, v1::KeptParts { forge: 3 }).expect("kept forge"),
-                        ),
-                        first: v1::SetUpFirst::Empty(
-                            v1::FirstEmpty::new(
-                                &v1::CEILINGS,
-                                v1::FirstEmptyParts {
-                                    playground: false,
-                                    sample: true,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .expect("record within schema ceilings"),
-            ),
-        },
-    )
-    .expect("record within schema ceilings")
-=======
     v1::Requesting {
         request: v1::Request::SetUp(v1::SetUp {
             forge: v1::Making::Kept(v1::Kept { forge: 3 }),
             first: v1::SetUpFirst::Empty(v1::FirstEmpty {
                 playground: false,
+                sample: true,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             }),
         }),
     }
->>>>>>> refs/hand6/10247
 }
 
 #[test]
