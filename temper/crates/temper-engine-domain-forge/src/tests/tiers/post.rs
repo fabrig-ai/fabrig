@@ -127,6 +127,75 @@ fn verdict_posts_use_logged_or_live_members_and_skip_refusals() {
 }
 
 #[test]
+fn many_comments_resume_with_the_same_words_and_keys() {
+    let mut d = reports::one();
+    for (task, pull) in [(CHANGE, PULL), (CHANGE + 1, PULL + 1)] {
+        let mut change = fixtures::opening_row();
+        change.task = task;
+        change.pull = Some(pull);
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
+    }
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Verification(Verification {
+                repository: REPO,
+                commit: NEXT_TIP,
+                changes: Box::new([CHANGE, CHANGE + 1]),
+                tiers: Box::new([TierVerification { tier: TIER.into(), verdict: None, repaired: None }]),
+            }),
+        },
+    );
+    completed(&mut d, api::Conclusion::Failure, Some(1));
+    reports::report(&mut d, b"alpha\nbeta\npartial", true);
+    tier_step(&mut d, RELEASE, false);
+    made(&mut d, RELEASE, skein_forge_client::Made::Set);
+    tier_step(&mut d, RELEASE + 1, false);
+    if row(&d).posting.is_none() {
+        let owner = *d.tier_ops.reads.iter().next().unwrap().0;
+        crate::tiers::answered(&mut d, &env(), owner, Err(api::Error::Missing), &mut Queue::uncapped());
+        tier_step(&mut d, RELEASE + 2, false);
+    }
+    tier_step(&mut d, STATUS, false);
+    made(&mut d, STATUS, skein_forge_client::Made::Set);
+    tier_step(&mut d, COMMENT, false);
+    let api::Write::Post { body, key, .. } = d.describe_tier_effect(TIER_TASK, COMMENT).unwrap().2.effect.write else {
+        panic!("first comment")
+    };
+    assert_eq!(body.as_ref(), b"Red: browser run 1 blames this landing for many tests; its report names alpha, beta, and more, its report cut at the read's bound.\n\nRun: https://forge.example/run/71");
+    assert_eq!(
+        key,
+        purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 7, part: 0 }
+            .key(&d.namespace, LIMITS.client.op_bytes)
+            .unwrap()
+    );
+    made(&mut d, COMMENT, skein_forge_client::Made::Commented(1));
+    let saved = row(&d).clone();
+    tier_step(&mut d, COMMENT + 1, false);
+    let expected = d.describe_tier_effect(TIER_TASK, COMMENT + 1).unwrap().2.effect.write;
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    tier_step(&mut cold, COMMENT + 1, false);
+    let actual = cold.describe_tier_effect(TIER_TASK, COMMENT + 1).unwrap().2.effect.write;
+    assert_eq!(actual, expected);
+    let api::Write::Post { number, body: next_body, key, .. } = actual else { panic!("remaining comment") };
+    assert_eq!(number, PULL + 1);
+    assert_eq!(next_body, body);
+    assert_eq!(
+        key,
+        purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 7, part: 1 }
+            .key(&cold.namespace, LIMITS.client.op_bytes)
+            .unwrap()
+    );
+    made(&mut cold, COMMENT + 1, skein_forge_client::Made::Commented(2));
+    let out = tier_step(&mut cold, COMMENT + 2, false);
+    let Some(TierDecision::Done { words }) = choice(&out) else { panic!("completed report") };
+    assert!(words.ends_with(b"Its report names: \"alpha\", \"beta\" and more, its report cut at the read's bound."));
+}
+
+#[test]
 fn goal_and_dropped_runs_post_nothing() {
     for goal in [false, true] {
         let mut d = dispatched();

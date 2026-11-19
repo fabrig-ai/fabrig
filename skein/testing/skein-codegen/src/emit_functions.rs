@@ -31,6 +31,15 @@ impl Method {
     pub fn new(name: &'static str, signature: &str, tail: &str) -> Self {
         Self { name, head: vec![signature.into()], body: Vec::new(), tail: Tail::Line(tail.into()) }
     }
+
+    pub(crate) fn splits(&self) -> bool {
+        self.head
+            .iter()
+            .chain(self.body.iter().map(|statement| &statement.text))
+            .map(|text| text.lines().count())
+            .sum::<usize>()
+            >= 98
+    }
 }
 
 fn helper(
@@ -106,13 +115,7 @@ pub(crate) fn pack_dispatches(source: String, marker: &str) -> String {
 /// Renders a field's operations together; a split never crosses a field boundary.
 pub(crate) fn render(record: &Record, method: &Method, out: &mut String, helpers: &mut String) {
     let mut function = String::new();
-    let lines = method
-        .head
-        .iter()
-        .chain(method.body.iter().map(|statement| &statement.text))
-        .map(|text| text.lines().count())
-        .sum::<usize>();
-    let split = lines >= 98;
+    let split = method.splits();
     for head in &method.head {
         if split && method.name == "decode_from" {
             function.push_str(&head.replace("_limits:", "limits:"));

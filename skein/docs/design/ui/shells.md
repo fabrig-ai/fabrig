@@ -53,7 +53,7 @@ The page part keeps the full mapping (web/elements.md); in brief:
 | disclosure, dialog | `<details>` with `<summary>`; `<dialog>`, shown modal |
 | status, alert, log | `role="status"`, `role="alert"`, `role="log"` |
 | tree, tree item, tabs, tab | `role="tree"`, `role="treeitem"`, `role="tablist"`, `<a role="tab">` |
-| progress, time | `role="progressbar"`, `<time>` |
+| progress, meter, time | `role="progressbar"`, `role="meter"`, `<time>` |
 | code, quote, separator, figure | `<pre><code>`, `<blockquote>`, `<hr>`, `<figure>` |
 | image; drawing | `<img src alt>`; `<figure>`: the scene's SVG hidden from assistive technology, then the fallback |
 
@@ -65,6 +65,7 @@ The page part keeps the full mapping (web/elements.md); in brief:
 | completed | the page part's word, last in the item, hidden from sight and read (web/elements.md) |
 | continues, an end request | nothing of their own: the page part reads them (web/README.md, section 5) |
 | folds away | `data-folds-away` on the `<details>`, read by the page part (web/README.md, section 5) |
+| shown folded | nothing of its own: the child's element in the `<summary>` (web/elements.md) |
 | to log end | `data-to-log-end` on the `<button>`, read by the page part (web/README.md, section 5) |
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
 | a placeholder | `placeholder` |
@@ -104,6 +105,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | status, alert, log | `.staticText` | a label; the shell posts `UIAccessibility.Notification.announcement` with its new words |
 | tabs, tab | `.button`, `.selected` while current | `UISegmentedControl`; `Picker` with `.segmented` |
 | progress | `.updatesFrequently` | `UIProgressView`; `ProgressView` |
+| meter | `.staticText`, its text as `accessibilityValue` | `UIProgressView`; `Gauge` |
 | separator | not an element | `Divider` |
 | image | `.image` | `UIImageView`; `Image`, `AsyncImage` for an address |
 | drawing | the scene hidden, the fallback read | Core Graphics, or `Canvas` with `.accessibilityChildren` holding the fallback |
@@ -113,6 +115,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | disabled | `.notEnabled`; `isEnabled`; `.disabled(true)` |
 | current, selected; pressed | `.selected`; a switch's `isOn`, a button's `.selected` |
 | expanded, busy, required, completed, a sort | the shell says it in `accessibilityValue`, in its phrasebook's words |
+| shown folded | in a `DisclosureGroup`'s label, after its name and description, folded or not |
 | invalid | the description in `accessibilityHint`, and words in `accessibilityValue` |
 | submits on enter | `returnKeyType = .send`; `.submitLabel(.send)` |
 | a name, a description | `accessibilityLabel`; `accessibilityHint` |
@@ -127,7 +130,7 @@ vocabulary maps, not how such a shell is built. Traits are
 | a shortcut | `UIKeyCommand` with `.command` or `.alternate`; `.keyboardShortcut(_:modifiers:)` |
 | Escape | `accessibilityPerformEscape()` on the dialog's view, `UIKeyCommand.inputEscape`; `.accessibilityAction(.escape)`, `.keyboardShortcut(.cancelAction)` |
 | a source | a picture from the application's assets (`UIImage(named:)`); an address the shell loads |
-| a fraction | `UIProgressView.progress` from done over total, its text as `accessibilityValue`; `ProgressView(value:total:)`; with none, the indeterminate view |
+| a fraction | `UIProgressView.progress` from done over total, its text as `accessibilityValue`; `ProgressView(value:total:)`, a meter's `Gauge(value:in:)`; with none, a progress's indeterminate view |
 
 **What an iOS shell does itself:** its layout; its navigation chrome
 (what the banner and navigation hold placed in a navigation bar or a tab
@@ -164,6 +167,7 @@ semantics.
 | status, log; alert | `setLiveRegion`, polite; assertive | `liveRegion = LiveRegionMode.Polite`; `Assertive` |
 | tabs, tab | `TabLayout` and its tabs | `TabRow`, `Tab`, `Role.Tab` |
 | progress | `ProgressBar`, `RangeInfo` | `progressBarRangeInfo` |
+| meter | `ProgressBar`, `RangeInfo` of `RANGE_TYPE_FLOAT`, never indeterminate | `progressBarRangeInfo` |
 | separator | not a node | `HorizontalDivider` |
 | image | `ImageView`, `setContentDescription` | `Image(contentDescription = …)`, `Role.Image` |
 | drawing | a View drawing the scene on `android.graphics.Canvas`, the fallback as virtual nodes (`ExploreByTouchHelper`) | `Canvas` with `clearAndSetSemantics`, the fallback's nodes beside it |
@@ -172,6 +176,7 @@ semantics.
 |---|---|---|
 | disabled | `setEnabled(false)` | `disabled()` |
 | expanded | `ACTION_COLLAPSE` offered, else `ACTION_EXPAND` | `collapse`, else `expand` |
+| shown folded | in the disclosure's head row, after its name and description, folded or not | the same, in the head's composable |
 | busy, required, completed, a sort | `setStateDescription`, in its phrasebook's words | `stateDescription` |
 | current, selected; pressed | `setSelected(true)`; `setCheckable(true)`, `setChecked(true)` | `selected = true`; `toggleableState = ToggleableState.On` |
 | invalid | `setContentInvalid(true)`, `setError(description)` | `error(description)` |
@@ -188,7 +193,7 @@ semantics.
 | a shortcut | `onKeyShortcut` | `Modifier.onKeyEvent` |
 | Escape | the back gesture (`OnBackPressedDispatcher`); a dialog's dismissal | `BackHandler`; `Dialog(onDismissRequest = …)` |
 | a source | a picture from the application's resources; an address the shell loads | `painterResource`; the shell's loader |
-| a fraction | `RangeInfo` of a float range, 0 to 1, from done over total, and `ProgressBar`'s own scaled to its integer range; its text by `setStateDescription`; with none, the indeterminate view | `progressBarRangeInfo` of the same range; `stateDescription` |
+| a fraction | `RangeInfo` of a float range, 0 to 1, from done over total, and `ProgressBar`'s own scaled to its integer range; its text by `setStateDescription`; with none, a progress's indeterminate view | `progressBarRangeInfo` of the same range; `stateDescription` |
 
 **What an Android shell does itself:** its layout; its navigation chrome
 (a top app bar, a navigation bar or rail, a back stack made from

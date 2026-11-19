@@ -1072,7 +1072,7 @@ impl DeliveryIntent {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_directories = { let count = match skein_codec::read_count(reader, limits.delivery_intent_directories.min(CEILINGS.delivery_intent_directories)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DeliveryIntentDirectories, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::DeliveryIntentDirectories, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = IntentDirectory::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_directories = { let count = match skein_codec::read_count(reader, limits.delivery_intent_directories.min(CEILINGS.delivery_intent_directories)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DeliveryIntentDirectories, reason }), }; if count > reader.remaining() / 7 { return Err(Problem { path: Path::DeliveryIntentDirectories, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = IntentDirectory::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { directories: decoded_directories })
     }
 }
@@ -1326,7 +1326,7 @@ impl Delivered {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_receipts = { let count = match skein_codec::read_count(reader, limits.delivered_receipts.min(CEILINGS.delivered_receipts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DeliveredReceipts, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::DeliveredReceipts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Receipt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_receipts = { let count = match skein_codec::read_count(reader, limits.delivered_receipts.min(CEILINGS.delivered_receipts)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DeliveredReceipts, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::DeliveredReceipts, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Receipt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { receipts: decoded_receipts })
     }
 }
@@ -2346,7 +2346,7 @@ impl Delivery {
         if version != VERSION { return Err(Problem { path: Path::DeliveryVersion, reason: skein_codec::Reason::Version }); }
         let decoded_name = CallName::decode_from(limits, reader)?;
         let decoded_state = DeliveryState::decode_from(limits, reader)?;
-        let decoded_landed = { let count = match skein_codec::read_count(reader, limits.delivery_landed.min(CEILINGS.delivery_landed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DeliveryLanded, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::DeliveryLanded, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = Receipt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_landed = { let count = match skein_codec::read_count(reader, limits.delivery_landed.min(CEILINGS.delivery_landed)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::DeliveryLanded, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::DeliveryLanded, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Receipt::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { name: decoded_name, state: decoded_state, landed: decoded_landed })
     }
 }

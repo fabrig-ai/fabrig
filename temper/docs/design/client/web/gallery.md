@@ -234,6 +234,11 @@ from the engine's own answers, is where the look is tuned.
 | `accounts-signing-in` | the reference world's accounts, a row's sign-in under way with its field for the page's address |
 | `accounts-try-stopped` | a failed trial under an account's head and before Sources, its why and Try again; Sign in again goes to Connect a model |
 | `accounts-program-needs-sign-in` | the solo world's accounts: a program's login not signed in on its host, with "Check again" |
+| `accounts-shared` | two accounts of one person, each paying for 11 people: "Ready · Pays for 11 people" folded; opened, "Pays for Ana, Ben, … and Kai.", one person "Person N" with no read naming them (`../pages/accounts.md`, 2, *An account's line*) |
+| `accounts-usage` | a Claude subscription with its week's window alone: "Week", 29%, "resets in 4 d 14 h · 2.0%/h · full in 1 d 11 h" (`../pages/accounts.md`, 2, *Usage*) |
+| `accounts-usage-filling` | a Claude subscription whose 5-hour window would fill before its reset, "full in" amber, above its week at 83%, its bar amber |
+| `accounts-usage-calm` | a week lasting to its reset, "about 59% at reset", and a 5-hour window that won't fill, not drawn |
+| `accounts-usage-limited` | a limited window: its bar red and whole, "resets in" alone |
 | `builders` | the Builders tab, its hosts connected, draining and not connected |
 | `builders-not-owner` | the Builders tab for a person with no role in the deployment |
 | `builders-none` | the Builders tab with no host connected |

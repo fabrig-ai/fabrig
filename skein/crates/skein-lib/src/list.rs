@@ -1,7 +1,7 @@
 //! Bounded sequences (skein/docs/design/runtime/lib.md, 5): what a step appends to,
-//! growing as they fill under a cap.
+//! growing as they fill under a cap, or allocated once at that cap.
 
-#![expect(clippy::disallowed_types, reason = "a list is a Vec grown exactly as it fills, never past its cap")]
+#![expect(clippy::disallowed_types, reason = "a list is a Vec allocated once or grown as it fills, never past its cap")]
 
 use alloc::boxed::Box;
 use alloc::vec::Vec;
@@ -12,7 +12,7 @@ use core::slice;
 use crate::growth::grown;
 
 /// A sequence that grows up to its capacity, and refuses
-/// past it. It allocates as it fills, never past its capacity and never shrinking.
+/// past it. It allocates as it fills or once at its capacity, never shrinking.
 #[derive(Debug)]
 pub struct List<T> {
     items: Vec<T>,
@@ -23,6 +23,12 @@ impl<T> List<T> {
     #[must_use]
     pub fn with_capacity(capacity: u32) -> List<T> {
         List { items: Vec::new(), capacity }
+    }
+
+    /// Allocates storage once at its capacity. Pushing never grows it.
+    #[must_use]
+    pub fn allocated(capacity: u32) -> List<T> {
+        List { items: Vec::with_capacity(crate::usize_of(capacity)), capacity }
     }
 
     /// Owned items moved into a list whose capacity is their count.
@@ -158,6 +164,28 @@ impl<T> List<T> {
         T: Clone,
     {
         Box::from(self.items.as_slice())
+    }
+}
+
+impl<T: Copy> List<T> {
+    /// Appends a copy of an existing range, or refuses without changing the
+    /// list when the range is absent or its copy would exceed the capacity.
+    pub fn extend_from_within(&mut self, range: core::ops::Range<u32>) -> Option<()> {
+        let start = crate::usize_of(range.start);
+        let end = crate::usize_of(range.end);
+        let count = self.items.get(start..end)?.len();
+        let len = self.items.len();
+        let needed = len.checked_add(count)?;
+        let cap = crate::usize_of(self.capacity);
+        if needed > cap {
+            return None;
+        }
+        if needed > self.items.capacity() {
+            let additional = grown(len, needed, cap).checked_sub(len).expect("room for the copied range");
+            self.items.reserve_exact(additional);
+        }
+        self.items.extend_from_within(start..end);
+        Some(())
     }
 }
 

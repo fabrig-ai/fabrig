@@ -1,6 +1,8 @@
 # ui-text: status
 
-2026-11-14. Where skein's code lags or departs from [text.md](text.md).
+2026-11-19. Where skein's code lags or departs from [text.md](text.md).
+
+No gap.
 
 Section 5 prints once a `NAME:` line that the nearest ancestor
 printing such a line printed, and its readers' goldens, skein's, jig's

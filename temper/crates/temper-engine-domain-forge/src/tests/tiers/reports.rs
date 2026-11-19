@@ -23,7 +23,7 @@ fn range(landings: Box<[p::Landing]>) -> Domain {
     made(&mut d, DISPATCH, skein_forge_client::Made::Set);
     d
 }
-fn one() -> Domain {
+pub(super) fn one() -> Domain {
     range(Box::new([p::Landing { commit: NEXT_TIP, key: NEXT_TIP }]))
 }
 fn three() -> Domain {
@@ -33,7 +33,7 @@ fn three() -> Domain {
         p::Landing { commit: LAST_TIP, key: LAST_TIP },
     ]))
 }
-fn report(d: &mut Domain, bytes: &[u8], truncated: bool) {
+pub(super) fn report(d: &mut Domain, bytes: &[u8], truncated: bool) {
     answer(
         d,
         api::Answer::File {
@@ -385,6 +385,44 @@ fn a_missing_probe_workflow_names_the_probes_commit_when_held() {
     assert_eq!(skein_lib::bytes::count(&words, &line, 4), 3);
     assert_eq!(row(&d).record.run.as_ref().unwrap().tip, LAST_TIP);
 }
+#[test]
+fn a_many_probe_or_rerun_does_not_supply_names() {
+    for probe in [false, true] {
+        let mut d = if probe {
+            let mut d = three();
+            confirmed(&mut d);
+            send(&mut d, PROBE_OPEN);
+            send(&mut d, PROBE_DISPATCH);
+            completed(&mut d, api::Conclusion::Failure, Some(1));
+            d
+        } else {
+            failed_rerun()
+        };
+        report(&mut d, b"a\nb\npartial", true);
+        assert_eq!(row(&d).many, None);
+    }
+}
+
+#[test]
+fn whole_names_survive_a_probe_and_restart() {
+    let mut d = three();
+    completed(&mut d, api::Conclusion::Failure, Some(1));
+    report(&mut d, b"z\na\npartial", true);
+    let names =
+        Some(p::ManyTests { tests: Box::new([b"a".as_slice().into(), b"z".as_slice().into()]), more: 0, cut: true });
+    assert_eq!(row(&d).many, names);
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(row(&d).clone()) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    assert_eq!(row(&cold).many, names);
+    send(&mut cold, PROBE_OPEN);
+    send(&mut cold, PROBE_DISPATCH);
+    completed(&mut cold, api::Conclusion::Failure, Some(1));
+    report(&mut cold, b"b\nc\npartial", true);
+    assert_eq!(row(&cold).many, names);
+}
+
 #[test]
 fn many_failures_probe_the_whole_tier() {
     let mut d = three();
