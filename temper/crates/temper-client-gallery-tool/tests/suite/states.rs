@@ -902,7 +902,12 @@ static HOLDS: [Holds; samples::N] = [
             Part::Named { role: Role::Text, name: "on Hello" },
             Part::GroupLines {
                 name: "Agents decide, then tell you",
-                lines: &["wording and names inside a spec", "retrying or splitting a task", "test-only changes"],
+                lines: &[
+                    "wording and names inside a spec",
+                    "retrying or splitting a task",
+                    "test-only changes",
+                    "starting work on findings: a goal for them, the backlog or a hand-off under “a repair goal for a routine red after landing”",
+                ],
             },
             Part::GroupLines {
                 name: "Asks you",
