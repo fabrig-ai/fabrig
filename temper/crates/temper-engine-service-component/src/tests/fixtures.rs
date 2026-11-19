@@ -3,6 +3,7 @@ use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant};
 use skein_lib::{Secret, Token};
 use temper_protocol_records_forge as forge_records;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;

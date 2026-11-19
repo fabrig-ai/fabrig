@@ -16,7 +16,8 @@ mod generated {
 pub use generated::v1;
 
 use alloc::boxed::Box;
-use skein_lib::{Secret, Writer};
+use skein_lib::Secret;
+use v1::Record;
 
 /// Domain bounds shared by both sides of the channel (protocol/channel.md,
 /// section 8).
@@ -121,49 +122,37 @@ fn narrow(bytes: u64) -> Option<u32> {
 /// Encode Items into exactly its measured room.
 #[must_use]
 pub fn items(value: &v1::Items) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode Left into exactly its measured room.
 #[must_use]
 pub fn left(value: &v1::Left) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode Saved into exactly its measured room.
 #[must_use]
 pub fn saved(value: &v1::Saved) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode Preparation into exactly its measured room.
 #[must_use]
 pub fn preparation(value: &v1::Preparation) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode an Ask into exactly its measured room.
 #[must_use]
 pub fn ask(value: &v1::Ask) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Encode an Answer into exactly its measured room.
 #[must_use]
 pub fn answer(value: &v1::Answer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    writer.finish()
+    value.encode(&v1::CEILINGS).expect("application value within ceilings")
 }
 
 /// Commit lengths admitted by the application (domain/forge/reds.md, 5.4 and 5.6).
@@ -175,20 +164,18 @@ pub fn red_head(head: &[u8]) -> bool {
 /// Encode an identity directly into a secret (protocol/channel.md, section 6).
 #[must_use]
 pub fn identity(value: &v1::Identity) -> Secret {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length fits usize"));
-    value.encode(&mut writer).expect("measured room");
-    Secret::new(writer.finish())
+    Secret::new(value.encode(&v1::CEILINGS).expect("identity within ceilings"))
 }
 
 /// Check configuration's login and author rules (protocol/channel.md, section 6).
 #[must_use]
 pub fn valid(identity: &v1::Identity) -> bool {
-    for byte in identity.login() {
+    for byte in &identity.login {
         if *byte == b':' || byte.is_ascii_control() {
             return false;
         }
     }
-    author(identity.name()) && author(identity.email())
+    author(&identity.name) && author(&identity.email)
 }
 
 fn author(text: &[u8]) -> bool {

@@ -3,6 +3,7 @@ use crate::worker_settings;
 use skein_io as io;
 use skein_lib::{Token, Wall};
 use temper_protocol_worker_wire::v1;
+use temper_protocol_worker_wire::v1::Record;
 #[test]
 fn the_workers_credential_uses_the_engines_table_entry() {
     let settings = fixtures::worker_settings();

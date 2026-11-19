@@ -78,17 +78,7 @@ fn announce(engine: &mut Engine, forge: u16) {
     state.made.truncate(0);
     for (_, entry) in &state.entries {
         entries
-            .push(
-                v1::Entry::new(
-                    limits,
-                    v1::EntryParts {
-                        account: entry.account,
-                        account_login: entry.login.clone(),
-                        token: entry.token.clone(),
-                    },
-                )
-                .expect("component entry fits wire limits"),
-            )
+            .push(v1::Entry { account: entry.account, account_login: entry.login.clone(), token: entry.token.clone() })
             .expect("bounded entries");
         state.made.push((entry.login.clone(), entry.account)).expect("bounded entries");
         expires = Some(match expires {

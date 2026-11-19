@@ -16,6 +16,7 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
@@ -2002,8 +2003,8 @@ impl World {
             &mut skein_lib::Reader::new(&spec),
         )
         .expect("prepare spec");
-        assert_eq!(spec.command(), b"");
-        let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+        assert_eq!(spec.command.as_ref(), b"");
+        let request: serde_json::Value = serde_json::from_slice(&spec.request).expect("prepare request");
         let engine::ForgeStart::Commit(from) = item.start else { panic!("immutable stack start") };
         assert_eq!(request["from"], String::from_utf8(engine::commit_text(&from).into_vec()).expect("from hex"));
         let mut base = fake::commit_count(&from).expect("fake base");

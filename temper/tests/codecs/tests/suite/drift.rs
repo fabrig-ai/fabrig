@@ -1,5 +1,5 @@
 //! The committed records and pinned constructs against their schemas (skein's data/codec/README.md, 6).
-use skein_codegen::{generate, values};
+use skein_codegen::{form_of, generate_as, values};
 use std::fs;
 use std::path::Path;
 
@@ -7,7 +7,9 @@ fn schema_matches(codec_crate: &str, family: &str, module: &str, source: &'stati
     let crates = skein_scratch::paths::tree().join("crates");
     let unpinned = skein_codegen::unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "{family}: unpinned constructs: {unpinned:?}");
-    let output = generate(&values(source).schema);
+    let schema = &values(source).schema;
+    let form = form_of(&crates.join(codec_crate).join("schema"), &schema.family).expect("clean family form");
+    let output = generate_as(schema, form);
     let code = crates.join(codec_crate).join("src/generated").join(format!("{module}.rs"));
     check_text(&code, &output.records, temper_test_env::rewrite());
 }
