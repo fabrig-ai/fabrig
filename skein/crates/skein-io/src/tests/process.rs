@@ -9,6 +9,7 @@ use crate::{Event, Limits, Request};
 
 pub(super) fn command(pipes: &[(u32, Way)]) -> Spawn {
     Spawn {
+        reach: None,
         program: Box::from(&b"/bin/true"[..]),
         args: Box::default(),
         env: Box::default(),

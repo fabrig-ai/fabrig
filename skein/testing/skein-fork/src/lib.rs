@@ -1,7 +1,9 @@
 //! A sweep holds its prefix once (`skein/docs/design/testing/README.md`, 6).
 mod process;
 
-pub use process::{passed, split};
+#[cfg(target_os = "linux")]
+pub use process::signal_parent;
+pub use process::{inherit, passed, split};
 
 /// How a forked child ended.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]

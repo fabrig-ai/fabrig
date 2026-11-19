@@ -2,8 +2,9 @@
 //! (skein/docs/foundation/programming-model.md, 2): the dev profile unwinds, so a panic aborts
 //! a process only once the hook is in. The check asks `cargo metadata` for the workspace's
 //! bin targets, wherever cargo finds them, and reads each one's source: in each `fn main()`,
-//! only white space, `//` comments and `use` and `const` items may come before
-//! `skein_fail_stop::install();`. A source with no `fn main()` breaches it. A source it cannot
+//! only white space, `//` comments, `use` and `const` items and the helper's
+//! first-line dispatch may come before `skein_fail_stop::install();`
+//! (skein/docs/design/runtime/shell.md, 6.4). A source with no `fn main()` breaches it. A source it cannot
 //! read and metadata it does not read are failures, never skips.
 
 use std::fs;
@@ -84,8 +85,17 @@ fn hook_first(mut source: &str) -> bool {
     let mut prefix = true;
     let mut comment = false;
     let mut item = false;
+    let mut dispatched = false;
     while let Some(ch) = source.chars().next() {
         prefix |= comment;
+        if prefix
+            && !dispatched
+            && let Some(rest) = source.strip_prefix("skein_shell::helper::dispatch();")
+        {
+            dispatched = true;
+            source = rest;
+            continue;
+        }
         if prefix && source.starts_with("skein_fail_stop::install();") {
             return true;
         }
@@ -183,6 +193,10 @@ fn a_main_that_does_anything_first_is_a_breach() {
         "fn main() { /* comment */ skein_fail_stop::install(); }",
         "fn main() { useful(); skein_fail_stop::install(); }",
         "fn main() { constant(); skein_fail_stop::install(); }",
+        "fn main() { skein_shell::helper::dispatch(); }",
+        "fn main() { useful(); skein_shell::helper::dispatch(); skein_fail_stop::install(); }",
+        "fn main() { skein_shell::helper::dispatch(); skein_shell::helper::dispatch(); skein_fail_stop::install(); }",
+        "fn main() { skein_shell::helper::dispatch(); useful(); skein_fail_stop::install(); }",
         "fn main() { use x }",
         "fn main () { skein_fail_stop::install(); }",
         "xfn main() { skein_fail_stop::install(); }",
@@ -196,9 +210,10 @@ fn a_main_that_does_anything_first_is_a_breach() {
 }
 
 #[test]
-fn only_use_const_and_comments_may_come_first() {
+fn only_startup_items_and_helper_dispatch_may_come_first() {
     for source in [
         "fn main() { skein_fail_stop::install(); }",
+        "fn main() { skein_shell::helper::dispatch(); skein_fail_stop::install(); }",
         "fn main() -> ExitCode { skein_fail_stop::install(); }",
         "fn main() { use\n crate::{\n A, B\n }; skein_fail_stop::install(); }",
         "fn main() { const X: u8 = 1; skein_fail_stop::install(); }",

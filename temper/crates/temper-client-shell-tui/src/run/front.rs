@@ -122,6 +122,7 @@ impl Child {
             }
         };
         Spawn {
+            reach: None,
             program,
             args: args.into(),
             env: self.settings.environment.clone(),
@@ -141,6 +142,7 @@ impl Child {
         args.extend(self.settings.directories.flags());
         args.push(name.into());
         Some(Spawn {
+            reach: None,
             program,
             args: args.into(),
             env: self.settings.environment.clone(),

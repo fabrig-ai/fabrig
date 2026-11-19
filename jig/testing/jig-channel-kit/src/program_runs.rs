@@ -208,6 +208,7 @@ pub(crate) fn claude(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
 // The hosted fake sees the fixture's absolute path for its descriptor-relative cwd.
 pub(crate) fn claude_launch(spawn: &kernel::Spawn) -> kernel::Spawn {
     kernel::Spawn {
+        reach: None,
         program: spawn.program.clone(),
         args: spawn.args.clone(),
         env: spawn.env.clone(),

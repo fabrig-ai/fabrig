@@ -287,6 +287,7 @@ impl Parent {
             State::Spawn => match self.invocations.front() {
                 Some(invocation) => Op::Spawn {
                     spawn: Box::new(Spawn {
+                        reach: None,
                         program: b"claude".as_slice().into(),
                         args: invocation.args.iter().map(|arg| arg.as_bytes().into()).collect(),
                         env: invocation.env.iter().map(|entry| entry.as_bytes().into()).collect(),

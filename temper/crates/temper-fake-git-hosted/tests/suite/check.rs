@@ -157,6 +157,7 @@ mod core {
         ];
         for (args, env, rule) in rows {
             let spawn = k::Spawn {
+                reach: None,
                 program: b"/git".as_slice().into(),
                 args,
                 env,

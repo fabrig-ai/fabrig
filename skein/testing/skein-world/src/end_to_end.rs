@@ -283,6 +283,7 @@ impl Binary {
         }
         pipes.push(Pipe { child: 2, way: Way::Out, parent: None });
         let mut spawn = Spawn {
+            reach: None,
             root,
             dir: Box::from([]),
             program: Box::from(command.program.as_os_str().as_bytes()),

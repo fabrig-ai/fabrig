@@ -7,6 +7,7 @@ mod digest;
 mod locks;
 mod moves;
 mod opens;
+mod reach;
 
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -285,6 +286,7 @@ pub struct Machine {
     top: NodeId,
     owner: u32,
     roots: u32,
+    landlock: crate::Landlock,
 }
 
 impl Default for Machine {
@@ -323,6 +325,7 @@ impl Machine {
             top: 0,
             owner: effective_user,
             roots: 0,
+            landlock: crate::Landlock::Abi(6),
         }
     }
 
@@ -739,6 +742,18 @@ impl Machine {
         no_follow: bool,
         path_only: bool,
     ) -> Result<Found, Refusal> {
+        self.resolve_at(root, root, path, create, no_follow, path_only)
+    }
+
+    fn resolve_at(
+        &self,
+        root: NodeId,
+        start: NodeId,
+        path: &[u8],
+        create: bool,
+        no_follow: bool,
+        path_only: bool,
+    ) -> Result<Found, Refusal> {
         if path.is_empty() {
             return Err(Refusal::NotFound);
         }
@@ -753,7 +768,7 @@ impl Machine {
         }
         let mut slash = path.last() == Some(&b'/');
         let mut todo = components(path);
-        let mut dir = root;
+        let mut dir = start;
         let mut links = 0_u32;
         while let Some(name) = todo.pop_front() {
             let last = todo.is_empty();

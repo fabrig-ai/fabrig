@@ -15,6 +15,16 @@ fn check(story: Story) {
 }
 
 #[test]
+fn a_reached_probe_reports_its_denial_through_io() {
+    check(Story::Reach);
+}
+
+#[test]
+fn an_unenforced_reach_fails_then_closes_its_owner() {
+    check(Story::ReachAbsent);
+}
+
+#[test]
 fn a_descendant_holding_the_pipe_ends_with_a_signal_to_the_group() {
     check(Story::SignalRunning);
 }

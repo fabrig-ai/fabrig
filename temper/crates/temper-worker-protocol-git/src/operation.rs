@@ -112,6 +112,7 @@ impl Operation {
             io::Request::Spawn {
                 owner: io_owner,
                 spawn: kernel::Spawn {
+                    reach: None,
                     program: Box::from(self.program(settings).expect("program checked before spawning")),
                     args: invocation::arguments(&self.command),
                     env: invocation::environment_for(&settings.home, kind, self.identity.as_ref(), credentials),
