@@ -804,8 +804,17 @@ pub struct Hold {
     pub writer: Option<Writer>,
     /// Runs writing design beside the slot (domain/forge/branches.md, 3).
     pub design_writers: Box<[DesignWriter]>,
+    /// A design head recorded beside another write, and that write waiting on ancestry.
+    pub beside: Option<HeadBeside>,
     /// Last outside change requiring a person to release this hold.
     pub drift: Option<Drift>,
+}
+
+/// Heads ordered by containment before a late write is recorded (domain/forge/branches.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct HeadBeside {
+    pub head: skein_forge::api::Commit,
+    pub waiting: Option<skein_forge::api::Commit>,
 }
 
 /// An outside change and its observation time, retained with the affected hold.
