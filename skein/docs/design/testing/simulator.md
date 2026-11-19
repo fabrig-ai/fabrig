@@ -251,6 +251,17 @@ environment, which the machine plays.
   it at a chosen stage, `Ids`, `Namespaces`, `View` or `Command`: the
   spawn answers `Spawned` with a report, which then reads that stage and
   an error the world chose, and the child exits with it.
+- **A spawn with a reach** (../runtime/io/processes.md, 6) goes to the
+  machine as any spawn, its reach in the call with each rule's root
+  translated to the machine's handle, as the spawn's own root is:
+  `Ask::Spawn`'s `reach: Option<Box<machine::Reach>>`, where
+  `machine::Reach { abi: u32, rules: Box<[machine::Rule]> }` and
+  `machine::Rule { root: Handle, path: Box<[u8]>, rights: Rights }`, the
+  kernel's `Reach` seen from the machine. The machine refuses it as Linux
+  would, its answer then the spawn's error (`Reach(Unenforced)`), or runs
+  it restricted (README.md, 4); the simulator plays no
+  Landlock of its own. A world-hosted service spawned with a reach runs
+  unrestricted, and the world reads the reach in the call.
 
 ## 4. Faults
 

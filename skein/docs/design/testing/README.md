@@ -85,7 +85,9 @@ worlds need a minimal one:
 
 - a few files beneath a root;
 - a program that echoes its input, one that exits with a given status,
-  and one that never exits.
+  and one that never exits;
+- for a spawn's reach, the probe, which reports from inside a tree what
+  the tree may reach.
 
 It stays that small. A service's fake machine is the service's, built
 on it or beside it.
@@ -116,12 +118,73 @@ such as hearth's, holds that machine to those scenarios itself.
 
 For trees (../runtime/io/processes.md, 2 to 4; simulator.md, 3.4) its programs add: one
 that starts a descendant which leaves its group (`setsid`) and outlives
-it; one that forks a child each time it is signalled; and, on the ring,
-one that writes what it finds of itself, its ids and groups, its
-hostname, its network's interfaces, the processes in its `/proc`, its
-`no_new_privs`, its rlimits, and whether chosen paths can be read and
-written, so that a conformance scenario checks a contained tree from
+it; one that forks a child each time it is signalled; and the probe,
+which for a contained tree, on the ring, also writes its ids and groups,
+its hostname, its network's interfaces, the processes in its `/proc` and
+its rlimits, so that a conformance scenario checks a contained tree from
 inside it (conformance.md, 1).
+
+**The probe,** for a spawn's reach (../runtime/io/processes.md, 6), is
+the machine's program and a fixture of the real suite alike, and answers
+every question a scenario asks in one run. It reports on its output
+pipe, one answer for each question its arguments ask:
+
+- for each path its arguments name, relative to its working directory:
+  whether it can read the file, write it, list the directory and execute
+  the program, each asked by name;
+- its `no_new_privs`;
+- the ids a set-id program it runs has: its own kept, or others gained;
+- whether it can signal its parent;
+- the descriptors it holds;
+- and, asked to nest, the same report from a probe it starts beneath its
+  own reach with a narrower one: a rule relative to its working
+  directory with its rights, plus the machine's rules it was handed to
+  pass on, which on the ring let the nested probe run at all.
+
+An answer is `granted`, or the error the kernel answered (`Permission`,
+`NotFound`, or another by its number). One module,
+`skein_fake_machine::probe`, writes the probe's arguments and reads its
+report; the machine's probe, the real suite's fixture and the scenarios
+(conformance.md, 1) all use it, so the three agree on what was asked and
+answered. On the ring, the fixture is a binary of `tests/conformance/real`
+whose `main` hands its arguments to the helper's dispatch first, so it
+is also the helper (`Kernel::set_helper`) of the spawn that starts it and
+of the one it starts to nest (../runtime/kernel.md, 6.6). The machine
+selects it by its name's last component, `reach_probe`, as it selects its
+other programs.
+
+**The machine honours a reach.** A world sets the machine's Landlock
+(`Machine::set_landlock`, taking `Landlock::Abi(u32)`, `Absent` or
+`Disabled`), ABI 6 unless it says otherwise. A spawn with a reach comes to
+the machine with each rule's root as the machine's handle (simulator.md,
+3.4), and the machine answers it as Linux would:
+
+- **Refused, naming the reach,** as the kernel refuses it, checked in
+  this order: `Absent`; `Disabled`; `Abi { found, needs }`; a rule whose
+  path does not resolve beneath its root, `Rule { index, errno }`, with
+  the error number of the machine's refusal (2 for `NotFound`). Nothing
+  runs.
+- **Otherwise run,** with the reach a layer of the child's: whatever the
+  child starts, the nested probe among them, holds its parent's layers
+  and its own.
+- **What a restricted program reaches:** an access to a node is granted
+  where every layer grants it, on the node or on a directory above it
+  that a rule names, along the node's ancestry beneath its root once its
+  path is resolved, links followed. The lookup's own refusals come
+  first, so a missing name is `NotFound`, as Linux tells; Landlock's
+  denial is `Permission`, and the owner's permissions still apply.
+  Reading a file takes `READ_FILE`; listing a directory, `READ_DIR`;
+  writing a file, `WRITE_FILE`; creating one, `MAKE_REG` on its
+  directory; executing a program, `EXECUTE` and the owner's execute bit.
+- **The rest of a reach:** its `no_new_privs` is set, so a set-id
+  program keeps the probe's ids (the machine keeps no set-id bit and
+  needs none for this); a signal to a process outside the tree, its
+  parent among them, is refused `Permission`; and it holds the
+  descriptors its spawn named and no other.
+- **Only the machine's programs are restricted.** A service the world
+  hosts is not the machine's program: it runs as the simulator plays it,
+  unrestricted, and the reach it was spawned with stays in its spawn's
+  call for the world to check (simulator.md, 3.4).
 
 A separate dependency-free kit, `skein-fake-checkout`, supplies generic
 byte-path files, scripted commands and local git mechanics for domain
