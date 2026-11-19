@@ -849,6 +849,9 @@ apart.
     a branch read point to;
   - Ask temper's `file` with no branch (`../agent/ask-temper.md`, 1),
     a read of the repository as the forge shows it;
+  - `read_forge`'s `branch`, `protection` and `file` with no branch
+    (`../agent/tools.md`, *The forge's reads are three tools*), each
+    read of `settings.default_branch`'s name;
   - a repository's store, a bare clone of the forge's default branch,
     git's `HEAD` (`../../protocol/git.md`, 4.5;
     `../worker/checkouts.md`), from which every checkout then fetches

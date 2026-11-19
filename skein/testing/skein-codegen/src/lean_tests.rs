@@ -1,0 +1,49 @@
+//! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
+
+use crate::{Form, generate, generate_as, parse};
+
+const FIXTURE: &str = "family helper-fixture 7
+record Empty {}
+record Words { words: text 3 }
+enum Choice { unit, words: Words, boxed_words: boxed Words }
+versioned record Row { choice: Choice }
+record Nested {
+    words: list 2 option text 3
+    maybe: option list 2 u16
+    records: list 2 Words
+}
+";
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "reads the fixture rewrite switch SKEIN_CODEGEN_WRITE")]
+fn lean_helper_fixture_has_no_drift() {
+    let schema = parse(FIXTURE).expect("helper schema");
+    let output = generate_as(&schema, Form::Lean);
+    let path = skein_scratch::paths::tree().join("crates/skein-codec/src/tests/lean_fixture.rs");
+    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
+        std::fs::write(&path, &output.records).expect("write helper fixture");
+    }
+    let committed = std::fs::read_to_string(path).expect("helper fixture committed");
+    assert!(committed == output.records, "helper fixture drifted: run this test with SKEIN_CODEGEN_WRITE=1");
+}
+
+#[test]
+fn lean_surface_is_public_and_sealed_generation_is_unchanged() {
+    let schema = parse(FIXTURE).expect("helper schema");
+    assert_eq!(generate_as(&schema, Form::Sealed), generate(&schema));
+    let output = generate_as(&schema, Form::Lean).records;
+    for required in [
+        "pub words: Box<[u8]>",
+        "impl Record for Words",
+        "pub const WORDS_WORDS: Path",
+        "pub use skein_codec::{Path, Problem, Record}",
+        "const TABLE: &[skein_codec::bounds::Node]",
+        "pub fn name(path: Path) -> Option<&'static str>",
+        "Node::List",
+        "size_of::<Words>()",
+    ] {
+        assert!(output.contains(required), "missing lean surface: {required}");
+    }
+    assert!(!output.contains("WordsParts"));
+    assert!(!output.contains("pub fn new"));
+}

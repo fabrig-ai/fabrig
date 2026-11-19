@@ -85,7 +85,7 @@ fn startup_needs_own_models_and_preserve_charter_requirements() {
     config.settings.models = Box::new([scripted_model(), alternative.clone()]);
     config.defaults.charters[0].policy.alternatives = Box::new([alternative]);
     let mut engine = config.defaults.charters[0].clone();
-    engine.number = 73;
+    engine.number = 2;
     engine.hosts = fleet::Kinds::Engine;
     engine.policy.modify = false;
     config.defaults.charters = Box::new([config.defaults.charters[0].clone(), engine]);
@@ -114,7 +114,7 @@ fn startup_needs_own_models_and_preserve_charter_requirements() {
         ]
     );
     let engine = &needs.charters[1];
-    assert_eq!(engine.version, fleet::Version { charter: 73, revision: 1 });
+    assert_eq!(engine.version, fleet::Version { charter: 2, revision: 1 });
     assert_eq!(engine.kinds, fleet::Kinds::Engine);
     assert_eq!(engine.change_reserve, None);
 }

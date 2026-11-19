@@ -121,6 +121,53 @@ fn files(remote: &[u8]) -> Vec<(Vec<u8>, Vec<u8>)> {
         (b"repo/.git/temper-remote".to_vec(), remote.to_vec()),
     ]
 }
+#[test]
+fn a_metadata_command_never_scans_the_worktree_or_unneeded_git_directories() {
+    let mut files = files(REMOTE);
+    files.push((b"repo/untracked/nested/file".to_vec(), b"untracked\n".to_vec()));
+    let mut disk = Disk::new(&files);
+    let mut net = Net::new(vec![]);
+    let remote = b"http://127.0.0.1:4000/acme/app.git";
+    let answer = disk.run(spawn(&Command::Remote { remote: remote.as_slice().into() }), &mut net, b"");
+    assert_eq!(answer, crate::Answer { exit: 0, stdout: vec![], stderr: vec![] });
+    assert_eq!(disk.read(b"repo/.git/temper-remote").as_deref(), Some(remote.as_slice()));
+    assert_eq!(disk.read(b"repo/untracked/nested/file").as_deref(), Some(b"untracked\n".as_slice()));
+    assert_eq!(disk.read(b"repo/.git/objects/1").as_deref(), Some(b"".as_slice()));
+    for path in &disk.opened {
+        assert!(path.starts_with(b"repo/.git"), "metadata command opened {}", String::from_utf8_lossy(path));
+        assert!(!path.starts_with(b"repo/.git/objects"), "remote configuration needs no object scan");
+    }
+}
+
+#[test]
+fn staging_reads_the_worktree_without_scanning_its_object_store() {
+    let mut files = files(REMOTE);
+    files.push((b"repo/new/file".to_vec(), b"new\n".to_vec()));
+    let mut disk = Disk::new(&files);
+    let mut net = Net::new(vec![]);
+    let answer = disk.run(spawn(&Command::Add), &mut net, b"");
+    assert_eq!(answer.exit, 0, "{}", String::from_utf8_lossy(&answer.stderr));
+    assert_eq!(disk.read(b"repo/.git/temper-index/new/file").as_deref(), Some(b"new\n".as_slice()));
+    assert_eq!(disk.read(b"repo/.git/objects/1").as_deref(), Some(b"".as_slice()));
+    assert!(disk.opened.iter().any(|path| path == b"repo/new/file"));
+    assert!(!disk.opened.iter().any(|path| path.starts_with(b"repo/.git/objects")), "staging needs no object scan");
+}
+
+#[test]
+fn a_bare_format_query_leaves_the_object_store_unscanned() {
+    let files = vec![
+        (b"repo/HEAD".to_vec(), b"ref: refs/heads/main\n".to_vec()),
+        (b"repo/object-format".to_vec(), b"sha256\n".to_vec()),
+        (b"repo/objects/1".to_vec(), vec![]),
+    ];
+    let mut disk = Disk::new(&files);
+    let mut net = Net::new(vec![]);
+    let answer = disk.run(spawn(&Command::Format), &mut net, b"");
+    assert_eq!(answer, crate::Answer { exit: 0, stdout: b"sha256\n".to_vec(), stderr: vec![] });
+    assert_eq!(disk.read(b"repo/objects/1").as_deref(), Some(b"".as_slice()));
+    assert!(!disk.opened.iter().any(|path| path.starts_with(b"repo/objects")), "format needs no object scan");
+}
+
 fn object_call(commit: u64) -> Call {
     Call::Objects { commits: Box::new([commit]) }
 }

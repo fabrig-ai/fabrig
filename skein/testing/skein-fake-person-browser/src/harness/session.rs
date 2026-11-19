@@ -29,13 +29,21 @@ pub enum Report {
     Opened,
     BrowserClosed,
     Page { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
+    Sent { id: Box<[u8]>, load: Box<[u8]>, document: bool, method: Box<[u8]>, url: Box<[u8]> },
+    Answered { id: Box<[u8]> },
     Trouble(String),
 }
 fn page_report(event: Event) -> Result<Report, Event> {
     match event {
         Event::Trouble { trouble, text, url, .. } => Ok(Report::Page { trouble, text, url }),
+        Event::Sent { id, load, document, method, url, .. } => Ok(Report::Sent { id, load, document, method, url }),
+        Event::Answered { id, .. } => Ok(Report::Answered { id }),
         event => Err(event),
     }
+}
+
+fn session_page(url: Box<[u8]>) -> Request {
+    Request::Page { person: PERSON, page: PAGE, url, requests: true }
 }
 
 // Each pop reserves the room for putting an ordinary completion back.
@@ -230,7 +238,7 @@ impl Pump {
             let Opening::Context(url) = std::mem::replace(&mut self.opening, Opening::Page) else {
                 unreachable!("context")
             };
-            self.ask(Request::Page { person: PERSON, page: PAGE, url });
+            self.ask(session_page(url));
         }
         face.tick(time.now);
         for request in face.requests() {

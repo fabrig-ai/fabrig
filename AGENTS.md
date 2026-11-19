@@ -35,6 +35,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 
 - Commits are small and say why; merges keep them as they are.
 - Throwaway code lives untracked in your worktree and is gone before you push; a tool the work lacks is a question, never a script beside it.
+- **A journey's recording and pages have one writer.** Under `temper/docs/design/client/web/journeys/` and `temper/docs/design/client/tui/journeys/`, each `recording`, each page and the files printed beside them are written on main by the journeys' writer alone, after each landing (`temper/docs/design/client/journey-writer.md`). A change commits none: it edits a journey's `README.md`, `setup` or `walk` as it edits a test, compares pages by a reprint in its own tree (`cargo run -p temper-client-journeys`), or, for a journey whose `walk` is of version 2, by a print into scratch (`cargo run -p temper-client-walk -- print --out DIR`), then restores them. The delivery check refuses a delivery that changes one beside any other file.
 
 ## 5. Tests
 

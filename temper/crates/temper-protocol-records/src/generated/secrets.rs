@@ -1171,7 +1171,7 @@ impl Accepted {
     }
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_values = { let count = match skein_codec::read_count(reader, limits.accepted_values.min(CEILINGS.accepted_values)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AcceptedValues, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::AcceptedValues, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::AcceptedValues, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_values = { let count = match skein_codec::read_count(reader, limits.accepted_values.min(CEILINGS.accepted_values)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::AcceptedValues, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::AcceptedValues, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = reader.u64().ok_or(Problem { path: Path::AcceptedValues, reason: skein_codec::Reason::Short })?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { values: decoded_values })
     }
 }
@@ -2173,7 +2173,7 @@ impl Pasted {
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let version = reader.u16().ok_or(Problem { path: Path::PastedVersion, reason: skein_codec::Reason::Short })?;
         if version != VERSION { return Err(Problem { path: Path::PastedVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_items = { let count = match skein_codec::read_count(reader, limits.pasted_items.min(CEILINGS.pasted_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PastedItems, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::PastedItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::with_capacity(count); for _index in 0_u32..count { let item = PastedItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
+        let decoded_items = { let count = match skein_codec::read_count(reader, limits.pasted_items.min(CEILINGS.pasted_items)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::PastedItems, reason }), }; if count > reader.remaining() / 5 { return Err(Problem { path: Path::PastedItems, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = PastedItem::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
         Ok(Self { items: decoded_items })
     }
 }

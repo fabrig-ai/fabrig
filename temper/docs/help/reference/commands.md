@@ -14,7 +14,7 @@ temper's TUI, on an engine or in front of a box.
 
 Run temper's full-screen terminal client, the TUI, on an engine; temper help tui explains closing and signing out.
 
-- `ADDRESS`: Engine listener, http://HOST:PORT on loopback; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
+- `ADDRESS`: Engine origin, http://HOST:PORT on loopback or https://NAME[:PORT]; defaults to the engine link file's address for this environment, else the TUI's last sign-in address, else http://127.0.0.1:8367.
 
 Needs a terminal on stdin and stdout; without one, bare temper says it has no command. Its sign-in link is pasted on its screen, never given. Its directory is $XDG_STATE_HOME/temper/tui, else ~/.local/state/temper/tui. `/exit` or Ctrl+C closes it without signing out; on the sign-in screen, use Ctrl+C. `q` types a character on every screen.
 
@@ -97,18 +97,18 @@ Rehearses an upgrade over a copy; switches nothing.
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 
-Uses the configuration serve would read and a scratch copy under the cache directory. Reports the jobs it ran, restores, elapsed time and whether workers may stay. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
+Uses the configuration serve would read and a scratch copy under the cache directory; removes a rehearsal's scratch left behind there. Reports the jobs it ran, restores, elapsed time and whether workers may stay. Names a start it refuses, including each setting out of its numbers. What follows the switch is not rehearsed. Exit 0 when its jobs and restores pass, 1 when a start would be refused.
 
 ### temper-engine upgrade --workers
 
 `temper-engine upgrade --workers [DIRECTORIES] DIRECTORY`
 
-Judges the workers alone over a copy; switches nothing.
+Judges the workers alone over links and small copies; switches nothing.
 
 - `DIRECTORIES`: [--config CONFIG] [--data DATA] [--cache CACHE], anywhere among the arguments: the deployment's configuration, data and cache directories, each from its flag, else its variable, else its default.
 - `DIRECTORY`: A stopped deployment's data directory, a checkpoint of a serving deployment, or a copy of one; never written.
 
-Uses the configuration serve would read and a scratch copy under the cache directory. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes only DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
+Uses the configuration serve would read and a scratch of links and small copies under the cache directory; removes a rehearsal's scratch left behind there. Recovers the maps without task logs and prints only the workers' verdict, with no record decoded, level checked, plan, job or restore run. Exit 0 for yes, no or unknown; 1 on an opening refusal. Takes DIRECTORY's lock, never the serving deployment's when reading a checkpoint; writes nothing under --data before the rehearsal.
 
 ### temper-engine upgrade --back
 

@@ -10,7 +10,14 @@ pub const LINK: u32 = 256;
 #[must_use]
 pub fn settings(engine: skein_io::Addr, leaf: Box<[u8]>) -> jig_client_shell_native::Settings {
     let limits = native();
-    jig_client_shell_native::Settings { engine, directory: leaf, limits: limits.connections, io: limits.io }
+    jig_client_shell_native::Settings {
+        mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE)
+            .expect("temper mapping"),
+        engine: jig_client_shell_native::Engine::Plain(engine),
+        directory: leaf,
+        limits: limits.connections,
+        io: limits.io,
+    }
 }
 /// Concurrent HTTP exchanges, beside the event stream.
 pub const EXCHANGES: u32 = 8;
@@ -32,6 +39,7 @@ pub fn native() -> Limits {
             exchanges: EXCHANGES,
             deadline: DEADLINE,
             body_bytes: 33_554_432, // Whole small store and HTTP response bodies.
+            tls: jig_client_shell_native::TlsLimits { read: 4096, send: 4096, records: 131_072 },
             http: skein_http::client::Limits {
                 head: 4096,    // Incoming HTTP head bytes.
                 headers: 16,   // Incoming HTTP fields.

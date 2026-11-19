@@ -18,12 +18,27 @@ fn ready(logged: bool) -> Domain {
                 record: Stored::LandingLog(LandingLog {
                     repository: REPO,
                     landings: Box::new([LoggedLanding {
+                        tiers: Box::new([]),
                         commit: NEXT_TIP,
                         branch: b"main".as_slice().into(),
                         at: env().wall,
                         changes: Box::new([
-                            LoggedChange { task: CHANGE, pull: Some(PULL), title: Box::new([]), signed: Box::new([]) },
-                            LoggedChange { task: CHANGE + 1, pull: None, title: Box::new([]), signed: Box::new([]) },
+                            LoggedChange {
+                                goal: None,
+                                milestone: None,
+                                task: CHANGE,
+                                pull: Some(PULL),
+                                title: Box::new([]),
+                                signed: Box::new([]),
+                            },
+                            LoggedChange {
+                                goal: None,
+                                milestone: None,
+                                task: CHANGE + 1,
+                                pull: None,
+                                title: Box::new([]),
+                                signed: Box::new([]),
+                            },
                         ]),
                     }]),
                 }),
@@ -109,6 +124,75 @@ fn verdict_posts_use_logged_or_live_members_and_skip_refusals() {
             assert!(d.entries.is_empty());
         }
     }
+}
+
+#[test]
+fn many_comments_resume_with_the_same_words_and_keys() {
+    let mut d = reports::one();
+    for (task, pull) in [(CHANGE, PULL), (CHANGE + 1, PULL + 1)] {
+        let mut change = fixtures::opening_row();
+        change.task = task;
+        change.pull = Some(pull);
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(change)) });
+    }
+    outputs(
+        &mut d,
+        Event::Restore {
+            record: Stored::Verification(Verification {
+                repository: REPO,
+                commit: NEXT_TIP,
+                changes: Box::new([CHANGE, CHANGE + 1]),
+                tiers: Box::new([TierVerification { tier: TIER.into(), verdict: None, repaired: None }]),
+            }),
+        },
+    );
+    completed(&mut d, api::Conclusion::Failure, Some(1));
+    reports::report(&mut d, b"alpha\nbeta\npartial", true);
+    tier_step(&mut d, RELEASE, false);
+    made(&mut d, RELEASE, skein_forge_client::Made::Set);
+    tier_step(&mut d, RELEASE + 1, false);
+    if row(&d).posting.is_none() {
+        let owner = *d.tier_ops.reads.iter().next().unwrap().0;
+        crate::tiers::answered(&mut d, &env(), owner, Err(api::Error::Missing), &mut Queue::uncapped());
+        tier_step(&mut d, RELEASE + 2, false);
+    }
+    tier_step(&mut d, STATUS, false);
+    made(&mut d, STATUS, skein_forge_client::Made::Set);
+    tier_step(&mut d, COMMENT, false);
+    let api::Write::Post { body, key, .. } = d.describe_tier_effect(TIER_TASK, COMMENT).unwrap().2.effect.write else {
+        panic!("first comment")
+    };
+    assert_eq!(body.as_ref(), b"Red: browser run 1 blames this landing for many tests; its report names alpha, beta, and more, its report cut at the read's bound.\n\nRun: https://forge.example/run/71");
+    assert_eq!(
+        key,
+        purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 7, part: 0 }
+            .key(&d.namespace, LIMITS.client.op_bytes)
+            .unwrap()
+    );
+    made(&mut d, COMMENT, skein_forge_client::Made::Commented(1));
+    let saved = row(&d).clone();
+    tier_step(&mut d, COMMENT + 1, false);
+    let expected = d.describe_tier_effect(TIER_TASK, COMMENT + 1).unwrap().2.effect.write;
+    let mut cold = restoring(None);
+    outputs(&mut cold, Event::Restore { record: Stored::Tier(saved) });
+    outputs(&mut cold, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut cold, Event::ReadAfresh);
+    tier_step(&mut cold, COMMENT + 1, false);
+    let actual = cold.describe_tier_effect(TIER_TASK, COMMENT + 1).unwrap().2.effect.write;
+    assert_eq!(actual, expected);
+    let api::Write::Post { number, body: next_body, key, .. } = actual else { panic!("remaining comment") };
+    assert_eq!(number, PULL + 1);
+    assert_eq!(next_body, body);
+    assert_eq!(
+        key,
+        purpose::EffectPurpose::Tier { repository: REPO, tier: 0, run: 1, operation: 7, part: 1 }
+            .key(&cold.namespace, LIMITS.client.op_bytes)
+            .unwrap()
+    );
+    made(&mut cold, COMMENT + 1, skein_forge_client::Made::Commented(2));
+    let out = tier_step(&mut cold, COMMENT + 2, false);
+    let Some(TierDecision::Done { words }) = choice(&out) else { panic!("completed report") };
+    assert!(words.ends_with(b"Its report names: \"alpha\", \"beta\" and more, its report cut at the read's bound."));
 }
 
 #[test]
@@ -221,4 +305,63 @@ fn fault_status_precedes_the_hold_and_the_verdict_replaces_it() {
     assert_eq!(check, api::Check::Passed);
     made(&mut d, STATUS + 3, skein_forge_client::Made::Set);
     assert!(matches!(choice(&tier_step(&mut d, STATUS + 4, false)), Some(TierDecision::Done { .. })));
+}
+
+#[test]
+fn cancelled_verifications_past_the_log_bound_post_status_and_only_kept_members() {
+    let mut d = dispatched();
+    d.landing.limits.landings_pending = 3;
+    let mut landings = Vec::new();
+    for number in 1_u8..=4 {
+        let task = CHANGE + u64::from(number);
+        let commit = [number + 10; 32];
+        let mut change = fixtures::opening_row();
+        change.task = task;
+        change.change.task = task;
+        change.pending = None;
+        change.pull = Some(100 + u64::from(number));
+        change.base = b"main".as_slice().into();
+        change.change.state = temper_engine_domain_forge_change::State::Landed { merge: commit, since: env().wall };
+        d.changes.insert(task, change).unwrap();
+        verification::landed(&mut d, commit, task, &mut Queue::uncapped());
+        landing_log::landed(&mut d, env().wall, commit, task, Box::new([]), &mut Queue::uncapped());
+        assert!(d.landing_verification(REPO, &commit).is_some());
+        outputs(
+            &mut d,
+            Event::Release {
+                task,
+                root: task,
+                ending: ReleaseEnding::Cancelled,
+                reason: None,
+                entry: 200 + u64::from(number),
+            },
+        );
+        assert!(d.landing_verification(REPO, &commit).is_none(), "cancelling releases verification");
+        landings.push(p::Landing { commit, key: commit });
+    }
+    d.tiers.get_mut(&(REPO, TIER.into())).unwrap().record.run.as_mut().unwrap().landings = landings.into_boxed_slice();
+    completed(&mut d, api::Conclusion::Success, None);
+    tier_step(&mut d, RELEASE, false);
+    made(&mut d, RELEASE, skein_forge_client::Made::Set);
+    tier_step(&mut d, RELEASE + 1, false);
+    assert_eq!(
+        row(&d).posting.as_ref().unwrap().comments.iter().map(|comment| comment.pull).collect::<Vec<_>>(),
+        [102, 103, 104]
+    );
+    tier_step(&mut d, STATUS, false);
+    assert!(matches!(
+        d.describe_tier_effect(TIER_TASK, STATUS).unwrap().2.effect.write,
+        api::Write::Status { check: api::Check::Passed, .. }
+    ));
+    made(&mut d, STATUS, skein_forge_client::Made::Set);
+    for (entry, pull) in [(COMMENT, 102), (COMMENT + 1, 103), (COMMENT + 2, 104)] {
+        tier_step(&mut d, entry, false);
+        let write = d.describe_tier_effect(TIER_TASK, entry).unwrap().2.effect.write;
+        let api::Write::Post { number, body, .. } = write else { panic!("verdict comment") };
+        assert_eq!(number, pull);
+        assert_eq!(body.as_ref(), b"Cleared by browser run 1.\n\nRun: https://forge.example/run/71");
+        made(&mut d, entry, skein_forge_client::Made::Commented(entry));
+    }
+    let out = tier_step(&mut d, COMMENT + 3, false);
+    assert!(matches!(choice(&out), Some(TierDecision::Done { .. })));
 }

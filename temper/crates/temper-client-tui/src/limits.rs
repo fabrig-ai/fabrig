@@ -28,7 +28,7 @@ pub fn limits(domain: &Domain, view: &skein_ui::Limits, field: u32) -> Option<sk
         .checked_add(Word::ApprovalNoTab.capacity(domain)?)?;
     let no_browser = Word::ApprovalOpen
         .capacity(domain)?
-        .checked_add(95)? // The scheme, authority and approval path with its shown code.
+        .checked_add(crate::words::APPROVAL_ADDRESS)?
         .checked_add(Word::ApprovalCheck.capacity(domain)?)?
         .checked_add(Word::ApprovalTunnel.capacity(domain)?)?;
     let approval = opened.max(no_browser).checked_add(Word::ApprovalExpires.capacity(domain)?)?.max(line);

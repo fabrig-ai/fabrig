@@ -358,10 +358,19 @@ values at a written job's layouts to the job, never to a plan
   written jobs; the drained pending queue keeps no spare capacity.
   Bounded beside the jobs' page and commit room at open
   (`README.md`, section 8); no map patch machine is held.
-- **Per read:** a converted value is built in a `Buffer` at the store's
-  value bound (`records.md`, 4), with one skein `layout::Workspace`
-  beside it fitted at open to every plan the store holds, so a read
-  allocates nothing; a value at the binary's layout, or at
+- **Per read:** a converted value is built in a `Buffer` that grows with
+  the values the store converts, never past the store's value bound
+  (`records.md`, 4), with one skein `layout::Workspace` beside it fitted
+  at open to every plan the store holds. An open whose plans convert
+  holds no buffer yet. The first read that converts makes one at the
+  least power of two at least twice its stored value's length, at least
+  4,096 bytes and at most the bound; a conversion that runs out of the
+  buffer's room makes one twice as large, at most the bound, and
+  converts again. So what the store holds is the room the largest value
+  converted so far needed, not the value bound, which an application may
+  size for far more than it holds, and a read allocates only when its
+  value outgrows the buffer. A value that doesn't fit at the bound is
+  left as it is read, as before. A value at the binary's layout, or at
   one whose plan keeps, is rewritten in its two head bytes alone.
 - **The registry's rows** within skein-kv's value bound: a `Text` at
   most 262,144 bytes, refused `Set { owner }` where a `current` is longer.
@@ -397,6 +406,12 @@ values at a written job's layouts to the job, never to a plan
   their order are unchanged: a stored text whose bytes do not give its
   digest, a persisted fingerprint its text does not give, a malformed
   declaration, a held depth past a plan's, each refused as before.
+- **The conversion buffer** (7), measured under skein's counting
+  allocator in the store's world: a store whose plans convert holds no
+  buffer at open; its first converted read makes one at its value's
+  room; a value past the buffer's room grows it and is converted whole;
+  the heap a seeded store holds after its open is the same whether its
+  value bound is the fixture's or several times it.
 
 ## 9. Open questions
 

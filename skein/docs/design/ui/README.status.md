@@ -1,6 +1,7 @@
 # ui: status
 
-2026-11-14. Where skein's code lags or departs from [README.md](README.md).
+2026-11-19. Where skein's code lags or departs from [README.md](README.md).
+
 
 Section 6's binding of `Near` to a continuing list's foot is present.
 Unlisted sections have no known gap.

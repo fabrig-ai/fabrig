@@ -1,6 +1,9 @@
 # limits: status
 
-2026-11-17. Where the tree's code lags or departs from [limits.md](limits.md).
+2026-11-18. Where the tree's code lags or departs from [limits.md](limits.md).
+
+- **Not yet:** "A repository's landing log", and the landing log's check in "Limits checked against each other at start": no `forge.landings_pending` [in flight: change 8589].
+- **Not yet:** "Sized from what", *A tier's failing tests*, and the start's check of a tier's failing tests: the stock's `forge.tiers.failing_tests` is 16, and the start refuses `forge.tiers.test_id_bytes` only past the store's 1,024 and `forge.tiers.failing_tests` not by name [in flight: change 8564].
 
 
 

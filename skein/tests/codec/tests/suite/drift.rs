@@ -6,9 +6,9 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use skein_codegen::{CONSTRUCTS, constructs, generate, goldens, parse, unpinned};
+    use skein_codegen::{Form, form_of, generate_as, goldens, missing, parse, unpinned};
 
-    const FAMILIES: [(&str, &str, Option<&str>); 7] = [
+    const FAMILIES: [(&str, &str, Option<&str>); 8] = [
         ("schema/every-v1.schema", "src/every/v1.rs", Some("golden/every-v1")),
         ("schema/every-v2.schema", "src/every/v2.rs", Some("golden/every-v2")),
         ("schema/every-v3.schema", "src/every/v3.rs", Some("golden/every-v3")),
@@ -16,12 +16,12 @@ mod tests {
         ("schema/sample-v1.schema", "src/generated/sample.rs", None),
         ("schema/scalars-v1.schema", "src/scalars/v1.rs", None),
         ("schema/lints-v1.schema", "src/lints/v1.rs", None),
+        ("schema/growth-v1.schema", "src/growth/v1.rs", None),
     ];
 
     #[test]
     fn every_v3_holds_every_construct() {
-        let found = constructs(include_str!("../../schema/every-v3.schema")).expect("every-v3 valid");
-        let missing = CONSTRUCTS.iter().filter(|construct| !found.contains(construct)).collect::<Vec<_>>();
+        let missing = missing(include_str!("../../schema/every-v3.schema")).expect("every-v3 valid");
         assert!(missing.is_empty(), "every-v3 lacks constructs: {missing:?}");
     }
 
@@ -67,7 +67,15 @@ mod tests {
         assert!(missing.is_empty(), "{schema_path}: unpinned constructs: {missing:?}");
         let schema = parse(&source).expect("schema valid");
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-        check_text(generated_path, &generate(&schema).records, write);
+        let form = form_of(Path::new(schema_path).parent().expect("schema directory"), &schema.family)
+            .expect("owner's lean mark readable");
+        check_text(generated_path, &generate_as(&schema, form).records, write);
+        if schema_path == "schema/every-v3.schema" {
+            check_text("src/every/v3_lean.rs", &generate_as(&schema, Form::Lean).records, write);
+        }
+        if schema_path == "schema/growth-v1.schema" {
+            check_text("src/growth/v1_lean.rs", &generate_as(&schema, Form::Lean).records, write);
+        }
         if let Some(directory) = golden_directory {
             check_goldens(directory, goldens(&schema), write);
         }
@@ -100,6 +108,11 @@ mod tests {
     #[test]
     fn every_v3_schema_code_and_goldens_have_no_drift() {
         check("schema/every-v3.schema");
+    }
+
+    #[test]
+    fn growth_schema_code_has_no_drift() {
+        check("schema/growth-v1.schema");
     }
 
     #[test]

@@ -220,6 +220,7 @@ fn an_account_sign_in_address_over_its_bound_is_an_encode_error() {
 
 #[test]
 fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
+    assert_eq!(jig_protocol_store_people::people_v17::VERSION, 17);
     super::ask_round_trip(domain::Ask::ChangeSettings { against: 7, digest: [0xa5; 32], projects: Box::default() });
     people_round_trip(values::answered(domain::Outcome::SettingsChanged { revision: 8 }));
     for why in [
@@ -245,6 +246,8 @@ fn settings_asks_outcomes_and_all_faults_round_trip_under_people_13() {
             domain::SettingFault::Budget,
             domain::SettingFault::Grace,
             domain::SettingFault::Owner,
+            domain::SettingFault::Judged,
+            domain::SettingFault::Range,
         ] {
             people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::NotWellFormed {
                 at: 0,

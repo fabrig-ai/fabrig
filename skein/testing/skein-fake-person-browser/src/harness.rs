@@ -738,7 +738,9 @@ impl Runtime {
                 self.capturing = 3;
             }
             Event::Closed { owner } => self.closing.browser_closed(*owner, &mut self.requests),
-            Event::Downloaded { .. }
+            Event::Sent { .. }
+            | Event::Answered { .. }
+            | Event::Downloaded { .. }
             | Event::Warned { .. }
             | Event::Found { .. }
             | Event::Met { .. }
@@ -962,7 +964,7 @@ impl Runtime {
                 page_with_query(line.url.as_bytes(), &setup.page_query, setup.page_addresses)
             };
             faces[self.opening].first_url = String::from_utf8(url.to_vec()).expect("printed URL is UTF-8");
-            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url });
+            self.ask(Request::Page { person: person(self.opening), page: page(self.opening), url, requests: false });
             return true;
         }
         false

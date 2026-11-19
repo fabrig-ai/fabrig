@@ -16,6 +16,7 @@ pub fn home_rows(
     live: &[c::TaskLine],
     ended: &[c::TaskLine],
     milestones: Option<&Milestones>,
+    goals: &super::Goals,
     wall: Wall,
 ) -> List<GroupRow> {
     let mut ordered = Map::uncapped();
@@ -32,7 +33,7 @@ pub fn home_rows(
                     activity = activity.max(goal.last_activity);
                 }
                 for goal in live.iter().chain(ended) {
-                    if milestones.of(goal) == Some(task) {
+                    if milestones.of(goal, goals) == Some(task) {
                         activity = activity.max(goal.last_activity);
                     }
                 }
@@ -47,7 +48,7 @@ pub fn home_rows(
             continue;
         }
         if let Some(milestones) = milestones
-            && let Some(task) = milestones.of(line)
+            && let Some(task) = milestones.of(line, goals)
         {
             if milestones.milestone(task).is_some() {
                 continue;
@@ -89,13 +90,13 @@ pub fn home_rows(
 
 /// Filtered goals keep their order; each group stands at its first shown goal.
 #[must_use]
-pub fn groups(shown: &[c::TaskLine], milestones: Option<&Milestones>) -> List<GroupRow> {
+pub fn groups(shown: &[c::TaskLine], milestones: Option<&Milestones>, goals: &super::Goals) -> List<GroupRow> {
     let mut rows = List::uncapped();
     let mut seen = Set::with_capacity(u32::MAX);
     for line in shown {
         let mut row = GroupRow::Goal(line.chip.task);
         if let Some(milestones) = milestones
-            && let Some(task) = milestones.of(line)
+            && let Some(task) = milestones.of(line, goals)
             && milestones.milestone(task).is_some()
         {
             row = GroupRow::Milestone(task);

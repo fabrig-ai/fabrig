@@ -9,18 +9,25 @@ use skein_lib::{Env, Reader, Time, Wall, Writer};
 fn cluster_engine(name: &str) -> jig_protocol_config::Engine {
     let scratch = crate::support::Scratch::startup(name);
     let cluster = super::cluster_documents(scratch.path());
-    let value = super::cluster_document(&cluster, "engine");
+    let value = temper_playground::documents::Configuration::from_jig(super::cluster_document(&cluster, "engine"));
     let engine = configured_engine(&value);
     scratch.remove();
     engine
 }
 
-fn configured_engine(value: &serde_json::Value) -> jig_protocol_config::Engine {
+fn configured_engine(value: &temper_playground::documents::Configuration) -> jig_protocol_config::Engine {
     let mut value = value.clone();
     crate::support::configuration::use_stock(&mut value);
     let bytes = serde_json::to_vec(&value["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &super::DOCUMENT).expect("engine document");
-    temper_service::startup::engine(&document, 0, &jig_protocol_config::Directories::working()).expect("stock engine")
+    temper_service::startup::engine_over(
+        &document,
+        0,
+        &jig_protocol_config::Directories::working(),
+        &temper_service::stock::Given::Stock,
+        &mut value.jig,
+    )
+    .expect("stock engine")
 }
 
 fn stock_frame(engine: &jig_protocol_config::Engine) -> Frame {
@@ -132,7 +139,8 @@ fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
     };
     support::configuration(scratch.path(), &forge);
     let bytes = std::fs::read(scratch.path().join("temper.json")).expect("process configuration");
-    let value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
+    let value =
+        temper_playground::documents::Configuration::from_jig(serde_json::from_slice(&bytes).expect("deployment JSON"));
     let engine = configured_engine(&value);
     assert_eq!(engine.charters.len(), 12);
     let mut expected: Vec<_> =

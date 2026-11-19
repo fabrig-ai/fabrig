@@ -59,6 +59,41 @@ mod tests {
         assert_eq!(meter.held(), 0, "decoded allocations released");
     }
 
+    fn decode_growth<T>(limits: &[u32], bound: u64, decode: impl FnOnce(&mut Reader<'_>) -> T) -> T {
+        let schema = skein_codegen::parse(include_str!("../../schema/growth-v1.schema")).expect("growth schema");
+        assert_eq!(skein_codegen::roots(&schema), ["Growth"]);
+        let wire = skein_codegen::largest(&schema, "Growth", limits).expect("largest growth root");
+        let meter = Meter::new();
+        meter.start();
+        let decoded = decode(&mut Reader::new(&wire));
+        let measured = meter.end();
+        assert!(measured.peak() <= bound, "growth decode: peak {} exceeds bound {bound}", measured.peak());
+        assert!(measured.held() <= bound, "growth value stays within its heap bound");
+        decoded
+    }
+
+    #[test]
+    fn sealed_list_past_the_growth_floor_decodes_within_its_bound() {
+        use skein_codec_tests::growth::{CEILINGS, Growth};
+        let bound = Growth::decoded_bound(&CEILINGS).expect("heap bound");
+        let decoded = decode_growth(CEILINGS.values().as_slice(), bound, |reader| {
+            Growth::decode(&CEILINGS, reader).expect("sealed growth root")
+        });
+        assert_eq!(decoded.items().len(), CEILINGS.growth_items);
+        assert!(decoded.items().iter().all(|item| *item == u64::MAX));
+    }
+
+    #[test]
+    fn lean_list_past_the_growth_floor_decodes_within_its_bound() {
+        use skein_codec_tests::growth_lean::{CEILINGS, Growth, Record};
+        let bound = Growth::decoded_bound(&CEILINGS).expect("heap bound");
+        let decoded = decode_growth(CEILINGS.values().as_slice(), bound, |reader| {
+            Growth::decode(&CEILINGS, reader).expect("lean growth root")
+        });
+        assert_eq!(decoded.items.len(), CEILINGS.growth_items);
+        assert!(decoded.items.iter().all(|item| *item == u64::MAX));
+    }
+
     fn full_numbers() -> skein_codec_tests::every::Numbers {
         use skein_codec_tests::every::{CEILINGS, Numbers, NumbersParts};
         Numbers::new(

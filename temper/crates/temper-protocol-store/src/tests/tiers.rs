@@ -21,6 +21,136 @@ fn round_trip(row: d::Stored, family: u8) {
 }
 
 #[test]
+fn signature_test_ids_fit_the_store_ceiling() {
+    assert!(d::FindingSignature::ID_BYTES <= crate::test_id_ceiling());
+}
+
+#[test]
+fn tier_rows_at_fixture_and_stock_failure_bounds_round_trip() {
+    let mut limits = fixtures::LIMITS;
+    limits.tiers.failing_tests = 64;
+    limits.tiers.test_id_bytes = 512;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    let fixture_bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = d::Stored::Tier(fixtures::tier_row());
+    let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
+    let encoded = records::encode(&row);
+    assert_eq!(records::row(&key, &encoded, &fixture_bounds), Ok(row.clone()));
+    assert_eq!(records::row(&key, &encoded, &bounds), Ok(row));
+
+    let mut row = fixtures::tier_row();
+    let mut failures = skein_lib::List::with_capacity(64);
+    let mut flakes = skein_lib::List::with_capacity(64);
+    for n in 1..=64 {
+        let test: Box<[u8]> = Box::new([n; 512]);
+        failures.push(test.clone()).unwrap();
+        flakes.push(p::Flake { test, count: u32::MAX }).unwrap();
+    }
+    row.record.failing = p::Failures::Tests(failures.into_boxed());
+    row.record.flakes = flakes.into_boxed();
+    let row = d::Stored::Tier(row);
+    let key = keys::encode(&d::stored_key(&row), u32::MAX).unwrap();
+    let decoded = records::row(&key, &records::encode(&row), &bounds).expect("64 failures and flakes fit stock bounds");
+    assert_eq!(decoded, row);
+}
+
+#[test]
+fn tier_many_names_round_trip_and_obey_the_failure_bound() {
+    let mut row = fixtures::tier_row();
+    let p::Failures::Tests(tests) = &row.record.failing else { panic!("named fixture") };
+    row.many = Some(p::ManyTests { tests: tests.clone(), more: 21, cut: true });
+    round_trip(d::Stored::Tier(row.clone()), 28);
+    let mut limits = fixtures::LIMITS;
+    limits.tiers.failing_tests -= 1;
+    // Only the many names exercise this list bound.
+    row.record.failing = p::Failures::Many;
+    row.record.flakes = Box::new([]);
+    row.record.run = None;
+    row.probe = None;
+    row.result = None;
+    row.flight = None;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&records::encode(&d::Stored::Tier(row)), &bounds), Err(Undecodable::Malformed));
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "test ids use two-digit decimal suffixes")]
+fn tier_many_names_keep_the_lowest_64_and_count_the_rest() {
+    let mut limits = fixtures::LIMITS;
+    limits.tiers.failing_tests = 70;
+    let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
+    let mut kept = skein_lib::List::with_capacity(64);
+    for n in 0..64_u32 {
+        kept.push(format!("t{n:02}").into_bytes().into_boxed_slice()).unwrap();
+    }
+    let kept = kept.into_boxed();
+    for (count, more, expected_more) in [(70_u32, 5, 11), (64, 5, 5), (70, u32::MAX, u32::MAX)] {
+        let mut tests = skein_lib::List::with_capacity(count);
+        for n in 0..count {
+            tests.push(format!("t{n:02}").into_bytes().into_boxed_slice()).unwrap();
+        }
+        let mut row = fixtures::tier_row();
+        row.many = Some(p::ManyTests { tests: tests.into_boxed(), more, cut: false });
+        let encoded = records::encode(&d::Stored::Tier(row));
+        let d::Stored::Tier(decoded) = records::decode(&encoded, &bounds).unwrap() else { panic!("tier row") };
+        assert_eq!(
+            decoded.many,
+            Some(p::ManyTests { tests: kept.clone(), more: expected_more, cut: false }),
+            "{count} names, more {more}"
+        );
+    }
+    assert_eq!(bounds.limits().many_tests_tests, 64);
+}
+
+#[test]
+fn a_tier_row_written_before_many_names_defaults_to_none() {
+    let mut text = None;
+    for family in crate::OWNER_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let text = text.expect("registered application family");
+    let old_text = text.replace("many: option ManyTests ", "");
+    assert_ne!(old_text, text);
+    let old = skein_codec::schema::parse(old_text.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let root = b"TierRow";
+    let before = skein_codec::layout::Plan::derive(
+        &new,
+        new.root(root, None).unwrap(),
+        &[],
+        &old,
+        old.root(root, None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let after = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(root, None).unwrap(),
+        &[],
+        &new,
+        new.root(root, None).unwrap(),
+        &[],
+    )
+    .expect("optional names default to none");
+    let row = d::Stored::Tier(fixtures::tier_row());
+    let bytes = records::encode(&row);
+    let mut workspace = skein_codec::layout::Workspace::new();
+    assert!(workspace.fit(&before));
+    let mut old_bytes = skein_lib::Buffer::with_capacity(131_072);
+    before.convert(&bytes[3..], &mut old_bytes, &mut workspace).unwrap();
+    assert!(old_bytes.as_slice().len() < bytes.len() - 3);
+    assert!(workspace.fit(&after));
+    let mut new_bytes = skein_lib::Buffer::with_capacity(131_072);
+    after.convert(old_bytes.as_slice(), &mut new_bytes, &mut workspace).unwrap();
+    let restored = skein_lib::bytes::concat(&[&bytes[..3], new_bytes.as_slice()]);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let d::Stored::Tier(decoded) = records::decode(&restored, &bounds).unwrap() else { panic!("tier row") };
+    assert_eq!(decoded.many, None);
+}
+
+#[test]
 fn tier_posting_round_trips_its_cursor_blame_and_comment_purposes() {
     let mut row = fixtures::tier_row();
     row.observations = Box::new([]);
@@ -285,9 +415,11 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
     assert_eq!(l.verification_changes, fixtures::LIMITS.changes);
     assert_eq!(l.verification_tiers, fixtures::LIMITS.tiers.tiers);
     assert_eq!(l.failed_tests_tests, fixtures::LIMITS.tiers.failing_tests);
+    assert_eq!(l.many_tests_tests, fixtures::LIMITS.tiers.failing_tests.min(64));
+    assert_eq!(l.shown_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     assert_eq!(l.failing_test_test_id, fixtures::LIMITS.tiers.test_id_bytes);
     let empty_goals = records::encode(&d::Stored::Tier(fixtures::tier_row()));
-    assert_eq!(empty_goals.len(), 120_226);
+    assert_eq!(empty_goals.len(), 120_227);
     assert!(skein_lib::len_u64(empty_goals.len()) < crate::v25::TierRow::encoded_bound(l).unwrap());
     let mut full = fixtures::tier_row();
     full.hold = Some(d::TierHold {
@@ -302,13 +434,15 @@ fn tier_family_bounds_follow_the_forge_and_full_row_measure() {
         jobs.push(d::ReceiptJob { job, attempt: u32::MAX, name: Box::new([b'n'; 256]) }).unwrap();
     }
     result.jobs = jobs.into_boxed();
+    let p::Failures::Tests(tests) = &full.record.failing else { panic!("named fixture") };
+    full.many = Some(p::ManyTests { tests: tests.clone(), more: u32::MAX, cut: true });
     full.posting = Some(Box::new(fixtures::tier_posting(&full.record.failing)));
     full.goals = fixtures::tier_goals();
     full.goal = Some(7);
     full.started = Some(skein_lib::Time::from_nanos(u64::MAX));
     let row = records::encode(&d::Stored::Tier(full));
     assert_eq!(skein_lib::len_u64(row.len()), crate::v25::TierRow::encoded_bound(l).unwrap() + 3);
-    assert_eq!(row.len(), 198_044);
+    assert_eq!(row.len(), 208_614);
 }
 
 #[test]

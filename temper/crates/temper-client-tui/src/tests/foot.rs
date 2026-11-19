@@ -431,6 +431,53 @@ fn has(tree: &skein_ui::Tree, style: skein_ui::Style, words: &[u8]) -> bool {
 }
 
 #[test]
+fn a_named_handshake_failure_stands_on_the_sign_in_and_launchpads_state_line_until_cleared() {
+    use crate::{Handshake, Origin};
+    let origin = Origin::parse(b"https://dev.fabrig.ai").unwrap();
+    let (mut offline, watch) = f::live(Some(f::me(&[b"Demo"])));
+    f::client(
+        &mut offline,
+        jig_client::Event::Up { up: jig_client::Up::WatchEnded { watch, end: c::WatchEnd::Dropped } },
+    );
+    let signed_out = f::signed_out();
+    let starting = f::starting().0;
+    for (root, restored, style) in [
+        (&signed_out, "● Signed out", look::DOWN),
+        (&starting, "● Connecting", look::WAITING),
+        (&offline, "● Offline", look::DOWN),
+    ] {
+        let mut tui = Tui::new(&origin);
+        let mut view = f::view();
+        for (failed, words) in [
+            (Handshake::Untrusted, "● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            (Handshake::Expired, "● Offline: dev.fabrig.ai's certificate has expired"),
+            (Handshake::NotYetValid, "● Offline: dev.fabrig.ai's certificate isn't valid yet"),
+            (Handshake::OtherName, "● Offline: dev.fabrig.ai's certificate is for another name"),
+            (Handshake::Failed, "● Offline: the secure connection to dev.fabrig.ai failed"),
+        ] {
+            tui.step(Told::Handshake { failed: Some(failed) });
+            f::build(&mut view, &tui, root);
+            assert!(has(view.tree(), look::DOWN, words.as_bytes()), "{restored}, {failed:?}");
+            let mut bottom = None;
+            for node in view.tree().nodes() {
+                if node.region == Some(look::BOTTOM) {
+                    bottom = Some(node);
+                }
+            }
+            assert!(f::text(view.tree(), bottom.unwrap()).starts_with(words.as_bytes()), "state begins the bottom row");
+        }
+        tui.step(Told::Handshake { failed: None });
+        f::build(&mut view, &tui, root);
+        assert!(has(view.tree(), style, restored.as_bytes()), "{restored} restored");
+        // Plain origins never show a TLS failure, even if a host tells one.
+        tui.step(Told::Address { address: f::ADDRESS.clone() });
+        tui.step(Told::Handshake { failed: Some(Handshake::Untrusted) });
+        f::build(&mut view, &tui, root);
+        assert!(has(view.tree(), style, restored.as_bytes()));
+    }
+}
+
+#[test]
 #[expect(clippy::too_many_lines, reason = "one table checks the foot's read states and their bindings")]
 #[expect(clippy::disallowed_methods, reason = "test assertions find and collect the rendered fields and options")]
 #[expect(clippy::disallowed_types, reason = "test assertions collect the rendered options")]
@@ -1149,7 +1196,7 @@ fn rule_states() {
             if list {
                 act(&mut root, d::pages::Act::MessageWords { words: b"/".as_slice().into() });
             }
-            let mut tui = Tui::new(b"127.0.0.1:40691");
+            let mut tui = Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket")));
             tui.step(Told::Size { columns });
             tui.step(Told::Boxed);
             let mut part = foot::read(&root, &tui, &words, f::NOW);
@@ -1204,7 +1251,12 @@ fn rule_states() {
         }
     }
     let root = root(true, true, true, false, false);
-    let part = foot::read(&root, &Tui::new(b"127.0.0.1:40691"), &words, f::NOW);
+    let part = foot::read(
+        &root,
+        &Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket"))),
+        &words,
+        f::NOW,
+    );
     assert_eq!(part.rule.unwrap().place.as_ref(), b"127.0.0.1:40691");
 }
 fn question(primary: Option<usize>, empty: bool) -> shared::Question {
@@ -2114,6 +2166,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                         queued: 0,
                         red: false,
                         branch: b"main".as_slice().into(),
+                        unpaid: false,
                         brief: Some(brief),
                     },
                 )
@@ -2751,7 +2804,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         assert_eq!(rule.title.as_ref(), title.as_bytes());
         assert_eq!(rule.project.as_ref(), b"Demo");
         assert_eq!(rule.task, None);
-        assert_eq!(rule.place.as_ref(), f::ADDRESS);
+        assert_eq!(rule.place, f::ADDRESS.authority());
         assert!(!part.launchpad);
         assert!(part.pane.is_none());
         assert!(part.running.is_none());
@@ -2770,4 +2823,26 @@ fn the_places_before_their_first_words_are_empty_chats() {
             want,
         }]);
     }
+}
+
+#[test]
+fn a_named_chats_rule_and_walk_web_page_use_the_origin() {
+    let root = root(true, true, true, false, false);
+    let mut tui = Tui::new(&super::origin::named(443));
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    assert_eq!(part.rule.as_ref().expect("chat rule").place.as_ref(), b"dev.fabrig.ai");
+    let view = draw(part);
+    assert!(has(view.tree(), look::ADDRESS, b"dev.fabrig.ai"));
+    let root = walk_root(true);
+    tui.step(Told::Walk { by_key: true });
+    tui.step(Told::Walked { object: WALK_QUESTION });
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    let list = part.list.expect("web need");
+    assert_eq!(
+        list.items[0].event,
+        TuiEvent::Walk {
+            object: WALK_HELD,
+            step: crate::WalkStep::Open { address: b"https://dev.fabrig.ai/needs?project=1".as_slice().into() },
+        }
+    );
 }

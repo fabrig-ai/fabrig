@@ -209,6 +209,41 @@ fn kept(name: u64, description: &[u8], body: &[u8]) -> notes::Entry {
 }
 
 #[test]
+fn a_standing_wake_on_another_endpoint_ends_fresh_with_now_and_the_note_index() {
+    use super::sessions;
+    let (mut world, run, child) = sessions::opened();
+    jig_core_world::stories::per_wake::park(&mut world, run, None);
+    let now_body = b"Watch the build.\nKeep the second line whole.\n";
+    let mut now = kept(20, b"now", now_body);
+    now.scope = notes::Scope::Goal { project: 1, goal: run.0 };
+    world.seed(Box::new([
+        root::Record::Core(core::Record::Notes(notes::Record::Line(notes::Line {
+            name: now.name,
+            scope: now.scope.clone(),
+            description: now.description.clone(),
+            revision: now.revision,
+        }))),
+        root::Record::Core(core::Record::Notes(notes::Record::Entry(now))),
+    ]));
+    closed_proofs::endpoint(&mut world, run.0, Some(2));
+    sessions::restart(&mut world, child);
+    sessions::say(&mut world, run.0, 80);
+    assert_eq!(sessions::ends(&world, run.0), [(run.1, tasks::SessionEnd::Fresh)]);
+    let assigned = world.assigned.as_ref().expect("new session assigned");
+    assert_eq!(assigned.task, run.0);
+    assert!(!assigned.run.policy.resume);
+    assert!(assigned.transcript.is_empty());
+    let now = std::str::from_utf8(section(&world, Section::Now).expect("Now whole")).expect("Now text");
+    let (_, body) = now.split_once("\n\n").expect("body separator");
+    assert_eq!(body.as_bytes(), now_body);
+    let index = section(&world, Section::NotesIndex).expect("note index");
+    assert!(index.windows(b"now".len()).any(|bytes| bytes == b"now"));
+    assert_eq!(section(&world, Section::TranscriptTail), None);
+    assert_eq!(closed_proofs::proof(&world).endpoint, Some(assigned.run.policy.model.endpoint));
+    world.close();
+}
+
+#[test]
 fn a_standing_brief_places_its_first_now_whole_and_bounds_an_oversized_body() {
     let mut elsewhere = kept(1, b"now", b"Other scope");
     elsewhere.scope = notes::Scope::Project { project: 1 };

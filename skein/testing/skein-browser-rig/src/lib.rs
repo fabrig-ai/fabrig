@@ -5,6 +5,7 @@
 mod beside;
 mod dialogs;
 mod downloads;
+mod requests;
 mod scope;
 mod tabs;
 mod viewport;
@@ -148,6 +149,7 @@ enum Stage {
 #[derive(Clone, Copy, Debug)]
 pub enum Scenario {
     Viewport,
+    Requests,
     Button,
     Tabs,
     TabBeside,
@@ -175,6 +177,7 @@ pub enum Scenario {
 impl Scenario {
     fn path(self) -> &'static str {
         match self {
+            Scenario::Requests => "/requests",
             Scenario::Leave | Scenario::Confirm => "/leave",
             Scenario::Download { .. } => "/download",
             Scenario::Letter => "/letter",
@@ -242,6 +245,7 @@ pub struct Rig {
     tabs_cut: Option<u64>,
     tabs_until: Option<Time>,
     tab_due: Option<Time>,
+    requests: requests::State,
 }
 
 impl Rig {
@@ -257,9 +261,13 @@ impl Rig {
         let (spawn, root) = spawn(chromium, profile);
         let mut io_requests = VecDeque::new();
         io_requests.push_back(io::Request::Spawn { owner: PROCESS, spawn });
+        let mut pages = serve::Pages::new(pages::pages(), Time::ZERO, Wall::EPOCH);
+        if matches!(scenario, Scenario::Requests) {
+            pages.stream(b"/request-stream".as_slice().into());
+        }
         Rig {
             browser: Browser::new(BROWSER, &browser_limits),
-            pages: serve::Pages::new(pages::pages(), Time::ZERO, Wall::EPOCH),
+            pages,
             io: Io::new(&limits),
             kernel,
             clock: Clock::new(),
@@ -290,6 +298,7 @@ impl Rig {
             tabs_cut: None,
             tabs_until: None,
             tab_due: None,
+            requests: requests::State::default(),
             context_ready: false,
             exception_seen: false,
             csp_log_seen: false,
@@ -578,7 +587,12 @@ impl Rig {
         let Some(addr) = self.pages.addr else { return };
         self.stage = Stage::Opening;
         let url = format!("http://{addr}{}", self.scenario.path());
-        self.ask(Request::Page { person: PERSON, page: PAGE, url: url.into_bytes().into_boxed_slice() });
+        self.ask(Request::Page {
+            person: PERSON,
+            page: PAGE,
+            url: url.into_bytes().into_boxed_slice(),
+            requests: matches!(self.scenario, Scenario::Requests),
+        });
     }
 
     fn ask(&mut self, request: Request) {
@@ -617,6 +631,14 @@ impl Rig {
         reason = "one referee handles the browser's observable events for these scenarios"
     )]
     fn browser_event(&mut self, event: Event) {
+        let event = if matches!(self.scenario, Scenario::Requests) {
+            match self.request_event(event) {
+                Ok(()) => return,
+                Err(event) => event,
+            }
+        } else {
+            event
+        };
         let event = if matches!(self.scenario, Scenario::Viewport) {
             match self.viewport_event(event) {
                 Ok(()) => return,
@@ -710,7 +732,8 @@ impl Rig {
                 assert_eq!(self.stage, Stage::Opening);
                 self.stage = Stage::Finding;
                 match self.scenario {
-                    Scenario::Download { .. }
+                    Scenario::Requests
+                    | Scenario::Download { .. }
                     | Scenario::Letter
                     | Scenario::Leave
                     | Scenario::Confirm
@@ -817,7 +840,8 @@ impl Rig {
                 assert_eq!(seen.len(), 1, "one accessible target for {:?}", self.scenario);
                 let node = seen.get(0).expect("target").node;
                 match self.scenario {
-                    Scenario::Download { .. }
+                    Scenario::Requests
+                    | Scenario::Download { .. }
                     | Scenario::Letter
                     | Scenario::Leave
                     | Scenario::Confirm
@@ -925,7 +949,8 @@ impl Rig {
                         Scenario::Form => b"Hello Ada".as_slice(),
                         Scenario::Scroll => b"Scrolled".as_slice(),
                         Scenario::Figure => b"Pressed shape".as_slice(),
-                        Scenario::Leave
+                        Scenario::Requests
+                        | Scenario::Leave
                         | Scenario::Confirm
                         | Scenario::Covered
                         | Scenario::Csp

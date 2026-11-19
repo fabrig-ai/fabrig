@@ -599,7 +599,7 @@ sys.exit(int(count > 0))
             result, log, _, _ = self.deliver()
         self.assertEqual(result, 0, log)
         passed = json.loads(path.read_text())
-        tree, base, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
+        tree, base, _, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
         self.assertEqual(passed, {'form': 'pre-pr-failures 1', 'tree': tree, 'base': base,
                                  'cached': False, 'verdict': 'passed',
                                  'counts': {'new': 0, 'flake': 0, 'inherited': 0}, 'failures': []})
@@ -890,7 +890,7 @@ sys.exit(int(count > 0))
         self.assertEqual(result, 0, log)
         self.assertTrue(all(code))
         cache = self.root / '.git/pre-pr-passed'
-        tree, base, digest, ledgers = cache.read_text().split()
+        tree, base, digest, ledgers, _ = cache.read_text().split()
         self.assertEqual(ledgers, '-')
         self.assertEqual(digest, hashlib.sha256(content).hexdigest())
         hit = f'pre-pr: passed before (tree {tree}, base {base}, reds {digest}, ledgers -)'
@@ -1174,7 +1174,7 @@ sys.exit(int(count > 0))
                 digests = ''.join(f'{profile} {hashlib.sha256(taken[profile]).hexdigest() if profile in taken else "-"}\n'
                                   for profile in ('default', 'fuzzy'))
                 expected = hashlib.sha256(digests.encode()).hexdigest() if taken else '-'
-                tree, base, reds, digest = cache.read_text().split()
+                tree, base, reds, digest, _ = cache.read_text().split()
                 self.assertEqual(digest, expected)
                 self.assertEqual(reds, '-')
                 result, log, _, code = self.budget_run(taken)
@@ -1182,7 +1182,7 @@ sys.exit(int(count > 0))
                 self.assertFalse(any(code))
                 self.assertIn(f'pre-pr: passed before (tree {tree}, base {base}, reds -, ledgers {digest})', log)
                 self.assertFalse(self.budget_commands)
-        for fields in (2, 3):
+        for fields in (2, 3, 4):
             with self.subTest(old_fields=fields):
                 cache.write_text(' '.join(cache.read_text().split()[:fields]) + '\n')
                 result, log, _, code = self.budget_run(taken)
@@ -1638,7 +1638,7 @@ sys.exit(int(count > 0))
         self.assertEqual(result, 0, log)
         path = self.root / '.git/temper/check-results'
         lines = path.read_text().splitlines()
-        tree, base, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
+        tree, base, _, _, _ = (self.root / '.git/pre-pr-passed').read_text().split()
         self.assertEqual(lines[:2], ['temper-check 1', f'check {tree} {base} passed'])
         self.assertEqual(lines[2:7], ['failed ' + lint_keys[0], 'passed ' + lint_keys[1],
                                      'failed test api::rules crashed', 'failed test api::rules failed',
@@ -2008,6 +2008,224 @@ raise SystemExit({code})
                 self.assertEqual(result, 0, log)
                 self.assertFalse(any('tools/tiers/figures.py' in args for args, _ in calls))
                 self.assertNotIn('pre-pr: figures', log)
+
+    def journey_checks(self):
+        # These cases exercise git and the driver, not the citation checker's inputs.
+        self.write('tools/citations/citations.py', 'raise SystemExit(0)\n')
+        self.pin()
+
+    def test_journeys_page_and_source_refused_with_and_without_base(self):
+        page = 'temper/docs/design/client/web/journeys/x/01.html'
+        source = 'temper/x.rs'
+        for pinned in (True, False):
+            with self.subTest(pinned=pinned):
+                self.setUp()
+                self.journey_checks()
+                self.write(page, 'base page\n')
+                self.write(source, 'fn base() {}\n')
+                self.pin()
+                base = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write(page, 'delivered page\n')
+                self.write(source, 'fn delivered() {}\n')
+                if pinned:
+                    self.command('git', 'commit', '-qam', 'delivery')
+                else:
+                    self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+                    self.command('git', 'add', source)
+                    self.write('temper/docs/design/client/web/journeys/x/02.html', 'untracked\n')
+                index = (self.root / '.git/index').read_bytes()
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 1, log)
+                self.assertEqual((self.root / '.git/index').read_bytes(), index)
+                self.assertIn('pre-pr: journeys …\n', log)
+                self.assertRegex(log, r'pre-pr: journeys: failed, \d+\.\d{3} s\n')
+                self.assertIn('written journey file: ' + page, log)
+                self.assertIn('other path: ' + source, log)
+                repair_base = base if pinned else 'HEAD'
+                self.assertIn("a journey's recording, pages and the files beside them are written on main by "
+                              "the journeys' writer alone (AGENTS.md, 4): restore them with git "
+                              f"checkout {repair_base} -- PATH..., and compare pages by cargo run -p "
+                              "temper-client-journeys in your own tree, or, for a journey whose walk is of version 2, "
+                              "by cargo run -p temper-client-walk -- print --out DIR\n", log)
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['counts'], dict(new=1, flake=0, inherited=0), log)
+                self.assertEqual(record['failures'], [dict(name='journeys', key=None, **{'class': 'new'})])
+
+    def test_journeys_written_files_alone_pass(self):
+        for kind, page, style, script in (('web', '01.html', 'skein-ui.css', 'journey.js'),
+                                          ('tui', '123.txt', 'theme.css', 'tui-journey.js')):
+            with self.subTest(kind=kind):
+                self.setUp()
+                self.journey_checks()
+                root = f'temper/docs/design/client/{kind}/journeys/'
+                paths = [root + 'x/recording', root + 'x/' + page, root + style, root + script]
+                for path in paths:
+                    self.write(path, 'base\n')
+                self.pin()
+                for path in paths:
+                    self.write(path, 'written\n')
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertRegex(log, r'pre-pr: journeys: passed, \d+\.\d{3} s\n')
+                # Each kind must be classified as written, not merely ignored.
+                self.write('temper/x.rs', 'fn source() {}\n')
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 1, log)
+                for path in paths:
+                    self.assertIn('written journey file: ' + path, log)
+
+    def test_journeys_sources_beside_code_pass(self):
+        for kind in ('web', 'tui'):
+            with self.subTest(kind=kind):
+                self.setUp()
+                self.journey_checks()
+                root = f'temper/docs/design/client/{kind}/journeys/'
+                for path in ('README.md', 'x/README.md', 'x/setup', 'x/walk', 'x/1.html',
+                             'x/skein-ui.css', 'x/nested/01.html', 'overlay.css'):
+                    self.write(root + path, '' if path == 'overlay.css' else 'source\n')
+                self.write('temper/x.rs', 'fn source() {}\n')
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertRegex(log, r'pre-pr: journeys: passed, \d+\.\d{3} s\n')
+
+    def test_journeys_merged_pages_pass_until_edited_here(self):
+        for pending in (False, True):
+            with self.subTest(pending=pending):
+                self.setUp()
+                self.journey_checks()
+                page = 'temper/docs/design/client/web/journeys/x/01.html'
+                deleted = 'temper/docs/design/client/web/journeys/x/02.html'
+                self.write(page, 'base page\n')
+                self.write(deleted, 'deleted by writer\n')
+                self.write('temper/x.rs', 'fn base() {}\n')
+                self.pin()
+                base = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.write(page, 'writer page\n')
+                (self.root / deleted).unlink()
+                self.command('git', 'commit', '-qam', 'writer')
+                tip = self.command('git', 'rev-parse', 'HEAD').strip()
+                self.command('git', 'checkout', '-q', '--detach', base)
+                self.write('temper/x.rs', 'fn delivery() {}\n')
+                self.command('git', 'commit', '-qam', 'source')
+                self.command('git', 'merge', '--no-ff', '--no-commit', tip)
+                if not pending:
+                    self.command('git', 'commit', '-qm', 'merge writer')
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 0, log)
+                self.assertIn('pre-pr: journeys: passed,', log)
+                self.write(page, 'edited after merge\n')
+                result, log, _, _ = self.deliver()
+                self.assertEqual(result, 1, log)
+                self.assertIn('written journey file: ' + page, log)
+                self.assertNotIn('written journey file: ' + deleted, log)
+
+    def test_journeys_nonempty_overlays_refuse_alone_and_mixed(self):
+        for kind in ('web', 'tui'):
+            for mixed in (False, True):
+                with self.subTest(kind=kind, mixed=mixed):
+                    self.setUp()
+                    self.journey_checks()
+                    overlay = f'temper/docs/design/client/{kind}/journeys/overlay.css'
+                    self.write(overlay, '')
+                    self.pin()
+                    self.write(overlay, ' ')
+                    if mixed:
+                        self.write('temper/x.rs', 'fn delivery() {}\n')
+                    result, log, _, _ = self.deliver()
+                    self.assertEqual(result, 1, log)
+                    self.assertIn('nonempty overlay: ' + overlay, log)
+                    self.assertIn('pre-pr: journeys: failed,', log)
+                    record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                    self.assertEqual(record['failures'], [dict(name='journeys', key=None, **{'class': 'new'})])
+
+    def test_journeys_prose_only_runs_last_and_never_inherits(self):
+        for nonempty in (False, True):
+            with self.subTest(nonempty=nonempty):
+                self.setUp()
+                self.journey_checks()
+                overlay = 'temper/docs/design/client/tui/journeys/overlay.css'
+                self.write(overlay, 'x' if nonempty else '')
+                self.pin()
+                self.write('temper/docs/example.md', '# Prose\n')
+                self.write('.git/temper/reds', 'temper-reds 1\n- test journeys journeys\n'
+                           '- lint journeys journeys ' + overlay + '\n')
+                result, log, calls, code = self.deliver(metadata_forbidden=True)
+                self.assertEqual(result, int(nonempty), log)
+                self.assertEqual(code, (False, False, False))
+                self.assertIn('pre-pr: prose only:', log)
+                self.assertIn('pre-pr: journeys …', log)
+                self.assertLess(log.index('pre-pr: outward:'), log.index('pre-pr: journeys …'))
+                self.assertFalse(any(args[0] == 'cargo' for args, _ in calls))
+                record = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+                self.assertEqual(record['counts'], dict(new=int(nonempty), flake=0, inherited=0))
+                if nonempty:
+                    self.assertIn('nonempty overlay: ' + overlay, log)
+                    self.assertEqual(record['failures'], [dict(name='journeys', key=None, **{'class': 'new'})])
+
+    def test_journeys_cache_accounts_for_head_without_base(self):
+        self.journey_checks()
+        page = 'temper/docs/design/client/web/journeys/x/01.html'
+        self.write(page, 'base page\n')
+        self.write('temper/x.rs', 'fn base() {}\n')
+        self.pin()
+        base = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.write(page, 'other page\n')
+        self.command('git', 'commit', '-qam', 'other head')
+        other = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'checkout', '-q', '--detach', base)
+        self.command('git', 'update-ref', '-d', 'refs/temper/landing')
+        self.write('temper/x.rs', 'fn delivered() {}\n')
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        passed = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.command('git', 'checkout', '-q', '--detach', other)
+        self.write(page, 'base page\n')
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 1, log)
+        refused = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(passed['tree'], refused['tree'])
+        self.assertFalse(refused['cached'])
+        self.assertIn('written journey file: ' + page, log)
+
+    def test_journeys_cache_accounts_for_pending_merge(self):
+        self.journey_checks()
+        page = 'temper/docs/design/client/web/journeys/x/01.html'
+        self.write(page, 'base page\n')
+        self.write('temper/x.rs', 'fn base() {}\n')
+        self.pin()
+        base = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.write(page, 'writer page\n')
+        self.command('git', 'commit', '-qam', 'writer')
+        tip = self.command('git', 'rev-parse', 'HEAD').strip()
+        self.command('git', 'checkout', '-q', '--detach', base)
+        self.write('temper/x.rs', 'fn delivered() {}\n')
+        self.command('git', 'commit', '-qam', 'source')
+        self.command('git', 'merge', '--no-ff', '--no-commit', tip)
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 0, log)
+        passed = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.command('git', 'merge', '--quit')
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 1, log)
+        refused = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
+        self.assertEqual(passed['tree'], refused['tree'])
+        self.assertEqual(passed['base'], refused['base'])
+        self.assertFalse(refused['cached'])
+        self.assertIn('written journey file: ' + page, log)
+
+    def test_journeys_written_log_is_bounded_and_counts_remaining(self):
+        self.journey_checks()
+        root = 'temper/docs/design/client/web/journeys/x/'
+        for number in range(21):
+            self.write(root + f'{number:02}.html', 'page\n')
+        self.write('temper/x.rs', 'fn delivery() {}\n')
+        result, log, _, _ = self.deliver()
+        self.assertEqual(result, 1, log)
+        for number in range(20):
+            self.assertIn('written journey file: ' + root + f'{number:02}.html', log)
+        self.assertNotIn('written journey file: ' + root + '20.html', log)
+        self.assertIn('… 1 more written journey files', log)
+        self.assertIn('other path: temper/x.rs', log)
 
     def test_new_broken_citation(self):
         self.write('skein/docs/guide.md', '# Guide\nSee `missing.md`, section 1.\n')

@@ -6,7 +6,7 @@ use crate::{
     stories,
     world::{self, HarnessProcess, OneProcess, Proc, Story},
 };
-use serde_json::{Value, json};
+use serde_json::json;
 use skein_fake_forge_domain::{self as domain, api};
 use skein_fake_forge_github as layer;
 use skein_fake_peers::forge::{Forge, Peer};
@@ -42,7 +42,7 @@ pub(crate) fn waiting() -> bool {
 pub(crate) fn active() -> bool {
     ACTIVE.with(Cell::get)
 }
-pub(crate) fn configure(value: &mut Value) {
+pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if !active() {
         return;
     }

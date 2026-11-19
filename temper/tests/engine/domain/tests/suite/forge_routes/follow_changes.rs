@@ -354,6 +354,7 @@ fn unaccepted_follow(passes: u32, gate: Gate, cued: bool, context: bool) -> Worl
                         repositories: Box::new([]),
                         tier_retries: 2,
                         verification_bound_ms: 7_200_000,
+                        wait: temper_engine_domain_forge_change::Wait::Cleared,
                         landing_attempts: engine::LANDING_ATTEMPTS,
                     },
                 )

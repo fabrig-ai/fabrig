@@ -22,6 +22,10 @@ built; later pages and sharing the exchange shape remain deferred
 styles in the worlds; the update conformance gap remains `forge/forgejo.status.md`, 2. The viewport runtime check remains `testing/browser.status.md`, 9. The kit reads a toggle's pressed
 state, and its harness awaits that state by a named target within the
 step's bound (`testing/browser.md`, section 5; `ui/web/testing.md`, 2).
+A page opened to report its requests reports each its main frame sends,
+with the load that sent it, and each first answer, and the harness's
+incremental session passes them on (`testing/browser.md`, 5 and 6;
+`ui/web/testing.md`, 2).
 The three folds-away stories await the fixture's first apply before
 acting or reading, retaining their folding, focus and outside-press
 checks and their deadlines (`ui/web/testing.md`, 2).

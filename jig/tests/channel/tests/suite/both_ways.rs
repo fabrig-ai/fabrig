@@ -83,9 +83,6 @@ fn a_login_routes_the_same_claude_model_through_the_program() {
     answered(&run);
 }
 
-fn says(text: &[u8]) -> Turn {
-    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens: 1 }
-}
 fn crossed(run: &Run, first: Grant, second: Grant) {
     assert_eq!(run.assignments.len(), 2, "{}", run.diagnostics);
     let [before, after] = run.assignments.as_slice() else { unreachable!("two assignments") };
@@ -114,10 +111,23 @@ fn crossed(run: &Run, first: Grant, second: Grant) {
     assert_eq!(run.terminals[0].end, jig_domain_tasks::End::Parked);
 }
 #[test]
-fn a_login_then_key_carries_the_conversation_through_a_direct_summary() {
+fn a_login_then_key_starts_fresh_with_the_conversations_tail() {
+    login_then_key(smith_fake_claude::Step::Text("committed plain answer".into()));
+}
+
+#[test]
+fn a_thinking_only_program_message_does_not_cross_to_the_key() {
+    // With partial messages, Think emits a separate thinking-only assistant record.
+    login_then_key(smith_fake_claude::Step::Think {
+        tokens: 10,
+        step: Box::new(smith_fake_claude::Step::Text("committed plain answer".into())),
+    });
+}
+
+fn login_then_key(answer: smith_fake_claude::Step) {
     let story = Story {
         turns: vec![smith_fake_claude::Turn::new(vec![
-            smith_fake_claude::Step::Text("committed plain answer".into()),
+            answer,
             smith_fake_claude::Step::Call { tool: "wait".into(), input: serde_json::json!({}) },
         ])],
         ..Story::default()
@@ -125,25 +135,24 @@ fn a_login_then_key_carries_the_conversation_through_a_direct_summary() {
     let run = both_ways::run(
         Case::LoginToKey,
         &story,
-        Scripts {
-            asked: Box::new([Script {
-                cue: b"Summarise the work so far.".as_slice().into(),
-                turns: Box::new([says(b"direct summary")]),
-            }]),
-            cued: Box::new([]),
-            otherwise: Box::new([finish()]),
-        },
+        Scripts { cued: Box::new([]), asked: Box::new([]), otherwise: Box::new([finish()]) },
     );
     crossed(&run, Grant::Login, Grant::Key);
     assert!(run.login_states.contains(&jig_protocol_worker_wire::LoginState::Usable));
     assert_eq!(run.login_states.last(), Some(&jig_protocol_worker_wire::LoginState::NotSignedIn));
-    assert_eq!(run.requests.len(), 2, "summary before ordinary completion: {}", run.diagnostics);
-    assert_eq!(run.requests[0]["tool_choice"]["type"], "none");
-    assert!(run.requests[0]["messages"].to_string().contains("committed plain answer"));
-    assert!(!run.requests[0]["messages"].to_string().contains("direct summary"));
-    assert!(run.requests[1]["messages"].to_string().contains("direct summary"));
-    assert!(run.requests[1]["messages"].to_string().contains("Continue on the other source"));
-    assert_eq!(run.credentials, vec![(skein_llm::Provider::Anthropic, Some(skein_llm::Scheme::Key), Some(0)); 2]);
+    assert_eq!(run.requests.len(), 1, "one ordinary completion, no summary: {}", run.diagnostics);
+    assert_ne!(run.requests[0]["tool_choice"]["type"], "none");
+    let messages = run.requests[0]["messages"].as_array().expect("messages");
+    assert_eq!(messages.len(), 1, "no program turns cross to the direct backend");
+    assert_eq!(messages[0]["role"], "user");
+    assert!(messages.iter().all(|message| !message["content"].as_array().expect("blocks").is_empty()));
+    let first = &messages[0]["content"][0];
+    assert_eq!(first["type"], "text");
+    assert!(first["text"].as_str().expect("first user text").contains("Continue on the other source"));
+    let brief = run.requests[0]["system"].to_string();
+    assert!(brief.contains("committed plain answer"));
+    assert!(!brief.contains("Summarise the work so far."));
+    assert_eq!(run.credentials, vec![(skein_llm::Provider::Anthropic, Some(skein_llm::Scheme::Key), Some(0))]);
     assert_eq!(
         run.observations.iter().filter(|row| row.arguments.first().is_some_and(|arg| arg == "-p")).count(),
         1,
@@ -152,14 +161,19 @@ fn a_login_then_key_carries_the_conversation_through_a_direct_summary() {
     answered(&run);
 }
 #[test]
-fn a_key_then_login_carries_the_conversation_through_a_program_summary() {
+fn a_key_then_login_starts_fresh_with_the_conversations_tail() {
     let story = Story {
-        summary: "program summary".into(),
-        turns: vec![smith_fake_claude::Turn {
-            steps: vec![],
-            end: End::Success {
-                structured_output: Some(serde_json::json!({"outcome":{"form":"report","text":"Hello","fields":{}}})),
-            },
+        // This outcome is available only when the new system brief carries the tail.
+        cued: vec![smith_fake_claude::Script {
+            cue: "committed direct answer".into(),
+            turns: vec![smith_fake_claude::Turn {
+                steps: vec![],
+                end: End::Success {
+                    structured_output: Some(
+                        serde_json::json!({"outcome":{"form":"report","text":"Hello","fields":{}}}),
+                    ),
+                },
+            }],
         }],
         ..Story::default()
     };
@@ -173,13 +187,11 @@ fn a_key_then_login_carries_the_conversation_through_a_program_summary() {
     assert_eq!(run.requests.len(), 1, "only the first run uses the direct peer");
     let print: Vec<_> =
         run.observations.iter().filter(|row| row.arguments.first().is_some_and(|arg| arg == "-p")).collect();
-    assert_eq!(print.len(), 2, "summary then ordinary program completion");
-    assert!(!print[0].arguments.iter().any(|arg| arg == "--mcp-config"));
-    assert!(print[1].arguments.iter().any(|arg| arg == "--mcp-config"));
+    assert_eq!(print.len(), 1, "one ordinary program session, no summary");
+    assert!(print[0].arguments.iter().any(|arg| arg == "--mcp-config"));
     assert!(print.iter().all(|row| !row.arguments.iter().any(|arg| arg == "--resume")));
-    assert_eq!(run.received.len(), 2);
-    assert!(run.received[0]["message"]["content"].as_str().expect("summary input").contains("committed direct answer"));
-    assert!(run.received[1]["message"]["content"].to_string().contains("program summary"));
-    assert!(run.received[1]["message"]["content"].to_string().contains("Continue on the other source"));
+    assert_eq!(run.received.len(), 1);
+    let user = run.received[0]["message"]["content"][0]["text"].as_str().expect("first user text");
+    assert!(user.contains("Continue on the other source"));
     answered(&run);
 }

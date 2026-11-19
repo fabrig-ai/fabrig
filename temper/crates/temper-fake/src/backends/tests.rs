@@ -449,19 +449,12 @@ fn adapter_and_machine_kinds_are_ordinary_and_no_forges_are_added() {
 
 #[test]
 fn backend_rewrite_keeps_creating_list_capacity() {
-    let standard = jig_protocol_config::stock().core.documents.lines;
-    for (receiving, expected) in [(Some(2), 3), (Some(8), 8), (None, standard)] {
-        let (mut temper, paths, peers) = fixture();
-        let overrides = temper["engine"]["limits"]["overrides"].as_object_mut().unwrap();
-        match receiving {
-            Some(receiving) => overrides.insert("documents.lines".into(), json!(receiving)),
-            None => overrides.remove("documents.lines"),
-        };
-        let docs = write(&temper, &paths, &peers).expect("backend rewrite");
-        let effective = json(&docs.temper);
-        assert_eq!(effective["engine"]["limits"]["overrides"]["documents.lines"], json!(expected));
-        assert_eq!(effective["engine"]["limits"]["overrides"]["accounts.credentials"], json!(4));
-    }
+    let (temper, paths, peers) = fixture();
+    let docs = write(&temper, &paths, &peers).expect("backend rewrite");
+    let effective = json(&docs.temper);
+    assert!(effective["engine"].get("limits").is_none());
+    assert!(effective["engine"].get("memory_bytes").is_none());
+    assert!(jig_protocol_config::stock().core.documents.lines >= 3);
 }
 
 fn assert_program_provider(llm: &Value) {

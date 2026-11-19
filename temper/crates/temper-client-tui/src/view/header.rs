@@ -24,7 +24,7 @@ fn mark(b: &mut Builder, upper: [Option<Style>; 6], lower: [Option<Style>; 6]) {
     text(b, Role::Text, b"  ", None);
 }
 
-pub(crate) fn draw(b: &mut Builder, front: bool, plain: bool, version: &[u8], address: &[u8], words: &Words) {
+pub(crate) fn draw(b: &mut Builder, front: bool, plain: bool, version: &[u8], address: &crate::Origin, words: &Words) {
     let c = Some(look::MARK_CYAN);
     let blue = Some(look::MARK_BLUE);
     let v = Some(look::MARK_VIOLET);
@@ -55,7 +55,7 @@ pub(crate) fn draw(b: &mut Builder, front: bool, plain: bool, version: &[u8], ad
         text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::FAINT));
         text(b, Role::Text, &words.say(Word::BoxPurpose, &[]), Some(look::HINT));
     } else {
-        text(b, Role::Text, address, Some(look::HINT));
+        text(b, Role::Text, &crate::place(address, false), Some(look::HINT));
     }
     b.close();
     b.close();

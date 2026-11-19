@@ -19,9 +19,9 @@ pub use line::{Field, Line, Read as Fields, Unreadable, fields as read_fields, l
 pub use normalise::normalise;
 pub use originals::{SECRET_EVENT, kept_head, originals, typed};
 pub use record::Recorder;
-pub use redact::{Redacted, Unredacted, redact, saved};
+pub use redact::{Redacted, Unredacted, redact, redact_lines, saved, saved_lines};
 pub use replay::prove_drawn;
-pub use replay::{Mark, Refusal, Replay, Stale, prove};
+pub use replay::{Mark, Refusal, Replay, Stale, prove, prove_lines};
 pub use scan::{Found, Place, Shape, What, original, shape};
 pub use setup::{MarkWait, Setup, SetupStep, setup};
 pub use stream::{Event, Plain, Streams, Undecoded};

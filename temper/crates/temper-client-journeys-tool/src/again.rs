@@ -23,7 +23,7 @@ use temper_client_shell_web::journey::{self, Control, SetupStep, Step};
 /// Every part of `again` takes this start (temper/docs/design/client/journey-clock.md, 4.4).
 pub(crate) const FIXED_START: &str = "1767690000,7";
 
-const HORIZON: Duration = Duration::from_secs(600);
+pub(crate) const HORIZON: Duration = Duration::from_secs(600);
 const POLL: Duration = Duration::from_millis(50);
 
 /// What `again` starts from, found by `main` (client/web/journeys.md, 8.1).
@@ -44,6 +44,7 @@ pub fn again(
     name: &str,
     paths: &Paths,
     environment: &[crate::EnvironmentEntry],
+    horizon: Duration,
 ) -> Result<(), Refusal> {
     let committed = recorded(journeys, name)?;
     let steps = walked(name, &committed)?;
@@ -56,7 +57,7 @@ pub fn again(
         crate::isolation::program("env", environment).ok_or_else(|| fail("cannot find env on PATH".into()))?;
     let mut harness = Harness::new(box_setup(paths, launcher, &isolated, Some(downloads)))
         .page_query(&page_query(true))
-        .horizon(HORIZON);
+        .horizon(horizon);
     let mut walker = Walker::new(name, steps, prepared);
     let outcome = harness.run(&mut [&mut walker]);
     if let Some(refusal) = walker.refusal.take() {
@@ -540,7 +541,7 @@ impl Play for Walker {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         match self.progress(face, now) {
             Ok(next) => next,
-            Err(why @ (Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. })) => {
+            Err(why @ (Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. } | Refusal::NotStill { .. })) => {
                 // The timed-out action stays failed; these reads only explain its page.
                 self.phase = Phase::Diagnostic { page: Diagnostic::new(why, face) };
                 Next::Wait { until: Some(now.saturating_add(POLL)) }
@@ -643,9 +644,11 @@ mod tests {
         );
     }
     #[test]
-    fn setup_and_mark_timeouts_report_the_current_address_and_page() {
+    fn setup_mark_and_still_timeouts_report_the_current_address_and_page() {
         use skein_browser::boundary::{Event, Request};
-        for phase in [Phase::SetupStep { at: 0 }, Phase::MarkWait { mark: 1, text: b"Settled".as_slice().into() }] {
+        for phase in
+            [Phase::SetupStep { at: 0 }, Phase::MarkWait { mark: 1, text: b"Settled".as_slice().into() }, Phase::Start]
+        {
             let mut walker = walker();
             walker.phase = phase;
             walker.since = Some(Time::ZERO);
@@ -667,7 +670,10 @@ mod tests {
             let Refusal::PageState { why, address: found_address, text: found_text } = walker.refusal.unwrap() else {
                 panic!("the timeout retains its page state")
             };
-            assert!(matches!(*why, Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. }));
+            assert!(matches!(
+                *why,
+                Refusal::SetupTimeout { .. } | Refusal::MarkTimeout { .. } | Refusal::NotStill { .. }
+            ));
             assert_eq!(found_address.as_ref(), address);
             assert_eq!(found_text.as_ref(), text);
         }

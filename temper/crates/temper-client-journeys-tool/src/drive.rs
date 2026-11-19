@@ -11,6 +11,7 @@ mod forge;
 mod io;
 mod options;
 mod place;
+mod requests;
 use place::{Place, Progress};
 mod tui;
 mod values;
@@ -18,6 +19,8 @@ pub use io::Session;
 pub use options::{Input, Options, Plan, Program};
 const STEP: Duration = Duration::from_secs(60);
 const LOOK: Duration = Duration::from_secs(10);
+const REQUESTS: Duration = Duration::from_secs(30);
+const QUIET: Duration = Duration::from_secs(2);
 const POLL: Duration = Duration::from_millis(50);
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Answer {
@@ -177,6 +180,8 @@ pub enum Event {
     Found(Option<NodeId>),
     FaceDone(Result<(), String>),
     PageTrouble { trouble: Trouble, text: Box<[u8]>, url: Box<[u8]> },
+    PageSent { id: Box<[u8]>, load: Box<[u8]>, document: bool, method: Box<[u8]>, url: Box<[u8]> },
+    PageAnswered { id: Box<[u8]> },
     Snapshot(Box<[u8]>),
     Description(Box<[u8]>),
     Logs { serve: Vec<Box<[u8]>>, forges: Vec<Box<[u8]>>, box_tail: Vec<Box<[u8]>> },
@@ -202,6 +207,7 @@ enum Phase {
     Screenshot,
     Snapshot,
     Diagnosing,
+    Requests,
     Ctl,
     CtlValues,
     CtlFiles,
@@ -236,6 +242,7 @@ pub struct Machine {
     sign_in: Option<place::SignIn>,
     diagnostic: String,
     shown: Vec<String>,
+    requests: requests::Log,
     forge: Option<forge::Pending>,
     tui_running: bool,
     save_until: Option<Time>,
@@ -262,6 +269,7 @@ impl Machine {
                 sign_in: None,
                 diagnostic: String::new(),
                 shown: vec![],
+                requests: requests::Log::new(now),
                 forge: None,
                 tui_running: false,
                 save_until: None,
@@ -324,6 +332,14 @@ impl Machine {
             Event::Found(node) => self.found(node, now, &mut out),
             Event::FaceDone(result) => self.face_done(result, now, &mut out),
             Event::PageTrouble { trouble, text, url } => self.page_trouble(trouble, &text, &url, now, &mut out),
+            Event::PageSent { id, load, document, method, url } => {
+                self.requests.sent(id, &load, document, method, &url, now);
+                self.requests_check(now, &mut out);
+            }
+            Event::PageAnswered { id } => {
+                self.requests.answered(&id, now);
+                self.requests_check(now, &mut out);
+            }
             Event::Snapshot(text) if self.phase == Phase::Snapshot => {
                 self.shown.extend(shown_lines(&text));
                 self.answer(None, &mut out);
@@ -398,7 +414,11 @@ impl Machine {
             out.push(Action::Answer(Answer { shown: vec![], failed: Some(why.into()) }));
             return;
         }
-        if let Some(why) = self.place.refuse_line(record, self.plan.options.ctl) {
+        let refused = match record {
+            Record::Web(Web::Mark) => Some("web mark is a journey's line"),
+            _ => self.place.refuse_line(record, self.plan.options.ctl),
+        };
+        if let Some(why) = refused {
             self.current = None;
             self.answer(Some(why.into()), out);
             return;
@@ -428,6 +448,7 @@ impl Machine {
                 }
                 Err(why) => self.answer(Some(why), out),
             },
+            Record::Web(Web::Mark) => unreachable!("journey line refused"),
             Record::Web(Web::Act { role, name, order, .. }) => {
                 let find = Find::exactly_named(*role, name).nth(*order);
                 self.wait(Phase::Finding, now, STEP);
@@ -448,6 +469,10 @@ impl Machine {
                 let path = self.plan.look(self.number, width);
                 self.wait(Phase::Screenshot, now, LOOK);
                 out.push(Action::Screenshot { width, path });
+            }
+            Record::Web(Web::Requests) => {
+                self.wait(Phase::Requests, now, REQUESTS);
+                self.requests_check(now, out);
             }
             Record::Web(Web::Look(None)) => {
                 self.wait(Phase::Snapshot, now, LOOK);
@@ -645,6 +670,10 @@ impl Machine {
             .map_or_else(|| format!("{:?}", self.phase), |line| String::from_utf8_lossy(line.print()).into_owned())
     }
     fn deadline(&mut self, now: Time, out: &mut Vec<Action>) {
+        if self.phase == Phase::Requests {
+            self.requests_check(now, out);
+            return;
+        }
         if self.forge_deadline(now, out) {
             return;
         }

@@ -66,12 +66,18 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             b"gate_timeout_ms",
             b"tier_retries",
             b"verification_bound_ms",
+            b"wait",
         ],
     )?;
     let by = match text(d, &f, b"by")?.as_deref() {
         None | Some(b"queue") => w::SettingsLandingWay::Queue,
         Some(b"turn") => w::SettingsLandingWay::Turn,
         Some(_) => return Err(error(b"by", b"queue or turn required")),
+    };
+    let wait = match text(d, &f, b"wait")?.as_deref() {
+        None | Some(b"cleared") => w::SettingsLandingWait::Cleared,
+        Some(b"landed") => w::SettingsLandingWait::Landed,
+        Some(_) => return Err(error(b"wait", b"cleared or landed required")),
     };
     let (combine_main, combine_other) = match optional(&f, b"combine") {
         None => (w::SettingsCombine::Merge, w::SettingsCombine::Squash),
@@ -89,6 +95,7 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
             &d.kinds,
             w::ProjectLandingParts {
                 by,
+                wait,
                 batch: u16::try_from(number(d, &f, b"batch", 1)?).or(Err(error(b"batch", b"u16 bound")))?,
                 combine_main,
                 combine_other,
@@ -308,6 +315,9 @@ pub(super) fn render_landing(v: &w::ProjectLanding, out: &mut Encoder) {
         if value != default {
             uint(out, name, value);
         }
+    }
+    if *v.wait() != w::SettingsLandingWait::Cleared {
+        string(out, b"wait", b"landed");
     }
     out.object_end();
 }

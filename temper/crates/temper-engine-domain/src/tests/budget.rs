@@ -236,6 +236,7 @@ fn turn_root() -> (Domain, Env<Limits>) {
                 task: 1,
                 attempt: 1,
                 conversation: 1,
+                endpoint: None,
                 credentials: Box::new([]),
                 accounts: Box::new([]),
                 placement: Some(Token::new(7)),

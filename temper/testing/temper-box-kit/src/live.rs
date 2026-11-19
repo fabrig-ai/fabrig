@@ -17,12 +17,12 @@ use temper_box_shell::directories::jig_directories;
 #[must_use]
 pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let mut value = super::limit_settings::configuration(directory);
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
     let providers = temper_agent_fixtures::providers::input(&mut value);
     providers["providers"].as_array_mut().expect("providers").retain(|provider| provider["number"] == 1);
     providers["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["provider"] == "openai");
-    value["engine"]["limits"]["overrides"]["documents.rows"] = 32.into();
+    value.jig_over("documents.rows", 32);
     let mut agent: Value = temper_agent_fixtures::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {
         let claude = temper_test_env::value(&temper_shell::environment::PATH).and_then(|path| {
@@ -50,6 +50,7 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     );
     super::configuration::use_derived(&mut value);
     write_private(&path, &serde_json::to_vec(&value).expect("live configuration JSON"));
+    super::limit_settings::remember(directory, &value);
     temper_agent_fixtures::install(directory, &agent);
     instructions
 }
@@ -506,7 +507,7 @@ fn count_completions(config: &Path, directories: &temper_box_shell::directories:
     Ok(count)
 }
 
-/// Redact link secrets and structured credential values before diagnostic output.
+/// Redact link secrets, API headers, Anthropic keys and structured credentials before diagnostic output.
 #[must_use]
 pub fn redact(text: &str) -> String {
     let mut output = text.to_owned();
@@ -547,6 +548,29 @@ pub fn redact(text: &str) -> String {
                 at = value + "\"…\"".len();
             }
         }
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].to_ascii_lowercase().find("x-api-key:") {
+        let header = at + found + "x-api-key:".len();
+        let start = output.len() - output[header..].trim_start().len();
+        let end = output[start..]
+            .find(|c: char| c.is_whitespace() || matches!(c, '&' | '"' | '\'' | '<' | '>'))
+            .map_or(output.len(), |n| start + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
+    }
+    let mut at = 0;
+    while let Some(found) = output[at..].find("sk-ant-") {
+        let start = at + found;
+        at = start + "sk-ant-".len();
+        if output[..start].chars().next_back().is_some_and(|c| c.is_alphanumeric() || c == '_') {
+            continue;
+        }
+        let end = output[at..]
+            .find(|c: char| !c.is_ascii_alphanumeric() && c != '-' && c != '_')
+            .map_or(output.len(), |n| at + n);
+        output.replace_range(start..end, "…");
+        at = start + "…".len();
     }
     output
 }

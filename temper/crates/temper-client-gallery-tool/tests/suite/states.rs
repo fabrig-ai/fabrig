@@ -4900,6 +4900,27 @@ static HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Home" }, Part::Absent { role: Role::Button, name: "Answer" }],
     },
     Holds {
+        name: "accounts-shared",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your accounts · 2" },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "Claude subscription · sam@example.com · Anthropic · held by Owner",
+                description: "Ready · Pays for 11 people",
+            },
+            Part::Described {
+                role: Role::Disclosure,
+                name: "ChatGPT · sam@example.com · OpenAI · held by Owner",
+                description: "Ready · Pays for 11 people",
+            },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Pays for Ana, Ben, Person 3, Dara, Eli, Femi, Gus, Hana and 3 more.",
+            },
+        ],
+    },
+    Holds {
         name: "accounts-states",
         heading: "What agents run on.",
         parts: &[
@@ -4915,6 +4936,47 @@ static HOLDS: [Holds; samples::N] = [
             Part::Text { text: "Cancelled" },
             Part::Text { text: "Closing" },
             Part::Text { text: "Moving to another deployment" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Group, name: "Usage" },
+            Part::Named { role: Role::Meter, name: "Week" },
+            Part::Text { text: "29% used" },
+            Part::Text { text: "resets in 4 d 14 h · 0.5%/h · about 84% at reset" },
+            Part::Absent { role: Role::Meter, name: "5 h" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage-filling",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "5 h" },
+            Part::Named { role: Role::Meter, name: "Week" },
+            Part::Text { text: "full in 1 h" },
+            Part::Text { text: "83% used" },
+            Part::Text { text: "full in 1 d" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage-calm",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "Week" },
+            Part::Text { text: "resets in 2 d · 0.4%/h · about 59% at reset" },
+            Part::Absent { role: Role::Meter, name: "5 h" },
+        ],
+    },
+    Holds {
+        name: "accounts-usage-limited",
+        heading: "What agents run on.",
+        parts: &[
+            Part::Named { role: Role::Meter, name: "5 h" },
+            Part::Text { text: "100% used" },
+            Part::Text { text: "resets in 40 min" },
+            Part::Absent { role: Role::Meter, name: "Week" },
         ],
     },
     Holds {
@@ -5374,7 +5436,7 @@ fn each_state_holds_what_its_name_says() {
                         children.push(node);
                         rest = &rest[usize::try_from(node.size).expect("banner child span")..];
                     }
-                    assert_eq!(children.len(), 3, "{}: brand, steps, end alone", sample.name);
+                    assert_eq!(children.len(), 4, "{}: brand, steps, end, night switch", sample.name);
                     assert_eq!(
                         (children[0].role, children[0].name.as_deref()),
                         (Role::Link, Some(b"temper".as_slice()))
@@ -5384,7 +5446,16 @@ fn each_state_holds_what_its_name_says() {
                         (Role::List, Some(b"Steps".as_slice()))
                     );
                     assert!(children[2].styles.as_slice().contains(&temper_client_view::look::TOP_END));
-                    let end = &banner[banner.len() - usize::try_from(children[2].size).expect("end span")..];
+                    assert_eq!(
+                        (children[3].role, children[3].name.as_deref(), children[3].styles.as_slice()),
+                        (
+                            Role::Button,
+                            Some(b"Night mode".as_slice()),
+                            [temper_client_view::look::NIGHT_SWITCH].as_slice()
+                        )
+                    );
+                    let end_at = banner.len() - usize::try_from(children[3].size).expect("switch span");
+                    let end = &banner[end_at - usize::try_from(children[2].size).expect("end span")..end_at];
                     assert_eq!(
                         end[1].region,
                         Some(skein_ui::Region { owner: temper_client_view::look::NAMES.owner, number: 0 })

@@ -148,7 +148,7 @@ fn decode_type(ty: &Type, schema: &Context<'_>, bound_name: &str, path: &str, de
                 ),
             };
             format!(
-                "{{ let count = match skein_codec::read_count(reader, limits.{bound_name}.min(CEILINGS.{bound_name})) {{ Ok(count) => count, Err(reason) => return Err(Problem {{ path: Path::{path}, reason }}), }}; {precheck}let mut {list_name} = List::with_capacity(count); for _index in 0_u32..count {{ let item = {item_expr}; {list_name}.push(item).expect(\"count within capacity\"); }} {list_name} }}"
+                "{{ let count = match skein_codec::read_count(reader, limits.{bound_name}.min(CEILINGS.{bound_name})) {{ Ok(count) => count, Err(reason) => return Err(Problem {{ path: Path::{path}, reason }}), }}; {precheck}let mut {list_name} = List::allocated(count); for _index in 0_u32..count {{ let item = {item_expr}; {list_name}.push(item).expect(\"count within capacity\"); }} {list_name} }}"
             )
         }
         Type::Option(item) => {
@@ -198,31 +198,11 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
             "impl {} {{\n    /// Measures this record's wire encoding.\n    #[must_use]\n",
             record.name
         ));
-        let mut method = Method::new("measure", "    pub fn measure(&self) -> u32 {\n", "        size\n");
-        method.head.push("        let mut size = 0_u32;\n".into());
-        if record.versioned {
-            let mut text = Vec::new();
-            add_size("2", &mut text);
-            method.head.extend(text);
-        }
-        emit_fields(schema, record, &mut method, |ty, value, depth, text| {
-            measure_type(ty, schema, value, depth, text);
-        });
-        emit_functions::render(record, &method, out, &mut helpers);
+        emit_functions::render(record, &measure_method(schema, record), out, &mut helpers);
         out.push('\n');
     }
     out.push_str("    /// Writes into a writer with room for the measured bytes.\n");
-    let empty = record.fields.is_empty() && !record.versioned;
-    let mut method = Method::new(
-        "encode",
-        "    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {\n",
-        if empty { "        writer.put(&[])\n" } else { "        Ok(())\n" },
-    );
-    if record.versioned {
-        method.head.push("        writer.put(&VERSION.to_be_bytes())?;\n".into());
-    }
-    emit_fields(schema, record, &mut method, encode_type);
-    emit_functions::render(record, &method, out, &mut helpers);
+    emit_functions::render(record, &encode_method(schema, record), out, &mut helpers);
     out.push_str("\n    /// Reads a whole record and refuses trailing bytes.\n    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n");
     if record.fields.is_empty() && !record.versioned {
         out.push_str("        let value = Self::decode_from(limits, reader);\n");
@@ -234,6 +214,40 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
         out.push_str("    fn decode_from(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Self {\n        Self {}\n    }\n}\n\n");
         return;
     }
+    emit_functions::render(record, &decode_method(schema, record), out, &mut helpers);
+    out.push_str("}\n\n");
+    out.push_str(&helpers);
+}
+
+fn measure_method(schema: &Context<'_>, record: &Record) -> Method {
+    let mut method = Method::new("measure", "    pub fn measure(&self) -> u32 {\n", "        size\n");
+    method.head.push("        let mut size = 0_u32;\n".into());
+    if record.versioned {
+        let mut text = Vec::new();
+        add_size("2", &mut text);
+        method.head.extend(text);
+    }
+    emit_fields(schema, record, &mut method, |ty, value, depth, text| {
+        measure_type(ty, schema, value, depth, text);
+    });
+    method
+}
+
+fn encode_method(schema: &Context<'_>, record: &Record) -> Method {
+    let empty = record.fields.is_empty() && !record.versioned;
+    let mut method = Method::new(
+        "encode",
+        "    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {\n",
+        if empty { "        writer.put(&[])\n" } else { "        Ok(())\n" },
+    );
+    if record.versioned {
+        method.head.push("        writer.put(&VERSION.to_be_bytes())?;\n".into());
+    }
+    emit_fields(schema, record, &mut method, encode_type);
+    method
+}
+
+fn decode_method(schema: &Context<'_>, record: &Record) -> Method {
     let limits = if record.fields.iter().any(|field| uses_limits(&field.ty)) { "limits" } else { "_limits" };
     let mut method = Method::new(
         "decode_from",
@@ -256,9 +270,14 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
         method.body.push(Statement::new(&field.name, format!("        let decoded_{} = {expr};\n", field.name)));
     }
     method.tail = Tail::Members(record.fields.iter().map(|field| field.name.clone()).collect());
-    emit_functions::render(record, &method, out, &mut helpers);
-    out.push_str("}\n\n");
-    out.push_str(&helpers);
+    method
+}
+
+/// Tests the same method fragments the renderer splits, without writing a module.
+pub(crate) fn splits_record(schema: &Context<'_>, record: &Record) -> bool {
+    measure_method(schema, record).splits()
+        || encode_method(schema, record).splits()
+        || decode_method(schema, record).splits()
 }
 
 pub(crate) fn uses_limits(ty: &Type) -> bool {

@@ -208,7 +208,7 @@ fn fold(core: &mut Core, limits: &Limits, setting: s::Setting, edit: s::RestoreE
             s::Setting::Charter(_) => limits.tasks.charters,
             s::Setting::Template(_) => limits.templates,
             s::Setting::Policy(_) => limits.authority.projects,
-            s::Setting::Rules | s::Setting::ProjectPolicy { .. } => 1,
+            s::Setting::Rules | s::Setting::Limits | s::Setting::ProjectPolicy { .. } => 1,
             s::Setting::Application { kind, .. } => {
                 let mut bound = None;
                 for declared in &core.kinds {
@@ -246,6 +246,7 @@ fn application_kind(setting: s::Setting) -> Option<u32> {
         | s::Setting::Worker(_)
         | s::Setting::Model(_)
         | s::Setting::Rules
+        | s::Setting::Limits
         | s::Setting::ProjectPolicy { .. } => None,
     }
 }
@@ -258,6 +259,7 @@ fn group_name(setting: s::Setting) -> s::Setting {
         s::Setting::Template(_) => s::Setting::Template(0),
         s::Setting::Policy(_) => s::Setting::Policy(0),
         s::Setting::Rules => s::Setting::Rules,
+        s::Setting::Limits => s::Setting::Limits,
         s::Setting::ProjectPolicy { .. } => s::Setting::ProjectPolicy { project: 0 },
         s::Setting::Application { kind, scope, .. } => s::Setting::Application { kind, scope, number: 0 },
     }
@@ -273,7 +275,8 @@ fn deleted(core: &Core, setting: s::Setting) -> bool {
         | s::Setting::Provider(_)
         | s::Setting::Worker(_)
         | s::Setting::Model(_)
-        | s::Setting::Rules => return false,
+        | s::Setting::Rules
+        | s::Setting::Limits => return false,
     };
     project != people::DEPLOYMENT && !core.open_project(project)
 }

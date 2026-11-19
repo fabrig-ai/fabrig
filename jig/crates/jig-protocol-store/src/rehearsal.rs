@@ -33,6 +33,8 @@ pub(crate) struct State {
     active: Option<generations::Active>,
     stage: Stage,
     announced: bool,
+    linked: u32,
+    copied: u32,
     close: Option<Token>,
     fault: bool,
     files: crate::file_handles::Owned,
@@ -66,6 +68,8 @@ pub(crate) fn begin(
         active: None,
         stage: Stage::Locking,
         announced: false,
+        linked: 0,
+        copied: 0,
         close: None,
         fault: false,
         files: crate::file_handles::Owned::new(),
@@ -187,6 +191,8 @@ pub(crate) fn up(store: &mut Store, arrived: Arrived, above: &mut Queue<Event>, 
             Progress::Failed => refused(store, OpenRefusal::Failed, above),
             Progress::Done => {
                 let state = state(store);
+                state.linked = copying.linked;
+                state.copied = copying.copied;
                 below.transcripts.push(file::Request::Store {
                     owner: directory::OWNER,
                     root: state.scratch.token,
@@ -220,9 +226,10 @@ pub(crate) fn announce(store: &mut Store, above: &mut Queue<Event>) {
     }
     state.announced = true;
     let owner = state.owner;
+    let (linked, copied) = (state.linked, state.copied);
     let wires = kept_wires(store, owner);
     let openings = crate::openings::kept(store).unwrap_or(Box::new([]));
-    above.push(Event::Rehearsing { owner, wires, openings });
+    above.push(Event::Rehearsing { owner, wires, openings, linked, copied });
 }
 fn kept_wires(store: &mut Store, owner: Token) -> Option<Box<[KeptWire]>> {
     let key = crate::keys::encode_own(&crate::keys::Own::Wires, store.limits.store.key)?;

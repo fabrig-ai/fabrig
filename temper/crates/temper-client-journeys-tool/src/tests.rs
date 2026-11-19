@@ -1,88 +1,15 @@
 pub(super) use fixtures::{TuiWorld, tui_approval_reply};
 use fixtures::{
-    absent, assert_normalised, fixture_recording, fixture_with_secret, stale_recording, tree_bytes,
+    absent, fixture_recording, fixture_with_marks_and_secret, fixture_with_secret, stale_recording, tree_bytes,
     tui_approval_recording, tui_recording, tui_written,
 };
 use temper_client_journeys_kit as fixtures;
 
-use crate::{
-    JOURNEYS,
-    print::{Mark, SCRIPT, beside, pages},
-};
+use crate::JOURNEYS;
 use skein_lib::Time;
 use skein_scratch::Scratch;
-use skein_ui::NodeId;
 use std::{fs, path::Path};
 use temper_client_shell_web::journey;
-
-#[test]
-fn the_committed_journeys_are_their_print() {
-    let scratch = Scratch::new("temper-client-journeys-committed");
-    let committed = Path::new(JOURNEYS);
-    assert_normalised(committed, false);
-    assert_normalised(Path::new(crate::TUI_JOURNEYS), true);
-    let stale = crate::reprint(committed, scratch.path())
-        .expect("reprint committed journeys; run cargo run -p temper-client-journeys");
-    assert!(stale.is_empty(), "stale journeys: {stale:?}; run cargo run -p temper-client-journeys");
-    let committed_pages = printed_files(committed);
-    let reprinted_pages = printed_files(scratch.path());
-    for path in committed_pages.union(&reprinted_pages) {
-        let expected = fs::read(committed.join(path)).ok();
-        let actual = fs::read(scratch.path().join(path)).ok();
-        assert!(
-            expected.is_some() && actual.is_some(),
-            "{} is missing or unreadable; run cargo run -p temper-client-journeys",
-            path.display()
-        );
-        assert_eq!(expected, actual, "{} differs; run cargo run -p temper-client-journeys", path.display());
-    }
-    for file in ["skein-ui.css", "journey.js"] {
-        let reprinted = fs::read(scratch.path().join(file)).expect("reprinted file beside the journeys");
-        assert_eq!(
-            fs::read(committed.join(file)).ok().as_deref(),
-            Some(reprinted.as_slice()),
-            "{file} differs; run cargo run -p temper-client-journeys"
-        );
-    }
-    let tui = Path::new(crate::TUI_JOURNEYS);
-    tui_sources(tui).expect("committed TUI sources");
-    let out = scratch.path().join("tui");
-    let stale = crate::tui::reprint(tui, &out).expect("reprint TUI; run cargo run -p temper-client-journeys");
-    assert!(stale.is_empty(), "stale TUI journeys: {stale:?}; run cargo run -p temper-client-journeys");
-    let expected = printed_files(tui);
-    let reprinted = printed_files(&out);
-    for path in expected.union(&reprinted) {
-        assert_eq!(
-            fs::read(tui.join(path)).ok(),
-            fs::read(out.join(path)).ok(),
-            "TUI {} differs; run cargo run -p temper-client-journeys",
-            path.display()
-        );
-    }
-    for file in ["theme.css", "tui-journey.js", "overlay.css"] {
-        assert!(
-            fs::read(tui.join(file)).expect("committed beside") == fs::read(out.join(file)).expect("reprinted beside"),
-            "TUI {file} differs; run cargo run -p temper-client-journeys"
-        );
-    }
-}
-
-fn printed_files(root: &Path) -> std::collections::BTreeSet<std::path::PathBuf> {
-    let mut files = std::collections::BTreeSet::new();
-    for entry in fs::read_dir(root).expect("journeys directory") {
-        let entry = entry.expect("journey entry");
-        if !entry.file_type().expect("journey type").is_dir() {
-            continue;
-        }
-        for page in fs::read_dir(entry.path()).expect("journey directory") {
-            let page = page.expect("page entry");
-            if crate::printed_page(&page.path()) || crate::tui::printed_file(&page.path()) {
-                files.insert(Path::new(&entry.file_name()).join(page.file_name()));
-            }
-        }
-    }
-    files
-}
 
 #[test]
 fn a_name_outside_the_pattern_is_refused() {
@@ -107,122 +34,6 @@ fn an_unreadable_recording_is_refused_by_add() {
     assert!(!scratch.path().join("welcome").exists());
 }
 
-fn mark(html: &str, heading: &str, acted: Option<u32>) -> Mark {
-    Mark {
-        html: html.to_owned(),
-        heading: heading.as_bytes().to_vec(),
-        acted: acted.into_iter().map(NodeId).collect(),
-        lead: journey::Lead::Press,
-    }
-}
-
-#[test]
-fn a_page_breaks_inside_each_tag_before_its_close() {
-    let printed = pages(&[mark("<div data-node=\"1\"><p data-node=\"2\">Hi</p></div>", "", None)]);
-    let document = &printed[0].document;
-    let body = document.split_once("<body\n>").expect("body starts").1.split_once("</body\n>").expect("body ends").0;
-    assert_eq!(body, "<div id=\"app\"\n><p\n>Hi</p\n></div\n>");
-    assert!(document.starts_with("<!doctype html>\n<html lang=\"en\"\n>"));
-    assert!(document.ends_with("</html\n>\n"));
-}
-
-#[test]
-fn the_acted_control_leads_to_the_next_page() {
-    let mut first = mark(
-        "<div data-node=\"1\"><h1 data-node=\"2\">Welcome</h1><button data-node=\"3\">Set up temper</button><a data-node=\"5\">Begin</a></div>",
-        "Welcome",
-        Some(3),
-    );
-    first.acted.push(NodeId(5));
-    let printed = pages(&[first, mark("<div data-node=\"4\">Forge</div>", "Forge", None)]);
-    assert!(printed[0].document.contains("<button data-journey-next=\"02.html\"\n>Set up temper</button\n>"));
-    assert!(printed[0].document.contains("<a data-journey-next=\"02.html\"\n>Begin</a\n>"));
-    for page in printed {
-        assert!(!page.document.contains("data-node"));
-    }
-}
-
-#[test]
-fn a_page_names_its_neighbours() {
-    let printed = pages(&[mark("<div></div>", "", None), mark("<div></div>", "", None), mark("<div></div>", "", None)]);
-    assert_eq!(printed.iter().map(|page| page.name.as_str()).collect::<Vec<_>>(), ["01.html", "02.html", "03.html"]);
-    assert!(!printed[0].document.contains("rel=\"prev\""));
-    assert!(printed[0].document.contains("<link rel=\"next\" href=\"02.html\"\n>"));
-    assert!(printed[1].document.contains("<link rel=\"prev\" href=\"01.html\"\n>"));
-    assert!(printed[1].document.contains("<link rel=\"next\" href=\"03.html\"\n>"));
-    assert!(printed[2].document.contains("<link rel=\"prev\" href=\"02.html\"\n>"));
-    assert!(!printed[2].document.contains("rel=\"next\""));
-}
-
-#[test]
-fn a_dialog_is_printed_open() {
-    let printed = pages(&[mark(
-        "<div data-node=\"1\"><dialog data-node=\"2\" aria-label=\"Choice\">Choose</dialog></div>",
-        "",
-        None,
-    )]);
-    assert!(printed[0].document.contains("<dialog open aria-label=\"Choice\"\n>Choose</dialog\n>"));
-}
-
-#[test]
-fn the_title_is_the_main_heading_then_temper() {
-    let printed = pages(&[mark("<div></div>", "Welcome & more", None), mark("<div></div>", "", None)]);
-    assert!(printed[0].document.contains("<title\n>Welcome &amp; more · temper</title\n>"));
-    assert!(printed[1].document.contains("<title\n>temper</title\n>"));
-}
-
-#[test]
-fn the_stylesheets_resolve_in_the_checkout() {
-    let printed = pages(&[mark("<div></div>", "", None)]);
-    let stylesheets: Vec<&str> = printed[0]
-        .document
-        .split("<link rel=\"stylesheet\" href=\"")
-        .skip(1)
-        .map(|rest| rest.split_once('"').expect("stylesheet href closes").0)
-        .collect();
-    assert_eq!(
-        stylesheets,
-        [
-            "../skein-ui.css",
-            "../../../../../../crates/temper-client-shell-web/temper.css",
-            "../../../../../../crates/temper-client-shell-web/task-pages.css",
-            "../overlay.css",
-        ]
-    );
-    for stylesheet in &stylesheets[1..3] {
-        // Neither the journeys root nor a journey need exist before the first print.
-        let mut path = Path::new(JOURNEYS).join("example");
-        for component in Path::new(stylesheet).components() {
-            if component == std::path::Component::ParentDir {
-                assert!(path.pop(), "stylesheet stays in the checkout");
-            } else {
-                path.push(component);
-            }
-        }
-        assert!(path.is_file(), "stylesheet exists: {}", path.display());
-    }
-}
-
-#[test]
-fn beside_writes_the_kits_and_the_journeys_files_and_keeps_an_overlay() {
-    let scratch = Scratch::new("temper-client-journeys-beside");
-    beside(scratch.path()).expect("write beside the journeys");
-    let overlay = scratch.path().join("overlay.css");
-    let script = scratch.path().join("journey.js");
-    let stylesheet = scratch.path().join("skein-ui.css");
-    assert_eq!(fs::read(&overlay).expect("empty overlay"), b"");
-    assert_eq!(fs::read_to_string(&script).expect("script"), SCRIPT);
-    assert_eq!(fs::read(&stylesheet).expect("stylesheet"), skein_ui_bundle::STYLESHEET);
-    let rule = b"#app { color: red; }\n";
-    fs::write(&overlay, rule).expect("person's overlay");
-    fs::write(&script, "old script").expect("old script");
-    fs::write(&stylesheet, "old stylesheet").expect("old stylesheet");
-    beside(scratch.path()).expect("rewrite beside the journeys");
-    assert_eq!(fs::read(&overlay).expect("kept overlay"), rule);
-    assert_eq!(fs::read_to_string(&script).expect("rewritten script"), SCRIPT);
-    assert_eq!(fs::read(&stylesheet).expect("rewritten stylesheet"), skein_ui_bundle::STYLESHEET);
-}
-
 #[test]
 fn the_overlay_is_empty() {
     let overlay = fs::read(Path::new(JOURNEYS).join("overlay.css")).expect("committed overlay.css");
@@ -242,6 +53,21 @@ fn every_journey_has_its_description() {
     }
 }
 #[test]
+fn the_tui_overlay_is_empty() {
+    let overlay = fs::read(Path::new(crate::TUI_JOURNEYS).join("overlay.css")).expect("committed TUI overlay.css");
+    assert!(overlay.is_empty(), "TUI overlay.css holds a request; move its rules into the theme and empty it");
+}
+
+#[test]
+fn every_tui_journey_has_its_description() {
+    for name in crate::names(Path::new(crate::TUI_JOURNEYS)).expect("committed TUI journeys") {
+        let path = Path::new(crate::TUI_JOURNEYS).join(&name).join("README.md");
+        let description = fs::read_to_string(path).expect("TUI journey README.md");
+        assert!(!description.trim().is_empty(), "{name} needs a README.md holding its description");
+    }
+}
+
+#[test]
 fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
     let source = scratch.path().join("source");
@@ -256,25 +82,6 @@ fn a_reprint_keeps_a_journeys_readme() {
     assert_eq!(crate::reprint(&source, &out).expect("reprint").len(), 0);
     assert_eq!(fs::read(readme).expect("description kept"), description);
     assert!(!directory.join("99.html").exists());
-}
-
-#[test]
-fn a_submits_field_leads_on_by_its_act() {
-    let mut first = mark("<div><form><input data-node=\"3\"></form></div>", "", Some(3));
-    first.lead = journey::Lead::Submit;
-    let printed = pages(&[first, mark("<div></div>", "", None)]);
-    assert!(printed[0].document.contains("<input data-journey-next=\"02.html\" data-journey-act=\"submit\"\n>"));
-}
-#[test]
-fn a_toggles_box_leads_on_by_its_act() {
-    let mut first = mark("<div><input type=\"checkbox\" data-node=\"3\"></div>", "", Some(3));
-    first.lead = journey::Lead::Toggle;
-    let printed = pages(&[first, mark("<div></div>", "", None)]);
-    assert!(
-        printed[0]
-            .document
-            .contains("<input type=\"checkbox\" data-journey-next=\"02.html\" data-journey-act=\"toggle\"\n>")
-    );
 }
 
 fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>> {
@@ -465,15 +272,19 @@ fn a_refusal_keeps_the_journey_of_its_name() {
 }
 
 #[test]
-fn the_committed_journey_redacted_prints_the_same_pages() {
-    let root = Path::new(JOURNEYS).join("welcome-set-up");
-    let recording = fs::read(root.join("recording")).expect("committed recording");
-    let redacted = journey::redact(&recording, &[]).expect("redact committed journey");
-    let pages = crate::printed("welcome-set-up", &redacted.recording).expect("read journey").expect("replay");
-    assert!(!pages.is_empty(), "committed pages checked");
-    for page in pages {
-        let expected = fs::read(root.join(page.name)).expect("committed page");
-        assert!(expected == page.document.as_bytes(), "redacted page equals committed page");
+fn a_marked_walk_redacted_prints_the_same_pages() {
+    let secret = ["walk", "-secret"].concat().into_bytes();
+    let recording = fixture_with_marks_and_secret(Some(secret.clone().into()));
+    let redacted = journey::redact(&recording, &[]).expect("redact host walk");
+    assert_eq!(redacted.originals.count(journey::Kind::Link), 1);
+    absent(&redacted.recording, &secret, "redacted host walk");
+    let expected = crate::printed("marked", &recording).expect("read host walk").expect("replay original");
+    let pages = crate::printed("marked", &redacted.recording).expect("read redacted walk").expect("replay redacted");
+    assert!(pages.len() >= 2, "several marked pages compared");
+    assert_eq!(pages.len(), expected.len(), "every page retained");
+    for (page, expected) in pages.iter().zip(&expected) {
+        assert_eq!(page.name, expected.name);
+        assert_eq!(page.document, expected.document, "redaction preserves the printed page");
     }
 }
 
@@ -539,42 +350,6 @@ fn every_committed_setup_reads_and_joins() {
         }
     }
     assert!(count > 0, "committed setups exercised");
-}
-
-#[test]
-fn project_landings_start_is_welcome_set_ups_recorded_acts() {
-    use skein_fake_person::{Face, Find, Found, TreeFace};
-    let root = Path::new(JOURNEYS);
-    let setup =
-        journey::setup(&fs::read(root.join("project-landing/setup")).expect("project setup")).expect("read setup");
-    let recording = fs::read(root.join("welcome-set-up/recording")).expect("welcome recording");
-    let lines = journey::lines(&recording).expect("welcome records");
-    let acts: Vec<_> = lines
-        .iter()
-        .filter_map(|line| match line {
-            journey::Line::Act { act, .. } => Some(act),
-            _ => None,
-        })
-        .collect();
-    let mut replay = journey::Replay::new(&recording).expect("replay welcome");
-    let mut at = 0;
-    while let Some(mark) = replay.next().expect("welcome replay holds") {
-        if mark.acted.is_empty() {
-            continue;
-        }
-        let journey::SetupStep::Act { role, name, order, act } = &setup.steps[at] else {
-            panic!("setup step {} must act", at + 1)
-        };
-        assert_eq!(act, acts[at], "setup step {} gives the recorded act", at + 1);
-        let find = Find::exactly_named(*role, name).nth(*order);
-        let Found::Node(node) = TreeFace::new(mark.tree).find(&find) else {
-            panic!("setup step {}: no {find}", at + 1)
-        };
-        assert!(mark.acted.contains(&node), "setup step {}: {find} must give the recorded event", at + 1);
-        at += 1;
-    }
-    assert_eq!(at, acts.len(), "every welcome act checked");
-    assert!(at > 0);
 }
 
 #[test]

@@ -56,33 +56,7 @@ fn goal_world_with_updates(
     stall: Option<Duration>,
     attempts: u8,
 ) -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        silent_ci,
-        passes,
-        Gate::default(),
-        None,
-        StoryLimits {
-            inbox_messages: Some(16),
-            inbox_bytes: Some(16_384),
-            tier,
-            slots: Some(4),
-            tasks: Some(32),
-            tree_tasks: Some(64),
-            task_delegates: Some(16),
-            authority_batch: Some(8),
-            tasks_batch: Some(8),
-            result_bytes: Some(4096),
-            forge_commits: commits,
-            stall,
-            ..StoryLimits::default()
-        },
-    )
-    .with_close_job(close.then_some(b".temper/close".as_slice()), true)
-    .with_goal_closer()
-    .with_landing_attempts(attempts)
-    .with_landing_deployment(Box::new([
+    let landing_rules = Box::new([
         engine::LandingRule {
             sets: Box::new([]),
             connector: 0,
@@ -123,13 +97,37 @@ fn goal_world_with_updates(
             gates: Box::new([]),
             approvals: Box::new([]),
         },
-    ]));
+    ]);
+    let mut world = World::configured_limits(
+        true,
+        true,
+        silent_ci,
+        passes,
+        Gate::default(),
+        None,
+        StoryLimits {
+            inbox_messages: Some(16),
+            inbox_bytes: Some(16_384),
+            tier,
+            slots: Some(4),
+            tasks: Some(32),
+            tree_tasks: Some(64),
+            task_delegates: Some(16),
+            authority_batch: Some(8),
+            tasks_batch: Some(8),
+            result_bytes: Some(4096),
+            forge_commits: commits,
+            stall,
+            close_job: Some((close.then(|| b".temper/close".as_slice().into()), true)),
+            goal_closer: true,
+            landing_attempts: Some(attempts),
+            landing_deployment: Some(landing_rules),
+            forge_rows: commits.map(|_| 8),
+            ..StoryLimits::default()
+        },
+    );
     if stall.is_some() {
         world.tick_interval = Duration::from_millis(10);
-    }
-    if commits.is_some() {
-        let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
-        world = world.with_forge_client(client);
     }
     world.adopt();
     let mut event = protocol::hello_slots(CHANNEL, 4, Box::new([]));
@@ -392,6 +390,40 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
     wait_ended(world, 10);
     let last = producer_for(world, 12);
     produce(world, 12, branch, &last, b"Last", b"No left section");
+}
+
+#[test]
+fn a_closer_and_its_goal_end_at_the_landing_without_a_tier_verdict() {
+    use temper_engine_domain_world::tier_runs;
+    let options = tier_runs::Tier { wait: change::Wait::Landed, ..tier_runs::Tier::default() };
+    let (mut world, goal, branch) = goal_world_in(true, true, Some(options), false);
+    add_change(&mut world, &goal, &branch, 93, b"source", b"implemented");
+    let event = world.protocol.answer(CHANNEL, goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal made its closer", |world| {
+        live_task(world, goal.task).closer.is_some()
+    });
+    let closer = live_task(&world, goal.task).closer.unwrap();
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_close(&mut world, close, &branch, &job);
+    wait_ended(&mut world, close);
+    let tip = branch_tip(&mut world, &branch);
+    status(&mut world, tip, raw::Check::Passed);
+    let landing = wait_landing(&mut world, closer);
+    tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal ends at its landing", |world| {
+        ended(world, goal.task).is_some()
+    });
+    let change::State::Landed { merge, .. } = row(&world, landing).change.state else {
+        panic!("landed, not verifying")
+    };
+    assert!(tiers::result(&world, landing).contains("Ended at landing; after landing judges it later."));
+    assert!(closer_row(&world, closer).unwrap().done);
+    assert_eq!(result_words(&world, closer), result_words(&world, goal.task));
+    let report = String::from_utf8_lossy(result_words(&world, goal.task));
+    assert!(report.contains(std::str::from_utf8(&forge_top::commit_text(&merge)).unwrap()), "{report}");
+    assert_eq!(tier_runs::tier(&world).record.sequence, 0, "no tier verdict before goal completion");
+    assert!(!tiers::result(&world, close).contains("Ended at landing;"), "no tier follows the close change's base");
 }
 
 #[test]

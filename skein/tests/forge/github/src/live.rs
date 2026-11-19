@@ -16,16 +16,17 @@ use std::{
     path::{Path, PathBuf},
 };
 
-pub(crate) struct Fixtures {
-    pub app: u64,
-    pub slug: String,
-    pub version: String,
-    pub key: Vec<u8>,
+#[doc(hidden)]
+pub struct Fixtures {
+    pub(crate) app: u64,
+    pub(crate) slug: String,
+    pub(crate) version: String,
+    pub(crate) key: Vec<u8>,
     pub webhook: String,
     pub people: BTreeMap<String, String>,
-    pub installations: Vec<Installation>,
-    pub spare: String,
-    pub source: Option<PathBuf>,
+    pub(crate) installations: Vec<Installation>,
+    pub(crate) spare: String,
+    pub(crate) source: Option<PathBuf>,
     pub pem: String,
 }
 #[derive(Clone)]
@@ -60,6 +61,7 @@ fn file(dir: &Path, name: &str, bound: u64) -> Result<Vec<u8>> {
     Ok(bytes)
 }
 impl Fixtures {
+    #[must_use]
     pub fn guard_fixtures(&self) -> GuardFixtures {
         GuardFixtures {
             installations: self.installations.iter().map(|installation| installation.id).collect(),
@@ -148,7 +150,7 @@ impl Fixtures {
         }
         Ok(Self { app, slug, version, key, webhook, people, installations, spare, source: Some(dir.to_owned()), pem })
     }
-    pub fn secrets(&self) -> Secrets {
+    pub(crate) fn secrets(&self) -> Secrets {
         let mut secrets = Secrets::of(&[]);
         register(&mut secrets, SecretKind::HookSecret, &self.webhook);
         for token in self.people.values() {
@@ -328,12 +330,13 @@ pub fn guarded(
     connector()
 }
 
-pub(crate) struct Connector {
+#[doc(hidden)]
+pub struct Connector {
     tls: skein_tls::Config,
     fixtures: GuardFixtures,
 }
 impl Connector {
-    pub fn new(fixtures: &Fixtures) -> Result<Self> {
+    pub(crate) fn new(fixtures: &Fixtures) -> Result<Self> {
         let roots = skein_shell::read_trust_roots(
             &skein_shell::Trust::Machine { ssl_cert_file: None },
             &skein_shell::RootBounds { bundle_bytes: 4_194_304, certificates: 1024, certificate_bytes: 65536 },
@@ -344,7 +347,7 @@ impl Connector {
         Ok(Self { tls, fixtures: fixtures.guard_fixtures() })
     }
     #[expect(clippy::too_many_lines, reason = "one TLS step loop owns the socket and both stream directions")]
-    pub fn exchange(&self, request: &Request) -> Result<(Vec<u8>, Response)> {
+    pub(crate) fn exchange(&self, request: &Request) -> Result<(Vec<u8>, Response)> {
         use skein_lib::{
             Env, Intake, Queue, Time,
             stream::{Down, Read as Demand, Up},

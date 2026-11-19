@@ -1017,6 +1017,39 @@ fn across_count_counts_shared_proposals_once_and_subtracts_a_held_answer() {
 }
 
 #[test]
+fn standing_count_is_cut_only_when_needs_run_past_the_window() {
+    for updates in [false, true] {
+        let (mut root, watch) = count_root();
+        let mut rows = List::with_capacity(5);
+        for number in 1..=4 {
+            rows.push(crate::tests::documents::entry(
+                ObjectKey::Question { task: f::TASK, message: number },
+                fixtures::PROJECT,
+                number,
+                Wall::EPOCH,
+                None,
+            ))
+            .unwrap();
+        }
+        if updates {
+            rows.push(crate::tests::documents::entry(
+                ObjectKey::Result(f::TASK),
+                fixtures::PROJECT,
+                5,
+                Wall::EPOCH,
+                None,
+            ))
+            .unwrap();
+        }
+        let inbox = crate::tests::documents::inbox(rows, 4, c::Count { value: 0, limited: false }, 0, true);
+        super::welcome::deliver(&mut root, watch, c::Delivery::Inbox(Box::new(inbox)));
+        let expected = needs::Count { count: 4, cut: !updates };
+        assert_eq!(root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT), expected);
+        assert_eq!(root.pages().needs().count_across(root.client(), root.forge().approvals()), expected);
+    }
+}
+
+#[test]
 fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cut_and_end() {
     for (inbox_cut, more) in [(false, 1), (true, 0)] {
         let (mut root, watch, approvals) = approval_root();
@@ -1049,11 +1082,11 @@ fn standing_count_filters_projects_subtracts_answered_keeps_later_and_reports_cu
         assert!(pages::shown(root.pages()) > before);
         assert_eq!(
             root.pages().needs().count(root.client(), root.forge().approvals(), fixtures::PROJECT),
-            needs::Count { count: 3, cut: true }
+            needs::Count { count: 3, cut: more > 0 }
         );
         assert_eq!(
             root.pages().needs().count_across(root.client(), root.forge().approvals()),
-            needs::Count { count: 5, cut: true }
+            needs::Count { count: 5, cut: more > 0 }
         );
         let mut cards = fixture();
         add(&mut cards, SECOND, fixtures::PROJECT);

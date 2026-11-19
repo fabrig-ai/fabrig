@@ -237,22 +237,26 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   charter 5 row).
 - **Words a person reads first are written for them**
   (`../../draft/home-for-a-person.md`, 4). Home, Work and Needs you
-  show three things an agent writes before the thing's own page. Each
+  show four things an agent writes before the thing's own page. Each
   is the agent's own field, with no second text beside it for the
   person (that draft's section 10 keeps the question open), so the
   stock charters' words have it written for both:
   - **A goal's or a change's title,** its words' first line (`tools.md`,
-    1 and 2): at most 60 characters naming the work for a person, the
-    rest of the words on the lines below it. Charter 1's instructions,
-    for a goal and for the person's chat, and charters 13 to 16's shared
-    sections, which start goals and changes, say: "Open the words of
-    each goal and change you start with a title line: at most 60
-    characters naming the work for a person, as Store shape S7 ·
-    history in task logs; the rest follows on the lines below."
-    Charter 5's specs keep their own title line of at most 30
-    characters (`../../../charters/stock/goal.md`). `temper ctl goal
-    start`'s help says it of its words (`../../client/ctl/areas.md`,
-    area 2).
+    1 and 2): at most 60 characters naming the work for a person in
+    plain words, with no draft or milestone codes and no internal names,
+    the rest of the words on the lines below it. Charter 1's
+    instructions, for a goal and for the person's chat, and charters 13
+    to 16's shared sections, which start goals and changes, say: "Open
+    the words of each goal and change you start with a title line: at
+    most 60 characters naming the work in plain words, with no draft
+    codes or internal names, as Store shape · history in task logs; the
+    rest follows on the lines below." Charter 5's specs keep their own
+    title line of at most 30 characters, whose sentence says it too:
+    "plain words saying what it does, at most 30 characters, no
+    Markdown, codes or internal names ("Cancel a landed change's runs")"
+    (`../../../charters/stock/goal.md`). `temper ctl goal
+    start`'s help says it of its words, with the example "Store shape:
+    history in task logs" (`../../client/ctl/areas.md`, area 2).
   - **A decision's words,** `decided`'s (`tools.md`): every charter that
     decides says, beside its call: "Write the question in one sentence,
     the situation as a person reads it, and each option in one line."
@@ -265,15 +269,45 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
     it, and each option in one line; commits, figures and task or pull
     numbers go in its why." So the option `took` names reads as one line.
   - **A goal's report headline** (`agents.md`, 3, *A goal's report*):
-    charter 1's goal paragraph says the headline is one line for the
-    person saying "where the goal stands, naming no task, change or pull
-    request by number, as "5 of its 7 changes landed; the other 2 are
-    building."". Charter 5's report note (its `goal` file) says it in the
-    draft's shorter words, with no task, change or pull numbers and the
-    same example, and its designer's last words leave the headline to
-    that note, keeping its brief within the receiving bounds. A
-    count is a person's; a number they would have to look up is the
-    body's.
+    one line for a person saying plainly, in the work's own terms, what
+    the goal has done and what's left. It names no task, change or pull
+    request by number, no draft or milestone code (P1, R1), no branch
+    (g), and none of the words of how goals run: change, cut, wave,
+    delivery, landing, repair, spec. A count is a person's; a number
+    they would have to look up is the body's, and so is the plan's
+    vocabulary. Charter 5's report note (its `goal` file) says "a
+    one-line headline for a person of what's done and what's left, in
+    the work's own terms, with no task, change or pull numbers, codes
+    (P1), branch (g) or words of how goals run (change, cut, wave,
+    delivery, landing, repair, spec): "Three of the four parts are done;
+    the page part is still being built."", and its designer's last words leave the headline to that
+    note, keeping its brief within the receiving bounds. Charter 1's
+    goal paragraph says it in fewer words: "a one-line headline for the
+    person saying, in the work's own terms, what the goal has done and
+    what's left, naming no task, change or pull request by number, no
+    draft code or branch, and none of the words of how goals run, as
+    "Most of it is in; the last two parts are being built."". Each
+    replaces the sentence it had, so each charter's first wake keeps
+    its room (section 1). Charter 5's brief is the largest the room
+    admits, so its `goal` file gives up what its tools or other lines
+    already say: *Tools' edges* drops `decided`'s byte bounds, which
+    the tool declares; *A change* drops its list of wakes, which "in any
+    wake until the goal lands" covers; the spec's `## Goal` drops "Test
+    names, fixtures and remaining cases are the implementer's.", which
+    `## Steps`' "The rest is the implementer's." covers. The file ends
+    no longer than it was.
+  - **A project's brief,** charter 9's, the lines at the top of Home
+    (`../forge/attention.md`, 3): one sentence of at most 25 words on
+    what landed, then at most two plain sentences, 70 words in all, so
+    the 200- and 600-byte fits that save it never cut it mid-word. It
+    names work by what it does, a goal by its milestone where it has
+    one, with no codes from titles (K3), no wire or protocol versions,
+    and none of the words of how goals run, "delegates" among them. It
+    says someone is waited on only where its facts show a question open
+    now: a goal's and a role's line count the questions they have open
+    to a person, so a role's Now still saying it waits on its person,
+    once they have answered, is not repeated. Its instructions,
+    `status.txt`, are quoted whole there, and replace the ones they had.
   - **A bound of the words, not of the code:** nothing refuses, cuts or
     checks a title, a question or a headline for it, and the client's
     own cut draws a longer one (`../../draft/home-for-a-person.md`, 3).

@@ -1,13 +1,17 @@
 //! The journeys binary's capture and dispatch (temper/docs/design/testing/tools.md, 3–4).
 use crate::again::{self, Paths};
+use crate::pages::{Bound, Stopped};
 use crate::{
     EnvironmentEntry, TABLE,
-    table::{ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, NORMALISE, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET},
+    table::{
+        ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, NORMALISE, PAGES, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET,
+    },
 };
 use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
 use skein_shell::{Front, Table};
 use std::process::Command;
 use std::process::ExitCode;
+use std::time::{Duration, Instant};
 use std::{
     ffi::{OsStr, OsString},
     fs, io,
@@ -20,9 +24,11 @@ use temper_client_shell_web::journey;
 /// Run the journeys binary (temper/docs/design/testing/tools.md, 4.2–4.3).
 #[expect(
     clippy::disallowed_methods,
-    reason = "the binary's capture: temper-client-journeys' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
+    clippy::disallowed_types,
+    reason = "the binary's capture: monotonic start and temper-client-journeys' arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
+    let started = Instant::now();
     let arguments = skein_shell::arguments();
     let environment = skein_shell::environment();
     let result = match (Table { version, commit, ..TABLE }).front(&arguments) {
@@ -54,6 +60,16 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                     usage(&NORMALISE, "unexpected arguments");
                 }
                 normalise_all()
+            } else if *command == PAGES {
+                let options = page_options(rest).unwrap_or_else(|why| usage(&PAGES, why));
+                return match pages(&options, started, &environment) {
+                    Ok(false) => ExitCode::SUCCESS,
+                    Ok(true) => ExitCode::FAILURE,
+                    Err(why) => {
+                        eprintln!("temper-client-journeys: {why}");
+                        ExitCode::from(3)
+                    }
+                };
             } else if *command == AGAIN {
                 let (prepared, name) = match rest {
                     [name] => (None, name),
@@ -167,44 +183,207 @@ pub(crate) fn addition(added: &crate::Added, is_tui: bool) -> String {
 }
 
 fn record_again(name: &str, prepared: Option<&Path>, environment: &[EnvironmentEntry]) -> Result<(), String> {
+    let is_tui = Path::new(TUI_JOURNEYS).join(name).join("walk").exists();
+    let steps = starting(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, is_tui)?;
+    let horizon = if is_tui { tui_again::HORIZON } else { again::HORIZON };
+    record_walk(name, steps, prepared, &scratch_base(prepared), horizon, None, environment)
+        .and_then(|scratch| remove_scratch(name, &scratch).map_err(Stopped::from))
+        .map_err(|stopped| {
+            if let Some(scratch) = stopped.scratch {
+                format!("{name}: {}\nscratch directory kept at {}", stopped.why, scratch.display())
+            } else {
+                stopped.why
+            }
+        })
+}
+
+pub(crate) fn starting(
+    web: &Path,
+    tui: &Path,
+    name: &str,
+    is_tui: bool,
+) -> Result<Option<tui_again::Starting>, String> {
     if !named(name) {
         return Err(refusal(Refusal::Name(name.to_owned())));
     }
-    let is_tui = Path::new(TUI_JOURNEYS).join(name).join("walk").exists();
-    // Unwalkable journeys are refused before starting the builds or either child.
-    let tui_steps = if is_tui {
-        Some(tui_again::starting(Path::new(TUI_JOURNEYS), Path::new(JOURNEYS), name).map_err(refusal)?)
+    crate::refuse_moved(web, tui, name).map_err(refusal)?;
+    // Validate a walk before its children start; `again` also validates before its build.
+    if is_tui {
+        tui_again::starting(tui, web, name).map(Some).map_err(refusal)
     } else {
-        let _steps = again::starting(Path::new(JOURNEYS), name).map_err(refusal)?;
-        let _setup = again::setup(Path::new(JOURNEYS), name).map_err(refusal)?;
-        None
+        let _steps = again::starting(web, name).map_err(refusal)?;
+        let _setup = again::setup(web, name).map_err(refusal)?;
+        Ok(None)
+    }
+}
+
+fn record_walk(
+    name: &str,
+    tui_steps: Option<tui_again::Starting>,
+    prepared: Option<&Path>,
+    base: &Path,
+    horizon: skein_lib::Duration,
+    within: Option<Duration>,
+    environment: &[EnvironmentEntry],
+) -> Result<PathBuf, Stopped> {
+    let is_tui = tui_steps.is_some();
+    let chromium = chromium(name, environment)?;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let scratch = scratch(base).map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
+    let paths = match prepared {
+        Some(directory) => prepared_paths(directory, &scratch, chromium, is_tui),
+        None => build(&root, &scratch, chromium, is_tui, environment, false),
     };
+    let result = paths.and_then(|paths| {
+        if let Some(steps) = tui_steps {
+            tui_again::again(
+                Path::new(JOURNEYS),
+                Path::new(TUI_JOURNEYS),
+                name,
+                &steps,
+                &paths,
+                environment,
+                horizon,
+                within,
+            )
+            .map_err(refusal)
+        } else {
+            again::again(Path::new(JOURNEYS), name, &paths, environment, horizon).map_err(refusal)
+        }
+    });
+    match result {
+        Ok(()) => Ok(scratch),
+        Err(why) => Err(Stopped { why, scratch: Some(scratch) }),
+    }
+}
+
+fn remove_scratch(name: &str, scratch: &Path) -> Result<(), String> {
+    fs::remove_dir_all(scratch)
+        .map_err(|error| format!("{name}: cannot remove scratch directory {}: {error}", scratch.display()))
+}
+
+fn chromium(name: &str, environment: &[EnvironmentEntry]) -> Result<PathBuf, String> {
     let chromium = CHROMIUM
         .value(environment)
         .map(OsStr::from_bytes)
         .ok_or_else(|| format!("{name}: set SKEIN_TEST_CHROMIUM to the Chromium binary"))?;
-    let chromium = fs::canonicalize(chromium)
-        .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))?;
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let base = scratch_base(prepared);
-    let scratch = scratch(&base).map_err(|error| format!("{name}: cannot make a fresh scratch directory: {error}"))?;
-    let paths = match prepared {
-        Some(directory) => prepared_paths(directory, &scratch, chromium, is_tui),
-        None => build(&root, &scratch, chromium, is_tui, environment),
-    };
-    let result = paths.and_then(|paths| {
-        if let Some(steps) = tui_steps {
-            tui_again::again(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), name, &steps, &paths, environment)
-                .map_err(refusal)
-        } else {
-            again::again(Path::new(JOURNEYS), name, &paths, environment).map_err(refusal)
-        }
-    });
-    match result {
-        Ok(()) => fs::remove_dir_all(&scratch)
-            .map_err(|error| format!("{name}: cannot remove scratch directory {}: {error}", scratch.display())),
-        Err(why) => Err(format!("{name}: {why}\nscratch directory kept at {}", scratch.display())),
+    fs::canonicalize(chromium)
+        .map_err(|error| format!("{name}: cannot open Chromium {}: {error}", Path::new(&chromium).display()))
+}
+
+const PAGE_USAGE: &str = "expected [--prepared DIR] [--within DURATION] or --check";
+
+#[derive(Debug)]
+struct PageOptions {
+    prepared: Option<PathBuf>,
+    bound: Option<Bound>,
+    check: bool,
+}
+
+fn duration(word: &str) -> Option<Duration> {
+    let (unit, digits) = word.as_bytes().split_last()?;
+    if digits.is_empty() || !digits.iter().all(u8::is_ascii_digit) {
+        return None;
     }
+    let factor = match unit {
+        b's' => 1,
+        b'm' => 60,
+        b'h' => 3600,
+        _ => return None,
+    };
+    let seconds = std::str::from_utf8(digits).ok()?.parse::<u64>().ok()?.checked_mul(factor)?;
+    Some(Duration::from_secs(seconds))
+}
+
+fn page_options(mut rest: &[Box<[u8]>]) -> Result<PageOptions, &'static str> {
+    let mut options = PageOptions { prepared: None, bound: None, check: false };
+    if let [word] = rest
+        && word.as_ref() == b"--check"
+    {
+        options.check = true;
+        return Ok(options);
+    }
+    while !rest.is_empty() {
+        let [flag, value, tail @ ..] = rest else { return Err(PAGE_USAGE) };
+        match flag.as_ref() {
+            b"--prepared" if options.prepared.is_none() => {
+                options.prepared = Some(PathBuf::from(OsStr::from_bytes(value)));
+            }
+            b"--within" if options.bound.is_none() => {
+                let word = std::str::from_utf8(value).map_err(|_| PAGE_USAGE)?;
+                options.bound = Some(Bound { word: word.into(), duration: duration(word).ok_or(PAGE_USAGE)? });
+            }
+            _ => return Err(PAGE_USAGE),
+        }
+        rest = tail;
+    }
+    Ok(options)
+}
+
+/// The inputs' unbounded build counts against the walks' bound; the reprint does not
+/// (temper/docs/design/client/journey-writer.md, 3, items 4–7).
+#[expect(clippy::disallowed_types, reason = "the command's monotonic elapsed time is passed to the writer as a value")]
+fn pages(options: &PageOptions, started: Instant, environment: &[EnvironmentEntry]) -> Result<bool, String> {
+    use crate::pages::{self, Client};
+    let web = Path::new(JOURNEYS);
+    let tui = Path::new(TUI_JOURNEYS);
+    if options.check {
+        return pages::check(web, tui, |line| output(Destination::Stdout, line));
+    }
+    let journeys = pages::stale(web, tui).map_err(refusal)?;
+    let needs_walk = journeys.iter().any(|journey| journey.stale);
+    let needs_tui = journeys.iter().any(|journey| journey.stale && journey.client == Client::Tui);
+    let prepared = options.prepared.as_deref();
+    let bound = options.bound.as_ref();
+    let inputs = (prepared.is_none()
+        && needs_walk
+        && bound.is_none_or(|bound| bound.rest(started.elapsed()) >= pages::CLOSE_WINDOW))
+    .then(|| page_inputs(needs_tui, environment));
+    let result = pages::write(
+        web,
+        tui,
+        &journeys,
+        bound,
+        || started.elapsed(),
+        |journey, rest| {
+            let directory = match (prepared, &inputs) {
+                (Some(directory), _) => directory,
+                (None, Some(Ok(paths))) => &paths.scratch,
+                (None, Some(Err(stopped))) => return Err(stopped.clone()),
+                (None, None) => return Err(bound.expect("unbuilt inputs need an expired bound").not_walked()),
+            };
+            let steps =
+                starting(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), &journey.name, journey.client == Client::Tui)?;
+            let own = match journey.client {
+                Client::Web => again::HORIZON,
+                Client::Tui => tui_again::HORIZON,
+            };
+            let horizon = rest.map_or(own, |rest| {
+                own.min(skein_lib::Duration::from_nanos(u64::try_from(rest.as_nanos()).unwrap_or(u64::MAX)))
+            });
+            // Retries share the chosen horizon, rather than renewing the bound.
+            let within = rest.map(|_| Duration::from_nanos(horizon.as_nanos()));
+            record_walk(&journey.name, steps, Some(directory), &scratch_base(prepared), horizon, within, environment)
+                .and_then(|scratch| {
+                    remove_scratch(&journey.name, &scratch).map_err(|why| Stopped { why, scratch: Some(scratch) })
+                })
+        },
+        output,
+    );
+    // Failed builds keep their inputs for diagnosis. Successful built inputs never
+    // own a walk's scratch, and go even when a walk or the reprint stopped.
+    if let Some(Ok(paths)) = inputs {
+        fs::remove_dir_all(&paths.scratch)
+            .map_err(|error| format!("cannot remove inputs {}: {error}", paths.scratch.display()))?;
+    }
+    result
+}
+
+fn page_inputs(is_tui: bool, environment: &[EnvironmentEntry]) -> Result<Paths, Stopped> {
+    let chromium = chromium("pages", environment)?;
+    let scratch = scratch(&scratch_base(None)).map_err(|error| format!("cannot make inputs directory: {error}"))?;
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
+    build(&root, &scratch, chromium, is_tui, environment, true).map_err(|why| Stopped { why, scratch: Some(scratch) })
 }
 
 fn scratch_base(prepared: Option<&Path>) -> PathBuf {
@@ -244,6 +423,7 @@ fn build(
     chromium: PathBuf,
     is_tui: bool,
     environment: &[EnvironmentEntry],
+    writer: bool,
 ) -> Result<Paths, String> {
     let mut cargo = Command::new("cargo");
     cargo.env_clear().envs(environment.iter().map(|(name, value)| (OsStr::from_bytes(name), OsStr::from_bytes(value))));
@@ -257,6 +437,9 @@ fn build(
     if is_tui {
         cargo.args(["-p", "temper"]);
     }
+    if writer {
+        cargo.stdout(io::stderr());
+    }
     let status = cargo.status().map_err(|error| format!("cannot start cargo build: {error}"))?;
     if !status.success() {
         return Err(format!("cargo build failed: {status}"));
@@ -267,6 +450,9 @@ fn build(
         .env_clear()
         .envs(environment.iter().map(|(name, value)| (OsStr::from_bytes(name), OsStr::from_bytes(value))));
     bundler.current_dir(root).env("TEMPER_INTERNAL_BUNDLE", "none");
+    if writer {
+        bundler.stdout(io::stderr());
+    }
     let status = bundler.arg(&bundle).status().map_err(|error| format!("cannot start scripts/bundle.sh: {error}"))?;
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
@@ -308,14 +494,38 @@ fn normalise_all() -> Result<bool, String> {
 }
 
 fn reprint_all() -> Result<bool, String> {
-    let stale = reprint(Path::new(JOURNEYS), Path::new(JOURNEYS)).map_err(refusal)?;
-    let tui_stale = tui::reprint(Path::new(TUI_JOURNEYS), Path::new(TUI_JOURNEYS)).map_err(refusal)?;
+    reprint_roots(Path::new(JOURNEYS), Path::new(TUI_JOURNEYS), Destination::Stdout, output)
+        .map(|stale| !stale.is_empty())
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Destination {
+    Stdout,
+    Stderr,
+}
+
+fn output(destination: Destination, line: &str) {
+    match destination {
+        Destination::Stdout => println!("{line}"),
+        Destination::Stderr => eprintln!("{line}"),
+    }
+}
+
+pub(crate) fn reprint_roots(
+    web: &Path,
+    tui: &Path,
+    names_to: Destination,
+    mut show: impl FnMut(Destination, &str),
+) -> Result<Vec<String>, String> {
+    let stale = reprint(web, web).map_err(refusal)?;
+    let tui_stale = tui::reprint(tui, tui).map_err(refusal)?;
     let mut names = Vec::new();
-    for journeys in [JOURNEYS, TUI_JOURNEYS] {
-        for entry in fs::read_dir(journeys).map_err(|_| format!("cannot read {journeys}"))? {
-            let entry = entry.map_err(|_| format!("cannot read {journeys}"))?;
+    for journeys in [web, tui] {
+        for entry in fs::read_dir(journeys).map_err(|_| format!("cannot read {}", journeys.display()))? {
+            let entry = entry.map_err(|_| format!("cannot read {}", journeys.display()))?;
             let path = entry.path();
             if entry.file_type().map_err(|_| format!("cannot read {}", path.display()))?.is_dir()
+                && !crate::moved(&path).map_err(refusal)?
                 && path.join("recording").is_file()
             {
                 names.push(entry.file_name());
@@ -324,18 +534,21 @@ fn reprint_all() -> Result<bool, String> {
     }
     names.sort();
     for name in names {
-        println!("{}", name.to_string_lossy());
+        show(names_to, &name.to_string_lossy());
     }
     for (name, stopped) in &stale {
-        eprintln!("temper-client-journeys: {}", stale_message(name, stopped));
+        show(Destination::Stderr, &format!("temper-client-journeys: {}", stale_message(name, stopped)));
     }
     for (name, stopped) in &tui_stale {
-        eprintln!(
-            "temper-client-journeys: {name} is stale at turn {}, line {}; record it again (client/tui/journeys.md, 8)",
-            stopped.turn, stopped.line
+        show(
+            Destination::Stderr,
+            &format!(
+                "temper-client-journeys: {name} is stale at turn {}, line {}; record it again (client/tui/journeys.md, 8)",
+                stopped.turn, stopped.line
+            ),
         );
     }
-    Ok(!stale.is_empty() || !tui_stale.is_empty())
+    Ok(stale.into_iter().map(|(name, _)| name).chain(tui_stale.into_iter().map(|(name, _)| name)).collect())
 }
 
 pub(crate) fn refusal(why: Refusal) -> String {
@@ -345,6 +558,7 @@ pub(crate) fn refusal(why: Refusal) -> String {
         }
         Refusal::TuiAgain { name, step, report } => format!("{name} at step {step}: {report}"),
         Refusal::OtherClient { name } => format!("{name} belongs to the other client's journey directory"),
+        Refusal::Moved { name } => format!("{name} has a walk of version 2; use temper-client-walk"),
         Refusal::TuiProof { name, refusal } => match refusal {
             temper_client_shell_tui::journey::Refusal::Unreadable(why) => {
                 format!("{name} is unreadable at line {}: {}", why.line, why.why)
@@ -477,6 +691,93 @@ fn fail(why: &str) -> ! {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn duration_takes_decimal_seconds_minutes_or_hours_with_checked_seconds() {
+        for (word, seconds) in
+            [("90m", 5400), ("0s", 0), ("45s", 45), ("2h", 7200), ("18446744073709551615s", u64::MAX)]
+        {
+            assert_eq!(duration(word).map(|duration| duration.as_secs()), Some(seconds), "{word}");
+        }
+        for word in [
+            "90",
+            "m",
+            "1.5h",
+            "-1m",
+            "90M",
+            "9 0m",
+            "",
+            "18446744073709551616s",
+            "18446744073709551615m",
+            "18446744073709551615h",
+        ] {
+            assert_eq!(duration(word), None, "{word}");
+        }
+    }
+
+    fn page_arguments(words: &[&str]) -> Vec<Box<[u8]>> {
+        words.iter().map(|word| word.as_bytes().into()).collect()
+    }
+
+    #[test]
+    fn pages_options_take_each_value_once_in_either_order_or_check_alone() {
+        for words in [
+            vec![],
+            vec!["--prepared", "inputs", "--within", "90m"],
+            vec!["--within", "90m", "--prepared", "inputs"],
+            vec!["--within", "90m"],
+            vec!["--prepared", "inputs"],
+        ] {
+            let options = page_options(&page_arguments(&words)).expect("valid page options");
+            assert!(!options.check);
+            assert_eq!(options.prepared.as_deref(), words.contains(&"--prepared").then_some(Path::new("inputs")));
+            assert_eq!(
+                options.bound.as_ref().map(|bound| bound.word.as_str()),
+                words.contains(&"--within").then_some("90m")
+            );
+        }
+        let check = page_options(&page_arguments(&["--check"])).expect("check alone");
+        assert!(check.check);
+        assert!(check.prepared.is_none());
+        assert!(check.bound.is_none());
+        for words in [
+            vec!["--check", "--prepared", "inputs"],
+            vec!["--within", "0s", "--check"],
+            vec!["--check", "extra"],
+            vec!["--check", "--check"],
+            vec!["--within"],
+            vec!["--within", "90"],
+            vec!["--prepared"],
+            vec!["--within", "0s", "--within", "1s"],
+            vec!["--prepared", "one", "--prepared", "two"],
+            vec!["extra"],
+        ] {
+            assert_eq!(page_options(&page_arguments(&words)).expect_err("usage, exit 2"), PAGE_USAGE);
+        }
+    }
+
+    #[test]
+    fn record_walk_reports_its_scratch_separately_and_makes_none_before_chromium() {
+        let root = skein_scratch::Scratch::new("pages-record-scratch");
+        let prepared = root.path().join("inputs");
+        fs::create_dir(&prepared).expect("prepared directory");
+        let chromium = root.path().join("chromium");
+        fs::write(&chromium, "not executed").expect("Chromium path");
+        let environment = vec![(b"SKEIN_TEST_CHROMIUM".as_slice().into(), chromium.as_os_str().as_bytes().into())];
+        let stopped =
+            record_walk("browser-link", None, Some(&prepared), root.path(), again::HORIZON, None, &environment)
+                .expect_err("missing prepared binaries; no child starts");
+        assert!(stopped.why.starts_with("cannot copy prepared temper-box:"));
+        let own = stopped.scratch.expect("walk's scratch");
+        assert_eq!(own.parent(), Some(root.path()));
+        assert!(own.is_dir());
+        assert!(!own.starts_with(&prepared), "scratch is not inside built inputs");
+        let before = temper_client_journeys_kit::tree_bytes(root.path());
+        let stopped = record_walk("browser-link", None, Some(&prepared), root.path(), again::HORIZON, None, &[])
+            .expect_err("no Chromium before scratch is made");
+        assert!(stopped.scratch.is_none());
+        assert!(before == temper_client_journeys_kit::tree_bytes(root.path()), "no new scratch");
+    }
 
     #[test]
     fn scratch_base_uses_the_prepared_or_platform_temporary_directory() {

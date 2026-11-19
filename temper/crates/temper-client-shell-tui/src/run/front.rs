@@ -16,7 +16,7 @@ const LINK: usize = 4096;
 pub(super) enum Report {
     Stage(BoxStage),
     Line(BoxLine),
-    Link { engine: io::Addr, address: Box<[u8]>, link: Secret },
+    Link { engine: io::Addr, address: temper_client_tui::Origin, link: Secret },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -470,17 +470,21 @@ impl Child {
     }
 }
 
-fn authority(link: &[u8]) -> Option<(io::Addr, Box<[u8]>)> {
+fn authority(link: &[u8]) -> Option<(io::Addr, temper_client_tui::Origin)> {
     if link.is_empty() || link.len() > LINK {
         return None;
     }
     let url = std::str::from_utf8(link).ok()?.strip_prefix("http://")?;
     let (authority, _) = url.split_once('/')?;
-    let address = crate::start::address(format!("http://{authority}").as_bytes()).ok()?;
+    let temper_client_tui::Origin::Http(address) =
+        crate::start::address(format!("http://{authority}").as_bytes()).ok()?
+    else {
+        return None;
+    };
     if address.port() == 0 {
         return None;
     }
-    Some((io::Addr::Ip(address), authority.as_bytes().into()))
+    Some((io::Addr::Ip(address), temper_client_tui::Origin::Http(address)))
 }
 
 #[cfg(test)]

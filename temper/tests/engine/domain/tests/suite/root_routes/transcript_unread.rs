@@ -64,6 +64,126 @@ fn unread_preparation(closed: bool) -> (Driver, engine::Assignment, Token) {
     (driver, first, owner)
 }
 
+fn failed_preparations(driver: &mut Driver, task: u64) -> usize {
+    let mut failed = 0;
+    while let Some(fact) = driver.root.pop_fact() {
+        if let engine::Fact::BriefFailed { task: found, .. } = fact {
+            assert_eq!(found, task, "only the preparation being tested may fail");
+            failed += 1;
+        }
+    }
+    failed
+}
+
+#[test]
+fn unread_retires_once_and_ignores_a_stale_preparation() {
+    let (mut driver, first, stale) = unread_preparation(false);
+    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.pump();
+    assert_eq!(failed_preparations(&mut driver, first.task), 1, "one unread terminal");
+    assert_eq!(assignments(&driver), 0);
+    assert_eq!(live(&driver, first.task).tries.transient, 1);
+    // Reclaimed archive and load room can serve the next preparation.
+    driver.fire_at(Duration::from_secs(2));
+    driver.pump();
+    let fresh = driver.last_assignment();
+    assert!(fresh.attempt > first.attempt);
+    let read = fresh.messages.last().map(|message| message.number);
+    driver.send(protocol::turn(CHANNEL, fresh.task, fresh.attempt, 1, 1, read, BODY));
+    driver.pump();
+    driver.answer(CHANNEL, fresh.task, fresh.attempt, 1, tasks::End::Parked, engine::Parts::none());
+    driver.pump();
+    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.pump();
+    assert_eq!(failed_preparations(&mut driver, first.task), 0, "no current preparation to fail");
+    driver.send(say_ask(driver.session(), first.task, 49));
+    let current = take_transcript_reply(&mut driver, first.task);
+    let current = owner(&current);
+    assert_ne!(current, stale, "reclaimed waiters have a new generation");
+    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: stale }));
+    driver.pump();
+    assert_eq!(assignments(&driver), 1, "the current preparation still waits on its own read");
+    assert_eq!(failed_preparations(&mut driver, first.task), 0, "stale waiter cannot reach a later preparation");
+    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: current }));
+    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: current }));
+    driver.pump();
+    assert_eq!(assignments(&driver), 1, "unread never offers the unusable open window");
+    assert_eq!(failed_preparations(&mut driver, first.task), 1, "the current preparation receives unread once");
+    driver.fire_at(Duration::from_secs(4));
+    driver.pump();
+    assert_eq!(assignments(&driver), 2, "the retired current read releases its room");
+    assert!(driver.last_assignment().transcript.is_empty());
+}
+
+#[test]
+fn malformed_transcript_rows_and_texts_still_answer_failed() {
+    for name in ["row kind", "text count", "text bound", "cut body", "cut alone", "load seam cut"] {
+        let (mut driver, first) = parked_window(false);
+        driver.send(say_ask(driver.session(), first.task, 48));
+        let reply = take_transcript_reply(&mut driver, first.task);
+        let engine::Event::Store(engine::StoreInput::Loaded { owner, rows, .. }) = reply else {
+            panic!("held transcript page")
+        };
+        let row = rows.first().expect("one turn").clone();
+        let (rows, texts): (Box<[Record]>, Option<engine::TranscriptTexts>) = match name {
+            "row kind" => (
+                Box::new([Record::Forge {
+                    row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [1; 32], task: first.task }),
+                }]),
+                None,
+            ),
+            "text count" => (Box::new([row]), Some(Box::new([]))),
+            "text bound" => (
+                Box::new([row]),
+                Some(Box::new([engine::TurnText::Rendered(
+                    vec![0; usize::try_from(engine::TRANSCRIPT_TAIL_BYTES).expect("tail fits usize") + 1].into(),
+                )])),
+            ),
+            "cut body" => (Box::new([row]), Some(Box::new([engine::TurnText::Cut(1)]))),
+            "cut alone" => {
+                let mut row = row;
+                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = &mut row
+                else {
+                    panic!("turn")
+                };
+                turn.transcript = Box::new([]);
+                let mut next = row.clone();
+                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = &mut next
+                else {
+                    panic!("turn")
+                };
+                turn.turn += 1;
+                (Box::new([row, next]), Some(Box::new([engine::TurnText::Cut(1), engine::TurnText::Unrendered])))
+            }
+            "load seam cut" => {
+                let mut row = row;
+                let Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) = &mut row
+                else {
+                    panic!("turn")
+                };
+                turn.transcript =
+                    vec![
+                        0;
+                        usize::try_from(driver.env.limits.loads.transcript_bytes).expect("row bound fits usize") + 1
+                    ]
+                    .into();
+                (Box::new([row]), None)
+            }
+            _ => unreachable!("named malformed page"),
+        };
+        driver.send(engine::Event::Store(engine::StoreInput::Loaded { owner, rows, texts, next: None }));
+        driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
+        driver.pump();
+        assert_eq!(failed_preparations(&mut driver, first.task), 1, "{name}: malformed page answers Failed once");
+        assert_eq!(assignments(&driver), 0, "{name}: no malformed page enters an assignment");
+        assert_eq!(live(&driver, first.task).tries.transient, 1, "{name}: one terminal");
+        driver.fire_at(Duration::from_secs(2));
+        driver.pump();
+        assert_eq!(assignments(&driver), 1, "{name}: retired read releases its room");
+        assert_eq!(failed_preparations(&mut driver, first.task), 0, "{name}: no extra terminal");
+    }
+}
+
 #[test]
 fn a_closed_unread_window_assigns_fresh_without_counting_or_retrying() {
     let (mut driver, first, _) = unread_preparation(true);

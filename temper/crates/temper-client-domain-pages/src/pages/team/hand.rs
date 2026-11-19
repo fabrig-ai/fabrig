@@ -468,6 +468,7 @@ fn record(page: &Readout, project: u32, revision: u32, bounds: &w::Limits) -> Op
             | c::SettingValue::Charter(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Rules(_)
+            | c::SettingValue::Limits(_)
             | c::SettingValue::Provider(_)
             | c::SettingValue::Worker(_)
             | c::SettingValue::Model(_),

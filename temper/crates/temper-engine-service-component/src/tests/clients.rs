@@ -6,50 +6,49 @@ use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as root;
 
 #[test]
-fn a_newer_temper_keyed_request_is_not_served_and_admits_nothing() {
+fn another_temper_keyed_version_is_not_served_and_admits_nothing() {
     use jig_client_protocol_wire as w;
     use skein_lib::{Reader, Writer};
-    let mut service = super::fixtures::ready();
-    let link = service.links().pop().expect("sign-in link");
-    let engine = service.engine.as_mut().expect("engine");
-    let w::SignInAnswer::SignedIn(signed) = sign_in_with_link(engine, &link) else { panic!("signed in") };
-    let bearer = peer::bearer(signed.token().as_ref().expect("credential").expose());
-    let before = engine.domain.deployment().tasks;
-    let owner = w::Owner::Family(
-        w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE }).unwrap(),
-    );
-    let keyed = w::Keyed::new(
-        &w::CEILINGS,
-        w::KeyedParts {
-            key: [71; 16],
-            owner: owner.clone(),
-            version: temper_client_protocol_wire::CLIENT_VERSION + 1,
-            request: Box::new([255]),
-            value: None,
-        },
-    )
-    .unwrap();
-    let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
-    keyed.encode(&mut bytes).unwrap();
-    let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
-    call.pump(engine, true);
-    assert!(call.received().starts_with(b"HTTP/1.1 200"));
-    let at = skein_lib::bytes::find(call.received(), b"\r\n\r\n").unwrap() + 4;
-    let w::KeyedAnswer::NotServed(answer) =
-        w::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&call.received()[at..])).unwrap()
-    else {
-        panic!("version not served")
-    };
-    assert_eq!(answer.owner(), &owner);
-    let mut range = None;
-    for served in answer.served() {
-        if served.owner() == &owner {
-            range = Some((served.first(), served.last()));
+    for version in [35, temper_client_protocol_wire::CLIENT_VERSION + 1] {
+        let mut service = super::fixtures::ready();
+        let link = service.links().pop().expect("sign-in link");
+        let engine = service.engine.as_mut().expect("engine");
+        let w::SignInAnswer::SignedIn(signed) = sign_in_with_link(engine, &link) else { panic!("signed in") };
+        let bearer = peer::bearer(signed.token().as_ref().expect("credential").expose());
+        let before = engine.domain.deployment().tasks;
+        let owner = w::Owner::Family(
+            w::Family::new(&w::CEILINGS, w::FamilyParts { number: temper_client_protocol_wire::FORGE }).unwrap(),
+        );
+        let keyed = w::Keyed::new(
+            &w::CEILINGS,
+            w::KeyedParts { key: [71; 16], owner: owner.clone(), version, request: Box::new([255]), value: None },
+        )
+        .unwrap();
+        let mut bytes = Writer::new(usize::try_from(keyed.measure()).unwrap());
+        keyed.encode(&mut bytes).unwrap();
+        let mut call = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(&bearer));
+        call.pump(engine, true);
+        assert!(call.received().starts_with(b"HTTP/1.1 200"));
+        let at = skein_lib::bytes::find(call.received(), b"\r\n\r\n").unwrap() + 4;
+        let w::KeyedAnswer::NotServed(answer) =
+            w::KeyedAnswer::decode(&engine.clients.env.limits.wire, &mut Reader::new(&call.received()[at..])).unwrap()
+        else {
+            panic!("version not served")
+        };
+        assert_eq!(answer.owner(), &owner);
+        let mut range = None;
+        for served in answer.served() {
+            if served.owner() == &owner {
+                range = Some((served.first(), served.last()));
+            }
         }
+        assert_eq!(
+            range,
+            Some((temper_client_protocol_wire::CLIENT_VERSION, temper_client_protocol_wire::CLIENT_VERSION))
+        );
+        assert_eq!(engine.domain.deployment().tasks, before);
+        assert!(engine.events.is_empty());
     }
-    assert_eq!(range, Some((temper_client_protocol_wire::CLIENT_VERSION, temper_client_protocol_wire::CLIENT_VERSION)));
-    assert_eq!(engine.domain.deployment().tasks, before);
-    assert!(engine.events.is_empty());
 }
 
 const LISTENER: Token = Token::new(77);
@@ -522,6 +521,28 @@ fn the_engine_prints_one_sign_in_link_at_start() {
     super::fixtures::turn(&mut service);
     assert!(service.links().is_empty());
 }
+#[test]
+fn getting_the_printed_links_page_leaves_its_secret_for_the_links_post() {
+    let mut service = super::fixtures::ready();
+    let link = service.links().pop().expect("sign-in link");
+    let query = skein_lib::bytes::find(&link, b"?").expect("link query");
+    let query = link.get(query..).expect("printed secret query");
+    let mut target = skein_lib::Writer::new(b"/sign-in".len().checked_add(query.len()).unwrap());
+    target.put(b"/sign-in").unwrap();
+    target.put(query).unwrap();
+    let engine = service.engine.as_mut().expect("engine");
+    let mut page = peer::Peer::new(engine, b"GET", &target.finish(), &[], None);
+    page.pump(engine, false);
+    assert!(page.received().starts_with(b"HTTP/1.1 200"));
+    assert!(engine.events.is_empty(), "nothing reached the root");
+    page.close(engine);
+    let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &link) else {
+        panic!("GET leaves the live printed link unspent for POST")
+    };
+    assert_eq!(answer.party(), OWNER_PARTY);
+    assert!(answer.token().is_some(), "the link's POST returns a credential");
+}
+
 #[test]
 fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     let mut service = super::fixtures::ready();

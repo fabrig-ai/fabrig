@@ -1,5 +1,7 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
+mod limit_settings;
+pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;
 mod reference;
@@ -146,10 +148,42 @@ pub struct StoreLimits {
 }
 /// Derive the store's opening limits without reading named files or checking runtime facts.
 pub fn store_limits(document: &[u8], directories: &config::Directories) -> Result<StoreLimits, Problems> {
-    let mut parsed =
-        load(document, directories, false)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
-    let root = engine_limits(&mut parsed.engine.limits, &parsed.application.limits, parsed.engine.memory)?;
-    let store = checked_store(&root, &parsed.engine.limits.store, None)?;
+    store_limits_over(document, directories, None)
+}
+pub fn store_limits_with_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    jig: &config::Limits,
+    own: &crate::limits::Limits,
+) -> Result<StoreLimits, Problems> {
+    store_limits_over(document, directories, Some((jig, own)))
+}
+fn store_limits_over(
+    document: &[u8],
+    directories: &config::Directories,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+) -> Result<StoreLimits, Problems> {
+    let parsed = load_with_limits(document, directories, false, &crate::stock::Given::Stock, limits)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
+    let typed = match limits {
+        Some(_) => Some((&parsed.engine.limits, &parsed.application.limits)),
+        None => None,
+    };
+    deployment_store(typed, temper_service_core::derived::STOCK)
+}
+
+/// Lay out the deployment envelope once, independently of runtime overrides.
+pub fn deployment_store(
+    typed: Option<(&config::Limits, &crate::limits::Limits)>,
+    sources: temper_service_core::derived::Sources,
+) -> Result<StoreLimits, Problems> {
+    let (mut jig, own) = match crate::limits::store_base(typed, sources) {
+        Ok(base) => base,
+        Err(found) => return Err(problem(found.path, What::Jig(found.what))),
+    };
+    let root = engine_limits(&mut jig, &own, None)?;
+    let store = checked_store(&root, &jig.store, None)?;
     Ok(StoreLimits { store, forge: root.forge })
 }
 
@@ -167,12 +201,10 @@ pub fn checked_store(
 pub fn engine_limits(
     jig: &mut config::Limits,
     own: &crate::limits::Limits,
-    memory_bytes: u64,
+    _memory_bytes: Option<u64>,
 ) -> Result<temper_engine_domain::Limits, Problems> {
-    check_memory_bytes(memory_bytes)?;
     jig.clients.wire.keyed_value_some = crate::limits::client_value_bytes(jig, own);
-    let mut root = crate::limits::engine_candidate(jig, own);
-    root.memory_bytes = memory_bytes;
+    let root = crate::limits::engine_candidate(jig, own);
     let mut problems = Problems::empty();
     checks::call_answer(Path::root().member(b"engine"), jig.core.call_answer_bytes, &mut problems);
     checks::engine_envelope(&root, &mut problems);
@@ -183,12 +215,6 @@ pub fn engine_limits(
         return Err(problem(Path::root().member(b"engine").member(b"limits"), What::Jig(config::What::Bound)));
     }
     Ok(root)
-}
-fn check_memory_bytes(memory_bytes: u64) -> Result<(), Problems> {
-    if memory_bytes == 0 {
-        return Err(problem(Path::root().member(b"engine").member(b"memory_bytes"), What::Jig(config::What::Bound)));
-    }
-    Ok(())
 }
 #[derive(Debug)]
 struct Parsed {
@@ -243,17 +269,14 @@ pub fn fleet_grace(stop_bound: skein_lib::Duration) -> skein_lib::Duration {
     let minutes = nanos.div_ceil(minute);
     Duration::from_nanos(minutes.saturating_mul(minute))
 }
-fn worker_fleet_grace(limits: &config::Limits) -> skein_lib::Duration {
+/// The fleet grace derived from the fixed worker graces and these link timings.
+#[must_use]
+pub fn worker_fleet_grace(limits: &config::Limits) -> skein_lib::Duration {
     let graces = fixed_worker().graces.expect("temper fixes worker graces");
     fleet_grace(
         config::stop_bound(&graces, limits.link.ping, limits.link.silence)
             .unwrap_or(skein_lib::Duration::from_nanos(u64::MAX)),
     )
-}
-fn fleet_override(document: &skein_json::Document, at: u32) -> bool {
-    let Some(limits) = member(document, at, b"limits") else { return false };
-    let Some(overrides) = member(document, limits, b"overrides") else { return false };
-    member(document, overrides, b"fleet.grace_ms").is_some()
 }
 /// Check the override against the derived minimum in every engine shape.
 pub fn check_fleet_grace(engine: &config::Engine, problems: &mut Problems) {
@@ -320,14 +343,46 @@ pub fn engine_with_sources(
     given: &crate::stock::Given,
     sources: temper_service_core::derived::Sources,
 ) -> Result<config::Engine, config::Problems> {
-    let mut base = temper_service_core::derived::stock();
-    if let Err(found) = temper_service_core::derived::engine(&mut base, sources) {
-        let mut problems = config::Problems::empty();
-        problems.push(found.path, found.what);
+    let own = crate::limits::stock();
+    let (live_goals, tool_payload) = (own.live_goals, own.tool_payload);
+    let mut base = match crate::limits::base(live_goals, tool_payload, sources) {
+        Ok((jig, _own)) => jig,
+        Err(found) => {
+            let mut problems = config::Problems::empty();
+            problems.push(found.path, found.what);
+            return Err(problems);
+        }
+    };
+    base.core.fleet.grace = worker_fleet_grace(&base);
+    engine_over(document, at, directories, given, &mut base)
+}
+/// Read an engine with a world's typed base in place of the stock.
+pub fn engine_over(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    base: &mut config::Limits,
+) -> Result<config::Engine, config::Problems> {
+    let mut problems = config::Problems::empty();
+    for name in [b"limits".as_slice(), b"memory_bytes"] {
+        if member(document, at, name).is_some() {
+            problems.push(Path::root().member(name), config::What::Fixed);
+        }
+    }
+    if !jig_domain_views::valid(&temper_engine_domain::views_for(base.clients.streams)) {
+        problems.push(
+            Path::root().member(b"limits").member(b"overrides").member(b"clients.streams"),
+            config::What::Because(
+                b"must agree with representable watch rooms (clients.streams times 31, with two slots per watch)",
+            ),
+        );
+    }
+    if !problems.is_empty() {
         return Err(problems);
     }
     let mut engine =
-        config::engine_over(document, at, directories, config::Defaults::PassedProviders, &fixed(directories)?, &base)?;
+        config::engine_over(document, at, directories, config::Defaults::PassedProviders, &fixed(directories)?, base)?;
     let running = given.running();
     let fixed = given.fixed();
     let mut providers = List::uncapped();
@@ -348,9 +403,6 @@ pub fn engine_with_sources(
         );
         return Err(problems);
     };
-    if !fleet_override(document, at) {
-        engine.limits.core.fleet.grace = worker_fleet_grace(&engine.limits);
-    }
     // Check the workers' bound before jig's bounded provider handoff.
     if engine.llm.endpoints.len() > skein_lib::usize_of(config::llm::ENDPOINTS) {
         engine.fixed_llm_providers = fixed;
@@ -417,13 +469,6 @@ pub fn engine(
 ) -> Result<config::Engine, config::Problems> {
     engine_with(document, at, directories, &crate::stock::Given::Stock)
 }
-fn parse_with(
-    input: &[u8],
-    directories: &config::Directories,
-    given: &crate::stock::Given,
-) -> Result<Parsed, Problems> {
-    load_with(input, directories, true, given)?.1.ok_or(problem(Path::root().member(b"engine"), What::Standalone))
-}
 
 // Readers need the typed document alone. Startup also checks cross-part and
 // raw-path constraints here, preserving the order of its accumulated problems.
@@ -433,49 +478,47 @@ fn load_with(
     check_start: bool,
     given: &crate::stock::Given,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
+    load_with_limits(input, directories, check_start, given, None)
+}
+fn load_with_limits(
+    input: &[u8],
+    directories: &config::Directories,
+    check_start: bool,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+) -> Result<(Shape, Option<Parsed>), Problems> {
     let length = u32::try_from(input.len()).or(Err(problem(Path::root(), What::Jig(config::What::Bound))))?;
     let document =
         match config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: length, depth: 32 }) {
             Ok(document) => document,
             Err(found) => return Err(problem(found.path, What::Jig(found.what))),
         };
-    load_document(&document, directories, check_start, given)
+    load_document_over(&document, directories, check_start, given, limits)
 }
-// Refuse obsolete room settings and diagnose unrepresentable rooms before transport or store sizing.
-fn watch_rooms(document: &skein_json::Document, engine: u32, problems: &mut Problems) {
-    let Some(limits) = member(document, engine, b"limits") else { return };
-    let Some(overrides) = member(document, limits, b"overrides") else { return };
-    for name in [b"views.watchers".as_slice(), b"views.watchers_per_party"] {
-        if member(document, overrides, name).is_some() {
-            problems.push(
-                Path::root().member(b"engine").member(b"limits").member(b"overrides").member(name),
-                What::Against { other: b"engine.limits.overrides.clients.streams, which sizes both watch rooms" },
-            );
-        }
-    }
-    let Some(at) = member(document, overrides, b"clients.streams") else { return };
-    let Ok(streams) = read::integer(document, at, u64::from(u32::MAX)) else { return };
-    let streams = u32::try_from(streams).expect("checked stream count");
-    if !jig_domain_views::valid(&temper_engine_domain::views_for(streams)) {
-        problems.push(
-            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(b"clients.streams"),
-            What::Against { other: b"representable watch rooms (clients.streams times 31, with two slots per watch)" },
-        );
-    }
-}
-#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
-fn load_document(
+fn load_document_over(
     document: &skein_json::Document,
     directories: &config::Directories,
     check_start: bool,
     given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+) -> Result<(Shape, Option<Parsed>), Problems> {
+    load_document_limits(document, directories, check_start, given, limits, false)
+}
+#[expect(clippy::too_many_lines, reason = "one load pass accumulates all cross-part diagnostics")]
+fn load_document_limits(
+    document: &skein_json::Document,
+    directories: &config::Directories,
+    check_start: bool,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    is_box: bool,
 ) -> Result<(Shape, Option<Parsed>), Problems> {
     let mut whole = match members::object(document, 0, "document") {
         Ok(object) => object,
         Err(what) => return Err(problem(Path::root(), What::Jig(what))),
     };
     let shape = nearest_document(document);
-    if let Some(found) = unserved(shape) {
+    if !is_box && let Some(found) = unserved(shape) {
         return Err(problem(found.path, found.what));
     }
     let mut problems = Problems::empty();
@@ -495,15 +538,11 @@ fn load_document(
         whole.finish(document, &root, &mut found);
     }
     problems.append(found, &root);
-    if let Some(at) = engine_at {
-        let before = problems.problems.len();
-        watch_rooms(document, at, &mut problems);
-        if problems.problems.len() != before {
-            return Err(problems);
-        }
-    }
     let engine = match engine_at {
-        Some(at) => match engine_with(document, at, directories, given) {
+        Some(at) => match match limits {
+            Some((base, _own)) => engine_over(document, at, directories, given, &mut base.clone()),
+            None => engine_with(document, at, directories, given),
+        } {
             Ok(mut engine) => {
                 if check_start {
                     checks::figures(&engine, &mut problems);
@@ -532,13 +571,22 @@ fn load_document(
     let mut workers = List::with_capacity(ats.len());
     let mut worker_call_answers = List::with_capacity(ats.len());
     for (index, at) in ats.iter().enumerate() {
-        if shape == Shape::EngineAlone {
+        if member(document, *at, b"memory_bytes").is_some() {
+            problems.push(indexed(index).member(b"memory_bytes"), What::Jig(config::What::Fixed));
+            continue;
+        }
+        if shape == Shape::EngineAlone || is_box {
             continue;
         }
         if check_start {
             checks::raw_worker(document, *at, &indexed(index), &mut problems);
         }
-        match config::worker(document, *at, directories, &fixed_worker()) {
+        match temper_service_core::derived::worker_document(
+            document,
+            *at,
+            directories,
+            temper_service_core::derived::STOCK,
+        ) {
             Ok(worker) => {
                 if worker.agent.is_none() {
                     problems.push(indexed(index).member(b"agent"), What::Jig(config::What::Missing));
@@ -576,7 +624,12 @@ fn load_document(
     }
     let application = match &engine {
         Some(engine) => match application_at {
-            Some(at) => application::parse(document, at, engine, directories, &mut problems),
+            Some(at) => match limits {
+                Some((_base, own)) => {
+                    application::parse_with_limits(document, at, engine, directories, own, &mut problems)
+                }
+                None => application::parse(document, at, engine, directories, &mut problems),
+            },
             None => None,
         },
         None => None,
@@ -587,7 +640,10 @@ fn load_document(
     let application = application.expect("required application checked");
     let workers = workers.into_boxed();
     let worker_call_answers = worker_call_answers.into_boxed();
-    let engine_call_answer = CallAnswer::read(document, engine_at.expect("required engine checked"));
+    let engine_call_answer = match limits {
+        Some(_) => CallAnswer::Explicit,
+        None => CallAnswer::read(document, engine_at.expect("required engine checked")),
+    };
     if !check_start {
         return Ok((
             shape,
@@ -603,12 +659,14 @@ fn load_document(
     if shape == Shape::EngineAlone && !ats.is_empty() {
         problems.push(root.member(b"workers"), What::Half(EngineWhat::EngineAlone));
     }
-    checks::standalone(
-        engine.as_ref().expect("required engine checked"),
-        &application.clients,
-        &workers,
-        &mut problems,
-    );
+    if !is_box {
+        checks::standalone(
+            engine.as_ref().expect("required engine checked"),
+            &application.clients,
+            &workers,
+            &mut problems,
+        );
+    }
     checks::hub(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::resumed_start(engine.as_ref().expect("required engine checked"), &mut problems);
     checks::provider(engine.as_ref().expect("required engine checked"), &mut problems);
@@ -641,13 +699,6 @@ fn load_document(
     ))
 }
 
-fn load(
-    input: &[u8],
-    directories: &config::Directories,
-    check_start: bool,
-) -> Result<(Shape, Option<Parsed>), Problems> {
-    load_with(input, directories, check_start, &crate::stock::Given::Stock)
-}
 fn all_files(parsed: &Parsed) -> Box<[config::File]> {
     let engine = config::files(&parsed.engine);
     let worker = match parsed.workers.first() {
@@ -689,8 +740,27 @@ pub fn named_with(
     directories: &config::Directories,
     given: &crate::stock::Given,
 ) -> Result<Named, Problems> {
-    let parsed = parse_with(document, directories, given)?;
-    check_memory_bytes(parsed.engine.memory)?;
+    named_over(document, directories, given, None)
+}
+/// Name a world's files with typed jig and temper limits in place of the stock.
+pub fn named_with_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    jig: &config::Limits,
+    own: &crate::limits::Limits,
+) -> Result<Named, Problems> {
+    named_over(document, directories, given, Some((jig, own)))
+}
+fn named_over(
+    document: &[u8],
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+) -> Result<Named, Problems> {
+    let parsed = load_with_limits(document, directories, true, given, limits)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
     let files = all_files(&parsed);
     Ok(Named {
         provider: parsed.engine.clients.provider.is_some(),
@@ -757,7 +827,6 @@ pub fn check(
 /// Check the document and runtime facts into settings for the engine's start.
 #[expect(
     clippy::too_many_arguments,
-    clippy::too_many_lines,
     reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
 )]
 pub fn checked_start_with(
@@ -767,13 +836,106 @@ pub fn checked_start_with(
     agent: Option<&settings::Agent>,
     seeds: &settings::Seeds,
     forges: List<crate::ForgeRuntime>,
-    _setup: Option<&temper_forge_setup::check::Checked>,
+    setup: Option<&temper_forge_setup::check::Checked>,
     given: &crate::stock::Given,
 ) -> Result<CheckedStart, Problems> {
-    let mut parsed = parse_with(document, directories, given)?;
-    let agent = match parsed.workers.first() {
-        Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
-        None => None,
+    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, None)
+}
+/// Check a start with a world's typed jig and temper limits instead of the stock.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
+)]
+pub fn checked_start_with_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    jig: &config::Limits,
+    own: &crate::limits::Limits,
+) -> Result<CheckedStart, Problems> {
+    checked_start_over(document, directories, files, agent, seeds, forges, setup, given, Some((jig, own)))
+}
+#[expect(
+    clippy::too_many_arguments,
+    reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
+)]
+fn checked_start_over(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    _setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+) -> Result<CheckedStart, Problems> {
+    checked_start_limits(document, directories, files, agent, seeds, forges, given, limits, false, None)
+}
+/// Reuse the deployment envelope already laid out by the settings resolver.
+#[expect(clippy::too_many_arguments, reason = "the resolved start retains the checked start's immutable facts")]
+pub fn checked_start_with_resolved(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    _setup: Option<&temper_forge_setup::check::Checked>,
+    given: &crate::stock::Given,
+    resolved: &Resolved,
+) -> Result<CheckedStart, Problems> {
+    checked_start_limits(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        forges,
+        given,
+        Some((&resolved.jig, &resolved.temper)),
+        false,
+        Some(&resolved.store),
+    )
+}
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "the shared limit checker carries the immutable startup facts"
+)]
+fn checked_start_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    forges: List<crate::ForgeRuntime>,
+    given: &crate::stock::Given,
+    limits: Option<(&config::Limits, &crate::limits::Limits)>,
+    is_box: bool,
+    envelope: Option<&jig_protocol_store::Limits>,
+) -> Result<CheckedStart, Problems> {
+    let length = u32::try_from(document.len()).or(Err(problem(Path::root(), What::Jig(config::What::Bound))))?;
+    let document =
+        match config::document(document, &config::DocumentLimits { bytes: 1_048_576, tokens: length, depth: 32 }) {
+            Ok(document) => document,
+            Err(found) => return Err(problem(found.path, What::Jig(found.what))),
+        };
+    let mut parsed = load_document_limits(&document, directories, true, given, limits, is_box)?
+        .1
+        .ok_or(problem(Path::root().member(b"engine"), What::Standalone))?;
+    let agent = if is_box {
+        Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?)
+    } else {
+        match parsed.workers.first() {
+            Some(_) => Some(agent.ok_or(problem(indexed(0).member(b"agent"), What::Half(EngineWhat::Agent)))?),
+            None => None,
+        }
     };
     let declaration = match agent {
         Some(agent) => Some(agent.clone()),
@@ -844,6 +1006,20 @@ pub fn checked_start_with(
     }
     let not_set_up = List::with_capacity(0);
 
+    let store_limits = match envelope {
+        Some(store) => *store,
+        None => {
+            let sources = match &declaration {
+                Some(agent) => temper_service_core::derived::Sources::agent(agent),
+                None => temper_service_core::derived::STOCK,
+            };
+            let typed = match limits {
+                Some(_) => Some((&parsed.engine.limits, &parsed.application.limits)),
+                None => None,
+            };
+            deployment_store(typed, sources)?.store
+        }
+    };
     let mut engine = settings::Engine {
         landing_held: false,
         setups: Box::new([]),
@@ -875,6 +1051,7 @@ pub fn checked_start_with(
             crate::stock::Given::Own { ways, .. } => ways.clone(),
         },
         limits: parsed.application.limits,
+        store_limits: Some(store_limits),
     };
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
     if let Some(&connector) = core.connectors.first() {
@@ -893,7 +1070,10 @@ pub fn checked_start_with(
     if let Some(agent) = &declaration {
         turn = Some(agent.turn_body);
     }
-    checked_store(&root, &engine.jig.limits.store, turn)?;
+    let envelope = engine.store_limits.expect("checked deployment envelope");
+    if let Err(why) = crate::store::admit(&root, &root.forge, &envelope, turn) {
+        return Err(checks::store_refusal(why));
+    }
     let io = checks::engine_io(&engine.jig.limits.io);
     let prepared_forges = prepare_forges(&engine, forges)?;
     Ok(CheckedStart { warnings, not_set_up, engine, io, forges: prepared_forges })

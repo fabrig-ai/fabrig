@@ -11,6 +11,8 @@ mod goals;
 pub(crate) mod hold;
 pub(crate) mod parts;
 mod post;
+mod report;
+pub use report::tier_report_words;
 pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
@@ -234,6 +236,7 @@ fn word(out: &mut skein_lib::Writer, value: usize) {
 
 fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
     TierRow {
+        many: None,
         hold: None,
         observations: Box::new([]),
         repository,
@@ -348,6 +351,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             let range = range.into_boxed();
             let next = p::start(&row.record, target.commit, tip_key, range, None, &settings(d, repository));
             let p::Next::Dispatch(run) = next else { unreachable!("a run without a receipt dispatches") };
+            row.many = None;
             row.result = d.landing.receipts.get(&receipt_key(d, &row, tip_key)).cloned();
             row.received = row.result.is_some();
             row.record.run = Some(run);
@@ -738,6 +742,9 @@ fn observed_part(
         }
         Some(landing::Verdict::Failed | landing::Verdict::Running) | None => return,
     };
+    if row.record.run.as_ref().expect("observed run").part == p::Part::Whole {
+        row.many = None;
+    }
     advance(d, env, row, follow, outcome, out);
 }
 fn reported_part(
@@ -949,7 +956,7 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u
             red::landed(d, row, &newly_red, &logs, message_bytes, out);
         }
         let run = row.record.run.as_ref().expect("judged range");
-        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);
+        crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, row.many.as_ref(), out);
     }
     let run = row.record.run.clone();
     if !goal {
@@ -1844,9 +1851,14 @@ fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p:
             })
             .expect("bounded range");
     }
-    posted_words(&row.tier, verdict, posted.as_slice())
+    posted_words(&row.tier, verdict, posted.as_slice(), row.many.as_ref())
 }
-fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
+fn posted_words(
+    tier: &[u8],
+    verdict: &p::Verdict,
+    landings: &[crate::TierPostedLanding],
+    many: Option<&p::ManyTests>,
+) -> Box<[u8]> {
     let mut parts = List::uncapped();
     parts.push(verdict_summary(tier, verdict)).expect("verdict words");
     for (at, blame) in verdict.landings.iter().enumerate() {
@@ -1872,6 +1884,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
             }
         }
     }
+    if verdict.failing == p::Failures::Many
+        && let Some(many) = many
+        && !many.tests.is_empty()
+    {
+        let mut names = Box::from(b"\nIts report names: ".as_slice());
+        for (at, test) in many.tests.iter().enumerate() {
+            names = joined(&[&names, if at == 0 { b"" } else { b", " }, &report_id(test)]);
+        }
+        if let Some(tail) = crate::many_remainder(many, 0) {
+            names = joined(&[&names, b" ", &tail]);
+        }
+        parts.push(joined(&[&names, b"."])).expect("many names line");
+    }
     let mut words = List::uncapped();
     for part in parts.as_slice() {
         for byte in part {
@@ -1882,7 +1907,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
 }
 
 fn landing_change(d: &Domain, repository: Repository, commit: Commit) -> Option<u64> {
-    d.verifications.get(&(repository, commit))?.changes.first().copied()
+    if let Some(verification) = d.verifications.get(&(repository, commit)) {
+        return verification.changes.first().copied();
+    }
+    let log = d.landing_log(repository)?;
+    for landing in &log.landings {
+        if landing.commit == commit {
+            return match landing.changes.first() {
+                Some(member) => Some(member.task),
+                None => None,
+            };
+        }
+    }
+    None
 }
 
 // One complete attribution per line lets the task shell fit its report without cutting an ID.

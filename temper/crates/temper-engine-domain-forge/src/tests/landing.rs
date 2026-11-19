@@ -40,6 +40,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
         },
     ]);
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 7, suspects: Suspects::Bisect },
         bound: Duration::from_millis(123_456),
     };
@@ -48,6 +49,7 @@ fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
     assert!(d.project_landing(5, Way::Turn, repositories.clone(), settings, after));
     assert_eq!(d.landing.projects.get(&5).expect("configured project").5, settings);
     let other = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 0, suspects: Suspects::Bisect },
         bound: Duration::from_millis(456_789),
     };
@@ -88,6 +90,7 @@ fn a_projects_merge_job_is_kept_per_project() {
     const COMMAND: &[u8] = b".temper/merge";
     const OTHER_COMMAND: &[u8] = b"scripts/merge";
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
         bound: Duration::from_millis(7_200_000),
     };
@@ -152,6 +155,7 @@ fn a_projects_close_job_is_kept_per_project() {
     const COMMAND: &[u8] = b".temper/close";
     const OTHER_COMMAND: &[u8] = b"scripts/close";
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
         bound: Duration::from_millis(7_200_000),
     };
@@ -220,6 +224,7 @@ fn project_landing_refuses_tiers_past_the_bound_and_duplicate_check_names() {
         description: Box::default(),
     };
     let after = AfterLanding {
+        wait: temper_engine_domain_forge_change::Wait::Cleared,
         verdict: Settings { retries: 2, suspects: Suspects::Bisect },
         bound: Duration::from_millis(7_200_000),
     };
@@ -283,6 +288,7 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
         Box::new([]),
         temper_engine_domain_forge_landing::Project::DEFAULT,
         AfterLanding {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
             verdict: temper_engine_domain_forge_tiers::Settings {
                 retries: 2,
                 suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -845,7 +851,7 @@ fn landing_merge_evidence(single: bool) {
         let vetoed = outputs(&mut d, Event::VetoLanding { task: 61, entry: 91 });
         assert!(vetoed.contains(&Request::Erase { key: Key::Entry(91) }));
         assert!(d.describe_landing_effect(61, 91).is_none());
-        assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Failed));
+        assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&(policy::Status::Failed, true)));
         outputs(&mut d, Event::Committed { entry: 91 });
         for request in ready(&mut d) {
             if let Request::Call { op: Op::Write(_), .. } = request {
@@ -916,12 +922,15 @@ fn turn_rule(d: &mut Domain, branch: &[u8], sets: &[u8], enforce: bool) {
 
 // Pin the turn's planned reads: a path rule adds only its comparison, after reviews.
 fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
+    turn_reviews_at(d, 91, fixtures::BASE)
+}
+fn turn_reviews_at(d: &mut Domain, entry: u64, main: skein_forge::api::Commit) -> Box<[Request]> {
     use skein_forge::api::{Answer, Op, Read};
     outputs(
         d,
         Event::StepLanding {
             task: 61,
-            entry: 91,
+            entry,
             heard: LandingHeard {
                 job: None,
                 outcomes: Box::new([]),
@@ -937,7 +946,7 @@ fn turn_reviews(d: &mut Domain) -> Box<[Request]> {
     );
     for (read, answer) in [
         (Read::Branch { branch: b"temper/51".as_slice().into() }, Answer::Commit(fixtures::HEAD)),
-        (Read::Branch { branch: b"main".as_slice().into() }, Answer::Commit(fixtures::BASE)),
+        (Read::Branch { branch: b"main".as_slice().into() }, Answer::Commit(main)),
         (Read::Pull { number: 1, ci: false }, Answer::Pull(fixtures::open_pull())),
     ] {
         let (call, op) = fixtures::next_call(d);
@@ -1390,6 +1399,7 @@ fn merged_owner(turn: bool) -> (Domain, Box<[Request]>) {
             Box::new([]),
             temper_engine_domain_forge_landing::Project::DEFAULT,
             AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect
@@ -1590,27 +1600,27 @@ fn a_formed_landing_is_sealed_against_joining_and_ordering() {
         gate: 0,
         operation: Operation::Dispatch,
     }]);
-    d.landing.results.insert((61, 0, 0, 1), policy::Status::Pending).expect("result room");
+    d.landing.results.insert((61, 0, 0, 1), (policy::Status::Pending, false)).expect("result room");
     d.landing.keys.insert((61, 0, 0), (fixtures::HEAD, None, key)).expect("key room");
     d.landing.keys.insert((62, 0, 0), (fixtures::HEAD, None, key)).expect("other landing key room");
-    d.landing.results.insert((61, 0, 0, 5), policy::Status::Passed).expect("merge result room");
+    d.landing.results.insert((61, 0, 0, 5), (policy::Status::Passed, false)).expect("merge result room");
     let before = d.landing(61).expect("formed landing").clone();
     outputs(&mut d, Event::JoinLanding { task: 61, member, after: Box::new([]) });
     outputs(&mut d, Event::OrderLanding { task: 61, changes: Box::new([OTHER_CHANGE, fixtures::CHANGE]) });
     assert_eq!(d.landing(61), Some(&before));
     assert_eq!(d.change(OTHER_CHANGE).expect("waiting change").change.landing, None);
-    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&policy::Status::Pending));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&(policy::Status::Pending, false)));
     assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, None, key)));
     assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, None, key)));
-    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&(policy::Status::Passed, false)));
     outputs(&mut d, Event::SettleEffects { task: OTHER_CHANGE, root: OTHER_CHANGE, ending: ReleaseEnding::Cancelled });
     let row = d.landing(61).expect("remaining landing");
     assert_eq!(row.landing.members[0].change, fixtures::CHANGE);
     assert_eq!(row.entries[0].member, 0);
-    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&policy::Status::Pending));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 1)), Some(&(policy::Status::Pending, false)));
     assert_eq!(d.landing.keys.get(&(61, 0, 0)), Some(&(fixtures::HEAD, None, key)));
     assert_eq!(d.landing.keys.get(&(62, 0, 0)), Some(&(fixtures::HEAD, None, key)));
-    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&policy::Status::Passed));
+    assert_eq!(d.landing.results.get(&(61, 0, 0, 5)), Some(&(policy::Status::Passed, false)));
 }
 
 #[test]
@@ -1644,6 +1654,7 @@ fn project_tiers_require_a_nonempty_explicit_branch_only() {
                 }]),
                 temper_engine_domain_forge_landing::Project::DEFAULT,
                 AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: Settings { retries: 2, suspects: Suspects::Bisect },
                     bound: Duration::from_secs(7200),
                 }
@@ -3128,4 +3139,72 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     );
     assert_eq!(d.receipt(&key).unwrap().run.id, 57);
     assert!(d.receipt(&key).unwrap().passed);
+}
+
+fn has_landing_decision(requests: &[Request], expected: policy::Decision) -> bool {
+    for request in requests {
+        if let Request::LandingDecision { decision, .. } = request
+            && *decision == expected
+        {
+            return true;
+        }
+    }
+    false
+}
+
+#[test]
+fn unknown_merge_outcomes_read_the_open_pull_ask_again_and_land() {
+    use skein_forge::api::{Answer, Error, Op, Read};
+    use skein_forge_client::Outcome;
+    for outcome in [
+        Outcome::Held,
+        Outcome::Failed(Error::Timeout),
+        Outcome::Failed(Error::Unavailable),
+        Outcome::Failed(Error::InvalidAnswer),
+    ] {
+        let mut d = turn_fixture();
+        assert!(has_landing_decision(
+            &turn_reviews(&mut d),
+            policy::Decision::Merge { member: 0, candidate: fixtures::HEAD }
+        ));
+        assert_eq!(d.landing(61).expect("turn").landing.round.merges, 1);
+        // Script the client's terminal answer, including the uncertain-only Held.
+        let mut outputs = Queue::uncapped();
+        domain::scripted_outcome(&mut d, &env(), 91, 61, outcome, &mut outputs);
+        let mut settled = false;
+        while let Some(request) = outputs.pop() {
+            if let Request::Outcome { entry: 91, account: None, .. } = request {
+                settled = true;
+            }
+        }
+        assert!(settled, "the policy owns {outcome:?}");
+        assert!(!d.entries.contains_key(&91), "a merge held uncertain is retired, not kept for a person");
+        turn_reviews_at(&mut d, 92, fixtures::BASE);
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(op, Op::Read(Read::Pull { number: 2, ci: false }));
+        let requests = fixtures::answer(
+            &mut d,
+            call,
+            Ok(Answer::Pull(skein_forge::api::Pull {
+                number: 2,
+                head: b"temper/1/l61".as_slice().into(),
+                ..fixtures::open_pull()
+            })),
+        );
+        assert!(
+            has_landing_decision(&requests, policy::Decision::Merge { member: 0, candidate: fixtures::HEAD }),
+            "{requests:?}"
+        );
+        assert!(d.entries.contains_key(&92));
+        let row = d.landing(61).expect("turn");
+        assert_eq!(row.landing.round.merges, 2);
+        assert_eq!(row.landing.preparation, 0);
+        assert!(matches!(row.landing.phase, policy::Phase::Turn { .. }));
+        let requests = turn_reviews_at(&mut d, 93, fixtures::HEAD);
+        assert!(
+            has_landing_decision(&requests, policy::Decision::Landed { member: 0, prefix: fixtures::HEAD }),
+            "{requests:?}"
+        );
+        assert_eq!(d.landing(61).expect("landed member").landing.members[0].landed, Some(fixtures::HEAD));
+    }
 }
