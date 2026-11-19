@@ -370,6 +370,12 @@ BODY
     a repair made, beside `Triaged`. New refusals are
     `FindingRefusal::Words` in 4.2's and section 3's words. The stored
     finding reply (`FindingResult`) appends `repaired` and `blamed`.
+    `FindingReply` appends `more: Box<[u32]>` (at most 15) and
+    `landing: Option<Commit>`, in the store defaulted empty and none:
+    the call's `RepairAct.more` and `BlameAct.landing`, set for
+    `repair` and `blame` whatever the result and empty and none for
+    every other act, so that the tool's answer is worded from its reply
+    alone, on a restart too.
 - **The tier's record** (`temper-engine-domain-forge-tiers`' `Record`)
   keeps its last judged run's number where it keeps none today, an
   added field, none in a record from before, for judging's why (5.3).
