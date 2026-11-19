@@ -4,7 +4,7 @@
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Named, Shape, Type, TypeIx, VariantIx};
 
-use crate::{Declaration, Error, emit_types, generate, parse};
+use crate::{Declaration, Error, analysis::Context, emit_codec, emit_types, parse};
 
 /// A schema type without its bound or declaration name.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -228,11 +228,13 @@ pub fn constructs(text: &str) -> Result<Vec<Construct>, Error> {
     }) {
         push(&mut found, Construct::NamedBooleans);
     }
-    let records = generate(&schema).records;
-    if ["Self::measure_", "Self::encode_", "Self::check_", "Self::decode_from_"]
-        .iter()
-        .any(|call| records.contains(call))
-    {
+    let context = Context::new(&schema);
+    if schema.declarations.iter().any(|declaration| match declaration {
+        Declaration::Record(record) => {
+            emit_codec::splits_record(&context, record) || emit_types::splits_record(&context, record)
+        }
+        Declaration::Enum(_) => false,
+    }) {
         push(&mut found, Construct::SplitFunction);
     }
     Ok(found)
