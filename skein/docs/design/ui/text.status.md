@@ -2,7 +2,7 @@
 
 2026-11-19. Where skein's code lags or departs from [text.md](text.md).
 
-- **Not yet:** 5: a meter's line [in flight: change 9105].
+No gap.
 
 Section 5 prints once a `NAME:` line that the nearest ancestor
 printing such a line printed, and its readers' goldens, skein's, jig's

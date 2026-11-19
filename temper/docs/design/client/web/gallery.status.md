@@ -4,10 +4,6 @@
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
-- **Not yet:** 2: `accounts-shared` [in flight: change 9107].
-- **Not yet:** 2: `accounts-usage`, `accounts-usage-filling`,
-  `accounts-usage-calm` and `accounts-usage-limited`
-  [in flight: change 9123].
 
 
 - **Departs:** 3: the gallery's tests exceed their 1 CPU s budget:

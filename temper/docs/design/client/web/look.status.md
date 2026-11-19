@@ -2,9 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [look.md](look.md).
 
-- **Not yet:** *An account's row*, *The check line and the uses* and
-  *Quiet acts* [in flight: change 9107].
-- **Not yet:** *An account's row*, *Usage* [in flight: change 9123].
 - **Not yet:** *An account's row*: the `accounts-usage` request's
   rendered comparison follows landing on main, owned by temper/ui
   (`look-requests.md`, 4): its hand-made `journeys/accounts-usage/`

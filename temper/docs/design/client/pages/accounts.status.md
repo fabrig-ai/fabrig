@@ -2,12 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [accounts.md](accounts.md).
 
-- **Not yet:** 1 and 2: *An account's line*'s count of uses with no
-  models, and its uses by name opened, read through Members' reads; *An
-  account's check line*; *Its acts* on one quiet line, its moves as
-  arrows, none with nowhere to go [in flight: change 9107].
-- **Not yet:** 2: *Usage*, a row's usage windows from kind 7 facts
-  [in flight: change 9123].
 
 - **Not yet:** 2: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
 

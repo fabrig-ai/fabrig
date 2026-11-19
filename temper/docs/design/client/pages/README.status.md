@@ -2,8 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** the `Accounts` row: its reads of the projects' members
-  while an account's uses name a party [in flight: change 9107].
 
 
 
