@@ -113,11 +113,21 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
         ),
         None => (0, false),
     };
-    let needs = if across(root) {
+    let mut needs = if across(root) {
         root.pages().needs().count_across(root.client(), root.forge().approvals())
     } else {
         root.pages().needs().count(root.client(), root.forge().approvals(), project)
     };
+    if let Some(inbox) = root.pages().inbox()
+        && inbox.filter.project == Some(project)
+        && inbox.filter.kind.is_none()
+        && inbox.filter.goal.is_none()
+        && inbox.known()
+        && let super::home::Needs::Count { count, cut, .. } =
+            root.pages().needs().counted(inbox, root.forge().approvals())
+    {
+        needs = super::needs::Count { count, cut };
+    }
     Facts {
         projects,
         needs: needs.count,

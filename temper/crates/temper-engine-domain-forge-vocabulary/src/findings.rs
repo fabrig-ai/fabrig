@@ -78,19 +78,24 @@ pub struct FindingSignature {
     pub first: Box<[u8]>,
 }
 impl FindingSignature {
+    /// The most ids kept on a finding (temper/docs/design/domain/findings.md, 4).
+    pub const IDS: u32 = 64;
+    /// The most bytes of each id kept on a finding (temper/docs/design/domain/findings.md, 4).
+    pub const ID_BYTES: u32 = 512;
+
     #[must_use]
     pub fn fits(&self) -> bool {
         if self.source.is_empty()
             || self.source.len() > 64
             || self.ids.is_empty()
-            || self.ids.len() > 64
+            || self.ids.len() > skein_lib::usize_of(Self::IDS)
             || self.first.len() > 512
         {
             return false;
         }
         let mut previous: Option<&[u8]> = None;
         for id in &self.ids {
-            if id.len() > 512 {
+            if id.len() > skein_lib::usize_of(Self::ID_BYTES) {
                 return false;
             }
             if let Some(previous) = previous

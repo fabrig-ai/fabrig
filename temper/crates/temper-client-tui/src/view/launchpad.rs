@@ -27,7 +27,8 @@ pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub drafts: bool,
     pub talk: bool,
-    pub address: Box<[u8]>,
+    pub web: bool,
+    pub address: crate::Origin,
     pub front: bool,
     pub plain: bool,
     pub version: Box<[u8]>,
@@ -325,7 +326,8 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             Some(project) => super::talk::available(root, project),
             None => false,
         },
-        address: copy_of(tui.address()),
+        web: super::web_offered(root, tui),
+        address: tui.address().clone(),
         front: tui.front(),
         plain: tui.plain(),
         version: copy_of(tui.version()),
@@ -356,7 +358,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             push(
                 &mut part.lines,
                 Role::Paragraph,
-                &words.say(Word::NoProject, &[Hole::Name(copy_of(tui.address()))]),
+                &words.say(Word::NoProject, &[Hole::Name(tui.address().print())]),
                 None,
             );
         }
@@ -364,7 +366,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         push(
             &mut part.lines,
             Role::Paragraph,
-            &words.say(Word::Connecting, &[Hole::Name(copy_of(tui.address()))]),
+            &words.say(Word::Connecting, &[Hole::Name(crate::place(tui.address(), false))]),
             None,
         );
     }
@@ -592,8 +594,12 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
             (Own::Change, words.say(Word::ChangeStart, &[Hole::Name(copy_of(project))])),
             (Own::Talk, words.say(Word::TalkStart, &[])),
             (Own::Ask, words.say(Word::AskTemper, &[])),
+            (Own::Web, words.say(Word::WebCommand, &[])),
         ] {
-            if (command == Own::Draft && !part.drafts) || (command == Own::Talk && !part.talk) {
+            if (command == Own::Draft && !part.drafts)
+                || (command == Own::Talk && !part.talk)
+                || (command == Own::Web && !part.web)
+            {
                 continue;
             }
             b.open(Role::Description);
@@ -615,10 +621,11 @@ fn sections(b: &mut Builder, part: &Launchpad, words: &Words) {
     } else {
         b.close();
     }
-    foot::draw_notes(b, &part.notes, words);
+    foot::draw_other_notes(b, &part.notes);
     for line in &part.brief {
         text(b, line.role, &line.words, line.style);
     }
+    foot::draw_link_note(b, &part.notes, words);
     if part.notes.follows_end() {
         b.close();
         b.close();

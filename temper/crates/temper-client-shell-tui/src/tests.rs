@@ -16,8 +16,12 @@ mod events;
 mod goal;
 #[path = "tests/lending.rs"]
 mod lending;
+#[path = "tests/named.rs"]
+mod named;
 #[path = "tests/playground.rs"]
 mod playground;
+#[path = "tests/refused.rs"]
+mod refused;
 pub(crate) use lending::terminal_document;
 
 use crate::{
@@ -92,6 +96,22 @@ fn start(host: &mut Host, credential: Option<Secret>) -> Duties {
 }
 
 fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rgb>, boxed: bool) -> Duties {
+    start_at(
+        host,
+        credential,
+        background,
+        boxed,
+        temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
+    )
+}
+
+fn start_at(
+    host: &mut Host,
+    credential: Option<Secret>,
+    background: Option<Rgb>,
+    boxed: bool,
+    address: temper_client_tui::Origin,
+) -> Duties {
     host.report(Report::Start(Start {
         set_up: false,
         box_log: Box::default(),
@@ -102,7 +122,7 @@ fn start_look(host: &mut Host, credential: Option<Secret>, background: Option<Rg
         plain: false,
         version: Box::default(),
         boxed,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address,
         local: false,
         note: None,
         kept: Vec::new(),
@@ -132,6 +152,43 @@ fn empty(duties: &Duties) {
     assert!(duties.stop.is_none());
     assert!(duties.lend.is_none());
     assert!(!duties.unlend);
+}
+
+#[test]
+fn a_handshake_report_changes_the_hosts_bottom_row_and_clearing_restores_it() {
+    use temper_client_tui::{Handshake, Origin};
+    for signed_in in [false, true] {
+        let mut host = host();
+        start_at(
+            &mut host,
+            signed_in.then(|| Secret::new(Box::new([7; 40]))),
+            None,
+            false,
+            Origin::parse(b"https://dev.fabrig.ai").expect("origin"),
+        );
+        if signed_in {
+            let hello = hello_for_me(&host, launchpad_me(true));
+            let duties = host
+                .report(Report::Heard(jig_client::Event::Streamed { message: jig_client::Streamed::Record(hello) }));
+            admit(&mut host, duties);
+            host.report(Report::Heard(jig_client::Event::StreamGone));
+        }
+        let before = text(&mut host);
+        empty(&host.report(Report::Handshake { failed: Some(Handshake::Untrusted) }));
+        assert_eq!(host.state.as_ref().expect("started").handshake(), Some(Handshake::Untrusted));
+        let frame = text(&mut host);
+        assert!(
+            frame
+                .lines()
+                .last()
+                .expect("bottom row")
+                .trim_start()
+                .starts_with("● Offline: dev.fabrig.ai's certificate isn't trusted"),
+            "signed in {signed_in}: {frame}"
+        );
+        empty(&host.report(Report::Handshake { failed: None }));
+        assert_eq!(text(&mut host), before);
+    }
 }
 
 #[test]
@@ -192,7 +249,7 @@ fn the_fronts_setup_and_log_path_reach_the_tui() {
             scheme: Some(Scheme::Dark),
             background: None,
             boxed: front,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             local: front,
             note: None,
             kept: Vec::new(),
@@ -209,6 +266,22 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
         (vec![Key::Paste(b"not a link".as_slice().into()), Key::Enter], false, "That is not a sign-in link"),
         (link("127.0.0.1:9000"), false, "That link is for 127.0.0.1:9000"),
         (link("127.0.0.1:8367"), true, "Signing in…"),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            true,
+            "Signing in…",
+        ),
+        (
+            vec![
+                Key::Paste(format!("http://127.0.0.1:9000/sign-in?secret={LOCAL_SECRET}").into_bytes().into()),
+                Key::Enter,
+            ],
+            false,
+            "That link is for 127.0.0.1:9000",
+        ),
     ];
     for (keys, sends, line) in rows {
         let mut host = host();
@@ -224,7 +297,9 @@ fn a_pasted_link_is_checked_before_it_is_sent() {
             assert_eq!(asked.len(), 1);
             assert!(matches!(
                 asked.first(),
-                Some(Request::Exchange { credential: None, message: Message::SignInLink(_), .. })
+                Some(Request::Exchange { credential: None, message: Message::SignInLink(secret), .. })
+                    if w::LinkSignIn::decode(&w::CEILINGS, &mut skein_lib::Reader::new(secret))
+                        .expect("link record").secret().expose() == [0; 32]
             ));
             assert!(!text(&mut host).contains(&"A".repeat(43)));
         } else {
@@ -413,7 +488,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
             plain: false,
             version: Box::default(),
             boxed: false,
-            address: address.as_bytes().into(),
+            address: temper_client_tui::Origin::Http(address.parse().expect("fixture socket")),
             local: false,
             note: None,
             kept: Vec::new(),
@@ -688,6 +763,19 @@ fn the_engines_link_signs_in_and_falls_back() {
         row("other address", vec![(Found(Some(local_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
         row("signed in", vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Until)]),
         row(
+            "page signed in",
+            vec![
+                (
+                    Found(Some(Secret::new(
+                        format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into(),
+                    ))),
+                    Send,
+                ),
+                (Answer(signed_in_answer()), Keep),
+                (Connect, Until),
+            ],
+        ),
+        row(
             "used then same then fresh",
             vec![
                 (found(), Send),
@@ -945,7 +1033,7 @@ fn start_local(host: &mut Host, front: bool, local: bool, credential: Option<Sec
         plain: false,
         version: Box::default(),
         boxed: false,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local,
         kept: Vec::new(),
         credential,
@@ -1096,27 +1184,7 @@ pub(crate) fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
     writer.finish()
 }
 pub(crate) fn hello_bytes() -> Box<[u8]> {
-    let limits = &w::CEILINGS;
-    let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served::new(
-                limits,
-                w::ServedParts {
-                    owner: w::Owner::Jig,
-                    first: jig_client_protocol_wire::VERSION,
-                    last: jig_client_protocol_wire::VERSION,
-                },
-            )
-            .expect("Jig version"),
-        )
-        .expect("one owner");
-    let hello = jig_client_test_records::opened(
-        w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello"),
-        jig_client_test_records::frame_record(),
-    );
-    stream_bytes(&hello)
+    hello_for_owners(limits::tui().native.client.client.domain.owners, records::frame_record())
 }
 pub(crate) fn me_bytes(_duties: &Duties) -> Box<[u8]> {
     let limits = &w::CEILINGS;
@@ -1574,7 +1642,7 @@ fn a_kept_theme_starts_the_next_host_in_it() {
                 plain: false,
                 version: Box::default(),
                 boxed: false,
-                address: b"127.0.0.1:8367".as_slice().into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 local: false,
                 note: None,
                 kept,
@@ -1783,7 +1851,7 @@ fn the_theme_list_takes_keeps_and_notices_a_choice() {
         plain: false,
         version: Box::default(),
         boxed: true,
-        address: b"127.0.0.1:8367".as_slice().into(),
+        address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
         local: false,
         note: None,
         kept,
@@ -2153,7 +2221,7 @@ fn a_box_set_up_before_starts_then_leaves_the_screen_at_me() {
             plain: false,
             version: Box::default(),
             boxed: true,
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             local: true,
             kept: Vec::new(),
             credential: None,
@@ -2387,7 +2455,7 @@ fn the_host_goes_to_the_launchpad_and_follows_the_root() {
                     plain: false,
                     version: Box::default(),
                     boxed: false,
-                    address: b"127.0.0.1:8367".as_slice().into(),
+                    address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                     local: false,
                     kept: vec![],
                     credential: None,
@@ -3171,7 +3239,10 @@ fn keyed_bytes(document: w::Owned) -> Box<[u8]> {
 }
 
 fn hello_for_me(host: &Host, me: w::Me) -> Box<[u8]> {
-    let owners = host.env.limits.client.domain.owners;
+    hello_for_owners(host.env.limits.client.domain.owners, me)
+}
+
+fn hello_for_owners(owners: &[jig_client::Spoken], me: w::Me) -> Box<[u8]> {
     let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
         .push(
@@ -3369,7 +3440,7 @@ fn front_stages_wait_for_an_asked_end_and_quits_stop_twice() {
                 background: None,
                 plain: false,
                 version: Box::default(),
-                address: b"127.0.0.1:8367".as_slice().into(),
+                address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
                 local: true,
                 boxed: false,
                 kept: Vec::new(),
@@ -3577,6 +3648,7 @@ fn brief_document() -> w::Owned {
             queued: 0,
             red: false,
             branch: b"main".as_slice().into(),
+            unpaid: false,
             brief: Some(
                 f::StatusBrief::new(
                     &f::CEILINGS,

@@ -29,7 +29,7 @@ Key: --key KEY, required.
 Template sets charter, contract, tracking, label, flags, models
 and symbolic resources. TEXT's first line is the goal's title, as Home
 and Work show it: at most 60 characters naming the work for a person,
-as "Store shape S7: history in task logs"; the rest of TEXT follows
+as "Store shape: history in task logs"; the rest of TEXT follows
 on the lines below.
 Given budget: --budget or --as-allowed; given deadline: --deadline
 or --no-deadline. Defaults otherwise.

@@ -7,13 +7,17 @@ use temper_engine_domain_world::{
 };
 
 fn world() -> (World, u64) {
-    let mut world = tier_runs::findings_world();
+    world_with_wait(temper_engine_domain_forge_change::Wait::Cleared)
+}
+
+fn world_with_wait(wait: temper_engine_domain_forge_change::Wait) -> (World, u64) {
+    let mut world = tier_runs::findings_world_with(tier_runs::Tier { wait, ..tier_runs::Tier::default() });
     // One new finding fills this project's bound.
     world.env.limits.forge.findings_per_project = 1;
     let client = world.env.limits.forge.client;
     let mut world = world.with_forge_client(client);
     world.adopt();
-    let mut hello = protocol::hello_slots(Token::new(7), 2, Box::new([]));
+    let mut hello = protocol::hello_slots(Token::new(7), 3, Box::new([]));
     let engine::Event::Worker(engine::WorkerInput::Link { link: engine::Link::Hello { hello: worker, .. }, .. }) =
         &mut hello
     else {
@@ -21,8 +25,11 @@ fn world() -> (World, u64) {
     };
     worker.bounds.message_bytes = world.env.limits.tasks.message_bytes;
     world.send(hello);
-    let ask = world.chat(1, b"Triage the project's findings");
-    let triager = assigned_chat(&mut world, 92, ask);
+    let people::Ask::Create { project, mut batch } = world.chat(1, b"Triage the project's findings") else {
+        panic!("triager")
+    };
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(100) };
+    let triager = assigned_chat(&mut world, 92, people::Ask::Create { project, batch });
     tiers::baseline(&mut world);
     let items: Box<[_]> = Box::new([kinds::item(
         15,
@@ -93,6 +100,51 @@ fn external_red(world: &mut World) -> skein_forge::api::Commit {
         "not a landing temper made"
     );
     commit
+}
+
+#[test]
+fn a_landing_ended_before_verification_posts_red_from_the_log_and_files_once_without_goal_news() {
+    let (mut world, triager) = world_with_wait(temper_engine_domain_forge_change::Wait::Landed);
+    let ask = tier_runs::goal(&world);
+    let goal = assigned_chat(&mut world, 93, ask);
+    let number = tiers::produce(&mut world, &goal, 94, b"failures", b"suite.alpha\n");
+    until(&mut world, LANDING_TICKS, "change ended at landing", |world| {
+        matches!(task(world, number).phase, tasks::Phase::Ended(_))
+    });
+    let commit = tier_runs::merge(&world, number);
+    assert!(matches!(
+        tier_runs::change(&world, number).change.state,
+        temper_engine_domain_forge_change::State::Landed { .. }
+    ));
+    assert_eq!(tier(&world).record.sequence, 1, "no range verdict before the result");
+    assert!(
+        !world
+            .store
+            .rows
+            .contains_key(&Key::Forge(forge_top::Key::Verification { repository: forge_world::REPO, commit }))
+    );
+    assert!(world.store.rows.values().any(|row| matches!(row, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Subscription(sub) if sub.task == goal.task && matches!(&sub.topic, forge_top::Topic::Landings { branch, .. } if branch.as_ref() == b"main")))));
+    until(&mut world, RUN_TICKS * 3, "red verdict posted", |world| {
+        tier(world).record.sequence == 2 && tier(world).posting.is_none()
+    });
+    assert!(tier_runs::red_news(&world, goal.task).is_empty(), "live subscribed goal hears no red");
+    let rows = findings(&world);
+    let [finding] = rows.as_slice() else { panic!("one project red: {rows:?}") };
+    assert_eq!((finding.project, finding.kind, finding.area.as_deref()), (1, forge_top::FindingKind::Red, None));
+    let body = String::from_utf8_lossy(&finding.body);
+    assert!(body.contains(std::str::from_utf8(&forge_top::commit_text(&commit)).unwrap()), "{body}");
+    assert_eq!(news(&world, triager).len(), 1);
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Status { commit: tip, check: skein_forge::api::Check::Failed, .. } if *tip == commit)));
+    let pull = tier_runs::change(&world, number).pull.unwrap();
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(b"Red: slow run 2 blames this landing for suite.alpha."))));
+    // The next tip inherits this red; the project's finding is kept just once.
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"unrelated", 1).unwrap();
+    until(&mut world, RUN_TICKS * 3, "inherited red posted", |world| {
+        tier(world).record.sequence == 3 && tier(world).posting.is_none()
+    });
+    assert_eq!(findings(&world).len(), 1);
+    assert_eq!(news(&world, triager).len(), 1);
+    assert_eq!(tier_runs::red_news(&world, goal.task).len(), 0);
 }
 
 #[test]

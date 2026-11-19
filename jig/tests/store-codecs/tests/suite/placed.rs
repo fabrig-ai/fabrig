@@ -2,7 +2,8 @@
 use super::values;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{codec, tasks_v13 as wire};
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
+use wire::Record;
 
 #[test]
 fn placed_hold_smallest_and_full_fixed_rule_values_round_trip() {
@@ -13,9 +14,7 @@ fn placed_hold_smallest_and_full_fixed_rule_values_round_trip() {
         let mut reader = Reader::new(bytes);
         let hold = wire::PlacedHold::decode(&wire::CEILINGS, &mut reader).expect("placed hold value");
         assert!(reader.is_empty());
-        let mut writer = Writer::new(hold.measure() as usize);
-        hold.encode(&mut writer).expect("measured value");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(hold.encode(&wire::CEILINGS).expect("bounded value").as_ref(), bytes);
     }
 }
 
@@ -24,9 +23,7 @@ fn hold_placed_round_trips_with_its_number_at_the_existing_tag() {
     for hold in [0, 1, u64::MAX] {
         let value = tasks::Hold::Placed { hold };
         let encoded = codec::tasks::phase::hold(&value, &wire::CEILINGS).expect("number");
-        let mut writer = Writer::new(encoded.measure() as usize);
-        encoded.encode(&mut writer).expect("measured hold");
-        let bytes = writer.finish();
+        let bytes = encoded.encode(&wire::CEILINGS).expect("bounded value");
         assert_eq!(bytes[0], 4);
         let decoded = wire::Hold::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("hold");
         assert_eq!(codec::tasks::phase::read_hold(decoded), Ok(value));

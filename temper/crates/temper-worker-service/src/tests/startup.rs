@@ -26,7 +26,6 @@ fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() 
 }
 
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the regression reads the shipped example")]
 fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     // Linux's IORING_MAX_ENTRIES, the largest submission ring.
     const IORING_MAX_ENTRIES: u32 = 32_768;
@@ -36,39 +35,14 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     agent.host_limits.message_bytes = 63_740;
     agent.host_limits.messages = 82;
     let mut part = crate::startup::worker_part(&input, &directories, Some(b"/usr/bin/git"), &[]).unwrap();
-    let owned = include_bytes!("../../../../docs/examples/owned.json");
-    let document =
-        config::document(owned, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 }).unwrap();
-    let ats = config::read::list(
-        &document,
-        temper_service_core::startup::member(&document, 0, b"workers").unwrap(),
-        document.len(),
-    )
-    .unwrap();
-    let worker =
-        config::worker(&document, *ats.get(0).unwrap(), &directories, &temper_service_core::startup::fixed_worker())
-            .unwrap();
-    let engine_at = temper_service_core::startup::member(&document, 0, b"engine").unwrap();
-    let engine = temper_engine_service_startup::startup::engine(&document, engine_at, &directories).unwrap();
-    agent.host_limits.accounts = engine.limits.hub.accounts;
-    part.worker.jig.limits = Some(engine.limits);
-    part.worker.jig.slots = worker.slots;
-    let application = temper_service_core::startup::member(&document, 0, b"application").unwrap();
-    let at = temper_service_core::startup::member(&document, application, b"limits").unwrap();
-    part.limits = crate::worker_settings::Limits::shared(
-        temper_service_core::startup::configured_limits(
-            &document,
-            at,
-            &Path::root(),
-            &mut crate::startup::Problems::empty(),
-        )
-        .unwrap(),
-    );
+    crate::figures::apply(&mut part, super::figures::stock_figures()).unwrap();
+    agent.host_limits.accounts = part.worker.jig.limits.as_ref().unwrap().hub.accounts;
     let payload = crate::worker_settings::payload_limits(&part.limits).unwrap();
     let link = crate::worker_settings::link_limits(&part.worker.jig, &payload, part.limits.peer.forges).unwrap();
     assert_eq!(
         link.room,
-        jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8
+        (jig_protocol_worker_wire::sizes::largest_body(&link.sizes, jig_protocol_worker_wire::Kind::Turn).unwrap() + 8)
+            .max(temper_service_core::derived::OUTPUT_FLOOR)
     );
     let operations = temper_service_core::process::Process::operations_for(
         &part.worker.jig.limits.as_ref().expect("checked worker limits").io,

@@ -361,6 +361,7 @@ pub fn check_change(current: &Current, items: &[Item]) -> Result<(), Failure> {
             | Setting::Template(_)
             | Setting::Policy(_)
             | Setting::Rules
+            | Setting::Limits
             | Setting::Application { .. }
             | Setting::ProjectPolicy { .. } => continue,
         };

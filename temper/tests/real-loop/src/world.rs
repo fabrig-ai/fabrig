@@ -59,8 +59,10 @@ impl Host for Proc {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.diagnostics.complete(self.kind.completions(), now);
         if let Kind::Service(host) = &mut self.kind
-            && host.service.as_ref().is_some_and(|service| service.engine_domain().is_some())
+            && let Some(service) = &mut host.service
+            && service.engine_domain().is_some()
         {
+            self.diagnostics.terminals.opened_logs(service.log_descriptors());
             self.diagnostics.terminals.observe(host.completions());
         }
         self.kind.iterate(now, wall);
@@ -241,7 +243,7 @@ pub(crate) fn run_stubborn(
 pub(crate) fn run_configured(
     scratch: &skein_scratch::Scratch,
     recipe: impl FnOnce() -> llm::Recipe,
-    configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> CheckedOutcome<Proc> {
     run_with_agent(scratch, recipe, steps, false, false, agent::agent, Some(configure))
@@ -254,7 +256,7 @@ fn run_with_agent(
     direct_key: bool,
     sign_in: bool,
     agent: agent::Factory,
-    configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
+    configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
 ) -> CheckedOutcome<Proc> {
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable

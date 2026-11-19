@@ -22,6 +22,7 @@ mod history;
 mod issues;
 mod landing;
 mod landing_log;
+mod limit_holds;
 mod making;
 mod milestones;
 mod names;
@@ -44,6 +45,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 
         d::Stored::Follow(row) => w::Value::Follow(Box::new(follows::encode(row))),
         d::Stored::Closer(row) => w::Value::Closer(closer::encode(row)),
+        d::Stored::PersonBrief(row) => w::Value::PersonBrief(status::encode_person_brief(row)),
         d::Stored::ProjectFacts(row) => w::Value::ProjectFacts(status::encode_facts(row)),
         d::Stored::Device(row) => w::Value::Device(away::encode_device(row)),
         d::Stored::LandedDraft(row) => w::Value::LandedDraft(drafts::encode(row)),
@@ -75,6 +77,7 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         }
         d::Stored::Repository(value) => w::Value::Repository(names::encode_adopted(value)),
         d::Stored::Hold(value) => w::Value::Hold(names::encode_hold(value)),
+        d::Stored::LimitHold(row) => w::Value::LimitHold(limit_holds::encode(row)),
         d::Stored::Names { task, resources } => w::Value::Names(topics::encode_names(*task, resources)),
         d::Stored::Subscription(value) => w::Value::Subscription(topics::encode_subscriber(value)),
         d::Stored::BranchHead(value) => w::Value::BranchHead(topics::encode_branch_head(value)),
@@ -145,6 +148,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
 
         w::Value::Follow(row) => d::Stored::Follow(follows::decode(*row, bounds)?),
         w::Value::Closer(row) => d::Stored::Closer(closer::decode(row)),
+        w::Value::PersonBrief(row) => d::Stored::PersonBrief(status::decode_person_brief(row)),
         w::Value::ProjectFacts(row) => d::Stored::ProjectFacts(status::decode_facts(row)),
         w::Value::Device(row) => d::Stored::Device(away::decode_device(row)?),
         w::Value::LandedDraft(row) => d::Stored::LandedDraft(drafts::decode(row)?),
@@ -206,6 +210,7 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Entry(value) => entries::decode_entry_row(value),
         w::Value::Repository(value) => d::Stored::Repository(names::decode_adopted(value, bounds)?),
         w::Value::Hold(value) => d::Stored::Hold(names::decode_hold(value, bounds)?),
+        w::Value::LimitHold(row) => d::Stored::LimitHold(limit_holds::decode(row, bounds)?),
         w::Value::Names(value) => {
             let w::NamesParts { task, resources } = value.into_parts();
             d::Stored::Names { task, resources: topics::decode_names(resources, bounds)? }
@@ -224,6 +229,17 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
 
 /// Restore a decoded record only when its durable key agrees with the row.
 pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
+    match raw_row(key, value, bounds) {
+        Ok(row) => Ok(row),
+        Err(Undecodable::Malformed) => match crate::lowering::lowering(key, value, bounds) {
+            Some(lowered) => Err(Undecodable::Lowered(lowered)),
+            None => Err(Undecodable::Malformed),
+        },
+        Err(why @ (Undecodable::Setting(_) | Undecodable::Lowered(_))) => Err(why),
+    }
+}
+
+pub(crate) fn raw_row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = match decode(value, bounds) {
         Ok(row) => row,
         Err(Undecodable::Setting(setting)) => {
@@ -234,7 +250,7 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
                 Err(Undecodable::Malformed)
             };
         }
-        Err(Undecodable::Malformed) => return Err(Undecodable::Malformed),
+        Err(Undecodable::Malformed | Undecodable::Lowered(_)) => return Err(Undecodable::Malformed),
     };
     let encoded = crate::keys::encode(&d::stored_key(&row), u32::MAX).ok_or(Undecodable::Malformed)?;
     if encoded.as_ref() != key {
@@ -386,7 +402,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_record_flakes: forge.tiers.failing_tests,
         tier_flake_test: forge.tiers.test_id_bytes,
         tier_tests_tests: forge.tiers.failing_tests,
-        landing_log_landings: forge.landings_kept,
+        landing_log_landings: forge.landings_kept.checked_add(forge.landings_pending)?,
         logged_landing_changes: forge.landing_members,
         logged_landing_branch: forge.name_bytes,
         verification_changes: forge.changes,

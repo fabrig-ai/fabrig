@@ -425,6 +425,46 @@ fn delegation_headings_and_shared_lines_cut_titles_in_both_shells() {
 }
 
 #[test]
+fn proposal_titles_stay_whole_while_shared_lines_keep_their_cut() {
+    let root = f::chat::proposal_root();
+    let mut card = root.pages().cards().unwrap().as_slice().first().unwrap().clone();
+    for (title, cut) in f::row_titles() {
+        let mut page = f::cards::batch_proposal();
+        let c::ReadValue::Proposal(proposal) = &mut page else { unreachable!() };
+        let c::ProposalAction::Batch(tasks) = &mut proposal.action else { unreachable!() };
+        tasks.get_mut(0).unwrap().spec.specification.words =
+            f::delegation::document(&skein_lib::bytes::concat(&[title, b"\nThe rest is not the title"]));
+        card.page = Some(page);
+        assert_eq!(shared::proposal_title(&card).unwrap().as_ref(), title);
+        for words in [f::browser_words(), f::words()] {
+            assert_eq!(shared::proposal_line(&card, &words).unwrap().as_ref(), cut);
+        }
+    }
+    let mut proposal = f::needs::proposal(c::Proposer::Task(f::INBOX_TASK));
+    proposal.action = c::ProposalAction::Settings(Box::new(c::ProposalActionSettings {
+        against: 1,
+        items: List::with_capacity(0),
+        review: None,
+        made: None,
+    }));
+    let title = f::row_titles()[0].0;
+    proposal.reason = f::delegation::document(&skein_lib::bytes::concat(&[title, b"\nReason body"]));
+    card.page = Some(c::ReadValue::Proposal(Box::new(proposal)));
+    assert_eq!(shared::proposal_title(&card).unwrap().as_ref(), title);
+    assert_eq!(shared::proposal_line(&card, &f::words()).unwrap().as_ref(), title);
+    let c::ReadValue::Proposal(proposal) = card.page.as_mut().unwrap() else { unreachable!() };
+    proposal.action = c::ProposalAction::Batch(List::uncapped());
+    assert_eq!(shared::proposal_title(&card).unwrap().as_ref(), title);
+    assert_eq!(shared::proposal_line(&card, &f::words()).unwrap().as_ref(), title);
+    card.page = Some(c::ReadValue::Task(Box::new(f::task::document())));
+    assert_eq!(shared::proposal_title(&card), None);
+    assert_eq!(shared::proposal_line(&card, &f::words()), None);
+    card.page = None;
+    assert_eq!(shared::proposal_title(&card), None);
+    assert_eq!(shared::proposal_line(&card, &f::words()), None);
+}
+
+#[test]
 fn result_cards_and_close_delegate_rows_cut_titles_in_both_shells() {
     use skein_ui::{Builder, Role};
     for (title, cut) in f::row_titles() {

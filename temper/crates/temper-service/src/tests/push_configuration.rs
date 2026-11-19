@@ -20,7 +20,7 @@ fn configured() -> serde_json::Value {
 }
 #[test]
 fn optional_push_reads_its_private_key_services_and_public_half() {
-    for input in [fixtures::document(), input(serde_json::Value::Null)] {
+    for input in [fixtures::document().document, input(serde_json::Value::Null)] {
         let parsed = startup::parse(&input, &config::Directories::working()).unwrap();
         assert!(parsed.application.push.is_none());
     }

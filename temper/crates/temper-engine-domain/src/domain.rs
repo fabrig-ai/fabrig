@@ -98,6 +98,7 @@ pub struct Domain {
     pub(crate) run_workspaces: Map<u64, crate::boundary::WorkspacePreparation>,
     pub(crate) job_workspaces: Map<u64, crate::ForgeWorkspace>,
     pub(crate) forge: forge::Domain,
+    pub(crate) forge_limit_holds: Map<u64, forge_route::limit_holds::Waiting>,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) kinds: Box<[crate::KindValue]>,
     pub(crate) settings_parts: Map<u64, crate::route::settings_parts::Held>,
@@ -336,6 +337,12 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
+    /// The restored settings head; service admission keeps this revision with its lists.
+    #[must_use]
+    pub fn settings_revision(&self) -> u32 {
+        self.core.current.newest()
+    }
+
     /// The deployment's current welcome (protocol/configuration/settings.md, 2).
     #[must_use]
     pub fn welcome(&self) -> bool {
@@ -635,6 +642,7 @@ impl Domain {
             forge_reading: Map::with_capacity(limits.fleet.calls),
             status_reading: Map::uncapped(),
             next_status_owner: 0,
+            forge_limit_holds: Map::with_capacity(limits.tasks.tasks),
             forge_left: Map::with_capacity(limits.tasks.tasks),
             forge_effecting: Map::with_capacity(limits.fleet.calls),
             forge_effects: Map::with_capacity(
@@ -913,7 +921,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
 /// turn bytes are under the budget (domain/root.md, 4.1). Only an
 /// activation asks; nothing else waits on bytes.
 pub(crate) fn within_budget(domain: &Domain, limits: &Limits) -> bool {
-    domain.held_bytes() < limits.memory_bytes
+    domain.held_bytes() < limits.transcript_memory
 }
 
 pub(crate) fn admits(domain: &Domain, limits: &Limits) -> bool {
@@ -991,7 +999,8 @@ fn finish_close(
 pub(crate) fn invalidate_input(domain: &mut Domain, event: &Event) {
     match event {
         Event::Resume => {}
-        Event::Setup { .. }
+        Event::LimitsRaised
+        | Event::Setup { .. }
         | Event::Released(_)
         | Event::Forge(_)
         | Event::Stop
@@ -1068,6 +1077,7 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Busy(_)
             | Request::Unsettled(_)
             | Request::Restarting { .. }
+            | Request::LimitSettingsCommitted { .. }
             | Request::Drained
             | Request::Account(_)) => {
                 assert!(now(domain, request), "root door reserves one route's immediate outputs");
@@ -1428,6 +1438,7 @@ fn released_into(
         | Delivery::Document { .. }
         | Delivery::WatchEnded { .. }
         | Delivery::Restarting { .. }
+        | Delivery::LimitSettingsCommitted { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }

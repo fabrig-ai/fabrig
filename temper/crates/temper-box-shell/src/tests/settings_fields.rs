@@ -119,6 +119,7 @@ fn encode(value: &settings_form::view::SettingValue, out: &mut Encoder) {
             }
             out.array_end();
         }
+        SettingValue::Limits(_) => settings_form::render::encode_value(value, out),
         SettingValue::Rules(value) => values::encode_rules(value, out),
     }
 }

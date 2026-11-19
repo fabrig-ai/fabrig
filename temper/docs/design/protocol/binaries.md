@@ -210,8 +210,40 @@ default; the document is `temper.json` in the configuration directory
   checkpoint it runs while the engine serves the deployment, as a
   redeploy runs it (`../redeploy.md`, 4.1): nothing before the
   rehearsal takes the deployment's lock or writes under `--data`. It
-  works in a scratch copy under the cache directory,
-  with the configuration `temper-box serve` would read; the open
+  works in a scratch under the cache directory, `upgrade-SEED`, SEED
+  sixteen lowercase hex digits from a fresh seed, with the
+  configuration `temper-box serve` would read, and holds it under io's
+  lock (the `flock` jig's store takes on a root, jig's
+  `protocol/store/opening.md`, 1.1) from making it until it removes it.
+  It makes the scratch as `upgrade-SEED.new`, a name the sweep below
+  never matches, takes its lock, then renames it `upgrade-SEED`: the
+  lock moves with the directory, so no rehearsal sees a scratch of this
+  build unlocked. Once its rehearsal ends, passed, refused or failed,
+  it removes its scratch whole, files left by a close that could not
+  empty it included, while it still holds the lock; one it cannot
+  remove stays, named in a line after the rehearsal's others, `scratch
+  not removed: NAME: errno N`, and its exit is the rehearsal's.
+  Before making it, it sweeps the cache directory: it removes, whole,
+  each directory named `upgrade-SEED` whose modification time is an
+  hour or more before its clock's reading and whose lock it then takes,
+  a scratch left by a rehearsal killed partway, whose links would
+  otherwise keep a checkpoint's files on disk past its retention. It
+  reads the time before it takes the lock, and leaves each whose lock
+  is held, a rehearsal's in use, and each modified within the hour or
+  after its clock's reading, which a rehearsal by a build before this
+  rule may still be filling: such a build makes `upgrade-SEED` itself
+  and takes its lock only at its store's open, after the whole copy,
+  and a removal that stopped partway would leave it working over
+  missing files. It leaves `upgrade-SEED.new` too: one left by a
+  rehearsal killed before its rename is empty. A leftover whose open,
+  time or removal fails, or whose lock fails other than by being held,
+  but for one gone since it listed the cache directory, stays, named in
+  a line before the rehearsal's report, `scratch left behind not
+  removed: NAME: errno N`, and the rehearsal goes on. In these lines,
+  and in `scratch: errno N`, the failure to make or lock a scratch that
+  ends the rehearsal, an error that carries no errno is named by its
+  kind, `kind KIND`, KIND the name of its `std::io::ErrorKind` variant
+  (`kind Other`). The open
   registers layouts, runs jobs and checks as a start would, restores,
   and stops before its switch step. After the floor check and before
   its plan it decodes every record by its registry layout, or by the
@@ -232,17 +264,31 @@ default; the document is `temper.json` in the configuration directory
   section 3.1; `../draft/redeploys.md`, 5.1). Exit 0 when the
   registry commit, jobs and restores pass, 1 when a start would be refused there.
 - **`temper-box upgrade --workers DIRECTORY`:** `--check`'s verdict on
-  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2): a
+  the workers alone, for a redeploy's stop (`../redeploy.md`, 4.2) and
+  once before it, over the check's checkpoint while the engine serves
+  (`../redeploy.md`, 4.1, step 10): a
   rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
-  (jig's `protocol/store/opening.md`, 5), which copies the active
-  generation's maps without its task logs, recovers them and reads the
+  (jig's `protocol/store/opening.md`, 5), which makes the active
+  generation's maps in its scratch without their task logs, linking
+  the snapshot and every segment but the newest and copying the rest,
+  recovers them and reads the
   wires and the workers' openings they keep, and ends there: no record
   decoded, no level checked, no plan, job or restore run. It prints
-  `--check`'s lines from its verdict's alone (`wires.md`, 10.2, steps 1
-  to 4), in their words and order, and exits 0 once they are printed,
-  whatever the verdict. A refusal before the rows are read (DIRECTORY
-  in use, an unfinished restore, an unreadable `active`, a copy or a
-  recovery failing) is printed as `--check` prints a refusal, exit 1.
+  how many files its rehearsal linked and how many it copied, from
+  `Rehearsing` (jig's `protocol/store/opening.md`, 5), a link the file
+  system refused counted as a copy:
+
+  ```
+  temper-box upgrade: rehearsal linked {linked} files, copied {copied}
+  ```
+
+  then `--check`'s lines from its verdict's alone (`wires.md`, 10.2,
+  steps 1 to 4), in their words and order, and exits 0 once they are
+  printed, whatever the verdict. A redeploy notes the count, from the
+  first line that starts so (`../redeploy.md`, 6.3). A refusal before
+  the rows are read (DIRECTORY in use, an unfinished restore, an
+  unreadable `active`, a copy or a recovery failing) is printed as
+  `--check` prints a refusal, exit 1.
   It never writes DIRECTORY.
 - **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that upgraded and
@@ -333,7 +379,7 @@ temper ctl DIRECTORY GROUP VERB ...    a process per call, reaching the engine o
 temper-box program-login NAME              run by hand on a host, replaced by the program's sign-in
 temper-box versions                        prints this binary's levels, versions and wires
 temper-box upgrade --check DIRECTORY       rehearses an upgrade over a copy; switches nothing
-temper-box upgrade --workers DIRECTORY     judges the workers alone over a copy; switches nothing
+temper-box upgrade --workers DIRECTORY     judges the workers alone over links and small copies; switches nothing
 temper-box upgrade --back                  makes the previous generation active again, before the upgraded one's first commit
 temper-box checkpoint                      takes a checkpoint of the stopped deployment; --hold runs a command under one's lock, --remove removes one
 temper-box restore NAME                    restores a checkpoint over the stopped deployment, after a safety checkpoint of it

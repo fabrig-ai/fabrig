@@ -160,6 +160,7 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
                 task: 1,
                 writer: None,
                 drift: None,
+                beside: None,
                 design_writers: Box::new([]),
             }),
         ),

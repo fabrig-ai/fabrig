@@ -70,6 +70,11 @@ boundary (smith's run.md, 8.1).
   or adds a reason's line, is refused, as the gate refuses it; one that
   changes that file alone passes (section 4, check 7;
   `tools/tiers/budgets.md`, 10.1).
+- **Journey files, the writer's alone.** A delivery whose own changes
+  hold a journey's recording, page or file printed beside them and any
+  other path is refused, and so is a nonempty `overlay.css`; a delivery
+  of those files alone passes (section 4, check 8;
+  `temper/docs/design/client/journey-writer.md`, 2 and 5).
 - **A goal's design delivery too.** A goal run's `deliver` of Markdown
   straight to its goal branch runs the project's checks before the worker
   pushes, and a failure refuses the push with the check's output
@@ -435,7 +440,10 @@ delivery hears every failure; the verdict is section 6's.
    - **Never a failure:** a missing or refused ledger refuses nothing;
      its line is the deployment's, which the summary does not repeat, as
      the hold's. A layer over at main stays a warning, as at the gate
-     (`tools/tiers/budgets.md`, 8).
+     (`tools/tiers/budgets.md`, 8), and so does a test that swings alone
+     at main, named with its figures in one-process's output
+     (`tools/tiers/references.md`, 6), which the summary does not repeat:
+     both are main's, not the delivery's.
 
 5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
    --head <tree>` against section 3's private snapshot, including staged,
@@ -486,6 +494,34 @@ delivery hears every failure; the verdict is section 6's.
      inherited (section 5);
    - **any other:** a failure of the check itself, `check figures`, its
      log the check's output.
+8. **The journey files,** for every delivery, with a base or none: the
+   driver's own reading of git, after every other check, announced
+   `pre-pr: journeys …` and ended `pre-pr: journeys: passed|failed,
+   <seconds> s`. It starts no program of the check's, takes no hold and
+   selects nothing. A written file is
+   `temper/docs/design/client/journey-writer.md`, 2's: under
+   `temper/docs/design/client/web/journeys/` or
+   `temper/docs/design/client/tui/journeys/`, a journey directory's
+   `recording` or a page of it, `NN.html` or `NN.txt` with two digits or
+   more, or, at either root, `skein-ui.css`, `journey.js`, `theme.css`
+   or `tui-journey.js`.
+   - **The delivery's own paths:** with a base, section 3's changed
+     paths less each whose entry in the tree is the one a merged tip of
+     check 7's holds at that path, its own or absent alike, since a
+     merge brought it as it stood there; without a base, the paths the
+     tree changes against `HEAD`, staged, unstaged and untracked.
+   - **Refused,** one failure, `journeys`: those paths holding a
+     written file and any path that is not one; or a tree whose
+     `overlay.css` under either root holds a byte. Its log names the
+     written files, the first twenty and then a count, one other path,
+     and each nonempty overlay, and ends with the repair: `a journey's
+     recording, pages and the files beside them are written on main by
+     the journeys' writer alone (AGENTS.md, 4): restore them with git
+     checkout BASE -- PATH..., and compare pages by cargo run -p
+     temper-client-journeys in your own tree`, BASE the base or
+     `HEAD`. It is the delivery's own, never inherited (section 5).
+   - **Passed:** neither; a delivery whose own paths are written files
+     alone among them.
 
 **The environment** is the check's, with `TEMPER_INTERNAL_BUNDLE=none` set where it
 is unset (`AGENTS.md`, 5), and `TIERS_LEDGER` removed, as `TIERS_HOLD` is
@@ -1023,6 +1059,16 @@ binary id and name, inherited from a `- test` entry, its starved line
 printed and repeated in the summary, a failure no entry names run again
 from `<dir>/fuzzy`; its build failure is `build fuzzy`; and each run's end
 line judges its own failures alone.
+
+It holds the journey files (section 4, check 8): a page and a source
+file changed together refused, with a base and with none, the failure
+`journeys` with the repair line in its log; a recording, a page and
+`skein-ui.css` changed alone passing; a journey's `README.md` or
+`setup` changed beside a source passing; a delivery that merged a tip
+whose pages differ from its base's, beside a source change of its own,
+passing, and the same delivery with a page edited after the merge
+refused; a nonempty `overlay.css` under either root refused, alone or
+beside other paths; a prose-only delivery held as any other.
 
 The summary keeps section 6's bound: forty failures of 4,096 bytes each
 refuse within 8,192 bytes, the first kept, each log's tail starting at a

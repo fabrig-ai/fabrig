@@ -15,6 +15,7 @@ pub enum Setting {
     Template(SettingNumber),
     Policy(SettingNumber),
     Rules,
+    Limits,
     Model(SettingNumber),
     Worker(SettingNumber),
     Provider(SettingNumber),
@@ -154,6 +155,13 @@ pub struct Rules {
     pub implies: List<KindImplication>,
     pub requirements: List<PolicyRequirement>,
 }
+/// A limit override carried without resolving its name (domain/engine/settings.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Override {
+    pub name: Box<[u8]>,
+    pub value: u64,
+    pub reason: Box<[u8]>,
+}
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum SettingValue {
     Charter(Box<Charter>),
@@ -161,6 +169,7 @@ pub enum SettingValue {
     Template(Box<Template>),
     Policy(Box<SettingPolicy>),
     Rules(Box<Rules>),
+    Limits(Box<[Override]>),
     Model(Box<CatalogueEntry>),
     Worker(Box<WorkerSetting>),
     Provider(Box<ProviderSetting>),
@@ -206,6 +215,10 @@ pub struct RefusalFull {
     pub tasks: List<u64>,
     pub more: u32,
 }
+/// The last charter, template, policy or model number; mirrors jig-domain-people's settings vocabulary.
+pub const NUMBERS: u32 = 64;
+/// The stock's last number; higher numbers through `NUMBERS` are a deployment's own.
+pub const STOCK_NUMBERS: u32 = 32;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SettingFault {
     Shape,
@@ -218,6 +231,7 @@ pub enum SettingFault {
     Judged,
     Linked,
     Accounts,
+    Range,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct MalformedSettings {

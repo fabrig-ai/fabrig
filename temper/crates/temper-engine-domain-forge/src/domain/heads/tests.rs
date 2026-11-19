@@ -64,7 +64,9 @@ fn watch(d: &mut Domain, env: &Env<Limits>) {
 
 fn hold(d: &mut Domain, writer: Option<Writer>) {
     let name = name(BRANCH);
-    d.holds.insert(name.clone(), Hold { name, task: 7, writer, drift: None, design_writers: Box::new([]) }).unwrap();
+    d.holds
+        .insert(name.clone(), Hold { name, task: 7, writer, drift: None, beside: None, design_writers: Box::new([]) })
+        .unwrap();
 }
 
 fn refused(out: &Queue<Request>, task: Option<u64>, branch: &[u8]) {
@@ -295,7 +297,7 @@ fn a_sweep_frees_even_held_heads_of_ended_forges_and_unadopted_repositories() {
             d.holds
                 .insert(
                     name.clone(),
-                    Hold { name, task: TASK, writer: None, drift: None, design_writers: Box::new([]) },
+                    Hold { name, task: TASK, writer: None, drift: None, beside: None, design_writers: Box::new([]) },
                 )
                 .unwrap();
         }

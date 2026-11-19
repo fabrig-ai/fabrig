@@ -1,4 +1,4 @@
-family jig-client-wire 35
+family jig-client-wire 37
 # Accounts.accounts/signing, AccountLine.sources and Account.sources: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece
 # AccountLine.uses and Account.uses: jig_domain_accounts::USES (16)
 # OutcomeAccountSignInStarted.address: jig_domain_people::ADDRESS (2048 bytes).
@@ -613,7 +613,7 @@ record RetainedActionRelease { task: u64 }
 record SettingNumber { number: u32 }
 record ApplicationSetting { kind: u32 scope: u32 number: u32 }
 record ProjectPolicySetting { project: u32 }
-enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: SettingNumber, worker: SettingNumber, provider: SettingNumber }
+enum Setting { charter: SettingNumber, template: SettingNumber, policy: SettingNumber, rules, application: ApplicationSetting, project_policy: ProjectPolicySetting, model: SettingNumber, worker: SettingNumber, provider: SettingNumber, limits }
 enum RevisionItemEdit { set, removed, reset }
 record RevisionItemHead { setting: Setting edit: RevisionItemEdit }
 record RetainedActionSettings { projects: list 32 u32 against: u32 items: list 128 RevisionItemHead made: option u32 }

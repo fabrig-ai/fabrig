@@ -233,7 +233,9 @@ section 6).
      more where they hold none. CI, the queue, taking the base,
      a conflict's resolution, a CI repair and the after-landing
      verification are what they are for any change, and the step waits
-     for the landing's result at cleared, repaired or not
+     for the landing's result: at cleared, repaired or not, or, where
+     the project's kind 4 says `wait: landed`, at landed, so that the
+     goal ends as its branch lands into its base
      (`../after-landing.md`, section 6). A goal with no goal branch, or whose base
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
@@ -241,9 +243,10 @@ section 6).
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
-  `domain/tasks/proposals.md`); a red after landing, while the landing
-  is verified, is news for the goal, whose tree the landing is in
-  (`../after-landing.md`, section 7). A step's change that ends without
+  `domain/tasks/proposals.md`); under `wait: cleared`, a red after
+  landing, while the landing is verified, is news for the goal, whose
+  tree the landing is in (`../after-landing.md`, section 7), and under
+  `landed` none comes, the goal having ended at its landing. A step's change that ends without
   landing (cancelled, failed) is made again, or holds the closer,
   `ClosingStep`, by its attempts (below), its words naming the step,
   the change and why, which escalates to the goal: its release makes
@@ -517,10 +520,44 @@ fast-forward never forced. Its repository's other writes are as before.
   knew becomes g's recorded head, as the branch's own; one that does not
   is drift. What the run reports pushing is not taken as the head, since
   merges land beside it.
+- **In the order the forge took them** (2026-11-19). g's recorded head,
+  and with it the forge client's expected head (`Pushed`), follows
+  temper's own writes in the order they reached the forge, never the
+  order their records reach the engine: no record moves it back to an
+  ancestor of a head temper itself wrote. A design writer's answer is
+  read at once, beside g's other writes, so its push can be recorded
+  while a write in g's slot (a merge into g, its merge job's push, an
+  update of g) is still in flight, and that write's record can come
+  after it, naming a head the design push already descends from. So the
+  hold keeps a **head beside**: the head a design writer's fresh read
+  recorded while another write of temper's held g (its slot taken, or a
+  merge into it handed), a later such read replacing it, dropped once no
+  such write holds g. The record of a write's head W (a merge's commit,
+  an update's made head, a slot run's reported push) that finds the head
+  beside still g's recorded head H, and W another head, waits on one
+  comparison before it moves anything:
+  - *The comparison.* The forge reads whether H contains W, one
+    `Commits` read as a lost writer's reread compares. Meanwhile the hold
+    keeps W beside H, so a restart reads it again, and the write still
+    holds g: g counts as written and its slot stays taken, so no drift is
+    judged on it.
+  - *H contains W* (W is H's ancestor): H stays g's head. The record
+    moves no head and sends no `Pushed`; the write's other effects (its
+    change landed, its landing log, its tiers' observation) are taken as
+    before.
+  - *H does not contain W:* W is g's head, recorded and `Pushed` as any
+    write's head is. A read that fails for good takes W too, as before
+    this rule, and the watch then judges g against it.
+
+  The answer drops the head beside and W, and frees g if nothing else
+  writes it. A record that finds no head beside, or g's head already
+  moved off it, takes W at once, as before. Drift is unchanged: a head
+  none of temper's writes made, even on top of g's head, and a move not
+  forward from it, still hold the goal (`change/README.md`, 3).
 - **Written while any writes it.** The forge's keep counts g as written
-  while a design writer lives, a run holds its slot, or a merge into it
-  is in flight; each of them ending leaves g written while another
-  stands.
+  while a design writer lives, a run holds its slot, a merge into it
+  is in flight, or a write's head waits on its comparison (above); each
+  of them ending leaves g written while another stands.
 - **Changes on g take it.** A change on g (the goal's landing,
   `"branch": "mine"`, the closer's land step) treats a live design
   writer as its requester's own run (`change/README.md`, 3): a forward move is its new

@@ -1,5 +1,6 @@
 //! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/README.md, section 9).
 use super::super::values;
+use jig_protocol_store::tasks_v13::Record;
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};
 use skein_lib::{Reader, Rng, Writer, length::len_u64};
 
@@ -101,9 +102,7 @@ fn mutated_accounts_fixed_rule_values_never_panic() {
 fn tasks(bytes: &[u8]) {
     use jig_protocol_store::tasks_v13;
     if let Ok(row) = tasks_v13::Row::decode(&tasks_v13::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(row.encode(&tasks_v13::CEILINGS).expect("decoded row fits").as_ref(), bytes);
     }
 }
 #[test]

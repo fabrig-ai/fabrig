@@ -30,7 +30,7 @@ fn a_person_connects_their_app_and_a_chats_push_carries_its_installations_token(
     fixture.manifest = true;
     // This flow carries an App manifest, beyond the fixture's small operation's marker.
     fixture.configure = |document, _, _| {
-        document["application"]["limits"]["overrides"]["forge_component.body_bytes"] = MANIFEST_BODY_BYTES.into();
+        document.temper_over("forge_component.body_bytes", MANIFEST_BODY_BYTES);
     };
     fixture.unaccepted_after_install = true;
     fixture.keep_heads = true;

@@ -155,10 +155,22 @@ under `FORGE` at `CLIENT_VERSION` that decodes, `None` for anything else.
   still draw. A milestone's page (`../pages/milestone.md`, 3) lists every
   goal and keeps its own reads, but its goals' query names `GOAL_PART`,
   so its reports, one per goal, go.
-- **A part not made,** `not_served`, `unknown` or `failed`, leaves its row
-  drawn as with no report, no document, or a milestone with nothing
-  read; the client reads nothing in its place, and the row's next
-  delivery or read brings it.
+- **A part not made,** `not_served`, `unknown` or `failed`, is no answer
+  for its row (`../pages/README.md`'s opening): the row keeps the part
+  last decoded for its task in the list that holds it, for as long as the
+  page holds that list, and draws from it, its report, its milestone, its
+  document, its totals and goals alike. A delivery or a read whose part
+  decodes replaces it whole, one saying the goal has no report or no
+  milestone included. The engine makes a list's rows with `failed`,
+  `busy` parts where its loads are full (jig's
+  `client/domain/contract/parts.md`), so a running project's list is
+  delivered now with its parts and now without them; what the page
+  draws doesn't move. Only a row whose part has never decoded in the held
+  list is drawn as with no report, no document, or a milestone with
+  nothing read. The client reads nothing in its place, and the row's next
+  delivery or read brings it. The kept parts are bounded by the list's
+  rows: a row that leaves the list takes its part with it, and leaving
+  the list (`../pages/milestone.md`, 1, its lifetime) drops them all.
 
 ## 6. Ended groups by their mark
 

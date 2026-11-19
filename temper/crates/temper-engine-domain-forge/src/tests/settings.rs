@@ -17,10 +17,8 @@ const BOUNDS: Bounds = Bounds {
     landing_rules: 4,
     gates: 2,
     roles: 2,
-    charters: 3,
     segments: 5,
     segment_bytes: 8,
-    templates: 4,
     follows: 2,
     dependencies: 4,
     follow_paths: 2,
@@ -339,7 +337,7 @@ fn judge_refuses_each_fault_by_name() {
 fn judge_reads_the_forge_charters() {
     let goal = Item { kind: Kind::TemplateGoal.number(), scope: 0, number: 1, value: None };
     for (design, close_out) in [(false, false), (false, true), (true, false), (true, true)] {
-        for number in [1, BOUNDS.templates] {
+        for number in [1, 33, 64] {
             let item = Item { number, value: Some(Value::Goal(TemplateGoal { design, close_out })), ..goal.clone() };
             assert_eq!(judge(&item, &BOUNDS), Ok(()), "{item:?}");
         }
@@ -347,23 +345,21 @@ fn judge_reads_the_forge_charters() {
     for (label, item, expected) in [
         ("goal project scope", Item { scope: PROJECT, ..goal.clone() }, Err(Refusal::Scope)),
         ("goal number zero", Item { number: 0, ..goal.clone() }, Err(Refusal::Number)),
-        ("goal number past templates", Item { number: BOUNDS.templates + 1, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal number past numbers", Item { number: 65, ..goal.clone() }, Err(Refusal::Number)),
         ("goal wrong value", Item { value: Some(Value::Charter(1)), ..goal.clone() }, Err(Refusal::Value)),
         ("goal removal or reset", goal, Ok(())),
     ] {
         assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
     }
+    assert_eq!(Refusal::Charter.words().as_ref(), b"a charter outside 1 to 64, or the forge's charter removed");
     let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
     for number in [1, 2] {
         let rows = [
             ("first charter", base.clone(), Ok(())),
-            ("last charter", Item { value: Some(Value::Charter(BOUNDS.charters)), ..base.clone() }, Ok(())),
+            ("own charter", Item { value: Some(Value::Charter(33)), ..base.clone() }, Ok(())),
+            ("last charter", Item { value: Some(Value::Charter(64)), ..base.clone() }, Ok(())),
             ("charter zero", Item { value: Some(Value::Charter(0)), ..base.clone() }, Err(Refusal::Charter)),
-            (
-                "charter past bound",
-                Item { value: Some(Value::Charter(BOUNDS.charters + 1)), ..base.clone() },
-                Err(Refusal::Charter),
-            ),
+            ("charter past bound", Item { value: Some(Value::Charter(65)), ..base.clone() }, Err(Refusal::Charter)),
             ("remove charter", Item { value: None, ..base.clone() }, Err(Refusal::Charter)),
             ("scope", Item { scope: 1, ..base.clone() }, Err(Refusal::Scope)),
         ];
@@ -552,8 +548,9 @@ fn a_projects_kinds_are_judged() {
     for (label, item, expected) in [
         ("scope", Item { scope: PROJECT, ..base.clone() }, Err(Refusal::Scope)),
         ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
-        ("last charter", Item { number: BOUNDS.charters, ..base.clone() }, Ok(())),
-        ("past charters", Item { number: BOUNDS.charters + 1, ..base.clone() }, Err(Refusal::Number)),
+        ("own charter", Item { number: 33, ..base.clone() }, Ok(())),
+        ("last charter", Item { number: 64, ..base.clone() }, Ok(())),
+        ("past charters", Item { number: 65, ..base.clone() }, Err(Refusal::Number)),
         ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
         ("ways", Item { value: Some(ways.clone()), ..base }, Err(Refusal::Value)),
         ("project ways", Item { kind: 10, scope: PROJECT, number: 1, value: Some(ways) }, Err(Refusal::Value)),
@@ -875,4 +872,60 @@ fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
     assert_eq!(refusal, Refusal::LandingCarrier);
     assert!(skein_lib::bytes::find(&refusal.words(), b"repositories").is_some());
     assert!(skein_lib::bytes::find(&refusal.words(), skein_lib::Decimal::of(u64::from(CARRIER)).as_bytes()).is_some());
+}
+
+fn limit_override(name: &[u8], reason: &[u8]) -> jig_domain_core_vocabulary::settings::Override {
+    jig_domain_core_vocabulary::settings::Override { name: name.into(), value: 16, reason: reason.into() }
+}
+fn limits_item(values: Box<[jig_domain_core_vocabulary::settings::Override]>) -> Item {
+    Item { kind: 22, scope: 0, number: 1, value: Some(Value::Limits(values)) }
+}
+#[test]
+fn limits_refuse_count() {
+    let item = limits_item(vec![limit_override(b"forge.entries", b"dev"); 257].into_boxed_slice());
+    let why = judge(&item, &BOUNDS).unwrap_err();
+    assert_eq!(why.words().as_ref(), b"more than 256 overrides");
+}
+#[test]
+fn limits_refuse_name_at_its_position() {
+    for name in [b"".as_slice(), b"Forge.entries", &[b'a'; 65]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: name must be 1 to 64 bytes of a-z, 0-9, _ or ."
+        );
+    }
+}
+#[test]
+fn limits_refuse_order_at_its_position() {
+    for name in [b"a".as_slice(), b"b"] {
+        let item = limits_item(Box::new([limit_override(b"b", b"dev"), limit_override(name, b"dev")]));
+        assert_eq!(judge(&item, &BOUNDS).unwrap_err().words().as_ref(), b"override 2: names must ascend");
+    }
+}
+#[test]
+fn limits_refuse_reason_at_its_position() {
+    for reason in [b"".as_slice(), b"\xff", &[b'a'; 121]] {
+        let item = limits_item(Box::new([limit_override(b"a", b"dev"), limit_override(b"b", reason)]));
+        assert_eq!(
+            judge(&item, &BOUNDS).unwrap_err().words().as_ref(),
+            b"override 2: reason must be 1 to 120 UTF-8 bytes"
+        );
+    }
+}
+#[test]
+fn limits_have_one_deployment_value_and_judge_shape_not_names_or_figures() {
+    assert_eq!(Kind::of(22), Some(Kind::Limits));
+    assert_eq!(Kind::Limits.number(), 22);
+    let item = limits_item(Box::new([limit_override(b"not.a.known.limit", "développement".as_bytes())]));
+    assert_eq!(judge(&item, &BOUNDS), Ok(()));
+    assert_eq!(judge(&Item { scope: 1, ..item.clone() }, &BOUNDS), Err(Refusal::Scope));
+    assert_eq!(judge(&Item { number: 2, ..item.clone() }, &BOUNDS), Err(Refusal::Number));
+    assert_eq!(judge(&Item { value: Some(Value::Charter(1)), ..item.clone() }, &BOUNDS), Err(Refusal::Value));
+    assert_eq!(judge(&Item { value: None, ..item }, &BOUNDS), Ok(()));
+    let mut values = List::with_capacity(256);
+    for n in 0_u32..256 {
+        values.push(limit_override(format!("limit.{n:03}").as_bytes(), &[b'r'; 120])).unwrap();
+    }
+    assert_eq!(judge(&limits_item(values.into_boxed()), &BOUNDS), Ok(()));
 }

@@ -129,6 +129,18 @@ pub(crate) const AGAIN: Command = Command {
     ..REPRINT
 };
 
+const PAGE_INPUTS: Settings = Settings { tool: "temper-client-journeys pages", ..PREPARED };
+/// The journeys' writer (temper/docs/design/client/journey-writer.md, 3).
+pub(crate) const PAGES: Command = Command {
+    reach: Reach::Words(&["pages"]),
+    forms: &["[--prepared DIR]"],
+    settings: &[&PAGE_INPUTS],
+    line: "Walk each stale journey again, then reprint both clients and remove pages with no recording.",
+    variables: AGAIN.variables,
+    notes: "Current journeys start nothing and change no byte. Inputs are built once when needed, unless --prepared supplies them. A stopped walk keeps its files; the others still print. Exit 0: every journey printed; 1: a walk stopped or a recording stayed stale; 2: usage; 3: printing or removal failed.",
+    ..REPRINT
+};
+
 const SESSION: Settings = Settings {
     tool: "temper-client-journeys drive",
     about: "The given build and private scratch directory; nothing is built.",
@@ -286,7 +298,7 @@ pub const TABLE: Table = Table {
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[REPRINT, ADD, NORMALISE, AGAIN, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[REPRINT, ADD, NORMALISE, AGAIN, PAGES, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

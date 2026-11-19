@@ -89,6 +89,7 @@ fn the_own_commands_have_their_names() {
         b"/brief",
         b"/needs",
         b"/open",
+        b"/web",
         b"/tell",
         b"/theme",
     ]) {

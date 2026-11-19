@@ -157,13 +157,7 @@ pub fn no_workspace(policy: &RunPolicy) -> bool {
     asking(policy.tools) || !(policy.inspect || policy.modify || policy.shell)
 }
 
-/// What a `document` call does with its body (temper/docs/design/domain/agent/ask-temper.md, 3).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum DocumentAction {
-    Write,
-    Append,
-    Replace,
-}
+pub use temper_engine_domain_store::{DocumentAction, FindingToolAnswer, FollowToolAnswer, RedToolAnswer};
 
 /// What a `remember` call does to its person's list (domain/agent/ask-temper.md, 4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -248,9 +242,18 @@ pub enum Tool {
     },
     /// A host read resolved in its project before resource authority admission.
     /// A zero file/job `max_bytes` asks for the configured read limit.
+    /// An empty `Branch` or `Protection` branch asks for the default branch.
     ReadNamed {
         repository: Option<Box<[u8]>>,
         read: skein_forge::api::Read,
+    },
+    /// A file at a branch's head: the branch, then the file at the head it answered.
+    /// An empty `branch` asks for the default branch; a zero `max_bytes` the configured read limit.
+    ReadBranchFile {
+        repository: Option<Box<[u8]>>,
+        branch: Box<[u8]>,
+        path: Box<[u8]>,
+        max_bytes: u32,
     },
     /// Read one adopted forge resource through the connector's bounded fresh lane.
     ReadForge {
@@ -365,12 +368,6 @@ pub enum FollowCall {
     List,
     Show { follow: u32 },
 }
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FollowToolAnswer {
-    Write { follow: u32, refusal: Option<Box<[u8]>> },
-    List(forge::FollowsView),
-    Show { follow: u32, view: Option<Box<forge::FollowView>> },
-}
 
 /// A goal's red acts; the caller's task is always the goal (forge/reds.md, 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -378,12 +375,6 @@ pub enum RedCall {
     Record { key: Box<[u8]>, at: Box<[u8]>, why: Box<[u8]> },
     End { key: Box<[u8]>, why: Box<[u8]> },
     List,
-}
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum RedToolAnswer {
-    Write(forge::RedReply),
-    List { goal: u64, bound: u32, reds: Box<[forge::Red]> },
-    NoGoal { task: u64 },
 }
 
 /// Finding acts never take a project or actor from the agent (domain/areas.md, 7).
@@ -412,14 +403,6 @@ pub enum FindingCall {
     Show {
         number: u32,
     },
-}
-
-/// A snapshot for text rendering; writes retain this result under their call name.
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum FindingToolAnswer {
-    Write(forge::FindingReply),
-    List(forge::Findings),
-    Show { project: u32, number: u32, finding: Option<forge::FindingAnswer> },
 }
 
 /// One change of a `change` call (domain/agent/tools.md, 1).
@@ -564,6 +547,8 @@ pub enum SetupEnd {
 /// The input union, with one variant for each typed peer.
 #[derive(Hash, Debug)]
 pub enum Event {
+    /// Take the checked at-once raises supplied by the service's environment.
+    LimitsRaised,
     /// Terminal of the protocol-owned plan named by `run`.
     Setup {
         run: Token,
@@ -843,6 +828,13 @@ pub const TRIALS_SUBJECT: u64 = temper_engine_domain_trials::TRIALS_SUBJECT;
 /// Forge reads through party authorization (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeRead {
+    /// The service supplies rows after the root authorizes the read and counts held bytes.
+    Limits {
+        after: Option<Box<[u8]>>,
+    },
+    LimitHolds {
+        after: Option<u64>,
+    },
     Milestone {
         project: u32,
         task: u64,
@@ -878,6 +870,14 @@ pub enum ForgeRead {
 /// Typed forge read answers, encoded at the clients' boundary.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ForgeReadAnswer {
+    Limits {
+        after: Option<Box<[u8]>>,
+        held: u64,
+    },
+    LimitHolds {
+        rows: Box<[forge::LimitHold]>,
+        next: Option<u64>,
+    },
     Milestone(Option<forge::MilestoneTotals>),
     History(forge::history::Reply),
     Finding(Option<forge::FindingAnswer>),
@@ -1047,6 +1047,12 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum Request {
+    /// Both limit-setting lists at this durable revision (configuration/limit-settings.md, 4).
+    LimitSettingsCommitted {
+        revision: u32,
+        jig: Box<[jig_domain_core::settings::Override]>,
+        temper: Box<[jig_domain_core::settings::Override]>,
+    },
     ChoosePlace {
         request: Token,
         kind: forge::BoxKind,
@@ -1263,6 +1269,9 @@ pub(crate) enum Work {
     Forge(forge::Event),
     ForgeSettings(skein_lib::Queue<forge::Request>),
     ForgeRestored,
+    ForgeLimitHold { row: forge::LimitHold, words: Box<[u8]> },
+    ForgeLimitRelease { task: u64, revision: u64 },
+    StatusAccount { procedure: u64 },
     ProjectGoal(Box<jig_domain_core::ProjectionFeed>),
     GoalSubscribe(forge::Subscriber),
     AgreedGoal(Box<GoalWords>),
@@ -1437,6 +1446,9 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
         Delivery::PartLoad { waiter, range } => Request::Store(StoreRequest::PartRead { waiter, range }),
         Delivery::ReadLoad { load, range } => Request::Store(StoreRequest::Read { load, range }),
         Delivery::Restarting { wait } => Request::Restarting { wait },
+        Delivery::LimitSettingsCommitted { revision, jig, temper } => {
+            Request::LimitSettingsCommitted { revision, jig, temper }
+        }
         Delivery::Drained => Request::Drained,
         Delivery::Bound { request, answer } => Request::Bound { request, answer },
         Delivery::ForgeCall { call, repository, op } => Request::Forge { call, repository, op },

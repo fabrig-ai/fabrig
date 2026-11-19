@@ -4,6 +4,18 @@ use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary as d;
 
 pub(super) fn encode_facts(row: &d::ProjectFacts) -> w::ProjectFacts {
+    w::ProjectFacts::new(
+        &w::CEILINGS,
+        w::ProjectFactsParts { project: row.project, landed: row.landed, last_landed: row.last_landed.as_nanos() },
+    )
+    .expect(FITS)
+}
+pub(super) fn decode_facts(row: w::ProjectFacts) -> d::ProjectFacts {
+    let w::ProjectFactsParts { project, landed, last_landed } = row.into_parts();
+    d::ProjectFacts { project, landed, last_landed: Wall::from_nanos(last_landed) }
+}
+
+pub(super) fn encode_person_brief(row: &d::PersonBrief) -> w::PersonBrief {
     let brief = match &row.brief {
         Some(brief) => Some(
             w::StatusBrief::new(
@@ -35,12 +47,15 @@ pub(super) fn encode_facts(row: &d::ProjectFacts) -> w::ProjectFacts {
         ),
         None => None,
     };
-    w::ProjectFacts::new(
+    w::PersonBrief::new(
         &w::CEILINGS,
-        w::ProjectFactsParts {
+        w::PersonBriefParts {
             project: row.project,
-            landed: row.landed,
-            last_landed: row.last_landed.as_nanos(),
+            party: row.party,
+            unpaid: match row.unpaid {
+                Some(wall) => Some(wall.as_nanos()),
+                None => None,
+            },
             brief,
             running,
         },
@@ -48,8 +63,8 @@ pub(super) fn encode_facts(row: &d::ProjectFacts) -> w::ProjectFacts {
     .expect(FITS)
 }
 
-pub(super) fn decode_facts(row: w::ProjectFacts) -> d::ProjectFacts {
-    let w::ProjectFactsParts { project, landed, last_landed, brief, running } = row.into_parts();
+pub(super) fn decode_person_brief(row: w::PersonBrief) -> d::PersonBrief {
+    let w::PersonBriefParts { party, project, brief, running, unpaid } = row.into_parts();
     let brief = match brief {
         Some(brief) => {
             let w::StatusBriefParts { sentence, lede, at, landed, findings } = brief.into_parts();
@@ -64,7 +79,16 @@ pub(super) fn decode_facts(row: w::ProjectFacts) -> d::ProjectFacts {
         }
         None => None,
     };
-    d::ProjectFacts { project, landed, last_landed: Wall::from_nanos(last_landed), brief, running }
+    d::PersonBrief {
+        party,
+        project,
+        brief,
+        running,
+        unpaid: match unpaid {
+            Some(wall) => Some(Wall::from_nanos(wall)),
+            None => None,
+        },
+    }
 }
 
 pub(super) fn encode_looked(row: &d::Looked) -> w::Looked {

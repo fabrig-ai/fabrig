@@ -81,6 +81,7 @@ pub struct ServiceHost {
     cues: Vec<Cue>,
     links: u32,
     path: PathBuf,
+    pub(crate) configuration: temper_playground::documents::Configuration,
     signals: Fd,
     signals_adopted: bool,
     forge: Option<TcpListener>,
@@ -106,7 +107,7 @@ impl ServiceHost {
     pub(crate) fn configured_only(
         path: PathBuf,
         signals: Fd,
-        configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+        configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
     ) -> Self {
         Self::with_shape(path, signals, None, false, None, None, None, Some(configure))
     }
@@ -123,7 +124,7 @@ impl ServiceHost {
         cluster: Option<crate::cluster::Shape>,
         github: Option<crate::github::Fixture>,
         issuer: Option<SocketAddr>,
-        configure: Option<fn(&mut serde_json::Value, &mut serde_json::Value)>,
+        configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
     ) -> Self {
         let clients_listener = github.map(|_| {
             let [listener] = temper_fixtures::ports::reserve::<1>(&[]);
@@ -136,57 +137,50 @@ impl ServiceHost {
         let address = forge
             .as_ref()
             .map_or(([127, 0, 0, 1], 0).into(), |listener| listener.local_addr().expect("held forge address"));
-        fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
+        let mut configuration =
+            fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
         if direct_key {
-            fixtures::key_documents(&path).expect("standard key route");
+            fixtures::key_documents(&path, &mut configuration).expect("standard key route");
         }
         if let Some(fixture) = fixture {
-            crate::forge::write(&path, address, &fixture).expect("forge documents");
+            crate::forge::write(&path, address, &fixture, &mut configuration).expect("forge documents");
         }
         if let Some(fixture) = github {
-            crate::github::write(&path, address, clients.expect("fixed clients"), fixture).expect("GitHub documents");
+            crate::github::write(&path, address, clients.expect("fixed clients"), fixture, &mut configuration)
+                .expect("GitHub documents");
         }
         if fixture.is_none() && github.is_none() {
-            let mut value: serde_json::Value =
+            configuration.document =
                 serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
                     .expect("deployment JSON");
-            value["world_settings"] =
+            configuration["world_settings"] =
                 serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
                     .expect("world settings JSON");
-            fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
+            fixtures::finish_configuration(&path, &mut configuration).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {
-            shape.write(path.parent().expect("cluster scratch"), fixture.is_none() && github.is_none());
+            shape.write(
+                path.parent().expect("cluster scratch"),
+                fixture.is_none() && github.is_none(),
+                &mut configuration,
+            );
         }
         if let Some(address) = issuer {
-            fixtures::sign_in_documents(&path, address).expect("local issuer registration");
+            fixtures::sign_in_documents(&path, address, &mut configuration).expect("local issuer registration");
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");
-        let operations = if matches!(cluster, Some(crate::cluster::Shape::Worker { .. })) {
-            let part = temper_worker_service::startup::worker_part(
-                &config,
-                &temper_service_shell::jig_directories(&roots),
-                Some(b"/usr/bin/git"),
-                &fixtures::environment(&path),
-            )
-            .expect("worker part");
-            temper_service_core::process::Process::operations_for(
-                &part.worker.jig.limits.as_ref().expect("stock limits").io,
-                temper_worker_service::worker_settings::configured_operations(&part.limits.git_component)
-                    .expect("worker operations"),
-            )
-            .expect("worker reservation")
-        } else {
-            temper_box_shell::operations_in_with(
-                &fixtures::environment(&path),
-                b"/",
-                &roots,
-                &config,
-                &fixtures::given(&path),
-            )
-            .expect("standalone operation count")
-        };
+        let operations = temper_box_shell::operations_in_with_limits(
+            "temper",
+            &[(b"PATH".as_slice().into(), b"/usr/bin:/bin".as_slice().into())],
+            b"/",
+            &roots,
+            &config,
+            &fixtures::given(&path, &configuration),
+            &configuration.jig,
+            &configuration.limits,
+        )
+        .expect("standalone operation count");
         let restartable = cluster.is_some();
         let queued = if restartable { operations } else { 1 };
         let records_seeded =
@@ -234,6 +228,7 @@ impl ServiceHost {
             cues: Vec::with_capacity(cue::CUES),
             links: 0,
             path,
+            configuration,
             signals,
             signals_adopted: false,
             forge,
@@ -341,20 +336,15 @@ impl ServiceHost {
         let document = directories.document();
         let original = std::fs::read(&document).expect("engine document");
         let mut invalid: serde_json::Value = serde_json::from_slice(&original).expect("engine JSON");
-        invalid["engine"]["limits"]["profile"] = serde_json::json!("unknown-profile");
+        let given = fixtures::given(&self.path, &self.configuration);
+        invalid["engine"]["owners"] = serde_json::Value::Null;
         fixtures::private(&document, &serde_json::to_vec(&invalid).expect("refused engine JSON"))
             .expect("misconfigured start");
         for _ in 0..self.start_failures {
-            let Err(failure) = temper_box_shell::prepare_in_with_program(
-                &[],
-                b"/",
-                &directories,
-                &fixtures::given(&self.path),
-                Some(&self.path.join("temper-agent")),
-            ) else {
-                panic!("unknown engine profile must refuse the start")
+            let Err(failure) = temper_box_shell::prepare_in_with(&[], b"/", &directories, &given) else {
+                panic!("malformed engine owners must refuse the start")
             };
-            assert!(failure.contains("engine.limits.profile"), "{failure}");
+            assert!(failure.contains("engine.owners"), "{failure}");
             self.failed_starts.push(failure);
         }
         fixtures::private(&document, &original).expect("corrected engine document");
@@ -495,14 +485,16 @@ impl ServiceHost {
                 .expect("worker built from figures"),
             )
         } else {
-            let (given, projects) = fixtures::given_and_projects(&self.path);
-            temper_box_shell::prepare_in_with_program_and_projects(
+            let (given, projects) = fixtures::given_and_projects(&self.path, &self.configuration);
+            temper_box_shell::prepare_in_with_inputs_and_limits(
+                "temper",
                 &fixtures::environment(&self.path),
                 b"/",
                 &Self::directories(&self.path, self.cluster.is_some()),
                 &given,
                 Some(&self.path.join("temper-agent")),
                 &projects,
+                Some((&self.configuration.jig, &self.configuration.limits)),
             )
             .expect("standalone preparation")
         };
@@ -595,7 +587,17 @@ impl ServiceHost {
             return Err("bounded held cues".into());
         }
         self.cues.push(Cue::new(key));
+        self.seed_log_cues();
         Ok(())
+    }
+    fn seed_log_cues(&mut self) {
+        if let Some(driven) = &mut self.service {
+            for fd in driven.log_descriptors() {
+                for cue in &mut self.cues {
+                    cue.opened_log(*fd);
+                }
+            }
+        }
     }
     #[must_use]
     pub fn held(&self) -> bool {
@@ -714,11 +716,13 @@ impl Host for ServiceHost {
                 .forge_address
                 .unwrap_or_else(|| self.forge.as_ref().expect("held forge").local_addr().expect("forge address"));
             if self.state != LifeState::Second {
-                fixtures::bind(&self.path, address, forge).expect("bound standalone documents");
+                fixtures::bind(&self.path, address, forge, &mut self.configuration)
+                    .expect("bound standalone documents");
                 if let Some(shape) = &self.cluster {
                     shape.write(
                         self.path.parent().expect("cluster scratch"),
                         self.fixture.is_none() && self.github.is_none(),
+                        &mut self.configuration,
                     );
                 }
             }
@@ -751,6 +755,7 @@ impl Host for ServiceHost {
                     self.started_at.get_or_insert(now);
                 }
                 self.service = Some(service);
+                self.seed_log_cues();
                 self.tries_revision = None;
             }
         }

@@ -487,6 +487,30 @@ fn press(root: &d::Domain, role: Role, name: &str) -> d::Action {
     crate::act(&mut view, id, Act::Press).expect("bound control")
 }
 #[test]
+fn the_welcome_can_turn_night_back_to_day_from_its_first_frame_and_each_step() {
+    for step in [Step::Welcome, Step::WelcomeAsked, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready]
+    {
+        for (mut root, steps) in [
+            (Box::new(f::reading_me_at(Address::Welcome { step })), false),
+            (Box::new(waiting_for_deployment(step).0), false),
+            (Box::new(f::welcome_root(step, true)), true),
+        ] {
+            for night in [false, true] {
+                let mut view = f::browser_page_view(&root);
+                super::frame::assert_top_children(&view, steps, true, night);
+                super::frame::assert_top_end(&view, &[(Role::Region, None)]);
+                super::frame::assert_top_children(&f::page_view(&root), steps, false, night);
+                let id = node(view.tree(), Role::Button, "Night mode");
+                let action = crate::act(&mut view, id, Act::Press).unwrap();
+                assert_eq!(action, d::Action::Pages(pages::Act::Terminal(pages::terminal::Act::Night)));
+                f::root_event(&mut root, d::Event::Act { action });
+                assert_eq!(root.pages().look().night, !night);
+            }
+            assert!(!root.pages().look().night);
+        }
+    }
+}
+#[test]
 fn the_welcome_frame_is_the_brand_the_steps_and_the_link_alone() {
     let root = f::welcome_root(Step::Welcome, true);
     let mut view = f::page_view(&root);

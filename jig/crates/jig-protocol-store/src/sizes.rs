@@ -1,4 +1,5 @@
 //! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
+use crate::tasks_v13::Record as _;
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v1, people_v17, tasks_v13};
 use jig_domain_core_vocabulary as core;
 

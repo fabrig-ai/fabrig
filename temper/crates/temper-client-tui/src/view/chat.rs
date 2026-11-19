@@ -12,7 +12,7 @@ use alloc::boxed::Box;
 use skein_lib::{Wall, Writer};
 use skein_ui::{Builder, Role, phrases::Hole};
 use temper_client_domain::Domain;
-use temper_client_view_parts::shared::{self, DelegationLine, RunLine};
+use temper_client_view_parts::shared::{self, RunLine};
 use temper_client_view_words::words::Word as Shared;
 
 pub(crate) mod read;
@@ -33,7 +33,7 @@ pub(crate) enum Entry {
     Viewed(Box<[Piece]>),
     Run(RunLine),
     Dots,
-    Delegation(DelegationLine),
+    Delegation { title: Box<[u8]>, state: Box<[u8]> },
     Proposal(Box<[u8]>),
 }
 #[derive(Debug)]
@@ -163,10 +163,14 @@ fn entry(b: &mut Builder, entry: &Entry, words: &Words) {
             b.style(look::DOTS);
             text(b, Role::Paragraph, &words.say(Word::Dots, &[]), None);
         }
-        Entry::Delegation(line) => {
+        Entry::Delegation { title, state } => {
             b.style(look::AGENT);
             let separator = words.say(Word::Separator, &[]);
-            text(b, Role::Paragraph, &join(&[&line.kind, &separator, &line.title, &separator, &line.state]), None);
+            b.open(Role::Paragraph);
+            text(b, Role::Text, title, None);
+            text(b, Role::Text, &separator, Some(look::FAINT));
+            text(b, Role::Text, state, Some(look::HINT));
+            b.close();
         }
         Entry::Proposal(title) => {
             b.style(look::AGENT);

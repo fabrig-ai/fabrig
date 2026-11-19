@@ -13,6 +13,7 @@ temper-test-env.workspace = true
 temper-shell.workspace = true
 temper-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
+temper-box-kit.workspace = true
 temper-playground.workspace = true
 skein-fake-person-browser.workspace = true
 skein-fake-person.workspace = true
@@ -48,6 +49,7 @@ skein-playground.workspace = true
 skein-ui-web.workspace = true
 temper-service.workspace = true
 temper-engine-service.workspace = true
+temper-engine-domain.workspace = true
 temper-service-core.workspace = true
 skein-world.workspace = true
 skein-sim = { path = "../../../skein/crates/skein-sim" }

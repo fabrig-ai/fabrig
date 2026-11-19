@@ -104,6 +104,17 @@ at every depth as its decoder takes it.
   120 (`../../protocol/documentation.md`, 8). Words that repeat across
   tools are said once, in their shortest form: "owner/name; omit for the
   project's one".
+- **The forge's reads declare what each `what` needs:** each of
+  `read_forge`, `read_issues` and `read_ci` carries one member
+  description, its `what`'s, listing each `what`'s required members
+  (`tools.md`, *The forge's reads are three tools*), since a run reads a
+  tool's declared form before its page, and a call missing a member costs
+  a turn and a refused step a person sees. They pay for it in their own
+  declared forms, which leave out what their decoders check and their
+  whole forms keep: the `type` beside `what`'s `enum`, as `read_task`'s
+  `field` is declared, and every integer member's `minimum`. Every member
+  of their tables keeps its `type`. So the stock goal's offer and the
+  coder's stay within their bounds (3), each about 110 bytes larger.
 - **The whole form** is the schema the declared form was cut from, every
   member at every depth: `delegate`'s and `amend`'s executor, contract,
   authority with its grants, delegation, budget and notes, wake and LLM
@@ -144,20 +155,29 @@ The host tools' contract (`../../protocol/wires.md`, 7) is the declared
 forms, rendered by `temper-engine-smith`'s `wire.rs` and carried as
 smith's `Grants.contract` (smith's `protocol/charter.md`, 2).
 
-- **It moves from version 5 to 6, its floor staying 1.** Versions 1 to 5
+- **It moves from version 9 to 10, its floor staying 1.** Versions 1 to 9
   keep their kept texts; every version from the floor is answered, not
   just the previous one (`../../protocol/wires.md`, 7;
   `../../draft/redeploys.md`, 4.2). Version 4 refuses
-  zero-word reports to people or roles; version 5 adds the welcome setting.
-  Both are main's landed contracts.
-- **Every kept declaration that differs from 6 has an adapter** for each
-  version it differs in, 1, 2, 3, 4 and 5: an identity adapter where only its
-  declared form changed, since the decoders take the whole form (2); and,
-  for each of the forge's former reads, the read its `what` gives
-  (`tools.md`, *The forge's reads*), decoded and answered exactly as it was.
+  zero-word reports to people or roles; version 5 adds the welcome
+  setting; version 6 makes the forge's reads three tools, each taking a
+  `what`; versions 7 to 9 move `settings` and `propose_settings`; version
+  10 declares what each forge read's `what` needs, and takes
+  `read_forge`'s branch left out and `file` at a branch (2; `tools.md`,
+  *The forge's reads are three tools*), a change of the three
+  declared forms and of what the decoders take, none of what they took
+  before.
+- **Every kept declaration that differs from 10 has an adapter** for each
+  version it differs in: an identity adapter where only its declared form
+  changed, or what its decoder takes grew, since the decoders take the
+  whole form (2), so that `read_forge`, `read_issues` and `read_ci` take
+  an identity adapter at each of 6 to 9; and, for each of the forge's
+  former reads, the read its `what` gives (`tools.md`, *The forge's
+  reads*), decoded and answered exactly as it was. A run under 6 to 9 is
+  answered under the current decoders, the new forms included.
   `contract.rs` compares each kept declaration with the current one and
   requires an adapter wherever they differ, and its coverage test holds it.
-- **The former reads' names are decoded under 6 too,** though not
+- **The former reads' names are decoded under 6 and later too,** though not
   declared, each as its `what`. A run under 6 that calls one is refused by
   smith before the engine sees it, since smith offers a host tool exactly
   when it is declared (smith's `domain/run.md`, 5.1); so a charter's text names

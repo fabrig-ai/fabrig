@@ -613,6 +613,14 @@ and refuse unknown or cyclic task chains without writing anything.
 - **A shared project's automatic work** is so paid by a key: the
   deployment's, or a person's whose uses name the project. No plan pays
   for it (above).
+- **A person's automatic work in a project** (authority.md, 6.2), funded
+  from their pool there, is not the project's: its payer is the person,
+  so it is their own work, and a plan of theirs pays for it as for their
+  chats, whoever else the project holds. temper's brief is such work,
+  written for each person who looks (temper's
+  `domain/forge/attention.md`, 3). Tested by
+  `a_pool_seeds_work_is_its_persons_and_their_plan_pays_in_a_shared_project`
+  (`jig/crates/jig-domain-core/src/tests/runs/coverage.rs`).
 - **An agent that brings its own LLM** pays for its own completions;
   jig's accounts are not involved.
 

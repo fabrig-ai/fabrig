@@ -58,6 +58,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 3,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -162,6 +163,7 @@ pub struct World {
     writer_saves: u32,
     writes: u32,
     lose_writes: bool,
+    timeout_merges: u32,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
     calls: u32,
@@ -310,6 +312,7 @@ impl World {
             gates.clone(),
             self.landing_policy,
             top::AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -803,6 +806,7 @@ impl World {
             writer_saves: 0,
             writes: 0,
             lose_writes: false,
+            timeout_merges: 0,
             lose_rerun_answer: false,
             unavailable: None,
             calls: 0,
@@ -1339,6 +1343,7 @@ impl World {
                 gates.clone(),
                 self.landing_policy,
                 top::AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -1620,7 +1625,21 @@ impl World {
                 self.event(event);
             }
         } else if let Some(event) = self.to_forge.pop() {
-            forge::step(&mut self.forge, &self.forge_env, event, &mut self.forge_out);
+            let mut env =
+                Env { now: self.forge_env.now, wall: self.forge_env.wall, limits: self.forge_env.limits.clone() };
+            if self.timeout_merges > 0
+                && matches!(
+                    &event,
+                    forge::Event::Call {
+                        op: raw::Op::Write(raw::Write::Merge { how: raw::MergeHow::FastForwardOnly, .. }),
+                        ..
+                    }
+                )
+            {
+                self.timeout_merges -= 1;
+                env.limits.timeouts = 1000;
+            }
+            forge::step(&mut self.forge, &env, event, &mut self.forge_out);
             self.take_forge();
         } else if self.top.is_ready() {
             top::resume(&mut self.top, &self.env, &mut self.top_out);
@@ -2016,6 +2035,11 @@ impl World {
         self.forge_env.limits.land_max = after;
     }
 
+    /// The fake makes these merges, then loses their answers (`Config::timeouts`).
+    pub fn timeout_merges(&mut self, count: u32) {
+        self.timeout_merges = count;
+    }
+
     /// Lose writes in transit, with no copy reaching the forge.
     pub fn lose_writes(&mut self) {
         self.lose_writes = true;
@@ -2046,6 +2070,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Call { key, .. } => top::Key::Call(*key),
         top::Stored::Repository(row) => top::Key::Repository(row.provider),
         top::Stored::Hold(row) => top::Key::Hold(row.name.clone()),
+        top::Stored::LimitHold(row) => top::Key::LimitHold(row.task),
         top::Stored::Names { task, .. } => top::Key::Names(*task),
         top::Stored::Subscription(row) => top::Key::Subscription { task: row.task, topic: row.topic.clone() },
         top::Stored::BranchHead(row) => top::Key::BranchHead(row.name.clone()),
@@ -2083,6 +2108,7 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Playground(_) => top::Key::Playground,
         top::Stored::Follow(row) => top::Key::Follow { project: row.project, follow: row.follow },
         top::Stored::Tier(row) => top::Key::Tier { repository: row.repository, tier: row.tier.clone() },
+        top::Stored::PersonBrief(row) => top::Key::PersonBrief { party: row.party, project: row.project },
         top::Stored::ProjectFacts(row) => top::Key::ProjectFacts { project: row.project },
         top::Stored::Device(row) => top::Key::Device { party: row.party, number: row.number },
         top::Stored::LandedDraft(row) => top::Key::LandedDraft { repository: row.repository, path: row.path.clone() },

@@ -199,6 +199,7 @@ pub(crate) fn configured(client: &Client, project: u32) -> bool {
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
+            | c::Setting::Limits
             | c::Setting::ProjectPolicy { .. } => false,
         };
         if own && line.follows == c::SettingFollows::Change {
@@ -457,6 +458,15 @@ impl Facts {
                 Some(_) | None => None,
             },
             Status::Unknown => None,
+        }
+    }
+
+    /// Whether the person's last run found no account to pay (temper/docs/design/client/pages/home.md, 1).
+    #[must_use]
+    pub fn unpaid(&self) -> bool {
+        match &self.status {
+            Status::Shown(document) => document.unpaid(),
+            Status::Unknown => false,
         }
     }
 

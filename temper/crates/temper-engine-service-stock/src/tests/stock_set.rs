@@ -71,7 +71,7 @@ fn the_stock_set_holds_exactly_five_files_and_assembles_both_charters() {
 }
 
 #[test]
-fn the_goals_report_headline_says_where_it_stands_for_a_person() {
+fn the_goals_report_headline_says_whats_done_and_left_for_a_person() {
     let assembled =
         temper_charter_set::goal_agent(&crate::stock::charter_set(), |name| Reasons::named(name.as_bytes())).unwrap();
     let instructions = core::str::from_utf8(&assembled.instructions).unwrap();
@@ -79,8 +79,9 @@ fn the_goals_report_headline_says_where_it_stands_for_a_person() {
         .split("\n\n")
         .find(|paragraph| paragraph.starts_with("**Your report note:**"))
         .expect("goal report note");
-    assert!(report.contains("a one-line headline of where the goal stands, with no task, change or pull numbers"));
-    assert!(report.contains("5 of its 7 changes landed; the other 2 are building."));
+    assert!(report.contains("a one-line headline for a person of what's done and what's left, in the work's own terms, with no task, change or pull numbers, codes (P1), branch (g) or words of how goals run (change, cut, wave, delivery, landing, repair, spec): \"Three of the four parts are done; the page part is still being built.\""));
+    assert!(!report.contains("5 of its 7 changes"));
+    assert!(instructions.contains("plain words saying what it does, at most 30 characters, no Markdown, codes or internal names (\"Cancel a landed change's runs\")"));
     let designer = core::str::from_utf8(&assembled.parts.first().unwrap().text).unwrap();
     let last_bullet =
         designer.lines().find(|line| line.starts_with("- **Never park with design unfinished:**")).unwrap();

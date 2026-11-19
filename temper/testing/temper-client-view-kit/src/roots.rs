@@ -576,6 +576,22 @@ pub fn root_at_with_classes(
                         );
                     }
                 }
+                w::Read::Limits(_) => {
+                    let answer = w::LimitsAnswer::new(
+                        &w::CEILINGS,
+                        w::LimitsAnswerParts { rows: List::with_capacity(0), next: None, revision: 0 },
+                    )
+                    .unwrap();
+                    playground_record(&mut root, token, Some(wire::limits_answer(&answer)));
+                }
+                w::Read::LimitHolds(_) => {
+                    let answer = w::LimitHoldsAnswer::new(
+                        &w::CEILINGS,
+                        w::LimitHoldsAnswerParts { rows: List::with_capacity(0), next: None },
+                    )
+                    .unwrap();
+                    playground_record(&mut root, token, Some(wire::limit_holds_answer(&answer)));
+                }
                 w::Read::RevisionSetting(_)
                 | w::Read::Finding(_)
                 | w::Read::History(_)

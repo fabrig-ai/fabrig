@@ -248,6 +248,9 @@ const OWN_SEEN: u64 = 2;
 const OWN_NEXT_SEEN: u64 = 3;
 const OTHER_SEEN: u64 = 4;
 
+fn status_brief(sentence: &[u8]) -> forge::Brief {
+    forge::Brief { sentence: sentence.into(), lede: Box::new([]), at: OWN_LATEST, landed: LANDED, findings: None }
+}
 fn status_driver() -> Driver {
     let mut driver = driver();
     let party = driver
@@ -264,12 +267,20 @@ fn status_driver() -> Driver {
         .expect("the signed-in watcher has a party");
     let other_party = party.checked_add(1).expect("a second fixture party fits");
     let rows = [
-        forge::Stored::ProjectFacts(forge::ProjectFacts {
+        forge::Stored::ProjectFacts(forge::ProjectFacts { project: 1, landed: LANDED, last_landed: OWN_LATEST }),
+        forge::Stored::PersonBrief(forge::PersonBrief {
+            party,
             project: 1,
-            landed: LANDED,
-            last_landed: OWN_LATEST,
-            brief: None,
+            brief: Some(status_brief(b"Your brief")),
             running: None,
+            unpaid: Some(OWN_LATEST),
+        }),
+        forge::Stored::PersonBrief(forge::PersonBrief {
+            party: other_party,
+            project: 1,
+            brief: Some(status_brief(b"Their brief")),
+            running: None,
+            unpaid: None,
         }),
         forge::Stored::Looked(forge::Looked {
             party,
@@ -328,7 +339,8 @@ fn a_status_document_is_the_watchers_own() {
             project: 1,
             landed: LANDED,
             last_landed: Some(OWN_LATEST),
-            brief: None,
+            brief: Some(status_brief(b"Your brief")),
+            unpaid: true,
             previous: Some(OWN_PREVIOUS),
             seen: OWN_SEEN,
             queued: 0,

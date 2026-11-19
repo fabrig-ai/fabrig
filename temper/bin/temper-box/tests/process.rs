@@ -904,8 +904,10 @@ fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
         }
     }
     let lines: Vec<_> = stderr.lines().filter(|line| line.starts_with("listening ")).collect();
-    if lines.len() != 3 || stderr.lines().count() != 4 {
-        return Err("exactly three listening lines and the workers' figures".into());
+    // The fixture's kept providers differ from a fresh store's stock (providers.md, 3).
+    let warning = "temper serve: warning: LLM providers changed; they apply at the engine's next start";
+    if lines.len() != 3 || stderr.lines().filter(|line| *line == warning).count() != 1 || stderr.lines().count() != 5 {
+        return Err(format!("three listeners, workers' figures and one provider-start warning: {stderr}"));
     }
     let clients: std::net::SocketAddr = lines
         .iter()
@@ -1117,16 +1119,12 @@ impl OwnedWorkerJudge {
                 OwnedWorkerPhase::Engine => {
                     let directory = self.members.prepare("engine");
                     let path = directory.join("config/temper.json");
-                    let mut engine: serde_json::Value = serde_json::from_slice(
-                        &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
-                    )
-                    .map_err(|why| format!("engine JSON: {why:?}"))?;
-                    // Negotiate the owned worker's full terms, including its turn bounds.
-                    let example: serde_json::Value =
-                        serde_json::from_str(include_str!("../../../docs/examples/owned.json"))
-                            .map_err(|why| format!("owned example: {why:?}"))?;
-                    engine["engine"]["limits"] = example["engine"]["limits"].clone();
-                    engine["application"]["limits"] = example["application"]["limits"].clone();
+                    let engine = temper_playground::documents::Configuration::from_jig(
+                        serde_json::from_slice(
+                            &std::fs::read(&path).map_err(|why| format!("engine document: {why:?}"))?,
+                        )
+                        .map_err(|why| format!("engine JSON: {why:?}"))?,
+                    );
                     support::write_private(
                         &path,
                         &serde_json::to_vec(&engine).map_err(|why| format!("engine JSON: {why:?}"))?,
@@ -1378,7 +1376,7 @@ impl ClusterStory {
     fn within(self) -> Duration {
         match self {
             Self::Kill | Self::Hung => {
-                Duration::from_millis(support::cluster::FLEET_GRACE_MS).saturating_add(support::WITHIN)
+                Duration::from_millis(support::cluster::fleet_grace_ms()).saturating_add(support::WITHIN)
             }
             Self::Each | Self::Unexpected | Self::Later | Self::Restart => support::WITHIN,
         }
@@ -1481,6 +1479,7 @@ impl ClusterChatJudge {
         use support::ctl::{Call, PROJECT, Step};
         self.slot_hold()?;
         let settings = self.settings.clone();
+        let providers = temper_agent_fixtures::providers::read(&self.members.dir("engine").join("data"));
         let workers = support::cluster::worker_adds(&settings);
         let mut steps = vec![
             Step::Run(Call::sign_in()),
@@ -1490,7 +1489,7 @@ impl ClusterChatJudge {
             Step::Run(Call::new(&["settings", "show", "template", "1", "--json"])),
             Step::Run(Call::new(&["settings", "show", "agents", "--json"])),
             Step::Then(Box::new(move |calls| {
-                cluster_settings(&settings, &calls[2..]);
+                cluster_settings(&settings, &calls[2..], &providers);
                 support::ctl::settings_change(&calls[1], &settings, "cluster-settings")
             })),
         ];
@@ -2048,7 +2047,7 @@ impl ClusterChatJudge {
     }
 }
 
-fn cluster_settings(file: &std::path::Path, reads: &[support::Ended]) {
+fn cluster_settings(file: &std::path::Path, reads: &[support::Ended], providers: &serde_json::Value) {
     let mut fixture: serde_json::Value =
         serde_json::from_slice(&std::fs::read(file).expect("cluster settings FILE")).expect("settings JSON");
     for read in reads {
@@ -2061,6 +2060,9 @@ fn cluster_settings(file: &std::path::Path, reads: &[support::Ended]) {
             .expect("cluster setting override");
         let mut overrides = item["set"].take();
         let mut value = current["value"].clone();
+        if current["setting"]["kind"] == "charter" {
+            support::provider_setup::use_provider(&mut value, 1);
+        }
         if current["setting"]["kind"] == "agents" {
             value["profile"]
                 .as_object_mut()
@@ -2073,7 +2075,9 @@ fn cluster_settings(file: &std::path::Path, reads: &[support::Ended]) {
         );
         item["set"] = value;
     }
-    fixture["items"].as_array_mut().expect("settings items").retain(|item| item["setting"]["kind"] != "worker");
+    let items = fixture["items"].as_array_mut().expect("settings items");
+    items.retain(|item| item["setting"]["kind"] != "worker");
+    items.extend(support::provider_setup::items(providers));
     support::write_private(file, &serde_json::to_vec(&fixture).expect("cluster settings JSON"));
 }
 struct ClusterRead {
@@ -2426,10 +2430,9 @@ fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     temper_agent_fixtures::install(&paths[0], &agent);
     // The default registration reaches the sign-in startup resolver.
     let document_path = paths[0].join("temper.json");
-    let mut document: serde_json::Value =
-        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON");
-    document["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
-    document["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
+    let mut document = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&fs::read(&document_path).expect("default document")).expect("JSON"),
+    );
     document["workers"][0]["slots"] = 1.into();
     fs::write(document_path, serde_json::to_vec(&document).expect("sign-in fixture")).expect("registered sign-in");
     // The private network has only loopback. Files-only name lookup and a private /run

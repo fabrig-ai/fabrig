@@ -99,9 +99,11 @@ impl Page {
         let link = std::str::from_utf8(&link).expect("printed link is UTF-8");
         let (_, path) = link.strip_prefix("http://").expect("plaintext world").split_once('/').expect("link path");
         let path = format!("/{path}");
-        let taken =
-            sign_in::take(&sign_in::Route { path: b"/jig/v1/sign-in/link", home: b"/welcome" }, path.as_bytes())
-                .expect("the service printed a sign-in link");
+        let taken = sign_in::take(
+            &sign_in::Route { path: b"/jig/v1/sign-in/link", page: None, home: b"/welcome" },
+            path.as_bytes(),
+        )
+        .expect("the service printed a sign-in link");
         let (now, wall) = memory.clocks(browser);
         let mut host = host::Host::new(
             temper_client_shell_web::limits::client(),
