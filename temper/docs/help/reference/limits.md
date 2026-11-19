@@ -102,7 +102,7 @@ Every row belongs to the temper-limits setting: its name, unit, stock value, whe
 | `forge.facts` | count | 16 | next start | Bounds facts awaiting the forge connector's drain. |
 | `forge.makings` | count | 32 | next start | Bounds repositories being made or failed, from 1 to 64. |
 | `forge.adoptions` | count | 2 | next start | Bounds repository adoptions in flight. |
-| `forge.applications` | count | 32 | next start | Bounds keyed adoption answers retained for request retention. |
+| `forge.applications` | count | 32 | next start | Bounds the forge's kept answers to keyed requests; the oldest answered makes room for a new one. |
 | `forge.collaborators` | count | 8 | next start | Bounds collaborators retained by the forge connector. |
 | `forge.changes_rows` | count | 32 | next start | Bounds queued rows across the changes document's queues. |
 | `forge.changes_landed` | count | 8 | next start | Bounds recent landed changes in the changes document. |

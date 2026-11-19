@@ -9,7 +9,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/jig-protocol-accounts/schema/moved-v1.schema"),
+        jig_protocol_accounts::SCHEMA,
         jig_protocol_accounts::v1, sealed,
         limits [
             moved_application,

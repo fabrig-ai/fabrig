@@ -311,6 +311,8 @@ members = [
     "temper/crates/temper-box-machine",
     "temper/crates/temper-client-gallery-tool",
     "temper/bin/temper-client-gallery",
+    "temper/crates/temper-client-walk-tool",
+    "temper/bin/temper-client-walk",
     "temper/crates/temper-client-journeys-tool",
     "temper/crates/temper-client-walk-lines",
     "temper/bin/temper-client-journeys",
@@ -757,6 +759,7 @@ temper-client-view-setup = { path = "temper/crates/temper-client-view-setup" }
 temper-client-view-kit = { path = "temper/testing/temper-client-view-kit" }
 temper-client-journeys-kit = { path = "temper/testing/temper-client-journeys-kit" }
 temper-client-gallery-tool = { path = "temper/crates/temper-client-gallery-tool" }
+temper-client-walk-tool = { path = "temper/crates/temper-client-walk-tool" }
 temper-shell = { path = "temper/crates/temper-shell" }
 temper-config-shell = { path = "temper/crates/temper-config-shell" }
 temper-agent-shell = { path = "temper/crates/temper-agent-shell" }

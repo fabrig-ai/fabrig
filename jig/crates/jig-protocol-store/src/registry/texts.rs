@@ -21,6 +21,7 @@ pub(super) struct Binary {
     names: Map<&'static str, Digest>,
     held: Map<Digest, List<Digest>>,
     layouts: Map<LayoutKey, Digest>,
+    depths: Map<(Digest, Box<[Digest]>), List<u32>>,
 }
 impl Binary {
     pub(super) fn new(sets: &OwnerSets, layouts: &mut Layouts) -> Result<Self, OpenRefusal> {
@@ -55,7 +56,7 @@ impl Binary {
                 names.insert(family.name, digest).expect("uncapped names");
             }
         }
-        Ok(Self { names, held: Map::uncapped(), layouts: Map::uncapped() })
+        Ok(Self { names, held: Map::uncapped(), layouts: Map::uncapped(), depths: Map::uncapped() })
     }
     pub(super) fn text(&self, family: &str) -> Option<Digest> {
         self.names.get(family).copied()
@@ -90,6 +91,19 @@ impl Binary {
         }
         self.held.insert(text, held.clone()).expect("uncapped held texts");
         Some(held)
+    }
+    pub(super) fn shallow(&mut self, layouts: &Layouts, text: Digest, root: DeclIx, held: &List<Digest>) -> bool {
+        let key = (text, Box::from(held.as_slice()));
+        if !self.depths.contains_key(&key) {
+            let Some(text) = layouts.texts.get(&text) else { return false };
+            let Some(schema) = text.schema.as_ref() else { return false };
+            let Some(held) = schemas(layouts, held, false) else { return false };
+            let depths = super::depth::heights(schema, held.as_slice());
+            self.depths.insert(key.clone(), depths).expect("uncapped depth proofs");
+        }
+        let Some(depths) = self.depths.get(&key) else { return false };
+        let Some(&depth) = depths.get(root.index()) else { return false };
+        depth != 0
     }
     pub(super) fn layout(
         &mut self,

@@ -6,5 +6,5 @@ use temper_client_domain::forge::words::ChangeWord as W;
 
 #[must_use]
 pub fn say(words: &Words, word: W, holes: &[Hole]) -> Box<[u8]> {
-    words.book.say(words.language, word.id(words.connector), holes).expect("checked change phrase").text
+    words.book().say(words.language, word.id(words.connector), holes).expect("checked change phrase").text
 }

@@ -71,7 +71,10 @@ pub fn words() -> crate::words::Words {
     crate::words::Words::english(shared, &limits()).expect("TUI English fits")
 }
 pub fn view() -> crate::View {
-    crate::View::new(&crate::limits(&limits(), &skein_ui::Limits::EMPTY, 512).expect("tree limits"), words())
+    view_of(words())
+}
+pub fn view_of(words: crate::words::Words) -> crate::View {
+    crate::View::new(&crate::limits(&limits(), &skein_ui::Limits::EMPTY, 512).expect("tree limits"), words)
 }
 pub fn event(root: &mut Domain, event: Event) -> Queue<Request> {
     let mut out = Queue::uncapped();

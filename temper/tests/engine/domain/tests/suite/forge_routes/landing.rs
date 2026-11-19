@@ -562,6 +562,32 @@ fn dependent_pair(same_repository: bool) -> (World, u64, u64) {
     (world, a, b)
 }
 
+// A full batch is these stories' setup: finish its restart reads before giving
+// the train room, so no waiting member is excluded (domain/landing.md, 9).
+fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
+    world.restart_with_batch(batch);
+    world.root.hold_landings(true);
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if batch_waiting(world, changes) {
+            break;
+        }
+    }
+    assert!(batch_waiting(world, changes), "the restored batch settles while forming is held");
+    world.root.hold_landings(false);
+}
+
+fn batch_waiting(world: &World, changes: &[u64]) -> bool {
+    world.root.ready()
+        && changes.iter().all(|change| {
+            world.root.tasks().task(*change).is_some()
+                && world.root.tasks().procedure_due(*change).is_none()
+                && world.store.change(*change).is_some_and(|row| {
+                    matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. })
+                })
+        })
+}
+
 fn landing_rows(world: &World) -> Vec<&forge_top::LandingRow> {
     world
         .store
@@ -1066,8 +1092,6 @@ fn a_refused_prepare_holds_the_landing_with_authority_findings() {
 
 #[test]
 fn a_train_forms_after_its_due_readiness_steps_settle() {
-    // World ticks advance 100 ms: two seconds keep the latch inside opening's stall.
-    const LATCH_TICKS: u32 = 20;
     let mut world = World::configured_limits(
         true,
         true,
@@ -1117,12 +1141,30 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
         assert!(matches!(answer, engine::CallAnswer::Amended { .. }), "amended: {answer:?}");
         assert_eq!(live_task(&world, task).waiting_on.as_ref(), [latch]);
     }
-    // One slow read orders readiness without exhausting opening's 30-second stall.
     world.slow_branch = producer_b.workspace.repositories[0].push.clone();
     world.slow_branch_latency = skein_lib::Duration::from_secs(1);
     finish_producer(&mut world, &producer_a, forge_world::REPO);
     finish_producer(&mut world, &producer_b, forge_world::REPO);
-    world.advance_ticks(LATCH_TICKS);
+    // The latch releases readiness, not production or opening: both changes
+    // must be gating with their completed steps parked before it ends.
+    for _ in 0..PAIR_TICKS {
+        world.tick();
+        if [a, b].iter().all(|task| {
+            matches!(
+                world.store.change(*task).unwrap().change.state,
+                temper_engine_domain_forge_change::State::Gating { .. }
+            ) && world.root.tasks().procedure_due(*task).is_none()
+        }) {
+            break;
+        }
+    }
+    for task in [a, b] {
+        assert!(matches!(
+            world.store.change(task).unwrap().change.state,
+            temper_engine_domain_forge_change::State::Gating { .. }
+        ));
+        assert!(world.root.tasks().procedure_due(task).is_none());
+    }
     assert!(landing_rows(&world).is_empty(), "the latch keeps both changes");
     goal_landing::finish_run(
         &mut world,
@@ -1138,7 +1180,9 @@ fn a_train_forms_after_its_due_readiness_steps_settle() {
     }
     let rows = landing_rows(&world);
     assert_eq!(rows.len(), 1);
-    assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), [a, b]);
+    let mut queue = [a, b];
+    queue.sort_by_key(|task| (world.store.change(*task).unwrap().change.ready_since.expect("ready"), *task));
+    assert_eq!(rows[0].landing.members.iter().map(|member| member.change).collect::<Vec<_>>(), queue);
 }
 
 fn red_round_without_grant(kind: u16) -> (World, u64) {

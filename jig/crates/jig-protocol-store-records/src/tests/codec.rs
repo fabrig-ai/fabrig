@@ -901,6 +901,12 @@ fn a_refused_delegation_reads_back_with_its_problem() {
         fixtures::calls::problem(),
     )));
 }
+#[test]
+fn an_unreported_batch_reads_back_with_its_missing_members() {
+    let problem = jig_domain_tasks::Problem::naming(Some(9871), jig_domain_tasks::Refusal::Unreported, &[9871, 9873]);
+    core_round_trip(fixtures::calls::call(jig_domain_core_vocabulary::CallPart::DelegationRefused(problem)));
+}
+
 fn a_refused_llm_choice_reads_back_with_its_model_and_fault() {
     use jig_domain_tasks::LlmFault;
     for why in [

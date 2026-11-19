@@ -341,6 +341,30 @@ pub fn engine_with_sources(
     given: &crate::stock::Given,
     sources: temper_service_core::derived::Sources,
 ) -> Result<config::Engine, config::Problems> {
+    let (engine, _) = engine_and_stock(document, at, directories, given, sources, false)?;
+    Ok(engine)
+}
+
+/// Parse the engine and retain its stock floor before handing the same defaults to jig.
+/// The caller publishes the floor at its stock check's place in diagnostic order.
+pub fn engine_with_stock(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(config::Engine, Option<crate::stock::Floor>), config::Problems> {
+    engine_and_stock(document, at, directories, given, sources, true)
+}
+
+fn engine_and_stock(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+    check_stock: bool,
+) -> Result<(config::Engine, Option<crate::stock::Floor>), config::Problems> {
     let own = crate::limits::stock();
     let (live_goals, tool_payload) = (own.live_goals, own.tool_payload);
     let mut base = match crate::limits::base(live_goals, tool_payload, sources) {
@@ -352,7 +376,7 @@ pub fn engine_with_sources(
         }
     };
     base.core.fleet.grace = worker_fleet_grace(&base);
-    engine_over(document, at, directories, given, &mut base)
+    engine_over_and_stock(document, at, directories, given, &mut base, check_stock)
 }
 /// Read an engine with a world's typed base in place of the stock.
 pub fn engine_over(
@@ -362,6 +386,17 @@ pub fn engine_over(
     given: &crate::stock::Given,
     base: &mut config::Limits,
 ) -> Result<config::Engine, config::Problems> {
+    let (engine, _) = engine_over_and_stock(document, at, directories, given, base, false)?;
+    Ok(engine)
+}
+fn engine_over_and_stock(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    base: &mut config::Limits,
+    check_stock: bool,
+) -> Result<(config::Engine, Option<crate::stock::Floor>), config::Problems> {
     let mut problems = config::Problems::empty();
     for name in [b"limits".as_slice(), b"memory_bytes"] {
         if member(document, at, name).is_some() {
@@ -401,15 +436,24 @@ pub fn engine_over(
         );
         return Err(problems);
     };
+    let stock_floor = if check_stock {
+        match given.source() {
+            crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
+            crate::stock::Given::Stock => crate::stock::floors(&defaults, &engine.limits).err(),
+            crate::stock::Given::Own { .. } => None,
+        }
+    } else {
+        None
+    };
     // Check the workers' bound before jig's bounded provider handoff.
     if engine.llm.endpoints.len() > skein_lib::usize_of(config::llm::ENDPOINTS) {
         engine.fixed_llm_providers = fixed;
         config::pass(&mut engine, defaults)?;
-        return Ok(engine);
+        return Ok((engine, stock_floor));
     }
     config::pass_providers(&mut engine, defaults, &running, fixed)?;
     resolve_provider_trust(&mut engine.llm, directories)?;
-    Ok(engine)
+    Ok((engine, stock_floor))
 }
 fn resolve_provider_trust(llm: &mut config::Llm, directories: &config::Directories) -> Result<(), config::Problems> {
     for (index, endpoint) in llm.endpoints.iter_mut().enumerate() {

@@ -1,5 +1,6 @@
 //! The component's simulated crashing disk world (protocol/store/README.md, 9).
 #![forbid(unsafe_code)]
+pub mod frame_reads;
 pub mod model;
 pub mod patches;
 pub mod referee;

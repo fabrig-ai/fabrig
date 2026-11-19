@@ -247,9 +247,73 @@ pub fn root_at_with_values(
 }
 #[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
 #[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
-#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
 #[must_use]
 pub fn root_at_with_classes(
+    address: temper_client_domain::Address,
+    limits: &Limits,
+    project_name: &[u8],
+    playground: Option<(u32, bool, w::PlaygroundState)>,
+    activity: Option<c::ActivityPage>,
+    forge_rows: Option<List<w::ForgeRow>>,
+    dismissed: Option<&[u32]>,
+    ways: Option<forge::ways::Ways>,
+    refuse_ways: bool,
+    settings_delivered: bool,
+    classes: Option<&temper_protocol_reaches::Classes>,
+) -> (
+    temper_client_domain::Domain,
+    Token,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+    Option<Token>,
+) {
+    root_at_with_classes_from(
+        None,
+        address,
+        limits,
+        project_name,
+        playground,
+        activity,
+        forge_rows,
+        dismissed,
+        ways,
+        refuse_ways,
+        settings_delivered,
+        classes,
+    )
+}
+/// Deliver the next page's documents into the same signed-in root.
+#[must_use]
+pub fn next_page(
+    root: temper_client_domain::Domain,
+    address: temper_client_domain::Address,
+) -> temper_client_domain::Domain {
+    root_at_with_classes_from(
+        Some(root),
+        address,
+        &domain_limits(),
+        b"Shop",
+        None,
+        None,
+        None,
+        Some(&[]),
+        Some(forge::ways::Ways::STOCK),
+        false,
+        true,
+        None,
+    )
+    .0
+}
+#[expect(clippy::type_complexity, reason = "the fixture returns the session and page watch tokens to their callers")]
+#[expect(clippy::too_many_arguments, reason = "the fixture carries independent session answers")]
+#[expect(clippy::too_many_lines, reason = "one fixture delivers the page's documents and the session's reads together")]
+#[must_use]
+fn root_at_with_classes_from(
+    previous: Option<temper_client_domain::Domain>,
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
@@ -277,14 +341,21 @@ pub fn root_at_with_classes(
     let forge_rows_answered = forge_rows.is_some();
     let asking_page = if let temper_client_domain::Address::Ask { project } = address { Some(project) } else { None };
     let env = Env { now: Time::ZERO, wall: NOW, limits: *limits };
-    let mut root = temper_client_domain::unlinked(limits, SEED);
     let mut out = Queue::uncapped();
-    temper_client_domain::step(
-        &mut root,
-        &env,
-        Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
-        &mut out,
-    );
+    let fresh = previous.is_none();
+    let mut root = match previous {
+        Some(root) => root,
+        None => {
+            let mut root = temper_client_domain::unlinked(limits, SEED);
+            temper_client_domain::step(
+                &mut root,
+                &env,
+                Event::Client { event: jig_client::Event::StartUnlinked { kept: List::with_capacity(0) } },
+                &mut out,
+            );
+            root
+        }
+    };
     let welcome = match address {
         temper_client_domain::Address::Welcome { .. } => true,
         temper_client_domain::Address::Forges
@@ -317,19 +388,30 @@ pub fn root_at_with_classes(
         | temper_client_domain::Address::Task { .. }
         | temper_client_domain::Address::ConnectModel { .. } => false,
     };
-    // Sign in before opening the page's one-shot activity read.
-    temper_client_domain::step(
-        &mut root,
-        &env,
-        Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
-        &mut out,
-    );
-    temper_client_domain::step(
-        &mut root,
-        &env,
-        Event::Client { event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } } },
-        &mut out,
-    );
+    if fresh {
+        // Sign in before opening the page's one-shot activity read.
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Start { address, kept: List::with_capacity(0), with: Some(jig_client::With::Transport) },
+            &mut out,
+        );
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up { up: jig_client::Up::Served { served: true, versions: None } },
+            },
+            &mut out,
+        );
+    } else {
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Went { place: temper_client_domain::Place::Address(address) },
+            &mut out,
+        );
+    }
     let watch = Token::new(0);
     let mut inbox_watch = None;
     let mut tree_watch = None;
@@ -361,34 +443,39 @@ pub fn root_at_with_classes(
                 jig_client::UnlinkedRequest::Down {
                     down: jig_client::Down::Open { watch: token, subject: jig_client::Watchable::Jig(subject) },
                 },
-        }) = request
+        }) = request.as_ref()
         {
-            if subject == Subject::Accounts {
-                account_watch = Some(token);
+            if *subject == Subject::Accounts {
+                account_watch = Some(*token);
             } else if let Subject::Tree { .. } = subject {
-                tree_watch = Some(token);
+                tree_watch = Some(*token);
             } else if let Subject::Inbox { .. } | Subject::Task { .. } = subject {
-                inbox_watch = Some(token);
+                inbox_watch = Some(*token);
             }
         }
+        if !fresh && let Some(request) = request {
+            out.push(request);
+        }
     }
-    let mut frame = fixture_me(project_name);
-    if asking_page.is_some() {
-        frame = asking_me(frame);
-    }
-    if forge_rows_answered {
-        frame.deployment_role = Some(c::HeldRole::Owner);
-    }
-    temper_client_domain::step(
-        &mut root,
-        &env,
-        Event::Client {
-            event: jig_client::Event::Up {
-                up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) },
+    if fresh {
+        let mut frame = fixture_me(project_name);
+        if asking_page.is_some() {
+            frame = asking_me(frame);
+        }
+        if forge_rows_answered {
+            frame.deployment_role = Some(c::HeldRole::Owner);
+        }
+        temper_client_domain::step(
+            &mut root,
+            &env,
+            Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Watched { watch, event: WatchEvent::Delivered(Delivery::Me(Box::new(frame))) },
+                },
             },
-        },
-        &mut out,
-    );
+            &mut out,
+        );
+    }
     answer_activity(&mut root, &env, activity_read, activity, &mut out);
     let mut forges = None;
     let mut needs_watch = inbox_watch;

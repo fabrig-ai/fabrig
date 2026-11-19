@@ -1,6 +1,5 @@
 //! Store key, interval and codec properties (protocol/store/README.md, section 9).
-#[expect(clippy::disallowed_macros, reason = "tests embed the component schema to build fixed-rule values")]
-const COMPONENT_SCHEMA: &str = include_str!("../schema/component-v3.schema");
+const COMPONENT_SCHEMA: &str = crate::STORE_FAMILIES[0].current;
 
 mod admission;
 mod census;

@@ -420,13 +420,28 @@ fn load_document_over(
     let application_at = whole.required(document, b"application", &root, &mut found);
     whole.finish(document, &root, &mut found);
     problems.append(found, &root);
+    let mut stock_floor = None;
     let engine = match engine_at {
         Some(at) => {
-            match match limits {
-                Some((base, _own)) => engine_over(document, at, directories, given, &mut base.clone()),
-                None => temper_engine_service::startup::engine_with_sources(document, at, directories, given, sources),
-            } {
-                Ok(mut engine) => {
+            let parsed = match limits {
+                Some((base, _own)) => match engine_over(document, at, directories, given, &mut base.clone()) {
+                    Ok(engine) => Ok((engine, None)),
+                    Err(found) => Err(found),
+                },
+                None if check_start => {
+                    temper_engine_service::startup::engine_with_stock(document, at, directories, given, sources)
+                }
+                None => {
+                    match temper_engine_service::startup::engine_with_sources(document, at, directories, given, sources)
+                    {
+                        Ok(engine) => Ok((engine, None)),
+                        Err(found) => Err(found),
+                    }
+                }
+            };
+            match parsed {
+                Ok((mut engine, floor)) => {
+                    stock_floor = floor;
                     temper_engine_service::startup::check_fleet_grace(&engine, &mut problems);
                     if check_start {
                         checks::figures(&engine, &mut problems);
@@ -491,7 +506,13 @@ fn load_document_over(
             Err(found) => problems.append(found, &indexed(index)),
         }
     }
-    if check_start && let Some(engine) = &engine {
+    if let Some(floor) = stock_floor {
+        checks::stock_floor(floor, &mut problems);
+    }
+    if limits.is_some()
+        && check_start
+        && let Some(engine) = &engine
+    {
         match given.source() {
             crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
             crate::stock::Given::Stock => checks::stock(engine, &mut problems),

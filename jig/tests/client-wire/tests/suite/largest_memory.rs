@@ -2,6 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
+use skein_codec::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -10,7 +11,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        concat!(include_str!("../../../../crates/jig-client-protocol-wire/schema/client-v37.schema"), include_str!("../../../../crates/jig-client-protocol-wire/schema/client-v37-part1.schema")),
+        jig_client_protocol_wire::CLIENT_SCHEMA,
         jig_client_protocol_wire::v37, sealed,
         limits [
             keyed_request,
@@ -479,7 +480,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/jig-client-protocol-wire/schema/public-v1.schema"),
+        jig_client_protocol_wire::PUBLIC_SCHEMA,
         jig_client_protocol_wire::public_v1, sealed,
         limits [
             public_line_title,
@@ -507,8 +508,8 @@ fn largest_roots_stay_within_decoded_bounds() {
 fn test_client_largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../testing/jig-client-test-protocol-wire/schema/test-client-v2.schema"),
-        jig_client_test_protocol_wire::v2, sealed,
+        jig_client_test_protocol_wire::SCHEMA,
+        jig_client_test_protocol_wire::v2, lean,
         limits [
             segment_bytes,
             resource_path_segments,

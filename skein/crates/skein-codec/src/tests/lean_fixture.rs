@@ -3,7 +3,9 @@
 use alloc::boxed::Box;
 use skein_lib::List;
 use skein_codec::field;
-pub use skein_codec::{Path, Problem, Record};
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 7;
 
@@ -46,29 +48,37 @@ impl Limits {
     }
 }
 
+const LIMIT_PATHS: &[Path] = &[
+    paths::WORDS_WORDS,
+    paths::NESTED_WORDS,
+    paths::NESTED_WORDS,
+    paths::NESTED_MAYBE,
+    paths::NESTED_RECORDS,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.words_words > CEILINGS.words_words { return Err(Problem { path: paths::WORDS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_words > CEILINGS.nested_words { return Err(Problem { path: paths::NESTED_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_words_item_some > CEILINGS.nested_words_item_some { return Err(Problem { path: paths::NESTED_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_maybe_some > CEILINGS.nested_maybe_some { return Err(Problem { path: paths::NESTED_MAYBE, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_records > CEILINGS.nested_records { return Err(Problem { path: paths::NESTED_RECORDS, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 
 // Paths: declaration and part positions, with one naming table.
 pub mod paths {
     use super::Path;
-    pub const EMPTY_TAIL: Path = Path { declaration: 0, part: 0 };
-    pub const WORDS_WORDS: Path = Path { declaration: 1, part: 0 };
-    pub const WORDS_TAIL: Path = Path { declaration: 1, part: 1 };
-    pub const CHOICE_TAG: Path = Path { declaration: 2, part: 0 };
-    pub const ROW_CHOICE: Path = Path { declaration: 3, part: 0 };
-    pub const ROW_VERSION: Path = Path { declaration: 3, part: 1 };
-    pub const ROW_TAIL: Path = Path { declaration: 3, part: 2 };
-    pub const NESTED_WORDS: Path = Path { declaration: 4, part: 0 };
-    pub const NESTED_MAYBE: Path = Path { declaration: 4, part: 1 };
-    pub const NESTED_RECORDS: Path = Path { declaration: 4, part: 2 };
-    pub const NESTED_TAIL: Path = Path { declaration: 4, part: 3 };
+    pub const EMPTY_TAIL: Path = Path::new(0, 0);
+    pub const WORDS_WORDS: Path = Path::new(1, 0);
+    pub const WORDS_TAIL: Path = Path::new(1, 1);
+    pub const CHOICE_TAG: Path = Path::new(2, 0);
+    pub const ROW_CHOICE: Path = Path::new(3, 0);
+    pub const ROW_VERSION: Path = Path::new(3, 1);
+    pub const ROW_TAIL: Path = Path::new(3, 2);
+    pub const NESTED_WORDS: Path = Path::new(4, 0);
+    pub const NESTED_MAYBE: Path = Path::new(4, 1);
+    pub const NESTED_RECORDS: Path = Path::new(4, 2);
+    pub const NESTED_TAIL: Path = Path::new(4, 3);
 }
 
 const PATH_NAMES: &[&[&str]] = &[

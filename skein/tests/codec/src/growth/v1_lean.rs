@@ -2,7 +2,9 @@
 
 use skein_lib::List;
 use skein_codec::field;
-pub use skein_codec::{Path, Problem, Record};
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 1;
 
@@ -29,16 +31,24 @@ impl Limits {
     }
 }
 
+const LIMIT_PATHS: &[Path] = &[
+    paths::GROWTH_ITEMS,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.growth_items > CEILINGS.growth_items { return Err(Problem { path: paths::GROWTH_ITEMS, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 
 // Paths: declaration and part positions, with one naming table.
 pub mod paths {
     use super::Path;
-    pub const GROWTH_ITEMS: Path = Path { declaration: 0, part: 0 };
-    pub const GROWTH_TAIL: Path = Path { declaration: 0, part: 1 };
+    pub const GROWTH_ITEMS: Path = Path::new(0, 0);
+    pub const GROWTH_TAIL: Path = Path::new(0, 1);
 }
 
 const PATH_NAMES: &[&[&str]] = &[

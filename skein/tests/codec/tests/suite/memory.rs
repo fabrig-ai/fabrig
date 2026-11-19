@@ -3,43 +3,36 @@
 
 #[cfg(test)]
 mod tests {
-    use skein_codec_tests::v1::{CEILINGS, Effect, Field, FieldParts, Report, ReportParts};
+    use skein_codec_tests::v1::{CEILINGS, Effect, Field, Record, Report};
     use skein_heap::Meter;
     use skein_lib::{Duration, List, Reader, Writer};
 
     fn full_field() -> Field {
-        Field::new(&CEILINGS, FieldParts { name: Box::from(&b"abcd"[..]), value: Box::from(&[1, 2, 3, 4][..]) })
-            .expect("field at ceilings")
+        Field { name: Box::from(&b"abcd"[..]), value: Box::from(&[1, 2, 3, 4][..]) }
     }
 
     fn full_report() -> Report {
         let mut fields = List::with_capacity(CEILINGS.report_fields);
         fields.push(full_field()).expect("first field room");
         fields.push(full_field()).expect("second field room");
-        Report::new(
-            &CEILINGS,
-            ReportParts {
-                title: Box::from(&b"abcdefgh"[..]),
-                fields,
-                effect: Effect::Write,
-                present: Some(true),
-                nonce: [0xff, 0xff],
-                age: Duration::from_nanos(u64::MAX),
-            },
-        )
-        .expect("report at ceilings")
+        Report {
+            title: Box::from(&b"abcdefgh"[..]),
+            fields,
+            effect: Effect::Write,
+            present: Some(true),
+            nonce: [0xff, 0xff],
+            age: Duration::from_nanos(u64::MAX),
+        }
     }
 
     #[test]
     fn full_record_decoder_at_its_limits_stays_within_decoded_bound() {
         let value = full_report();
         assert_eq!(
-            value.measure(),
+            value.measure(&CEILINGS).expect("report at ceilings"),
             u32::try_from(Report::encoded_bound(&CEILINGS).expect("wire bound")).expect("u32 ceiling")
         );
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("u32 fits usize"));
-        value.encode(&mut writer).expect("measured room");
-        let wire = writer.finish();
+        let wire = value.encode(&CEILINGS).expect("report at ceilings");
         drop(value);
 
         let bound = Report::decoded_bound(&CEILINGS).expect("heap bound");
@@ -49,18 +42,18 @@ mod tests {
         let measured = meter.end();
         assert!(measured.peak() <= bound, "the full value stays within the heap bound");
         assert!(measured.held() <= bound, "the decoded value stays within the heap bound");
-        assert_eq!(decoded.title().len(), usize::try_from(CEILINGS.report_title).expect("ceiling"));
-        assert_eq!(decoded.fields().len(), CEILINGS.report_fields);
-        for field in decoded.fields().as_slice() {
-            assert_eq!(field.name().len(), usize::try_from(CEILINGS.field_name).expect("ceiling"));
-            assert_eq!(field.value().len(), usize::try_from(CEILINGS.field_value).expect("ceiling"));
+        assert_eq!(decoded.title.len(), usize::try_from(CEILINGS.report_title).expect("ceiling"));
+        assert_eq!(decoded.fields.len(), CEILINGS.report_fields);
+        for field in decoded.fields.as_slice() {
+            assert_eq!(field.name.len(), usize::try_from(CEILINGS.field_name).expect("ceiling"));
+            assert_eq!(field.value.len(), usize::try_from(CEILINGS.field_value).expect("ceiling"));
         }
         drop(decoded);
         assert_eq!(meter.held(), 0, "decoded allocations released");
     }
 
     fn decode_growth<T>(limits: &[u32], bound: u64, decode: impl FnOnce(&mut Reader<'_>) -> T) -> T {
-        let schema = skein_codegen::parse(include_str!("../../schema/growth-v1.schema")).expect("growth schema");
+        let schema = skein_codegen::values(skein_codec_tests::GROWTH_SCHEMA).schema.clone();
         assert_eq!(skein_codegen::roots(&schema), ["Growth"]);
         let wire = skein_codegen::largest(&schema, "Growth", limits).expect("largest growth root");
         let meter = Meter::new();

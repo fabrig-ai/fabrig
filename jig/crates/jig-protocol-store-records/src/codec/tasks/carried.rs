@@ -234,6 +234,7 @@ pub(super) fn encode_refusal(value: &tasks::Refusal, _limits: &Limits) -> wire::
             wire::Refusal::PersonRevision(wire::RefusalPersonRevision { revision: *revision })
         }
         tasks::Refusal::ResourceUnavailable => wire::Refusal::ResourceUnavailable,
+        tasks::Refusal::Unreported => wire::Refusal::Unreported,
         tasks::Refusal::NotReady => wire::Refusal::NotReady,
         tasks::Refusal::Unknown => wire::Refusal::Unknown,
         tasks::Refusal::Busy => wire::Refusal::Busy,
@@ -299,6 +300,7 @@ pub(super) fn decode_refusal(value: wire::Refusal) -> tasks::Refusal {
             tasks::Refusal::PersonRevision { revision }
         }
         wire::Refusal::ResourceUnavailable => tasks::Refusal::ResourceUnavailable,
+        wire::Refusal::Unreported => tasks::Refusal::Unreported,
         wire::Refusal::NotReady => tasks::Refusal::NotReady,
         wire::Refusal::Unknown => tasks::Refusal::Unknown,
         wire::Refusal::Busy => tasks::Refusal::Busy,

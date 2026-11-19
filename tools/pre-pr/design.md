@@ -32,7 +32,9 @@ boundary (smith's run.md, 8.1).
   (`design.md`, section 2). Without the reference it runs today's checks alone and says so.
 - **What changed, and who reads it.** The packages owning a path the
   delivery changed against its base, and their direct dependents in the
-  workspace (section 3).
+  workspace (section 3). A path a merge brought in, as the merged tip
+  holds it, is not the delivery's: a merge repair selects what it changes
+  against both parents, never what the landing branch's own gate passed.
 - **Code, docs, or both:** code inputs select the format check, counted
   baselines, clippy, and the focused and fuzzy tests; Markdown anywhere and
   every file under a `docs/` directory select citations and design size
@@ -84,9 +86,13 @@ boundary (smith's run.md, 8.1).
   packages' tests, with no check of its own; one of status files and other
   prose under `docs/` alone is prose only, and builds nothing.
 - **One hold for the check.** With `TIERS_HOLD` set, the check holds its
-  build directory from before its first build to its verdict, so the
-  executables one-process built are still there when it runs them
-  (section 4; `tools/tiers/design.md`, 3). A prose-only delivery builds
+  build directory, and the build places its environment admits builds to,
+  from before its first build to its verdict, so the executables
+  one-process built are still there when it runs them and no cargo command
+  of its waits for a place again (section 4; `tools/tiers/design.md`, 3).
+  A hold that says it waits for a place has the check tell smith, so that
+  the wait does not count against the checks' bound (smith's
+  `smith/docs/design/domain/run.md`, 8.1). A prose-only delivery builds
   nothing and takes none.
 - **The goal's reds, and inherited counts.** Nothing is built or tested
   at the base. A lint or test failure is inherited only when the goal's
@@ -137,7 +143,9 @@ boundary (smith's run.md, 8.1).
   ): the base is that head, so a repair of a goal's landing into main
   checks what its own edits changed, not the goal's packages. A resolution's
   base is its branch's head before the merge, so its check selects what the
-  merge and its edits change on the branch.
+  merge and its edits change on the branch against both parents: a path
+  as the merged tip holds it was checked there (section 3, *Changed
+  paths*).
 - **An unchecked save is stepped past.** Where the base is temper's
   unchecked save, a commit whose subject is `Unchecked: work in progress,
   saved before a question` (`temper/docs/design/domain/agent/README.md`,
@@ -162,7 +170,22 @@ boundary (smith's run.md, 8.1).
   index (`git add -A`, `git write-tree`), the real index untouched, as
   before.
 - **Changed paths:** `git diff-tree -r --no-renames --name-only -z <base> <tree>`,
-  deletions included.
+  deletions included, less each path whose entry in the tree is the one a
+  merged tip holds at that path, its own or absent alike: a merge brought
+  it as it stood there, where it was checked (the landing branch's own
+  gate, or the delivery that put it on that branch). The merged tips are
+  section 4, check 7's. So a merge's changed paths are those it changes
+  against both parents: its resolution's and its later edits', and a
+  path both sides changed; a merge repair of a goal's branch that took
+  main in selects none of main's packages for what main brought as main
+  holds it. Every reader of the changed paths below takes them so, and
+  check 8 too; check 7 alone is started by the whole diff, merged tips'
+  entries included, since it sets them aside itself (section 4, check
+  7). Where there are merged tips, one line before the
+  selection's names them, `pre-pr: merged tips: <commit> …: what they
+  hold is not the delivery's`, the commits in check 7's order joined by
+  a space. What the two sides make together where no path differs from
+  both is the landing's gate's (section 10).
 - **Docs inputs:** every Markdown path (`.md`), anywhere, and every file
   with a `docs` directory component. Additions, edits and deletions all
   select check 5. No docs input means no full citation check.
@@ -473,8 +496,10 @@ delivery hears every failure; the verdict is section 6's.
      (section 6);
    - **any other:** a failure of the check itself, `check outward`, its
      log the scan's output.
-7. **The figures,** where section 3's changed paths include
-   `tools/tiers/budgets.toml`, whatever else they hold: `python3 -I -B
+7. **The figures,** where the paths the tree changes against its base,
+   `git diff-tree` as section 3 runs it before it sets merged tips'
+   entries aside, include `tools/tiers/budgets.toml`, whatever else they
+   hold, a delivery that selected neither set included: `python3 -I -B
    tools/tiers/figures.py --base <base> --head <tree> [--merged <rev>]…` from the tree's
    root, against section 3's private snapshot, as check 5 runs citations
    (`tools/tiers/budgets.md`, 10.1). The merged tips are the commit named by
@@ -506,10 +531,10 @@ delivery hears every failure; the verdict is section 6's.
    more, or, at either root, `skein-ui.css`, `journey.js`, `theme.css`
    or `tui-journey.js`.
    - **The delivery's own paths:** with a base, section 3's changed
-     paths less each whose entry in the tree is the one a merged tip of
-     check 7's holds at that path, its own or absent alike, since a
-     merge brought it as it stood there; without a base, the paths the
-     tree changes against `HEAD`, staged, unstaged and untracked.
+     paths, which already leave out each whose entry in the tree is the
+     one a merged tip of check 7's holds at that path; without a base,
+     the paths the tree changes against `HEAD`, staged, unstaged and
+     untracked.
    - **Refused,** one failure, `journeys`: those paths holding a
      written file and any path that is not one; or a tree whose
      `overlay.css` under either root holds a byte. Its log names the
@@ -542,7 +567,16 @@ with the setting removed, so one-process, check 4, takes none of its own,
 and the check's builds and the executables they built are one hold, not one
 claim per cargo command: an environment that lends a build directory only
 while a cargo command runs could otherwise reclaim it after one-process's
-listing has built the tests and before their processes start. A cache hit
+listing has built the tests and before their processes start. So too the
+build places an environment admits its builds to, a limit on builds at
+once: one admission for the check, not one wait per cargo command, where
+the hold takes them (`tools/tiers/design.md`, 3). A hold that says it
+waits for them before it holds them has the check tell smith so on its
+stderr, `smith-check: waiting` at the first such line and `smith-check:
+admitted` once held or gone, so that the checks' bound counts only the
+time the check holds its places (smith's
+`smith/docs/design/domain/run.md`, 8.1, *A wait for what a check
+needs*); the 1,800-second figure a deployment sets stays as it is. A cache hit
 takes none, nor does a prose-only delivery, whose selection reads git
 alone and which runs no cargo command (section 3). A hold that fails prints its warning, `pre-pr: hold: <why>;
 going on unheld`, and refuses nothing; the summary does not repeat it, since
@@ -586,6 +620,19 @@ cause.
   runs in it, so the head's target directory and the timestamps of either
   checkout's files stay as they are. It is not made for a lint, test or
   build failure.
+- **The base's target is its own.** Every program the check starts in
+  the base's worktree has `CARGO_TARGET_DIR` set to `<git
+  dir>/temper-pre-pr/target`, whatever the check's environment named or
+  left unset: beside the worktree, so its `git clean` keeps it, made when
+  first needed and kept, and never the head's. Nothing of the check
+  builds there, but a build at the base, by whatever runs one, must never
+  share the head's target: cargo judges an output fresh by file times,
+  against dep-info paths relative to each package, so two trees of one
+  workspace in one target can each take the other's outputs, and a check
+  then passes or fails on the wrong build. A deployment whose cargo gives
+  a workspace's paths one target keeps the setting the check makes, or
+  keys this worktree to a target of its own
+  (`temper/docs/design/domain/worker/README.md`, 5).
 - **The goal's reds,** which temper keeps and its worker writes at each
   check's start (`temper/docs/design/domain/forge/reds.md`, 5), are
   `temper/reds` under the git directory, at `git rev-parse --git-path
@@ -852,8 +899,9 @@ tree that passed here.
   file once, a few seconds on this repository and no cargo.
 - **What main's ledgers cost** a delivery whose builder keeps them: each
   run's new and flagged tests run alone after its suite, each in a
-  process of its own beside its binary's empty one
-  (`tools/tiers/references.md`, 3 and 4), within the profile's
+  process of its own beside its binary's empty one, and twice more each
+  where the first passes its limit (`tools/tiers/references.md`, 3 and
+  4), within the profile's
   `global-timeout`; a `cpu-summary` read of a run over budget; and a pass
   reused only under the ledgers it was judged by, which the runner
   replaces after each landing on main (section 7).
@@ -865,7 +913,10 @@ tree that passed here.
 - What a check took is the run's: smith tells its host when checks start,
   with their deadline, and when they end (run.md, 8.1), and the check
   prints each check's seconds. The checks' deadline is the deployment's
-  `check_timeout`, which the owner sets separately.
+  `check_timeout`, which the owner sets separately. It counts the time the
+  check holds its build places alone: a wait its hold says it makes for
+  them is told to smith and left out (section 4, *The hold*), so a check
+  queued behind other workspaces' builds is not refused for their time.
 
 ## 9. Testing
 
@@ -1077,7 +1128,22 @@ refuse within 8,192 bytes, the first kept, each log's tail starting at a
 whole line under its `[… N bytes cut]` marker and keeping its last line,
 the rest counted in one `[… N more failures]` line. The hold: an unset or
 empty `TIERS_HOLD` starts none, and a hold that exits early under a
-refusal leaves the refusal.
+refusal leaves the refusal. A hold that writes `waiting` lines before its
+held line starts no cargo command until that line, and the check's
+stderr holds `smith-check: waiting` once, then `smith-check: admitted`;
+one that goes silent after a `waiting` line, or exits, writes `admitted`
+before its warning, and the check goes on unheld; a hold that never
+waits writes neither.
+
+Its table of a merge's selection (section 3, *Changed paths*): a merge
+in progress and a committed one, whose merged tip changed a package the
+base lacks, select no package for it and print the merged tips' line; a
+path both sides changed, and a path edited after the merge, select their
+packages; a tip that changed `tools/tiers/budgets.toml` alone selects
+no set for it and still runs check 7, the tip passed as `--merged`. The
+base's target (section 5): the base's count runs see
+`CARGO_TARGET_DIR` set to `<git dir>/temper-pre-pr/target`, with the
+check's environment naming another and naming none.
 
 Main's ledgers (section 4): unset, empty, a file missing, unreadable,
 refused or the other profile's, each with its line and its run as
@@ -1104,8 +1170,11 @@ file's bytes change, go or come.
   (section 4). Its repair is its own tree's; until then the stopgap is the
   `process-of-its-own` test group (`tools/tiers/design.md`, 11.3), an
   override in `.config/nextest.toml` saying why beside it.
-- **A resolution's own edits.** A resolution's base is the branch's head
-  before the merge (section 2), so its selection holds what the merge
-  brings in as well as its hand edits; a merge of a far-moved landing
-  branch selects much. Selecting only the paths its edits changed against
-  both parents is not designed.
+- **What a merge's two sides make together.** A merge selects what it
+  changes against both parents (section 3). Where the base is the
+  merge's first parent (a repair, a resolution, a merge job: section 2),
+  a package of either side that the other side's change breaks, with no
+  path changed against both, is selected by neither and left to the
+  landing's gate, which runs every package. A change that merged its
+  landing branch's newer tip still selects its own packages, which the
+  tests then run in the merged tree.

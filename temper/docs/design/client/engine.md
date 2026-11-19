@@ -190,13 +190,13 @@ does for the client:
   The outcome is kept under the request's key for the retention and
   answered once durable (jig's `client/domain/contract/requests.md`, 3). The
   forge keeps at most `forge.applications` (32) such outcomes and the
-  requests in flight beside them; one admitted while they are full is
-  refused at once, jig's `Limit` of kind `ApplicationAnswers` with that
-  bound, which jig keeps under the key (jig's `domain/people/README.md`, its
-  application requests), never answered busy until the retention ends.
-  The key keeps that refusal for the retention, so ctl says it as
-  "temper keeps at most N answers to requests like this within a day:
-  ask again later, under a new key", N the bound.
+  requests pending beside them, and is never full for a new request: it
+  first drops every outcome past its retention, then, with its places
+  still taken, the one whose retention ends first, never a pending
+  request (`../domain/forge/adoption.md`, 9). So no request is refused
+  for the outcomes kept, and none is answered busy for them while one
+  is kept; the key of an outcome dropped early is answered unknown, as
+  one past its retention is.
 - **The forge's errors as reasons,** by the forge connector
   (`temper-engine-domain-forge`'s `reason`, from `skein-forge`'s
   `Error`, skein's `forge/README.md`, section 3.4): `NotConnected` is not

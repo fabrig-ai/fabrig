@@ -1182,12 +1182,12 @@ impl Referee {
                             ));
                         }
                     }
-                    host.service = jig_test_service::startup_with_workers(
-                        &if matches!(self.story, crate::stories::Story::Providers) {
-                            crate::fixtures::providers_document()
-                        } else {
-                            crate::fixtures::engine_document()
-                        },
+                    host.service = if matches!(self.story, crate::stories::Story::Providers) {
+                        crate::processes::providers_prepared()
+                    } else {
+                        crate::processes::engine_prepared()
+                    }
+                    .startup_with_workers(
                         &crate::fixtures::files(false),
                         None,
                         &crate::fixtures::seeds(),

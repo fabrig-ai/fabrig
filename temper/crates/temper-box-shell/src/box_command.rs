@@ -115,11 +115,12 @@ pub(crate) fn run_configuration(
                     .into_boxed_slice(),
             ))
             .collect();
-        let (steps, limits) = configuration_steps_given(directories, bytes, first, record, &given, fixed_start)?;
-        let named = super::setup::check_with(bytes, &jig_directories(directories), &given)?.named;
+        let deployment = super::setup::check_with(bytes, &jig_directories(directories), &given)?;
+        let (steps, limits) = configuration_steps_checked(directories, &deployment, first, record, fixed_start)?;
+        let named = &deployment.named;
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
-        let mut first_link = first_link(&named, &steps)?;
-        let front = configured_front(fronted, &named, first_link.as_mut())?;
+        let mut first_link = first_link(named, &steps)?;
+        let front = configured_front(fronted, named, first_link.as_mut())?;
         let signals = skein_shell::open_signals(skein_shell::Watch::TerminationAndHangup)
             .map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
@@ -347,22 +348,18 @@ pub(crate) fn configuration_steps_recording(
     record: bool,
     fixed_start: Option<&[u8]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
-    let given = temper_service::stock::Given::Stock.with_providers(
-        temper_service::stock::providers(),
-        Box::new([temper_service::stock::scripted(crate::scripted::PREFERRED)]),
-    );
-    configuration_steps_given(directories, bytes, first, record, &given, fixed_start)
+    let deployment = super::setup::check(bytes, &jig_directories(directories))?;
+    configuration_steps_checked(directories, &deployment, first, record, fixed_start)
 }
-fn configuration_steps_given(
+/// Builds steps from the admission already performed for these effective directories.
+pub(crate) fn configuration_steps_checked(
     directories: &super::Directories,
-    bytes: &[u8],
+    deployment: &super::setup::Deployment,
     first: Box<[temper_forge_setup::Step]>,
     record: bool,
-    given: &temper_service::stock::Given,
     fixed_start: Option<&[u8]>,
 ) -> Result<(temper_forge_setup::Steps, temper_box_machine::limits::Limits), String> {
-    let super::setup::Deployment { named, demo, limits, .. } =
-        super::setup::check_with(bytes, &jig_directories(directories), given)?;
+    let super::setup::Deployment { named, demo, limits, .. } = deployment;
     let mut serve = vec![super::address(&named.clients)?];
     if let Some(webhooks) = &named.webhooks {
         serve.push(super::address(&webhooks.listener)?);
@@ -403,5 +400,5 @@ fn configuration_steps_given(
         steps.always = always.into_boxed_slice();
         steps
     };
-    Ok((steps, limits))
+    Ok((steps, *limits))
 }

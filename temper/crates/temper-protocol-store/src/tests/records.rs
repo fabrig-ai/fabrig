@@ -539,19 +539,20 @@ fn a_change_written_without_a_checked_delegate_decodes_with_none() {
     row.change.last_checked = Some([29; 32]);
     row.change.last_checked_by = Some(41);
     let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    let mut work = skein_codec::layout::Workspace::new();
+    // Removing the delegate and defaulting it to none cannot grow the populated row.
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
     for (source, target) in [(&new, &old), (&old, &new)] {
         let plan = skein_codec::layout::Plan::derive(
             source,
-            source.root(b"Row", None).unwrap(),
+            source.root(b"Row", Some(b"change_hot")).unwrap(),
             &[],
             target,
-            target.root(b"Row", None).unwrap(),
+            target.root(b"Row", Some(b"change_hot")).unwrap(),
             &[],
         )
         .unwrap();
-        let mut work = skein_codec::layout::Workspace::new();
         assert!(work.fit(&plan));
-        let mut out = skein_lib::Buffer::with_capacity(131_072);
         plan.convert(&bytes, &mut out, &mut work).unwrap();
         bytes = out.as_slice().into();
     }

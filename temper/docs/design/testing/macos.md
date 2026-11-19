@@ -277,6 +277,23 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   when its major version moves. The archive comes from Chrome for Testing's public storage, is
   checked against the digest before it is unpacked, and
   `SKEIN_TEST_CHROMIUM` names its executable.
+- **`browser`'s C compiler for wasm:** ring's build script compiles C for
+  `wasm32-unknown-unknown` while the part builds its bundles, and the
+  runner's `clang` is Apple's, which has no such target. Before the
+  build, after the target's check, the helper's `wasm-compiler` command
+  takes Homebrew's LLVM: the newest `llvm` or `llvm@N` formula the runner
+  image has installed, or, where it has none, `llvm` installed by Homebrew
+  then, its bottle checked by Homebrew's own digest. It checks that the
+  LLVM's `clang` lists the `wasm32` target among its registered targets
+  (`clang --print-targets`), prints `clang --version` through the runner
+  of checks, and writes to the job's environment
+  `CC_wasm32_unknown_unknown`, that `clang`'s path, and
+  `AR_wasm32_unknown_unknown`, its `llvm-ar`'s, which the `cc` crate
+  reads for that target alone, so the native builds keep the runner's
+  compiler. No LLVM, a `clang` without the target or no `llvm-ar` is a
+  fault (5.4). Only the `browser` job runs it: Linux's tiers name no
+  compiler, and the workflow's set-up is not temper's, which takes
+  Homebrew as a URL alone (`../draft/macos.md`, 4.3).
 - **`process`'s and `live`'s:** Forgejo and its runner, fetched as section
   2 has it.
 - **Each part's disk and wall time:** a last step, whatever the part ended

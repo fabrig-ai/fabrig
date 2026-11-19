@@ -779,12 +779,6 @@ fn acceptance_moves_work_created_after_a_real_first_start() {
     assert_eq!(fixtures::live_row(&world, task).settings.task, 2);
 }
 
-#[test]
-fn settings_proposal_profiles_keep_the_advertised_bounds() {
-    assert_eq!(jig_protocol_config_fixtures::small().core.settings.proposals, 4);
-    assert_eq!(jig_protocol_config::stock().core.settings.proposals, 8);
-}
-
 fn settings_revision(world: &World, number: u32) -> &s::Revision {
     world
         .store

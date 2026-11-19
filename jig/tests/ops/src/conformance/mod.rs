@@ -35,12 +35,13 @@ pub enum Story {
     Environment,
 }
 
-/// The same seed and story reconstruct every cold domain.
-#[derive(Clone, Copy, Debug)]
+/// One prepared configuration supplies every independent cold domain.
+#[derive(Clone, Debug)]
 pub struct Config {
     pub seed: u64,
     pub story: Story,
     limits: root::Limits,
+    configuration: std::rc::Rc<root::Config>,
     documents: bool,
     client_backed: bool,
     close_grant: bool,
@@ -49,13 +50,15 @@ pub struct Config {
 }
 
 impl Config {
-    /// Fix the finite limits once; cold starts still rebuild the same root.
+    /// Prepare immutable rules once; every cold domain consumes its own clone.
     #[must_use]
     pub fn new(seed: u64, story: Story) -> Self {
+        let (configuration, limits) = config::root_for(seed, story == Story::Environment);
         Self {
             seed,
             story,
-            limits: config::root_for(seed, story == Story::Environment).1,
+            limits,
+            configuration: std::rc::Rc::new(configuration),
             documents: false,
             client_backed: false,
             close_grant: true,
@@ -192,7 +195,7 @@ impl Application for Ops {
         Store::default()
     }
     fn build(config: &Config) -> root::Domain {
-        let mut configuration = config::root_for(config.seed, config.story == Story::Environment).0;
+        let mut configuration = config.configuration.as_ref().clone();
         if !config.close_grant {
             configuration.core.grants = Box::new([]);
         }
@@ -210,7 +213,7 @@ impl Application for Ops {
     }
     fn peers(config: &Config, _: u64) -> Peers {
         Peers {
-            observer: observations::observer(config.seed, config.story == Story::Environment),
+            observer: observations::observer(&config.configuration, config.story == Story::Environment),
             applied: 0,
             observed: Vec::new(),
             application_observed: Vec::new(),
@@ -248,9 +251,7 @@ impl Application for Ops {
             lead_commits: Vec::new(),
             pending_document_effects: Vec::new(),
             agents: {
-                let run = config::root_for(config.seed, config.story == Story::Environment).0.core.defaults.charters[0]
-                    .policy
-                    .clone();
+                let run = &config.configuration.core.defaults.charters[0].policy;
                 scripts::Agents::new(
                     config.client_backed,
                     config.story == Story::Environment,
@@ -268,8 +269,7 @@ impl Application for Ops {
     }
     fn start(config: &Config, store: &mut Store) -> Vec<root::Event> {
         if store.rows.is_empty() {
-            let configuration = config::root_for(config.seed, config.story == Story::Environment).0;
-            for row in jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers) {
+            for row in jig_test_profile::fixtures::account_rows(&config.configuration.core.settings.llm_providers) {
                 let jig_test_domain::Record::Core(row) = row else { panic!("account fixture row") };
                 let row = root::Record::Core(row);
                 store.rows.insert(row.key(), row);
@@ -889,60 +889,7 @@ impl Application for Ops {
         Ok(())
     }
     fn observed(peers: &mut Peers, _: &Systems, store: &Store, clock: Clock) -> Result<Vec<r::Observed>, r::Violation> {
-        if store.applied != peers.observer.applied() {
-            peers.observer.durable(clock.now, &observations::core_store(store)).map_err(finding)?;
-        }
-        let mut observed = Vec::new();
-        let mut answers = Vec::new();
-        for evidence in std::mem::take(&mut peers.application_observed) {
-            if matches!(evidence, r::Observed::ApplicationAnswered { .. }) {
-                answers.push(evidence);
-            } else {
-                observed.push(evidence);
-            }
-        }
-        observed.extend(peers.observer.take());
-        observed.extend(answers);
-        if peers.applied != store.applied {
-            let snapshot = observations::snapshot(store);
-            for row in store.rows.values() {
-                if let root::Record::Core(core::Record::Core(core::CoreRecord::ProposalDecision(row))) = row
-                    && row.choice == people::ProposalChoice::Accepted
-                    && !peers.accepted.contains(&store.applied)
-                    && peers.accepted.is_empty()
-                {
-                    peers.accepted.push(store.applied);
-                }
-            }
-            for decision in &snapshot.decisions {
-                if !peers.entries.iter().any(|(commit, kind)| *commit == store.applied && *kind == decision.kind) {
-                    peers.entries.push((store.applied, decision.kind));
-                }
-            }
-            for row in store.rows.values() {
-                if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row {
-                    for word in &row.inbox {
-                        if let (tasks::MessageKind::Result(_), tasks::Party::Task(child)) = (&word.kind, word.from)
-                            && peers.delivered_results.insert(child)
-                        {
-                            observed.push(r::Observed::Result { task: child, to: r::Source::Task(row.number) });
-                        }
-                    }
-                }
-            }
-            peers.applied = store.applied;
-        }
-        peers.pending_results.retain(|&(commit, task, parent)| {
-            if commit > store.applied {
-                return true;
-            }
-            if peers.delivered_results.insert(task) {
-                observed.push(r::Observed::Result { task, to: r::Source::Task(parent) });
-            }
-            false
-        });
-        observed.append(&mut peers.observed);
-        Ok(observed)
+        observed_with(peers, store, clock, |_| {})
     }
     fn ready(domain: &root::Domain) -> bool {
         domain.ready()
@@ -956,6 +903,74 @@ impl Application for Ops {
     fn maximum(_: &Config) -> u64 {
         OPS_HEAP_CEILING
     }
+}
+
+/// A reader's projection belongs to this inspection, never to a cached commit:
+/// store completions can change rows without advancing `applied` (testing.md, 5).
+/// The joint client observer consumes this same view at a new revision.
+pub(crate) fn observed_with(
+    peers: &mut Peers,
+    store: &Store,
+    clock: Clock,
+    committed: impl FnOnce(&jig_conformance::core::Store<'_>),
+) -> Result<Vec<r::Observed>, r::Violation> {
+    let view = (store.applied != peers.observer.applied() || peers.applied != store.applied)
+        .then(|| observations::core_store(store));
+    if store.applied != peers.observer.applied() {
+        peers.observer.durable(clock.now, view.as_ref().expect("new durable revision")).map_err(finding)?;
+    }
+    let mut observed = Vec::new();
+    let mut answers = Vec::new();
+    for evidence in std::mem::take(&mut peers.application_observed) {
+        if matches!(evidence, r::Observed::ApplicationAnswered { .. }) {
+            answers.push(evidence);
+        } else {
+            observed.push(evidence);
+        }
+    }
+    observed.extend(peers.observer.take());
+    observed.extend(answers);
+    if peers.applied != store.applied {
+        let view = view.as_ref().expect("new outside revision");
+        committed(view);
+        for row in store.rows.values() {
+            if let root::Record::Core(core::Record::Core(core::CoreRecord::ProposalDecision(row))) = row
+                && row.choice == people::ProposalChoice::Accepted
+                && !peers.accepted.contains(&store.applied)
+                && peers.accepted.is_empty()
+            {
+                peers.accepted.push(store.applied);
+            }
+        }
+        for decision in &view.effects.decisions {
+            if !peers.entries.iter().any(|(commit, kind)| *commit == store.applied && *kind == decision.kind) {
+                peers.entries.push((store.applied, decision.kind));
+            }
+        }
+        for row in store.rows.values() {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row {
+                for word in &row.inbox {
+                    if let (tasks::MessageKind::Result(_), tasks::Party::Task(child)) = (&word.kind, word.from)
+                        && peers.delivered_results.insert(child)
+                    {
+                        observed.push(r::Observed::Result { task: child, to: r::Source::Task(row.number) });
+                    }
+                }
+            }
+        }
+        peers.applied = store.applied;
+    }
+    peers.pending_results.retain(|&(commit, task, parent)| {
+        if commit > store.applied {
+            return true;
+        }
+        if peers.delivered_results.insert(task) {
+            observed.push(r::Observed::Result { task, to: r::Source::Task(parent) });
+        }
+        false
+    });
+    observed.append(&mut peers.observed);
+    Ok(observed)
 }
 
 /// Native client facts share the independent submitted-row durability check.
@@ -973,7 +988,9 @@ pub(crate) fn client_document(peers: &mut Peers, store: &Store, document: &root:
 /// Returns the actual harness so the test can inspect outside evidence.
 #[must_use]
 pub fn night(seed: u64, cut: jig_conformance::Cut) -> jig_conformance::Harness<Ops> {
-    let mut world = jig_conformance::Harness::<Ops>::new(Config::new(seed, Story::Night), seed);
+    let configuration = Config::new(seed, Story::Night);
+    let retry = configuration.limits.infrastructure.retry_after_seconds * 1_000_000_000;
+    let mut world = jig_conformance::Harness::<Ops>::new(configuration, seed);
     world.cut(cut);
     world.drain().expect("cold ops root");
     world.send(root::Event::Infrastructure(infra::Event::Names {
@@ -1051,7 +1068,7 @@ pub fn night(seed: u64, cut: jig_conformance::Cut) -> jig_conformance::Harness<O
     world.drain().unwrap_or_else(|error| panic!("night: {error:?}\n{}", world.trace.join("\n")));
     // A crash after the sent entry may leave a conditional write uncertain.
     // Advance its configured retry bound so lookup and settlement can finish.
-    world.advance(config::root(seed).1.infrastructure.retry_after_seconds * 1_000_000_000);
+    world.advance(retry);
     world.drain().unwrap_or_else(|error| panic!("night retry: {error:?}\n{}", world.trace.join("\n")));
     world
 }
@@ -1071,6 +1088,8 @@ pub fn documents(seed: u64) -> jig_conformance::Harness<Ops> {
 fn alert_documents(seed: u64, cut: jig_conformance::Cut, documents: bool) -> jig_conformance::Harness<Ops> {
     let mut configuration = Config::new(seed, Story::Alert);
     configuration.documents = documents;
+    let retry = configuration.limits.infrastructure.retry_after_seconds * 1_000_000_000;
+    let ask = config::chat_from(&configuration.configuration, &configuration.limits, b"@watch_setup");
     let mut world = jig_conformance::Harness::<Ops>::new(configuration, seed);
     world.cut(cut);
     world.drain().expect("cold ops root");
@@ -1095,7 +1114,7 @@ fn alert_documents(seed: u64, cut: jig_conformance::Cut, documents: bool) -> jig
         reply_to: ReplyTo::new(Token::new(101)),
         sign_in: world.peers.sign_in.expect("on-call session"),
         key: [2; 16],
-        ask: config::chat(b"@watch_setup"),
+        ask,
     })));
     world.drain().unwrap_or_else(|error| panic!("watch: {error:?}\n{}", world.trace.join("\n")));
     for number in [7, 8, 9] {
@@ -1120,9 +1139,9 @@ fn alert_documents(seed: u64, cut: jig_conformance::Cut, documents: bool) -> jig
     })));
     world.advance(1_000_000_000);
     world.drain().unwrap_or_else(|error| panic!("incident: {error:?}\n{}", world.trace.join("\n")));
-    world.advance(config::root(seed).1.infrastructure.retry_after_seconds * 1_000_000_000);
+    world.advance(retry);
     world.drain().unwrap_or_else(|error| panic!("recovery: {error:?}\n{}", world.trace.join("\n")));
-    world.advance(config::root(seed).1.infrastructure.retry_after_seconds * 1_000_000_000);
+    world.advance(retry);
     world.drain().expect("settle an uncertain restart after its retry deadline");
     // A cut around lead creation can defer I or T2 to the next retry clock.
     // Two bounded fact/recovery windows cover that resumed run and its effect.

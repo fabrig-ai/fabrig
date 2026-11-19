@@ -13,8 +13,7 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_pieces::FLOOR;
 
-    #[expect(clippy::disallowed_macros, reason = "the wire identity embeds its current schema")]
-    const TEXT: &str = include_str!("../schema/pieces-v1.schema");
+    const TEXT: &str = crate::PIECES_SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

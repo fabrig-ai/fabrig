@@ -10,7 +10,7 @@ const CAP: u64 = 64 * 1024 * 1024;
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
-        include_str!("../../../../crates/smith-channel/schema/channel-v11.schema"),
+        smith_channel::CHANNEL_SCHEMA,
         smith_channel::v11, sealed,
         limits [
             directory_name,
@@ -86,7 +86,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/smith-charter/schema/charter-v5.schema"),
+        smith_charter::SCHEMA,
         smith_charter::v5, sealed,
         limits [
             section_title,
@@ -128,7 +128,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/smith-local-protocol/schema/local-store-v1.schema"),
+        smith_local_protocol::SCHEMA,
         smith_local_protocol::local_store_v1, sealed,
         limits [
             turn_body,
@@ -152,7 +152,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     );
     family!(
         CAP,
-        include_str!("../../../../crates/smith-transcript/schema/transcript-v7.schema"),
+        smith_transcript::SCHEMA,
         smith_transcript::v7, sealed,
         limits [
             replay_bytes,

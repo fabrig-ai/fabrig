@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-pub use skein_ui_example_view_codec::records;
+pub use skein_ui_example_view_codec::{SCHEMA, records};
 pub mod draw;
 pub mod limits;
 pub mod places;

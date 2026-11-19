@@ -88,6 +88,12 @@ fn provision_bundle(path: &Path) -> PathBuf {
     write(&path.join("0000000000000001/main.js"), b"// fixture\n", false).expect("fixture script");
     path.to_path_buf()
 }
+// Retained-peer, script and argument checks need only one init tree, in the sandbox.
+// Source import is covered by untouched_box_init_imports_with_and_without_sign_in;
+// init's file creation by init::tests::init_finds_ports_and_programs_and_writes_exact_modes_in_order.
+fn bundled_empty_source(scratch: &Scratch) -> (Directories, PathBuf) {
+    (scratch.dirs(), provision_bundle(&scratch.0.join("bundle-loopback")))
+}
 fn provisioned_source(scratch: &Scratch) -> Directories {
     let source = initialized_source(scratch);
     let bundle = provision_bundle(&scratch.0.join("bundle-loopback"));
@@ -257,10 +263,17 @@ fn fixed_start_requires_fake_backends_and_a_canonical_value() {
 #[test]
 fn fixed_start_reaches_only_serve_and_peers_on_new_and_retained_starts() {
     let scratch = Scratch::new("fixed-start");
-    let source = provisioned_source(&scratch);
-    let options = Options { fixed_start: Some(b"1767690000,7".as_slice().into()), strict: true, ..Options::default() };
+    let (source, bundle) = bundled_empty_source(&scratch);
+    let options = Options {
+        bundle: Some(bundle),
+        fixed_start: Some(b"1767690000,7".as_slice().into()),
+        strict: true,
+        ..Options::default()
+    };
     for _ in 0..2 {
         let prepared = start_options(&source, &options, None).expect("prepare only, new then retained");
+        let deployment = crate::setup::check(&prepared.bytes, &jig_directories(&prepared.directories))
+            .expect("admit the effective deployment once for both argument variants");
         for record in [false, true] {
             let baseline = backends::steps(
                 &prepared.directories.config,
@@ -270,17 +283,17 @@ fn fixed_start_reaches_only_serve_and_peers_on_new_and_retained_starts() {
                 true,
                 None,
             );
-            let (baseline, _) = crate::box_command::configuration_steps_recording(
+            let (baseline, _) = crate::box_command::configuration_steps_checked(
                 &prepared.directories,
-                &prepared.bytes,
+                &deployment,
                 baseline,
                 record,
                 None,
             )
             .expect("ordinary arguments");
-            let (fixed, _) = crate::box_command::configuration_steps_recording(
+            let (fixed, _) = crate::box_command::configuration_steps_checked(
                 &prepared.directories,
-                &prepared.bytes,
+                &deployment,
                 prepared.steps.clone(),
                 record,
                 options.fixed_start.as_deref(),
@@ -404,8 +417,8 @@ fn assert_model_script_arguments(prepared: &Prepared, scripts: Option<&Path>, st
 #[test]
 fn script_join_refuses_the_file_before_start() {
     let scratch = Scratch::new("scripts-refused");
-    let source = provisioned_source(&scratch);
-    let prepared = start(&source, None).expect("sandbox");
+    let (source, bundle) = bundled_empty_source(&scratch);
+    let prepared = start(&source, Some(&bundle)).expect("sandbox");
     let model = crate::path(&prepared.directories.config).join("llm.json");
     let original = fs::read(&model).expect("model document");
     let joined = crate::path(&prepared.directories.config).join("llm-scripts.json");
@@ -602,8 +615,8 @@ fn peer_reservations_transfer_once_and_close_with_preparation() {
 #[test]
 fn retained_peer_edits_are_checked_without_replacement() {
     let scratch = Scratch::new("peer-validation");
-    let source = provisioned_source(&scratch);
-    let first = start(&source, None).expect("fresh sandbox");
+    let (source, bundle) = bundled_empty_source(&scratch);
+    let first = start(&source, Some(&bundle)).expect("fresh sandbox");
     let config = crate::path(&first.directories.config).to_path_buf();
     let peers = first.peers;
     let (ordinary, _) =
