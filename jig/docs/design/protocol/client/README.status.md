@@ -4,6 +4,7 @@
 Unlisted sections have no known gap.
 
 
+
 Sections 10 and 11's transport accounting is present: emitted exchanges
 keep credit through `Reply` or `Lost`, including cancelled watch calls.
 The stream table holds authorization behind a full fetch table, then

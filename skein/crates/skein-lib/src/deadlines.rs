@@ -31,6 +31,13 @@ impl<K: Ord + Copy> Deadlines<K> {
         Deadlines { by_time: Set::with_capacity(capacity), by_key: Map::with_capacity(capacity) }
     }
 
+    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    pub fn raise(&mut self, capacity: u32) {
+        assert!(capacity >= self.by_key.capacity(), "a capacity never falls");
+        self.by_time.raise(capacity);
+        self.by_key.raise(capacity);
+    }
+
     /// The heap a table of `capacity` timers takes itself, or `None` past a
     /// `u64`. What its entries own is theirs to count.
     #[must_use]

@@ -159,6 +159,7 @@ pub(super) fn project(setting: s::Setting) -> Option<u32> {
         | s::Setting::Worker(_)
         | s::Setting::Model(_)
         | s::Setting::Rules
+        | s::Setting::Limits
         | s::Setting::Application { .. } => None,
     }
 }

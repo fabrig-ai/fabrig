@@ -1017,6 +1017,22 @@ fn world_in_layout(
                                 playground_read = true;
                             }
                         }
+                        v1::Read::Limits(_) => {
+                            let answer = v1::LimitsAnswer::new(
+                                &v1::CEILINGS,
+                                v1::LimitsAnswerParts { rows: List::with_capacity(0), next: None, revision: 0 },
+                            )
+                            .expect("empty gallery limits");
+                            family_page(&mut root, read, wire::limits_answer(&answer), &mut out);
+                        }
+                        v1::Read::LimitHolds(_) => {
+                            let answer = v1::LimitHoldsAnswer::new(
+                                &v1::CEILINGS,
+                                v1::LimitHoldsAnswerParts { rows: List::with_capacity(0), next: None },
+                            )
+                            .expect("empty gallery limit holds");
+                            family_page(&mut root, read, wire::limit_holds_answer(&answer), &mut out);
+                        }
                         v1::Read::Setting(setting) => {
                             let drafts =
                                 matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
@@ -1717,6 +1733,20 @@ fn gallery_pull(
 ) -> temper_client_protocol_wire::v1::Pull {
     use temper_client_protocol_wire::v1 as w;
     w::Pull::new(limits, w::PullParts { number, address: Box::from(address) }).expect("pull")
+}
+fn family_page(root: &mut Domain, read: Token, record: Box<[u8]>, out: &mut Queue<Request>) {
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::ReadDone {
+                    read,
+                    result: jig_client::Readout::Family { family: FORGE, record: Some(record) },
+                },
+            },
+        },
+        out,
+    );
 }
 fn deployment_read(root: &mut Domain, read: Token, welcome: bool, push: bool, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1};

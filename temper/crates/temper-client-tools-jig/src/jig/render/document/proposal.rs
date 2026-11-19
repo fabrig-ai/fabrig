@@ -111,6 +111,7 @@ fn review_items_text(review: &c::SettingsReview, reading: &Reading, limits: &Lim
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
+            | c::Setting::Limits
             | c::Setting::Application { .. } => {
                 out.put(b" (");
                 origin_text(&item.origin, out);
@@ -481,6 +482,7 @@ fn encode_value_result(
                 c::SettingValue::Template(_) => b"template",
                 c::SettingValue::Policy(_) => b"policy",
                 c::SettingValue::Application(_) => b"application",
+                c::SettingValue::Limits(_) => b"limits",
                 c::SettingValue::Rules(_) => b"rules",
             });
             settings::encode_named_value(setting, value, vocabulary, out);
@@ -774,6 +776,7 @@ fn in_group(item: &c::ReviewItem, index: usize, reading: &Reading, follows: bool
         | c::Setting::Worker(_)
         | c::Setting::Model(_)
         | c::Setting::Rules
+        | c::Setting::Limits
         | c::Setting::ProjectPolicy { .. }
         | c::Setting::Application { .. } => return !follows,
     }
@@ -803,6 +806,7 @@ fn group_fields(setting: c::Setting, follows: bool) -> &'static [u8] {
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
+            | c::Setting::Limits
             | c::Setting::ProjectPolicy { .. }
             | c::Setting::Application { .. } => b"value",
         }

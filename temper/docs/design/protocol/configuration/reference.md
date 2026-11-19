@@ -117,23 +117,19 @@ place (jig's `domain/engine/overlays.md`).
   section 14; `../../draft/notes.md`, N21): a box is set up for the
   reference from `docs/examples/reference/` and the repository's own
   files:
-  - `limits.json`, the members of the document the reference sets over
-    `temper-box init`'s (`../setup/init.md`, 3): its engine's and its
-    application's limits' overrides (`limits.md`), merged into the box's
-    document before its first start, member by member, an object's
-    members over the document's and any other value replacing it, as
-    `jq -s '.[0] * .[1]'` merges two files;
-  - `room.json`, a call's room (`settings.md`, 7), mostly what such a merge can't
-    reach: its `agent` member, `tool_payload` and `output`, which `jq`
-    sets on the box's `agent.json`, the output on every endpoint; its
-    `worker` member, merged over each worker of the document's array;
-    and its `application` member, `root.journal.run_bytes` 65,536,
-    merged over the document's `application` as `limits.json` is: the
-    journal's bound on a run's stored policy, which a charter's whole
-    policy must fit: the stock's own bound (`stock.md`), kept here so
-    that the reference's room holds whatever the stock's profile
-    becomes. Its `../README.md` gives the commands. All of it before the
-    first start;
+  - the reference's figures as `limits` and `temper-limits` settings over
+    the stock (`limit-settings.md`, 2), confirmed through ctl, never merged
+    into the deployment document. In-process checks give these figures to
+    the start typed, through `temper-limits-fixtures::reference_over`;
+  - `room.json`, a call's room (`settings.md`, 7): its `agent` member,
+    `tool_payload` and `output`, which `jq` sets on the box's `agent.json`,
+    the output on every endpoint; its `worker` member, merged over each
+    worker of the document's array. The stock derives the engine's and
+    application's carriers from that turn and payload (`derived.md`, 4).
+    The journal's `root.journal.run_bytes`, 65,536, is the stock's own bound
+    (`stock.md`), held by the reference's typed figures too. Its
+    `../README.md` gives the commands for the agent and workers before
+    the first start;
   - `landing.json`, the document's `application.landing`, carried whole;
   - `settings.json`, applied once after the first start; then the rules
     and policy 1 changed as above, before the case's project is made,
@@ -165,10 +161,10 @@ place (jig's `domain/engine/overlays.md`).
   the requester's remaining lifetime task capacity), the live changes, holds and tasks
   the forge follows (128), a change's twelve tasks with four foremen
   (80), the executors and charters (16 and 12), and the agent's turns
-  (800); so `limits.json` holds `tasks.tree_tasks`,
-  `forge.change_policy.questions` and its engine's and application's
-  share of `settings.md`, 7's room, and `room.json` the agent's, the workers' and
-  the journal's run bound a charter's policy needs.
+  (800). The limit settings hold `tasks.tree_tasks` and the engine's and
+  application's share of `settings.md`, 7's room; `room.json` holds the
+  agent's and workers' figures. `forge.change_policy.questions` at 4 is
+  a separate box prerequisite.
 
   A charter's turns, time and run spend must also fit a worker's
   advertised bounds (jig's `domain/hosts/hub.md`): journal room
@@ -196,7 +192,7 @@ place (jig's `domain/engine/overlays.md`).
   The rules and policy 1 take the delegation the plan needs: 1,024 tasks,
   as `tasks.tree_tasks`, 32 deep as the stock's. A limit the start's
   checks ask to move with these moves with them, sized, and
-  `limits.json` holds it.
+  the reference's limit settings hold it.
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../../domain/forge/adoption.md`), set where the repository is made;
@@ -236,8 +232,9 @@ place (jig's `domain/engine/overlays.md`).
 - **Checked as it is read:** a test decodes the settings file as
   `temper ctl settings apply` decodes one, and the landing member as the
   document's is parsed, so an edition that no longer reads is red before
-  a walk meets it; and a test merges `limits.json` and `room.json` over
-  `temper-box init`'s document, runs the start's checks on it with init's
+  a walk meets it; and a test merges `room.json`'s worker figures over
+  `temper-box init`'s document and gives the reference's limits to the
+  start typed, running its checks with init's
   agent configuration as `room.json` sets it, holds its figures to `settings.md`, 7's
   relations from that agent, and holds the settings file to them,
   applied over the stock at the reference's room: the charters its
@@ -249,7 +246,7 @@ place (jig's `domain/engine/overlays.md`).
   and the rules' run spend, within the bounds a stock worker advertises
   from init's agent configuration as `room.json` sets it (jig's
   `domain/engine/fleet.md`), and its stored policy, its parts with it,
-  within `room.json`'s `root.journal.run_bytes`, so that an edition no
+  within the reference's `root.journal.run_bytes`, so that an edition no
   host would take, or that a box can't store, is red there and not on a
   box. The tests read the charter a run receives, the stock's words
   under the reference's fields, never an item's text

@@ -381,7 +381,17 @@ fn a_nonstale_round_pull_or_merge_refusal_holds_then_release_prepares_with_recei
             "{:?}",
             world.landing(LANDING)
         );
-        assert!(world.landing_hold_words(LANDING).expect("hold").starts_with(b"turn: "));
+        if at_merge {
+            assert_eq!(world.landing(LANDING).landing.round.merges, 1, "a refusal is never asked again");
+            let pull = world.landing(LANDING).landing.round.pull.expect("round pull");
+            let expected = format!(
+                "turn: merge of #{pull}: forge refused permission; read #{pull} open, main at {}",
+                String::from_utf8_lossy(&top::commit_text(&translate::commit(world.branch(b"main"))))
+            );
+            assert_eq!(world.landing_hold_words(LANDING).expect("hold").as_ref(), expected.as_bytes());
+        } else {
+            assert!(world.landing_hold_words(LANDING).expect("hold").starts_with(b"turn: "));
+        }
         world.permission(raw::Permission::Admin);
         world.event(top::Event::StepLanding {
             task: LANDING,

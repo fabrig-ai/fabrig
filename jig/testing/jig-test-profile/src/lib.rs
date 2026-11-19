@@ -401,6 +401,7 @@ pub fn config(seed: u64) -> root::Config {
             },
             kinds: Box::default(),
             defaults: core::settings::Defaults {
+                limits: Box::default(),
                 providers: Box::new([crate::fixtures::provider_setting(1, b"Fake", 1)]),
                 workers: Box::new([
                     jig_domain_core::settings::WorkerSetting {

@@ -41,7 +41,7 @@ the nearest thing, and says so in the draft's status.
 
 | | Milestone | Executes (`tui-remote.md`) | Needs | State |
 |---|---|---|---|---|
-| M1 | The TUI at a name | 3, 4, 5.2, 5.5, 6, 7 | | not started |
+| M1 | The TUI at a name | 3, 4, 5.2, 5.5, 6, 7 | | landed |
 | M2 | Approval across the internet | 5.3, 5.4, and 5.1's engine and page | | landed |
 | M3 | One click | 5.1's terminal | M1, M2 | not started |
 
@@ -66,6 +66,8 @@ the nearest thing, and says so in the draft's status.
 - **After landing:** `temper https://dev.fabrig.ai` from the user's
   laptop reaches the sign-in screen, and signs in by a typed code once
   M2 is on dev.fabrig.ai.
+- **Left:** signed out, a build refused shows only once signed in
+  (`tui-remote.status.md`, 7): a follow-up once M2 has landed.
 
 ### M2. Approval across the internet
 

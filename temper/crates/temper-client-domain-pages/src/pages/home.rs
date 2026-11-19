@@ -199,6 +199,7 @@ pub(crate) fn configured(client: &Client, project: u32) -> bool {
             | c::Setting::Worker(_)
             | c::Setting::Model(_)
             | c::Setting::Rules
+            | c::Setting::Limits
             | c::Setting::ProjectPolicy { .. } => false,
         };
         if own && line.follows == c::SettingFollows::Change {

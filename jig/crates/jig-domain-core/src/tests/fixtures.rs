@@ -274,6 +274,7 @@ impl CurrentFixtures for crate::settings::Current {
             | Value::Policy(_)
             | Value::Rules(_)
             | Value::Provider(_)
+            | Value::Limits(_)
             | Value::Worker(_)
             | Value::Model(_)
             | Value::Application(_) => {
@@ -293,6 +294,7 @@ impl CurrentFixtures for crate::settings::Current {
                 | Setting::Worker(_)
                 | Setting::Model(_)
                 | Setting::Rules
+                | Setting::Limits
                 | Setting::ProjectPolicy { .. } => {}
                 Setting::Application { .. } => panic!("fixture defaults contain only jig settings"),
             }

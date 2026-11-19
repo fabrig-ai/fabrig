@@ -106,7 +106,7 @@ pub fn printed_link(bytes: &[u8]) -> Option<&[u8]> {
 pub fn client_settings(address: std::net::SocketAddr) -> jig_client_shell_native::Settings {
     jig_client_shell_native::Settings {
         mapping: jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
-        engine: skein_io::Addr::Ip(address),
+        engine: jig_client_shell_native::Engine::Plain(skein_io::Addr::Ip(address)),
         directory: b"private".as_slice().into(),
         limits: jig_client_protocol_kit::fixtures::connections_limits(),
         io: skein_io::Limits {

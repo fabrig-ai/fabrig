@@ -168,7 +168,8 @@ fn review_value(
                 | view::Setting::Model(_)
                 | view::Setting::Policy(_)
                 | view::Setting::ProjectPolicy { .. }
-                | view::Setting::Rules => render::value_inline(&value, limits, out),
+                | view::Setting::Rules
+                | view::Setting::Limits => render::value_inline(&value, limits, out),
             }
         }
         w::ReviewValue::TooLarge(size) => {
@@ -227,7 +228,8 @@ fn encode_application_value(kind: u32, value: &view::SettingValue, out: &mut ske
         | view::SettingValue::Charter(_)
         | view::SettingValue::Template(_)
         | view::SettingValue::Policy(_)
-        | view::SettingValue::Rules(_) => {}
+        | view::SettingValue::Rules(_)
+        | view::SettingValue::Limits(_) => {}
     }
     render::encode_value(value, out);
 }

@@ -1,32 +1,5 @@
 {
   "engine": {
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "authority.executors": 22,
-        "clients.exchanges": 12,
-        "clients.streams": 8,
-        "clients_http.calls": 12,
-        "clients_http.streams": 8,
-        "core.resume_bytes": 18431846,
-        "documents.rows": 2,
-        "documents.text_bytes": 512,
-        "fleet.configured_workers": 8,
-        "fleet.workers": 2,
-        "hub.accounts": 4,
-        "hub.event_bytes": 63738,
-        "hub.run_calls": 48,
-        "hub.transcript_bytes": 73727378,
-        "hub.turn_bytes": 18431842,
-        "hub.turn_queue_bytes": 147454736,
-        "io.output": 18432866,
-        "tasks.charters": 16,
-        "tasks.executor_kinds": 22,
-        "tasks.inbox_bytes": 5226516,
-        "tasks.message_bytes": 63738,
-        "tasks.result_bytes": 63738
-      }
-    },
     "hosts": {
       "listener": [
         {
@@ -42,8 +15,7 @@
         "provider": 1,
         "subject": "$email"
       }
-    ],
-    "memory_bytes": 1073741824
+    ]
   },
   "workers": [
     {
@@ -68,25 +40,6 @@
         "socket": "$webhooks"
       }
     },
-    "sign_in": null,
-    "limits": {
-      "profile": "standard",
-      "overrides": {
-        "checkout.message_bytes": 63740,
-        "checkout.workspaces": 4,
-        "forge.client.op_bytes": 63738,
-        "forge.client.repositories": 3,
-        "forge.judge_projects": 8,
-        "forge.output": 82,
-        "forge.repositories": 3,
-        "forge_component.body_bytes": 127497,
-        "git_component.operations": 4,
-        "root.journal.transcript_bytes": 18431846,
-        "root.loads.bytes": 18432098,
-        "root.loads.read_bytes": 36863684,
-        "root.loads.reply_bytes": 18432098,
-        "root.loads.transcript_bytes": 18431842
-      }
-    }
+    "sign_in": null
   }
 }

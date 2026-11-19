@@ -44,12 +44,12 @@ impl Harness for Upgrade {
     fn files() -> temper_service::settings::Files {
         fixtures::files()
     }
-    fn configure_engine(engine: &mut jig_protocol_config::Engine, _: &serde_json::Value) {
+    fn configure_engine(engine: &mut jig_protocol_config::Engine, _: &temper_playground::documents::Configuration) {
         // The history world holds the playground reset while its work is inspected.
         engine.acts = Box::new([]);
         engine.limits.core.people.act_grants = 0;
     }
-    fn given(document: &serde_json::Value) -> temper_service::stock::Given {
+    fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
         let temper_service::stock::Given::Own { mut jig, forge, ways } = temper_playground::documents::given(document)
         else {
             panic!("world defaults")

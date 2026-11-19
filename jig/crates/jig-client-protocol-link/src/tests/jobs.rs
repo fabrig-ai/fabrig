@@ -111,7 +111,8 @@ fn a_job_contract_round_trips() {
             | c::SettingValue::Overlay(_)
             | c::SettingValue::Provider(_)
             | c::SettingValue::Worker(_)
-            | c::SettingValue::Rules(_) => {}
+            | c::SettingValue::Rules(_)
+            | c::SettingValue::Limits(_) => {}
         }
     }
     let template = template.expect("template fixture");

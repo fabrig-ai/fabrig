@@ -175,7 +175,7 @@ pub fn limits() -> engine::Limits {
             versions: jig_domain_core::documents::Versions { minimum: 1, maximum: 1 },
         },
         authority: authority_limits(),
-        memory_bytes: u64::MAX,
+        transcript_memory: u64::MAX,
         watermark: engine::default_watermark(&journal),
         public_watermark: (engine::default_watermark(&journal)).checked_div(2).expect("half the watermark"),
         public_reads: 0,
@@ -341,6 +341,7 @@ pub fn config(seed: u64) -> engine::Config {
             grants: Box::new([]),
             kinds: Box::default(),
             defaults: jig_domain_core::settings::Defaults {
+                limits: Box::default(),
                 providers: Box::new([provider_setting()]),
                 workers: Box::new([jig_domain_core::settings::WorkerSetting {
                     number: 1,
@@ -885,6 +886,7 @@ impl World {
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Account(_)
+                | engine::Request::LimitSettingsCommitted { .. }
                 | engine::Request::ForgeKept(_)
                 | engine::Request::ForgeGone { .. }
                 | engine::Request::ChoosePlace { .. }
@@ -1046,6 +1048,7 @@ impl World {
             | Delivery::Document { .. }
             | Delivery::WatchEnded { .. }
             | Delivery::Restarting { .. }
+            | Delivery::LimitSettingsCommitted { .. }
             | Delivery::Drained
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")
