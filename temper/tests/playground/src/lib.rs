@@ -7,7 +7,7 @@ use skein_sim_world::{Host, Printed, StateDigests, Stream};
 use temper_playground::{programs::Process, stories::Story};
 
 /// The composition without a harness.
-pub use temper_client_walk_world::Playground;
+pub type Playground = skein_sim_world::World<Process<()>, temper_playground::machine::Machine>;
 
 // The composition's own startup tests use this step bound.
 const STARTUP_STEPS: u64 = 10_000;
@@ -57,7 +57,9 @@ pub fn printed_link(lines: &[Printed]) -> &str {
 
 /// Snapshot the idle world's process digests and its shared fake disk.
 #[must_use]
-pub fn digests(world: &Playground) -> StateDigests {
+pub fn digests<H: temper_playground::programs::Harness>(
+    world: &skein_sim_world::World<Process<H>, temper_playground::machine::Machine>,
+) -> StateDigests {
     let Process::Service(service) = &world.processes()[0] else { panic!("the service is process zero") };
     StateDigests {
         procs: world.processes().iter().map(Host::state_digest).collect(),
