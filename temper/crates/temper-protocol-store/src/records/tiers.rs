@@ -204,6 +204,8 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
             None => None,
         },
         observations: row.observations.clone(),
+        waiting: super::findings::encode_filings(&row.waiting),
+        unkept: row.unkept,
         repository: names::encode_repository(row.repository),
         tier: row.tier.clone(),
         record,
@@ -261,6 +263,8 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let w::TierRow {
         many,
         observations,
+        waiting,
+        unkept,
         repository,
         tier,
         record,
@@ -293,14 +297,10 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let record = decode_record(record)?;
     let run = record.run.as_ref();
     Ok(d::TierRow {
-        many: match many {
-            Some(many) => {
-                let w::ManyTests { tests, more, cut } = many;
-                Some(p::ManyTests { tests: decode_shown(tests)?, more, cut })
-            }
-            None => None,
-        },
+        many: decode_many(many)?,
         observations,
+        waiting: super::findings::decode_filings(waiting)?,
+        unkept,
         repository: names::decode_repository(repository),
         tier,
         task,
@@ -355,6 +355,16 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             None => None,
         },
         record,
+    })
+}
+
+fn decode_many(many: Option<w::ManyTests>) -> Result<Option<p::ManyTests>, Undecodable> {
+    Ok(match many {
+        Some(many) => {
+            let w::ManyTests { tests, more, cut } = many;
+            Some(p::ManyTests { tests: decode_shown(tests)?, more, cut })
+        }
+        None => None,
     })
 }
 

@@ -418,8 +418,12 @@ fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
         branch: Box::from(branch),
         at: Wall::from_nanos(at),
         changes: Box::new([LoggedChange {
+            fixes: Box::new([]),
             goal: None,
             milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             signed: Box::new([]),
             task,
             pull: None,

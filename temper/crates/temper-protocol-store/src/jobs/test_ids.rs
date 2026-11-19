@@ -12,20 +12,23 @@ use skein_codec::{
 use skein_lib::{Buffer, List, Map, Reader, Writer};
 
 const TEXT: &str = crate::OWNER_SET.families.first().expect("store family").current;
-const SUBSTITUTIONS: [(&str, &str); 7] = [
+const SUBSTITUTIONS: [(&str, &str); 8] = [
     ("record FailingTest { test_id: bytes 1024", "record FailingTest { test_id: bytes 4096"),
     ("record TierFlake { test: bytes 1024", "record TierFlake { test: bytes 4096"),
     ("pending: list 1537 TierPending", "pending: list 759 TierPending"),
     ("landings: list 1537 TierLanding", "landings: list 759 TierLanding"),
     ("blamed: list 1537 Blame", "blamed: list 759 Blame"),
     ("waiting: list 1537 TierGroup", "waiting: list 759 TierGroup"),
+    // These unplanned layouts predate waiting filings. Their default is empty;
+    // the wide id layout plus eight full filings would exceed u32's row bound.
+    ("waiting: list 8 VerdictFiling = []", "waiting: list 0 VerdictFiling = []"),
     ("landings: list 1537 TierPostedLanding", "landings: list 759 TierPostedLanding"),
 ];
 
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,
-    reason = "seven checked substitutions derive the job's text and name a missing declaration"
+    reason = "checked substitutions derive the job's text and name a missing declaration"
 )]
 pub(crate) fn wide_text(text: &str) -> Result<String, JobRefusal> {
     let mut wide = String::from(text);

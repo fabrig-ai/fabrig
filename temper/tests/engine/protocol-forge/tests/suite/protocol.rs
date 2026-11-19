@@ -60,6 +60,9 @@ fn change_row() -> top::ChangeRow {
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -607,6 +610,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::TierRun { .. }
                 | top::Request::TierDecision { .. }
                 | top::Request::FileRedFinding { .. }
+                | top::Request::FileVerdict { .. }
                 | top::Request::MakingCopied { .. }
                 | top::Request::MakingAct { .. }
                 | top::Request::LinkNoted { .. }

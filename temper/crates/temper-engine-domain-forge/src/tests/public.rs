@@ -271,6 +271,9 @@ fn change_row() -> ChangeRow {
         delegate_head: None,
         verdicts: Box::new([]),
         milestone: None,
+        person: None,
+        goal_title: None,
+        draft: None,
         goal: None,
         ending: None,
         repair_tasks: Box::new([]),
@@ -963,8 +966,12 @@ fn logged(commit: [u8; 32], at: u64, tasks: &[u64]) -> LoggedLanding {
     for task in tasks {
         changes
             .push(LoggedChange {
+                fixes: Box::new([]),
                 goal: None,
                 milestone: None,
+                person: None,
+                goal_title: None,
+                draft: None,
                 signed: Box::new([]),
                 task: *task,
                 pull: Some(LOGGED_PULL),
@@ -1101,8 +1108,12 @@ fn a_public_merge_keeps_a_dropped_member_from_its_log() {
     assert_eq!(
         log.landings[0].changes[1],
         LoggedChange {
+            fixes: Box::new([]),
             goal: None,
             milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             signed: Box::new([]),
             task: SECOND,
             pull: Some(LOGGED_PULL),

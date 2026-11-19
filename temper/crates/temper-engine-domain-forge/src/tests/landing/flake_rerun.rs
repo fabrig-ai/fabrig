@@ -21,6 +21,7 @@ fn seed_flake(d: &mut Domain) {
                 source: b"check".as_slice().into(),
                 ids: Box::new([TEST.into()]),
                 first: Box::new([]),
+                many: false,
             },
             b"flake".as_slice().into(),
             b"reproduce".as_slice().into(),

@@ -261,7 +261,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     let already = before.store.iter().any(|(key, value)| {
         matches!(keys::decode_own(key), Some(keys::Own::Layout { family: ref name, number, .. })
             if name.as_ref() == family.name && number == hot.number)
-            && *wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("old change hot layout").layout()
+            && wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("old change hot layout").layout
                 == digest
     });
     let mut added = 0;
@@ -271,8 +271,8 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
             && !before.store.contains_key(key)
         {
             let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(value)).expect("change hot layout");
-            assert_eq!(*layout.layout(), digest);
-            assert_eq!(layout.text(), new.text(), "both new layouts name the production text");
+            assert_eq!(layout.layout, digest);
+            assert_eq!(layout.text, new.text, "both new layouts name the production text");
             changed.insert(key.clone());
             added += 1;
         }
