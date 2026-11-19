@@ -1,5 +1,6 @@
 //! Limits for fabrig-scale development (jig/docs/design/protocol/limits.md).
 //! Counts cover twice fabrig's own development (2026-11-16), retaining higher stock figures.
+use jig_client_protocol_wire::Record as _;
 use super::{Limits, Link};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
