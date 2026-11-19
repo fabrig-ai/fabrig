@@ -25,9 +25,10 @@ each follows, as the forge holds them (`forge/change/branch-path.md`).
   ended landing detaches only its members with no ask, and a stored
   link to an ended or missing landing keeps its change out of its queue.
   [in flight: change 8794]
-- **Not yet:** 12 (the row's times and wait), 14: `landing list` and
-  `landing show` print no step's age, turn's age or wait.
-  [in flight: change 8799]
+- **Not yet:** 12 (the row's times and wait): the row keeps no last
+  event's time, turn's start or wait. [in flight: change 8799]
+- **Not yet:** 14: `landing list` and `landing show` print no step's
+  age, turn's age or wait. [in flight: change 9285]
 
 - **Not yet:** 4.1: `with`; pin-only members; `dependencies_join`
   (`temper-engine-domain-forge/src/landing.rs`). 5.3, 6.1: the project's

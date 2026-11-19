@@ -8,6 +8,7 @@
 - **Not yet:** 2, 3 (*Every wait names its wake*, *The policy's
   fuzzy*): the policy's wait names nothing, and its fuzzy answers each
   effect at once. [in flight: change 8796]
-- **Not yet:** 4: the list prints no step or age, `landing show` no
-  wait, and the landing's row keeps no event's time, turn's start or
-  wait. [in flight: change 8799]
+- **Not yet:** 4: the landing's row keeps no event's time, turn's
+  start or wait, and its views carry none. [in flight: change 8799]
+- **Not yet:** 4: the list prints no step or age, and `landing show`
+  no wait. [in flight: change 9285]
