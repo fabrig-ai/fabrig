@@ -161,6 +161,7 @@ fn remove_ends_the_forge_in_one_decision_and_answers_removed() {
             1,
             First {
                 playground: false,
+                sample: false,
                 org: b"org".as_slice().into(),
                 repository: b"repo".as_slice().into(),
                 state: FirstState::Made { id: 2 },

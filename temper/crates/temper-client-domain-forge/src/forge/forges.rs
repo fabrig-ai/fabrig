@@ -98,6 +98,7 @@ pub enum AdminStop {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct First {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub state: FirstState,
@@ -199,10 +200,18 @@ pub fn watch(limits: &super::Limits) -> Option<Watchable> {
 pub fn ask(forge: u16, org: Box<[u8]>, repository: Box<[u8]>, playground: bool, limits: &super::Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
     let forge = w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).ok()?);
-    ask_target(forge, empty(org, repository, playground, &bounds)?, &bounds)
+    ask_target(forge, empty(org, repository, playground, false, &bounds)?, &bounds)
 }
-fn empty(org: Box<[u8]>, repository: Box<[u8]>, playground: bool, bounds: &w::Limits) -> Option<SetUpFirst> {
-    Some(SetUpFirst::Empty(w::FirstEmpty::new(bounds, w::FirstEmptyParts { org, repository, playground }).ok()?))
+fn empty(
+    org: Box<[u8]>,
+    repository: Box<[u8]>,
+    playground: bool,
+    sample: bool,
+    bounds: &w::Limits,
+) -> Option<SetUpFirst> {
+    Some(SetUpFirst::Empty(
+        w::FirstEmpty::new(bounds, w::FirstEmptyParts { org, repository, playground, sample }).ok()?,
+    ))
 }
 fn ask_target(forge: w::Making, first: SetUpFirst, bounds: &w::Limits) -> Option<Ask> {
     let value = w::SetUp::new(bounds, w::SetUpParts { forge, first }).ok()?;
@@ -414,7 +423,7 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
                 side.changed();
                 return;
             }
-            let Some(first) = empty(Box::from(org), Box::from(repository), false, &bounds) else { return };
+            let Some(first) = empty(Box::from(org), Box::from(repository), false, false, &bounds) else { return };
             first
         }
         Start::Copies => {
@@ -790,7 +799,9 @@ pub(crate) fn set_up(
                 return;
             }
             let Some(bounds) = wire_limits(&limits) else { return };
-            let Some(first) = empty(draft.fields[0].clone(), draft.fields[1].clone(), false, &bounds) else { return };
+            let Some(first) = empty(draft.fields[0].clone(), draft.fields[1].clone(), false, false, &bounds) else {
+                return;
+            };
             SetupValues { first }
         }
     };
@@ -811,7 +822,9 @@ pub(crate) fn set_up_at_once(
         return;
     }
     let Some(bounds) = wire_limits(&limits) else { return };
-    let Some(first) = empty(Box::from(AT_ONCE_ORG), Box::from(AT_ONCE_REPOSITORY), false, &bounds) else { return };
+    let Some(first) = empty(Box::from(AT_ONCE_ORG), Box::from(AT_ONCE_REPOSITORY), false, false, &bounds) else {
+        return;
+    };
     send_setup(side, limits, forge, SetupValues { first }, out);
 }
 fn can_set_up(side: &super::Side) -> bool {
@@ -869,7 +882,7 @@ fn retry_fields(side: &super::Side, forge: u16, limits: super::Limits) -> Option
         let first = match &row.starts_with {
             StartsWith::Repository => {
                 let first = row.first.as_ref()?;
-                empty(first.org.clone(), first.repository.clone(), first.playground, &bounds)?
+                empty(first.org.clone(), first.repository.clone(), first.playground, first.sample, &bounds)?
             }
             StartsWith::Copies { addresses } => {
                 let mut list = skein_lib::List::with_capacity(wire::FIRST_COPIES);

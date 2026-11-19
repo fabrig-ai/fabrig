@@ -180,6 +180,7 @@ pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::Fo
         &w::CEILINGS,
         w::FirstRepositoryParts {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,

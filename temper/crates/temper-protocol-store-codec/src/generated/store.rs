@@ -3418,6 +3418,8 @@ pub enum Path {
     EmptyIntentRepository,
     /// The `label` field of `EmptyIntent`.
     EmptyIntentLabel,
+    /// The `sample` field of `EmptyIntent`.
+    EmptyIntentSample,
     /// Bytes after `EmptyIntent`.
     EmptyIntentTail,
     /// The `addresses` field of `CopyIntent`.
@@ -6124,6 +6126,7 @@ impl Path {
             Self::EmptyIntentOrg => "EmptyIntent.org",
             Self::EmptyIntentRepository => "EmptyIntent.repository",
             Self::EmptyIntentLabel => "EmptyIntent.label",
+            Self::EmptyIntentSample => "EmptyIntent.sample",
             Self::EmptyIntentTail => "EmptyIntent (tail)",
             Self::CopyIntentAddresses => "CopyIntent.addresses",
             Self::CopyIntentTail => "CopyIntent (tail)",
@@ -53037,6 +53040,8 @@ pub struct EmptyIntentParts {
     pub repository: Box<[u8]>,
     /// The `label` field.
     pub label: Box<[u8]>,
+    /// The `sample` field.
+    pub sample: bool,
 }
 
 /// `EmptyIntent` in this codec family.
@@ -53046,13 +53051,14 @@ pub struct EmptyIntent {
     org: Box<[u8]>,
     repository: Box<[u8]>,
     label: Box<[u8]>,
+    sample: bool,
 }
 
 impl EmptyIntent {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: EmptyIntentParts) -> Result<Self, Problem> {
-        let EmptyIntentParts { playground, org, repository, label } = parts;
-        let value = Self { playground, org, repository, label };
+        let EmptyIntentParts { playground, org, repository, label, sample } = parts;
+        let value = Self { playground, org, repository, label, sample };
         value.check(limits)?;
         Ok(value)
     }
@@ -53073,9 +53079,13 @@ impl EmptyIntent {
     #[must_use]
     pub fn label(&self) -> &[u8] { &self.label }
 
+    /// Reads the `sample` field.
+    #[must_use]
+    pub fn sample(&self) -> bool { self.sample }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> EmptyIntentParts { EmptyIntentParts { playground: self.playground, org: self.org, repository: self.repository, label: self.label } }
+    pub fn into_parts(self) -> EmptyIntentParts { EmptyIntentParts { playground: self.playground, org: self.org, repository: self.repository, label: self.label, sample: self.sample } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.org.len() > usize::try_from(limits.empty_intent_org.min(CEILINGS.empty_intent_org)).expect("u32 fits usize") { return Err(Problem { path: Path::EmptyIntentOrg, reason: skein_codec::Reason::Bound }); }
@@ -53100,6 +53110,7 @@ impl EmptyIntent {
         let field_label = &self.label;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_label.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
         size
     }
 
@@ -53116,6 +53127,8 @@ impl EmptyIntent {
         let field_label = &self.label;
         writer.put(&u32::try_from(field_label.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_label.as_ref())?;
+        let field_sample = &self.sample;
+        writer.put(&[u8::from(*field_sample)])?;
         Ok(())
     }
 
@@ -53131,7 +53144,8 @@ impl EmptyIntent {
         let decoded_org = { let length = match skein_codec::read_len(reader, limits.empty_intent_org.min(CEILINGS.empty_intent_org)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::EmptyIntentOrg, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::EmptyIntentOrg, reason: skein_codec::Reason::Short })?) };
         let decoded_repository = { let length = match skein_codec::read_len(reader, limits.empty_intent_repository.min(CEILINGS.empty_intent_repository)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::EmptyIntentRepository, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::EmptyIntentRepository, reason: skein_codec::Reason::Short })?) };
         let decoded_label = { let length = match skein_codec::read_len(reader, limits.empty_intent_label.min(CEILINGS.empty_intent_label)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::EmptyIntentLabel, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::EmptyIntentLabel, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { playground: decoded_playground, org: decoded_org, repository: decoded_repository, label: decoded_label })
+        let decoded_sample = match reader.u8().ok_or(Problem { path: Path::EmptyIntentSample, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::EmptyIntentSample, reason: skein_codec::Reason::Bool }) };
+        Ok(Self { playground: decoded_playground, org: decoded_org, repository: decoded_repository, label: decoded_label, sample: decoded_sample })
     }
 }
 
@@ -53147,6 +53161,7 @@ impl EmptyIntent {
         let mut size = 0_u64;
         size = size.checked_add(1_u64)?.checked_add(4_u64.checked_add(u64::from(limits.empty_intent_org))?)?;
         size = size.checked_add(4_u64.checked_add(u64::from(limits.empty_intent_repository))?)?.checked_add(4_u64.checked_add(u64::from(limits.empty_intent_label))?)?;
+        size = size.checked_add(1_u64)?;
         size.checked_add(0)
     }
 
@@ -53161,6 +53176,7 @@ impl EmptyIntent {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.empty_intent_org))?;
         heap = heap.checked_add(u64::from(limits.empty_intent_repository))?.checked_add(u64::from(limits.empty_intent_label))?;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }

@@ -265,6 +265,7 @@ fn intent(first: Option<&domain::FirstIntent>) -> Option<lifecycle::Intent> {
     match first {
         Some(domain::FirstIntent::Empty(first)) => Some(lifecycle::Intent {
             playground: first.playground,
+            sample: first.sample,
             org: first.org.clone(),
             repository: first.repository.clone(),
             label: first.label.clone(),

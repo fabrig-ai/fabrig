@@ -2352,6 +2352,7 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
                                 request,
                                 first: SetUpFirst::Empty {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into()
                                 }
@@ -2516,6 +2517,7 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
             forge: Making::Kept(forge),
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             },
@@ -2591,6 +2593,7 @@ fn setup_answers_reserve_room_until_retention_ends() {
             request,
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into()
             }
@@ -2695,6 +2698,7 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
                 forge: Making::Kept(1),
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                 },
@@ -2710,6 +2714,7 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
                 request,
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into()
                 }
@@ -2767,6 +2772,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     forge: Making::Kept(1),
                     first: SetUpFirst::Empty {
                         playground: false,
+                        sample: false,
                         org: org_name.clone(),
                         repository: repository.clone(),
                     },
@@ -2792,7 +2798,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                         Some(Request::SetUp {
                             forge: 1,
                             request,
-                            first: SetUpFirst::Empty { playground: false, org: org_name, repository }
+                            first: SetUpFirst::Empty { playground: false, sample: false, org: org_name, repository }
                         })
                     );
                     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Making);
@@ -2821,6 +2827,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
         let token = Token::new(number + 1);
         let first = First {
             playground: false,
+            sample: number == 91,
             org: org.into(),
             repository: repository.into(),
             state: FirstState::Making,
@@ -2830,6 +2837,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             forge: Making::Kept(1),
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: number == 91,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
             },
@@ -2852,7 +2860,12 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
                 Request::SetUp {
                     forge: 1,
                     request,
-                    first: SetUpFirst::Empty { playground: false, org: org.into(), repository: repository.into() }
+                    first: SetUpFirst::Empty {
+                        playground: false,
+                        sample: number == 91,
+                        org: org.into(),
+                        repository: repository.into()
+                    }
                 }
             ]
         );

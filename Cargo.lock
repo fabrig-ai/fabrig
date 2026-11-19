@@ -7863,6 +7863,7 @@ dependencies = [
  "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-fixtures",
+ "temper-forge-setup",
  "temper-github-app",
  "temper-limits-fixtures",
  "temper-playground",

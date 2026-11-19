@@ -70,6 +70,7 @@ fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
                 &w::CEILINGS,
                 w::EmptyIntentParts {
                     playground: first.playground,
+                    sample: first.sample,
                     org: first.org.clone(),
                     repository: first.repository.clone(),
                     label: first.label.clone(),
@@ -149,8 +150,8 @@ fn decode_bot(row: w::Bot) -> d::Bot {
 fn decode_first(row: w::FirstIntent) -> d::FirstIntent {
     match row {
         w::FirstIntent::Empty(row) => {
-            let w::EmptyIntentParts { playground, org, repository, label } = row.into_parts();
-            d::FirstIntent::Empty(d::EmptyIntent { playground, org, repository, label })
+            let w::EmptyIntentParts { playground, sample, org, repository, label } = row.into_parts();
+            d::FirstIntent::Empty(d::EmptyIntent { playground, sample, org, repository, label })
         }
         w::FirstIntent::Copies(row) => d::FirstIntent::Copies { addresses: row.into_parts().addresses.into_boxed() },
         w::FirstIntent::Nothing => d::FirstIntent::Nothing,

@@ -1096,6 +1096,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                                 &w::CEILINGS,
                                 w::FirstEmptyParts {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                 },
@@ -1134,6 +1135,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                 forge: forge::Making::Kept(3),
                 first: forge::SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into()
                 }
@@ -1455,6 +1457,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
                                 &w::CEILINGS,
                                 w::FirstEmptyParts {
                                     playground: false,
+                                    sample: true,
                                     org: b"team".as_slice().into(),
                                     repository: b"widget".as_slice().into(),
                                 },
@@ -1485,6 +1488,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
             forge: forge::Making::Kept(3),
             first: forge::SetUpFirst::Empty {
                 playground: false,
+                sample: true,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into()
             }
@@ -1500,6 +1504,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
     ] {
         let first = forge::First {
             playground: false,
+            sample: true,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state,
@@ -1518,6 +1523,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
         let first = rows.get(0).unwrap().first().as_ref().unwrap();
         assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
+        assert!(first.sample());
         match (state, first.state()) {
             (forge::FirstState::Making, w::FirstState::Making) => {}
             (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
@@ -2466,6 +2472,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                                         org: b"work".as_slice().into(),
                                         repository: b"hello".as_slice().into(),
                                         playground: false,
+                                        sample: false,
                                     },
                                 )
                                 .expect("setup names fit wire ceilings"),
@@ -2480,6 +2487,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         playground: false,
+                        sample: false,
                     },
                 },
             ),

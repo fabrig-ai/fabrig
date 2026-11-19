@@ -1664,6 +1664,7 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
         limits,
         w::FirstRepositoryParts {
             playground: first.playground,
+            sample: first.sample,
             org: first.org,
             repository: first.repository,
             state,
@@ -2552,8 +2553,8 @@ fn forge_settings_query(read: w::Read) -> Option<root::ForgeRead> {
 fn setup_first(first: w::SetUpFirst) -> forge::SetUpFirst {
     match first {
         w::SetUpFirst::Empty(first) => {
-            let w::FirstEmptyParts { org, repository, playground } = first.into_parts();
-            forge::SetUpFirst::Empty { org, repository, playground }
+            let w::FirstEmptyParts { org, repository, playground, sample } = first.into_parts();
+            forge::SetUpFirst::Empty { org, repository, playground, sample }
         }
         w::SetUpFirst::Copies(copies) => {
             let mut addresses = List::with_capacity(copies.addresses().len());

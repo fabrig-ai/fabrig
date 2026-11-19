@@ -472,6 +472,7 @@ pub struct Bot {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EmptyIntent {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
@@ -486,7 +487,7 @@ pub enum FirstIntent {
 /// The set up's admitted input (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpFirst {
-    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
+    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool, sample: bool },
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
@@ -654,6 +655,7 @@ pub enum AdminStop {
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct First {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub state: FirstState,

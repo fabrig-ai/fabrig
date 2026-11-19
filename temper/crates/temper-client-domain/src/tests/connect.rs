@@ -461,6 +461,7 @@ fn reply_at(root: &mut crate::Domain, attempt: Token, outcome: w::Outcome, now: 
 fn first(state: forges::FirstState) -> forges::First {
     forges::First {
         playground: false,
+        sample: false,
         org: b"work".as_slice().into(),
         repository: b"hello".as_slice().into(),
         state,
@@ -482,6 +483,7 @@ fn deliver_first(
         &w::CEILINGS,
         w::FirstRepositoryParts {
             playground: false,
+            sample: false,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state,
@@ -710,6 +712,7 @@ fn set_up_again_on_another_client_uses_the_rows_fields() {
         &w::CEILINGS,
         w::FirstRepositoryParts {
             playground: true,
+            sample: false,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state: w::FirstState::Failed(
@@ -726,6 +729,33 @@ fn set_up_again_on_another_client_uses_the_rows_fields() {
         (b"playground".as_slice(), b"widget".as_slice())
     );
     assert!(empty_setup(value.first()).playground());
+}
+#[test]
+fn set_up_again_without_a_last_request_keeps_the_rows_sample() {
+    let (mut root, _, watch) = opened(true);
+    let value = w::FirstRepository::new(
+        &w::CEILINGS,
+        w::FirstRepositoryParts {
+            playground: false,
+            sample: true,
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            state: w::FirstState::Failed(
+                w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step: w::CreateStep::File }).unwrap(),
+            ),
+            label: Box::from(b"temper-host".as_slice()),
+        },
+    )
+    .unwrap();
+    assert!(root.forge().set_up().is_none());
+    deliver_first_record(&mut root, watch, w::Connection::Connecting, value);
+    let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
+    assert_eq!(
+        (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+        (b"work".as_slice(), b"hello".as_slice())
+    );
+    assert!(!empty_setup(value.first()).playground());
+    assert!(empty_setup(value.first()).sample());
 }
 #[test]
 fn signing_out_forgets_the_setup_intent() {

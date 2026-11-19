@@ -385,6 +385,7 @@ fn box_setup(
                                 &w::CEILINGS,
                                 w::FirstEmptyParts {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                 },
