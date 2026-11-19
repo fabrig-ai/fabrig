@@ -606,7 +606,12 @@ pub fn generate(schema: &Schema) -> Output;
   `parse` calls it, converts the tables into the generator's own tree,
   and adds the checks only Rust needs: names that are Rust identifiers
   of the right case and no keyword, fields not named as the generated
-  methods, and each generated name (types, paths, limits) used once.
+  methods, declarations and their parts (fields, a version, a tail)
+  numbered within a path's `u16`, and each generated name (types,
+  paths, limits) used once, no type named `Path` or `Problem`, which a
+  sealed module declares and a lean one re-exports. A family written
+  lean also names no type `Record`, which a lean module re-exports: that
+  check is the form's, since a sealed module declares no `Record`.
 - **Refusals as before.** A text with one fault is refused at the same
   line with the same message as before the parser moved; a text with
   several gives the first by pass: characters, then the grammar, then
