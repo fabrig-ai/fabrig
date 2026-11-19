@@ -2,7 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 3, *Its own writes are its own*: a merge into a requester's held branch, settled after a design writer's push on top of it was recorded, moves the branch's head back to the merge (`../branches.md`, 3, *In the order the forge took them*) [in flight: change 9081].
 
 - **Not yet:** 4, *A pull request already closed counts as closed*: the
   forge's `Close` of a pull request Forgejo shows merged is refused, so

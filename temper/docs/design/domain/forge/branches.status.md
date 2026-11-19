@@ -2,7 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [branches.md](branches.md).
 
-- **Not yet:** 3, *In the order the forge took them*: the hold keeps no head beside; a write's record on g (a merge's commit, an update's head, a slot run's reported push) takes its head whatever g's recorded head, so a merge recorded after a design push on top of it moves g back to the merge and the next watch read holds the goal for drift (`temper-engine-domain-forge/src/domain.rs`, `outcome_facts`, `record_written_head`, `answered`) [in flight: change 9081].
 - **Not yet:** 2, *Land*: under `wait: landed` the land step's change still lives to cleared, so the goal waits for its landing's verification [in flight: change 8593].
 
 
