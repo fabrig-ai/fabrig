@@ -198,6 +198,16 @@ pub struct World {
 pub struct StoryLimits {
     /// Gather startup edits before constructing either the store or the root.
     pub second_project: bool,
+    pub forge_entries: Option<u32>,
+    pub forge_holds: Option<u32>,
+    pub forge_pending: Option<u32>,
+    pub forge_calls: Option<u32>,
+    pub forge_rate: Option<u32>,
+    pub forge_rows: Option<u32>,
+    pub close_job: Option<(Option<Box<[u8]>>, bool)>,
+    pub goal_closer: bool,
+    pub landing_attempts: Option<u8>,
+    pub landing_deployment: Option<Box<[engine::LandingRule]>>,
     pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
     pub project_policy: Option<jig_domain_core::ConfiguredPolicy>,
     pub settings_owner: Option<people::IdentityKey>,
@@ -272,6 +282,82 @@ pub enum Until {
     Effect,
     Delegated,
     SecondAssignment,
+}
+
+fn configure_close_job(
+    config: &mut engine::Config,
+    limits: &mut engine::Limits,
+    command: Option<&[u8]>,
+    authority: bool,
+) {
+    // Retain the close request and both whole change word fields in the fixture carrier.
+    limits.tasks.spec_bytes = 16_384;
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
+    limits.loads.bytes = limits.loads.bytes.max(65_536);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
+    config.core.jobs = Box::new([jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
+        spec: 16_384,
+        result: 512,
+        deadline: Duration::from_secs(600),
+    }]);
+    if authority {
+        let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
+        let mut extended = kinds.to_vec();
+        if !extended.contains(&authority::Executor::Job(forge_top::CLOSE_KIND)) {
+            extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
+        }
+        let count = u32::try_from(extended.len()).expect("fixture executor count");
+        limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(count);
+        limits.authority.executors = limits.authority.executors.max(count);
+        *kinds = extended.into_boxed_slice();
+        for project in &mut config.core.seed_projects {
+            project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
+            project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+        }
+    }
+    crate::oracle::config::landing(config, 1).close_job = command.map(Into::into);
+    limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn configure_goal_closer(config: &mut engine::Config, limits: &mut engine::Limits) {
+    // The closer's report and new work reserve words beside the goal's landing news.
+    limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(24_576);
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(131_072);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(131_072);
+    limits.loads.bytes = limits.loads.bytes.max(131_072);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(131_072);
+    let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
+    let mut extended = kinds.to_vec();
+    if !extended.contains(&authority::Executor::Procedure(6)) {
+        extended.push(authority::Executor::Procedure(6));
+    }
+    let count = u32::try_from(extended.len()).expect("fixture executor count");
+    limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(count);
+    limits.authority.executors = limits.authority.executors.max(count);
+    *kinds = extended.into_boxed_slice();
+    for project in &mut config.core.seed_projects {
+        project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
+        project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+    }
+    limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn configure_landing_deployment(config: &mut engine::Config, rules: &[engine::LandingRule]) {
+    let replacement = engine::landing_stock(rules, &skein_lib::Map::with_capacity(0), 1, 4);
+    let mut stock = skein_lib::List::uncapped();
+    for item in replacement {
+        if item.kind == 1 {
+            stock.push(item).expect("uncapped replacement landing rules");
+        }
+    }
+    for item in &config.kinds_stock {
+        if item.kind != 1 {
+            stock.push(item.clone()).expect("uncapped project rules and charters");
+        }
+    }
+    config.kinds_stock = stock.into_boxed();
 }
 
 impl World {
@@ -1238,6 +1324,33 @@ impl World {
             if let Some(pages) = timing.forge_pages {
                 config.forges[0].web = Some(pages.into());
             }
+            if let Some((command, authority)) = &timing.close_job {
+                configure_close_job(&mut config, &mut limits, command.as_deref(), *authority);
+            }
+            if timing.goal_closer {
+                configure_goal_closer(&mut config, &mut limits);
+            }
+            if let Some(bound) = timing.landing_attempts {
+                crate::oracle::config::landing(&mut config, 1).landing_attempts = bound;
+            }
+            if let Some(entries) = timing.forge_entries {
+                limits.forge.entries = entries;
+            }
+            if let Some(holds) = timing.forge_holds {
+                limits.forge.holds = holds;
+            }
+            if let Some(pending) = timing.forge_pending {
+                limits.forge.client.pending = pending;
+            }
+            if let Some(calls) = timing.forge_calls {
+                limits.forge.client.calls = calls;
+            }
+            if let Some(rate) = timing.forge_rate {
+                limits.forge.client.rate = rate;
+            }
+            if let Some(rows) = timing.forge_rows {
+                limits.forge.client.rows = rows;
+            }
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;
             }
@@ -1246,6 +1359,9 @@ impl World {
         let mut runtime = crate::oracle::config::copy(&bootstrap);
         if kinds || timing.settings_owner.is_some() {
             runtime.core.kinds = temper_engine_service_stock::stock::kinds(&limits, runtime.core.connectors[0]);
+        }
+        if let Some(rules) = &timing.landing_deployment {
+            configure_landing_deployment(&mut runtime, rules);
         }
         [(bootstrap, limits), (runtime, limits)]
     }
@@ -1455,7 +1571,13 @@ impl World {
             store_limits.tasks.holdings = limits.tasks.holdings;
             store_limits.journal.writes = limits.journal.writes;
         }
-        if timing.second_project || timing.project_policy.is_some() || timing.settings_owner.is_some() {
+        if timing.second_project
+            || timing.project_policy.is_some()
+            || timing.settings_owner.is_some()
+            || timing.close_job.is_some()
+            || timing.goal_closer
+            || timing.landing_attempts.is_some()
+        {
             store_limits = limits;
         }
         let store =
@@ -1918,35 +2040,7 @@ impl World {
     #[must_use]
     pub fn with_close_job(mut self, command: Option<&[u8]>, authority: bool) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "close configuration precedes startup");
-        // Retain the close request and both whole change word fields in the fixture carrier.
-        self.env.limits.tasks.spec_bytes = 16_384;
-        self.env.limits.journal.transcript_bytes = self.env.limits.journal.transcript_bytes.max(65_536);
-        self.env.limits.loads.transcript_bytes = self.env.limits.loads.transcript_bytes.max(65_536);
-        self.env.limits.loads.bytes = self.env.limits.loads.bytes.max(65_536);
-        self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(self.env.limits.loads.bytes);
-        self.restart_config.core.jobs = Box::new([jig_domain_link::JobBound {
-            kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
-            spec: 16_384,
-            result: 512,
-            deadline: Duration::from_secs(600),
-        }]);
-        if authority {
-            let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
-            let mut extended = kinds.to_vec();
-            if !extended.contains(&authority::Executor::Job(forge_top::CLOSE_KIND)) {
-                extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
-            }
-            let count = u32::try_from(extended.len()).expect("fixture executor count");
-            self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
-            self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
-            *kinds = extended.into_boxed_slice();
-            for project in &mut self.restart_config.core.seed_projects {
-                project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
-                project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
-            }
-        }
-        crate::oracle::config::landing(&mut self.restart_config, 1).close_job = command.map(Into::into);
-        self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
+        configure_close_job(&mut self.restart_config, &mut self.env.limits, command, authority);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut codec = self.env.limits;
@@ -1983,26 +2077,7 @@ impl World {
     #[must_use]
     pub fn with_goal_closer(mut self) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "closer authority precedes startup");
-        // The closer's report and new work reserve words beside the goal's landing news.
-        self.env.limits.tasks.inbox_bytes = self.env.limits.tasks.inbox_bytes.max(24_576);
-        self.env.limits.journal.transcript_bytes = self.env.limits.journal.transcript_bytes.max(131_072);
-        self.env.limits.loads.transcript_bytes = self.env.limits.loads.transcript_bytes.max(131_072);
-        self.env.limits.loads.bytes = self.env.limits.loads.bytes.max(131_072);
-        self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(131_072);
-        let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
-        let mut extended = kinds.to_vec();
-        if !extended.contains(&authority::Executor::Procedure(6)) {
-            extended.push(authority::Executor::Procedure(6));
-        }
-        let count = u32::try_from(extended.len()).expect("fixture executor count");
-        self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
-        self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
-        *kinds = extended.into_boxed_slice();
-        for project in &mut self.restart_config.core.seed_projects {
-            project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
-            project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
-        }
-        self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
+        configure_goal_closer(&mut self.restart_config, &mut self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut codec = self.env.limits;
@@ -2023,19 +2098,7 @@ impl World {
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
         assert!(!self.root.ready(), "landing rules precede bootstrap");
-        let replacement = engine::landing_stock(&rules, &skein_lib::Map::with_capacity(0), 1, 4);
-        let mut stock = skein_lib::List::uncapped();
-        for item in replacement {
-            if item.kind == 1 {
-                stock.push(item).expect("uncapped replacement landing rules");
-            }
-        }
-        for item in &self.restart_config.kinds_stock {
-            if item.kind != 1 {
-                stock.push(item.clone()).expect("uncapped project rules and charters");
-            }
-        }
-        self.restart_config.kinds_stock = stock.into_boxed();
+        configure_landing_deployment(&mut self.restart_config, &rules);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid deployment landing rules");
         self

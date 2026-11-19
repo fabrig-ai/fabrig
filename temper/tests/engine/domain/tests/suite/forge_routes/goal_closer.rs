@@ -56,33 +56,7 @@ fn goal_world_with_updates(
     stall: Option<Duration>,
     attempts: u8,
 ) -> (World, engine::Assignment, Box<[u8]>) {
-    let mut world = World::configured_limits(
-        true,
-        true,
-        silent_ci,
-        passes,
-        Gate::default(),
-        None,
-        StoryLimits {
-            inbox_messages: Some(16),
-            inbox_bytes: Some(16_384),
-            tier,
-            slots: Some(4),
-            tasks: Some(32),
-            tree_tasks: Some(64),
-            task_delegates: Some(16),
-            authority_batch: Some(8),
-            tasks_batch: Some(8),
-            result_bytes: Some(4096),
-            forge_commits: commits,
-            stall,
-            ..StoryLimits::default()
-        },
-    )
-    .with_close_job(close.then_some(b".temper/close".as_slice()), true)
-    .with_goal_closer()
-    .with_landing_attempts(attempts)
-    .with_landing_deployment(Box::new([
+    let landing_rules = Box::new([
         engine::LandingRule {
             sets: Box::new([]),
             connector: 0,
@@ -123,13 +97,37 @@ fn goal_world_with_updates(
             gates: Box::new([]),
             approvals: Box::new([]),
         },
-    ]));
+    ]);
+    let mut world = World::configured_limits(
+        true,
+        true,
+        silent_ci,
+        passes,
+        Gate::default(),
+        None,
+        StoryLimits {
+            inbox_messages: Some(16),
+            inbox_bytes: Some(16_384),
+            tier,
+            slots: Some(4),
+            tasks: Some(32),
+            tree_tasks: Some(64),
+            task_delegates: Some(16),
+            authority_batch: Some(8),
+            tasks_batch: Some(8),
+            result_bytes: Some(4096),
+            forge_commits: commits,
+            stall,
+            close_job: Some((close.then(|| b".temper/close".as_slice().into()), true)),
+            goal_closer: true,
+            landing_attempts: Some(attempts),
+            landing_deployment: Some(landing_rules),
+            forge_rows: commits.map(|_| 8),
+            ..StoryLimits::default()
+        },
+    );
     if stall.is_some() {
         world.tick_interval = Duration::from_millis(10);
-    }
-    if commits.is_some() {
-        let client = skein_forge_client::Limits { rows: 8, ..world.env.limits.forge.client };
-        world = world.with_forge_client(client);
     }
     world.adopt();
     let mut event = protocol::hello_slots(CHANNEL, 4, Box::new([]));
