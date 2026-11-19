@@ -341,6 +341,8 @@ fn an_asking_chat_reads_its_project_as_its_person() {
     let elsewhere = person.elsewhere;
     let mut completion = 1;
     let mut owner_tasks = None;
+    // Every address and continuation is read-only against the same durable state.
+    let before = person.world.driver.store.rows.clone();
     for (run, line, heading, content, following) in [
         (
             &person.owner,
@@ -483,7 +485,6 @@ fn an_asking_chat_reads_its_project_as_its_person() {
             Some("task N · me"),
         ),
     ] {
-        let before = person.world.driver.store.rows.clone();
         let mut address = line.clone();
         let mut whole = String::new();
         let mut from = 0;
