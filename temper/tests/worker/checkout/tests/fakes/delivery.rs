@@ -46,10 +46,14 @@ fn deliver(scenario: &mut Scenario, unchecked: bool, saved: Option<u64>) -> git:
             Next::End(done) => return done,
             Next::Results { .. }
             | Next::Reds { .. }
+            | Next::Look { .. }
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }
-            | Next::Alternates
+            | Next::View { .. }
+            | Next::RemakeView { .. }
+            | Next::InitView { .. }
+            | Next::Alternates { .. }
             | Next::Scan { .. } => {
                 panic!("these resolutions are staged")
             }

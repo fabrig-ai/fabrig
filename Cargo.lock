@@ -8254,6 +8254,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
+ "skein-shell",
  "skein-throwaway-forgejo",
  "skein-world",
  "temper-fake-checkout",

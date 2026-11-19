@@ -95,7 +95,7 @@ fn standard_rows() {
         (&merge,Command::Merge { theirs:fixtures::COMMIT },1,b"",Next::Run(Command::Unmerged)),
         (&merge,Command::Unmerged,0,b"conflict\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(&b"conflict"[..])]), cut: false })),
         (&merge,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::Conflicted { files:Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true })),
-        (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
+        (&merging,Command::Unmerged,0,b"one\0two\0three\0four\0five\0",Next::Scan { files: Box::from([Box::from(b"one".as_slice()),Box::from(b"two".as_slice()),Box::from(b"three".as_slice()),Box::from(b"four".as_slice())]), cut: true }),
         (&merge,Command::Unmerged,0,too_long.as_slice(),Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&merge,Command::Unmerged,0,b"",Next::End(git::Done::FailedWithOutput { fault:git::Fault::Broken,diagnostic:git::PushDiagnostic::empty() })),
         (&fetch,Command::Fetch { workspace: fixtures::WORKSPACE, into: git::Into::Fetched,  remote:Box::from(fixtures::REMOTE),source:crate::invocation::Source::Default },0,b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/fetched\n",Next::Run(Command::UpdateRef { into: git::Into::Fetched, commit:fixtures::COMMIT })),
@@ -129,8 +129,8 @@ fn standalone_ancestry_exits_are_booleans_and_faults_keep_their_diagnostic() {
 
 #[test]
 fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
-    let op = git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) };
-    let command = Command::Origin { directory: Box::from(&b"workspaces/7/app"[..]) };
+    let op = git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: skein_lib::Token::new(9) };
+    let command = Command::Origin { directory: Box::from(&b"gitdirs/7/app"[..]) };
     assert_eq!(sequence::first(&op), Next::Run(command.clone()));
     let matching = crate::invocation::joined(&[fixtures::REMOTE, b"\n"]);
     let extra = crate::invocation::joined(&[&matching, b"\n"]);
@@ -142,7 +142,6 @@ fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
         (0, b"", false),
         (0, extra.as_ref(), false),
         (1, matching.as_ref(), false),
-        (128, matching.as_ref(), false),
     ] {
         assert_eq!(
             sequence::after(&op, &command, code, stdout, b"", 0, &fixtures::checkout()),
@@ -150,6 +149,10 @@ fn a_look_requires_the_exact_remote_and_handles_absent_repositories() {
             "{code}: {stdout:?}"
         );
     }
+    assert_eq!(
+        sequence::after(&op, &command, 128, b"", b"", 0, &fixtures::checkout()),
+        Next::Look { directory: Box::from(b"workspaces/7/app".as_slice()) }
+    );
     assert_eq!(
         sequence::after(&op, &command, 2, b"", b"bad config", 3, &fixtures::checkout()),
         Next::End(git::Done::FailedWithOutput {

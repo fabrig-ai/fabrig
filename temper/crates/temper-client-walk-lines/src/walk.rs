@@ -1,6 +1,6 @@
 //! Walk files and root-first chains (temper/docs/design/client/journey-walks.md, 3.1; 2.2–2.3).
 use crate::{
-    line::{Line, Record, Web},
+    line::{Line, Record, Tui, Web},
     named,
 };
 use std::{
@@ -19,9 +19,15 @@ pub struct Roots {
 pub struct Walk {
     pub chain: Vec<Journey>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Client {
+    Web,
+    Tui,
+}
 #[derive(Debug, PartialEq, Eq)]
 pub struct Journey {
     pub name: String,
+    pub client: Client,
     pub lines: Vec<Numbered>,
     pub scripts: Option<Box<[u8]>>,
 }
@@ -60,7 +66,7 @@ pub fn read(roots: &Roots, name: &str) -> Result<Walk, Unreadable> {
         if chain.len() > 8 {
             return Err(after_error("is a ninth ancestor".into()));
         }
-        let (directory, file) = open(roots, &next).map_err(|error| {
+        let (directory, client, file) = open(roots, &next).map_err(|error| {
             if error.kind() == io::ErrorKind::NotFound {
                 after_error("missing journey".into())
             } else {
@@ -79,7 +85,7 @@ pub fn read(roots: &Roots, name: &str) -> Result<Walk, Unreadable> {
                 after_error("expected walk 2".into())
             });
         }
-        let (journey, after) = journey(&directory, &next, &bytes)?;
+        let (journey, after) = journey(&directory, &next, client, &bytes)?;
         chain.push(journey);
         let Some(after) = after else { break };
         next = after;
@@ -88,13 +94,13 @@ pub fn read(roots: &Roots, name: &str) -> Result<Walk, Unreadable> {
     Ok(Walk { chain })
 }
 
-fn open(roots: &Roots, name: &str) -> io::Result<(PathBuf, File)> {
+fn open(roots: &Roots, name: &str) -> io::Result<(PathBuf, Client, File)> {
     let web = roots.web.join(name);
     match File::open(web.join("walk")) {
-        Ok(file) => Ok((web, file)),
+        Ok(file) => Ok((web, Client::Web, file)),
         Err(error) if error.kind() == io::ErrorKind::NotFound => {
             let tui = roots.tui.join(name);
-            File::open(tui.join("walk")).map(|file| (tui, file))
+            File::open(tui.join("walk")).map(|file| (tui, Client::Tui, file))
         }
         Err(error) => Err(error),
     }
@@ -104,7 +110,12 @@ fn check_name(name: &str) -> Result<(), &'static str> {
     if named(name) { Ok(()) } else { Err("name must be [a-z][a-z0-9-]*") }
 }
 
-fn journey(directory: &Path, name: &str, bytes: &[u8]) -> Result<(Journey, Option<String>), Unreadable> {
+fn journey(
+    directory: &Path,
+    name: &str,
+    client: Client,
+    bytes: &[u8],
+) -> Result<(Journey, Option<String>), Unreadable> {
     let mut after = None;
     let mut lines = vec![];
     for (index, source) in bytes.strip_suffix(b"\n").unwrap_or(bytes).split(|byte| *byte == b'\n').enumerate().skip(1) {
@@ -125,14 +136,27 @@ fn journey(directory: &Path, name: &str, bytes: &[u8]) -> Result<(Journey, Optio
         let line = Line::parse(source).map_err(refuse)?;
         let forbidden = match line.record() {
             Record::Empty => continue,
-            Record::Web(Web::Act { .. } | Web::See(_) | Web::Reload(_) | Web::Mark) => None,
+            Record::Web(Web::Act { .. } | Web::See(_) | Web::Reload(_))
+            | Record::Tui(Tui::Key(_) | Tui::See(_) | Tui::Stop | Tui::Approve) => None,
+            Record::Web(Web::Mark) => {
+                if client != Client::Web {
+                    return Err(refuse("web mark is not a TUI journey's mark".into()));
+                }
+                None
+            }
+            Record::Tui(Tui::Mark) => {
+                if client != Client::Tui {
+                    return Err(refuse("tui mark is not a web journey's mark".into()));
+                }
+                None
+            }
+            Record::Tui(Tui::Look) => Some("tui look"),
             Record::Web(Web::Look(_)) => Some("web look"),
             Record::Web(Web::Requests) => Some("web requests"),
             Record::Ctl(_) => Some("ctl"),
             Record::Forge(_) => Some("forge"),
             Record::Deployment(_) => Some("deployment"),
             Record::End => Some("end"),
-            Record::Tui(_) => Some("tui"),
         };
         if let Some(forbidden) = forbidden {
             return Err(refuse(format!("{forbidden} is not a journey's walk line")));
@@ -144,7 +168,7 @@ fn journey(directory: &Path, name: &str, bytes: &[u8]) -> Result<(Journey, Optio
         Err(error) if error.kind() == io::ErrorKind::NotFound => None,
         Err(error) => return Err(Unreadable::new(name, 0, format!("scripts.json: {error}"))),
     };
-    Ok((Journey { name: name.into(), lines, scripts }, after))
+    Ok((Journey { name: name.into(), client, lines, scripts }, after))
 }
 
 /// Whether a directory's walk starts with exactly `walk 2`.

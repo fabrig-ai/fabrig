@@ -49,31 +49,24 @@ fn restore_task_section(value: &w::TaskSection) -> TaskSection {
         w::TaskSection::Panels => TaskSection::Panels,
     }
 }
-pub(super) fn encode(value: Address, limits: &w::Limits) -> Result<w::Address, w::Problem> {
-    Ok(match value {
-        Address::Inbox { project } => {
-            w::Address::Inbox(w::AddressInbox::new(limits, w::AddressInboxParts { project })?)
+pub(super) fn encode(value: Address) -> w::Address {
+    match value {
+        Address::Inbox { project } => w::Address::Inbox(w::AddressInbox { project }),
+        Address::Conversations { project } => w::Address::Conversations(w::AddressConversations { project }),
+        Address::Task { task, section } => w::Address::Task(w::AddressTask { task, section: task_section(section) }),
+        Address::Project { project, section } => {
+            w::Address::Project(w::AddressProject { project, section: project_section(section) })
         }
-        Address::Conversations { project } => {
-            w::Address::Conversations(w::AddressConversations::new(limits, w::AddressConversationsParts { project })?)
-        }
-        Address::Task { task, section } => {
-            w::Address::Task(w::AddressTask::new(limits, w::AddressTaskParts { task, section: task_section(section) })?)
-        }
-        Address::Project { project, section } => w::Address::Project(w::AddressProject::new(
-            limits,
-            w::AddressProjectParts { project, section: project_section(section) },
-        )?),
         Address::Deployment => w::Address::Deployment,
-    })
+    }
 }
 pub(super) fn decode(value: &w::Address) -> Address {
     match value {
-        w::Address::Inbox(value) => Address::Inbox { project: *value.project() },
-        w::Address::Conversations(value) => Address::Conversations { project: *value.project() },
-        w::Address::Task(value) => Address::Task { task: value.task(), section: restore_task_section(value.section()) },
+        w::Address::Inbox(value) => Address::Inbox { project: value.project },
+        w::Address::Conversations(value) => Address::Conversations { project: value.project },
+        w::Address::Task(value) => Address::Task { task: value.task, section: restore_task_section(&value.section) },
         w::Address::Project(value) => {
-            Address::Project { project: value.project(), section: restore_project_section(value.section()) }
+            Address::Project { project: value.project, section: restore_project_section(&value.section) }
         }
         w::Address::Deployment => Address::Deployment,
     }
