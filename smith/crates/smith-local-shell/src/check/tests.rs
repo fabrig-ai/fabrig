@@ -18,7 +18,7 @@ fn a_small_declared_memory_checks() {
         files.path().to_path_buf(),
         &[settings::Source { layer: settings::Layer::User, path: files.path().join("check.toml"), text }],
     ));
-    settings.paths.path = Some("/usr/bin:/bin".into());
+    settings.paths.path = Some(crate::fixture::commands_path().into());
     let execution = command::Exec {
         shared: command::Shared::default(),
         prompt: command::Prompt::Argument(b"hello".as_slice().into()),

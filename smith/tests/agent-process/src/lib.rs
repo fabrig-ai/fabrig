@@ -244,6 +244,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
         },
         channel_endpoints: smith_protocol_translate::Endpoints::new(endpoints),
         llm_endpoints,
+        rg: Box::from(b"/usr/bin/rg".as_slice()),
         environment: smith_protocol_machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
         stream_mode: StreamMode::Two,
     }

@@ -78,9 +78,15 @@ pub struct Scratch {
 impl Scratch {
     #[must_use]
     pub fn new() -> Self {
-        for (tool, path) in [("git", "/usr/bin/git"), ("rg", "/usr/bin/rg"), ("sh", "/bin/sh")] {
+        for (tool, path) in [("git", "/usr/bin/git"), ("sh", "/bin/sh")] {
             assert!(Path::new(path).is_file(), "real world requires {tool} at {path}");
         }
+        use std::os::unix::ffi::OsStrExt;
+        let path = std::env::var_os("PATH");
+        assert!(
+            smith_agent_document::config::find_rg(path.as_ref().map(|path| path.as_bytes())).is_some(),
+            "real world requires rg on the test process's PATH"
+        );
         let loopback = smith_agent_process_world::fake::real_loopback();
         let files = Files::new();
         let repo = files.path().join("repo");
@@ -155,6 +161,7 @@ impl World {
 
     fn configured(mut scenario: Scenario, scratch: &Scratch) -> Self {
         scenario.launch.tls = true;
+        scenario.launch.commands_path = Some(std::env::var("PATH").expect("real world requires a UTF-8 PATH"));
         scenario.launch.trust_der = Some(scratch.path().join("root.der"));
         scenario.launch.root_path = scratch.path().to_path_buf();
         Self {
