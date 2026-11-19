@@ -317,7 +317,6 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
 - **The runner is small:** 14 GB of disk by GitHub's table. Line tables
   only for debug information, no incremental build,
   `TEMPER_INTERNAL_BUNDLE=none` and `NEXTEST_DOUBLE_SPAWN=0`.
-<<<<<<< HEAD
 - **Debug information is not split:** beside the two settings that give
   line tables, `CARGO_PROFILE_DEV_DEBUG` and `CARGO_PROFILE_TEST_DEBUG`,
   the workflow's environment sets `CARGO_PROFILE_DEV_SPLIT_DEBUGINFO` and
@@ -330,23 +329,13 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   `off`, the object files go after linking, and a backtrace names each
   frame from the executable's symbol table, without file and line; a
   panic's own line still gives its location. `off` is also the one value
-  rustc accepts for `wasm32-unknown-unknown`, whose bundle the `browser`
-  part builds in a nested cargo that inherits the environment. The
+  rustc accepts for `wasm32-unknown-unknown`, whose bundles the browser
+  parts build in a nested cargo that inherits the environment. The
   workspace's profiles name no split, so Linux's builds keep their
   platform's default, and the fail-stop tests keep their check on both.
-- **Each part's dependencies' build:** `target`, cached under a key of the
-  part's, `target-macos-26-PART-rust-`, the toolchain file's hash, `-`,
-  the lock's hash, restored by its prefix up to the lock's hash, and saved
-  once per key. Before saving, the part removes the outputs of the
-  workspace's own packages, which build again in each run, so that the
-  cache holds the dependencies alone and the parts' caches stay within
-  GitHub's 10 GB a repository; it prints the cache's size.
-- **`browser`'s:** the `wasm32-unknown-unknown` target, checked present,
-=======
 - **Each part's dependencies' build,** cached as 6.2 has it.
 - **The browser parts', `browser`'s and `browser-temper`'s alike:** the
   `wasm32-unknown-unknown` target, checked present,
->>>>>>> refs/hand5/10320
   and Chrome for Testing at the build nearest the Chromium Linux's
   browser tiers run, on that Chromium's branch: Chrome for Testing does
   not publish every patch, so today the pin is 147.0.7727.117 beside

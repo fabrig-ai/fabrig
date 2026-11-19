@@ -687,7 +687,6 @@ source = "registry+https://example.invalid/index"
                             self.assertEqual(M["main"](), M["FAULT"])
                 self.assertFalse(envfile.exists())
 
-<<<<<<< HEAD
     def test_workflow_keeps_line_tables_unsplit_in_top_level_environment(self):
         workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
         env = workflow.split("\nenv:\n", 1)[1].split("\njobs:\n", 1)[0]
@@ -703,10 +702,7 @@ source = "registry+https://example.invalid/index"
                     [f"  {name}: {value}"],
                 )
 
-    def test_workflow_checks_wasm_compiler_only_in_browser_before_build(self):
-=======
     def workflow(self):
->>>>>>> refs/hand5/10320
         workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
         jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow.split("\njobs:\n", 1)[1])
         return workflow, dict(zip(jobs[1::2], jobs[2::2]))
