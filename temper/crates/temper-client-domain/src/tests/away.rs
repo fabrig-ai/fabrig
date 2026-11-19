@@ -1,4 +1,3 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use crate::{
     Domain, Event, Request,
@@ -9,6 +8,7 @@ use crate::{
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 use skein_lib::Wall;
@@ -62,22 +62,16 @@ fn record(projects: &[u32]) -> Family {
 fn row_record(values: &[AwayRow]) -> Family {
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in values {
-        rows.push(
-            w::AwayRow {
-                    project: row.project,
-                    since: row.since.as_nanos(),
-                    until: nanos(row.until),
-                    landed: row.landed,
-                    off: nanos(row.off),
-                },
-        )
+        rows.push(w::AwayRow {
+            project: row.project,
+            since: row.since.as_nanos(),
+            until: nanos(row.until),
+            landed: row.landed,
+            off: nanos(row.off),
+        })
         .unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::aways(&w::Aways { rows }),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::aways(&w::Aways { rows }) }
 }
 
 fn deliver(root: &mut Domain, watch: Token, projects: &[u32]) -> Queue<Request> {
@@ -377,9 +371,7 @@ fn the_toast_follows_the_answer() {
         (Box::from([]), Outcome::Lost, Toasted::AwayRefused),
         (
             Box::from([]),
-            answer(w::Outcome::ForgeRefused(
-                w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-            )),
+            answer(w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge })),
             Toasted::AwayRefused,
         ),
         (Box::from([]), answer(w::Outcome::Dismissed), Toasted::AwayRefused),
@@ -458,11 +450,12 @@ fn shown_by_classes_or_an_on_row() {
         }
         if let Some(table) = table {
             let record = temper_protocol_reaches::classes_record(&table).unwrap();
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
-            record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
-            let record = wire::setting_answer(
-                &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .unwrap(),
             );
+            record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+            let record = wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) });
             up(
                 &mut root,
                 Up::ReadDone {
@@ -554,8 +547,7 @@ fn sends(out: &Queue<Request>) -> List<w::SetAway> {
                 },
         } = request
         {
-            let w::Request::SetAway(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            let w::Request::SetAway(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 continue;
             };
@@ -612,11 +604,7 @@ fn toggle_all_sets_each_project_that_differs() {
     for project in PROJECTS {
         all.push(AwayRow { project, until: Some(minute(480)), ..WHAT }).expect("fixture projects grow");
     }
-    let refused = || {
-        answer(w::Outcome::ForgeRefused(
-            w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-        ))
-    };
+    let refused = || answer(w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }));
     for (name, rows, projects, state, outcomes, expected) in [
         (
             "none on",

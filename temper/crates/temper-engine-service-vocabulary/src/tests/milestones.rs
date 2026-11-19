@@ -3,11 +3,7 @@ use super::*;
 
 #[test]
 fn milestone_reads_keep_their_scope_totals_and_absence() {
-    let reading = w::Reading {
-            read: w::Read::Milestone(
-                w::MilestoneRead { project: 7, task: 812 },
-            ),
-        };
+    let reading = w::Reading { read: w::Read::Milestone(w::MilestoneRead { project: 7, task: 812 }) };
     let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
         away_family(kit::ToApplication::Read {
             reply: REPLY,
@@ -68,8 +64,5 @@ fn milestone_reads_keep_their_scope_totals_and_absence() {
     let landing = totals.last_landing.unwrap();
     assert_eq!((landing.at, landing.goal, landing.change), (87, 815, 816));
     let bytes = family::forge_read(root::ForgeReadAnswer::Milestone(None), b"", &w::CEILINGS).unwrap();
-    assert_eq!(
-        wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().result,
-        w::MilestoneResult::NotMilestone
-    );
+    assert_eq!(wire::decode_milestone_answer(&bytes, &w::CEILINGS).unwrap().result, w::MilestoneResult::NotMilestone);
 }

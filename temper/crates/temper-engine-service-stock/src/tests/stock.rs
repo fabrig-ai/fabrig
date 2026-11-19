@@ -4,9 +4,9 @@
     clippy::disallowed_macros,
     reason = "ordinary step tests generate documents and compare embedded instruction bytes"
 )]
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use jig_protocol_config as config;
+use temper_client_protocol_wire::v1::Record;
 
 /// The complete startup document emitted by init for fixed machine facts.
 pub(super) fn generated() -> Box<[u8]> {

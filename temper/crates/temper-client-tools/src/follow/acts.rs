@@ -1,5 +1,4 @@
 //! Keyed follow acts (temper/docs/design/client/ctl/tools.md, 3).
-use temper_client_protocol_wire::v1::Record;
 use super::{
     BTreeMap, Box, Called, Client, Env, Event, Keyed, Kind, Limits, Out, Owner, Queue, Required, Told, Tool, Value,
     flag, forge, jig, number, render, value, w, wire,
@@ -10,6 +9,7 @@ use crate::jig::{
 };
 use jig_client::{Ask, Key, Outcome};
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 const PROJECT: jig::table::Argument =
     flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project");
 const FOLLOW: jig::table::Argument = positional(
@@ -151,11 +151,14 @@ fn prepare(call: &Call, project: u32) -> Option<w::FollowActRequest> {
         w::FollowAct::Merge(w::FollowMergeAct { afters })
     } else {
         let Some(Value::Text(reason)) = value(call, 3) else { return None };
-        let act =
-            w::FollowReasonAct { after, reason: reason.clone() };
+        let act = w::FollowReasonAct { after, reason: reason.clone() };
         if name == HOLD.name { w::FollowAct::Hold(act) } else { w::FollowAct::Skip(act) }
     };
-    { let value = w::FollowActRequest { project, follow: u32::try_from(number(call, 1)?).ok()?, act }; value.measure(&w::CEILINGS).ok()?; Some(value) }
+    {
+        let value = w::FollowActRequest { project, follow: u32::try_from(number(call, 1)?).ok()?, act };
+        value.measure(&w::CEILINGS).ok()?;
+        Some(value)
+    }
 }
 fn send(state: &mut Acts, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     let me = crate::forge::me(client).expect("live me");

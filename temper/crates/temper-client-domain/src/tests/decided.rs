@@ -7,23 +7,23 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub(super) fn decision(number: u32, at: u64) -> w::Decision {
     w::Decision {
-            number,
-            task: u64::from(number),
-            at,
-            question: b"Which approach?".as_slice().into(),
-            took: b"The smaller change".as_slice().into(),
-            why: b"It fits the goal.".as_slice().into(),
-            overturned: false,
-            reach: w::Reach {
-                    kind: w::ReachKind::Wording,
-                    class: w::ReachClass::Decide,
-                    reason: w::ReachReason::Kind,
-                    under: 0,
-                    sets: 0,
-                    matched: 0,
-                    away: false,
-                },
-        }
+        number,
+        task: u64::from(number),
+        at,
+        question: b"Which approach?".as_slice().into(),
+        took: b"The smaller change".as_slice().into(),
+        why: b"It fits the goal.".as_slice().into(),
+        overturned: false,
+        reach: w::Reach {
+            kind: w::ReachKind::Wording,
+            class: w::ReachClass::Decide,
+            reason: w::ReachReason::Kind,
+            under: 0,
+            sets: 0,
+            matched: 0,
+            away: false,
+        },
+    }
 }
 pub(super) fn record(values: &[w::Decision]) -> Family {
     let mut rows = List::with_capacity(64);
@@ -54,8 +54,7 @@ fn a_document_decodes() {
     };
     assert_eq!(scope, c::Scope::Project(f::PROJECT));
     assert_eq!(window, c::Window { rows: 0, after: None });
-    let w::Watch::Decided(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
-    else {
+    let w::Watch::Decided(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch else {
         panic!("decided watch")
     };
     assert_eq!(subject.project, f::PROJECT);

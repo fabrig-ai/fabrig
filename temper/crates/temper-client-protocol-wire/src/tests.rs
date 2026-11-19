@@ -32,9 +32,7 @@ fn version_constants_match_their_schemas() {
 
 #[test]
 fn an_adopt_of_another_version_is_refused() {
-    let mut bytes = crate::requesting(
-        &v1::Requesting { request: v1::Request::Adopt(fixtures::adopt()) },
-    );
+    let mut bytes = crate::requesting(&v1::Requesting { request: v1::Request::Adopt(fixtures::adopt()) });
     *bytes.get_mut(1).expect("the record starts with a u16 version") =
         u8::try_from(crate::CLIENT_VERSION + 1).expect("test version fits");
     let problem =
@@ -46,7 +44,13 @@ fn an_adopt_of_another_version_is_refused() {
 fn an_owner_one_byte_past_its_bound_is_refused() {
     let parts = fixtures::adopt();
     v1::Adopt { owner: Box::new([b'a'; 16]), ..parts.clone() }.encode(&fixtures::limits()).expect("at the bound");
-    let made = { let value = v1::Adopt { owner: Box::new([b'a'; 17]), ..parts }; match value.encode(&fixtures::limits()) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+    let made = {
+        let value = v1::Adopt { owner: Box::new([b'a'; 17]), ..parts };
+        match value.encode(&fixtures::limits()) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    };
     assert_eq!(
         made.expect_err("past the owner bound"),
         v1::Problem { path: v1::paths::ADOPT_OWNER, reason: skein_codec::Reason::Bound }
@@ -194,22 +198,17 @@ fn limits_take_each_bound_from_its_source_field() {
 
     let limits = fixtures::limits();
     let item = v1::ClassItem {
-            subject: v1::ClassSubject::Kind(
-                v1::ReachKindOf { kind: v1::ReachKind::Implementation },
-            ),
-            words: filled(WORDS_BYTES),
-            class: v1::ReachClass::Ask,
-        };
+        subject: v1::ClassSubject::Kind(v1::ReachKindOf { kind: v1::ReachKind::Implementation }),
+        words: filled(WORDS_BYTES),
+        class: v1::ReachClass::Ask,
+    };
     let mut sets = List::with_capacity(u32::from(SETS));
     for number in 1..=SETS {
         let mut patterns = List::with_capacity(PATTERNS);
         for _ in 0..PATTERNS {
             patterns.push(filled(PATTERN_BYTES)).expect("counted patterns");
         }
-        sets.push(
-            v1::PathSet { number, name: filled(NAME_BYTES), patterns },
-        )
-        .expect("counted sets");
+        sets.push(v1::PathSet { number, name: filled(NAME_BYTES), patterns }).expect("counted sets");
     }
     for (count, problem) in [
         (ITEMS, None),
@@ -222,11 +221,19 @@ fn limits_take_each_bound_from_its_source_field() {
         for _ in 0..count {
             items.push(item.clone()).expect("counted items");
         }
-        let result = { let value = v1::ProjectClasses { items, sets: sets.clone() }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let result = {
+            let value = v1::ProjectClasses { items, sets: sets.clone() };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         match problem {
             None => {
                 let classes = result.expect("classes at every bound");
-                let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure(&v1::CEILINGS).expect("within ceilings")).expect("measured table"));
+                let mut writer = skein_lib::Writer::new(
+                    usize::try_from(classes.measure(&v1::CEILINGS).expect("within ceilings")).expect("measured table"),
+                );
                 classes.write(&v1::CEILINGS, &mut writer).expect("measured room");
                 let bytes = writer.finish();
                 assert_eq!(v1::ProjectClasses::decode(&limits, &mut Reader::new(&bytes)), Ok(classes));
@@ -235,17 +242,17 @@ fn limits_take_each_bound_from_its_source_field() {
         }
     }
     let reach = v1::Reach {
-            kind: v1::ReachKind::Implementation,
-            class: v1::ReachClass::AskAway,
-            reason: v1::ReachReason::Set(
-                v1::ReachSet { number: SETS },
-            ),
-            under: u8::try_from(ITEMS).expect("item number"),
-            sets: 0b11_1111,
-            matched: 0b10_0101,
-            away: true,
-        };
-    let mut writer = skein_lib::Writer::new(usize::try_from(reach.measure(&v1::CEILINGS).expect("within ceilings")).expect("measured reach"));
+        kind: v1::ReachKind::Implementation,
+        class: v1::ReachClass::AskAway,
+        reason: v1::ReachReason::Set(v1::ReachSet { number: SETS }),
+        under: u8::try_from(ITEMS).expect("item number"),
+        sets: 0b11_1111,
+        matched: 0b10_0101,
+        away: true,
+    };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(reach.measure(&v1::CEILINGS).expect("within ceilings")).expect("measured reach"),
+    );
     reach.write(&v1::CEILINGS, &mut writer).expect("measured room");
     assert_eq!(v1::Reach::decode(&limits, &mut Reader::new(&writer.finish())), Ok(reach));
 }
@@ -299,10 +306,8 @@ fn a_change_panel_of_another_version_is_refused() {
 fn a_change_panel_refuses_trailing_bytes_and_a_zero_queue_place() {
     let limits = fixtures::limits();
     for (row, place, trailing) in [("first", 1, false), ("zero", 0, false), ("trailing", 1, true)] {
-        let parts = v1::ChangePanel {
-            step: v1::Step::Queued(fixtures::queued(place, 0, &limits)),
-            ..fixtures::panel_parts()
-        };
+        let parts =
+            v1::ChangePanel { step: v1::Step::Queued(fixtures::queued(place, 0, &limits)), ..fixtures::panel_parts() };
         let panel = parts;
         let bytes = crate::change_panel(&panel);
         let bytes = if trailing { fixtures::trailing(&bytes) } else { bytes };
@@ -323,7 +328,11 @@ fn change_panel_bounds_accept_at_and_refuse_one_past() {
         (fixtures::PanelBound::Gates, v1::paths::CHANGE_PANEL_GATES, crate::GATES),
         (fixtures::PanelBound::Approvals, v1::paths::CHANGE_PANEL_APPROVALS, limits.change_panel_approvals),
         (fixtures::PanelBound::Counted, v1::paths::APPROVAL_COUNTED, limits.approval_counted),
-        (fixtures::PanelBound::Unmapped, v1::paths::CHANGE_PANEL_UNMAPPED_REVIEWS, limits.change_panel_unmapped_reviews),
+        (
+            fixtures::PanelBound::Unmapped,
+            v1::paths::CHANGE_PANEL_UNMAPPED_REVIEWS,
+            limits.change_panel_unmapped_reviews,
+        ),
         (fixtures::PanelBound::Owner, v1::paths::CHANGE_PANEL_OWNER, fixtures::BOUNDS.field_bytes),
         (fixtures::PanelBound::Name, v1::paths::CHANGE_PANEL_NAME, fixtures::BOUNDS.field_bytes),
         (fixtures::PanelBound::Branch, v1::paths::CHANGE_PANEL_BRANCH, fixtures::BOUNDS.field_bytes),
@@ -346,18 +355,14 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
     let limits = fixtures::limits();
     for request in [
         v1::Request::Adopt(fixtures::adopt()),
-        v1::Request::SetUp(
-            v1::SetUp {
-                    forge: kept(u16::MAX),
-                    first: v1::SetUpFirst::Empty(
-                        v1::FirstEmpty {
-                                playground: true,
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into(),
-                            },
-                    ),
-                },
-        ),
+        v1::Request::SetUp(v1::SetUp {
+            forge: kept(u16::MAX),
+            first: v1::SetUpFirst::Empty(v1::FirstEmpty {
+                playground: true,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
     ] {
         let record = v1::Requesting { request };
         let bytes = crate::requesting(&record);
@@ -366,7 +371,9 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
     }
     // Version 3's Adopt was versioned directly, without a request discriminator.
     let adopt = fixtures::adopt();
-    let mut writer = skein_lib::Writer::new(usize::try_from(adopt.measure(&v1::CEILINGS).expect("within ceilings")).expect("length") + 2);
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(adopt.measure(&v1::CEILINGS).expect("within ceilings")).expect("length") + 2,
+    );
     writer.put(&[0, 3]).expect("old version");
     adopt.write(&v1::CEILINGS, &mut writer).expect("old adoption body");
     assert_eq!(crate::decode_requesting(&writer.finish(), &limits), None);
@@ -382,32 +389,29 @@ fn forges_watch_round_trips_and_refuses_trailing_bytes() {
 }
 
 fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
-
     let mut forges = List::with_capacity(u32::try_from(numbers.len()).expect("small list"));
     for number in numbers {
         forges
-            .push(
-                v1::ForgeRow {
-                        starts_with: v1::StartsWith::Repository,
-                        makings: List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: *number,
-                        kind: v1::Kind::Forgejo,
-                        mode: v1::Mode::Owned,
-                        connection: connection.clone(),
-                        offer: v1::Offer::Offered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-            )
+            .push(v1::ForgeRow {
+                starts_with: v1::StartsWith::Repository,
+                makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: *number,
+                kind: v1::Kind::Forgejo,
+                mode: v1::Mode::Owned,
+                connection: connection.clone(),
+                offer: v1::Offer::Offered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .expect("row capacity");
     }
     v1::Forges { forges, linked: false }
@@ -419,25 +423,25 @@ fn each_forge_offer_round_trips() {
     let mut forges = List::with_capacity(3);
     for (number, offer) in [(1, v1::Offer::NotOffered), (2, v1::Offer::NotUnderTheBox), (3, v1::Offer::Offered)] {
         let row = v1::ForgeRow {
-                starts_with: v1::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number,
-                kind: v1::Kind::Forgejo,
-                mode: v1::Mode::Owned,
-                connection: v1::Connection::NotSetUp,
-                offer,
-                first: None,
-                installations: List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            };
+            starts_with: v1::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number,
+            kind: v1::Kind::Forgejo,
+            mode: v1::Mode::Owned,
+            connection: v1::Connection::NotSetUp,
+            offer,
+            first: None,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        };
         forges.push(row).expect("three rows");
     }
     for linked in [false, true] {
@@ -455,8 +459,7 @@ fn each_forge_connection_round_trips_at_its_bounds() {
     let limits = fixtures::limits();
     let failed = v1::SetUpFailed { why: fixtures::field_bytes(256), at: None };
     let connected = v1::Connected { id: u64::MAX, login: fixtures::field_bytes(16) };
-    let stopped =
-        v1::Stopped { reason: fixtures::field_bytes(16) };
+    let stopped = v1::Stopped { reason: fixtures::field_bytes(16) };
     for connection in [
         v1::Connection::NotConnected,
         v1::Connection::NotSetUp,
@@ -471,9 +474,7 @@ fn each_forge_connection_round_trips_at_its_bounds() {
         assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
     }
     for step in [None, Some(v1::SetUpStep::Fetch), Some(v1::SetUpStep::Prepare), Some(v1::SetUpStep::Run)] {
-        let connection = v1::Connection::SettingUp(
-            v1::SettingUp { step, fetched: None },
-        );
+        let connection = v1::Connection::SettingUp(v1::SettingUp { step, fetched: None });
         let record = forges_rows(&[1], &connection);
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
     }
@@ -485,9 +486,8 @@ fn a_setting_up_carries_its_fetch() {
     for binary in [v1::SetUpBinary::Forgejo, v1::SetUpBinary::Runner] {
         for total in [Some(122_057_320), None] {
             let fetched = v1::SetUpFetched { binary: binary.clone(), done: 1_048_576, total };
-            let connection = v1::Connection::SettingUp(
-                v1::SettingUp { step: Some(v1::SetUpStep::Fetch), fetched: Some(fetched) },
-            );
+            let connection =
+                v1::Connection::SettingUp(v1::SettingUp { step: Some(v1::SetUpStep::Fetch), fetched: Some(fetched) });
             let record = forges_rows(&[1], &connection);
             let bytes = crate::forges(&record);
             assert_eq!(crate::decode_forges(&bytes, &limits), Some(record), "{binary:?}, total {total:?}");
@@ -506,13 +506,11 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         v1::Problem { path: v1::paths::SET_UP_FAILED_WHY, reason: skein_codec::Reason::Bound }
     );
     assert_eq!(
-        (v1::SetUpFailed { why: fixtures::field_bytes(257), at: None }).encode(&limits)
-            .expect_err("past bound"),
+        (v1::SetUpFailed { why: fixtures::field_bytes(257), at: None }).encode(&limits).expect_err("past bound"),
         v1::Problem { path: v1::paths::SET_UP_FAILED_WHY, reason: skein_codec::Reason::Bound }
     );
     assert_eq!(
-        (v1::Connected { id: 1, login: fixtures::field_bytes(17) }).encode(&limits)
-            .expect_err("past bound"),
+        (v1::Connected { id: 1, login: fixtures::field_bytes(17) }).encode(&limits).expect_err("past bound"),
         v1::Problem { path: v1::paths::CONNECTED_LOGIN, reason: skein_codec::Reason::Bound }
     );
     assert_eq!(
@@ -521,33 +519,29 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
     );
     // A record legal at schema ceilings must still respect the receiving side's bounds.
     for connection in [
-        v1::Connection::Connected(
-            v1::Connected { id: 1, login: fixtures::field_bytes(17) },
-        ),
-        v1::Connection::Stopped(
-            v1::Stopped { reason: fixtures::field_bytes(17) },
-        ),
+        v1::Connection::Connected(v1::Connected { id: 1, login: fixtures::field_bytes(17) }),
+        v1::Connection::Stopped(v1::Stopped { reason: fixtures::field_bytes(17) }),
     ] {
         let row = v1::ForgeRow {
-                starts_with: v1::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: 1,
-                kind: v1::Kind::Github,
-                mode: v1::Mode::Connected,
-                connection,
-                offer: v1::Offer::NotOffered,
-                first: None,
-                installations: List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            };
+            starts_with: v1::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 1,
+            kind: v1::Kind::Github,
+            mode: v1::Mode::Connected,
+            connection,
+            offer: v1::Offer::NotOffered,
+            first: None,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        };
         let mut forges = List::with_capacity(1);
         forges.push(row).expect("one row");
         let record = v1::Forges { forges, linked: false };
@@ -566,28 +560,26 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
     for row in parts.forges.into_boxed() {
         rows.push(row).expect("room");
     }
-    rows.push(
-        v1::ForgeRow {
-                starts_with: v1::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: 17,
-                kind: v1::Kind::Github,
-                mode: v1::Mode::Fake,
-                connection: v1::Connection::NotSetUp,
-                offer: v1::Offer::NotOffered,
-                first: None,
-                installations: List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            },
-    )
+    rows.push(v1::ForgeRow {
+        starts_with: v1::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: 17,
+        kind: v1::Kind::Github,
+        mode: v1::Mode::Fake,
+        connection: v1::Connection::NotSetUp,
+        offer: v1::Offer::NotOffered,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    })
     .expect("extra room");
     parts.forges = rows;
     assert_eq!(
@@ -597,7 +589,11 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
     // A peer can send seventeen rows even though the constructor refuses them.
     let at = forges_rows(&numbers, &v1::Connection::NotConnected);
     let row = at.forges.get(0).expect("row");
-    let length = at.measure(&v1::CEILINGS).expect("within ceilings").checked_add(row.measure(&v1::CEILINGS).expect("within ceilings")).expect("seventeen rows fit");
+    let length = at
+        .measure(&v1::CEILINGS)
+        .expect("within ceilings")
+        .checked_add(row.measure(&v1::CEILINGS).expect("within ceilings"))
+        .expect("seventeen rows fit");
     let mut writer = skein_lib::Writer::new(usize::try_from(length).expect("length"));
     writer.put(&u16::try_from(crate::CLIENT_VERSION).expect("version fits").to_be_bytes()).expect("version");
     writer.put(&17_u32.to_be_bytes()).expect("row count");
@@ -617,9 +613,20 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
 fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
     let limits = v1::CEILINGS;
     for count in [1024, 1025] {
-        let connected =
-            { let value = v1::Connected { id: u64::MAX, login: fixtures::field_bytes(count) }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
-        let stopped = { let value = v1::Stopped { reason: fixtures::field_bytes(count) }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let connected = {
+            let value = v1::Connected { id: u64::MAX, login: fixtures::field_bytes(count) };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
+        let stopped = {
+            let value = v1::Stopped { reason: fixtures::field_bytes(count) };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if count == 1025 {
             connected.expect_err("login past schema ceiling");
             stopped.expect_err("reason past schema ceiling");
@@ -633,25 +640,25 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     [v1::Connection::Connected(connected.clone()), v1::Connection::Stopped(stopped.clone())]
                 {
                     let row = v1::ForgeRow {
-                            starts_with: v1::StartsWith::Repository,
-                            makings: List::with_capacity(0),
-                            host: b"git.example:3000".as_slice().into(),
-                            number: u16::MAX,
-                            kind: kind.clone(),
-                            mode: mode.clone(),
-                            connection,
-                            offer: v1::Offer::NotOffered,
-                            first: None,
-                            installations: List::with_capacity(0),
-                            ended: None,
-                            app: None,
-                            web: None,
-                            repositories: List::with_capacity(0),
-                            owned: None,
-                            admin: false,
-                            read_only: false,
-                            ended_stop: None,
-                        };
+                        starts_with: v1::StartsWith::Repository,
+                        makings: List::with_capacity(0),
+                        host: b"git.example:3000".as_slice().into(),
+                        number: u16::MAX,
+                        kind: kind.clone(),
+                        mode: mode.clone(),
+                        connection,
+                        offer: v1::Offer::NotOffered,
+                        first: None,
+                        installations: List::with_capacity(0),
+                        ended: None,
+                        app: None,
+                        web: None,
+                        repositories: List::with_capacity(0),
+                        owned: None,
+                        admin: false,
+                        read_only: false,
+                        ended_stop: None,
+                    };
                     let mut forges = List::with_capacity(1);
                     forges.push(row).expect("one forge");
                     let record = v1::Forges { forges, linked: false };
@@ -666,27 +673,18 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
 fn playground_start_outcomes_round_trip_at_each_boundary() {
     let limits = v1::CEILINGS;
     let mut outcomes = List::with_capacity(8);
-    for outcome in [
-        v1::Outcome::Running,
-        v1::Outcome::StartRefused(
-            v1::StartRefused { why: v1::StartRefusal::NotOffered },
-        ),
-    ] {
+    for outcome in
+        [v1::Outcome::Running, v1::Outcome::StartRefused(v1::StartRefused { why: v1::StartRefusal::NotOffered })]
+    {
         outcomes.push(outcome).expect("outcome room");
     }
     for why in [v1::StartFailure::Account, v1::StartFailure::Adoption, v1::StartFailure::NotConnected] {
-        outcomes
-            .push(v1::Outcome::StartFailed(
-                v1::StartFailed { why },
-            ))
-            .expect("outcome room");
+        outcomes.push(v1::Outcome::StartFailed(v1::StartFailed { why })).expect("outcome room");
     }
     for length in [0, 1, 256] {
         let group = v1::GroupFailed { why: skein_lib::bytes::zeroed(length) };
         outcomes
-            .push(v1::Outcome::StartFailed(
-                v1::StartFailed { why: v1::StartFailure::Group(group) },
-            ))
+            .push(v1::Outcome::StartFailed(v1::StartFailed { why: v1::StartFailure::Group(group) }))
             .expect("outcome room");
     }
     for outcome in outcomes.into_boxed() {
@@ -696,15 +694,10 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
         assert_eq!(v1::Answer::decode(&limits, &mut reader), Ok(record));
         assert!(reader.is_empty());
     }
-    (v1::GroupFailed { why: skein_lib::bytes::zeroed(257) }).encode(&limits)
-        .expect_err("past ceiling");
-    let group =
-        v1::GroupFailed { why: skein_lib::bytes::zeroed(256) };
-    let record = v1::Answer {
-            outcome: v1::Outcome::StartFailed(
-                v1::StartFailed { why: v1::StartFailure::Group(group) },
-            ),
-        };
+    (v1::GroupFailed { why: skein_lib::bytes::zeroed(257) }).encode(&limits).expect_err("past ceiling");
+    let group = v1::GroupFailed { why: skein_lib::bytes::zeroed(256) };
+    let record =
+        v1::Answer { outcome: v1::Outcome::StartFailed(v1::StartFailed { why: v1::StartFailure::Group(group) }) };
     let bytes = crate::answer(&record);
     // Version (2), Outcome (1), StartFailure (1), then WHY's u32 length.
     let mut writer = skein_lib::Writer::new(bytes.len().checked_add(1).expect("extra byte"));
@@ -721,10 +714,8 @@ fn pasted_apps_round_trip_and_check_nonzero_id() {
     let limits = fixtures::limits();
     for (id, read_only) in [(0, None), (1, None), (1, Some(false)), (1, Some(true)), (u64::MAX, Some(true))] {
         let app = v1::GitHubApp { id, read_only };
-        let connect =
-            v1::Connect { forge: kept(1), how: v1::How::GithubApp(app) };
-        let record =
-            v1::Requesting { request: v1::Request::Connect(connect) };
+        let connect = v1::Connect { forge: kept(1), how: v1::How::GithubApp(app) };
+        let record = v1::Requesting { request: v1::Request::Connect(connect) };
         let decoded = crate::decode_requesting(&crate::requesting(&record), &limits);
         assert_eq!(decoded, if id == 0 { None } else { Some(record) });
     }
@@ -736,9 +727,7 @@ fn connect_outcomes_round_trip() {
     let mut outcomes = List::with_capacity(10);
     for outcome in [
         v1::Outcome::Connecting,
-        v1::Outcome::Link(
-            v1::Link { address: Box::from(b"https://forge.test/install".as_slice()) },
-        ),
+        v1::Outcome::Link(v1::Link { address: Box::from(b"https://forge.test/install".as_slice()) }),
     ] {
         outcomes.push(outcome).unwrap();
     }
@@ -752,11 +741,7 @@ fn connect_outcomes_round_trip() {
         v1::ForgeRefusal::NoKey,
         v1::ForgeRefusal::FirstIsBot,
     ] {
-        outcomes
-            .push(v1::Outcome::ConnectRefused(
-                v1::ConnectRefused { why },
-            ))
-            .unwrap();
+        outcomes.push(v1::Outcome::ConnectRefused(v1::ConnectRefused { why })).unwrap();
     }
     for outcome in outcomes.into_boxed() {
         let record = v1::Answer { outcome };
@@ -771,16 +756,12 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRow {
     let mut installations = List::with_capacity(count);
     for id in 0..count {
         installations
-            .push(
-                v1::Installation {
-                        id: u64::from(id),
-                        account: Some(
-                            v1::Account { id: 42, login: Box::from(b"acme".as_slice()) },
-                        ),
-                        suspended: true,
-                        stray: false,
-                    },
-            )
+            .push(v1::Installation {
+                id: u64::from(id),
+                account: Some(v1::Account { id: 42, login: Box::from(b"acme".as_slice()) }),
+                suspended: true,
+                stray: false,
+            })
             .unwrap();
     }
     v1::ForgeRow {
@@ -794,9 +775,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRow {
         offer: v1::Offer::NotOffered,
         first: None,
         installations,
-        ended: Some(
-            v1::ConnectStopped { why: filled(why_bytes) },
-        ),
+        ended: Some(v1::ConnectStopped { why: filled(why_bytes) }),
         app: None,
         web: None,
         repositories: List::with_capacity(0),
@@ -814,7 +793,9 @@ fn installation_row_bytes(parts: v1::ForgeRow, why: &[u8]) -> Box<[u8]> {
     const ROW_FRAMING_BYTES: usize = 35;
     let mut size = why.len().checked_add(ROW_FRAMING_BYTES).unwrap().checked_add(parts.host.len()).unwrap();
     for installation in &parts.installations {
-        size = size.checked_add(usize::try_from(installation.measure(&v1::CEILINGS).expect("within ceilings")).unwrap()).unwrap();
+        size = size
+            .checked_add(usize::try_from(installation.measure(&v1::CEILINGS).expect("within ceilings")).unwrap())
+            .unwrap();
     }
     let mut writer = skein_lib::Writer::new(size);
     writer.put(&parts.number.to_be_bytes()).unwrap();
@@ -846,7 +827,8 @@ fn installation_rows_round_trip_and_refuse_lengths_past_the_ceilings() {
     let limits = v1::CEILINGS;
     for count in [0, INSTALLATIONS] {
         let row = installation_row(count, CONNECT_WHY);
-        let mut writer = skein_lib::Writer::new(usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+        let mut writer =
+            skein_lib::Writer::new(usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
         row.write(&v1::CEILINGS, &mut writer).unwrap();
         assert_eq!(v1::ForgeRow::decode(&limits, &mut Reader::new(&writer.finish())), Ok(row));
     }
@@ -875,17 +857,16 @@ fn manifest_connects_and_app_ways_round_trip() {
     let limits = fixtures::limits();
     for back in [None, Some(Box::from(b"/forges/connect?forge=1".as_slice()))] {
         let how = v1::GitHubManifest { back };
-        let connect =
-            v1::Connect { forge: kept(1), how: v1::How::GithubManifest(how) };
-        let record =
-            v1::Requesting { request: v1::Request::Connect(connect) };
+        let connect = v1::Connect { forge: kept(1), how: v1::How::GithubManifest(how) };
+        let record = v1::Requesting { request: v1::Request::Connect(connect) };
         assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
     }
     for app in [None, Some(v1::AppWay::Manifest), Some(v1::AppWay::Pasted)] {
         let mut parts = installation_row(0, 0);
         parts.app = app;
         let row = parts;
-        let mut writer = skein_lib::Writer::new(usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+        let mut writer =
+            skein_lib::Writer::new(usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
         row.write(&v1::CEILINGS, &mut writer).unwrap();
         assert_eq!(v1::ForgeRow::decode(&limits, &mut Reader::new(&writer.finish())), Ok(row));
     }
@@ -904,9 +885,9 @@ fn setup_failure_round_trips_each_step_and_none() {
         Some(v1::FailedStep::Run),
         Some(v1::FailedStep::Connect),
     ] {
-        let value =
-            v1::SetUpFailed { why: b"stopped".as_slice().into(), at };
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+        let value = v1::SetUpFailed { why: b"stopped".as_slice().into(), at };
+        let mut writer =
+            skein_lib::Writer::new(usize::try_from(value.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
         value.write(&v1::CEILINGS, &mut writer).unwrap();
         let bytes = writer.finish();
         let mut reader = Reader::new(&bytes);
@@ -933,11 +914,7 @@ fn admin_rows_round_trip_the_form_stop_and_first_label() {
         v1::SetupStage::Installation,
         v1::SetupStage::State,
     ] {
-        stops
-            .push(Some(v1::AdminStop::Refused(
-                v1::AdminRefused { status: 403, stage },
-            )))
-            .unwrap();
+        stops.push(Some(v1::AdminStop::Refused(v1::AdminRefused { status: 403, stage }))).unwrap();
     }
     for stop in stops.into_boxed() {
         for admin in [false, true] {
@@ -946,20 +923,27 @@ fn admin_rows_round_trip_the_form_stop_and_first_label() {
             parts.ended_stop = stop.clone();
             parts.first = Some(first_with_label(filled(64)).unwrap());
             let row = parts;
-            let mut writer = skein_lib::Writer::new(usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+            let mut writer =
+                skein_lib::Writer::new(usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
             row.write(&v1::CEILINGS, &mut writer).unwrap();
             assert_eq!(v1::ForgeRow::decode(&limits, &mut Reader::new(&writer.finish())), Ok(row));
         }
     }
 }
 fn first_with_label(label: Box<[u8]>) -> Result<v1::FirstRepository, v1::Problem> {
-    { let value = v1::FirstRepository {
+    {
+        let value = v1::FirstRepository {
             playground: true,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             state: v1::FirstState::Making,
             label,
-        }; match value.encode(&v1::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&v1::CEILINGS) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
 }
 #[test]
 fn first_label_accepts_64_bytes_and_refuses_one_more() {
@@ -991,9 +975,7 @@ fn landing_watches_round_trip_without_trailing_bytes() {
     let limits = fixtures::limits();
     for watch in [
         v1::Watch::Landing(v1::LandingSubject { task: 61 }),
-        v1::Watch::Landings(
-            v1::LandingsSubject { project: 1, ended: true },
-        ),
+        v1::Watch::Landings(v1::LandingsSubject { project: 1, ended: true }),
     ] {
         let watching = v1::Watching { watch };
         let bytes = crate::watching(&watching);
@@ -1025,7 +1007,9 @@ fn ways_panel_round_trips() {
     ] {
         let expected_size = parts.headline.len() + parts.lede.len() + 8;
         let words = parts;
-        let mut writer = skein_lib::Writer::new(usize::try_from(words.measure(&v1::CEILINGS).expect("within ceilings")).expect("words size"));
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(words.measure(&v1::CEILINGS).expect("within ceilings")).expect("words size"),
+        );
         words.write(&v1::CEILINGS, &mut writer).expect("measured words fit");
         let bytes = writer.finish();
         assert_eq!(bytes.len(), expected_size, "two text lengths and their bytes");
@@ -1049,11 +1033,7 @@ fn ways_panel_round_trips() {
     }
     way.roles = List::with_capacity(4);
     for running in [false, true, false, true] {
-        way.roles
-            .push(
-                v1::WayRole { charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running },
-            )
-            .unwrap();
+        way.roles.push(v1::WayRole { charter: 14, words: Box::new([b'w'; 480]), budget: 25_000, running }).unwrap();
     }
     *parts.ways.get_mut(0).unwrap() = way;
     let panel = parts;
@@ -1098,7 +1078,13 @@ fn ways_path_rules_accept_every_bound_and_refuse_one_past() {
         let note = fixtures::field_bytes(note);
         let bytes = fixtures::ways_with_unchecked_rules(&base, rows, &row, &note);
         let made = match fixtures::path_rules(&limits, rows, row, note) {
-            Ok(rules) => { let value = v1::WaysPanel { rules, ..base.clone() }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } },
+            Ok(rules) => {
+                let value = v1::WaysPanel { rules, ..base.clone() };
+                match value.encode(&limits) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             Err(problem) => Err(problem),
         };
         match refused {
@@ -1166,40 +1152,26 @@ fn making_new(forge: v1::ForgeAsk) -> v1::Making {
     v1::Making::New(v1::NewForge { forge })
 }
 fn managed(host: &[u8], port: u16) -> v1::ForgeAsk {
-    v1::ForgeAsk::Managed(
-        v1::ManagedForge {
-                git_program: None,
-                host: host.into(),
-                port,
-                tls: Some(filled(255)),
-                git: filled(2048),
-                web: Some(filled(2048)),
-            },
-    )
+    v1::ForgeAsk::Managed(v1::ManagedForge {
+        git_program: None,
+        host: host.into(),
+        port,
+        tls: Some(filled(255)),
+        git: filled(2048),
+        web: Some(filled(2048)),
+    })
 }
 fn making_requests(forge: v1::Making) -> [v1::Request; 2] {
-
     [
-        v1::Request::SetUp(
-            v1::SetUp {
-                    forge: forge.clone(),
-                    first: v1::SetUpFirst::Empty(
-                        v1::FirstEmpty {
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into(),
-                                playground: false,
-                            },
-                    ),
-                },
-        ),
-        v1::Request::Connect(
-            v1::Connect {
-                    forge,
-                    how: v1::How::ForgejoAdmin(
-                        v1::ForgejoAdmin { first: None },
-                    ),
-                },
-        ),
+        v1::Request::SetUp(v1::SetUp {
+            forge: forge.clone(),
+            first: v1::SetUpFirst::Empty(v1::FirstEmpty {
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                playground: false,
+            }),
+        }),
+        v1::Request::Connect(v1::Connect { forge, how: v1::How::ForgejoAdmin(v1::ForgejoAdmin { first: None }) }),
     ]
 }
 #[test]
@@ -1244,13 +1216,9 @@ fn remove_and_playground_requests_round_trip() {
     }
     for outcome in [
         v1::Outcome::Removed,
-        v1::Outcome::RemoveRefused(
-            v1::RemoveRefused { why: v1::ForgeRefusal::Busy },
-        ),
+        v1::Outcome::RemoveRefused(v1::RemoveRefused { why: v1::ForgeRefusal::Busy }),
         v1::Outcome::Reset,
-        v1::Outcome::EndRefused(
-            v1::EndRefused { why: v1::EndRefusal::NotOffered },
-        ),
+        v1::Outcome::EndRefused(v1::EndRefused { why: v1::EndRefusal::NotOffered }),
     ] {
         let answer = v1::Answer { outcome };
         assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
@@ -1261,9 +1229,7 @@ fn remove_and_playground_requests_round_trip() {
 #[test]
 fn revision_setting_read_appends_after_the_deployment_tag() {
     let limits = fixtures::limits();
-    let revision = v1::Read::RevisionSetting(
-        v1::RevisionSettingRead { kind: 1, scope: 2, number: 3, revision: 4 },
-    );
+    let revision = v1::Read::RevisionSetting(v1::RevisionSettingRead { kind: 1, scope: 2, number: 3, revision: 4 });
     for (read, bytes) in
         [(v1::Read::Deployment, &[3][..]), (revision, &[4, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0, 4][..])]
     {
@@ -1298,8 +1264,7 @@ fn program_environment_read_and_answer_round_trip() {
     let bytes = crate::reading(&read);
     assert_eq!(crate::decode_reading(&bytes, &limits), Some(read));
     for words in [b"".as_slice(), b"TEMPER_CONFIG='/config' TEMPER_DATA='/data' TEMPER_CACHE='/cache'"] {
-        let answer =
-            v1::ProgramEnvironmentAnswer { environment: words.into() };
+        let answer = v1::ProgramEnvironmentAnswer { environment: words.into() };
         let bytes = crate::program_environment_answer(&answer);
         assert_eq!(crate::decode_program_environment_answer(&bytes, &limits), Some(answer));
         assert_eq!(crate::decode_program_environment_answer(&fixtures::trailing(&bytes), &limits), None);
@@ -1322,7 +1287,8 @@ fn playground_answer_round_trips_at_its_bounds() {
                 for _ in 0..count {
                     cues.push(filled(cue_bytes)).unwrap();
                 }
-                let made = { let value = v1::PlaygroundAnswer {
+                let made = {
+                    let value = v1::PlaygroundAnswer {
                         forge: u16::MAX,
                         project,
                         provider: u32::MAX,
@@ -1330,7 +1296,12 @@ fn playground_answer_round_trips_at_its_bounds() {
                         name: filled(field_bytes),
                         state: state.clone(),
                         cues,
-                    }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+                    };
+                    match value.encode(&limits) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                };
                 assert_eq!(made.is_ok(), accepted);
                 if let Ok(answer) = made {
                     let bytes = crate::playground_answer(&answer);
@@ -1343,20 +1314,21 @@ fn playground_answer_round_trips_at_its_bounds() {
     // Decode enforces the receiving side's field bounds too.
     for (owner_bytes, name_bytes) in [(17, 16), (16, 17)] {
         let answer = v1::PlaygroundAnswer {
-                forge: 1,
-                project: None,
-                provider: 3,
-                owner: filled(owner_bytes),
-                name: filled(name_bytes),
-                state: v1::PlaygroundState::Starting,
-                cues: List::with_capacity(0),
-            };
+            forge: 1,
+            project: None,
+            provider: 3,
+            owner: filled(owner_bytes),
+            name: filled(name_bytes),
+            state: v1::PlaygroundState::Starting,
+            cues: List::with_capacity(0),
+        };
         assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), None);
     }
     for cue in [b"".as_slice(), &[255]] {
         let mut cues = List::with_capacity(1);
         cues.push(cue.into()).unwrap();
-        let made = { let value = v1::PlaygroundAnswer {
+        let made = {
+            let value = v1::PlaygroundAnswer {
                 forge: 1,
                 project: None,
                 provider: 3,
@@ -1364,7 +1336,12 @@ fn playground_answer_round_trips_at_its_bounds() {
                 name: b"hello".as_slice().into(),
                 state: v1::PlaygroundState::Running,
                 cues,
-            }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+            };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if let Ok(answer) = made {
             assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), None);
         } else {
@@ -1380,7 +1357,13 @@ fn managed_git_program_is_optional_bounded_and_nonempty() {
         let v1::ForgeAsk::Managed(value) = managed(b"host", 80) else { unreachable!() };
         let mut parts = value;
         parts.git_program = Some(filled(length));
-        let value = { let value = parts; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let value = {
+            let value = parts;
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if length > 4096 {
             assert!(value.is_err());
             continue;
@@ -1400,9 +1383,27 @@ fn post_landing_tiers_accept_their_bounds_and_refuse_one_more() {
         for _ in 0..count {
             tiers.push(fixtures::field_bytes(bytes)).unwrap();
         }
-        let verifying = { let value = v1::Verifying { merge: [8; 32], tiers: tiers.clone() }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
-        let red = { let value = v1::Red { merge: [8; 32], tiers: tiers.clone() }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
-        let cleared = { let value = v1::Cleared { merge: [8; 32], tiers, uncleared: false }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let verifying = {
+            let value = v1::Verifying { merge: [8; 32], tiers: tiers.clone() };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
+        let red = {
+            let value = v1::Red { merge: [8; 32], tiers: tiers.clone() };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
+        let cleared = {
+            let value = v1::Cleared { merge: [8; 32], tiers, uncleared: false };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         let within = count == 32 && bytes == 8192;
         assert_eq!(verifying.is_ok(), within);
         assert_eq!(red.is_ok(), within);
@@ -1416,10 +1417,18 @@ fn tier_strings_round_trip_at_the_bound_and_refuse_one_more_byte() {
         let mut tiers = List::with_capacity(1);
         let line: Box<[u8]> = if size == 8192 { Box::new([b'x'; 8192]) } else { Box::new([b'x'; 8193]) };
         tiers.push(line).unwrap();
-        let value = { let value = v1::Red { merge: [3; 32], tiers }; match value.encode(&v1::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let value = {
+            let value = v1::Red { merge: [3; 32], tiers };
+            match value.encode(&v1::CEILINGS) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if size == 8192 {
             let value = value.unwrap();
-            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(value.measure(&v1::CEILINGS).expect("within ceilings")).unwrap(),
+            );
             value.write(&v1::CEILINGS, &mut writer).unwrap();
             let bytes = writer.finish();
             assert_eq!(v1::Red::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).unwrap(), value);
@@ -1433,12 +1442,8 @@ fn tier_strings_round_trip_at_the_bound_and_refuse_one_more_byte() {
 fn settings_reads_and_answers_require_one_complete_bounded_record() {
     use crate::{self as wire, v1 as w};
     for read in [
-        w::Read::Setting(
-            w::SettingRead { kind: 2, scope: 7, number: 1 },
-        ),
-        w::Read::ProposalItems(
-            w::ProposalItemsRead { key: u64::MAX },
-        ),
+        w::Read::Setting(w::SettingRead { kind: 2, scope: 7, number: 1 }),
+        w::Read::ProposalItems(w::ProposalItemsRead { key: u64::MAX }),
     ] {
         let record = w::Reading { read };
         let bytes = wire::reading(&record);
@@ -1457,13 +1462,8 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
     let trailing = trailing.finish();
     assert!(wire::decode_setting_answer(&trailing, &w::CEILINGS).is_none());
     let mut items = List::with_capacity(1);
-    items
-        .push(
-            w::ProposalItem { kind: 1, scope: 0, number: 1, edit: w::SettingEdit::Reset },
-        )
-        .unwrap();
-    let record =
-        w::ProposalItemsAnswer { items, owned_approval: true };
+    items.push(w::ProposalItem { kind: 1, scope: 0, number: 1, edit: w::SettingEdit::Reset }).unwrap();
+    let record = w::ProposalItemsAnswer { items, owned_approval: true };
     let bytes = wire::proposal_items_answer(&record);
     assert_eq!(wire::decode_proposal_items_answer(&bytes, &w::CEILINGS), Some(record));
     limits.proposal_items_answer_items = 0;
@@ -1480,23 +1480,25 @@ fn settings_reads_and_answers_require_one_complete_bounded_record() {
 fn repository_makings_round_trip_at_the_bound_and_refuse_one_more() {
     let limits = fixtures::limits();
     let making = v1::RepositoryMaking {
-            org: filled(MAKING_FIELD_BYTES),
-            name: filled(MAKING_FIELD_BYTES),
-            from: v1::MakeFrom::Copy(
-                v1::MakeCopy { address: filled(COPY_ADDRESS_BYTES) },
-            ),
-            into: Some(v1::MakeInto { project: u32::MAX, home: true }),
-            state: v1::MakingState::Made(
-                v1::MakingMade { id: u64::MAX, branch: filled(MAKING_FIELD_BYTES) },
-            ),
-        };
+        org: filled(MAKING_FIELD_BYTES),
+        name: filled(MAKING_FIELD_BYTES),
+        from: v1::MakeFrom::Copy(v1::MakeCopy { address: filled(COPY_ADDRESS_BYTES) }),
+        into: Some(v1::MakeInto { project: u32::MAX, home: true }),
+        state: v1::MakingState::Made(v1::MakingMade { id: u64::MAX, branch: filled(MAKING_FIELD_BYTES) }),
+    };
     for (count, accepted) in [(crate::MAKINGS, true), (crate::MAKINGS + 1, false)] {
         let mut parts = installation_row(0, 0);
         parts.makings = List::with_capacity(count);
         for _ in 0..count {
             parts.makings.push(making.clone()).unwrap();
         }
-        let row = { let value = parts; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let row = {
+            let value = parts;
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         assert_eq!(row.is_ok(), accepted);
         if let Ok(row) = row {
             let mut rows = List::with_capacity(1);
@@ -1526,8 +1528,7 @@ fn make_repository_names_and_address_take_their_wire_bounds() {
         // Construct at the schema ceilings to check the receiving side as well.
         let copy = v1::MakeCopy { address: filled(COPY_ADDRESS_BYTES) };
         for from in [v1::MakeFrom::Empty, v1::MakeFrom::Copy(copy)] {
-            for into in [None, Some(v1::MakeInto { project: 1, home: true })]
-            {
+            for into in [None, Some(v1::MakeInto { project: 1, home: true })] {
                 let parts = v1::MakeRepository {
                     forge: u16::MAX,
                     org: filled(org_bytes),
@@ -1554,23 +1555,16 @@ fn dismiss_and_dismissals_round_trip() {
     let limits = fixtures::limits();
     assert_eq!(crate::DISMISSED, 8192, "client/forge/records.md: a party's fact bound");
     for what in [
-        v1::PersonFact::KeepAsking(
-            v1::KeepAsking {
-                    project: u32::MAX,
-                    subject: v1::ClassSubject::Set(
-                        v1::ReachSet { number: u8::MAX },
-                    ),
-                    at: u64::MAX,
-                },
-        ),
+        v1::PersonFact::KeepAsking(v1::KeepAsking {
+            project: u32::MAX,
+            subject: v1::ClassSubject::Set(v1::ReachSet { number: u8::MAX }),
+            at: u64::MAX,
+        }),
         v1::PersonFact::ToBegin(v1::ToBegin { project: u32::MAX }),
-        v1::PersonFact::GoalFrom(
-            v1::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX },
-        ),
+        v1::PersonFact::GoalFrom(v1::GoalFrom { project: u32::MAX, chat: u64::MAX, goal: u64::MAX, at: u64::MAX }),
     ] {
         let dismiss = v1::Dismiss { what: what.clone() };
-        let request =
-            v1::Requesting { request: v1::Request::Dismiss(dismiss) };
+        let request = v1::Requesting { request: v1::Request::Dismiss(dismiss) };
         assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
         let watch = v1::Watching { watch: v1::Watch::Dismissed };
         assert_eq!(crate::decode_watching(&crate::watching(&watch), &limits), Some(watch));
@@ -1578,8 +1572,10 @@ fn dismiss_and_dismissals_round_trip() {
         assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
         for count in [0, crate::DISMISSED, crate::DISMISSED + 1] {
             let mut dismissed = List::with_capacity(count);
-            let mut writer =
-                skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * usize::try_from(what.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+            let mut writer = skein_lib::Writer::new(
+                6 + usize::try_from(count).unwrap()
+                    * usize::try_from(what.measure(&v1::CEILINGS).expect("within ceilings")).unwrap(),
+            );
             writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
             writer.put(&count.to_be_bytes()).unwrap();
             for _ in 0..count {
@@ -1587,7 +1583,13 @@ fn dismiss_and_dismissals_round_trip() {
                 what.write(&v1::CEILINGS, &mut writer).unwrap();
             }
             let bytes = writer.finish();
-            let made = { let value = v1::Dismissals { dismissed }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+            let made = {
+                let value = v1::Dismissals { dismissed };
+                match value.encode(&limits) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            };
             if count > crate::DISMISSED {
                 assert_eq!(
                     made.unwrap_err(),
@@ -1609,34 +1611,25 @@ fn setup_first_choices_round_trip_in_requests_and_rows() {
     let limits = fixtures::limits();
     assert_eq!(v1::CEILINGS.copy_addresses_addresses, crate::FIRST_COPIES);
     for first in [
-        v1::SetUpFirst::Empty(
-            v1::FirstEmpty {
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    playground: true,
-                },
-        ),
-        v1::SetUpFirst::Copies(
-            v1::CopyAddresses { addresses: List::with_capacity(0) },
-        ),
-        v1::SetUpFirst::Copies(
-            v1::CopyAddresses {
-                    addresses: {
-                        let mut addresses = List::with_capacity(crate::FIRST_COPIES);
-                        for _ in 0..crate::FIRST_COPIES {
-                            addresses.push(skein_lib::bytes::zeroed(crate::source::ADDRESS_BYTES)).unwrap();
-                        }
-                        addresses
-                    },
-                },
-        ),
+        v1::SetUpFirst::Empty(v1::FirstEmpty {
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            playground: true,
+        }),
+        v1::SetUpFirst::Copies(v1::CopyAddresses { addresses: List::with_capacity(0) }),
+        v1::SetUpFirst::Copies(v1::CopyAddresses {
+            addresses: {
+                let mut addresses = List::with_capacity(crate::FIRST_COPIES);
+                for _ in 0..crate::FIRST_COPIES {
+                    addresses.push(skein_lib::bytes::zeroed(crate::source::ADDRESS_BYTES)).unwrap();
+                }
+                addresses
+            },
+        }),
         v1::SetUpFirst::Nothing,
     ] {
-        let request = v1::Requesting {
-                request: v1::Request::SetUp(
-                    v1::SetUp { forge: kept(3), first: first.clone() },
-                ),
-            };
+        let request =
+            v1::Requesting { request: v1::Request::SetUp(v1::SetUp { forge: kept(3), first: first.clone() }) };
         assert_eq!(crate::decode_requesting(&crate::requesting(&request), &limits), Some(request));
         let mut row = installation_row(0, 0);
         row.starts_with = match first {
@@ -1675,8 +1668,7 @@ fn away_requests_round_trip() {
     for on in [false, true] {
         for until in [None, Some(u64::MAX)] {
             let value = v1::SetAway { project: u32::MAX, on, until };
-            let request =
-                v1::Requesting { request: v1::Request::SetAway(value) };
+            let request = v1::Requesting { request: v1::Request::SetAway(value) };
             let bytes = crate::requesting(&request);
             assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
             assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
@@ -1692,10 +1684,7 @@ fn away_requests_round_trip() {
 #[test]
 fn away_watches_and_outcomes_round_trip() {
     let limits = fixtures::limits();
-    for watch in [
-        v1::Watch::Away,
-        v1::Watch::Decided(v1::DecidedSubject { project: u32::MAX }),
-    ] {
+    for watch in [v1::Watch::Away, v1::Watch::Decided(v1::DecidedSubject { project: u32::MAX })] {
         let watch = v1::Watching { watch };
         let bytes = crate::watching(&watch);
         assert_eq!(crate::decode_watching(&bytes, &limits), Some(watch));
@@ -1704,12 +1693,8 @@ fn away_watches_and_outcomes_round_trip() {
     for outcome in [
         v1::Outcome::Away,
         v1::Outcome::Overturned,
-        v1::Outcome::OverturnRefused(
-            v1::OverturnRefused { reason: v1::OverturnRefusal::Already },
-        ),
-        v1::Outcome::OverturnRefused(
-            v1::OverturnRefused { reason: v1::OverturnRefusal::Unknown },
-        ),
+        v1::Outcome::OverturnRefused(v1::OverturnRefused { reason: v1::OverturnRefusal::Already }),
+        v1::Outcome::OverturnRefused(v1::OverturnRefused { reason: v1::OverturnRefusal::Unknown }),
     ] {
         let answer = v1::Answer { outcome };
         assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&answer))), Ok(answer));
@@ -1720,16 +1705,18 @@ fn away_watches_and_outcomes_round_trip() {
 fn aways_rows_are_bounded_at_construction_and_decode() {
     let limits = fixtures::limits();
     let row = v1::AwayRow {
-            project: u32::MAX,
-            since: u64::MAX,
-            until: Some(u64::MAX),
-            landed: u64::MAX,
-            off: Some(u64::MAX),
-        };
+        project: u32::MAX,
+        since: u64::MAX,
+        until: Some(u64::MAX),
+        landed: u64::MAX,
+        off: Some(u64::MAX),
+    };
     for count in [0, v1::CEILINGS.aways_rows, v1::CEILINGS.aways_rows + 1] {
         let mut rows = List::with_capacity(count);
-        let mut writer =
-            skein_lib::Writer::new(6 + usize::try_from(count).unwrap() * usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+        let mut writer = skein_lib::Writer::new(
+            6 + usize::try_from(count).unwrap()
+                * usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap(),
+        );
         writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
         for _ in 0..count {
@@ -1737,7 +1724,13 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
             row.write(&v1::CEILINGS, &mut writer).unwrap();
         }
         let bytes = writer.finish();
-        let made = { let value = v1::Aways { rows }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let made = {
+            let value = v1::Aways { rows };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if count > v1::CEILINGS.aways_rows {
             assert_eq!(
                 made.unwrap_err(),
@@ -1757,27 +1750,29 @@ fn aways_rows_are_bounded_at_construction_and_decode() {
 fn decisions_rows_are_bounded_at_construction_and_decode() {
     let limits = fixtures::limits();
     let row = v1::Decision {
-            number: u32::MAX,
-            task: u64::MAX,
-            at: u64::MAX,
-            question: Box::new([b'q'; 400]),
-            took: Box::new([b't'; 120]),
-            why: Box::new([b'w'; 400]),
-            overturned: true,
-            reach: v1::Reach {
-                    kind: v1::ReachKind::Wording,
-                    class: v1::ReachClass::Decide,
-                    reason: v1::ReachReason::Kind,
-                    under: 0,
-                    sets: 0,
-                    matched: 0,
-                    away: false,
-                },
-        };
+        number: u32::MAX,
+        task: u64::MAX,
+        at: u64::MAX,
+        question: Box::new([b'q'; 400]),
+        took: Box::new([b't'; 120]),
+        why: Box::new([b'w'; 400]),
+        overturned: true,
+        reach: v1::Reach {
+            kind: v1::ReachKind::Wording,
+            class: v1::ReachClass::Decide,
+            reason: v1::ReachReason::Kind,
+            under: 0,
+            sets: 0,
+            matched: 0,
+            away: false,
+        },
+    };
     for count in [0, 128, 128 + 1] {
         let mut rows = List::with_capacity(count);
-        let mut writer =
-            skein_lib::Writer::new(15 + usize::try_from(count).unwrap() * usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+        let mut writer = skein_lib::Writer::new(
+            15 + usize::try_from(count).unwrap()
+                * usize::try_from(row.measure(&v1::CEILINGS).expect("within ceilings")).unwrap(),
+        );
         writer.put(&u16::try_from(crate::CLIENT_VERSION).unwrap().to_be_bytes()).unwrap();
         writer.put(&u32::MAX.to_be_bytes()).unwrap();
         writer.put(&count.to_be_bytes()).unwrap();
@@ -1788,7 +1783,13 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
         writer.put(&0_u32.to_be_bytes()).unwrap();
         writer.put(&[0]).unwrap();
         let bytes = writer.finish();
-        let made = { let value = v1::Decisions { project: u32::MAX, rows, asked: List::with_capacity(0), cut: false }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let made = {
+            let value = v1::Decisions { project: u32::MAX, rows, asked: List::with_capacity(0), cut: false };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if count > 128 {
             assert_eq!(
                 made.unwrap_err(),
@@ -1809,11 +1810,7 @@ fn decisions_rows_are_bounded_at_construction_and_decode() {
 fn trial_requests_watches_and_outcomes_round_trip() {
     let limits = fixtures::limits();
     for again in [false, true] {
-        let request = v1::Requesting {
-                request: v1::Request::TryAccount(
-                    v1::TryAccount { account: u32::MAX, again },
-                ),
-            };
+        let request = v1::Requesting { request: v1::Request::TryAccount(v1::TryAccount { account: u32::MAX, again }) };
         let bytes = crate::requesting(&request);
         assert_eq!(crate::decode_requesting(&bytes, &limits), Some(request));
         assert_eq!(crate::decode_requesting(&fixtures::trailing(&bytes), &limits), None);
@@ -1834,15 +1831,9 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
     let mut states = List::uncapped();
     for state in [
         v1::TrialState::Running,
-        v1::TrialState::Answered(
-            v1::TrialAnswered { seconds: u32::MAX },
-        ),
-        v1::TrialState::Failed(
-            v1::TrialFailed { why: v1::TrialWhy::Refused },
-        ),
-        v1::TrialState::Failed(
-            v1::TrialFailed { why: v1::TrialWhy::Waited },
-        ),
+        v1::TrialState::Answered(v1::TrialAnswered { seconds: u32::MAX }),
+        v1::TrialState::Failed(v1::TrialFailed { why: v1::TrialWhy::Refused }),
+        v1::TrialState::Failed(v1::TrialFailed { why: v1::TrialWhy::Waited }),
     ] {
         states.push(state).unwrap();
     }
@@ -1857,28 +1848,26 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
         v1::TrialClass::Infrastructure,
     ] {
         states
-            .push(v1::TrialState::Failed(
-                v1::TrialFailed {
-                        why: v1::TrialWhy::Ended(v1::TrialEnded { class }),
-                    },
-            ))
+            .push(v1::TrialState::Failed(v1::TrialFailed { why: v1::TrialWhy::Ended(v1::TrialEnded { class }) }))
             .unwrap();
     }
     for state in &states {
         for step in [v1::TrialStep::Starts, v1::TrialStep::Answers] {
             for (task, took) in [(None, None), (Some(u64::MAX), Some(u32::MAX))] {
                 let row = v1::TrialRow {
-                        run_wait: None,
-                        account: u32::MAX,
-                        task,
-                        took,
-                        step: step.clone(),
-                        state: state.clone(),
-                    };
+                    run_wait: None,
+                    account: u32::MAX,
+                    task,
+                    took,
+                    step: step.clone(),
+                    state: state.clone(),
+                };
                 let mut rows = List::with_capacity(1);
                 rows.push(row).unwrap();
                 let document = v1::Trials { rows };
-                let mut writer = skein_lib::Writer::new(usize::try_from(document.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+                let mut writer = skein_lib::Writer::new(
+                    usize::try_from(document.measure(&v1::CEILINGS).expect("within ceilings")).unwrap(),
+                );
                 document.write(&v1::CEILINGS, &mut writer).unwrap();
                 let bytes = writer.finish();
                 let mut reader = Reader::new(&bytes);
@@ -1893,8 +1882,7 @@ fn trial_rows_round_trip_each_step_state_and_failure() {
 fn approvals_round_trip_each_review_of_yours_and_their_watch() {
     let limits = v1::CEILINGS;
     let mut rows = List::with_capacity(4);
-    let size =
-        v1::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false };
+    let size = v1::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false };
     let saturated = v1::ApprovalSize { files: u32::MAX, additions: u32::MAX, deletions: u32::MAX, cut: true };
     for (yours, goal, size) in [
         (v1::ApprovalYours::Counts, Some(u64::MAX), None),
@@ -1902,33 +1890,31 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
         (v1::ApprovalYours::TooFew, None, Some(saturated)),
         (v1::ApprovalYours::OtherRole, None, None),
     ] {
-        rows.push(
-            v1::ApprovalRow {
-                    task: u64::MAX,
-                    project: u32::MAX,
-                    goal,
-                    forge: u16::MAX,
-                    kind: v1::Kind::Forgejo,
-                    owner: Box::new([b'o'; 1024]),
-                    name: Box::new([b'n'; 1024]),
-                    pull: u64::MAX,
-                    address: Box::new([b'a'; 2048]),
-                    title: Box::new([b't'; 256]),
-                    since: u64::MAX,
-                    scope: 0,
-                    rule: 1,
-                    role: 2,
-                    required: 3,
-                    counted: 1,
-                    sets: List::from_boxed(Box::new([v1::ApprovalSet { number: 1, name: Box::new([b's'; 40]) }])),
-                    whole: true,
-                    yours,
-                    signed: approval_people(1),
-                    can_sign: approval_people(9),
-                    can_sign_more: 3,
-                    size,
-                },
-        )
+        rows.push(v1::ApprovalRow {
+            task: u64::MAX,
+            project: u32::MAX,
+            goal,
+            forge: u16::MAX,
+            kind: v1::Kind::Forgejo,
+            owner: Box::new([b'o'; 1024]),
+            name: Box::new([b'n'; 1024]),
+            pull: u64::MAX,
+            address: Box::new([b'a'; 2048]),
+            title: Box::new([b't'; 256]),
+            since: u64::MAX,
+            scope: 0,
+            rule: 1,
+            role: 2,
+            required: 3,
+            counted: 1,
+            sets: List::from_boxed(Box::new([v1::ApprovalSet { number: 1, name: Box::new([b's'; 40]) }])),
+            whole: true,
+            yours,
+            signed: approval_people(1),
+            can_sign: approval_people(9),
+            can_sign_more: 3,
+            size,
+        })
         .expect("four rows fit");
     }
     let document = v1::Approvals { rows, more: 7 };
@@ -1952,11 +1938,7 @@ fn approvals_round_trip_each_review_of_yours_and_their_watch() {
 fn approval_people(first: u64) -> List<v1::ApprovalPerson> {
     let mut people = List::with_capacity(8);
     for person in first..first.saturating_add(8) {
-        people
-            .push(
-                v1::ApprovalPerson { person, name: Box::new([b'p'; 64]) },
-            )
-            .unwrap();
+        people.push(v1::ApprovalPerson { person, name: Box::new([b'p'; 64]) }).unwrap();
     }
     people
 }
@@ -1966,7 +1948,9 @@ fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
     macro_rules! cycle {
         ($value:expr, $ty:ty, $tag:expr) => {{
             let value = $value;
-            let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&crate::v1::CEILINGS).expect("within ceilings")).unwrap());
+            let mut writer = skein_lib::Writer::new(
+                usize::try_from(value.measure(&crate::v1::CEILINGS).expect("within ceilings")).unwrap(),
+            );
             value.write(&crate::v1::CEILINGS, &mut writer).unwrap();
             let bytes = writer.finish();
             if let Some(tag) = $tag {
@@ -1979,40 +1963,26 @@ fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
             <$ty>::decode(&v1::CEILINGS, &mut Reader::new(&tail.finish())).unwrap_err();
         }};
     }
-    let request = v1::Request::AddDevice(
-        v1::AddDevice {
-                endpoint: b"http://push.test:4000/sub".as_slice().into(),
-                p256dh: [4; 65],
-                auth: [7; 16],
-                label: b"temper ctl".as_slice().into(),
-            },
-    );
+    let request = v1::Request::AddDevice(v1::AddDevice {
+        endpoint: b"http://push.test:4000/sub".as_slice().into(),
+        p256dh: [4; 65],
+        auth: [7; 16],
+        label: b"temper ctl".as_slice().into(),
+    });
     cycle!(v1::Requesting { request }, v1::Requesting, Some(19));
     cycle!(
-        v1::Requesting {
-                request: v1::Request::RemoveDevice(
-                    v1::RemoveDevice { number: u32::MAX }
-                )
-            },
+        v1::Requesting { request: v1::Request::RemoveDevice(v1::RemoveDevice { number: u32::MAX }) },
         v1::Requesting,
         Some(20)
     );
     cycle!(
-        v1::Requesting {
-                request: v1::Request::TryAccount(
-                    v1::TryAccount { account: 1, again: false }
-                )
-            },
+        v1::Requesting { request: v1::Request::TryAccount(v1::TryAccount { account: 1, again: false }) },
         v1::Requesting,
         Some(16)
     );
-    for (outcome, tag) in [
-        (
-            v1::Outcome::DeviceAdded(v1::DeviceAdded { number: 1 }),
-            30,
-        ),
-        (v1::Outcome::DeviceRemoved, 31),
-    ] {
+    for (outcome, tag) in
+        [(v1::Outcome::DeviceAdded(v1::DeviceAdded { number: 1 }), 30), (v1::Outcome::DeviceRemoved, 31)]
+    {
         cycle!(v1::Answer { outcome }, v1::Answer, Some(tag));
     }
     for reason in [
@@ -2023,31 +1993,17 @@ fn device_records_append_without_renumbering_and_refuse_trailing_bytes() {
         v1::DeviceRefusal::TooMany,
         v1::DeviceRefusal::Unknown,
     ] {
-        cycle!(
-            v1::Answer {
-                    outcome: v1::Outcome::DeviceRefused(
-                        v1::DeviceRefused { reason }
-                    )
-                },
-            v1::Answer,
-            Some(32)
-        );
+        cycle!(v1::Answer { outcome: v1::Outcome::DeviceRefused(v1::DeviceRefused { reason }) }, v1::Answer, Some(32));
     }
-    cycle!(
-        v1::Watching { watch: v1::Watch::Devices },
-        v1::Watching,
-        Some(14)
-    );
+    cycle!(v1::Watching { watch: v1::Watch::Devices }, v1::Watching, Some(14));
     let mut rows = List::with_capacity(8);
     for number in 1..=8 {
-        rows.push(
-            v1::DeviceRow {
-                    number,
-                    label: b"phone".as_slice().into(),
-                    at: u64::MAX,
-                    endpoint: b"https://push.test/sub".as_slice().into(),
-                },
-        )
+        rows.push(v1::DeviceRow {
+            number,
+            label: b"phone".as_slice().into(),
+            at: u64::MAX,
+            endpoint: b"https://push.test/sub".as_slice().into(),
+        })
         .unwrap();
     }
     cycle!(v1::Devices { rows }, v1::Devices, None::<u8>);

@@ -1,5 +1,5 @@
-use crate::v1::Record;
 use super::fixtures;
+use crate::v1::Record;
 use crate::{runner_label, v1};
 use skein_lib::{Reader, Writer};
 
@@ -8,17 +8,21 @@ const LABEL_BYTES: usize = 64;
 // fixtures::BOUNDS.field_bytes, shared by SetUp and FirstAsk.
 const FIELD_BYTES: usize = 16;
 fn first(label: &[u8]) -> Result<v1::FirstAsk, v1::Problem> {
-    { let value = v1::FirstAsk {
+    {
+        let value = v1::FirstAsk {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             label: label.into(),
-        }; match value.encode(&fixtures::limits()) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&fixtures::limits()) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
 }
 fn request(first: Option<v1::FirstAsk>) -> v1::Requesting {
-
     let admin = v1::ForgejoAdmin { first };
-    let connect =
-        v1::Connect { forge: super::kept(1), how: v1::How::ForgejoAdmin(admin) };
+    let connect = v1::Connect { forge: super::kept(1), how: v1::How::ForgejoAdmin(admin) };
     v1::Requesting { request: v1::Request::Connect(connect) }
 }
 // An untrusted peer's Connect at the current version: Connect tag 2, Kept tag 0, forge 1,
@@ -77,8 +81,9 @@ fn first_ask_names_past_the_setup_wire_bounds_are_refused() {
         (b"work".as_slice(), &[b'a'; FIELD_BYTES + 1][..], v1::paths::FIRST_ASK_REPOSITORY),
     ] {
         assert_eq!(
-            (v1::FirstAsk { org: org.into(), repository: repository.into(), ..parts.clone() }).encode(&limits)
-            .unwrap_err(),
+            (v1::FirstAsk { org: org.into(), repository: repository.into(), ..parts.clone() })
+                .encode(&limits)
+                .unwrap_err(),
             v1::Problem { path, reason: skein_codec::Reason::Bound }
         );
     }
@@ -87,7 +92,8 @@ fn first_ask_names_past_the_setup_wire_bounds_are_refused() {
 fn first_ask_names_at_the_setup_wire_bounds_round_trip() {
     let limits = fixtures::limits();
     let parts = first(b"docker").unwrap();
-    let record = v1::FirstAsk { org: Box::new([b'a'; FIELD_BYTES]), repository: Box::new([b'a'; FIELD_BYTES]), ..parts };
+    let record =
+        v1::FirstAsk { org: Box::new([b'a'; FIELD_BYTES]), repository: Box::new([b'a'; FIELD_BYTES]), ..parts };
     let mut writer = Writer::new(usize::try_from(record.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
     record.write(&v1::CEILINGS, &mut writer).unwrap();
     assert_eq!(v1::FirstAsk::decode(&limits, &mut Reader::new(&writer.finish())), Ok(record));

@@ -36,28 +36,28 @@ const LEDE: &str = "csv-export is two of three tasks in; one waits on you.";
 
 fn status(brief: bool) -> w::ProjectStatus {
     w::ProjectStatus {
-            project: PROJECT,
-            landed: 3,
-            seen: if brief { 0 } else { 3 },
-            last_landed: Some(BRIEF_AT),
-            previous: Some(0),
-            queued: 0,
-            red: false,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            brief: if brief {
-                Some({
-                    w::StatusBrief {
-                            sentence: SENTENCE.as_bytes().into(),
-                            lede: LEDE.as_bytes().into(),
-                            at: BRIEF_AT,
-                            landed: 3,
-                        }
-                })
-            } else {
-                None
-            },
-        }
+        project: PROJECT,
+        landed: 3,
+        seen: if brief { 0 } else { 3 },
+        last_landed: Some(BRIEF_AT),
+        previous: Some(0),
+        queued: 0,
+        red: false,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: if brief {
+            Some({
+                w::StatusBrief {
+                    sentence: SENTENCE.as_bytes().into(),
+                    lede: LEDE.as_bytes().into(),
+                    at: BRIEF_AT,
+                    landed: 3,
+                }
+            })
+        } else {
+            None
+        },
+    }
 }
 fn family(bytes: Box<[u8]>) -> jig_client::Family {
     jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes }
@@ -293,7 +293,7 @@ fn home_team(
             {
                 let Some(brief) = brief else { continue };
                 let status = status(brief);
-                let mut parts = status.into_parts();
+                let mut parts = status;
                 let other = Some(&subject) == d::forge::status::watch(OTHER_PROJECT, &f::limits().forge).as_ref();
                 if other {
                     parts.project = OTHER_PROJECT;
@@ -301,7 +301,7 @@ fn home_team(
                     parts.seen = u64::from(!brief);
                 }
                 if let Some(brief) = parts.brief {
-                    let mut brief = brief.into_parts();
+                    let mut brief = brief;
                     brief.lede =
                         if other { b"Coupons are two of three in. One awaits review.".as_slice() } else { lede }.into();
                     if other {
@@ -317,24 +317,22 @@ fn home_team(
             }
             jig_client::Down::Open { watch, .. } => Up::WatchEnded { watch, end: c::WatchEnd::Unknown },
             jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } }
-                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Playground =>
+                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Playground =>
             {
                 let Some((project, state)) = playground.take() else { continue };
                 Up::ReadDone {
                     read,
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
-                        record: Some(wire::playground_answer(
-                            &w::PlaygroundAnswer {
-                                    state,
-                                    project,
-                                    forge: wire::FORGE,
-                                    provider: 17,
-                                    owner: b"demo".as_slice().into(),
-                                    name: b"demo".as_slice().into(),
-                                    cues: List::with_capacity(0),
-                                },
-                        )),
+                        record: Some(wire::playground_answer(&w::PlaygroundAnswer {
+                            state,
+                            project,
+                            forge: wire::FORGE,
+                            provider: 17,
+                            owner: b"demo".as_slice().into(),
+                            name: b"demo".as_slice().into(),
+                            cues: List::with_capacity(0),
+                        })),
                     },
                 }
             }
@@ -391,9 +389,9 @@ fn home_team(
                     attempt,
                     envelope: skein_lib::RequestEnvelope::Final,
                     why: None,
-                    answer: Some(jig_client::Answered::Family(family(wire::answer(
-                        &w::Answer { outcome: w::Outcome::Looked },
-                    )))),
+                    answer: Some(jig_client::Answered::Family(family(wire::answer(&w::Answer {
+                        outcome: w::Outcome::Looked,
+                    })))),
                 }
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Jig(c::Read::Question { task, message }) } => {

@@ -1183,10 +1183,10 @@ fn charter_view(charter: u32, label: &[u8], value: &[u8]) -> temper_client_proto
     use temper_client_protocol_wire::v1 as w;
     let fact = w::Fact { label: label.into(), value: value.into() };
     let card = w::Card {
-            name: b"Prover".as_slice().into(),
-            who: b"an agent".as_slice().into(),
-            facts: List::from_boxed(Box::new([fact])),
-        };
+        name: b"Prover".as_slice().into(),
+        who: b"an agent".as_slice().into(),
+        facts: List::from_boxed(Box::new([fact])),
+    };
     w::View::Charter(w::CharterView { charter, card })
 }
 
@@ -1387,35 +1387,31 @@ const WALL: Wall = Wall::from_nanos(20 * DAY);
 pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
     let mut signed = List::with_capacity(u32::try_from(parties.len()).unwrap());
     for party in parties {
-        signed
-            .push(
-                w::ChangesSigned { name: None, party: *party, head: [3; 32], at: 0 },
-            )
-            .unwrap();
+        signed.push(w::ChangesSigned { name: None, party: *party, head: [3; 32], at: 0 }).unwrap();
     }
     w::ChangesLanded {
-            goal: None,
-            chat: None,
-            milestone: None,
-            task,
-            at,
-            signed,
-            title: b"Change".as_slice().into(),
-            commit: [4; 32],
-            default_branch: true,
-        }
+        goal: None,
+        chat: None,
+        milestone: None,
+        task,
+        at,
+        signed,
+        title: b"Change".as_slice().into(),
+        commit: [4; 32],
+        default_branch: true,
+    }
 }
 pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
     w::ChangesPanel {
-            project: PROJECT,
-            landing: b"main".as_slice().into(),
-            queues: List::with_capacity(0),
-            more: 0,
-            landed: List::with_capacity(0),
-            landed_more: 0,
-            landed_default: List::from_boxed(rows.into()),
-            landed_default_more: more,
-        }
+        project: PROJECT,
+        landing: b"main".as_slice().into(),
+        queues: List::with_capacity(0),
+        more: 0,
+        landed: List::with_capacity(0),
+        landed_more: 0,
+        landed_default: List::from_boxed(rows.into()),
+        landed_default_more: more,
+    }
 }
 
 #[test]

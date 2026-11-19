@@ -1,9 +1,9 @@
 //! Deployment facts (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::Queue;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, PartialEq, Eq, Debug)]

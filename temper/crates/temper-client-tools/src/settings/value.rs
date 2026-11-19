@@ -1,8 +1,8 @@
 //! Temper's inline values (temper/docs/design/client/ctl/tools.md, 2 and 3).
-use temper_client_protocol_wire::v1::Record;
 use skein_json::writer::Encoder;
 use skein_lib::Reader;
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 pub(crate) fn render(kind: u32, bytes: &[u8], out: &mut Encoder) -> bool {
     let mut reader = Reader::new(bytes);
     match kind {

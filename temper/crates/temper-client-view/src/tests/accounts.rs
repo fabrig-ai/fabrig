@@ -7,7 +7,6 @@
 pub(super) use super::fixtures::accounts::{
     PROVIDER, SOURCE, card_document, deliver, document, email_facts, sign_in_address, source,
 };
-use temper_client_protocol_wire::v1::Record;
 use super::{connect_model::text, fixtures};
 use jig_client::contract as c;
 use skein_lib::{List, Token};
@@ -16,6 +15,7 @@ use temper_client_domain::{
     self as d,
     pages::accounts::{Act as A, Operation, Row},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as v};
 
 const ADDRESS: &[u8] = b"https://issuer.example/visit";
@@ -104,7 +104,9 @@ fn trial_failed(why: v::TrialWhy) -> v::TrialState {
 
 fn trial_rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) {
     let doc = v::Trials { rows: List::from_boxed(rows.into()) };
-    let mut writer = skein_lib::Writer::new(usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
     doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     trial_event(
         root,
@@ -131,8 +133,7 @@ fn account_nodes(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
 #[test]
 #[expect(clippy::too_many_lines, reason = "each trial outcome keeps its expected line, style and steps together")]
 fn a_row_holds_its_trials_line() {
-    let answered =
-        v::TrialState::Answered(v::TrialAnswered { seconds: 6 });
+    let answered = v::TrialState::Answered(v::TrialAnswered { seconds: 6 });
     for (kind, step, state, line, style, each_step) in [
         (
             c::AccountKind::Program,
@@ -253,11 +254,7 @@ fn a_row_answered_for_another_account_says_nothing() {
     other.display = text(b"Other");
     doc.accounts = List::from_boxed(Box::new([doc.accounts.get(0).unwrap().clone(), other]));
     deliver(&mut root, accounts, doc);
-    let mut row = trial_row(
-        v::TrialStep::Answers,
-        v::TrialState::Answered(v::TrialAnswered { seconds: 6 }),
-    )
-    ;
+    let mut row = trial_row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 6 }));
     row.took = Some(OTHER_ACCOUNT);
     trial_rows(&mut root, trials, &[row]);
     for words in [fixtures::words(), fixtures::browser_words()] {
@@ -290,9 +287,7 @@ fn sign_in_again_on_a_row_goes_to_the_ways_page() {
         (c::AccountKind::Key, d::WayKind::Key, false),
     ] {
         let (mut root, trials, _) = trial_root(kind);
-        let why = v::TrialWhy::Ended(
-            v::TrialEnded { class: v::TrialClass::Permanent },
-        );
+        let why = v::TrialWhy::Ended(v::TrialEnded { class: v::TrialClass::Permanent });
         trial_rows(&mut root, trials, &[trial_row(v::TrialStep::Answers, trial_failed(why))]);
         for words in [fixtures::words(), fixtures::browser_words()] {
             let mut view = fixtures::view_of(words);
@@ -785,10 +780,7 @@ fn opened_accounts_name_their_uses_between_check_and_sources() {
     trial_rows(
         &mut root,
         trials,
-        &[trial_row(
-            v::TrialStep::Answers,
-            v::TrialState::Answered(v::TrialAnswered { seconds: 6 }),
-        )],
+        &[trial_row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 6 }))],
     );
     for (given, cap, expected) in [
         (doc.accounts.get(0).unwrap().uses.clone(), 8, Some("Pays for Ana, ben, Person 9 and fabrig.")),

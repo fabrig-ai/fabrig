@@ -1,10 +1,10 @@
 //! Settings taken at the next start (temper/docs/design/domain/landing-settings.md, 1.1).
-use temper_client_protocol_wire::v1::Record;
 use crate::file::{Decoder, Error, Fields, error, field, optional};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 const MOST: u32 = jig_client_protocol_wire::CEILINGS.application_value_bytes;
 fn number(d: &Decoder<'_>, fields: &Fields, name: &[u8], default: u64) -> Result<u64, Error> {
     match optional(fields, name) {
@@ -91,26 +91,30 @@ pub(super) fn landing(d: &Decoder<'_>, at: u32) -> Result<w::ProjectLanding, Err
         Some(at) => Some(d.number(at)?),
         None => None,
     };
-    Ok(
-        { let value = w::ProjectLanding {
-                by,
-                wait,
-                batch: u16::try_from(number(d, &f, b"batch", 1)?).or(Err(error(b"batch", b"u16 bound")))?,
-                combine_main,
-                combine_other,
-                merge_job: text(d, &f, b"merge_job")?,
-                close_job: text(d, &f, b"close_job")?,
-                landing_attempts: u8::try_from(number(d, &f, b"landing_attempts", 3)?)
-                    .or(Err(error(b"landing_attempts", b"u8 bound")))?,
-                check_timeout_ms,
-                gate_retries: u8::try_from(number(d, &f, b"gate_retries", 2)?)
-                    .or(Err(error(b"gate_retries", b"u8 bound")))?,
-                gate_timeout_ms: number(d, &f, b"gate_timeout_ms", 3_600_000)?,
-                tier_retries: u8::try_from(number(d, &f, b"tier_retries", 2)?)
-                    .or(Err(error(b"tier_retries", b"u8 bound")))?,
-                verification_bound_ms: number(d, &f, b"verification_bound_ms", 7_200_000)?,
-            }; match value.encode(&d.kinds) { Ok(_) => value, Err(why) => return Err(record_bound(why)) } },
-    )
+    Ok({
+        let value = w::ProjectLanding {
+            by,
+            wait,
+            batch: u16::try_from(number(d, &f, b"batch", 1)?).or(Err(error(b"batch", b"u16 bound")))?,
+            combine_main,
+            combine_other,
+            merge_job: text(d, &f, b"merge_job")?,
+            close_job: text(d, &f, b"close_job")?,
+            landing_attempts: u8::try_from(number(d, &f, b"landing_attempts", 3)?)
+                .or(Err(error(b"landing_attempts", b"u8 bound")))?,
+            check_timeout_ms,
+            gate_retries: u8::try_from(number(d, &f, b"gate_retries", 2)?)
+                .or(Err(error(b"gate_retries", b"u8 bound")))?,
+            gate_timeout_ms: number(d, &f, b"gate_timeout_ms", 3_600_000)?,
+            tier_retries: u8::try_from(number(d, &f, b"tier_retries", 2)?)
+                .or(Err(error(b"tier_retries", b"u8 bound")))?,
+            verification_bound_ms: number(d, &f, b"verification_bound_ms", 7_200_000)?,
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => value,
+            Err(why) => return Err(record_bound(why)),
+        }
+    })
 }
 fn paths(d: &Decoder<'_>, f: &Fields) -> Result<List<Box<[u8]>>, Error> {
     let Some(at) = optional(f, b"ignored") else {
@@ -132,13 +136,17 @@ fn format(d: &Decoder<'_>, f: &Fields) -> Result<w::SettingsReportFormat, Error>
 }
 fn report(d: &Decoder<'_>, at: u32) -> Result<w::SettingsGateReport, Error> {
     let f = d.object(at, &[b"artifact", b"format", b"fuzzy"])?;
-    Ok(
-        { let value = w::SettingsGateReport {
-                artifact: required_text(d, &f, b"artifact")?,
-                format: format(d, &f)?,
-                fuzzy: text(d, &f, b"fuzzy")?,
-            }; match value.encode(&d.kinds) { Ok(_) => value, Err(why) => return Err(record_bound(why)) } },
-    )
+    Ok({
+        let value = w::SettingsGateReport {
+            artifact: required_text(d, &f, b"artifact")?,
+            format: format(d, &f)?,
+            fuzzy: text(d, &f, b"fuzzy")?,
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => value,
+            Err(why) => return Err(record_bound(why)),
+        }
+    })
 }
 fn gate(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
     let f = d.object(at, &[b"name", b"workflow", b"ignored", b"blocking", b"base", b"report"])?;
@@ -146,14 +154,20 @@ fn gate(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
         Some(at) => Some(report(d, at)?),
         None => None,
     };
-    let r = { let value = w::SettingsGate {
+    let r = {
+        let value = w::SettingsGate {
             name: required_text(d, &f, b"name")?,
             workflow: required_text(d, &f, b"workflow")?,
             ignored: paths(d, &f)?,
             blocking: super::boolean(d, &f, b"blocking")?,
             base: boolean(d, &f, b"base", false)?,
             report,
-        }; match value.encode(&d.kinds) { Ok(_) => value, Err(why) => return Err(record_bound(why)) } };
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => value,
+            Err(why) => return Err(record_bound(why)),
+        }
+    };
     let mut out = Writer::new(skein_lib::usize_of(r.measure(&d.kinds).expect("checked wire value")));
     r.write(&d.kinds, &mut out).expect("measured gate");
     Ok(out.finish())
@@ -167,8 +181,14 @@ fn tier(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
         None => w::SettingsFollows::Landing,
         Some(b) if b.as_ref() == b"goal" => w::SettingsFollows::Goals,
         Some(name) => w::SettingsFollows::Branch(
-            { let value = w::SettingsBranch { name }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-                .or(Err(error(b"branch", b"wire value bound")))?,
+            {
+                let value = w::SettingsBranch { name };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
+            .or(Err(error(b"branch", b"wire value bound")))?,
         ),
     };
     let description = text(d, &f, b"description")?;
@@ -177,7 +197,8 @@ fn tier(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
     {
         return Err(error(b"description", b"must be 1 to 120 bytes"));
     }
-    let r = { let value = w::SettingsTier {
+    let r = {
+        let value = w::SettingsTier {
             name: required_text(d, &f, b"name")?,
             workflow: required_text(d, &f, b"workflow")?,
             ignored: paths(d, &f)?,
@@ -186,7 +207,12 @@ fn tier(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
             follows,
             span_ms: number(d, &f, b"span_ms", 0)?,
             description: description.unwrap_or_default(),
-        }; match value.encode(&d.kinds) { Ok(_) => value, Err(why) => return Err(record_bound(why)) } };
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => value,
+            Err(why) => return Err(record_bound(why)),
+        }
+    };
     let mut out = Writer::new(skein_lib::usize_of(r.measure(&d.kinds).expect("checked wire value")));
     r.write(&d.kinds, &mut out).expect("measured tier");
     Ok(out.finish())
@@ -223,12 +249,18 @@ pub(super) fn gates(d: &Decoder<'_>, at: u32) -> Result<w::ProjectGates, Error> 
     let mut items = List::uncapped();
     for at in &d.array(field(&f, b"repositories")?, MOST, b"repositories")? {
         let f = d.object(*at, &[b"forge", b"repository", b"gates", b"tiers"])?;
-        let r = { let value = w::RepositoryGates {
+        let r = {
+            let value = w::RepositoryGates {
                 forge: u16::try_from(super::number(d, &f, b"forge")?).or(Err(error(b"forge", b"u16 bound")))?,
                 repository: super::number(d, &f, b"repository")?,
                 gates: checks(d, &f, b"gates", true)?,
                 tiers: checks(d, &f, b"tiers", false)?,
-            }; match value.encode(&d.kinds) { Ok(_) => value, Err(why) => return Err(record_bound(why)) } };
+            };
+            match value.encode(&d.kinds) {
+                Ok(_) => value,
+                Err(why) => return Err(record_bound(why)),
+            }
+        };
         let mut out = Writer::new(skein_lib::usize_of(r.measure(&d.kinds).expect("checked wire value")));
         r.write(&d.kinds, &mut out).expect("measured repository");
         items.push(out.finish()).expect("counted repositories");
@@ -237,7 +269,13 @@ pub(super) fn gates(d: &Decoder<'_>, at: u32) -> Result<w::ProjectGates, Error> 
     if repositories.len() > skein_lib::usize_of(MOST.saturating_sub(4)) {
         return Err(error(b"repositories", b"settings carrier bound"));
     }
-    Ok({ let value = w::ProjectGates { repositories }; match value.encode(&d.kinds) { Ok(_) => value, Err(why) => return Err(record_bound(why)) } })
+    Ok({
+        let value = w::ProjectGates { repositories };
+        match value.encode(&d.kinds) {
+            Ok(_) => value,
+            Err(why) => return Err(record_bound(why)),
+        }
+    })
 }
 fn string(out: &mut Encoder, key: &[u8], value: &[u8]) {
     out.key(key);
@@ -402,6 +440,28 @@ fn render_gates_checked(v: &w::ProjectGates, out: &mut Encoder) -> Option<()> {
 }
 
 fn record_bound(why: w::Problem) -> Error {
-    let field: &[u8] = if why.path == w::paths::PROJECT_LANDING_MERGE_JOB { b"merge_job".as_slice() } else if why.path == w::paths::PROJECT_LANDING_CLOSE_JOB { b"close_job" } else if why.path == w::paths::SETTINGS_GATE_NAME || why.path == w::paths::SETTINGS_TIER_NAME { b"name" } else if why.path == w::paths::SETTINGS_GATE_WORKFLOW || why.path == w::paths::SETTINGS_TIER_WORKFLOW { b"workflow" } else if why.path == w::paths::SETTINGS_GATE_IGNORED || why.path == w::paths::SETTINGS_TIER_IGNORED { b"ignored" } else if why.path == w::paths::SETTINGS_GATE_REPORT_ARTIFACT || why.path == w::paths::SETTINGS_TIER_ARTIFACT { b"artifact" } else if why.path == w::paths::SETTINGS_GATE_REPORT_FUZZY { b"fuzzy" } else if why.path == w::paths::SETTINGS_TIER_DESCRIPTION { b"description" } else if why.path == w::paths::REPOSITORY_GATES_GATES { b"gates" } else if why.path == w::paths::REPOSITORY_GATES_TIERS { b"tiers" } else { b"repositories" };
+    let field: &[u8] = if why.path == w::paths::PROJECT_LANDING_MERGE_JOB {
+        b"merge_job".as_slice()
+    } else if why.path == w::paths::PROJECT_LANDING_CLOSE_JOB {
+        b"close_job"
+    } else if why.path == w::paths::SETTINGS_GATE_NAME || why.path == w::paths::SETTINGS_TIER_NAME {
+        b"name"
+    } else if why.path == w::paths::SETTINGS_GATE_WORKFLOW || why.path == w::paths::SETTINGS_TIER_WORKFLOW {
+        b"workflow"
+    } else if why.path == w::paths::SETTINGS_GATE_IGNORED || why.path == w::paths::SETTINGS_TIER_IGNORED {
+        b"ignored"
+    } else if why.path == w::paths::SETTINGS_GATE_REPORT_ARTIFACT || why.path == w::paths::SETTINGS_TIER_ARTIFACT {
+        b"artifact"
+    } else if why.path == w::paths::SETTINGS_GATE_REPORT_FUZZY {
+        b"fuzzy"
+    } else if why.path == w::paths::SETTINGS_TIER_DESCRIPTION {
+        b"description"
+    } else if why.path == w::paths::REPOSITORY_GATES_GATES {
+        b"gates"
+    } else if why.path == w::paths::REPOSITORY_GATES_TIERS {
+        b"tiers"
+    } else {
+        b"repositories"
+    };
     error(field, b"wire value bound")
 }

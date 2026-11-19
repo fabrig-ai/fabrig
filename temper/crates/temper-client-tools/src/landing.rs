@@ -1,7 +1,6 @@
 //! Landing views (domain/landing.md, 14; client/ctl/tools.md, 1).
 mod details;
 pub mod history;
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -21,6 +20,7 @@ use jig_client::{Client, Event, Handle, Latest, Readable, Readout, State, Told, 
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const READ: Tool = Tool {
@@ -166,12 +166,8 @@ fn open(watch: &mut Watching, limits: &Limits, out: &mut Queue<Out>) {
 pub(crate) fn subject(task: Option<u64>, project: u32, ended: bool, limits: &Limits) -> Watchable {
     let limits = forge::wire_limits(&limits.domain.forge).expect("checked limits");
     let watch = match task {
-        Some(task) => {
-            w::Watch::Landing(w::LandingSubject { task })
-        }
-        None => w::Watch::Landings(
-            w::LandingsSubject { project, ended },
-        ),
+        Some(task) => w::Watch::Landing(w::LandingSubject { task }),
+        None => w::Watch::Landings(w::LandingsSubject { project, ended }),
     };
     let watching = w::Watching { watch };
     Watchable::Family {
@@ -205,10 +201,10 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
         Some(task) => missing(task, watch.called.json),
         None => print_list(
             &w::LandingsPanel {
-                    project: watch.project.expect("resolved project"),
-                    turn: None,
-                    landings: skein_lib::List::with_capacity(0),
-                },
+                project: watch.project.expect("resolved project"),
+                turn: None,
+                landings: skein_lib::List::with_capacity(0),
+            },
             watch.called.json,
             limits,
         ),

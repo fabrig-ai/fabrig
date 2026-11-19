@@ -1,17 +1,19 @@
 //! Agents settings form (temper/docs/design/protocol/configuration/figures.md, 5).
-use temper_client_protocol_wire::v1::Record;
 use crate::file::{Decoder, Error, error, field};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 pub(super) fn value(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
     let record = match read(d, at) {
         Ok(record) => record,
         Err(why) => return Err(why.at(b"agents")),
     };
-    let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+    );
     record.write(&d.kinds, &mut out).expect("measured record");
     Ok(out.finish())
 }
@@ -25,8 +27,14 @@ fn read(d: &Decoder<'_>, at: u32) -> Result<w::AgentFigures, Error> {
         };
         profile
             .push(
-                { let value = w::AgentFigure { name: name.clone(), value }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-                    .or(Err(error(&name, b"profile name bound")))?,
+                {
+                    let value = w::AgentFigure { name: name.clone(), value };
+                    match value.encode(&d.kinds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }
+                .or(Err(error(&name, b"profile name bound")))?,
             )
             .expect("bounded profile");
     }
@@ -38,7 +46,13 @@ fn read(d: &Decoder<'_>, at: u32) -> Result<w::AgentFigures, Error> {
         };
         endpoints
             .push(
-                { let value = w::AgentEndpointLimits { endpoint: endpoint.clone(), limits }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+                {
+                    let value = w::AgentEndpointLimits { endpoint: endpoint.clone(), limits };
+                    match value.encode(&d.kinds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }
                 .or(Err(error(&endpoint, b"endpoint name bound")))?,
             )
             .expect("bounded endpoints");
@@ -47,8 +61,14 @@ fn read(d: &Decoder<'_>, at: u32) -> Result<w::AgentFigures, Error> {
         Ok(value) => value,
         Err(why) => return Err(why.at(b"fallback")),
     };
-    { let value = w::AgentFigures { profile, endpoints, fallback }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-        .or(Err(error(b"agents", b"wire value bound")))
+    {
+        let value = w::AgentFigures { profile, endpoints, fallback };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"agents", b"wire value bound")))
 }
 fn limits(d: &Decoder<'_>, at: u32) -> Result<w::AgentLimits, Error> {
     let fields = d.object(at, &[b"window", b"output", b"reasoning_item", b"head_ms", b"idle_ms", b"oversized"])?;
@@ -59,14 +79,20 @@ fn limits(d: &Decoder<'_>, at: u32) -> Result<w::AgentLimits, Error> {
     };
     let head_ms = d.number(field(&fields, b"head_ms")?).or(Err(error(b"head_ms", b"u64 required")))?;
     let idle_ms = d.number(field(&fields, b"idle_ms")?).or(Err(error(b"idle_ms", b"u64 required")))?;
-    { let value = w::AgentLimits {
+    {
+        let value = w::AgentLimits {
             window: super::number(d, &fields, b"window")?,
             output: super::number(d, &fields, b"output")?,
             reasoning_item: super::number(d, &fields, b"reasoning_item")?,
             head_ms,
             idle_ms,
             oversized,
-        }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"limits", b"wire value bound")))
 }
 pub(super) fn render(bytes: &[u8], out: &mut Encoder) -> bool {

@@ -182,9 +182,7 @@ impl Shown<'_> {
             && line.budget.numbers.budget != 0
         {
             items
-                .push(
-                    words.say(Word::MsSpent, &[Hole::Number(totals.spent), Hole::Number(line.budget.numbers.budget)]),
-                )
+                .push(words.say(Word::MsSpent, &[Hole::Number(totals.spent), Hole::Number(line.budget.numbers.budget)]))
                 .expect("meta fits");
         }
         items

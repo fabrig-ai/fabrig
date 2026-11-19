@@ -61,7 +61,13 @@ pub fn path_rules(
     for _ in 0..rows {
         items.push(row.clone()).expect("room for rows");
     }
-    { let value = v1::PathRules { rows: items, note }; match value.encode(limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+    {
+        let value = v1::PathRules { rows: items, note };
+        match value.encode(limits) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
 }
 
 pub fn limits() -> v1::Limits {
@@ -70,47 +76,45 @@ pub fn limits() -> v1::Limits {
 
 pub fn adopt() -> v1::Adopt {
     v1::Adopt {
-            project: 1,
-            home: true,
-            forge: crate::FORGE,
-            owner: Box::from(&b"acme"[..]),
-            name: Box::from(&b"shop"[..]),
-            prefix: Box::from(&b"temper/"[..]),
-            role: v1::Role::Owned,
-            landing: Box::from(&b"main"[..]),
-            ci: true,
-            checks: List::with_capacity(2),
-        }
+        project: 1,
+        home: true,
+        forge: crate::FORGE,
+        owner: Box::from(&b"acme"[..]),
+        name: Box::from(&b"shop"[..]),
+        prefix: Box::from(&b"temper/"[..]),
+        role: v1::Role::Owned,
+        landing: Box::from(&b"main"[..]),
+        ci: true,
+        checks: List::with_capacity(2),
+    }
 }
 
 pub fn adopted() -> v1::Adopted {
-
     let kinds = v1::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: true,
-            status: true,
-            comment: true,
-            issue: true,
-            branch: true,
-        };
+        read: true,
+        push: true,
+        open: true,
+        land: true,
+        review: true,
+        status: true,
+        comment: true,
+        issue: true,
+        branch: true,
+    };
     v1::Adopted {
-            landing: b"main".as_slice().into(),
-            forge: crate::FORGE,
-            repository: 7,
-            owner: Box::from(&b"acme"[..]),
-            name: Box::from(&b"shop"[..]),
-            role: v1::Role::Owned,
-            home: true,
-            kinds,
-            protection: v1::Protection::Unknown,
-        }
+        landing: b"main".as_slice().into(),
+        forge: crate::FORGE,
+        repository: 7,
+        owner: Box::from(&b"acme"[..]),
+        name: Box::from(&b"shop"[..]),
+        role: v1::Role::Owned,
+        home: true,
+        kinds,
+        protection: v1::Protection::Unknown,
+    }
 }
 
 pub fn outcome_rows() -> [v1::Outcome; 20] {
-
     let original = adopted();
     let mut contexts = List::with_capacity(1);
     contexts.push(Box::from(&b"build"[..])).expect("one context");
@@ -143,9 +147,7 @@ pub fn outcome_rows() -> [v1::Outcome; 20] {
 }
 
 fn forge_refused(reason: v1::ForgeReason) -> v1::Outcome {
-    v1::Outcome::ForgeRefused(
-        v1::ForgeRefused { reason },
-    )
+    v1::Outcome::ForgeRefused(v1::ForgeRefused { reason })
 }
 
 pub fn pull(address_bytes: u32, _limits: &v1::Limits) -> v1::Pull {
@@ -164,21 +166,18 @@ pub fn gates(count: u32) -> List<v1::Gate> {
     let mut gates = List::with_capacity(count);
     for number in 0..count {
         gates
-            .push(
-                v1::Gate {
-                        number: u64::from(number) + 1,
-                        kind: v1::GateKind::Review,
-                        blocks: true,
-                        verdict: v1::Verdict::Pending,
-                    },
-            )
+            .push(v1::Gate {
+                number: u64::from(number) + 1,
+                kind: v1::GateKind::Review,
+                blocks: true,
+                verdict: v1::Verdict::Pending,
+            })
             .expect("counted gates");
     }
     gates
 }
 
 pub fn panel_parts() -> v1::ChangePanel {
-
     v1::ChangePanel {
         wait: None,
         source: None,
@@ -214,24 +213,9 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
     let gate = Reason::Gate(v1::GateReason { gate: 9 });
     let mut panels = List::uncapped();
     for (step, hold, ci, [head, pull, runs]) in [
-        (
-            Step::Ready(v1::InLanding { landing: None }),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
-        (
-            Step::Ready(v1::InLanding { landing: Some(61) }),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
-        (
-            Step::Preparing(v1::InLanding { landing: Some(61) }),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
+        (Step::Ready(v1::InLanding { landing: None }), None, Ci::Passed, [true, true, true]),
+        (Step::Ready(v1::InLanding { landing: Some(61) }), None, Ci::Passed, [true, true, true]),
+        (Step::Preparing(v1::InLanding { landing: Some(61) }), None, Ci::Passed, [true, true, true]),
         (Step::Producing, None, Ci::Unknown, [false, false, false]),
         (Step::Opening, Some(Hold::Stalled), Ci::Pending, [true, false, false]),
         (Step::Recreating, Some(Hold::Repairs), Ci::Passed, [false, true, false]),
@@ -243,71 +227,26 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         (Step::First, Some(Hold::Closed), Ci::Failed, [true, true, true]),
         (Step::Updating, Some(Hold::Retargeted), Ci::Unknown, [true, true, true]),
         (Step::Resolving, Some(Hold::Failed), Ci::Pending, [true, true, true]),
-        (
-            Step::Repairing(v1::Repairing { reason: Reason::Ci }),
-            Some(Hold::Rejected),
-            Ci::Failed,
-            [true, true, true],
-        ),
-        (
-            Step::Repairing(v1::Repairing { reason: gate }),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
-        (
-            Step::Repairing(
-                v1::Repairing { reason: Reason::Semantic },
-            ),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
-        (
-            Step::Repairing(
-                v1::Repairing { reason: Reason::Review },
-            ),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
+        (Step::Repairing(v1::Repairing { reason: Reason::Ci }), Some(Hold::Rejected), Ci::Failed, [true, true, true]),
+        (Step::Repairing(v1::Repairing { reason: gate }), None, Ci::Passed, [true, true, true]),
+        (Step::Repairing(v1::Repairing { reason: Reason::Semantic }), None, Ci::Passed, [true, true, true]),
+        (Step::Repairing(v1::Repairing { reason: Reason::Review }), None, Ci::Passed, [true, true, true]),
         (Step::Landing, None, Ci::Passed, [true, true, true]),
+        (Step::Verifying(v1::Verifying { merge: [8; 32], tiers: tier_lines() }), None, Ci::Passed, [true; 3]),
+        (Step::Red(v1::Red { merge: [8; 32], tiers: tier_lines() }), None, Ci::Passed, [true; 3]),
         (
-            Step::Verifying(
-                v1::Verifying { merge: [8; 32], tiers: tier_lines() },
-            ),
+            Step::Cleared(v1::Cleared { merge: [8; 32], tiers: tier_lines(), uncleared: false }),
             None,
             Ci::Passed,
             [true; 3],
         ),
         (
-            Step::Red(v1::Red { merge: [8; 32], tiers: tier_lines() }),
+            Step::Cleared(v1::Cleared { merge: [8; 32], tiers: tier_lines(), uncleared: true }),
             None,
             Ci::Passed,
             [true; 3],
         ),
-        (
-            Step::Cleared(
-                v1::Cleared { merge: [8; 32], tiers: tier_lines(), uncleared: false },
-            ),
-            None,
-            Ci::Passed,
-            [true; 3],
-        ),
-        (
-            Step::Cleared(
-                v1::Cleared { merge: [8; 32], tiers: tier_lines(), uncleared: true },
-            ),
-            None,
-            Ci::Passed,
-            [true; 3],
-        ),
-        (
-            Step::Landed(v1::Landed { merge: [0x47; 32] }),
-            None,
-            Ci::Passed,
-            [true, true, true],
-        ),
+        (Step::Landed(v1::Landed { merge: [0x47; 32] }), None, Ci::Passed, [true, true, true]),
     ] {
         let mut parts = panel_parts();
         match &step {
@@ -352,14 +291,12 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
                 // Both blocking and advisory gates, every kind and verdict.
                 parts
                     .gates
-                    .push(
-                        v1::Gate {
-                                number: u64::from(parts.gates.len()) + 1,
-                                kind: kind.clone(),
-                                blocks: verdict == v1::Verdict::Approved,
-                                verdict,
-                            },
-                    )
+                    .push(v1::Gate {
+                        number: u64::from(parts.gates.len()) + 1,
+                        kind: kind.clone(),
+                        blocks: verdict == v1::Verdict::Approved,
+                        verdict,
+                    })
                     .expect("twelve gates");
             }
         }
@@ -390,10 +327,10 @@ pub fn panel_at_bound(field: PanelBound, count: u32) -> Result<v1::ChangePanel, 
                 parts
                     .unmapped_reviews
                     .push(v1::UnmappedReview {
-                            account: u64::from(account),
-                            head: [1; 32],
-                            verdict: v1::Verdict::Approved,
-                        })
+                        account: u64::from(account),
+                        head: [1; 32],
+                        verdict: v1::Verdict::Approved,
+                    })
                     .expect("review slots");
             }
         }
@@ -410,7 +347,13 @@ pub fn panel_at_bound(field: PanelBound, count: u32) -> Result<v1::ChangePanel, 
             parts.landing = field_bytes(count);
         }
     }
-    { let value = parts; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+    {
+        let value = parts;
+        match value.encode(&limits) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -451,24 +394,17 @@ fn tier_lines() -> List<Box<[u8]>> {
 }
 
 pub fn questions() -> v1::Questions {
-
     let mut open = List::with_capacity(5);
     for (index, stands) in [v1::Stands::Taken, v1::Stands::Asked, v1::Stands::Held].into_iter().enumerate() {
-        open.push(
-            v1::Question {
-                    asker: 71,
-                    number: u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number"),
-                    line: Box::from(b"Which branch?".as_slice()),
-                    stands,
-                },
-        )
+        open.push(v1::Question {
+            asker: 71,
+            number: u64::try_from(index.checked_add(1).expect("question index fits")).expect("question number"),
+            line: Box::from(b"Which branch?".as_slice()),
+            stands,
+        })
         .expect("five stands fit");
     }
-    v1::Questions {
-            route: v1::Route::Up,
-            taken: v1::Used { used: 2, limit: 4 },
-            open,
-        }
+    v1::Questions { route: v1::Route::Up, taken: v1::Used { used: 2, limit: 4 }, open }
 }
 
 #[test]
@@ -476,7 +412,13 @@ fn question_bounds_accept_at_and_refuse_one_past() {
     let limits = limits();
     let base = v1::Question { asker: 7, number: 1, line: Box::new([b'q'; 256]), stands: v1::Stands::Taken };
     let at = base.clone();
-    let past = { let value = v1::Question { line: Box::new([b'q'; 257]), ..base }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+    let past = {
+        let value = v1::Question { line: Box::new([b'q'; 257]), ..base };
+        match value.encode(&limits) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    };
     assert_eq!(
         past.expect_err("line past bound"),
         v1::Problem { path: v1::paths::QUESTION_LINE, reason: skein_codec::Reason::Bound }
@@ -486,7 +428,13 @@ fn question_bounds_accept_at_and_refuse_one_past() {
         for _ in 0..count {
             open.push(at.clone()).expect("counted questions");
         }
-        let made = { let value = v1::Questions { open, ..questions() }; match value.encode(&limits) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+        let made = {
+            let value = v1::Questions { open, ..questions() };
+            match value.encode(&limits) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        };
         if count == 8 {
             made.expect("open questions at bound");
         } else {
@@ -499,7 +447,6 @@ fn question_bounds_accept_at_and_refuse_one_past() {
 }
 
 fn approval_lines(field: PanelBound, count: u32) -> List<v1::Approval> {
-
     let (lines, reviews) = match field {
         PanelBound::Counted => (1, count),
         PanelBound::Address
@@ -516,22 +463,20 @@ fn approval_lines(field: PanelBound, count: u32) -> List<v1::Approval> {
     for number in 0..lines {
         let mut counted = List::with_capacity(reviews);
         for person in 0..reviews {
-            counted
-                .push(v1::CountedReview { person: u64::from(person), head: [1; 32] })
-                .expect("person slots");
+            counted.push(v1::CountedReview { person: u64::from(person), head: [1; 32] }).expect("person slots");
         }
         approvals
             .push(v1::Approval {
-                    scope: 0,
-                    number,
-                    role: 0,
-                    freshness: v1::RuleFreshness::Clean,
-                    required: 1,
-                    read: v1::ReviewRead::Complete,
-                    counted,
-                    remaining: Some(1),
-                    refused: false,
-                })
+                scope: 0,
+                number,
+                role: 0,
+                freshness: v1::RuleFreshness::Clean,
+                required: 1,
+                read: v1::ReviewRead::Complete,
+                counted,
+                remaining: Some(1),
+                refused: false,
+            })
             .expect("rule slots");
     }
     approvals

@@ -3168,9 +3168,7 @@ fn background_single(request: &Request) -> Option<Report> {
         && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(|record| &record.read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind == 7)
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
-        let record = wire::setting_answer(
-            &f::SettingAnswer { revision: None, value: None },
-        );
+        let record = wire::setting_answer(&f::SettingAnswer { revision: None, value: None });
         w::ReadAnswer::Value(
             w::Owned::new(
                 &w::CEILINGS,
@@ -3662,24 +3660,22 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
 fn brief_document() -> w::Owned {
     use temper_client_protocol_wire::{self as wire, v1 as f};
     let status = f::ProjectStatus {
-            project: 3,
+        project: 3,
+        landed: 1,
+        last_landed: Some(1),
+        previous: Some(0),
+        seen: 0,
+        queued: 0,
+        red: false,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: Some(f::StatusBrief {
+            sentence: b"One change landed.".as_slice().into(),
+            lede: b"The CSV export landed.".as_slice().into(),
+            at: 1,
             landed: 1,
-            last_landed: Some(1),
-            previous: Some(0),
-            seen: 0,
-            queued: 0,
-            red: false,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            brief: Some(
-                f::StatusBrief {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: b"The CSV export landed.".as_slice().into(),
-                        at: 1,
-                        landed: 1,
-                    },
-            ),
-        };
+        }),
+    };
     w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {

@@ -1,9 +1,9 @@
 //! Settings files through the joined roots (temper/docs/design/client/ctl/tools.md, 3, and temper/docs/design/client/ctl/testing.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Settings, World};
 use jig_domain_core::settings;
 use jig_domain_people as people;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{direct::Driver, store::Store, walking};
@@ -318,24 +318,37 @@ fn change_one_member(setting: c::Setting, value: &mut c::SettingValue) {
         c::SettingValue::Rules(value) => value.maximum_run_spend += 1,
         c::SettingValue::Application(bytes) => {
             if matches!(setting, c::Setting::Application { kind: 3, .. }) {
-                let mut parts =
-                    w::ForgeCharter::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("charter");
+                let mut parts = w::ForgeCharter::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("charter");
                 parts.charter = if parts.charter == 1 { 2 } else { 1 };
                 let value = parts;
-                let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("charter bytes"));
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .expect("charter bytes"),
+                );
                 value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured charter");
                 *bytes = writer.finish();
             } else if matches!(setting, c::Setting::Application { kind: 11, .. }) {
                 let value = w::TemplateGoal { design: true, close_out: true };
-                let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("goal work bytes"));
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .expect("goal work bytes"),
+                );
                 value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured goal work");
                 *bytes = writer.finish();
             } else {
-                let mut parts =
-                    w::LandingRule::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("rule");
+                let mut parts = w::LandingRule::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("rule");
                 parts.ci = !parts.ci;
                 let value = parts;
-                let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("rule bytes"));
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .expect("rule bytes"),
+                );
                 value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured rule");
                 *bytes = writer.finish();
             }

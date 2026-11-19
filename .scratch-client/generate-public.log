@@ -1,3 +1,0 @@
-   Compiling skein-codegen v0.0.0 (/home/free/src/fabrig/temper-worker/data/workspaces/workspaces/0/fabrig/skein/testing/skein-codegen)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.48s
-     Running `/home/free/src/fabrig/temper-worker/slots/0/target/debug/skein-codegen temper/crates/temper-client-protocol-wire/schema/public-v1.schema temper/crates/temper-client-protocol-wire/src/generated`

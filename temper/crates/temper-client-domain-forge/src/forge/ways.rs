@@ -1,9 +1,9 @@
 //! The session's settings and project values (temper/docs/design/client/pages/settings.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Latest, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Duration, List, Queue, Reader, Time, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 
@@ -398,8 +398,7 @@ fn read_slot(side: &mut Side, now: Time, control: Control, shown: bool, limits: 
     }
     let Some(bounds) = wire_limits(&limits) else { return };
     let value = w::SettingRead { kind: kind(control), scope: project, number: 1 };
-    let record =
-        w::Reading { read: w::Read::Setting(value) };
+    let record = w::Reading { read: w::Read::Setting(value) };
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
     let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
     let slot = side.ways.reading_slot_mut(control, shown);
@@ -593,12 +592,7 @@ fn setting_value(bytes: Option<&[u8]>, control: Control, limits: Limits) -> Opti
     let value = match control {
         Control::Ways => {
             let value = w::ProjectWays::decode(&wire_limits(&limits)?, &mut reader).ok()?;
-            Asked::Ways(Ways {
-                drafts: value.drafts,
-                goals: value.goals,
-                changes: value.changes,
-                way: value.way,
-            })
+            Asked::Ways(Ways { drafts: value.drafts, goals: value.goals, changes: value.changes, way: value.way })
         }
         Control::Questions => {
             let value = w::ProjectQuestions::decode(&wire_limits(&limits)?, &mut reader).ok()?;
@@ -644,21 +638,17 @@ fn bytes(asked: &Asked, limits: Limits) -> Option<Box<[u8]>> {
     let bounds = wire_limits(&limits)?;
     Some(match asked {
         Asked::Ways(value) => {
-            let record = w::ProjectWays {
-                    drafts: value.drafts,
-                    goals: value.goals,
-                    changes: value.changes,
-                    way: value.way,
-                };
+            let record =
+                w::ProjectWays { drafts: value.drafts, goals: value.goals, changes: value.changes, way: value.way };
             record.encode(&bounds).ok()?
         }
         Asked::Questions(value) => {
             let record = w::ProjectQuestions {
-                    route: match value {
-                        Route::None => w::QuestionsRoute::None,
-                        Route::Up => w::QuestionsRoute::Up,
-                    },
-                };
+                route: match value {
+                    Route::None => w::QuestionsRoute::None,
+                    Route::Up => w::QuestionsRoute::Up,
+                },
+            };
             record.encode(&bounds).ok()?
         }
         Asked::Classes(classes) => {
@@ -828,11 +818,7 @@ pub fn proposals(
             continue;
         }
         let Some(bounds) = wire_limits(&limits) else { continue };
-        let record = w::Reading {
-                read: w::Read::ProposalItems(
-                    w::ProposalItemsRead { key: read.key },
-                ),
-            };
+        let record = w::Reading { read: w::Read::ProposalItems(w::ProposalItemsRead { key: read.key }) };
         side.serial = side.serial.checked_add(1).expect("forge handles fit");
         let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
         let read = side.ways.proposals.get_mut(index).expect("retained proposal");
@@ -861,7 +847,6 @@ fn proposal_values(page: &Readout, limits: Limits) -> Option<(List<Proposed>, bo
     let owned_approval = answer.owned_approval;
     let mut values = List::with_capacity(answer.items.len());
     for item in answer.items.into_boxed() {
-
         let control = if item.kind == 6 {
             Control::Questions
         } else if item.kind == 8 {

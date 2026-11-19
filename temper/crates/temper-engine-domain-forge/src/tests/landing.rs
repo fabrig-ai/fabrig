@@ -1,5 +1,5 @@
-use temper_client_protocol_wire::v1::Record;
 use super::*;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_landing as policy;
 #[path = "landing/flake_rerun.rs"]
 mod flake_rerun;
@@ -1127,7 +1127,10 @@ fn the_turn_judges_path_approvals_from_its_complete_candidate_comparison() {
                 patterns: Box::new([b"src/**".as_slice().into()]),
             }]),
         };
-        let size = temper_protocol_reaches::classes_record(&classes).expect("classes record").measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings");
+        let size = temper_protocol_reaches::classes_record(&classes)
+            .expect("classes record")
+            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings");
         d.keep_settings(
             &env(),
             2,

@@ -653,11 +653,7 @@ fn adopting(root: &mut d::Domain, refused: Option<w::ForgeReason>) {
                 | d::Request::Fact { .. } => None,
             })
             .expect("adoption request");
-        let answer = w::Answer {
-                outcome: w::Outcome::ForgeRefused(
-                    w::ForgeRefused { reason },
-                ),
-            };
+        let answer = w::Answer { outcome: w::Outcome::ForgeRefused(w::ForgeRefused { reason }) };
         drive(
             root,
             d::Event::Client {
@@ -690,21 +686,16 @@ fn home_repository_states_keep_their_words_and_events() {
                 w::Mode::Managed,
                 super::connect_forge::connected(),
                 w::Offer::NotOffered,
-            )
-            ;
+            );
             parts.installations = List::with_capacity(1);
             parts
                 .installations
-                .push(
-                    w::Installation {
-                            id: 1,
-                            account: Some(
-                                w::Account { id: 73, login: b"octo".as_slice().into() },
-                            ),
-                            suspended: false,
-                            stray: false,
-                        },
-                )
+                .push(w::Installation {
+                    id: 1,
+                    account: Some(w::Account { id: 73, login: b"octo".as_slice().into() }),
+                    suspended: false,
+                    stray: false,
+                })
                 .unwrap();
             rows.push(parts).unwrap();
         }
@@ -1697,14 +1688,7 @@ fn settings_ask_link_opens_the_delivered_asking_chat_in_both_shells() {
 const CHAT_SENTENCE: &str = "A chat suits one change. For bigger work, a chat can write a draft beside it and start a goal from it: a plan, its tasks, landing.";
 
 fn status_home(parts: w::ProjectStatus, answered: bool, beginning: bool, goals: bool) -> d::Domain {
-    let fixture = StatusFixture {
-        document: parts,
-        answered,
-        goals,
-        shown: goals,
-        goal_rows: None,
-        away: None,
-    };
+    let fixture = StatusFixture { document: parts, answered, goals, shown: goals, goal_rows: None, away: None };
     home_documents_with_status(
         forge_rows(true),
         !beginning,
@@ -2296,15 +2280,15 @@ fn home_groups_milestones_counts_goals_and_names_their_dependencies() {
         c::ChipPhase::Waiting { dependencies: List::from_boxed(Box::new([3])), more: false, holds: false };
     child = f::milestones::in_milestone(child, f::milestones::TASK);
     let totals = w::MilestoneTotals {
-            task: f::milestones::TASK,
-            done: 2,
-            failed: 0,
-            closed: 0,
-            live: 4,
-            ended: None,
-            last_landing: None,
-            spent: 0,
-        };
+        task: f::milestones::TASK,
+        done: 2,
+        failed: 0,
+        closed: 0,
+        live: 4,
+        ended: None,
+        last_landing: None,
+        spent: 0,
+    };
     milestone.parts = List::from_boxed(Box::new([f::milestones::part(None, totals, &[(child.clone(), None)], 0)]));
     f::milestones::live(&mut root, &limits, listed, core::slice::from_ref(&milestone), false);
     // The dependency is held only by the milestone, not the shared goals list.
@@ -2520,15 +2504,15 @@ fn home_draws_the_same_when_unchanged_reads_answer_in_turns() {
     milestone.parts = List::from_boxed(Box::new([f::milestones::part(
         None,
         w::MilestoneTotals {
-                task: f::milestones::TASK,
-                done: 2,
-                failed: 0,
-                closed: 0,
-                live: 4,
-                ended: None,
-                last_landing: None,
-                spent: 0,
-            },
+            task: f::milestones::TASK,
+            done: 2,
+            failed: 0,
+            closed: 0,
+            live: 4,
+            ended: None,
+            last_landing: None,
+            spent: 0,
+        },
         &embedded,
         0,
     )]));
@@ -2580,14 +2564,8 @@ fn home_draws_the_same_when_unchanged_reads_answer_in_turns() {
     let needs = NeedsFixture { objects: &objects, cut: false, read: true, decided: true };
     let mut parts = status_parts();
     parts.landed = parts.seen + 15;
-    let status = StatusFixture {
-        document: parts,
-        answered: true,
-        goals: true,
-        shown: true,
-        goal_rows: None,
-        away: None,
-    };
+    let status =
+        StatusFixture { document: parts, answered: true, goals: true, shown: true, goal_rows: None, away: None };
     settle_home(&mut root, &mut rest, Some(&needs), Some(&chat_fixture(0, 0, false, false)), Some(&status));
     for (watch, rows) in [(goals_watch, goals.as_slice()), (listed, core::slice::from_ref(&milestone))] {
         let mut out = f::milestones::live(&mut root, &limits, watch, rows, false);
@@ -2803,14 +2781,8 @@ const BRIEF_LEDE: &str =
 
 fn brief_parts(landed: u64, lede: &str, at: u64) -> w::ProjectStatus {
     let mut parts = status_parts();
-    parts.brief = Some(
-        w::StatusBrief {
-                sentence: BRIEF_SENTENCE.as_bytes().into(),
-                lede: lede.as_bytes().into(),
-                at,
-                landed,
-            },
-    );
+    parts.brief =
+        Some(w::StatusBrief { sentence: BRIEF_SENTENCE.as_bytes().into(), lede: lede.as_bytes().into(), at, landed });
     parts
 }
 
@@ -2974,49 +2946,35 @@ fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::Forg
     for address in COPY_ADDRESSES.iter().take(states.len()) {
         addresses.push((*address).into()).unwrap();
     }
-    row.starts_with =
-        w::StartsWith::Copies(w::CopyAddresses { addresses });
+    row.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses });
     row.makings = List::with_capacity(2);
     row.repositories = List::with_capacity(2);
     for (address, state) in COPY_ADDRESSES.iter().zip(states) {
         let (org, name) = d::forge::making::target(address).unwrap();
         if let Some(state) = state {
             row.makings
-                .push(
-                    w::RepositoryMaking {
-                            org,
-                            name,
-                            state: state.clone(),
-                            from: w::MakeFrom::Copy(
-                                w::MakeCopy { address: (*address).into() },
-                            ),
-                            into: Some(
-                                w::MakeInto { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] },
-                            ),
-                        },
-                )
+                .push(w::RepositoryMaking {
+                    org,
+                    name,
+                    state: state.clone(),
+                    from: w::MakeFrom::Copy(w::MakeCopy { address: (*address).into() }),
+                    into: Some(w::MakeInto { project: f::PROJECT, home: *address == COPY_ADDRESSES[0] }),
+                })
                 .unwrap();
         } else if !unasked {
-            row.repositories
-                .push(
-                    w::Adoption { owner: org, name, project: f::PROJECT },
-                )
-                .unwrap();
+            row.repositories.push(w::Adoption { owner: org, name, project: f::PROJECT }).unwrap();
         }
     }
     List::from_boxed(Box::new([row]))
 }
 #[test]
 fn home_copy_lines_keep_order_completion_and_retry_in_browser_and_terminal() {
-    let failed = w::MakingState::Failed(
-        w::MakingFailed {
-                step: w::MakeStep::Repository,
-                reason: w::MakeFailure::Taken,
-                words: b"name taken".as_slice().into(),
-            },
-    );
-    let made =
-        w::MakingMade { id: 1, branch: b"main".as_slice().into() };
+    let failed = w::MakingState::Failed(w::MakingFailed {
+        step: w::MakeStep::Repository,
+        reason: w::MakeFailure::Taken,
+        words: b"name taken".as_slice().into(),
+    });
+    let made = w::MakingMade { id: 1, branch: b"main".as_slice().into() };
     for (states, expected, done, retry) in [
         (
             [Some(w::MakingState::Making), Some(w::MakingState::Waiting)],
@@ -3216,12 +3174,12 @@ fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
 fn home_empty_making_has_its_own_words_in_both_shells() {
     let mut row = add_rows().get(0).unwrap().clone();
     row.makings = List::from_boxed(Box::new([w::RepositoryMaking {
-            org: b"work".as_slice().into(),
-            name: b"hello".as_slice().into(),
-            from: w::MakeFrom::Empty,
-            into: Some(w::MakeInto { project: f::PROJECT, home: true }),
-            state: w::MakingState::Making,
-        }]));
+        org: b"work".as_slice().into(),
+        name: b"hello".as_slice().into(),
+        from: w::MakeFrom::Empty,
+        into: Some(w::MakeInto { project: f::PROJECT, home: true }),
+        state: w::MakingState::Making,
+    }]));
     let (root, _) = home_root(List::from_boxed(Box::new([row])), false, false);
     for view in [f::page_view(&root), f::browser_page_view(&root)] {
         main_find(view.tree(), Role::Paragraph, "Making work/hello…".as_bytes());
@@ -3265,9 +3223,7 @@ fn home_add_waits_for_kept_and_reports_forge_refusals_in_both_shells() {
             }
         }
         let outcome = match why {
-            Some(why) => {
-                w::Outcome::MakeRefused(w::MakeRefused { why })
-            }
+            Some(why) => w::Outcome::MakeRefused(w::MakeRefused { why }),
             None => w::Outcome::MakeKept,
         };
         let record = wire::answer(&w::Answer { outcome });
@@ -3546,8 +3502,7 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
             && let w::Watch::Findings(subject) = &watching.watch
         {
-            let holder =
-                w::Holder::Party(w::HolderParty { number: 1 });
+            let holder = w::Holder::Party(w::HolderParty { number: 1 });
             let mut capacity = 0_u32;
             for count in counts {
                 capacity = capacity.checked_add(count).unwrap();
@@ -3559,32 +3514,30 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                     [w::Severity::High, w::Severity::Medium, w::Severity::Low].into_iter().zip(counts)
                 {
                     for _ in 0..count {
-                        rows.push(
-                            w::FindingRow {
-                                    number: rows.len().checked_add(1).unwrap(),
-                                    at: 0,
-                                    kind: w::FindingKind::Review,
-                                    severity: severity.clone(),
-                                    area: None,
-                                    state: w::FindingState::New,
-                                    title: b"A finding".as_slice().into(),
-                                    holder: holder.clone(),
-                                    why: None,
-                                    hander: None,
-                                },
-                        )
+                        rows.push(w::FindingRow {
+                            number: rows.len().checked_add(1).unwrap(),
+                            at: 0,
+                            kind: w::FindingKind::Review,
+                            severity: severity.clone(),
+                            area: None,
+                            state: w::FindingState::New,
+                            title: b"A finding".as_slice().into(),
+                            holder: holder.clone(),
+                            why: None,
+                            hander: None,
+                        })
                         .unwrap();
                     }
                 }
             }
             let document = w::Findings {
-                    project: subject.project,
-                    rows,
-                    areas: List::with_capacity(0),
-                    triager: None,
-                    holder,
-                    cut,
-                };
+                project: subject.project,
+                rows,
+                areas: List::with_capacity(0),
+                triager: None,
+                holder,
+                cut,
+            };
             drive(
                 &mut root,
                 d::Event::Client {
@@ -3756,13 +3709,7 @@ fn a_row_says_title_and_clock() {
             false,
             Some("Allowed: changes to a path set."),
         ),
-        (
-            w::ReachKind::Tests,
-            w::ReachClass::Decide,
-            w::ReachReason::Set(w::ReachSet { number: 0 }),
-            false,
-            None,
-        ),
+        (w::ReachKind::Tests, w::ReachClass::Decide, w::ReachReason::Set(w::ReachSet { number: 0 }), false, None),
         (w::ReachKind::Retry, w::ReachClass::Ask, w::ReachReason::Kind, false, None),
     ] {
         let mut away = away_fixture(1);

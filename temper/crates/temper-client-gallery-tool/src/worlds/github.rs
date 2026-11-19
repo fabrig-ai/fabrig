@@ -13,9 +13,10 @@ pub(super) fn forges(world: World) -> Box<[u8]> {
         number: 2,
         kind: w::Kind::Github,
         mode: w::Mode::Connected,
-        connection: w::Connection::Connected(
-            w::Connected { id: 248_113_907, login: b"temper-7f3k2q[bot]".as_slice().into() },
-        ),
+        connection: w::Connection::Connected(w::Connected {
+            id: 248_113_907,
+            login: b"temper-7f3k2q[bot]".as_slice().into(),
+        }),
         offer: w::Offer::NotOffered,
         owned: None,
         admin: false,
@@ -31,24 +32,18 @@ pub(super) fn forges(world: World) -> Box<[u8]> {
     if step >= 21 {
         parts
             .installations
-            .push(
-                w::Installation {
-                        id: 61_022_417,
-                        account: Some(
-                            w::Account { id: 10, login: b"sam".as_slice().into() },
-                        ),
-                        suspended: false,
-                        stray: false,
-                    },
-            )
+            .push(w::Installation {
+                id: 61_022_417,
+                account: Some(w::Account { id: 10, login: b"sam".as_slice().into() }),
+                suspended: false,
+                stray: false,
+            })
             .expect("installation room");
     }
     if step == 22 {
         parts
             .repositories
-            .push(
-                w::Adoption { owner: b"sam".as_slice().into(), name: b"widget".as_slice().into(), project: 1 },
-            )
+            .push(w::Adoption { owner: b"sam".as_slice().into(), name: b"widget".as_slice().into(), project: 1 })
             .expect("adoption room");
     }
     let mut forges = List::with_capacity(1);
@@ -63,20 +58,13 @@ pub(super) fn answer_page(root: &mut Domain, attempt: Token, out: &mut Queue<Req
         (3, b"dotfiles".as_slice(), false),
         (4, b"site".as_slice(), false),
     ] {
-        rows.push(
-            w::Reached {
-                    id,
-                    owner: w::Account { id: 10, login: b"sam".as_slice().into() },
-                    name: name.into(),
-                    private,
-                },
-        )
+        rows.push(w::Reached {
+            id,
+            owner: w::Account { id: 10, login: b"sam".as_slice().into() },
+            name: name.into(),
+            private,
+        })
         .expect("repository room");
     }
-    sample_forge_answer(
-        root,
-        attempt,
-        w::Outcome::Page(w::Page { rows, more: false }),
-        out,
-    );
+    sample_forge_answer(root, attempt, w::Outcome::Page(w::Page { rows, more: false }), out);
 }

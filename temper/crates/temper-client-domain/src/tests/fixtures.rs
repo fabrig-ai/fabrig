@@ -260,27 +260,27 @@ pub fn adopted_bytes() -> jig_client::Family {
     use temper_client_protocol_wire::{self as wire, v1 as w};
 
     let kinds = w::Kinds {
-            read: true,
-            push: true,
-            open: true,
-            land: true,
-            review: false,
-            status: false,
-            comment: false,
-            issue: false,
-            branch: true,
-        };
+        read: true,
+        push: true,
+        open: true,
+        land: true,
+        review: false,
+        status: false,
+        comment: false,
+        issue: false,
+        branch: true,
+    };
     let adopted = w::Adopted {
-            landing: b"main".as_slice().into(),
-            forge: FORGE,
-            repository: 7,
-            owner: Box::from(*b"acme"),
-            name: Box::from(*b"shop"),
-            role: w::Role::Owned,
-            home: true,
-            kinds,
-            protection: w::Protection::Unknown,
-        };
+        landing: b"main".as_slice().into(),
+        forge: FORGE,
+        repository: 7,
+        owner: Box::from(*b"acme"),
+        name: Box::from(*b"shop"),
+        role: w::Role::Owned,
+        home: true,
+        kinds,
+        protection: w::Protection::Unknown,
+    };
     let answer = w::Answer { outcome: w::Outcome::Adopted(adopted) };
     jig_client::Family {
         family: wire::number(wire::Owner::Forge),

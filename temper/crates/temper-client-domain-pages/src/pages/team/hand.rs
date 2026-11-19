@@ -1,5 +1,4 @@
 //! Hand an area to a role, or give its named areas back (client/pages/team.md, 1).
-use temper_client_protocol_wire::v1::Record;
 use super::{Facts, Role};
 use crate::pages::{Root, Routing};
 use crate::{
@@ -11,6 +10,7 @@ use alloc::boxed::Box;
 use jig_client::{Handle, Key, Outcome, Readable, Readout, Told, contract as c};
 use skein_lib::{Env, List, Queue, Reader, Writer, bytes::concat};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
@@ -457,7 +457,11 @@ fn record(page: &Readout, project: u32, revision: u32, bounds: &w::Limits) -> Op
         return None;
     }
     match &document.value {
-        None => { let value = w::ProjectAreas { areas: List::with_capacity(0) }; value.measure(bounds).ok()?; Some(value) },
+        None => {
+            let value = w::ProjectAreas { areas: List::with_capacity(0) };
+            value.measure(bounds).ok()?;
+            Some(value)
+        }
         Some(c::SettingValue::Application(bytes)) => {
             let mut reader = Reader::new(bytes);
             let record = w::ProjectAreas::decode(bounds, &mut reader).ok()?;
@@ -488,8 +492,7 @@ fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w
                 w::AreaOwner::Party(_) | w::AreaOwner::Role(_) => false,
             };
             if held {
-                row.owner =
-                    w::AreaOwner::Party(w::AreaParty { number: give.party });
+                row.owner = w::AreaOwner::Party(w::AreaParty { number: give.party });
                 found = true;
             }
         } else if Some(&row.name) == open.area.as_ref() {
@@ -504,23 +507,20 @@ fn changed(open: &Open, record: w::ProjectAreas, bounds: &w::Limits) -> Option<w
         if rows.len() >= 16 || !valid_name(&open.name) || !valid_words(&open.words) {
             return None;
         }
-        rows.push(
-            w::Area { name: open.name.clone(), words: open.words.clone(), owner: chosen_owner(open)? },
-        )
-        .ok()?;
+        rows.push(w::Area { name: open.name.clone(), words: open.words.clone(), owner: chosen_owner(open)? }).ok()?;
     } else if !found {
         return None;
     }
-    { let value = w::ProjectAreas { areas: rows }; value.measure(bounds).ok()?; Some(value) }
+    {
+        let value = w::ProjectAreas { areas: rows };
+        value.measure(bounds).ok()?;
+        Some(value)
+    }
 }
 fn chosen_owner(open: &Open) -> Option<w::AreaOwner> {
     match open.stock {
-        Some(stock) => Some(w::AreaOwner::Charter(
-            w::AreaCharter { number: stock.charter() },
-        )),
-        None => Some(w::AreaOwner::Task(
-            w::AreaTask { number: open.chosen_role()?.task },
-        )),
+        Some(stock) => Some(w::AreaOwner::Charter(w::AreaCharter { number: stock.charter() })),
+        None => Some(w::AreaOwner::Task(w::AreaTask { number: open.chosen_role()?.task })),
     }
 }
 fn send(root: &mut dyn Routing, env: &Env<Limits>, page: &Readout, revision: u32) -> Option<()> {

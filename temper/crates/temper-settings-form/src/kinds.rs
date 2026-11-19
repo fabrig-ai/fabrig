@@ -1,12 +1,12 @@
 //! Temper's settings file values and codec records
 //! (temper/docs/design/client/ctl/tools.md, 3; temper/docs/design/protocol/configuration/settings.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use crate::file::{Decoder, Error, Fields, error, field, optional};
 use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 mod agents;
 mod follow;
 mod landing;
@@ -14,8 +14,14 @@ pub(crate) mod limits;
 
 fn dependency(d: &Decoder<'_>, at: u32) -> Result<w::Dependency, Error> {
     let fields = d.object(at, &[b"project"])?;
-    { let value = w::Dependency { project: number(d, &fields, b"project")? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-        .or(Err(error(b"", b"wire value bound")))
+    {
+        let value = w::Dependency { project: number(d, &fields, b"project")? };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"", b"wire value bound")))
 }
 
 fn hex(d: &Decoder<'_>, at: u32, most: u32, name: &[u8]) -> Result<Box<[u8]>, Error> {
@@ -171,9 +177,17 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
     }
     if kind == 20 {
         let fields = d.object(at, &[b"shown"])?;
-        let record = { let value = w::Welcome { shown: boolean(d, &fields, b"shown")? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-            .or(Err(error(b"welcome", b"wire value bound")))?;
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let record = {
+            let value = w::Welcome { shown: boolean(d, &fields, b"shown")? };
+            match value.encode(&d.kinds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }
+        .or(Err(error(b"welcome", b"wire value bound")))?;
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -188,7 +202,9 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
             Ok(value) => value,
             Err(why) => return Err(why.at(b"dependency")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -197,7 +213,9 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
             Ok(value) => value,
             Err(why) => return Err(why.at(b"follow")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -206,13 +224,17 @@ pub(super) fn value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Er
             Ok(record) => record,
             Err(why) => return Err(why.at(b"project-classes")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
     if kind == 9 {
         let record = charter_words(d, at)?;
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -224,7 +246,9 @@ fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Err
             Ok(value) => value,
             Err(why) => return Err(why.at(b"project-words")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -238,9 +262,17 @@ fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Err
             b"up" => w::QuestionsRoute::Up,
             _ => return Err(error(b"project-questions", b"none or up required")),
         };
-        let record = { let value = w::ProjectQuestions { route }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-            .or(Err(error(b"project-questions", b"wire value bound")))?;
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let record = {
+            let value = w::ProjectQuestions { route };
+            match value.encode(&d.kinds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }
+        .or(Err(error(b"project-questions", b"wire value bound")))?;
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -249,7 +281,9 @@ fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Err
             Ok(record) => record,
             Err(why) => return Err(why.at(b"project-ways")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -258,7 +292,9 @@ fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Err
             Ok(record) => record,
             Err(why) => return Err(why.at(b"template-goal")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -267,9 +303,17 @@ fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Err
             Ok(value) => u32::try_from(value).or(Err(error(b"forge-charter", b"u32 bound")))?,
             Err(why) => return Err(why.at(b"forge-charter")),
         };
-        let record = { let value = w::ForgeCharter { charter }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-            .or(Err(error(b"forge-charter", b"wire value bound")))?;
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let record = {
+            let value = w::ForgeCharter { charter };
+            match value.encode(&d.kinds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }
+        .or(Err(error(b"forge-charter", b"wire value bound")))?;
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
@@ -277,7 +321,9 @@ fn remaining_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Err
         Ok(record) => record,
         Err(why) => return Err(why.at(b"landing-rule")),
     };
-    let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+    );
     record.write(&d.kinds, &mut out).expect("measured record");
     Ok(out.finish())
 }
@@ -287,15 +333,25 @@ fn area_value(d: &Decoder<'_>, at: u32, kind: u32) -> Result<Box<[u8]>, Error> {
             Ok(record) => record,
             Err(why) => return Err(why.at(b"project-areas")),
         };
-        let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+        let mut out = Writer::new(
+            usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+        );
         record.write(&d.kinds, &mut out).expect("measured record");
         return Ok(out.finish());
     }
     let fields = d.object(at, &[b"owner"])?;
     let owner = area_owner(d, field(&fields, b"owner")?)?;
-    let record = { let value = w::ProjectTriager { owner }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-        .or(Err(error(b"project-triager", b"wire value bound")))?;
-    let mut out = Writer::new(usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"));
+    let record = {
+        let value = w::ProjectTriager { owner };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"project-triager", b"wire value bound")))?;
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&d.kinds).expect("checked wire value")).expect("record length fits"),
+    );
     record.write(&d.kinds, &mut out).expect("measured record");
     Ok(out.finish())
 }
@@ -309,28 +365,55 @@ fn project_words(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWords, Error> {
         Ok(value) => value.into(),
         Err(why) => return Err(why.at(b"lede")),
     };
-    { let value = w::ProjectWords { headline, lede }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }.or(Err(error(b"", b"wire value bound")))
+    {
+        let value = w::ProjectWords { headline, lede };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"", b"wire value bound")))
 }
 fn charter_words(d: &Decoder<'_>, at: u32) -> Result<w::CharterWords, Error> {
     let line = match d.string(at) {
         Ok(value) => value.into(),
         Err(why) => return Err(why.at(b"charter-words")),
     };
-    { let value = w::CharterWords { line }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }.or(Err(error(b"charter-words", b"wire value bound")))
+    {
+        let value = w::CharterWords { line };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"charter-words", b"wire value bound")))
 }
 fn goal(d: &Decoder<'_>, at: u32) -> Result<w::TemplateGoal, Error> {
     let fields = d.object(at, &[b"design", b"close_out"])?;
-    { let value = w::TemplateGoal { design: boolean(d, &fields, b"design")?, close_out: boolean(d, &fields, b"close_out")? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+    {
+        let value =
+            w::TemplateGoal { design: boolean(d, &fields, b"design")?, close_out: boolean(d, &fields, b"close_out")? };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 fn ways(d: &Decoder<'_>, at: u32) -> Result<w::ProjectWays, Error> {
     let fields = d.object(at, &[b"drafts", b"goals", b"changes", b"way"])?;
-    { let value = w::ProjectWays {
+    {
+        let value = w::ProjectWays {
             drafts: boolean(d, &fields, b"drafts")?,
             goals: boolean(d, &fields, b"goals")?,
             changes: boolean(d, &fields, b"changes")?,
             way: number(d, &fields, b"way")?,
-        }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
@@ -362,7 +445,8 @@ fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
         };
         approvals.push(approval).expect("counted approvals");
     }
-    { let value = w::LandingRule {
+    {
+        let value = w::LandingRule {
             pattern,
             enforce: boolean(d, &fields, b"enforce")?,
             ci: boolean(d, &fields, b"ci")?,
@@ -370,7 +454,12 @@ fn rule(d: &Decoder<'_>, at: u32) -> Result<w::LandingRule, Error> {
             gates,
             approvals,
             sets: rule_sets(d, optional(&fields, b"sets"))?,
-        }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 fn rule_sets(d: &Decoder<'_>, at: Option<u32>) -> Result<List<u8>, Error> {
@@ -409,8 +498,14 @@ fn pattern(d: &Decoder<'_>, at: u32) -> Result<w::LandingPattern, Error> {
         Ok(value) => value,
         Err(why) => return Err(why.at(b"last")),
     };
-    { let value = w::LandingPattern { segments, last }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-        .or(Err(error(b"", b"wire pattern bound")))
+    {
+        let value = w::LandingPattern { segments, last };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"", b"wire pattern bound")))
 }
 fn last(d: &Decoder<'_>, at: u32) -> Result<w::LandingLast, Error> {
     let fields = d.object(at, &[b"exact", b"open"])?;
@@ -424,8 +519,14 @@ fn last(d: &Decoder<'_>, at: u32) -> Result<w::LandingLast, Error> {
             d.limits.pattern_end_exact_value.min(d.kinds.landing_exact_value).min(w::CEILINGS.landing_exact_value),
             b"exact",
         )?;
-        let record = { let value = w::LandingExact { value }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-            .or(Err(error(b"exact", b"wire value bound")))?;
+        let record = {
+            let value = w::LandingExact { value };
+            match value.encode(&d.kinds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }
+        .or(Err(error(b"exact", b"wire value bound")))?;
         return Ok(w::LandingLast::Exact(record));
     }
     let value = hex(
@@ -434,8 +535,14 @@ fn last(d: &Decoder<'_>, at: u32) -> Result<w::LandingLast, Error> {
         d.limits.pattern_end_open_value.min(d.kinds.landing_open_value).min(w::CEILINGS.landing_open_value),
         b"open",
     )?;
-    let record =
-        { let value = w::LandingOpen { value }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }.or(Err(error(b"open", b"wire value bound")))?;
+    let record = {
+        let value = w::LandingOpen { value };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"open", b"wire value bound")))?;
     Ok(w::LandingLast::Open(record))
 }
 fn freshness(d: &Decoder<'_>, fields: &Fields) -> Result<w::RuleFreshness, Error> {
@@ -452,20 +559,32 @@ fn freshness(d: &Decoder<'_>, fields: &Fields) -> Result<w::RuleFreshness, Error
 }
 fn gate(d: &Decoder<'_>, at: u32) -> Result<w::RuleGate, Error> {
     let fields = d.object(at, &[b"number", b"blocking", b"freshness"])?;
-    { let value = w::RuleGate {
+    {
+        let value = w::RuleGate {
             number: number(d, &fields, b"number")?,
             blocking: boolean(d, &fields, b"blocking")?,
             freshness: freshness(d, &fields)?,
-        }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 fn approval(d: &Decoder<'_>, at: u32) -> Result<w::RuleApproval, Error> {
     let fields = d.object(at, &[b"role", b"people", b"freshness"])?;
-    { let value = w::RuleApproval {
+    {
+        let value = w::RuleApproval {
             role: number(d, &fields, b"role")?,
             people: number(d, &fields, b"people")?,
             freshness: freshness(d, &fields)?,
-        }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 
@@ -713,12 +832,25 @@ fn areas(d: &Decoder<'_>, at: u32) -> Result<w::ProjectAreas, Error> {
         let owner = area_owner(d, field(&fields, b"owner")?)?;
         areas
             .push(
-                { let value = w::Area { name, words, owner }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-                    .or(Err(error(b"areas", b"wire area bound")))?,
+                {
+                    let value = w::Area { name, words, owner };
+                    match value.encode(&d.kinds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }
+                .or(Err(error(b"areas", b"wire area bound")))?,
             )
             .expect("counted areas");
     }
-    { let value = w::ProjectAreas { areas }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }.or(Err(error(b"areas", b"wire value bound")))
+    {
+        let value = w::ProjectAreas { areas };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"areas", b"wire value bound")))
 }
 fn area_owner(d: &Decoder<'_>, at: u32) -> Result<w::AreaOwner, Error> {
     let fields = d.object(at, &[b"task", b"party", b"role", b"charter"])?;
@@ -727,25 +859,51 @@ fn area_owner(d: &Decoder<'_>, at: u32) -> Result<w::AreaOwner, Error> {
     }
     if let Some(at) = optional(&fields, b"task") {
         return Ok(w::AreaOwner::Task(
-            { let value = w::AreaTask { number: d.number(at)? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-                .or(Err(error(b"owner", b"wire value bound")))?,
+            {
+                let value = w::AreaTask { number: d.number(at)? };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
+            .or(Err(error(b"owner", b"wire value bound")))?,
         ));
     }
     if let Some(at) = optional(&fields, b"party") {
         return Ok(w::AreaOwner::Party(
-            { let value = w::AreaParty { number: d.number(at)? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-                .or(Err(error(b"owner", b"wire value bound")))?,
+            {
+                let value = w::AreaParty { number: d.number(at)? };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
+            .or(Err(error(b"owner", b"wire value bound")))?,
         ));
     }
     if let Some(at) = optional(&fields, b"role") {
         return Ok(w::AreaOwner::Role(
-            { let value = w::AreaRole { number: u32::try_from(d.number(at)?).or(Err(error(b"owner", b"u32 bound")))? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+            {
+                let value =
+                    w::AreaRole { number: u32::try_from(d.number(at)?).or(Err(error(b"owner", b"u32 bound")))? };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             .or(Err(error(b"owner", b"wire value bound")))?,
         ));
     }
     if let Some(at) = optional(&fields, b"charter") {
         return Ok(w::AreaOwner::Charter(
-            { let value = w::AreaCharter { number: u32::try_from(d.number(at)?).or(Err(error(b"owner", b"u32 bound")))? }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+            {
+                let value =
+                    w::AreaCharter { number: u32::try_from(d.number(at)?).or(Err(error(b"owner", b"u32 bound")))? };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             .or(Err(error(b"owner", b"wire value bound")))?,
         ));
     }

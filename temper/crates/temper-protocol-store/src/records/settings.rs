@@ -104,6 +104,10 @@ fn decode_rule(value: w::LandingRule, bounds: &Bounds) -> Result<d::LandingRule,
         approvals: decoded_approvals.into_boxed(),
     })
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "one exhaustive match translates the stored settings and their client records"
+)]
 pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
     let d::SettingRow { key: d::SettingKey { kind, scope, number, slot }, edit } = value;
     let slot = match slot {
@@ -117,7 +121,11 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
             let value = match value {
                 d::Value::Gates(v) => {
                     let record = d::gates_record(v);
-                    let mut out = Writer::new(skein_lib::usize_of(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings")));
+                    let mut out = Writer::new(skein_lib::usize_of(
+                        record
+                            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                            .expect("admitted client record within ceilings"),
+                    ));
                     record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut out).expect(FITS);
                     w::SettingValue::ProjectGates(
                         w::ProjectGates::decode(&w::CEILINGS, &mut Reader::new(&out.finish()))
@@ -126,7 +134,11 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                 }
                 d::Value::Landing(v) => {
                     let record = d::landing_record(v);
-                    let mut out = Writer::new(skein_lib::usize_of(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings")));
+                    let mut out = Writer::new(skein_lib::usize_of(
+                        record
+                            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                            .expect("admitted client record within ceilings"),
+                    ));
                     record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut out).expect(FITS);
                     w::SettingValue::ProjectLanding(
                         w::ProjectLanding::decode(&w::CEILINGS, &mut Reader::new(&out.finish()))
@@ -135,8 +147,17 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                 }
                 d::Value::Classes(classes) => {
                     let record = temper_protocol_reaches::classes_record(classes).expect(FITS);
-                    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings")).expect("measured classes length"));
-                    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes room");
+                    let mut writer = Writer::new(
+                        usize::try_from(
+                            record
+                                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                                .expect("admitted client record within ceilings"),
+                        )
+                        .expect("measured classes length"),
+                    );
+                    record
+                        .write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer)
+                        .expect("measured classes room");
                     w::SettingValue::Classes(
                         w::ProjectClasses::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
                             .expect("matching table records"),
@@ -145,8 +166,17 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                 d::Value::Dependency(value) => w::SettingValue::Dependency(w::Dependency { project: value.project }),
                 d::Value::Follow(follow) => {
                     let record = d::follow_record(follow).expect(FITS);
-                    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings")).expect("measured follow length"));
-                    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured follow room");
+                    let mut writer = Writer::new(
+                        usize::try_from(
+                            record
+                                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                                .expect("admitted client record within ceilings"),
+                        )
+                        .expect("measured follow length"),
+                    );
+                    record
+                        .write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer)
+                        .expect("measured follow room");
                     w::SettingValue::Follow(
                         w::Follow::decode(&w::CEILINGS, &mut Reader::new(&writer.finish()))
                             .expect("matching follow records"),
@@ -187,7 +217,14 @@ pub(super) fn encode(value: &d::SettingRow) -> w::SettingRow {
                     w::SettingValue::Goal(w::TemplateGoal { design: goal.design, close_out: goal.close_out })
                 }
                 d::Value::AgentFigures(value) => {
-                    let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings")).expect("record size fits"));
+                    let mut writer = Writer::new(
+                        usize::try_from(
+                            value
+                                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                                .expect("admitted client record within ceilings"),
+                        )
+                        .expect("record size fits"),
+                    );
                     value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect(FITS);
                     w::SettingValue::Agents(
                         w::AgentFigures::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect(FITS),

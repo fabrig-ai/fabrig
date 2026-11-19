@@ -81,14 +81,12 @@ fn random_rules(rng: &mut Rng) -> List<w::PathRule> {
     let count = u32::try_from(rng.below(10)).expect("up to nine rows");
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        rows.push(
-            w::PathRule {
-                    paths: pattern(rng),
-                    review: if rng.chance(500) { b"an agent".as_slice().into() } else { Box::default() },
-                    sign_off: if rng.chance(500) { b"two of you".as_slice().into() } else { Box::default() },
-                    lands: b"the read's words".as_slice().into(),
-                },
-        )
+        rows.push(w::PathRule {
+            paths: pattern(rng),
+            review: if rng.chance(500) { b"an agent".as_slice().into() } else { Box::default() },
+            sign_off: if rng.chance(500) { b"two of you".as_slice().into() } else { Box::default() },
+            lands: b"the read's words".as_slice().into(),
+        })
         .expect("bounded rows");
     }
     rows
@@ -140,27 +138,19 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
         let words = rng.next_u64().to_string().into_bytes().into_boxed_slice();
         let card = w::Card { who: Box::new([]), name: words.clone(), facts: List::with_capacity(0) };
         stops
-            .push(
-                w::Stop {
-                        needed: actor != w::Actor::Bar && index % 2 == 0,
-                        over: if actor == w::Actor::Agent {
-                            b"tests, review".as_slice().into()
-                        } else {
-                            Box::default()
-                        },
-                        actor,
-                        step,
-                        words,
-                        opens: if rng.chance(500) {
-                            w::Opens::Tier(
-                                w::OpensTier { name: b"tier".as_slice().into() },
-                            )
-                        } else {
-                            w::Opens::Nothing
-                        },
-                        card,
-                    },
-            )
+            .push(w::Stop {
+                needed: actor != w::Actor::Bar && index % 2 == 0,
+                over: if actor == w::Actor::Agent { b"tests, review".as_slice().into() } else { Box::default() },
+                actor,
+                step,
+                words,
+                opens: if rng.chance(500) {
+                    w::Opens::Tier(w::OpensTier { name: b"tier".as_slice().into() })
+                } else {
+                    w::Opens::Nothing
+                },
+                card,
+            })
             .expect("one stop per draw");
     }
     w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops }

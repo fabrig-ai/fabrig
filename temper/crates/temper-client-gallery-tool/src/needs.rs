@@ -1,5 +1,4 @@
 //! Needs you's question states, through public documents and acts (client/web/gallery.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     driver,
     samples::{Then, World},
@@ -12,6 +11,7 @@ use temper_client_domain::{
     address::Filter,
     pages::{Act, needs, stop_asking},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_fixtures::client_documents as documents;
 const FIRST: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local but leaves jig’s behaviour as it is.\n\nSaw: The box test reproduces it every time: the store’s write lands, then the watch closes before the answer comes. The test and its log are on the goal.\nChoice: In jig’s store (recommended)\nChoice: In temper serve";
 const SECOND: &str = "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?\n\nThe welcome’s design names the link a placeholder.\nChoice: Link the GitHub page (recommended)\nChoice: Hide the link";
@@ -551,51 +551,45 @@ fn approval(name: &str, me: u64) -> temper_client_protocol_wire::v1::Approvals {
     let no_account = name == "needs-approval-no-account";
     let part = name == "needs-sign-off-part";
     let row = w::ApprovalRow {
-            task: 81,
-            project: 1,
-            goal: None,
-            forge: 3,
-            kind: if no_account || list(name) { w::Kind::Github } else { w::Kind::Forgejo },
-            owner: Box::from(*b"work"),
-            name: Box::from(*b"hello"),
-            pull: 24,
-            address: if no_account || list(name) {
-                Box::from(b"https://github.com/work/hello/pull/24/files".as_slice())
-            } else {
-                Box::from(b"https://forge.example/work/hello/pulls/24/files".as_slice())
-            },
-            title: Box::from(*b"A change"),
-            since: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(240).as_nanos()),
-            scope: u32::from(!no_account),
-            rule: if no_account { 2 } else { 1 },
-            role: if part { 2 } else { u32::from(no_account) },
-            required: if no_account || part { 2 } else { 1 },
-            counted: u32::from(no_account || part),
-            sets: if name == "needs-approval-path" || part {
-                List::from_boxed(Box::new([w::ApprovalSet {
-                        number: 1,
-                        name: if part {
-                            b"payments".as_slice().into()
-                        } else {
-                            b"vsr's protocol core".as_slice().into()
-                        },
-                    }]))
-            } else {
-                List::with_capacity(0)
-            },
-            whole: true,
-            yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
-            signed: if part { approval_people(&[(2, b"Sam")]) } else { List::with_capacity(0) },
-            can_sign: if part { approval_people(&[(me, b"Ann"), (3, b"Kit")]) } else { List::with_capacity(0) },
-            can_sign_more: 0,
-            size: if name == "needs-approval-first" {
-                Some(
-                    w::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false },
-                )
-            } else {
-                None
-            },
-        };
+        task: 81,
+        project: 1,
+        goal: None,
+        forge: 3,
+        kind: if no_account || list(name) { w::Kind::Github } else { w::Kind::Forgejo },
+        owner: Box::from(*b"work"),
+        name: Box::from(*b"hello"),
+        pull: 24,
+        address: if no_account || list(name) {
+            Box::from(b"https://github.com/work/hello/pull/24/files".as_slice())
+        } else {
+            Box::from(b"https://forge.example/work/hello/pulls/24/files".as_slice())
+        },
+        title: Box::from(*b"A change"),
+        since: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(240).as_nanos()),
+        scope: u32::from(!no_account),
+        rule: if no_account { 2 } else { 1 },
+        role: if part { 2 } else { u32::from(no_account) },
+        required: if no_account || part { 2 } else { 1 },
+        counted: u32::from(no_account || part),
+        sets: if name == "needs-approval-path" || part {
+            List::from_boxed(Box::new([w::ApprovalSet {
+                number: 1,
+                name: if part { b"payments".as_slice().into() } else { b"vsr's protocol core".as_slice().into() },
+            }]))
+        } else {
+            List::with_capacity(0)
+        },
+        whole: true,
+        yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
+        signed: if part { approval_people(&[(2, b"Sam")]) } else { List::with_capacity(0) },
+        can_sign: if part { approval_people(&[(me, b"Ann"), (3, b"Kit")]) } else { List::with_capacity(0) },
+        can_sign_more: 0,
+        size: if name == "needs-approval-first" {
+            Some(w::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false })
+        } else {
+            None
+        },
+    };
     w::Approvals { rows: List::from_boxed(Box::new([row])), more: 0 }
 }
 
@@ -612,7 +606,10 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
         }]);
     }
     let record = classes_record(&classes).expect("gallery classes");
-    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .expect("classes bytes"),
+    );
     record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
     let document = w::SettingAnswer { revision: root.forge().settings_newest(), value: Some(writer.finish()) };
     driver::step(
@@ -634,39 +631,33 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
 
 fn finding() -> temper_client_protocol_wire::v1::Findings {
     use temper_client_protocol_wire::v1 as w;
-    let holder = w::Holder::Party(
-        w::HolderParty { number: 1 },
-    );
+    let holder = w::Holder::Party(w::HolderParty { number: 1 });
     let row = w::FindingRow {
-            number: 7,
-            kind: w::FindingKind::Feedback,
-            severity: w::Severity::High,
-            area: None,
-            state: w::FindingState::New,
-            title: b"The phone card is clipped".as_slice().into(),
-            holder: holder.clone(),
-            at: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(3600).as_nanos()),
-            why: Some(b"Your area owns the view".as_slice().into()),
-            hander: Some(w::Filer::Task(
-                w::HolderTask { number: 55 },
-            )),
-        };
+        number: 7,
+        kind: w::FindingKind::Feedback,
+        severity: w::Severity::High,
+        area: None,
+        state: w::FindingState::New,
+        title: b"The phone card is clipped".as_slice().into(),
+        holder: holder.clone(),
+        at: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(3600).as_nanos()),
+        why: Some(b"Your area owns the view".as_slice().into()),
+        hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+    };
     let area = w::AreaRow {
-            name: b"view".as_slice().into(),
-            words: b"What the person sees".as_slice().into(),
-            owner: w::AreaOwner::Party(
-                w::AreaParty { number: 1 },
-            ),
-            holder: Some(holder.clone()),
-        };
+        name: b"view".as_slice().into(),
+        words: b"What the person sees".as_slice().into(),
+        owner: w::AreaOwner::Party(w::AreaParty { number: 1 }),
+        holder: Some(holder.clone()),
+    };
     w::Findings {
-            project: 1,
-            rows: List::from_boxed(Box::new([row])),
-            areas: List::from_boxed(Box::new([area])),
-            triager: None,
-            holder,
-            cut: false,
-        }
+        project: 1,
+        rows: List::from_boxed(Box::new([row])),
+        areas: List::from_boxed(Box::new([area])),
+        triager: None,
+        holder,
+        cut: false,
+    }
 }
 fn finding_actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
     use temper_client_domain::pages::findings::{Act as F, Id, Mode};
@@ -713,8 +704,7 @@ fn finding_actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
             ),
             Some(jig_client::Down::Send { attempt, .. }) if name == "needs-finding-refused" => {
                 use temper_client_protocol_wire::v1 as w;
-                let refused =
-                    w::FindingRefused { reason: w::FindingRefusal::NoGoal };
+                let refused = w::FindingRefused { reason: w::FindingRefusal::NoGoal };
                 worlds::sample_forge_answer(root, attempt, w::Outcome::FindingRefused(refused), out);
             }
             _ => {}
@@ -726,11 +716,7 @@ fn approval_people(people: &[(u64, &[u8])]) -> List<temper_client_protocol_wire:
     use temper_client_protocol_wire::v1 as w;
     let mut values = List::with_capacity(8);
     for &(person, name) in people {
-        values
-            .push(
-                w::ApprovalPerson { person, name: name.into() },
-            )
-            .expect("eight people");
+        values.push(w::ApprovalPerson { person, name: name.into() }).expect("eight people");
     }
     values
 }

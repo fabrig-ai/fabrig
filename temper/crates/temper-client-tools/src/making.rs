@@ -1,5 +1,4 @@
 //! Keyed repository requests and adoption waits (temper/docs/design/client/ctl/tools.md, 3 and 4).
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -26,6 +25,7 @@ use temper_client_domain_forge::{
     },
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, source, v1 as w};
 
 pub const MAKE: Tool = Tool {

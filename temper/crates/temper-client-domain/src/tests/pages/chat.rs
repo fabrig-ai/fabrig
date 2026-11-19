@@ -3457,9 +3457,7 @@ fn numbered_view_text(number: u64) -> Box<[u8]> {
 
 fn view_value() -> temper_client_protocol_wire::v1::View {
     use temper_client_protocol_wire::v1 as w;
-    w::View::NotDrawn(
-        w::NotDrawn { words: b"Not drawn yet".as_slice().into() },
-    )
+    w::View::NotDrawn(w::NotDrawn { words: b"Not drawn yet".as_slice().into() })
 }
 fn view_page() -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};

@@ -1,9 +1,9 @@
 //! A person's Away facts (temper/docs/design/client/forge/records.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -193,7 +193,6 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[AwayRow]>> {
     let document = wire::decode_aways(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in document.rows.into_boxed() {
-
         let until = match row.until {
             Some(wall) => Some(Wall::from_nanos(wall)),
             None => None,

@@ -1,5 +1,4 @@
 //! Connect one more model account; shared with the welcome (temper/docs/design/client/pages/README.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{
     Pages, Request as Output,
     accounts::{self, Broken, Way, request::Request},
@@ -9,6 +8,7 @@ use crate::{Address, ModelWay, Step, WayKind};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, RequestKey};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 mod login;
 pub use login::LoginState;

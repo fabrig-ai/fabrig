@@ -1,5 +1,4 @@
 //! How work runs' shared parts (temper/docs/design/client/pages/settings.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,
@@ -7,6 +6,7 @@ use crate::{
 };
 use jig_client::{Down, Readable, Readout, Up, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Subject, Way};
 
@@ -114,13 +114,13 @@ fn fixture(
         },
     );
     if let Some((goals, way)) = ways {
-        let record =
-            w::ProjectWays { drafts: true, goals, changes: false, way };
-        let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
-        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
-        let bytes = wire::setting_answer(
-            &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
+        let record = w::ProjectWays { drafts: true, goals, changes: false, way };
+        let mut writer = Writer::new(
+            usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .unwrap(),
         );
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+        let bytes = wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) });
         up(
             &mut root,
             Up::ReadDone {
@@ -138,15 +138,18 @@ fn fixture(
         let value = match table {
             Some(table) => {
                 let record = temper_protocol_reaches::classes_record(&table).unwrap();
-                let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .unwrap(),
+                );
                 record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                 Some(writer.finish())
             }
             None => None,
         };
-        let answer = wire::setting_answer(
-            &w::SettingAnswer { revision: None, value },
-        );
+        let answer = wire::setting_answer(&w::SettingAnswer { revision: None, value });
         up(
             &mut root,
             Up::ReadDone {
@@ -197,27 +200,25 @@ fn fixture(
 fn deliver_ways(root: &mut Domain, watch: Token, current: Option<u32>, rows: List<w::PathRule>) {
     let path = path();
     let mut ways = List::with_capacity(1);
-    ways.push(
-        w::StockWay {
-                headline: b"".as_slice().into(),
-                name: b"A way".as_slice().into(),
-                line: b"Its line".as_slice().into(),
-                path: path.clone(),
-                items: List::with_capacity(0),
-                delegation: false,
-                roles: List::with_capacity(0),
-            },
-    )
+    ways.push(w::StockWay {
+        headline: b"".as_slice().into(),
+        name: b"A way".as_slice().into(),
+        line: b"Its line".as_slice().into(),
+        path: path.clone(),
+        items: List::with_capacity(0),
+        delegation: false,
+        roles: List::with_capacity(0),
+    })
     .unwrap();
     let panel = w::WaysPanel {
-            rules: w::PathRules { rows, note: Box::default() },
-            words: None,
-            project: f::PROJECT,
-            ways,
-            current,
-            own: path,
-            may_change: false,
-        };
+        rules: w::PathRules { rows, note: Box::default() },
+        words: None,
+        project: f::PROJECT,
+        ways,
+        current,
+        own: path,
+        may_change: false,
+    };
     up(
         root,
         Up::FamilyDelivered {
@@ -243,21 +244,15 @@ fn path() -> w::BranchPath {
         (w::Actor::Bar, w::PathStep::Branch, b"main".as_slice()),
     ] {
         stops
-            .push(
-                w::Stop {
-                        needed: false,
-                        over: Box::default(),
-                        actor,
-                        step,
-                        words: words.into(),
-                        opens: w::Opens::Nothing,
-                        card: w::Card {
-                                who: b"Actor".as_slice().into(),
-                                name: Box::default(),
-                                facts: List::with_capacity(0),
-                            },
-                    },
-            )
+            .push(w::Stop {
+                needed: false,
+                over: Box::default(),
+                actor,
+                step,
+                words: words.into(),
+                opens: w::Opens::Nothing,
+                card: w::Card { who: b"Actor".as_slice().into(), name: Box::default(), facts: List::with_capacity(0) },
+            })
             .unwrap();
     }
     w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops }
@@ -672,25 +667,18 @@ fn parts_and_facts_follow_the_project_rules() {
         );
     }
     let card = w::Card {
-            name: b"Chat".as_slice().into(),
-            who: b"For each chat".as_slice().into(),
-            facts: List::with_capacity(0),
-        };
-    let charter = w::CharterView { charter: 2, card };
-    let roles = |rows| {
-        w::View::Roles(w::RolesView { roles: List::from_boxed(rows) })
+        name: b"Chat".as_slice().into(),
+        who: b"For each chat".as_slice().into(),
+        facts: List::with_capacity(0),
     };
+    let charter = w::CharterView { charter: 2, card };
+    let roles = |rows| w::View::Roles(w::RolesView { roles: List::from_boxed(rows) });
     for (answer, expected) in [
         (None, false),
         (Some(roles(Box::default())), false),
         (Some(roles(Box::new([charter.clone()]))), true),
         (Some(w::View::Charter(charter)), false),
-        (
-            Some(w::View::NotDrawn(
-                w::NotDrawn { words: b"Not drawn".as_slice().into() },
-            )),
-            false,
-        ),
+        (Some(w::View::NotDrawn(w::NotDrawn { words: b"Not drawn".as_slice().into() })), false),
     ] {
         let mut root = fixture(true, false, None, Read::Reading, answer, ClassesRead::Unread, false);
         assert_eq!(how::facts(&root, f::PROJECT).roles, expected);
@@ -732,14 +720,12 @@ fn rules_follow_the_shown_rows_and_ask_offering() {
         {
             let mut rows = List::with_capacity(u32::try_from(reviews.len()).unwrap());
             for review in reviews {
-                rows.push(
-                    w::PathRule {
-                            paths: b"payments/**".as_slice().into(),
-                            review: (*review).into(),
-                            sign_off: b"two of you".as_slice().into(),
-                            lands: b"once two have signed this head".as_slice().into(),
-                        },
-                )
+                rows.push(w::PathRule {
+                    paths: b"payments/**".as_slice().into(),
+                    review: (*review).into(),
+                    sign_off: b"two of you".as_slice().into(),
+                    lands: b"once two have signed this head".as_slice().into(),
+                })
                 .unwrap();
             }
             deliver_ways(&mut root, watch, None, rows);
@@ -771,59 +757,56 @@ pub(super) fn follow_row(
 ) -> w::FollowView {
     let repo = w::FollowRepository { forge: 1, repository: 7 };
     let setting = w::Follow {
-            source: w::FollowSource {
-                    repository: repo.clone(),
-                    branch: b"main".as_slice().into(),
-                    paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
-                },
-            target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
-            owner: w::FollowOwner::Person(
-                w::FollowPerson { person: 4 },
-            ),
-            start,
-            producer: None,
-            verification: w::FollowCheck {
-                    workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
-                    artifact: b"results".as_slice().into(),
-                    format: w::FollowFormat::Junit,
-                },
-        };
-    let parity = verdict.map(|verdict| {
-        w::FollowParity { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() }
+        source: w::FollowSource {
+            repository: repo.clone(),
+            branch: b"main".as_slice().into(),
+            paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
+        },
+        target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
+        owner: w::FollowOwner::Person(w::FollowPerson { person: 4 }),
+        start,
+        producer: None,
+        verification: w::FollowCheck {
+            workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: w::FollowFormat::Junit,
+        },
+    };
+    let parity = verdict.map(|verdict| w::FollowParity {
+        source: [0xab; 32],
+        head: [0xcd; 32],
+        verdict,
+        run: b"check".as_slice().into(),
     });
     w::FollowView {
-            number: 1,
-            setting,
-            source: b"cowsql/vsr".as_slice().into(),
-            source_branch: b"main".as_slice().into(),
-            target: b"cowsql/vsr-rs".as_slice().into(),
-            target_branch: b"main".as_slice().into(),
-            task: None,
-            stopped: None,
-            lag,
-            entries: List::with_capacity(0),
-            skips: List::with_capacity(0),
-            parity,
-        }
+        number: 1,
+        setting,
+        source: b"cowsql/vsr".as_slice().into(),
+        source_branch: b"main".as_slice().into(),
+        target: b"cowsql/vsr-rs".as_slice().into(),
+        target_branch: b"main".as_slice().into(),
+        task: None,
+        stopped: None,
+        lag,
+        entries: List::with_capacity(0),
+        skips: List::with_capacity(0),
+        parity,
+    }
 }
 fn tier_stop(name: &[u8], checks: Option<&[u8]>, step: w::PathStep) -> w::Stop {
     let mut facts = List::with_capacity(1);
     if let Some(checks) = checks {
-        facts
-            .push(
-                w::Fact { label: b"Checks".as_slice().into(), value: checks.into() },
-            )
-            .unwrap();
+        facts.push(w::Fact { label: b"Checks".as_slice().into(), value: checks.into() }).unwrap();
     }
     w::Stop {
-            step,
-            actor: w::Actor::Code,
-            words: b"verify".as_slice().into(),
-            needed: false,
-            over: Box::default(),
-            opens: w::Opens::Tier(w::OpensTier { name: name.into() }),
-            card: w::Card { name: name.into(), who: Box::default(), facts },
-        }
+        step,
+        actor: w::Actor::Code,
+        words: b"verify".as_slice().into(),
+        needed: false,
+        over: Box::default(),
+        opens: w::Opens::Tier(w::OpensTier { name: name.into() }),
+        card: w::Card { name: name.into(), who: Box::default(), facts },
+    }
 }
 #[test]
 #[expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary table varies optional member lists")]
@@ -833,14 +816,14 @@ fn follows_boxes_follow_only_the_read_documents() {
     let pat = super::team::member(4, c::PartyKind::Person, b"Pat", c::HeldRole::Member);
     let login = super::team::member(4, c::PartyKind::Person, b"", c::HeldRole::Member);
     let main = w::BranchPath {
-            repository: None,
-            branch: b"main".as_slice().into(),
-            stops: List::from_boxed(Box::new([
-                tier_stop(b"fuzz", Some(b"fuzzing for 6 hours"), w::PathStep::Verify),
-                tier_stop(b"msan", None, w::PathStep::Verify),
-                tier_stop(b"goal-check", None, w::PathStep::Check),
-            ])),
-        };
+        repository: None,
+        branch: b"main".as_slice().into(),
+        stops: List::from_boxed(Box::new([
+            tier_stop(b"fuzz", Some(b"fuzzing for 6 hours"), w::PathStep::Verify),
+            tier_stop(b"msan", None, w::PathStep::Verify),
+            tier_stop(b"goal-check", None, w::PathStep::Check),
+        ])),
+    };
     let tiers = Tiers {
         branch: b"main".as_slice().into(),
         tiers: Box::new([
@@ -867,19 +850,15 @@ fn follows_boxes_follow_only_the_read_documents() {
         &[b"src", b"include", b"tests"],
         w::FollowStart::Owner,
         1,
-        Some(w::FollowVerdict::Failing(
-            w::FollowFailing { count: 7 },
-        )),
+        Some(w::FollowVerdict::Failing(w::FollowFailing { count: 7 })),
     );
     let mut stopped = follow_row(&[], w::FollowStart::Owner, 0, Some(w::FollowVerdict::Many));
     stopped.stopped = Some(b"Check is missing".as_slice().into());
     let stopped = stopped;
-    let panel = |row| {
-        w::FollowsPanel {
-                project: f::PROJECT,
-                follows: List::from_boxed(Box::new([row])),
-                dependencies: List::with_capacity(0),
-            }
+    let panel = |row| w::FollowsPanel {
+        project: f::PROJECT,
+        follows: List::from_boxed(Box::new([row])),
+        dependencies: List::with_capacity(0),
     };
     for (name, panel, path, members, reader, expected) in [
         (
@@ -990,14 +969,13 @@ fn follows_boxes_follow_only_the_read_documents() {
 fn task_follow_owner_uses_the_roles_title_else_its_number_never_you() {
     let mut row = follow_row(&[], w::FollowStart::Owner, 0, None);
     let mut setting = row.setting;
-    setting.owner =
-        w::FollowOwner::Task(w::FollowOwnerTask { task: 52 });
+    setting.owner = w::FollowOwner::Task(w::FollowOwnerTask { task: 52 });
     row.setting = setting;
     let panel = w::FollowsPanel {
-            project: f::PROJECT,
-            follows: List::from_boxed(Box::new([row])),
-            dependencies: List::with_capacity(0),
-        };
+        project: f::PROJECT,
+        follows: List::from_boxed(Box::new([row])),
+        dependencies: List::with_capacity(0),
+    };
     let roles = [how::Standing { number: 52, title: b"Prover".as_slice().into(), left: 0, budget: 0 }];
     for (roles, expected) in [(roles.as_slice(), b"Prover".as_slice()), ([].as_slice(), b"task 52".as_slice())] {
         let landed = how::follows(Some(&panel), None, None, 52, roles);

@@ -4,11 +4,11 @@ mod change;
 mod landing;
 mod landings;
 mod merges;
-use temper_client_protocol_wire::v1::Record;
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall, Writer};
 use temper_client_protocol_wire::public_v1 as w;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_landing as policy;
 
 struct Names {

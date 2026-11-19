@@ -1,8 +1,8 @@
 //! Repository making facts and the client's checks (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/records.md;
 //! temper/docs/design/draft/repository-copies.md, 5.2 to 5.4).
-use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{source, v1 as w};
 
 /// Why the welcome's addresses cannot be sent.
@@ -236,7 +236,13 @@ pub fn ask(
                 Ok(source) => source,
                 Err(why) => return Err(Refused::Source(why)),
             };
-            let copy = { let value = w::MakeCopy { address: source::address(&source) }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } };
+            let copy = {
+                let value = w::MakeCopy { address: source::address(&source) };
+                match value.encode(&w::CEILINGS) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            };
             match copy {
                 Ok(copy) => w::MakeFrom::Copy(copy),
                 Err(_) => return Err(Refused::TooLong),

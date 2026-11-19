@@ -15,12 +15,7 @@ const BOUNDS: Bounds = Bounds {
 };
 
 fn gate() -> w::PublicGate {
-    w::PublicGate {
-            number: u64::MAX,
-            kind: w::PublicGateKind::Check,
-            blocks: true,
-            verdict: w::PublicVerdict::Changes,
-        }
+    w::PublicGate { number: u64::MAX, kind: w::PublicGateKind::Check, blocks: true, verdict: w::PublicVerdict::Changes }
 }
 
 fn used() -> w::PublicUsed {
@@ -33,23 +28,21 @@ fn change(limits: &w::Limits) -> w::PublicChange {
         gates.push(gate()).unwrap();
     }
     w::PublicChange {
-            task: u16::MAX,
-            head: Some([255; 32]),
-            step: w::PublicStep::Repairing,
-            repair: Some(w::PublicRepair::Gate(
-                w::PublicGateNumber { gate: u64::MAX },
-            )),
-            merge: Some([255; 32]),
-            tiers: u32::MAX,
-            hold: Some(w::PublicHold::Authority),
-            ci: w::PublicCi::Failed,
-            gates,
-            repairs: used(),
-            resolutions: used(),
-            updates: used(),
-            way: w::PublicWay::Turn,
-            in_landing: true,
-        }
+        task: u16::MAX,
+        head: Some([255; 32]),
+        step: w::PublicStep::Repairing,
+        repair: Some(w::PublicRepair::Gate(w::PublicGateNumber { gate: u64::MAX })),
+        merge: Some([255; 32]),
+        tiers: u32::MAX,
+        hold: Some(w::PublicHold::Authority),
+        ci: w::PublicCi::Failed,
+        gates,
+        repairs: used(),
+        resolutions: used(),
+        updates: used(),
+        way: w::PublicWay::Turn,
+        in_landing: true,
+    }
 }
 
 fn line(limits: &w::Limits) -> w::PublicLandingLine {
@@ -90,12 +83,12 @@ fn landings(limits: &w::Limits) -> w::PublicLandings {
 
 fn proof() -> w::PublicGateProof {
     w::PublicGateProof {
-            faults: 0,
-            number: u64::MAX,
-            kind: w::PublicGateKind::Check,
-            blocks: true,
-            proof: w::PublicProof::Failed,
-        }
+        faults: 0,
+        number: u64::MAX,
+        kind: w::PublicGateKind::Check,
+        blocks: true,
+        proof: w::PublicProof::Failed,
+    }
 }
 
 fn judgement(limits: &w::Limits) -> w::PublicJudgement {
@@ -111,17 +104,15 @@ fn member(limits: &w::Limits) -> w::PublicMember {
         gates.push(proof()).unwrap();
     }
     w::PublicMember {
-            head: Some([255; 32]),
-            left: Some(w::PublicLeave::Blamed(
-                w::PublicBlamed { gate: u64::MAX, red: [255; 32], green: [255; 32] },
-            )),
-            judgement: Some(judgement(limits)),
-            task: u16::MAX,
-            base: Some([255; 32]),
-            candidate: Some([255; 32]),
-            landed: Some([255; 32]),
-            gates,
-        }
+        head: Some([255; 32]),
+        left: Some(w::PublicLeave::Blamed(w::PublicBlamed { gate: u64::MAX, red: [255; 32], green: [255; 32] })),
+        judgement: Some(judgement(limits)),
+        task: u16::MAX,
+        base: Some([255; 32]),
+        candidate: Some([255; 32]),
+        landed: Some([255; 32]),
+        gates,
+    }
 }
 
 fn landing(limits: &w::Limits) -> w::PublicLanding {
@@ -130,22 +121,20 @@ fn landing(limits: &w::Limits) -> w::PublicLanding {
         members.push(member(limits)).unwrap();
     }
     w::PublicLanding {
-            search: Some(
-                w::PublicSearch {
-                        green: w::PublicSearchBound { member: 0, prefix: [255; 32] },
-                        red: w::PublicSearchBound { member: u16::MAX, prefix: [255; 32] },
-                        probe: Some([255; 32]),
-                    },
-            ),
-            combined: Some(w::PublicCombined::Squash),
-            step: Some(w::PublicLandingStep::Held),
-            phase: w::PublicLandingPhase::Held,
-            hold: Some(w::PublicLandingHold::Faults),
-            preparation: u32::MAX,
-            members,
-            stale_proofs: u32::MAX,
-            holds_turn: true,
-        }
+        search: Some(w::PublicSearch {
+            green: w::PublicSearchBound { member: 0, prefix: [255; 32] },
+            red: w::PublicSearchBound { member: u16::MAX, prefix: [255; 32] },
+            probe: Some([255; 32]),
+        }),
+        combined: Some(w::PublicCombined::Squash),
+        step: Some(w::PublicLandingStep::Held),
+        phase: w::PublicLandingPhase::Held,
+        hold: Some(w::PublicLandingHold::Faults),
+        preparation: u32::MAX,
+        members,
+        stale_proofs: u32::MAX,
+        holds_turn: true,
+    }
 }
 
 pub(super) fn largest_answers() {
@@ -179,10 +168,7 @@ pub(super) fn largest_answers() {
 // A maximal value is one entry beyond a receiver whose corresponding limit is one smaller.
 fn refuse_change_overages(value: &w::PublicChange, bytes: &[u8], limits: w::Limits) {
     let smaller = w::Limits { public_change_gates: limits.public_change_gates.checked_sub(1).unwrap(), ..limits };
-    assert_eq!(
-        (value.clone()).encode(&smaller).unwrap_err().reason,
-        skein_codec::Reason::Bound
-    );
+    assert_eq!((value.clone()).encode(&smaller).unwrap_err().reason, skein_codec::Reason::Bound);
     assert_eq!(
         w::PublicChange::decode(&smaller, &mut Reader::new(bytes)).unwrap_err().reason,
         skein_codec::Reason::Bound
@@ -197,10 +183,7 @@ fn refuse_landings_overages(value: &w::PublicLandings, bytes: &[u8], limits: w::
         w::Limits { public_landings_landings: limits.public_landings_landings.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landings_queues: limits.public_landings_queues.checked_sub(1).unwrap(), ..limits },
     ] {
-        assert_eq!(
-            (value.clone()).encode(&smaller).unwrap_err().reason,
-            skein_codec::Reason::Bound
-        );
+        assert_eq!((value.clone()).encode(&smaller).unwrap_err().reason, skein_codec::Reason::Bound);
         assert_eq!(
             w::PublicLandings::decode(&smaller, &mut Reader::new(bytes)).unwrap_err().reason,
             skein_codec::Reason::Bound
@@ -214,10 +197,7 @@ fn refuse_landing_overages(value: &w::PublicLanding, bytes: &[u8], limits: w::Li
         w::Limits { public_judgement_gates: limits.public_judgement_gates.checked_sub(1).unwrap(), ..limits },
         w::Limits { public_landing_members: limits.public_landing_members.checked_sub(1).unwrap(), ..limits },
     ] {
-        assert_eq!(
-            (value.clone()).encode(&smaller).unwrap_err().reason,
-            skein_codec::Reason::Bound
-        );
+        assert_eq!((value.clone()).encode(&smaller).unwrap_err().reason, skein_codec::Reason::Bound);
         assert_eq!(
             w::PublicLanding::decode(&smaller, &mut Reader::new(bytes)).unwrap_err().reason,
             skein_codec::Reason::Bound

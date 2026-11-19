@@ -1,9 +1,9 @@
 //! Own-scope devices reader (temper/docs/design/client/forge/records.md, devices).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Family, Watchable, contract as c};
 use skein_lib::{List, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, PartialEq, Eq)]
@@ -28,7 +28,11 @@ pub fn watch(limits: Limits) -> Option<Watchable> {
     Some(Watchable::Family {
         scope: c::Scope::Own,
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&wire_limits(&limits)?).ok()? },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(&wire_limits(&limits)?).ok()?,
+        },
     })
 }
 #[must_use]
@@ -39,7 +43,6 @@ pub fn rows(record: &Family, limits: Limits) -> Option<Box<[Row]>> {
     let document = wire::decode_devices(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::uncapped();
     for row in document.rows.into_boxed() {
-
         rows.push(Row { number: row.number, label: row.label, at: Wall::from_nanos(row.at), endpoint: row.endpoint })
             .expect("uncapped devices");
     }

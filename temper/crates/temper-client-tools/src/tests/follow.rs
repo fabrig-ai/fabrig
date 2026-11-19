@@ -51,12 +51,7 @@ fn follow_act_commands_send_keyed_requests_and_print_kept_or_the_entrys_refusal(
                 }
                 other => panic!("wrong act: {other:?}"),
             }
-            root.adoption_answer(
-                call,
-                w::Outcome::Follow(
-                    w::FollowOutcome { refusal: None },
-                ),
-            );
+            root.adoption_answer(call, w::Outcome::Follow(w::FollowOutcome { refusal: None }));
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, 0);
             assert_eq!(printed.stdout.as_ref(), if json { b"{\"kept\":{}}".as_slice() } else { b"kept\n" });
@@ -65,9 +60,7 @@ fn follow_act_commands_send_keyed_requests_and_print_kept_or_the_entrys_refusal(
             let reason = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: the change has started producing";
             refused.adoption_answer(
                 call,
-                w::Outcome::Follow(
-                    w::FollowOutcome { refusal: Some(reason.as_bytes().into()) },
-                ),
+                w::Outcome::Follow(w::FollowOutcome { refusal: Some(reason.as_bytes().into()) }),
             );
             let printed = refused.answer(call).unwrap();
             assert_eq!(printed.status, 2);
@@ -80,40 +73,38 @@ fn row() -> w::FollowView {
     paths.push(b"src".as_slice().into()).unwrap();
     paths.push(b"include".as_slice().into()).unwrap();
     let setting = w::Follow {
-            source: w::FollowSource {
-                    repository: w::FollowRepository { forge: 1, repository: 12 },
-                    branch: b"main".as_slice().into(),
-                    paths,
-                },
-            target: w::FollowTarget {
-                    repository: w::FollowRepository { forge: 1, repository: 13 },
-                    branch: b"main".as_slice().into(),
-                },
-            owner: w::FollowOwner::Person(
-                w::FollowPerson { person: 4 },
-            ),
-            start: w::FollowStart::Owner,
-            producer: Some(b"6;3.1;".as_slice().into()),
-            verification: w::FollowCheck {
-                    workflow: b"tests.yml".as_slice().into(),
-                    artifact: b"results".as_slice().into(),
-                    format: w::FollowFormat::Junit,
-                },
-        };
+        source: w::FollowSource {
+            repository: w::FollowRepository { forge: 1, repository: 12 },
+            branch: b"main".as_slice().into(),
+            paths,
+        },
+        target: w::FollowTarget {
+            repository: w::FollowRepository { forge: 1, repository: 13 },
+            branch: b"main".as_slice().into(),
+        },
+        owner: w::FollowOwner::Person(w::FollowPerson { person: 4 }),
+        start: w::FollowStart::Owner,
+        producer: Some(b"6;3.1;".as_slice().into()),
+        verification: w::FollowCheck {
+            workflow: b"tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: w::FollowFormat::Junit,
+        },
+    };
     w::FollowView {
-            number: 1,
-            setting,
-            source: b"org/vsr".as_slice().into(),
-            source_branch: b"main".as_slice().into(),
-            target: b"org/vsr-rs".as_slice().into(),
-            target_branch: b"main".as_slice().into(),
-            task: Some(71),
-            stopped: None,
-            lag: 2,
-            entries: List::with_capacity(0),
-            skips: List::with_capacity(0),
-            parity: None,
-        }
+        number: 1,
+        setting,
+        source: b"org/vsr".as_slice().into(),
+        source_branch: b"main".as_slice().into(),
+        target: b"org/vsr-rs".as_slice().into(),
+        target_branch: b"main".as_slice().into(),
+        task: Some(71),
+        stopped: None,
+        lag: 2,
+        entries: List::with_capacity(0),
+        skips: List::with_capacity(0),
+        parity: None,
+    }
 }
 fn panel(rows: &[w::FollowView]) -> w::FollowsPanel {
     let mut follows = List::with_capacity(u32::try_from(rows.len()).unwrap());
@@ -151,24 +142,18 @@ fn read_as(panel: &w::FollowsPanel, show: bool, json: bool, me: c::Me) -> jig::P
 }
 fn parity(verdict: w::FollowVerdict) -> w::FollowParity {
     w::FollowParity {
-            source: [0xab; 32],
-            head: [0xcd; 32],
-            verdict,
-            run: b"https://forge.example/run/2".as_slice().into(),
-        }
+        source: [0xab; 32],
+        head: [0xcd; 32],
+        verdict,
+        run: b"https://forge.example/run/2".as_slice().into(),
+    }
 }
 #[test]
 fn follow_list_prints_the_binding_lag_and_every_parity() {
     for (lag, verdict, expected) in [
         (2, None, "2 behind · no check yet"),
         (0, Some(w::FollowVerdict::Passed), "caught up · check passes at abababababab"),
-        (
-            1,
-            Some(w::FollowVerdict::Failing(
-                w::FollowFailing { count: 3 },
-            )),
-            "1 behind · 3 failing at abababababab",
-        ),
+        (1, Some(w::FollowVerdict::Failing(w::FollowFailing { count: 3 })), "1 behind · 3 failing at abababababab"),
         (7, Some(w::FollowVerdict::Many), "7 behind · many failing at abababababab"),
     ] {
         let mut parts = row();
@@ -209,23 +194,16 @@ fn follow_show_prints_the_whole_setting_and_oldest_first_entries() {
         // Deliberately descending commits: order belongs to the queue, not its hashes.
         parts
             .entries
-            .push(
-                w::FollowEntry {
-                        after: [u8::try_from(7 - index).unwrap(); 32],
-                        change: if index == 0 { None } else { Some(81) },
-                        state,
-                    },
-            )
+            .push(w::FollowEntry {
+                after: [u8::try_from(7 - index).unwrap(); 32],
+                change: if index == 0 { None } else { Some(81) },
+                state,
+            })
             .unwrap();
     }
     parts.lag = 7;
     parts.skips = List::with_capacity(1);
-    parts
-        .skips
-        .push(
-            w::FollowSkip { after: [0x11; 32], reason: b"not ported".as_slice().into() },
-        )
-        .unwrap();
+    parts.skips.push(w::FollowSkip { after: [0x11; 32], reason: b"not ported".as_slice().into() }).unwrap();
     parts.parity = Some(parity(w::FollowVerdict::Many));
     let panel = panel(&[parts]);
     let answer = read(&panel, true, false);
@@ -245,8 +223,7 @@ fn follow_show_prints_the_whole_setting_and_oldest_first_entries() {
 fn follow_show_names_a_task_owner_in_text_and_json() {
     let mut parts = row();
     let mut setting = parts.setting;
-    setting.owner =
-        w::FollowOwner::Task(w::FollowOwnerTask { task: 52 });
+    setting.owner = w::FollowOwner::Task(w::FollowOwnerTask { task: 52 });
     parts.setting = setting;
     let panel = panel(&[parts]);
     let text = read(&panel, true, false);
@@ -297,10 +274,7 @@ fn follow_list_prints_dependencies_after_follows_naming_only_the_readers_project
             let rows = [row()];
             let mut parts = panel(if has_follow { &rows } else { &[] });
             parts.dependencies = List::with_capacity(1);
-            parts
-                .dependencies
-                .push(w::DependencyView { number: 1, project: 7 })
-                .unwrap();
+            parts.dependencies.push(w::DependencyView { number: 1, project: 7 }).unwrap();
             let panel = parts;
             let answer = read_as(&panel, false, false, me.clone());
             assert_eq!(answer.status, 0);

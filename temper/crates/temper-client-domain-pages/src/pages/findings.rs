@@ -1,5 +1,4 @@
 //! The person's findings in Needs you (temper/docs/design/client/pages/needs-you.md, 1).
-use temper_client_protocol_wire::v1::Record;
 use super::{
     Pages, Request,
     inbox::{Inbox, QuestionWords},
@@ -16,6 +15,7 @@ use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::{Env, List, Map, Queue, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 pub const PROJECTS: u32 = 4;
 pub const ROWS: u32 = 128;
@@ -804,12 +804,18 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             if !card.can_hand() {
                 return;
             }
-            let Ok(hand) = ({ let value = w::HandFinding {
+            let Ok(hand) = ({
+                let value = w::HandFinding {
                     project: id.project,
                     number: id.number,
                     area: card.area.clone(),
                     why: card.why.clone(),
-                }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+                };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
                 return;
             };
             send(card, w::Request::HandFinding(hand), &mut pages.serial, env, out);
@@ -820,7 +826,15 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 return;
             }
             let Some(task) = card.goal else { return };
-            let Ok(route) = ({ let value = w::FindingRoute { task }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else { return };
+            let Ok(route) = ({
+                let value = w::FindingRoute { task };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
+                return;
+            };
             w::Triage::Route(route)
         }
         Act::Backlog { .. } => w::Triage::Backlog,
@@ -828,15 +842,25 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             if !card.can_drop() {
                 return;
             }
-            let Ok(drop) = ({ let value = w::FindingDrop { reason: card.reason.clone() }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+            let Ok(drop) = ({
+                let value = w::FindingDrop { reason: card.reason.clone() };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
                 return;
             };
             w::Triage::Drop(drop)
         }
     };
-    let Ok(triage) =
-        ({ let value = w::TriageFinding { project: id.project, number: id.number, act: triage }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } })
-    else {
+    let Ok(triage) = ({
+        let value = w::TriageFinding { project: id.project, number: id.number, act: triage };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }) else {
         return;
     };
     send(card, w::Request::TriageFinding(triage), &mut pages.serial, env, out);

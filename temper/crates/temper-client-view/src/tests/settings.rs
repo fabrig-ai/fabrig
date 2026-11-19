@@ -5,7 +5,6 @@
     clippy::disallowed_macros,
     reason = "ordinary tests inspect semantic subtrees and their links"
 )]
-use temper_client_protocol_wire::v1::Record;
 use super::{connect_forge as cf, fixtures as f};
 use crate::look;
 use jig_client::contract as c;
@@ -13,6 +12,7 @@ use skein_lib::{List, Queue};
 use skein_ui::{Act, Node, Role, State, Style, Tree};
 use temper_client_domain::{self as d, Address, pages};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 fn subtree(tree: &Tree, id: skein_ui::NodeId) -> &[Node] {
     let at = tree.nodes().iter().position(|n| n.id == id).unwrap();
@@ -360,9 +360,7 @@ fn forge_rows() -> List<w::ForgeRow> {
         row.repositories = List::with_capacity(u32::try_from(repos.len()).unwrap());
         for (project, owner, name) in repos {
             row.repositories
-                .push(
-                    w::Adoption { project, owner: owner.as_bytes().into(), name: name.as_bytes().into() },
-                )
+                .push(w::Adoption { project, owner: owner.as_bytes().into(), name: name.as_bytes().into() })
                 .unwrap();
         }
         rows.push(row).unwrap();
@@ -1134,9 +1132,7 @@ fn away_deliver(root: &mut d::Domain, watch: Token, row: Option<w::AwayRow>) {
                     record: jig_client::Family {
                         family: f::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: temper_client_protocol_wire::aways(
-                            &w::Aways { rows },
-                        ),
+                        bytes: temper_client_protocol_wire::aways(&w::Aways { rows }),
                     },
                 },
             },
@@ -1169,10 +1165,7 @@ fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u
                 } = request
                 {
                     let w::Request::SetAway(value) =
-                        temper_client_protocol_wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                            .unwrap()
-                            
-                            .request
+                        temper_client_protocol_wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
                     else {
                         panic!("SetAway")
                     };
@@ -1198,9 +1191,7 @@ fn settings_answer(root: &mut d::Domain, attempt: Token, outcome: w::Outcome) {
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: f::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: temper_client_protocol_wire::answer(
-                            &w::Answer { outcome },
-                        ),
+                        bytes: temper_client_protocol_wire::answer(&w::Answer { outcome }),
                     })),
                 },
             },
@@ -1596,29 +1587,21 @@ fn making_rows(copy: bool, state: w::MakingState) -> List<w::ForgeRow> {
     row.makings = List::with_capacity(3);
     for project in [Some(f::PROJECT), Some(f::SECOND_PROJECT), None] {
         row.makings
-            .push(
-                w::RepositoryMaking {
-                        org: b"acme".as_slice().into(),
-                        name: if project == Some(f::PROJECT) {
-                            b"again".as_slice().into()
-                        } else {
-                            b"hidden".as_slice().into()
-                        },
-                        from: if copy {
-                            w::MakeFrom::Copy(
-                                w::MakeCopy {
-                                        address: b"https://source.example/acme/again".as_slice().into(),
-                                    },
-                            )
-                        } else {
-                            w::MakeFrom::Empty
-                        },
-                        into: project.map(|project| {
-                            w::MakeInto { project, home: false }
-                        }),
-                        state: state.clone(),
-                    },
-            )
+            .push(w::RepositoryMaking {
+                org: b"acme".as_slice().into(),
+                name: if project == Some(f::PROJECT) {
+                    b"again".as_slice().into()
+                } else {
+                    b"hidden".as_slice().into()
+                },
+                from: if copy {
+                    w::MakeFrom::Copy(w::MakeCopy { address: b"https://source.example/acme/again".as_slice().into() })
+                } else {
+                    w::MakeFrom::Empty
+                },
+                into: project.map(|project| w::MakeInto { project, home: false }),
+                state: state.clone(),
+            })
             .unwrap();
     }
     let mut rows = List::with_capacity(1);
@@ -1626,13 +1609,11 @@ fn making_rows(copy: bool, state: w::MakingState) -> List<w::ForgeRow> {
     rows
 }
 fn failed(reason: w::MakeFailure) -> w::MakingState {
-    w::MakingState::Failed(
-        w::MakingFailed {
-                step: w::MakeStep::Repository,
-                reason,
-                words: b"You can not import from disallowed hosts.".as_slice().into(),
-            },
-    )
+    w::MakingState::Failed(w::MakingFailed {
+        step: w::MakeStep::Repository,
+        reason,
+        words: b"You can not import from disallowed hosts.".as_slice().into(),
+    })
 }
 #[test]
 fn making_rows_name_the_state_and_only_their_project() {
@@ -1741,9 +1722,7 @@ fn dismissal_refusals_stay_in_the_repository_row() {
         let record = jig_client::Family {
             family: f::FORGE,
             version: temper_client_protocol_wire::CLIENT_VERSION,
-            bytes: temper_client_protocol_wire::forges(
-                &w::Forges { forges: rows, linked: false },
-            ),
+            bytes: temper_client_protocol_wire::forges(&w::Forges { forges: rows, linked: false }),
         };
         drive(
             &mut root,
@@ -1769,22 +1748,20 @@ fn role_card(rule: bool) -> w::View {
         ]
     };
     let card = w::Card {
-            name: if rule { b"the project's rule 1".as_slice().into() } else { b"the reviewer".as_slice().into() },
-            who: if rule {
-                "a landing rule · holds a merge until it is met".as_bytes().into()
-            } else {
-                b"an agent reviewing a change".as_slice().into()
-            },
-            facts: List::from_boxed(
-                facts
-                    .iter()
-                    .map(|(label, value)| {
-                        w::Fact { label: (*label).into(), value: (*value).into() }
-                    })
-                    .collect::<Vec<_>>()
-                    .into_boxed_slice(),
-            ),
-        };
+        name: if rule { b"the project's rule 1".as_slice().into() } else { b"the reviewer".as_slice().into() },
+        who: if rule {
+            "a landing rule · holds a merge until it is met".as_bytes().into()
+        } else {
+            b"an agent reviewing a change".as_slice().into()
+        },
+        facts: List::from_boxed(
+            facts
+                .iter()
+                .map(|(label, value)| w::Fact { label: (*label).into(), value: (*value).into() })
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        ),
+    };
     if rule {
         w::View::Rule(w::RuleView { kind: 2, number: 1, card })
     } else {
@@ -1820,9 +1797,7 @@ fn role_answer(root: &mut d::Domain, read: Token, answer: jig_client::Readout) -
 fn role_pages_draw_their_card_or_the_read_state() {
     use temper_client_protocol_wire as wire;
     let refused = jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused));
-    let not_drawn = w::View::NotDrawn(
-        w::NotDrawn { words: b"No view".as_slice().into() },
-    );
+    let not_drawn = w::View::NotDrawn(w::NotDrawn { words: b"No view".as_slice().into() });
     let rows = [
         (
             Address::Role { project: f::PROJECT, charter: 4 },
@@ -1888,9 +1863,7 @@ fn role_pages_draw_their_card_or_the_read_state() {
             .clone()
             .map(|view| jig_client::Readout::Family {
                 family: wire::FORGE,
-                record: Some(wire::view_answer(
-                    &w::ViewAnswer { view },
-                )),
+                record: Some(wire::view_answer(&w::ViewAnswer { view })),
             })
             .or(refusal);
         let card_shown = match &value {

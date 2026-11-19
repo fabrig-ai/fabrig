@@ -1,12 +1,12 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
 //! Fixed starts follow temper/docs/design/protocol/setup/box.md, 5 and
 //! temper/docs/design/client/journey-clock.md, 4.1.
-use temper_client_protocol_wire::v1::Record;
 use crate::{Service, path, prefixed, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::FileTypeExt;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_shell::serve::{self as engine, printed};
 use temper_service as service;
 use temper_service_shell::{close, jig_directories};

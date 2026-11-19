@@ -18,12 +18,7 @@ fn root() -> Domain {
 }
 
 fn reached(id: u64, name: &[u8], private: bool) -> wire::Reached {
-    wire::Reached {
-            id,
-            owner: wire::Account { id: 3, login: b"acme".as_slice().into() },
-            name: name.into(),
-            private,
-        }
+    wire::Reached { id, owner: wire::Account { id: 3, login: b"acme".as_slice().into() }, name: name.into(), private }
 }
 
 fn node<'a>(tree: &'a Tree, role: Role, name: &[u8]) -> &'a skein_ui::Node {
@@ -233,9 +228,9 @@ fn copy_lines_have_separate_words_and_their_repairs_reach_the_sheet() {
         temper_client_domain::Event::Forge(forge::Event::SheetRead {
             request: key,
             answer: Ok(wire::Page {
-                    rows: skein_lib::List::from_boxed(Box::new([reached(9, b"kept", false)])),
-                    more: false,
-                }),
+                rows: skein_lib::List::from_boxed(Box::new([reached(9, b"kept", false)])),
+                more: false,
+            }),
         }),
     );
     assert_eq!(root.forge().sheet().unwrap().picks.get(0).unwrap().id, 9);
@@ -270,30 +265,26 @@ fn copy_buttons_count_lines_and_disable_every_invalid_line() {
 fn forges(modes: &[(wire::Kind, wire::Mode)]) -> Domain {
     let mut rows = skein_lib::List::with_capacity(u32::try_from(modes.len()).unwrap());
     for (index, (kind, mode)) in modes.iter().enumerate() {
-        rows.push(
-            wire::ForgeRow {
-                    number: u16::try_from(index.checked_add(1).unwrap()).unwrap(),
-                    kind: kind.clone(),
-                    mode: mode.clone(),
-                    host: b"forge.invalid".as_slice().into(),
-                    connection: wire::Connection::Connected(
-                        wire::Connected { id: 1, login: b"bot".as_slice().into() },
-                    ),
-                    starts_with: wire::StartsWith::Nothing,
-                    makings: skein_lib::List::with_capacity(0),
-                    repositories: skein_lib::List::with_capacity(0),
-                    installations: skein_lib::List::with_capacity(0),
-                    offer: wire::Offer::NotOffered,
-                    first: None,
-                    ended: None,
-                    app: None,
-                    web: None,
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        rows.push(wire::ForgeRow {
+            number: u16::try_from(index.checked_add(1).unwrap()).unwrap(),
+            kind: kind.clone(),
+            mode: mode.clone(),
+            host: b"forge.invalid".as_slice().into(),
+            connection: wire::Connection::Connected(wire::Connected { id: 1, login: b"bot".as_slice().into() }),
+            starts_with: wire::StartsWith::Nothing,
+            makings: skein_lib::List::with_capacity(0),
+            repositories: skein_lib::List::with_capacity(0),
+            installations: skein_lib::List::with_capacity(0),
+            offer: wire::Offer::NotOffered,
+            first: None,
+            ended: None,
+            app: None,
+            web: None,
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
     }
     f::forge_root(Address::Adopt { project: f::PROJECT }, rows)

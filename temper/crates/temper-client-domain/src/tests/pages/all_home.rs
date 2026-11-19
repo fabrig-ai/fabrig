@@ -29,11 +29,7 @@ fn shown(project: u32, landed: u64, seen: u64, previous: Option<u64>, last: Opti
     project_status(document)
 }
 fn project_status(document: w::ProjectStatus) -> Project {
-    Project {
-        project: document.project,
-        name: name(document.project),
-        status: Status::Shown(Box::new(document)),
-    }
+    Project { project: document.project, name: name(document.project), status: Status::Shown(Box::new(document)) }
 }
 fn unknown() -> Project {
     Project { project: THIRD, name: name(THIRD), status: Status::Unknown }
@@ -342,19 +338,9 @@ impl Across {
     }
     fn settle(&mut self) -> Queue<Request> {
         let dismissed = self.watch(forge::dismissed::watch(&self.limits.forge).unwrap());
-        self.family(
-            dismissed,
-            wire::dismissals(
-                &w::Dismissals { dismissed: List::with_capacity(0) },
-            ),
-        );
+        self.family(dismissed, wire::dismissals(&w::Dismissals { dismissed: List::with_capacity(0) }));
         let forges = self.watch(forge::forges::watch(&self.limits.forge).unwrap());
-        self.family(
-            forges,
-            wire::forges(
-                &w::Forges { forges: List::with_capacity(0), linked: false },
-            ),
-        );
+        self.family(forges, wire::forges(&w::Forges { forges: List::with_capacity(0), linked: false }));
         let settings = self.watch(Watchable::Jig(c::Subject::Settings));
         self.up(Up::Watched {
             watch: settings,
@@ -370,22 +356,17 @@ impl Across {
         let mut document = crate::tests::fixtures::status::document(3, 1, Some(3));
         document.project = project;
         document.previous = Some(previous);
-        self.family(
-            self.status_watch(project),
-            wire::project_status(&document),
-        );
+        self.family(self.status_watch(project), wire::project_status(&document));
     }
     pub fn decisions(&mut self, project: u32, rows: &[w::Decision]) -> Queue<Request> {
         self.family(
             self.decided_watch(project),
-            wire::decisions(
-                &w::Decisions {
-                        project,
-                        rows: List::from_boxed(rows.into()),
-                        asked: List::with_capacity(0),
-                        cut: false,
-                    },
-            ),
+            wire::decisions(&w::Decisions {
+                project,
+                rows: List::from_boxed(rows.into()),
+                asked: List::with_capacity(0),
+                cut: false,
+            }),
         )
     }
     fn act(&mut self, act: Act) -> Queue<Request> {
@@ -425,8 +406,7 @@ fn looks(out: &Queue<Request>) -> Box<[u32]> {
                     down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && let w::Request::Looked(row) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            && let w::Request::Looked(row) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             values.push(row.project).unwrap();
         }
@@ -756,9 +736,7 @@ fn away_uses_the_newest_finished_spell_after_the_latest_look() {
         }
         let mut values = List::with_capacity(w::CEILINGS.aways_rows);
         for &(project, since, off, until) in rows {
-            values
-                .push(w::AwayRow { project, since, off, until, landed: 0 })
-                .unwrap();
+            values.push(w::AwayRow { project, since, off, until, landed: 0 }).unwrap();
         }
         let away = fixture.watch(forge::away::watch(&fixture.limits.forge).unwrap());
         fixture.family(away, wire::aways(&w::Aways { rows: values }));
@@ -815,12 +793,7 @@ fn all_home_counts_unfiltered_cards_and_every_approval() {
             crate::tests::approvals::row(crate::tests::approvals::CHANGE, SECOND, None),
             crate::tests::approvals::row(crate::tests::approvals::OTHER_CHANGE, THIRD, None),
         ];
-        fixture.family(
-            approvals,
-            wire::approvals(
-                &w::Approvals { rows: List::from_boxed(Box::new(rows)), more },
-            ),
-        );
+        fixture.family(approvals, wire::approvals(&w::Approvals { rows: List::from_boxed(Box::new(rows)), more }));
         assert_eq!(
             all_home::facts(&fixture.root, Wall::EPOCH).needs,
             Needs::Count { count: THREE, cut: inbox_cut || more > 0, findings: Counted::default() },

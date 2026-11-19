@@ -3,11 +3,11 @@
     clippy::disallowed_types,
     reason = "step tests use ordinary Rust for assertions and fixture selection"
 )]
-use temper_client_protocol_wire::v1::Record;
 use super::*;
 use crate::{forge, tests::fixtures};
 use forge::forges::{Account, Adoption, Installation, Offer, StartsWith};
 use skein_lib::Env;
+use temper_client_protocol_wire::v1::Record;
 
 const PROJECT: u32 = 7;
 const GITHUB: u16 = 2;
@@ -565,19 +565,15 @@ fn failed_making(from: Option<&[u8]>, reason: w::MakeFailure) -> super::super::m
         org: b"acme".as_slice().into(),
         name: b"again".as_slice().into(),
         from: match from {
-            Some(address) => {
-                w::MakeFrom::Copy(w::MakeCopy { address: address.into() })
-            }
+            Some(address) => w::MakeFrom::Copy(w::MakeCopy { address: address.into() }),
             None => w::MakeFrom::Empty,
         },
         into: Some(w::MakeInto { project: PROJECT, home: false }),
-        state: w::MakingState::Failed(
-            w::MakingFailed {
-                    step: w::MakeStep::Repository,
-                    reason,
-                    words: b"the forge refused".as_slice().into(),
-                },
-        ),
+        state: w::MakingState::Failed(w::MakingFailed {
+            step: w::MakeStep::Repository,
+            reason,
+            words: b"the forge refused".as_slice().into(),
+        }),
     }
 }
 fn with_failed(from: Option<&[u8]>, reason: w::MakeFailure) -> Side {
@@ -732,8 +728,7 @@ fn copy_again_does_not_free_an_adopted_name() {
 }
 #[test]
 fn copy_again_does_not_free_an_in_flight_name() {
-    let made =
-        w::MakingMade { id: 11, branch: b"main".as_slice().into() };
+    let made = w::MakingMade { id: 11, branch: b"main".as_slice().into() };
     for state in [
         w::MakingState::Waiting,
         w::MakingState::Making,
@@ -797,7 +792,10 @@ fn dismiss_uses_the_rows_project_and_waits_for_the_watch() {
     let dismiss = Act::Dismiss { forge: FORGEJO, org: b"acme".as_slice().into(), name: b"again".as_slice().into() };
     let out = act(&mut side, dismiss.clone());
     let w::Request::DismissMaking(request) = sent(&out) else { panic!("dismiss making") };
-    assert_eq!((request.forge, request.org.as_ref(), request.name.as_ref()), (FORGEJO, b"acme".as_slice(), b"again".as_slice()));
+    assert_eq!(
+        (request.forge, request.org.as_ref(), request.name.as_ref()),
+        (FORGEJO, b"acme".as_slice(), b"again".as_slice())
+    );
     assert_eq!(request.into, Some(PROJECT));
     let (key, scope) = out
         .iter()

@@ -8,50 +8,38 @@ fn row(owner: Owner, lag: u32) -> w::FollowView {
     let mut row = super::super::how::follow_row(&[], w::FollowStart::Owner, lag, None);
     let mut setting = row.setting;
     setting.owner = match owner {
-        Owner::Task(task) => {
-            w::FollowOwner::Task(w::FollowOwnerTask { task })
-        }
-        Owner::Person(person) => {
-            w::FollowOwner::Person(w::FollowPerson { person })
-        }
+        Owner::Task(task) => w::FollowOwner::Task(w::FollowOwnerTask { task }),
+        Owner::Person(person) => w::FollowOwner::Person(w::FollowPerson { person }),
     };
     row.setting = setting;
     row.source =
         if owner == Owner::Task(52) { b"acme/upstream".as_slice().into() } else { b"acme/tools".as_slice().into() };
     if lag > 0 {
-        row.parity = Some(
-            w::FollowParity {
-                    source: AFTER,
-                    head: [0; 32],
-                    verdict: w::FollowVerdict::Passed,
-                    run: b"check".as_slice().into(),
-                },
-        );
+        row.parity = Some(w::FollowParity {
+            source: AFTER,
+            head: [0; 32],
+            verdict: w::FollowVerdict::Passed,
+            run: b"check".as_slice().into(),
+        });
         row.entries = List::from_boxed(Box::new([
             w::FollowEntry {
-                    after: AFTER,
-                    change: None,
-                    state: w::FollowState::HeldByOwner(
-                        w::FollowWords { words: b"waits for the handoff fix".as_slice().into() },
-                    ),
-                },
+                after: AFTER,
+                change: None,
+                state: w::FollowState::HeldByOwner(w::FollowWords {
+                    words: b"waits for the handoff fix".as_slice().into(),
+                }),
+            },
             w::FollowEntry {
-                    after: [0xab; 32],
-                    change: Some(812),
-                    state: w::FollowState::WaitsFor(
-                        w::FollowWait { change: 812 },
-                    ),
-                },
+                after: [0xab; 32],
+                change: Some(812),
+                state: w::FollowState::WaitsFor(w::FollowWait { change: 812 }),
+            },
         ]));
     }
     row
 }
 fn panel(rows: &[w::FollowView]) -> w::FollowsPanel {
-    w::FollowsPanel {
-            project: PROJECT,
-            follows: List::from_boxed(rows.into()),
-            dependencies: List::with_capacity(0),
-        }
+    w::FollowsPanel { project: PROJECT, follows: List::from_boxed(rows.into()), dependencies: List::with_capacity(0) }
 }
 fn facts() -> Facts {
     let mut facts = team::gather(&read_people(&[YOU]), YOU, None, &[], None, Wall::EPOCH);
@@ -103,13 +91,7 @@ fn follows_card_caps_entries_at_eight_and_keeps_caught_up_and_stopped_lines() {
         for n in 0..count {
             follow
                 .entries
-                .push(
-                    w::FollowEntry {
-                            after: AFTER,
-                            change: Some(u64::from(n)),
-                            state: w::FollowState::NotMade,
-                        },
-                )
+                .push(w::FollowEntry { after: AFTER, change: Some(u64::from(n)), state: w::FollowState::NotMade })
                 .unwrap();
         }
         facts.follows = team::follows::gather(Some(&panel(&[follow])));

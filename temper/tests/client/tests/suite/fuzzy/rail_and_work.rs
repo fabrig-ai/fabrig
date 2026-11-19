@@ -150,13 +150,11 @@ fn work_facts(rng: &mut Rng, now: Wall) -> work::Facts {
         let signed = if matches!(at, Where::Landed { .. }) {
             let signers: Vec<_> = parties
                 .iter()
-                .map(|party| {
-                    temper_client_protocol_wire::v1::ChangesSigned {
-                            party: *party,
-                            name: Some(b"Sam".as_slice().into()),
-                            head: [0; 32],
-                            at: 0,
-                        }
+                .map(|party| temper_client_protocol_wire::v1::ChangesSigned {
+                    party: *party,
+                    name: Some(b"Sam".as_slice().into()),
+                    head: [0; 32],
+                    at: 0,
                 })
                 .collect();
             let words = work::signed(1, &signers);

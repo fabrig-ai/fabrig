@@ -142,21 +142,19 @@ fn stops() -> List<w::Stop> {
         (w::Actor::Bar, w::PathStep::Branch, b"main".as_slice()),
     ] {
         stops
-            .push(
-                w::Stop {
-                        needed: false,
-                        over: Box::default(),
-                        actor,
-                        step,
-                        words: words.into(),
-                        opens: w::Opens::Nothing,
-                        card: w::Card {
-                                who: b"The actor".as_slice().into(),
-                                name: Box::default(),
-                                facts: List::with_capacity(0),
-                            },
-                    },
-            )
+            .push(w::Stop {
+                needed: false,
+                over: Box::default(),
+                actor,
+                step,
+                words: words.into(),
+                opens: w::Opens::Nothing,
+                card: w::Card {
+                    who: b"The actor".as_slice().into(),
+                    name: Box::default(),
+                    facts: List::with_capacity(0),
+                },
+            })
             .unwrap();
     }
     stops
@@ -170,42 +168,30 @@ fn panel_delegation(project: u32, current: Option<u32>, may_change: bool, delega
         let mut items = List::with_capacity(ITEMS);
         for (kind, number, edit) in [
             (2, 4, w::SettingEdit::Removed),
-            (
-                7,
-                1,
-                w::SettingEdit::Set(
-                    w::SettingValue { value: b"whole value".as_slice().into() },
-                ),
-            ),
+            (7, 1, w::SettingEdit::Set(w::SettingValue { value: b"whole value".as_slice().into() })),
         ] {
-            items
-                .push(
-                    w::ProposalItem { kind, scope: project, number, edit },
-                )
-                .unwrap();
+            items.push(w::ProposalItem { kind, scope: project, number, edit }).unwrap();
         }
-        ways.push(
-            w::StockWay {
-                    headline: (*headline).into(),
-                    name: (*name).into(),
-                    line: (*line).into(),
-                    path: path(branch),
-                    items,
-                    delegation,
-                    roles: List::with_capacity(0),
-                },
-        )
+        ways.push(w::StockWay {
+            headline: (*headline).into(),
+            name: (*name).into(),
+            line: (*line).into(),
+            path: path(branch),
+            items,
+            delegation,
+            roles: List::with_capacity(0),
+        })
         .unwrap();
     }
     w::WaysPanel {
-            rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
-            words: None,
-            project,
-            ways,
-            current,
-            own: path(b"own"),
-            may_change,
-        }
+        rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
+        words: None,
+        project,
+        ways,
+        current,
+        own: path(b"own"),
+        may_change,
+    }
 }
 fn show(f: &mut Fixture, panel: &w::WaysPanel) -> Queue<Request> {
     family(f, wire::FORGE, wire::CLIENT_VERSION, wire::ways_panel(panel))
@@ -411,9 +397,7 @@ fn tabs_preserve_the_reads_order_and_append_yours() {
         assert_eq!(f.root.pages().stock_ways().unwrap().words(), None);
         let mut parts = panel(f::PROJECT, current, true);
         parts.words = match words {
-            Some((headline, lede)) => Some(
-                w::ProjectWords { headline: headline.into(), lede: lede.into() },
-            ),
+            Some((headline, lede)) => Some(w::ProjectWords { headline: headline.into(), lede: lede.into() }),
             None => None,
         };
         let panel = parts;
@@ -819,10 +803,10 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
             Refresh::OtherPath => {
                 let mut way = next.ways.get(0).unwrap().clone();
                 way.path = w::BranchPath {
-                        repository: None,
-                        branch: b"elsewhere".as_slice().into(),
-                        stops: List::with_capacity(0),
-                    };
+                    repository: None,
+                    branch: b"elsewhere".as_slice().into(),
+                    stops: List::with_capacity(0),
+                };
                 *next.ways.get_mut(0).unwrap() = way;
             }
         }
@@ -878,16 +862,12 @@ fn draft_first_starts_only_missing_roles_after_settings_and_keeps_settings_on_re
             items.push(item.clone()).unwrap();
         }
         items
-            .push(
-                w::ProposalItem {
-                        kind: 15,
-                        scope: f::PROJECT,
-                        number: 1,
-                        edit: w::SettingEdit::Set(
-                            w::SettingValue { value: triager.as_slice().into() },
-                        ),
-                    },
-            )
+            .push(w::ProposalItem {
+                kind: 15,
+                scope: f::PROJECT,
+                number: 1,
+                edit: w::SettingEdit::Set(w::SettingValue { value: triager.as_slice().into() }),
+            })
             .unwrap();
         way.items = items;
         *parts.ways.get_mut(1).unwrap() = way;

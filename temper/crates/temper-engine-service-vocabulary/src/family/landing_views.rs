@@ -1,17 +1,21 @@
 //! Landing view records (temper/docs/design/domain/landing.md, 14).
-use temper_client_protocol_wire::v1::Record;
 use super::{forge, w};
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_change::Status;
 
 pub(super) fn train(value: forge::LandingTrain, limits: &w::Limits) -> Option<w::Train> {
-    { let value = w::Train {
+    {
+        let value = w::Train {
             forge: value.repository.forge,
             repository: value.repository.repository,
             owner: value.owner,
             name: value.name,
             branch: value.branch,
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 pub(super) fn step(value: forge::LandingStep) -> w::LandingStep {
     match value {
@@ -39,77 +43,69 @@ pub(super) fn combined(value: forge::LandingCombine) -> w::Combined {
 }
 pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::LandingLeave> {
     let value = {
-    Some(match value {
-        forge::LandingLeave::Conflict | forge::LandingLeave::EarlierConflict => w::LandingLeave::Conflict,
-        forge::LandingLeave::Unit { .. } | forge::LandingLeave::Dependency { .. } | forge::LandingLeave::Held => {
-            w::LandingLeave::Held
-        }
-        forge::LandingLeave::HeadMoved { head } => {
-            w::LandingLeave::HeadMoved(w::MovedHead { head })
-        }
-        forge::LandingLeave::Cancelled => w::LandingLeave::Cancelled,
-        forge::LandingLeave::Refused { gate } => {
-            w::LandingLeave::Refused(w::RefusedGate { gate })
-        }
-        forge::LandingLeave::Failed { gate, run } => {
-            w::LandingLeave::Failed(w::FailedGate { gate, run })
-        }
-        forge::LandingLeave::Blamed { gate, run, red, green } => {
-            w::LandingLeave::Blamed(w::BlamedGate { gate, run, red, green })
-        }
-    })
-}?;
+        Some(match value {
+            forge::LandingLeave::Conflict | forge::LandingLeave::EarlierConflict => w::LandingLeave::Conflict,
+            forge::LandingLeave::Unit { .. } | forge::LandingLeave::Dependency { .. } | forge::LandingLeave::Held => {
+                w::LandingLeave::Held
+            }
+            forge::LandingLeave::HeadMoved { head } => w::LandingLeave::HeadMoved(w::MovedHead { head }),
+            forge::LandingLeave::Cancelled => w::LandingLeave::Cancelled,
+            forge::LandingLeave::Refused { gate } => w::LandingLeave::Refused(w::RefusedGate { gate }),
+            forge::LandingLeave::Failed { gate, run } => w::LandingLeave::Failed(w::FailedGate { gate, run }),
+            forge::LandingLeave::Blamed { gate, run, red, green } => {
+                w::LandingLeave::Blamed(w::BlamedGate { gate, run, red, green })
+            }
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
 pub(super) fn search(value: &forge::LandingView, limits: &w::Limits) -> Option<w::LandingSearch> {
     let search = value.round.search.as_ref()?;
-    { let value = w::LandingSearch {
+    {
+        let value = w::LandingSearch {
             green: bound(value, search.green, limits)?,
             red: bound(value, search.red, limits)?,
             probe: value.probe,
             tests: search_tests(&search.tests, limits)?,
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn search_tests(value: &forge::LandingSearchTests, limits: &w::Limits) -> Option<w::SearchTests> {
     let value = {
-    Some(match value {
-        forge::LandingSearchTests::Whole => w::SearchTests::Whole,
-        forge::LandingSearchTests::WholeAgain => w::SearchTests::WholeAgain,
-        forge::LandingSearchTests::ByTest { gates, passes } => {
-            let mut selections = List::with_capacity(u32::try_from(gates.len()).ok()?);
-            for gate in gates {
-                selections
-                    .push(
-                        w::SearchSelection {
-                                gate: gate.gate,
-                                name: gate.name.clone(),
-                                count: gate.count,
-                                ids: List::from_boxed(gate.ids.clone()),
-                            },
-                    )
-                    .ok()?;
+        Some(match value {
+            forge::LandingSearchTests::Whole => w::SearchTests::Whole,
+            forge::LandingSearchTests::WholeAgain => w::SearchTests::WholeAgain,
+            forge::LandingSearchTests::ByTest { gates, passes } => {
+                let mut selections = List::with_capacity(u32::try_from(gates.len()).ok()?);
+                for gate in gates {
+                    selections
+                        .push(w::SearchSelection {
+                            gate: gate.gate,
+                            name: gate.name.clone(),
+                            count: gate.count,
+                            ids: List::from_boxed(gate.ids.clone()),
+                        })
+                        .ok()?;
+                }
+                let mut probed = List::with_capacity(u32::try_from(passes.len()).ok()?);
+                for pass in passes {
+                    probed
+                        .push(w::SearchPass {
+                            member: pass.member,
+                            prefix: pass.prefix,
+                            gate: pass.gate,
+                            name: pass.name.clone(),
+                            run: pass.run,
+                        })
+                        .ok()?;
+                }
+                w::SearchTests::ByTest(w::SearchByTest { gates: selections, passes: probed })
             }
-            let mut probed = List::with_capacity(u32::try_from(passes.len()).ok()?);
-            for pass in passes {
-                probed
-                    .push(
-                        w::SearchPass {
-                                member: pass.member,
-                                prefix: pass.prefix,
-                                gate: pass.gate,
-                                name: pass.name.clone(),
-                                run: pass.run,
-                            },
-                    )
-                    .ok()?;
-            }
-            w::SearchTests::ByTest(
-                w::SearchByTest { gates: selections, passes: probed },
-            )
-        }
-    })
-}?;
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
@@ -139,18 +135,24 @@ fn bound(value: &forge::LandingView, member: u16, limits: &w::Limits) -> Option<
             return None;
         }
     };
-    { let value = w::SearchBound { member, prefix }; value.measure(limits).ok()?; Some(value) }
+    {
+        let value = w::SearchBound { member, prefix };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 pub(super) fn judgement(value: forge::PrefixJudgement, limits: &w::Limits) -> Option<w::PrefixJudgement> {
     let mut gates = List::with_capacity(u32::try_from(value.gates.len()).ok()?);
     for gate in value.gates {
         gates
-            .push(
-                w::PrefixGate { number: gate.number, blocking: gate.blocking, verdict: status(gate.verdict) },
-            )
+            .push(w::PrefixGate { number: gate.number, blocking: gate.blocking, verdict: status(gate.verdict) })
             .ok()?;
     }
-    { let value = w::PrefixJudgement { prefix: value.prefix, verdict: status(value.verdict), gates }; value.measure(limits).ok()?; Some(value) }
+    {
+        let value = w::PrefixJudgement { prefix: value.prefix, verdict: status(value.verdict), gates };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn status(value: Status) -> w::Ci {
     match value {
@@ -162,21 +164,17 @@ fn status(value: Status) -> w::Ci {
 }
 pub(super) fn hold(value: &forge::LandingPhase, limits: &w::Limits) -> Option<w::LandingHold> {
     let value = {
-    let forge::LandingPhase::Held { why, .. } = value else { return None };
-    Some(match *why {
-        forge::LandingHold::Faults { member, gate } => {
-            w::LandingHold::Faults(w::HeldFaults { member, gate })
-        }
-        forge::LandingHold::Prepare => w::LandingHold::Prepare,
-        forge::LandingHold::Record { member } => {
-            w::LandingHold::Record(w::HeldRecord { member })
-        }
-        forge::LandingHold::Timeout { member, gate, run } => {
-            w::LandingHold::Timeout(w::HeldTimeout { member, gate, run })
-        }
-        forge::LandingHold::Turn => w::LandingHold::Turn,
-    })
-}?;
+        let forge::LandingPhase::Held { why, .. } = value else { return None };
+        Some(match *why {
+            forge::LandingHold::Faults { member, gate } => w::LandingHold::Faults(w::HeldFaults { member, gate }),
+            forge::LandingHold::Prepare => w::LandingHold::Prepare,
+            forge::LandingHold::Record { member } => w::LandingHold::Record(w::HeldRecord { member }),
+            forge::LandingHold::Timeout { member, gate, run } => {
+                w::LandingHold::Timeout(w::HeldTimeout { member, gate, run })
+            }
+            forge::LandingHold::Turn => w::LandingHold::Turn,
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }

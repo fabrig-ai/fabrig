@@ -272,20 +272,16 @@ fn milestone_list_reads_the_offered_label_and_one_group_with_a_cursor() {
     assert_eq!(rows::MILESTONE_LIST.result, b"milestone_list");
 }
 fn totals(ended: bool) -> w::MilestoneResult {
-    w::MilestoneResult::Totals(
-        w::MilestoneTotals {
-                task: 812,
-                done: 7,
-                failed: 0,
-                closed: 1,
-                live: u32::from(!ended),
-                ended: if ended { Some(120_000_000_000) } else { None },
-                last_landing: Some(
-                    w::MilestoneLanding { at: 90_000_000_000, goal: 820, change: 821 },
-                ),
-                spent: 212,
-            },
-    )
+    w::MilestoneResult::Totals(w::MilestoneTotals {
+        task: 812,
+        done: 7,
+        failed: 0,
+        closed: 1,
+        live: u32::from(!ended),
+        ended: if ended { Some(120_000_000_000) } else { None },
+        last_landing: Some(w::MilestoneLanding { at: 90_000_000_000, goal: 820, change: 821 }),
+        spent: 212,
+    })
 }
 fn answer(result: w::MilestoneResult) -> jig_client::Readout {
     let answer = w::MilestoneAnswer { result };

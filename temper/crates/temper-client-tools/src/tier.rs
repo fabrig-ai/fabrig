@@ -1,5 +1,4 @@
 //! A person's tier controls (temper/docs/design/client/ctl/tools.md, 3).
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -18,6 +17,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Event, Handle, Key, Outcome, Readable, Readout, Told, contract as c};
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 const PROJECT: jig::table::Argument =
     flag(b"project", b"PROJECT", Kind::Project { empty: false }, Required, b"The project");
@@ -95,9 +95,7 @@ fn prepare(call: &Call, project: u32) -> Option<w::TierActRequest> {
     } else {
         let Some(Value::Text(owner)) = value(call, 1) else { return None };
         let Some(Value::Text(name)) = value(call, 2) else { return None };
-        Some(
-            w::DraftRepository { owner: owner.clone(), name: name.clone() },
-        )
+        Some(w::DraftRepository { owner: owner.clone(), name: name.clone() })
     };
     let Some(Value::Text(tier)) = value(call, 3) else { return None };
     let name = crate::table::TOOLS.get(usize::from(call.tool))?.name;
@@ -107,7 +105,11 @@ fn prepare(call: &Call, project: u32) -> Option<w::TierActRequest> {
     } else {
         w::TierAct::Release
     };
-    { let value = w::TierActRequest { project, repository, tier: tier.clone(), act }; value.measure(&w::CEILINGS).ok()?; Some(value) }
+    {
+        let value = w::TierActRequest { project, repository, tier: tier.clone(), act };
+        value.measure(&w::CEILINGS).ok()?;
+        Some(value)
+    }
 }
 fn send(state: &mut Tiers, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
     let me = crate::forge::me(client).expect("live me");
@@ -228,7 +230,11 @@ fn home(result: &Readout) -> Option<w::DraftRepository> {
                 if let [prefix, _host, owner, name] = path.as_slice()
                     && prefix.as_ref() == b"forge"
                 {
-                    return { let value = w::DraftRepository { owner: owner.clone(), name: name.clone() }; value.measure(&w::CEILINGS).ok()?; Some(value) };
+                    return {
+                        let value = w::DraftRepository { owner: owner.clone(), name: name.clone() };
+                        value.measure(&w::CEILINGS).ok()?;
+                        Some(value)
+                    };
                 }
             }
             c::PartKey::Number(_) => {}
@@ -256,8 +262,7 @@ fn finish(
 }
 fn decoded(request: &Ask) -> Option<w::TierActRequest> {
     let Ask::Family { record, .. } = request else { return None };
-    let w::Request::TierAct(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)?.request
-    else {
+    let w::Request::TierAct(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)?.request else {
         return None;
     };
     Some(request)

@@ -1,7 +1,6 @@
 //! Bounded history reads and change-history paging
 //! (temper/docs/design/domain/landing-history.md, 5.1 and 5.2).
 mod render;
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -20,6 +19,7 @@ use alloc::collections::BTreeMap;
 use jig_client::{Client, Event, Family, Handle, Readable, Readout, Told, contract as c};
 pub use render::{event_json, event_line};
 use skein_lib::{Duration, Env, List, Queue, Time};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub const HISTORY: Tool = Tool {
     name: b"landing history", line: b"Read a page of a project's landing history, in event order",
@@ -146,9 +146,7 @@ pub(crate) fn ready(state: &mut History, client: &Client, _env: &Env<Limits>, ou
             Some(Value::Cursor(bytes)) => Some(bytes.as_ref().try_into().expect("checked cursor")),
             _ => None,
         };
-        pending.query = Some(
-            w::HistoryRead { project, of, since, until, after },
-        );
+        pending.query = Some(w::HistoryRead { project, of, since, until, after });
         send(pending, out);
     }
     for &id in &failed {
@@ -166,12 +164,15 @@ fn time(call: &jig::call::Call, index: usize) -> Option<u64> {
 /// The application read used by the command and change-history pager.
 pub(crate) fn read(query: w::HistoryRead) -> Readable {
     let project = query.project;
-    let reading =
-        w::Reading { read: w::Read::History(query) };
+    let reading = w::Reading { read: w::Read::History(query) };
     Readable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: reading.encode(&w::CEILINGS).expect("history read") },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: reading.encode(&w::CEILINGS).expect("history read"),
+        },
     }
 }
 fn send(pending: &mut Pending, out: &mut Queue<Out>) {
@@ -255,12 +256,12 @@ pub struct ChangeHistory {
 #[must_use]
 pub fn read_change_history(project: u32, change: u64) -> (ChangeHistory, Readable) {
     let query = w::HistoryRead {
-            project,
-            of: w::HistoryOf::Change(task_record(change)),
-            since: None,
-            until: None,
-            after: None,
-        };
+        project,
+        of: w::HistoryOf::Change(task_record(change)),
+        since: None,
+        until: None,
+        after: None,
+    };
     (ChangeHistory { query: query.clone(), pages: 0, events: List::with_capacity(512) }, read(query))
 }
 impl ChangeHistory {

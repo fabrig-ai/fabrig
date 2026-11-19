@@ -74,12 +74,7 @@ fn each_forgejo_mode_says_its_access_in_a_slot() {
 }
 #[test]
 fn an_owned_forge_keeps_its_access_when_stopped() {
-    let root = root(
-        Address::Forges,
-        w::Connection::Stopped(
-            w::Stopped { reason: b"token refused".as_slice().into() },
-        ),
-    );
+    let root = root(Address::Forges, w::Connection::Stopped(w::Stopped { reason: b"token refused".as_slice().into() }));
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Term, b"Access").is_some());
     assert!(f::find(view.tree(), Role::Description, b"Site admin, with temper's own token").is_some());
@@ -96,9 +91,7 @@ fn the_playground_forge_has_no_access_line() {
 }
 #[test]
 fn a_forge_row_opened_offers_its_action() {
-    let failed = w::Connection::SetUpFailed(
-        w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None },
-    );
+    let failed = w::Connection::SetUpFailed(w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None });
     let root = root(Address::Forges, failed);
     assert_eq!(action(&root, Role::Button, b"Try again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
     let view = f::page_view(&root);
@@ -115,12 +108,8 @@ fn a_forge_row_opened_offers_its_action() {
     assert!(view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_LIVE)));
     let root = self::root(Address::Forges, cf::connected());
     assert_eq!(action(&root, Role::Link, b"Adopt a repository"), go(Address::Adopt { project: f::PROJECT }));
-    let root = self::root(
-        Address::Forges,
-        w::Connection::Stopped(
-            w::Stopped { reason: b"token refused".as_slice().into() },
-        ),
-    );
+    let root =
+        self::root(Address::Forges, w::Connection::Stopped(w::Stopped { reason: b"token refused".as_slice().into() }));
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"Restart temper box: its preparation mends it").is_some());
 }
@@ -137,11 +126,7 @@ fn no_forge_of_yours_yet_offers_connect_a_forge() {
 fn the_navigation_has_forges_with_its_dot_and_words() {
     for (connection, style, text) in [
         (w::Connection::Connecting, look::NAV_LIMITED, b"a forge is setting up".as_slice()),
-        (
-            w::Connection::Stopped(w::Stopped { reason: Box::default() }),
-            look::NAV_NEEDS,
-            b"a forge needs you",
-        ),
+        (w::Connection::Stopped(w::Stopped { reason: Box::default() }), look::NAV_NEEDS, b"a forge needs you"),
     ] {
         for address in [Address::Forges, Address::ConnectForge { forge: None }] {
             let root = root(address, connection.clone());
@@ -184,9 +169,7 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
 
 #[test]
 fn set_up_again_waits_for_an_offer() {
-    let failed = w::Connection::SetUpFailed(
-        w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None },
-    );
+    let failed = w::Connection::SetUpFailed(w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None });
     let root = f::forge_root(Address::Forges, cf::rows(failed, w::Offer::NotOffered));
     assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Try again").is_none());
 }
@@ -194,12 +177,8 @@ fn set_up_again_waits_for_an_offer() {
 #[test]
 fn a_full_forge_reason_and_login_fit_after_utf8_replacement() {
     for connection in [
-        w::Connection::Stopped(
-            w::Stopped { reason: Box::from([255_u8; 256]) },
-        ),
-        w::Connection::Connected(
-            w::Connected { id: u64::MAX, login: Box::from([255_u8; 256]) },
-        ),
+        w::Connection::Stopped(w::Stopped { reason: Box::from([255_u8; 256]) }),
+        w::Connection::Connected(w::Connected { id: u64::MAX, login: Box::from([255_u8; 256]) }),
     ] {
         let root = root(Address::Forges, connection);
         let domain = f::domain_limits();
@@ -265,16 +244,12 @@ fn all_sixty_four_installations_fit_without_shortening_their_logins() {
     row.installations = List::with_capacity(d::forge::forges::INSTALLATIONS);
     for id in 1..=u64::from(d::forge::forges::INSTALLATIONS) {
         row.installations
-            .push(
-                w::Installation {
-                        id,
-                        account: Some(
-                            w::Account { id, login: Box::from([255_u8; 256]) },
-                        ),
-                        suspended: true,
-                        stray: true,
-                    },
-            )
+            .push(w::Installation {
+                id,
+                account: Some(w::Account { id, login: Box::from([255_u8; 256]) }),
+                suspended: true,
+                stray: true,
+            })
             .unwrap();
     }
     rows.push(row).unwrap();
@@ -327,13 +302,11 @@ fn an_owned_forge_opens_at_the_public_origin_in_the_page_facts() {
 fn owned_row(mode: w::Mode, connection: w::Connection, runner: Option<&[u8]>) -> w::ForgeRow {
     let mut parts = cf::row(HERE, w::Kind::Forgejo, mode, connection, w::Offer::Offered);
     if parts.mode == w::Mode::Owned {
-        parts.owned = Some(
-            w::OwnedForge {
-                    forgejo: b"17.0.0".as_slice().into(),
-                    runner: runner.map(Into::into),
-                    password: b"/fake/forge/person_password".as_slice().into(),
-                },
-        );
+        parts.owned = Some(w::OwnedForge {
+            forgejo: b"17.0.0".as_slice().into(),
+            runner: runner.map(Into::into),
+            password: b"/fake/forge/person_password".as_slice().into(),
+        });
     }
     parts
 }
@@ -359,9 +332,7 @@ fn owned_ready_rows_say_the_versions_and_first_password_path_in_slots() {
         for connection in [
             cf::connected(),
             w::Connection::Connecting,
-            w::Connection::Stopped(
-                w::Stopped { reason: b"stopped".as_slice().into() },
-            ),
+            w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() }),
         ] {
             let mut rows = List::with_capacity(1);
             rows.push(owned_row(w::Mode::Owned, connection, runner)).unwrap();
@@ -381,18 +352,8 @@ fn unprepared_owned_rows_and_managed_rows_have_no_runs_or_password_lines() {
     for (mode, connection) in [
         (w::Mode::Owned, w::Connection::NotConnected),
         (w::Mode::Owned, w::Connection::NotSetUp),
-        (
-            w::Mode::Owned,
-            w::Connection::SettingUp(
-                w::SettingUp { step: None, fetched: None },
-            ),
-        ),
-        (
-            w::Mode::Owned,
-            w::Connection::SetUpFailed(
-                w::SetUpFailed { why: b"failed".as_slice().into(), at: None },
-            ),
-        ),
+        (w::Mode::Owned, w::Connection::SettingUp(w::SettingUp { step: None, fetched: None })),
+        (w::Mode::Owned, w::Connection::SetUpFailed(w::SetUpFailed { why: b"failed".as_slice().into(), at: None })),
         (w::Mode::Managed, cf::connected()),
     ] {
         let mut rows = List::with_capacity(1);
@@ -493,9 +454,7 @@ fn the_github_row_opens_its_configured_web_address_only_when_carried() {
 #[test]
 fn a_stopped_github_row_has_no_app_or_install_block() {
     let mut parts = cf::github_rows(false).get(0).unwrap().clone();
-    parts.connection = w::Connection::Stopped(
-        w::Stopped { reason: b"fixture stopped".as_slice().into() },
-    );
+    parts.connection = w::Connection::Stopped(w::Stopped { reason: b"fixture stopped".as_slice().into() });
     parts.installations.clear();
     let mut rows = List::with_capacity(1);
     rows.push(parts).unwrap();
@@ -527,9 +486,7 @@ fn a_repository_making_or_failed_keeps_its_existing_body() {
     for (state, message) in [
         (w::FirstState::Making, "Making work/hello"),
         (
-            w::FirstState::Failed(
-                w::CreateFailed { step: w::CreateStep::Repository },
-            ),
+            w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository }),
             "Making work/hello failed: making the repository",
         ),
     ] {
@@ -595,12 +552,7 @@ fn remove_confirms_with_the_kinds_words_then_sends() {
 fn a_disconnected_connected_mode_forgejo_links_to_its_tokens_form() {
     for (connection, offered) in [
         (w::Connection::NotConnected, true),
-        (
-            w::Connection::Stopped(
-                w::Stopped { reason: b"stopped".as_slice().into() },
-            ),
-            true,
-        ),
+        (w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() }), true),
         (w::Connection::Connecting, false),
         (cf::connected(), false),
     ] {
@@ -627,9 +579,7 @@ fn replace_act(root: &mut d::Domain, act: d::forge::forges::Act) {
     f::root_event(root, d::Event::Forge(d::forge::Event::Act { act: d::forge::Act::Forges(act) }));
 }
 fn stopped() -> w::Connection {
-    w::Connection::Stopped(
-        w::Stopped { reason: b"stopped".as_slice().into() },
-    )
+    w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() })
 }
 #[test]
 fn replace_is_offered_only_on_connected_or_stopped_supported_forges() {
@@ -765,9 +715,7 @@ fn replacement_answer(outcome: w::Outcome) -> d::Domain {
 }
 #[test]
 fn a_replacement_refusal_is_under_its_button_in_forge_words() {
-    let root = replacement_answer(w::Outcome::ConnectRefused(
-        w::ConnectRefused { why: w::ForgeRefusal::NotConnected },
-    ));
+    let root = replacement_answer(w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::NotConnected }));
     cf::words_in_order(f::browser_page_view(&root).tree(), &["Replace the tokens", "Connect it first."]);
 }
 #[test]
@@ -922,12 +870,8 @@ fn the_old_chrome_is_gone() {
     for connection in [
         w::Connection::NotConnected,
         w::Connection::NotSetUp,
-        w::Connection::SettingUp(
-            w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
-        ),
-        w::Connection::SetUpFailed(
-            w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None },
-        ),
+        w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None }),
+        w::Connection::SetUpFailed(w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None }),
         stopped(),
         w::Connection::Connecting,
         cf::connected(),
@@ -944,12 +888,7 @@ fn the_old_chrome_is_gone() {
         cf::github_rows(false),
         cf::first_rows(cf::connected(), cf::made()),
         cf::first_rows(cf::connected(), w::FirstState::Making),
-        cf::first_rows(
-            cf::connected(),
-            w::FirstState::Failed(
-                w::CreateFailed { step: w::CreateStep::Repository },
-            ),
-        ),
+        cf::first_rows(cf::connected(), w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository })),
     ] {
         assert_no_old_chrome(&f::forge_root(Address::Forges, rows));
     }
@@ -974,9 +913,7 @@ fn only_the_forges_row_named_by_the_off_fact_says_its_password_is_needed_in_the_
 
 #[test]
 fn the_source_stage_says_it_is_connecting_sign_in_after_forgejo_has_started() {
-    let connection = w::Connection::SettingUp(
-        w::SettingUp { step: Some(w::SetUpStep::Source), fetched: None },
-    );
+    let connection = w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Source), fetched: None });
     for address in [
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         Address::Welcome { step: temper_client_domain::Step::Model { way: None } },

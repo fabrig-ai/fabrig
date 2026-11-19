@@ -117,30 +117,20 @@ fn document() -> w::Findings {
     let mut areas = List::with_capacity(2);
     for (name, number) in [("docs", 40), ("tests", 52)] {
         areas
-            .push(
-                w::AreaRow {
-                        name: name.as_bytes().into(),
-                        words: doc(name).bytes().into(),
-                        owner: w::AreaOwner::Task(
-                            w::AreaTask { number },
-                        ),
-                        holder: Some(w::Holder::Task(
-                            w::HolderTask { number },
-                        )),
-                    },
-            )
+            .push(w::AreaRow {
+                name: name.as_bytes().into(),
+                words: doc(name).bytes().into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number }),
+                holder: Some(w::Holder::Task(w::HolderTask { number })),
+            })
             .expect("two areas");
     }
     w::Findings {
-            project: 1,
-            rows: List::with_capacity(0),
-            areas,
-            cut: false,
-            triager: Some(w::AreaOwner::Task(
-                w::AreaTask { number: 52 },
-            )),
-            holder: w::Holder::Task(
-                w::HolderTask { number: 52 },
-            ),
-        }
+        project: 1,
+        rows: List::with_capacity(0),
+        areas,
+        cut: false,
+        triager: Some(w::AreaOwner::Task(w::AreaTask { number: 52 })),
+        holder: w::Holder::Task(w::HolderTask { number: 52 }),
+    }
 }

@@ -2,14 +2,7 @@ use super::fixtures;
 use crate::v1;
 
 fn tokens(forge: v1::Making) -> v1::Request {
-    v1::Request::Connect(
-        v1::Connect {
-                forge,
-                how: v1::How::ForgejoTokens(
-                    v1::ForgejoTokens {},
-                ),
-            },
-    )
+    v1::Request::Connect(v1::Connect { forge, how: v1::How::ForgejoTokens(v1::ForgejoTokens {}) })
 }
 fn connected(host: &[u8], port: u16) -> v1::Making {
     let v1::ForgeAsk::Managed(value) = super::managed(host, port) else { unreachable!() };

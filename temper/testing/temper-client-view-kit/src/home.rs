@@ -81,9 +81,7 @@ pub fn home_documents_with_status(
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::aways(
-                                &w::Aways { rows: List::from_boxed(Box::new([spell])) },
-                            ),
+                            bytes: wire::aways(&w::Aways { rows: List::from_boxed(Box::new([spell])) }),
                         },
                     },
                 },
@@ -343,14 +341,12 @@ pub fn settle_home(
                                 record: jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::decisions(
-                                        &w::Decisions {
-                                                project: f::PROJECT,
-                                                rows: List::with_capacity(0),
-                                                asked: List::with_capacity(0),
-                                                cut: false,
-                                            },
-                                    ),
+                                    bytes: wire::decisions(&w::Decisions {
+                                        project: f::PROJECT,
+                                        rows: List::with_capacity(0),
+                                        asked: List::with_capacity(0),
+                                        cut: false,
+                                    }),
                                 },
                             },
                         },
@@ -365,18 +361,14 @@ pub fn settle_home(
                 let fixture = status.unwrap().away.as_ref().unwrap();
                 let bytes = if Some(&subject) == d::forge::away::watch(&home_limits().forge).as_ref() {
                     let Some(spell) = fixture.spell.clone() else { continue };
-                    wire::aways(
-                        &w::Aways { rows: List::from_boxed(Box::new([spell])) },
-                    )
+                    wire::aways(&w::Aways { rows: List::from_boxed(Box::new([spell])) })
                 } else if Some(&subject) == d::forge::decided::watch(f::PROJECT, &home_limits().forge).as_ref() {
-                    wire::decisions(
-                        &w::Decisions {
-                                project: f::PROJECT,
-                                rows: fixture.rows.clone(),
-                                asked: List::with_capacity(0),
-                                cut: false,
-                            },
-                    )
+                    wire::decisions(&w::Decisions {
+                        project: f::PROJECT,
+                        rows: fixture.rows.clone(),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    })
                 } else {
                     unreachable!("away fixture watch")
                 };
@@ -433,9 +425,7 @@ pub fn settle_home(
                                 answer: Some(jig_client::Answered::Family(jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::answer(
-                                        &w::Answer { outcome: w::Outcome::Looked },
-                                    ),
+                                    bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                                 })),
                             },
                         },
@@ -663,13 +653,11 @@ pub fn forge_rows(in_project: bool) -> List<w::ForgeRow> {
         parts.repositories = List::with_capacity(1);
         parts
             .repositories
-            .push(
-                w::Adoption {
-                        owner: b"work".as_slice().into(),
-                        name: b"hello".as_slice().into(),
-                        project: f::PROJECT,
-                    },
-            )
+            .push(w::Adoption {
+                owner: b"work".as_slice().into(),
+                name: b"hello".as_slice().into(),
+                project: f::PROJECT,
+            })
             .unwrap();
         *rows.get_mut(0).unwrap() = parts;
     }
@@ -709,51 +697,42 @@ pub struct AwayFixture {
 pub fn away_fixture(count: u32) -> AwayFixture {
     let mut rows = List::with_capacity(count);
     for number in 1..=count {
-        rows.push(
-            w::Decision {
-                    number,
-                    task: 99,
-                    at: STATUS_NOW - 55 * STATUS_MINUTE,
-                    question: b"Fix in the store or serve?".as_slice().into(),
-                    took: b"In serve".as_slice().into(),
-                    why: b"The store changes a record.".as_slice().into(),
-                    overturned: false,
-                    reach: w::Reach {
-                            kind: w::ReachKind::Wording,
-                            class: w::ReachClass::Decide,
-                            reason: w::ReachReason::Kind,
-                            under: 0,
-                            sets: 0,
-                            matched: 0,
-                            away: false,
-                        },
-                },
-        )
+        rows.push(w::Decision {
+            number,
+            task: 99,
+            at: STATUS_NOW - 55 * STATUS_MINUTE,
+            question: b"Fix in the store or serve?".as_slice().into(),
+            took: b"In serve".as_slice().into(),
+            why: b"The store changes a record.".as_slice().into(),
+            overturned: false,
+            reach: w::Reach {
+                kind: w::ReachKind::Wording,
+                class: w::ReachClass::Decide,
+                reason: w::ReachReason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: false,
+            },
+        })
         .unwrap();
     }
     AwayFixture {
         lineage: List::uncapped(),
-        spell: Some(
-            w::AwayRow {
-                    project: f::PROJECT,
-                    since: STATUS_NOW - 50 * STATUS_MINUTE,
-                    until: None,
-                    landed: 1,
-                    off: None,
-                },
-        ),
+        spell: Some(w::AwayRow {
+            project: f::PROJECT,
+            since: STATUS_NOW - 50 * STATUS_MINUTE,
+            until: None,
+            landed: 1,
+            off: None,
+        }),
         rows,
         state: d::pages::decided::DecisionTask::Live,
     }
 }
 
 #[must_use]
-pub fn away_home(
-    away: AwayFixture,
-    beginning: bool,
-    objects: &[c::ObjectKey],
-    parts: w::ProjectStatus,
-) -> d::Domain {
+pub fn away_home(away: AwayFixture, beginning: bool, objects: &[c::ObjectKey], parts: w::ProjectStatus) -> d::Domain {
     away_home_with_needs(away, beginning, NeedsFixture { objects, cut: false, read: true, decided: true }, parts)
 }
 

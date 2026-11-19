@@ -1,5 +1,4 @@
 //! A running engine gives restored and changed figures (protocol/configuration/figures.md, 9).
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::engine::Engine;
 use jig_domain_core::settings;
@@ -10,6 +9,7 @@ use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{Duration, Intake, List, Queue, ReplyTo, Secret, Time, Token, stream};
 use temper_client_protocol_wire::v1 as s;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain as root;
 use temper_engine_domain_forge::settings as own;
 
@@ -240,7 +240,10 @@ fn signed_in(engine: &mut Engine) {
 }
 
 fn changed(engine: &mut Engine, agents: &s::AgentFigures, against: u32) {
-    let value = own::SizedValue { size: agents.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"), value: own::Value::AgentFigures(agents.clone()) };
+    let value = own::SizedValue {
+        size: agents.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        value: own::Value::AgentFigures(agents.clone()),
+    };
     engine.step(root::Event::Party(root::PartyInput::ChangeSettings {
         reply_to: ReplyTo::new(Token::new(101)),
         sign_in: 1,
@@ -286,7 +289,8 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     let mut service = started(None);
     fixtures::restart(&mut service);
     let mut parts = crate::stock::agents();
-    parts.profile = List::from_boxed(Box::new([s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 901 }]));
+    parts.profile =
+        List::from_boxed(Box::new([s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 901 }]));
     let first = parts;
     let engine = service.engine.as_mut().unwrap();
     signed_in(engine);
@@ -311,9 +315,11 @@ fn restored_agents_reach_a_figures_opening_and_owner_changes_reach_a_link() {
     assert!(linked.hello);
     settle(engine);
     let mut parts = first;
-    parts.profile.get_mut(0).unwrap().clone_from(
-        &s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 902 },
-    );
+    parts
+        .profile
+        .get_mut(0)
+        .unwrap()
+        .clone_from(&s::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: 902 });
     let second = parts;
     changed(engine, &second, 2);
     linked.settle(engine);

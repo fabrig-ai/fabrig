@@ -129,15 +129,11 @@ fn only_you_reads_the_persons_deciding_login_sources_in_document_order() {
             c::WatchEvent::Delivered(c::Delivery::Accounts(Box::new(document.clone()))),
         );
         if let Some(provider) = playground {
-            let mut parts =
-                wire::decode_playground_answer(&playground::answer(b"A change"), &w::CEILINGS).unwrap();
+            let mut parts = wire::decode_playground_answer(&playground::answer(b"A change"), &w::CEILINGS).unwrap();
             parts.provider = *provider;
             playground::deliver_playground_read(
                 &mut root,
-                jig_client::Readout::Family {
-                    family: wire::FORGE,
-                    record: Some(wire::playground_answer(&parts)),
-                },
+                jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) },
             );
         }
         assert_eq!(only_you::read(&root), read, "{case}: read gathers the root's facts");

@@ -268,12 +268,7 @@ fn a_refused_set_up_keeps_its_refusal() {
     let mut root = f::on_adoption_page();
     setup(&mut root);
 
-    answered(
-        &mut root,
-        w::Outcome::SetUpRefused(
-            w::SetUpRefused { why: w::SetUpRefusal::Busy },
-        ),
-    );
+    answered(&mut root, w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Busy }));
     assert_eq!(
         root.forge().set_up().unwrap().answer,
         Some(forges::SetUpAnswer::Outcome(forges::SetUpOutcome::Refused(forges::SetUpRefusal::Busy)))
@@ -426,11 +421,7 @@ fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {
         } = request
         {
             assert!(found.is_none(), "one family request");
-            found = Some((
-                attempt,
-                key,
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request,
-            ));
+            found = Some((attempt, key, wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request));
         }
     }
     found.expect("sent family request")
@@ -479,12 +470,12 @@ fn deliver_first(
     state: w::FirstState,
 ) -> Queue<Request> {
     let first = w::FirstRepository {
-            playground: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: Box::from(b"temper-host".as_slice()),
-        };
+        playground: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state,
+        label: Box::from(b"temper-host".as_slice()),
+    };
     deliver_first_record(root, watch, connection, first)
 }
 fn deliver_first_record(
@@ -494,28 +485,26 @@ fn deliver_first_record(
     first: w::FirstRepository,
 ) -> Queue<Request> {
     let mut rows = List::with_capacity(1);
-    rows.push(
-        w::ForgeRow {
-                starts_with: w::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: HERE,
-                kind: w::Kind::Forgejo,
-                mode: w::Mode::Owned,
-                connection,
-                offer: w::Offer::Offered,
-                first: Some(first),
-                installations: List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            },
-    )
+    rows.push(w::ForgeRow {
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: HERE,
+        kind: w::Kind::Forgejo,
+        mode: w::Mode::Owned,
+        connection,
+        offer: w::Offer::Offered,
+        first: Some(first),
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    })
     .unwrap();
     up(
         root,
@@ -524,9 +513,7 @@ fn deliver_first_record(
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(
-                    &w::Forges { forges: rows, linked: false },
-                ),
+                bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
             },
         },
     )
@@ -535,9 +522,7 @@ fn made() -> w::FirstState {
     w::FirstState::Made(w::Made { id: 42 })
 }
 fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected { id: 7, login: b"temper".as_slice().into() },
-    )
+    w::Connection::Connected(w::Connected { id: 7, login: b"temper".as_slice().into() })
 }
 fn write_setup(root: &mut crate::Domain, field: forges::SetupField, text: &[u8]) {
     assert!(f::form_act(root, forge::Act::SetupWrite { field, text: text.into() }).is_empty());
@@ -612,9 +597,7 @@ fn set_up_again_sends_the_same_fields() {
         &mut root,
         watch,
         w::Connection::Connecting,
-        w::FirstState::Failed(
-            w::CreateFailed { step: w::CreateStep::File },
-        ),
+        w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::File }),
     );
     write_setup(&mut root, forges::SetupField::Organization, b"changed");
     let (_, _, w::Request::SetUp(retry)) = sent(setup(&mut root)) else { panic!("setup") };
@@ -678,13 +661,7 @@ fn a_client_that_did_not_set_up_adopts_nothing() {
 fn invalid_refusals_say_their_words() {
     let (mut root, _, _) = opened(true);
     let (attempt, _, _) = sent(setup(&mut root));
-    reply(
-        &mut root,
-        attempt,
-        w::Outcome::SetUpRefused(
-            w::SetUpRefused { why: w::SetUpRefusal::Invalid },
-        ),
-    );
+    reply(&mut root, attempt, w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Invalid }));
     let Some(forges::SetUpAnswer::Outcome(forges::SetUpOutcome::Refused(why))) = root.forge().set_up().unwrap().answer
     else {
         panic!("refusal")
@@ -699,14 +676,12 @@ fn invalid_refusals_say_their_words() {
 fn set_up_again_on_another_client_uses_the_rows_fields() {
     let (mut root, _, watch) = opened(true);
     let value = w::FirstRepository {
-            playground: true,
-            org: b"playground".as_slice().into(),
-            repository: b"widget".as_slice().into(),
-            state: w::FirstState::Failed(
-                w::CreateFailed { step: w::CreateStep::File },
-            ),
-            label: Box::from(b"temper-host".as_slice()),
-        };
+        playground: true,
+        org: b"playground".as_slice().into(),
+        repository: b"widget".as_slice().into(),
+        state: w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::File }),
+        label: Box::from(b"temper-host".as_slice()),
+    };
     deliver_first_record(&mut root, watch, w::Connection::Connecting, value);
     let (_, _, w::Request::SetUp(value)) = sent(setup(&mut root)) else { panic!("setup") };
     assert_eq!(
@@ -744,41 +719,35 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
     for id in [1, 2] {
         let login: &[u8] = if changed && id == 2 { b"changed" } else { b"acme" };
         installations
-            .push(
-                w::Installation {
-                        id,
-                        account: Some(
-                            w::Account { id, login: login.into() },
-                        ),
-                        suspended: false,
-                        stray: false,
-                    },
-            )
+            .push(w::Installation {
+                id,
+                account: Some(w::Account { id, login: login.into() }),
+                suspended: false,
+                stray: false,
+            })
             .unwrap();
     }
     let mut rows = List::with_capacity(1);
-    rows.push(
-        w::ForgeRow {
-                starts_with: w::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: 2,
-                kind: w::Kind::Github,
-                mode: w::Mode::Connected,
-                connection: connected(),
-                offer: w::Offer::NotOffered,
-                first: None,
-                installations,
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            },
-    )
+    rows.push(w::ForgeRow {
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: 2,
+        kind: w::Kind::Github,
+        mode: w::Mode::Connected,
+        connection: connected(),
+        offer: w::Offer::NotOffered,
+        first: None,
+        installations,
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    })
     .unwrap();
     up(
         root,
@@ -787,9 +756,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(
-                    &w::Forges { forges: rows, linked: false },
-                ),
+                bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
             },
         },
     )
@@ -878,7 +845,11 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     );
     let last = root.forge().set_up().unwrap();
     assert_eq!(
-        (empty_setup(&last.first).org.as_ref(), empty_setup(&last.first).repository.as_ref(), empty_setup(&last.first).playground),
+        (
+            empty_setup(&last.first).org.as_ref(),
+            empty_setup(&last.first).repository.as_ref(),
+            empty_setup(&last.first).playground
+        ),
         (b"work".as_slice(), b"hello".as_slice(), false)
     );
     let after = root.forge().setup_form();
@@ -1126,8 +1097,7 @@ fn only_picker_reads(out: &Queue<Request>) {
             let client::Ask::Family { scope: c::Scope::Deployment, record } = request else {
                 panic!("connecting a forge sends no adoption or project request")
             };
-            let w::Request::Reachable(read) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            let w::Request::Reachable(read) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("only the sheet reads; nothing adopts")
             };
@@ -1180,30 +1150,26 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
         let (mut root, _, watch) = opened(true);
         let mut rows = List::with_capacity(1);
-        rows.push(
-            w::ForgeRow {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 9,
-                    kind: w::Kind::Github,
-                    mode: w::Mode::Connected,
-                    connection: w::Connection::Stopped(
-                        w::Stopped { reason: Box::default() },
-                    ),
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations: List::with_capacity(0),
-                    ended: None,
-                    app: Some(app.clone()),
-                    web: None,
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        rows.push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 9,
+            kind: w::Kind::Github,
+            mode: w::Mode::Connected,
+            connection: w::Connection::Stopped(w::Stopped { reason: Box::default() }),
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: Some(app.clone()),
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
         up(
             &mut root,
@@ -1212,9 +1178,7 @@ fn go_on_uses_a_kept_github_and_its_recorded_app_way() {
                 record: client::Family {
                     family: wire::FORGE,
                     version: wire::CLIENT_VERSION,
-                    bytes: wire::forges(
-                        &w::Forges { forges: rows, linked: false },
-                    ),
+                    bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                 },
             },
         );
@@ -1384,13 +1348,10 @@ fn set_up_again_keeps_copies_or_nothing_from_the_row_and_last_ask() {
             HERE,
             w::Kind::Forgejo,
             w::Mode::Owned,
-            w::Connection::SetUpFailed(
-                w::SetUpFailed { why: b"retry".as_slice().into(), at: None },
-            ),
+            w::Connection::SetUpFailed(w::SetUpFailed { why: b"retry".as_slice().into(), at: None }),
             w::Offer::Offered,
             None,
-        )
-        ;
+        );
         parts.starts_with = starts_with;
         let mut forges = List::with_capacity(1);
         forges.push(parts).unwrap();

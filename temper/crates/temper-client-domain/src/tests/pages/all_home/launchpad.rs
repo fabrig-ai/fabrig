@@ -254,11 +254,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
     );
     fixture.told(last, family_answer(w::Outcome::Looked));
     let mut dismissed = List::with_capacity(wire::DISMISSED);
-    dismissed
-        .push(w::PersonFact::ToBegin(
-            w::ToBegin { project: FIRST },
-        ))
-        .expect("fixture rows grow");
+    dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: FIRST })).expect("fixture rows grow");
     let out = fixture.family(
         fixture.watch(forge::dismissed::watch(&fixture.limits.forge).expect("dismissals subject")),
         wire::dismissals(&w::Dismissals { dismissed }),
@@ -280,10 +276,7 @@ fn launchpad_looks_once_per_project_and_joins_home_and_across_statuses() {
             brief.lede = b"Ready! More follows.".as_slice().into();
             document.brief = Some(brief);
         }
-        fixture.family(
-            fixture.status_watch(project),
-            wire::project_status(&document),
-        );
+        fixture.family(fixture.status_watch(project), wire::project_status(&document));
     }
     let out = inbox(&mut fixture, &[THIRD, SECOND]);
     questions(&mut fixture, &out);
@@ -335,20 +328,16 @@ fn launchpad_decided_prioritizes_root_then_distinct_open_needs_then_me_to_four()
     };
     let mut asked = List::with_capacity(1);
     asked
-        .push(
-            w::Asked {
-                    number: 1,
-                    task: u64::from(THIRD),
-                    at: 0,
-                    reach: temper_protocol_reaches::reach_record(&reach),
-                },
-        )
+        .push(w::Asked {
+            number: 1,
+            task: u64::from(THIRD),
+            at: 0,
+            reach: temper_protocol_reaches::reach_record(&reach),
+        })
         .expect("fixture rows grow");
     fixture.family(
         fixture.decided_watch(THIRD),
-        wire::decisions(
-            &w::Decisions { project: THIRD, rows: List::with_capacity(0), asked, cut: false },
-        ),
+        wire::decisions(&w::Decisions { project: THIRD, rows: List::with_capacity(0), asked, cut: false }),
     );
     let open = fixture
         .root

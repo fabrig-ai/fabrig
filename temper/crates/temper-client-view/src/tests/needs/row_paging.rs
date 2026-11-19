@@ -156,30 +156,24 @@ fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
             } => {
                 let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS) else { continue };
                 let bytes = match &watching.watch {
-                    w::Watch::Decided(subject) => wire::decisions(
-                        &w::Decisions {
-                                project: subject.project,
-                                rows: List::with_capacity(0),
-                                asked: List::with_capacity(0),
-                                cut: false,
-                            },
-                    ),
-                    w::Watch::Findings(subject) => wire::findings(
-                        &w::Findings {
-                                project: subject.project,
-                                rows: List::from_boxed(if subject.project == f::PROJECT && !subject.mine {
-                                    f::groups::bugs()
-                                } else {
-                                    Box::default()
-                                }),
-                                areas: List::with_capacity(0),
-                                triager: None,
-                                holder: w::Holder::Party(
-                                    w::HolderParty { number: 1 },
-                                ),
-                                cut: false,
-                            },
-                    ),
+                    w::Watch::Decided(subject) => wire::decisions(&w::Decisions {
+                        project: subject.project,
+                        rows: List::with_capacity(0),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    }),
+                    w::Watch::Findings(subject) => wire::findings(&w::Findings {
+                        project: subject.project,
+                        rows: List::from_boxed(if subject.project == f::PROJECT && !subject.mine {
+                            f::groups::bugs()
+                        } else {
+                            Box::default()
+                        }),
+                        areas: List::with_capacity(0),
+                        triager: None,
+                        holder: w::Holder::Party(w::HolderParty { number: 1 }),
+                        cut: false,
+                    }),
                     _ => continue,
                 };
                 event(

@@ -6,6 +6,7 @@ use crate::{Domain, KindValue, Limits as RootLimits, Work};
 use jig_domain_authority as authority;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::Env;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_engine_domain_forge::{self as forge, settings};
 
 const PROJECT: u32 = 1;
@@ -1699,7 +1700,10 @@ fn follows_resolve_adopted_branches_and_allow_member_reads_but_not_outsiders() {
     value.target.branch = Box::new([]);
     value.producer = Some(Box::new([]));
     let expected = follow_value();
-    let size = settings::follow_record(&expected).unwrap().measure();
+    let size = settings::follow_record(&expected)
+        .unwrap()
+        .measure(&temper_client_protocol_wire::v1::CEILINGS)
+        .expect("within ceilings");
     assert_eq!(
         judge_follow(&mut domain, &env, 1, value.clone()),
         connector::Judged::Accept { size, charters: Box::new([]) }
@@ -1957,10 +1961,10 @@ fn judge_landing_value(
     value: settings::Value,
 ) -> connector::Judged {
     let size = if let settings::Value::Landing(v) = &value {
-        settings::landing_record(v).measure()
+        settings::landing_record(v).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")
     } else {
         let settings::Value::Gates(v) = &value else { panic!("landing setting fixture") };
-        settings::gates_record(v).measure()
+        settings::gates_record(v).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")
     };
     domain.kinds = Box::new([KindValue { kind, scope, number: 1, value: settings::SizedValue { value, size } }]);
     let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);

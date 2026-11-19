@@ -1,5 +1,4 @@
 //! Temper's setting names, family reads and values (temper/docs/design/client/ctl/README.md, 4, and temper/docs/design/client/ctl/tools.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use crate::jig::{
     call::{Call, Project, Value, number, value},
     render::Text,
@@ -9,6 +8,7 @@ use crate::jig::{
 use alloc::collections::BTreeSet;
 use jig_client::{Family, Readable, Readout, contract as c};
 use skein_lib::{List, Reader};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Classes, Way, classes_from, classes_record};
 pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
@@ -39,28 +39,26 @@ pub(crate) fn resolve_project(call: &mut Call, me: Option<&c::Me>) -> bool {
     true
 }
 pub(crate) fn setting_query(kind: u32, scope: u32, number: u32) -> w::Read {
-    w::Read::Setting(
-        w::SettingRead { kind, scope, number },
-    )
+    w::Read::Setting(w::SettingRead { kind, scope, number })
 }
 pub(crate) fn read(query: Query) -> Readable {
     let query = match query {
         Query::Setting(c::Setting::Application { kind, scope, number }) => setting_query(kind, scope, number),
         Query::RevisionSetting { setting: c::Setting::Application { kind, scope, number }, revision } => {
-            w::Read::RevisionSetting(
-                w::RevisionSettingRead { kind, scope, number, revision },
-            )
+            w::Read::RevisionSetting(w::RevisionSettingRead { kind, scope, number, revision })
         }
         Query::Setting(_) | Query::RevisionSetting { .. } => unreachable!("application setting"),
-        Query::ProposalItems { key } => w::Read::ProposalItems(
-            w::ProposalItemsRead { key },
-        ),
+        Query::ProposalItems { key } => w::Read::ProposalItems(w::ProposalItemsRead { key }),
     };
     let record = w::Reading { read: query };
     Readable::Family {
         scope: c::Scope::Deployment,
         window: c::Window { rows: 1, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&w::CEILINGS).expect("fixed read") },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(&w::CEILINGS).expect("fixed read"),
+        },
     }
 }
 fn bytes(page: &Readout) -> Option<&[u8]> {
@@ -111,8 +109,7 @@ fn setting(page: &Readout, kind: u32) -> Result<Option<c::SettingValue>, ()> {
 fn stock(kind: u32) -> Option<c::SettingValue> {
     let bytes = match kind {
         6 => {
-            let value =
-                w::ProjectQuestions { route: w::QuestionsRoute::None };
+            let value = w::ProjectQuestions { route: w::QuestionsRoute::None };
             value.encode(&w::CEILINGS).expect("stock setting within ceilings")
         }
         7 => {
@@ -154,11 +151,10 @@ pub(crate) fn decode(query: Query, page: &Readout) -> Option<Answer> {
             let record = proposal_items(page)?;
             let mut items = List::with_capacity(record.items.len());
             for item in record.items.into_boxed() {
-
                 let edit = match item.edit {
-                    w::SettingEdit::Set(value) => c::SettingEdit::Set(c::SettingSet {
-                        value: c::SettingValue::Application(value.value),
-                    }),
+                    w::SettingEdit::Set(value) => {
+                        c::SettingEdit::Set(c::SettingSet { value: c::SettingValue::Application(value.value) })
+                    }
                     w::SettingEdit::Removed => c::SettingEdit::Removed,
                     w::SettingEdit::Reset => c::SettingEdit::Reset,
                 };

@@ -2146,23 +2146,23 @@ pub(super) fn walk_root(choices: bool) -> Domain {
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let brief = w::StatusBrief {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: Box::default(),
-                        at: 0,
-                        landed: 1,
-                    };
+                    sentence: b"One change landed.".as_slice().into(),
+                    lede: Box::default(),
+                    at: 0,
+                    landed: 1,
+                };
                 let status = w::ProjectStatus {
-                        project: 1,
-                        landed: 1,
-                        seen: 0,
-                        last_landed: Some(0),
-                        previous: Some(0),
-                        queued: 0,
-                        red: false,
-                        branch: b"main".as_slice().into(),
-                        unpaid: false,
-                        brief: Some(brief),
-                    };
+                    project: 1,
+                    landed: 1,
+                    seen: 0,
+                    last_landed: Some(0),
+                    previous: Some(0),
+                    queued: 0,
+                    red: false,
+                    branch: b"main".as_slice().into(),
+                    unpaid: false,
+                    brief: Some(brief),
+                };
                 Up::FamilyDelivered {
                     watch,
                     record: jig_client::Family {
@@ -2183,9 +2183,7 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::answer(
-                            &w::Answer { outcome: w::Outcome::Looked },
-                        ),
+                        bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                     })),
                 }
             }
@@ -2273,13 +2271,14 @@ pub(super) fn walk_root(choices: bool) -> Domain {
                     matched: 0,
                     away: false,
                 };
-                let asked = w::Asked { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) };
+                let asked =
+                    w::Asked { number: 1, task: 9, at: 0, reach: temper_protocol_reaches::reach_record(&reach) };
                 let document = w::Decisions {
-                        project: 1,
-                        rows: List::with_capacity(0),
-                        asked: List::from_boxed(Box::new([asked])),
-                        cut: false,
-                    };
+                    project: 1,
+                    rows: List::with_capacity(0),
+                    asked: List::from_boxed(Box::new([asked])),
+                    cut: false,
+                };
                 Up::FamilyDelivered {
                     watch,
                     record: jig_client::Family {

@@ -253,10 +253,8 @@ fn queues(
         } else if sections == 1 {
             words.say(Word::ChangesQueue, &[])
         } else {
-            words.say(
-                Word::ChangesQueueNamed,
-                &[Hole::Name(queue.repository.clone()), Hole::Name(queue.branch.clone())],
-            )
+            words
+                .say(Word::ChangesQueueNamed, &[Hole::Name(queue.repository.clone()), Hole::Name(queue.branch.clone())])
         };
         section(b, &heading);
         b.open(Role::List);

@@ -623,7 +623,17 @@ fn change_row(
         if change.task == task {
             let when = words
                 .say(Word::GoalLanded, &[Hole::Name(times.say(words, TimeForm::Clock, Wall::from_nanos(change.at)))]);
-            work_row(b, words, bindings, task, b"\xe2\x9c\x93", change.title.as_ref(), &when, row.signed.as_deref(), style);
+            work_row(
+                b,
+                words,
+                bindings,
+                task,
+                b"\xe2\x9c\x93",
+                change.title.as_ref(),
+                &when,
+                row.signed.as_deref(),
+                style,
+            );
             return;
         }
     }

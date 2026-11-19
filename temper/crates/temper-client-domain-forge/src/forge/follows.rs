@@ -1,8 +1,8 @@
 //! Follow lines shared by ctl and pages (temper/docs/design/domain/forge/follows.md, 7).
-use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, bytes::concat};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 /// A dependency's binding line, naming only projects the reader belongs to
 /// (temper/docs/design/domain/forge/dependencies.md, 4).
@@ -57,9 +57,7 @@ pub fn parity(value: Option<&w::FollowParity>) -> Box<[u8]> {
     let Some(value) = value else { return Box::from(b"no check yet".as_slice()) };
     let verdict = match &value.verdict {
         w::FollowVerdict::Passed => Box::from(b"check passes".as_slice()),
-        w::FollowVerdict::Failing(failing) => {
-            concat(&[Decimal::of(u64::from(failing.count)).as_bytes(), b" failing"])
-        }
+        w::FollowVerdict::Failing(failing) => concat(&[Decimal::of(u64::from(failing.count)).as_bytes(), b" failing"]),
         w::FollowVerdict::Many => Box::from(b"many failing".as_slice()),
     };
     concat(&[&verdict, b" at ", &after12(&value.source)])

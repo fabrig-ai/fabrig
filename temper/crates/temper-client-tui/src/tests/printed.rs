@@ -16,52 +16,51 @@ pub(super) const ADDRESS: &[u8] = b"way You approve";
 pub(super) const MIXED: &[u8] = b"Under You approve:\n\n```view\nway You approve\n```\n\nNothing lands without you.";
 pub(super) fn card() -> w::Card {
     w::Card {
-            name: b"The coding agent".as_slice().into(),
-            who: b"an agent".as_slice().into(),
-            facts: List::from_boxed(Box::new([w::Fact { label: b"Can".as_slice().into(), value: b"push its branch".as_slice().into() }])),
-        }
+        name: b"The coding agent".as_slice().into(),
+        who: b"an agent".as_slice().into(),
+        facts: List::from_boxed(Box::new([w::Fact {
+            label: b"Can".as_slice().into(),
+            value: b"push its branch".as_slice().into(),
+        }])),
+    }
 }
 pub(super) fn path(stops: &[(w::Actor, w::PathStep, &[u8])]) -> w::BranchPath {
     w::BranchPath {
-            repository: None,
-            branch: b"main".as_slice().into(),
-            stops: List::from_boxed(
-                stops
-                    .iter()
-                    .map(|(actor, step, words)| {
-                        w::Stop {
-                                actor: actor.clone(),
-                                step: step.clone(),
-                                words: (*words).into(),
-                                needed: false,
-                                over: Box::default(),
-                                opens: w::Opens::Nothing,
-                                card: card(),
-                            }
-                    })
-                    .collect(),
-            ),
-        }
+        repository: None,
+        branch: b"main".as_slice().into(),
+        stops: List::from_boxed(
+            stops
+                .iter()
+                .map(|(actor, step, words)| w::Stop {
+                    actor: actor.clone(),
+                    step: step.clone(),
+                    words: (*words).into(),
+                    needed: false,
+                    over: Box::default(),
+                    opens: w::Opens::Nothing,
+                    card: card(),
+                })
+                .collect(),
+        ),
+    }
 }
 pub(super) fn way(current: bool) -> w::View {
-    w::View::Way(
-        w::WayView {
-                name: b"You approve".as_slice().into(),
-                line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
-                current,
-                path: path(&[
-                    (w::Actor::Person, w::PathStep::Ask, b"you ask"),
-                    (w::Actor::Agent, w::PathStep::Produce, b"produce"),
-                    (w::Actor::Code, w::PathStep::Check, b"check"),
-                    (w::Actor::Agent, w::PathStep::Repair, b"repair"),
-                    (w::Actor::Code, w::PathStep::Check, b"check"),
-                    (w::Actor::Person, w::PathStep::Approve, b"you approve"),
-                    (w::Actor::Agent, w::PathStep::Resolve, b"resolve"),
-                    (w::Actor::Code, w::PathStep::Merge, b"merge"),
-                    (w::Actor::Bar, w::PathStep::Branch, b"main"),
-                ]),
-            },
-    )
+    w::View::Way(w::WayView {
+        name: b"You approve".as_slice().into(),
+        line: b"An agent makes each change; nothing reaches main until you approve it.".as_slice().into(),
+        current,
+        path: path(&[
+            (w::Actor::Person, w::PathStep::Ask, b"you ask"),
+            (w::Actor::Agent, w::PathStep::Produce, b"produce"),
+            (w::Actor::Code, w::PathStep::Check, b"check"),
+            (w::Actor::Agent, w::PathStep::Repair, b"repair"),
+            (w::Actor::Code, w::PathStep::Check, b"check"),
+            (w::Actor::Person, w::PathStep::Approve, b"you approve"),
+            (w::Actor::Agent, w::PathStep::Resolve, b"resolve"),
+            (w::Actor::Code, w::PathStep::Merge, b"merge"),
+            (w::Actor::Bar, w::PathStep::Branch, b"main"),
+        ]),
+    })
 }
 // A span's own styles, plus Description columns above it; parent paint stays inherited.
 type Span = (&'static str, Option<Style>, u32);
@@ -113,9 +112,9 @@ fn each_view_prints_its_lines() {
     proposal.extend_from_slice(PATH);
     proposal.push(("After", Some(look::HEAD), 0));
     proposal.extend_from_slice(PATH);
-    let mut conditional = path(&[(w::Actor::Person, w::PathStep::Approve, b"you")]).into_parts();
+    let mut conditional = path(&[(w::Actor::Person, w::PathStep::Approve, b"you")]);
     let stop = conditional.stops.get_mut(0).unwrap();
-    let mut parts = stop.clone().into_parts();
+    let mut parts = stop.clone();
     parts.over = b"if protocol core".as_slice().into();
     *stop = parts;
     let conditional = conditional;
@@ -138,39 +137,31 @@ fn each_view_prints_its_lines() {
         ("path", Some(Shown::Drawn(Box::new(w::View::Path(short())))), PATH.to_vec()),
         (
             "proposal",
-            Some(Shown::Drawn(Box::new(w::View::Proposal(
-                w::ProposalView { before: short(), after: short() },
-            )))),
+            Some(Shown::Drawn(Box::new(w::View::Proposal(w::ProposalView { before: short(), after: short() })))),
             proposal,
         ),
         (
             "charter",
-            Some(Shown::Drawn(Box::new(w::View::Charter(
-                w::CharterView { charter: 1, card: card() },
-            )))),
+            Some(Shown::Drawn(Box::new(w::View::Charter(w::CharterView { charter: 1, card: card() })))),
             CARD.to_vec(),
         ),
         (
             "rule",
-            Some(Shown::Drawn(Box::new(w::View::Rule(
-                w::RuleView { kind: 2, number: 1, card: card() },
-            )))),
+            Some(Shown::Drawn(Box::new(w::View::Rule(w::RuleView { kind: 2, number: 1, card: card() })))),
             CARD.to_vec(),
         ),
         (
             "roles",
-            Some(Shown::Drawn(Box::new(w::View::Roles(
-                w::RolesView {
-                        roles: List::from_boxed(Box::new([w::CharterView { charter: 1, card: card() }])),
-                    },
-            )))),
+            Some(Shown::Drawn(Box::new(w::View::Roles(w::RolesView {
+                roles: List::from_boxed(Box::new([w::CharterView { charter: 1, card: card() }])),
+            })))),
             CARD.to_vec(),
         ),
         (
             "not drawn",
-            Some(Shown::Drawn(Box::new(w::View::NotDrawn(
-                w::NotDrawn { words: b"This revision isn't drawn yet.".as_slice().into() },
-            )))),
+            Some(Shown::Drawn(Box::new(w::View::NotDrawn(w::NotDrawn {
+                words: b"This revision isn't drawn yet.".as_slice().into(),
+            })))),
             vec![("This revision isn't drawn yet.", None, 0)],
         ),
         ("asking", Some(Shown::Asking), vec![("Drawing way You approve…", Some(look::HINT), 0)]),

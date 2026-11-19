@@ -500,12 +500,7 @@ fn second_setup_refusal(root: &mut f::Harness, json: bool) {
         json,
         None,
     );
-    root.adoption_answer(
-        call,
-        w::Outcome::SetUpRefused(
-            w::SetUpRefused { why: w::SetUpRefusal::NotOffered },
-        ),
-    );
+    root.adoption_answer(call, w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotOffered }));
     let printed = root.answer(call).unwrap();
     assert_eq!(printed.status, 2);
     if json {
@@ -564,8 +559,7 @@ fn adopt_second_repository(root: &mut f::Harness, json: bool) {
         None,
     );
     let Ask::Family { record, .. } = root.adoption_bytes(make) else { panic!("repository request") };
-    let w::Request::MakeRepository(request) =
-        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+    let w::Request::MakeRepository(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
     else {
         panic!("make")
     };

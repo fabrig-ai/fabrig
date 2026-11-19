@@ -187,7 +187,6 @@ impl Fixture {
     fn populate(&mut self, full: bool) {
         self.populate_named(full, None);
     }
-    #[expect(clippy::too_many_lines, reason = "one fixture answers three lists and their per-row provenance")]
     fn populate_named(&mut self, full: bool, title: Option<&[u8]>) {
         self.drafts(&[]);
         let mut goal = line(GOAL, title.unwrap_or(b"membership-handoff"));
@@ -232,52 +231,50 @@ impl Fixture {
                 (INDEPENDENT, title.unwrap_or(b"Witness rejoin test")),
             ] {
                 queued
-                    .push(
-                        w::ChangesQueued {
-                                goal: if task == QUEUED_GOAL { Some(origin(GOAL, goal_title)) } else { None },
-                                chat: if task == QUEUED_CHAT { Some(origin(CHAT, b"chat")) } else { None },
-                                milestone: None,
-                                task,
-                                title: title.into(),
-                                ready_since: RECENT,
-                                checks_since: None,
-                            },
-                    )
+                    .push(w::ChangesQueued {
+                        goal: if task == QUEUED_GOAL { Some(origin(GOAL, goal_title)) } else { None },
+                        chat: if task == QUEUED_CHAT { Some(origin(CHAT, b"chat")) } else { None },
+                        milestone: None,
+                        task,
+                        title: title.into(),
+                        ready_since: RECENT,
+                        checks_since: None,
+                    })
                     .unwrap();
             }
         }
         let landed = if full {
             list(&[w::ChangesLanded {
-                    goal: Some(origin(GOAL, goal_title)),
-                    chat: None,
-                    milestone: None,
-                    signed: List::with_capacity(8),
-                    commit: [0xab; 32],
-                    default_branch: true,
-                    task: LANDED,
-                    title: title.unwrap_or(b"Handoff states").into(),
-                    at: RECENT,
-                }])
+                goal: Some(origin(GOAL, goal_title)),
+                chat: None,
+                milestone: None,
+                signed: List::with_capacity(8),
+                commit: [0xab; 32],
+                default_branch: true,
+                task: LANDED,
+                title: title.unwrap_or(b"Handoff states").into(),
+                at: RECENT,
+            }])
         } else {
             List::with_capacity(0)
         };
         let panel = w::ChangesPanel {
-                landed_default: landed.clone(),
-                landed_default_more: 0,
-                project: f::PROJECT,
-                landing: b"main".as_slice().into(),
-                queues: list(&[w::ChangesQueue {
-                        way: w::Way::Queue,
-                        in_flight: None,
-                        repository: b"owner/repo".as_slice().into(),
-                        branch: b"main".as_slice().into(),
-                        red: full,
-                        changes: queued,
-                    }]),
-                more: 0,
-                landed,
-                landed_more: 0,
-            };
+            landed_default: landed.clone(),
+            landed_default_more: 0,
+            project: f::PROJECT,
+            landing: b"main".as_slice().into(),
+            queues: list(&[w::ChangesQueue {
+                way: w::Way::Queue,
+                in_flight: None,
+                repository: b"owner/repo".as_slice().into(),
+                branch: b"main".as_slice().into(),
+                red: full,
+                changes: queued,
+            }]),
+            more: 0,
+            landed,
+            landed_more: 0,
+        };
         self.up(Up::FamilyDelivered {
             watch: self.changes,
             record: jig_client::Family {
@@ -288,8 +285,7 @@ impl Fixture {
         });
     }
     fn drafts(&mut self, rows: &[w::LandedDraft]) {
-        let panel =
-            w::DraftsPanel { project: f::PROJECT, drafts: list(rows) };
+        let panel = w::DraftsPanel { project: f::PROJECT, drafts: list(rows) };
         self.up(Up::FamilyDelivered {
             watch: self.drafts,
             record: jig_client::Family {
@@ -407,37 +403,37 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     let mut page = Fixture::new(None, false);
     page.populate(false);
     let branch = w::ChangesLanded {
-            goal: Some(origin(GOAL, b"The whole goal")),
-            chat: None,
-            milestone: None,
-            signed: List::with_capacity(8),
-            task: 21,
-            title: b"Goal-branch implementation".as_slice().into(),
-            at: RECENT,
-            commit: [0x12; 32],
-            default_branch: false,
-        };
+        goal: Some(origin(GOAL, b"The whole goal")),
+        chat: None,
+        milestone: None,
+        signed: List::with_capacity(8),
+        task: 21,
+        title: b"Goal-branch implementation".as_slice().into(),
+        at: RECENT,
+        commit: [0x12; 32],
+        default_branch: false,
+    };
     let landing = w::ChangesLanded {
-            goal: Some(origin(GOAL, b"The whole goal")),
-            chat: None,
-            milestone: None,
-            signed: List::with_capacity(8),
-            task: 22,
-            title: b"Landing fallback".as_slice().into(),
-            at: RECENT + 1,
-            commit: [0xab; 32],
-            default_branch: true,
-        };
+        goal: Some(origin(GOAL, b"The whole goal")),
+        chat: None,
+        milestone: None,
+        signed: List::with_capacity(8),
+        task: 22,
+        title: b"Landing fallback".as_slice().into(),
+        at: RECENT + 1,
+        commit: [0xab; 32],
+        default_branch: true,
+    };
     let panel = w::ChangesPanel {
-            project: f::PROJECT,
-            landing: b"main".as_slice().into(),
-            queues: List::with_capacity(0),
-            more: 0,
-            landed: list(&[landing.clone(), branch]),
-            landed_more: 0,
-            landed_default: list(&[landing]),
-            landed_default_more: 0,
-        };
+        project: f::PROJECT,
+        landing: b"main".as_slice().into(),
+        queues: List::with_capacity(0),
+        more: 0,
+        landed: list(&[landing.clone(), branch]),
+        landed_more: 0,
+        landed_default: list(&[landing]),
+        landed_default_more: 0,
+    };
     page.up(Up::FamilyDelivered {
         watch: page.changes,
         record: jig_client::Family {
@@ -468,10 +464,10 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     assert_eq!(tasks.as_slice(), &[GOAL]);
 
     // Rows without a goal stay change rows; a named chat keeps its provenance.
-    let mut parts = panel.into_parts();
+    let mut parts = panel;
     let mut branches = List::with_capacity(2);
     for row in parts.landed.into_boxed() {
-        let mut row = row.into_parts();
+        let mut row = row;
         row.default_branch = false;
         branches.push(row).unwrap();
     }
@@ -480,19 +476,17 @@ fn landed_this_week_names_the_goal_once_at_its_main_commit() {
     for (task, title, commit) in [(30, "Chat landing", 0x32), (31, "Unread landing", 0x45), (32, "Goal fallback", 0x67)]
     {
         defaults
-            .push(
-                w::ChangesLanded {
-                        goal: None,
-                        chat: if task == 30 { Some(origin(CHAT, b"chat")) } else { None },
-                        milestone: None,
-                        signed: List::with_capacity(8),
-                        task,
-                        title: title.as_bytes().into(),
-                        at: RECENT,
-                        commit: [commit; 32],
-                        default_branch: true,
-                    },
-            )
+            .push(w::ChangesLanded {
+                goal: None,
+                chat: if task == 30 { Some(origin(CHAT, b"chat")) } else { None },
+                milestone: None,
+                signed: List::with_capacity(8),
+                task,
+                title: title.as_bytes().into(),
+                at: RECENT,
+                commit: [commit; 32],
+                default_branch: true,
+            })
             .unwrap();
     }
     parts.landed_default = defaults;
@@ -695,19 +689,19 @@ const READY: u64 = 1_792_159_800_000_000_000;
 // Friday 14:10 in the clock's preceding week.
 fn landed_draft(path: &[u8], title: &[u8]) -> w::LandedDraft {
     w::LandedDraft {
-            forge: 3,
-            owner: b"author".as_slice().into(),
-            name: b"NAME".as_slice().into(),
-            path: path.into(),
-            branch: b"main".as_slice().into(),
-            commit: b"abc".as_slice().into(),
-            title: title.into(),
-            writer: 9,
-            at: READY,
-            chat: Some(99),
-            goal: None,
-            ready: true,
-        }
+        forge: 3,
+        owner: b"author".as_slice().into(),
+        name: b"NAME".as_slice().into(),
+        path: path.into(),
+        branch: b"main".as_slice().into(),
+        commit: b"abc".as_slice().into(),
+        title: title.into(),
+        writer: 9,
+        at: READY,
+        chat: Some(99),
+        goal: None,
+        ready: true,
+    }
 }
 
 fn subtree_text(tree: &Tree, node: &skein_ui::Node) -> Box<[u8]> {
@@ -820,7 +814,7 @@ fn landed_and_chat_drafts_share_the_headings_count_and_newest_first_order() {
     let mut page = Fixture::new(None, false);
     page.populate(true);
     let row = landed_draft(b"catch-up.md", b"Catch up");
-    let mut parts = row.into_parts();
+    let mut parts = row;
     parts.at = RECENT.checked_add(1).unwrap();
     page.drafts(&[parts]);
     page.go(Address::Work { project: f::PROJECT, filter: WorkFilter::Drafts });
@@ -869,33 +863,33 @@ fn ended_goal(task: u64, title: &[u8], ending: c::ChipEnding, at: u64) -> c::Tas
 }
 fn queued_change(task: u64) -> w::ChangesQueued {
     w::ChangesQueued {
-            goal: Some(origin(3, b"C4 running")),
-            chat: None,
-            milestone: Some(origin(M, b"Store shape")),
-            task,
-            title: b"Move the reader".as_slice().into(),
-            ready_since: RECENT,
-            checks_since: None,
-        }
+        goal: Some(origin(3, b"C4 running")),
+        chat: None,
+        milestone: Some(origin(M, b"Store shape")),
+        task,
+        title: b"Move the reader".as_slice().into(),
+        ready_since: RECENT,
+        checks_since: None,
+    }
 }
 fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::ChangesLanded]) {
     let panel = w::ChangesPanel {
-            project: f::PROJECT,
-            landing: b"main".as_slice().into(),
-            more: 0,
-            landed_more: 0,
-            landed_default_more: 0,
-            queues: list(&[w::ChangesQueue {
-                    way: w::Way::Queue,
-                    repository: b"owner/repo".as_slice().into(),
-                    branch: b"main".as_slice().into(),
-                    in_flight: None,
-                    red: false,
-                    changes: list(queued),
-                }]),
-            landed: list(landed),
-            landed_default: list(landed),
-        };
+        project: f::PROJECT,
+        landing: b"main".as_slice().into(),
+        more: 0,
+        landed_more: 0,
+        landed_default_more: 0,
+        queues: list(&[w::ChangesQueue {
+            way: w::Way::Queue,
+            repository: b"owner/repo".as_slice().into(),
+            branch: b"main".as_slice().into(),
+            in_flight: None,
+            red: false,
+            changes: list(queued),
+        }]),
+        landed: list(landed),
+        landed_default: list(landed),
+    };
     page.up(Up::FamilyDelivered {
         watch: page.changes,
         record: jig_client::Family {
@@ -1076,14 +1070,9 @@ fn a_milestone_part_draws_goals_outside_the_shared_window_and_the_newest_report(
         };
         goals.push((row, None)).unwrap();
     }
-    let mut totals = milestone_totals(7, 0, 1).into_parts();
+    let mut totals = milestone_totals(7, 0, 1);
     totals.closed = 11;
-    own.parts = list(&[f::milestones::part(
-        Some(NOW),
-        totals,
-        goals.as_slice(),
-        3,
-    )]);
+    own.parts = list(&[f::milestones::part(Some(NOW), totals, goals.as_slice(), 3)]);
     page.live(watch, &[own]);
     let drawn = page.root.pages().milestones().unwrap().milestone(M).unwrap();
     assert_eq!(drawn.goals.len(), 16);
@@ -1116,23 +1105,21 @@ fn landed_goal_rows_name_their_milestone_and_only_its_recent_completing_change()
         own.chip.details.phase = c::ChipPhase::Ended;
         own.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"done"))));
         own.ended_at = Some(Wall::from_nanos(RECENT));
-        let mut totals = milestone_totals(1, failed, 0).into_parts();
+        let mut totals = milestone_totals(1, failed, 0);
         totals.ended = Some(completed);
-        totals.last_landing = Some(
-            w::MilestoneLanding { at: RECENT, goal: 3, change: last_change },
-        );
+        totals.last_landing = Some(w::MilestoneLanding { at: RECENT, goal: 3, change: last_change });
         let totals = totals;
         let landing = w::ChangesLanded {
-                goal: Some(origin(3, b"C4 running")),
-                chat: None,
-                milestone: Some(origin(M, b"Store shape")),
-                task: 21,
-                title: b"The landing".as_slice().into(),
-                at: RECENT,
-                commit: [0xab; 32],
-                default_branch: true,
-                signed: List::with_capacity(8),
-            };
+            goal: Some(origin(3, b"C4 running")),
+            chat: None,
+            milestone: Some(origin(M, b"Store shape")),
+            task: 21,
+            title: b"The landing".as_slice().into(),
+            at: RECENT,
+            commit: [0xab; 32],
+            default_branch: true,
+            signed: List::with_capacity(8),
+        };
         send_panel(&mut page, &[], &[landing]);
         page.serve_milestone(&own, &[], &[], true, if read { Some(&totals) } else { None });
         let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();

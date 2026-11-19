@@ -1,10 +1,10 @@
 //! Starting a goal from its draft (client/pages/goal.md, 3).
-use temper_client_protocol_wire::v1::Record;
 use super::{Pages, Request, goal, needs::Toasted};
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Key, Outcome, Told, contract as c, shapes};
 use skein_lib::{Env, Queue, Writer};
+use temper_client_protocol_wire::v1::Record;
 
 #[derive(Debug)]
 #[expect(
@@ -445,12 +445,16 @@ fn mark_started(
     out: &mut Queue<Request>,
 ) {
     use temper_client_protocol_wire::v1 as w;
-    let Ok(repository) = ({ let value = w::DraftRepository { owner: draft.owner.clone(), name: draft.name.clone() }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+    let Ok(repository) = ({
+        let value = w::DraftRepository { owner: draft.owner.clone(), name: draft.name.clone() };
+        match value.encode(&w::CEILINGS) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }) else {
         return;
     };
-    let change = w::DraftChange::Started(
-        w::StartedDraft { goal },
-    );
+    let change = w::DraftChange::Started(w::StartedDraft { goal });
     if let Some(request) =
         crate::forge::drafts::ask(project, Some(repository), draft.path.clone(), change, &env.limits.forge)
     {

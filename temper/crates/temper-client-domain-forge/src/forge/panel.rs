@@ -1,11 +1,11 @@
 //! A procedure's whole panel, watched while its task page is open
 //! (client/forge/served.md, 2; client/forge/records.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use crate::delegation::State as DelegationState;
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Watchable, Why, contract as c};
 use skein_lib::Queue;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -97,10 +97,8 @@ pub(super) fn subject(side: &mut Side, limits: Limits, subject: Option<Subject>,
         side.serial = side.serial.checked_add(1).expect("forge handles fit");
         let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
         let limits = wire_limits(&limits).expect("checked forge limits");
-        let change =
-            w::ChangeSubject { task: subject.task };
-        let record =
-            w::Watching { watch: w::Watch::Change(change) };
+        let change = w::ChangeSubject { task: subject.task };
+        let record = w::Watching { watch: w::Watch::Change(change) };
         out.push(Request::Client {
             asked: jig_client::Event::Watch {
                 handle,

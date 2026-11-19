@@ -1,9 +1,9 @@
 //! jig's core refusal remains opaque in the forge family (client/forge/records.md).
-use temper_client_protocol_wire::v1::Record;
 use super::values;
 use jig_client_protocol_wire as jig;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1;
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
@@ -48,12 +48,12 @@ fn current_request_answer_and_forges_goldens_round_trip() {
 
 fn first(state: v1::FirstState) -> v1::FirstRepository {
     v1::FirstRepository {
-            playground: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: Box::from(b"temper-host".as_slice()),
-        }
+        playground: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state,
+        label: Box::from(b"temper-host".as_slice()),
+    }
 }
 #[test]
 fn setup_and_every_first_repository_state_round_trip_at_current_version() {
@@ -63,42 +63,32 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
     assert_eq!(wire::decode_requesting(&wire::requesting(&request), &v1::CEILINGS), Some(request));
     for state in [
         v1::FirstState::Making,
-        v1::FirstState::Made(
-            v1::Made { id: u64::MAX },
-        ),
-        v1::FirstState::Failed(
-            v1::CreateFailed { step: v1::CreateStep::Admin },
-        ),
-        v1::FirstState::Failed(
-            v1::CreateFailed { step: v1::CreateStep::Org },
-        ),
-        v1::FirstState::Failed(
-            v1::CreateFailed { step: v1::CreateStep::Repository },
-        ),
-        v1::FirstState::Failed(
-            v1::CreateFailed { step: v1::CreateStep::File },
-        ),
+        v1::FirstState::Made(v1::Made { id: u64::MAX }),
+        v1::FirstState::Failed(v1::CreateFailed { step: v1::CreateStep::Admin }),
+        v1::FirstState::Failed(v1::CreateFailed { step: v1::CreateStep::Org }),
+        v1::FirstState::Failed(v1::CreateFailed { step: v1::CreateStep::Repository }),
+        v1::FirstState::Failed(v1::CreateFailed { step: v1::CreateStep::File }),
     ] {
         let row = v1::ForgeRow {
-                starts_with: v1::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: 3,
-                kind: v1::Kind::Forgejo,
-                mode: v1::Mode::Owned,
-                connection: v1::Connection::Connecting,
-                offer: v1::Offer::NotOffered,
-                first: Some(first(state)),
-                installations: skein_lib::List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            };
+            starts_with: v1::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 3,
+            kind: v1::Kind::Forgejo,
+            mode: v1::Mode::Owned,
+            connection: v1::Connection::Connecting,
+            offer: v1::Offer::NotOffered,
+            first: Some(first(state)),
+            installations: skein_lib::List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        };
         let mut rows = skein_lib::List::with_capacity(1);
         rows.push(row).expect("one row capacity");
         let rows = v1::Forges { forges: rows, linked: false };
@@ -108,21 +98,15 @@ fn setup_and_every_first_repository_state_round_trip_at_current_version() {
 
 fn setup_request() -> v1::Requesting {
     v1::Requesting {
-            request: v1::Request::SetUp(
-                v1::SetUp {
-                        forge: v1::Making::Kept(
-                            v1::Kept { forge: 3 },
-                        ),
-                        first: v1::SetUpFirst::Empty(
-                            v1::FirstEmpty {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                        ),
-                    },
-            ),
-        }
+        request: v1::Request::SetUp(v1::SetUp {
+            forge: v1::Making::Kept(v1::Kept { forge: 3 }),
+            first: v1::SetUpFirst::Empty(v1::FirstEmpty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    }
 }
 
 #[test]
@@ -143,7 +127,10 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
             };
             assert_eq!((parts.clone()).encode(&limits).is_ok(), size == 2, "setup field {field}");
             let record = parts;
-            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length fits usize"));
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .expect("measured length fits usize"),
+            );
             record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
             assert_eq!(
                 v1::FirstEmpty::decode(&limits, &mut Reader::new(&writer.finish())).is_ok(),
@@ -161,7 +148,10 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
             };
             assert_eq!((parts.clone()).encode(&limits).is_ok(), size == 2, "row field {field}");
             let record = parts;
-            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length fits usize"));
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .expect("measured length fits usize"),
+            );
             record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
             assert_eq!(
                 v1::FirstRepository::decode(&limits, &mut Reader::new(&writer.finish())).is_ok(),
@@ -195,27 +185,18 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
 fn playground_start_outcomes_round_trip_at_each_boundary() {
     let limits = v1::CEILINGS;
     let mut outcomes = skein_lib::List::with_capacity(8);
-    for outcome in [
-        v1::Outcome::Running,
-        v1::Outcome::StartRefused(
-            v1::StartRefused { why: v1::StartRefusal::NotOffered },
-        ),
-    ] {
+    for outcome in
+        [v1::Outcome::Running, v1::Outcome::StartRefused(v1::StartRefused { why: v1::StartRefusal::NotOffered })]
+    {
         outcomes.push(outcome).expect("outcome room");
     }
     for why in [v1::StartFailure::Account, v1::StartFailure::Adoption, v1::StartFailure::NotConnected] {
-        outcomes
-            .push(v1::Outcome::StartFailed(
-                v1::StartFailed { why },
-            ))
-            .expect("outcome room");
+        outcomes.push(v1::Outcome::StartFailed(v1::StartFailed { why })).expect("outcome room");
     }
     for length in [0, 1, 256] {
         let group = v1::GroupFailed { why: skein_lib::bytes::zeroed(length) };
         outcomes
-            .push(v1::Outcome::StartFailed(
-                v1::StartFailed { why: v1::StartFailure::Group(group) },
-            ))
+            .push(v1::Outcome::StartFailed(v1::StartFailed { why: v1::StartFailure::Group(group) }))
             .expect("outcome room");
     }
     for outcome in outcomes.into_boxed() {
@@ -225,15 +206,10 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
         assert_eq!(v1::Answer::decode(&limits, &mut reader), Ok(record));
         assert!(reader.is_empty());
     }
-    (v1::GroupFailed { why: skein_lib::bytes::zeroed(257) }).encode(&limits)
-        .expect_err("past ceiling");
-    let group =
-        v1::GroupFailed { why: skein_lib::bytes::zeroed(256) };
-    let record = v1::Answer {
-            outcome: v1::Outcome::StartFailed(
-                v1::StartFailed { why: v1::StartFailure::Group(group) },
-            ),
-        };
+    (v1::GroupFailed { why: skein_lib::bytes::zeroed(257) }).encode(&limits).expect_err("past ceiling");
+    let group = v1::GroupFailed { why: skein_lib::bytes::zeroed(256) };
+    let record =
+        v1::Answer { outcome: v1::Outcome::StartFailed(v1::StartFailed { why: v1::StartFailure::Group(group) }) };
     let bytes = temper_client_protocol_wire::answer(&record);
     // Version (2), Outcome (1), StartFailure (1), then WHY's u32 length.
     let mut writer = skein_lib::Writer::new(bytes.len().checked_add(1).expect("extra byte"));

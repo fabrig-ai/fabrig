@@ -15,25 +15,15 @@ const SAMPLES: u32 = 32;
 
 fn holder(value: &Holder) -> w::Holder {
     match *value {
-        Holder::Task(number) => {
-            w::Holder::Task(w::HolderTask { number })
-        }
-        Holder::Party(number) => {
-            w::Holder::Party(w::HolderParty { number })
-        }
-        Holder::Role(number) => {
-            w::Holder::Role(w::HolderRole { number })
-        }
+        Holder::Task(number) => w::Holder::Task(w::HolderTask { number }),
+        Holder::Party(number) => w::Holder::Party(w::HolderParty { number }),
+        Holder::Role(number) => w::Holder::Role(w::HolderRole { number }),
     }
 }
 fn owner(kind: u64, number: u32) -> w::AreaOwner {
     match kind {
-        0 => w::AreaOwner::Task(
-            w::AreaTask { number: u64::from(number) },
-        ),
-        1 => w::AreaOwner::Party(
-            w::AreaParty { number: u64::from(number) },
-        ),
+        0 => w::AreaOwner::Task(w::AreaTask { number: u64::from(number) }),
+        1 => w::AreaOwner::Party(w::AreaParty { number: u64::from(number) }),
         2 => w::AreaOwner::Role(w::AreaRole { number }),
         3 => w::AreaOwner::Charter(w::AreaCharter { number }),
         _ => unreachable!("four owner kinds"),
@@ -70,14 +60,12 @@ fn document(rng: &mut Rng) -> (w::Findings, Model) {
         };
         let name: Box<[u8]> = format!("area-{index}").into_bytes().into();
         areas
-            .push(
-                w::AreaRow {
-                        name: name.clone(),
-                        words: b"Work in this area".as_slice().into(),
-                        owner: owner(rng.below(4), number),
-                        holder: held.as_ref().map(holder),
-                    },
-            )
+            .push(w::AreaRow {
+                name: name.clone(),
+                words: b"Work in this area".as_slice().into(),
+                owner: owner(rng.below(4), number),
+                holder: held.as_ref().map(holder),
+            })
             .expect("up to sixteen areas");
         model.areas.push((name, held));
     }
@@ -100,13 +88,13 @@ fn document(rng: &mut Rng) -> (w::Findings, Model) {
         model.triager = Some(held.clone());
     }
     let document = w::Findings {
-            project: 1,
-            rows: List::with_capacity(0),
-            areas,
-            triager,
-            holder: holder(&held),
-            cut: rng.chance(500),
-        };
+        project: 1,
+        rows: List::with_capacity(0),
+        areas,
+        triager,
+        holder: holder(&held),
+        cut: rng.chance(500),
+    };
     (document, model)
 }
 

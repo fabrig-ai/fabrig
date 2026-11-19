@@ -308,25 +308,23 @@ fn root(input: &Input) -> Domain {
                     },
             } if input.talk => {
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap();
-                if let w::Watch::Findings(_) = watching.watch() {
-                    let holder =
-                        w::Holder::Task(w::HolderTask { number: TASK });
-                    let owner =
-                        w::AreaOwner::Task(w::AreaTask { number: TASK });
+                if let w::Watch::Findings(_) = &watching.watch {
+                    let holder = w::Holder::Task(w::HolderTask { number: TASK });
+                    let owner = w::AreaOwner::Task(w::AreaTask { number: TASK });
                     let areas = List::from_boxed(Box::new([w::AreaRow {
-                            name: b"vsr-rs".as_slice().into(),
-                            words: b"The port".as_slice().into(),
-                            owner: owner.clone(),
-                            holder: Some(holder.clone()),
-                        }]));
+                        name: b"vsr-rs".as_slice().into(),
+                        words: b"The port".as_slice().into(),
+                        owner: owner.clone(),
+                        holder: Some(holder.clone()),
+                    }]));
                     let value = w::Findings {
-                            project: 1,
-                            rows: List::with_capacity(0),
-                            areas,
-                            triager: if input.weekly { None } else { Some(owner) },
-                            holder,
-                            cut: false,
-                        };
+                        project: 1,
+                        rows: List::with_capacity(0),
+                        areas,
+                        triager: if input.weekly { None } else { Some(owner) },
+                        holder,
+                        cut: false,
+                    };
                     Some(jig_client::Up::FamilyDelivered {
                         watch,
                         record: jig_client::Family {
@@ -512,17 +510,13 @@ fn root(input: &Input) -> Domain {
                         down: Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } },
                     },
             } if input.goal.is_some() => {
-                let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
-                    w::Watch::Forges => wire::forges(
-                        &w::Forges { forges: f::goal_forges(true), linked: false },
-                    ),
+                let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
+                    w::Watch::Forges => wire::forges(&w::Forges { forges: f::goal_forges(true), linked: false }),
                     w::Watch::Dismissed => {
                         let mut dismissed = List::with_capacity(wire::DISMISSED);
                         if input.goal == Some(true) {
                             dismissed
-                                .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom { project: 1, chat: TASK, goal: 25, at: 1 },
-                                ))
+                                .push(w::PersonFact::GoalFrom(w::GoalFrom { project: 1, chat: TASK, goal: 25, at: 1 }))
                                 .unwrap();
                         }
                         wire::dismissals(&w::Dismissals { dismissed })
@@ -559,16 +553,15 @@ fn root(input: &Input) -> Domain {
                     })
                 } else {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                    if let w::Read::View(view) = reading.read() {
-                        assert_eq!(view.address(), p::ADDRESS);
+                    if let w::Read::View(view) = &reading.read {
+                        assert_eq!(view.address.as_ref(), p::ADDRESS);
                         let result = match &input.shown {
                             None | Some(Shown::Asking) => None,
                             Some(Shown::Failed) => {
                                 Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused)))
                             }
                             Some(Shown::Drawn(view)) => {
-                                let answer =
-                                    w::ViewAnswer { view: *view.clone() };
+                                let answer = w::ViewAnswer { view: *view.clone() };
                                 Some(jig_client::Readout::Family {
                                     family: wire::FORGE,
                                     record: Some(wire::view_answer(&answer)),

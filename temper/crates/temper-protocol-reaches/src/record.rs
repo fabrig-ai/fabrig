@@ -23,12 +23,8 @@ pub fn classes_from(record: &v1::ProjectClasses) -> Classes {
     }
     let mut sets = List::with_capacity(record.sets.len());
     for set in &record.sets {
-        sets.push(PathSet {
-            number: set.number,
-            name: set.name.clone(),
-            patterns: set.patterns.clone().into_boxed(),
-        })
-        .expect("same set count");
+        sets.push(PathSet { number: set.number, name: set.name.clone(), patterns: set.patterns.clone().into_boxed() })
+            .expect("same set count");
     }
     Classes { items: items.into_boxed(), sets: sets.into_boxed() }
 }
@@ -39,13 +35,11 @@ pub fn classes_record(classes: &Classes) -> Option<v1::ProjectClasses> {
     let mut items = List::with_capacity(u32::try_from(classes.items.len()).ok()?);
     for item in &classes.items {
         items
-            .push(
-                v1::ClassItem {
-                        subject: subject_record(item.subject),
-                        words: item.words.clone(),
-                        class: class_record(item.class),
-                    },
-            )
+            .push(v1::ClassItem {
+                subject: subject_record(item.subject),
+                words: item.words.clone(),
+                class: class_record(item.class),
+            })
             .ok()?;
     }
     let mut sets = List::with_capacity(u32::try_from(classes.sets.len()).ok()?);
@@ -54,12 +48,13 @@ pub fn classes_record(classes: &Classes) -> Option<v1::ProjectClasses> {
         for pattern in &set.patterns {
             patterns.push(pattern.clone()).ok()?;
         }
-        sets.push(
-            v1::PathSet { number: set.number, name: set.name.clone(), patterns },
-        )
-        .ok()?;
+        sets.push(v1::PathSet { number: set.number, name: set.name.clone(), patterns }).ok()?;
     }
-    { let record = v1::ProjectClasses { items, sets }; record.measure(&v1::CEILINGS).ok()?; Some(record) }
+    {
+        let record = v1::ProjectClasses { items, sets };
+        record.measure(&v1::CEILINGS).ok()?;
+        Some(record)
+    }
 }
 
 #[must_use]
@@ -73,9 +68,7 @@ pub fn subject_from(record: &v1::ClassSubject) -> Subject {
 #[must_use]
 pub fn subject_record(subject: Subject) -> v1::ClassSubject {
     match subject {
-        Subject::Kind(kind) => v1::ClassSubject::Kind(
-            v1::ReachKindOf { kind: kind_record(kind) },
-        ),
+        Subject::Kind(kind) => v1::ClassSubject::Kind(v1::ReachKindOf { kind: kind_record(kind) }),
         Subject::Set(number) => v1::ClassSubject::Set(set_record(number)),
     }
 }
@@ -116,14 +109,14 @@ pub fn reach_record(reach: &Reach) -> v1::Reach {
         Reason::Always => v1::ReachReason::Always,
     };
     v1::Reach {
-            kind: kind_record(reach.kind),
-            class: class_record(reach.class),
-            reason,
-            under: reach.under,
-            sets: reach.sets,
-            matched: reach.matched,
-            away: reach.away,
-        }
+        kind: kind_record(reach.kind),
+        class: class_record(reach.class),
+        reason,
+        under: reach.under,
+        sets: reach.sets,
+        matched: reach.matched,
+        away: reach.away,
+    }
 }
 
 /// A checked table full at every record bound.

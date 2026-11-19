@@ -9,13 +9,7 @@ pub fn limits_record(values: &[Override]) -> w::LimitOverrides {
     let mut overrides = List::with_capacity(OVERRIDES);
     for value in values {
         overrides
-            .push(
-                w::LimitOverride {
-                        name: value.name.clone(),
-                        value: value.value,
-                        reason: value.reason.clone(),
-                    },
-            )
+            .push(w::LimitOverride { name: value.name.clone(), value: value.value, reason: value.reason.clone() })
             .expect("admitted override count");
     }
     w::LimitOverrides { overrides }

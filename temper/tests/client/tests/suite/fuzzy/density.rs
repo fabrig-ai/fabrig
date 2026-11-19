@@ -1,6 +1,5 @@
 //! Density over client deliveries and acts (temper/docs/design/client/pages/README.md,
 //! A page's parts; temper/docs/design/draft/surfaces.md, 12 and 14).
-use temper_client_protocol_wire::v1::Record;
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Rng, Time, Token, Wall, Writer};
 use std::collections::BTreeSet;
@@ -10,6 +9,7 @@ use temper_client_domain::{
     forge,
     pages::{self, all_home, home, needs, parts},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::fixtures;
 
@@ -88,7 +88,6 @@ impl World {
                     if let jig_client::Ask::Family { record, .. } = request
                         && let w::Request::Looked(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
                             .expect("bounded density fixture")
-                            
                             .request
                     {
                         self.pending.push(Up::Answer {
@@ -98,9 +97,7 @@ impl World {
                             answer: Some(jig_client::Answered::Family(jig_client::Family {
                                 family: wire::FORGE,
                                 version: wire::CLIENT_VERSION,
-                                bytes: wire::answer(
-                                    &w::Answer { outcome: w::Outcome::Looked },
-                                ),
+                                bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                             })),
                         });
                     }
@@ -150,15 +147,13 @@ impl World {
 
     fn findings(&mut self, project: u32) {
         let document = w::Findings {
-                project,
-                rows: List::with_capacity(0),
-                areas: List::with_capacity(0),
-                triager: None,
-                holder: w::Holder::Role(
-                    w::HolderRole { number: 0 },
-                ),
-                cut: false,
-            };
+            project,
+            rows: List::with_capacity(0),
+            areas: List::with_capacity(0),
+            triager: None,
+            holder: w::Holder::Role(w::HolderRole { number: 0 }),
+            cut: false,
+        };
         self.family(forge::findings::watch(project, &self.env.limits.forge), wire::findings(&document));
     }
 
@@ -393,18 +388,19 @@ impl World {
             && setting.kind == 7
         {
             let value = w::ProjectWays {
-                    drafts: true,
-                    goals: false,
-                    changes: true,
-                    way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
-                };
-            let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("bounded density fixture"));
+                drafts: true,
+                goals: false,
+                changes: true,
+                way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
+            };
+            let mut writer = Writer::new(
+                usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .expect("bounded density fixture"),
+            );
             value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("bounded density fixture");
             return Some(Readout::Family {
                 family: wire::FORGE,
-                record: Some(wire::setting_answer(
-                    &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
-                )),
+                record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) })),
             });
         }
         None
@@ -418,57 +414,53 @@ impl World {
         let landed = self.rng.below(4);
         let seen = self.rng.below(4);
         let previous = (self.rng.below(3) != 0).then_some(2 * SECOND);
-        let brief = (self.rng.below(3) != 0).then(|| {
-            w::StatusBrief {
-                    sentence: b"A change landed.".as_slice().into(),
-                    lede: b"The change is ready. More follows.".as_slice().into(),
-                    at: self.rng.below(5) * SECOND,
-                    landed,
-                }
+        let brief = (self.rng.below(3) != 0).then(|| w::StatusBrief {
+            sentence: b"A change landed.".as_slice().into(),
+            lede: b"The change is ready. More follows.".as_slice().into(),
+            at: self.rng.below(5) * SECOND,
+            landed,
         });
         let document = w::ProjectStatus {
-                project,
-                landed,
-                seen,
-                previous,
-                last_landed: (landed > 0).then_some(SECOND),
-                brief,
-                queued: 0,
-                red: false,
-                branch: b"main".as_slice().into(),
-                unpaid: self.rng.below(2) == 0,
-            };
+            project,
+            landed,
+            seen,
+            previous,
+            last_landed: (landed > 0).then_some(SECOND),
+            brief,
+            queued: 0,
+            red: false,
+            branch: b"main".as_slice().into(),
+            unpaid: self.rng.below(2) == 0,
+        };
         self.family(forge::status::watch(project, &self.env.limits.forge), wire::project_status(&document));
     }
 
     fn decisions(&mut self, project: u32) {
         let mut rows = List::with_capacity(3);
         for number in 1..=self.rng.below(4) {
-            rows.push(
-                w::Decision {
-                        reach: w::Reach {
-                                kind: w::ReachKind::Tests,
-                                class: w::ReachClass::Decide,
-                                reason: w::ReachReason::Kind,
-                                under: 0,
-                                sets: 0,
-                                matched: 0,
-                                away: false,
-                            },
-                        number: u32::try_from(number).expect("bounded density fixture"),
-                        task: 100 + number,
-                        at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
-                            0 => DAY,
-                            1 => DAY + SECOND,
-                            2 => SECOND,
-                            _ => unreachable!("three decision ages"),
-                        }),
-                        question: b"Which approach?".as_slice().into(),
-                        took: b"Small".as_slice().into(),
-                        why: b"Within the landing rule.".as_slice().into(),
-                        overturned: false,
-                    },
-            )
+            rows.push(w::Decision {
+                reach: w::Reach {
+                    kind: w::ReachKind::Tests,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+                number: u32::try_from(number).expect("bounded density fixture"),
+                task: 100 + number,
+                at: self.env.wall.as_nanos().saturating_sub(match self.rng.below(3) {
+                    0 => DAY,
+                    1 => DAY + SECOND,
+                    2 => SECOND,
+                    _ => unreachable!("three decision ages"),
+                }),
+                question: b"Which approach?".as_slice().into(),
+                took: b"Small".as_slice().into(),
+                why: b"Within the landing rule.".as_slice().into(),
+                overturned: false,
+            })
             .expect("bounded density fixture");
         }
         if let Some(watch) =
@@ -486,19 +478,10 @@ impl World {
         let mut dismissed = List::with_capacity(self.projects);
         for project in 1..=self.projects {
             if self.rng.below(2) == 0 {
-                dismissed
-                    .push(w::PersonFact::ToBegin(
-                        w::ToBegin { project },
-                    ))
-                    .expect("bounded density fixture");
+                dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project })).expect("bounded density fixture");
             }
         }
-        self.family(
-            forge::dismissed::watch(&self.env.limits.forge),
-            wire::dismissals(
-                &w::Dismissals { dismissed },
-            ),
-        );
+        self.family(forge::dismissed::watch(&self.env.limits.forge), wire::dismissals(&w::Dismissals { dismissed }));
     }
 
     fn approval_rows(&mut self) {
@@ -575,16 +558,12 @@ impl World {
         let subject = forge::follows::watch(project, &self.env.limits.forge).expect("follows subject");
         let Some(watch) = self.watch(&subject) else { return };
         let count = u32::try_from(self.rng.below(3)).expect("at most two relations");
-        let dependencies = (1..=count)
-            .map(|number| {
-                w::DependencyView { number, project: 7 }
-            })
-            .collect::<Vec<_>>();
+        let dependencies = (1..=count).map(|number| w::DependencyView { number, project: 7 }).collect::<Vec<_>>();
         let panel = w::FollowsPanel {
-                project,
-                follows: List::with_capacity(0),
-                dependencies: List::from_boxed(dependencies.into_boxed_slice()),
-            };
+            project,
+            follows: List::with_capacity(0),
+            dependencies: List::from_boxed(dependencies.into_boxed_slice()),
+        };
         self.relation_rows.retain(|(held, _)| *held != watch);
         self.relation_rows.push((watch, count));
         self.family(Some(subject), wire::follows_panel(&panel));
@@ -936,9 +915,7 @@ fn generate(seed: u64) -> World {
     world.drain();
     world.family(
         forge::forges::watch(&limits.forge),
-        wire::forges(
-            &w::Forges { forges: List::with_capacity(0), linked: false },
-        ),
+        wire::forges(&w::Forges { forges: List::with_capacity(0), linked: false }),
     );
     world.dismissals();
     world.entries = (10..=13).map(|task| entry(task, world.project_of(task))).collect();
@@ -1188,41 +1165,34 @@ fn approval(project: u32, rng: &mut Rng) -> w::ApprovalRow {
             if kind == 2 {
                 counts[usize::try_from(rng.below(3)).expect("three counts")] = u32::MAX;
             }
-            Some(
-                w::ApprovalSize {
-                        files: counts[0],
-                        additions: counts[1],
-                        deletions: counts[2],
-                        cut: kind == 2,
-                    },
-            )
+            Some(w::ApprovalSize { files: counts[0], additions: counts[1], deletions: counts[2], cut: kind == 2 })
         }
     };
     w::ApprovalRow {
-            task: 200 + u64::from(project),
-            project,
-            goal: None,
-            forge: 3,
-            kind: w::Kind::Github,
-            owner: b"acme".as_slice().into(),
-            name: b"widget".as_slice().into(),
-            pull: 24,
-            address: b"https://github.com/acme/widget/pull/24/files".as_slice().into(),
-            title: b"A change".as_slice().into(),
-            since: SECOND,
-            scope: project,
-            rule: 4,
-            role: 5,
-            required: 2,
-            counted: 1,
-            sets: List::with_capacity(0),
-            whole: true,
-            yours: w::ApprovalYours::Counts,
-            signed: List::with_capacity(0),
-            can_sign: List::with_capacity(0),
-            can_sign_more: 0,
-            size,
-        }
+        task: 200 + u64::from(project),
+        project,
+        goal: None,
+        forge: 3,
+        kind: w::Kind::Github,
+        owner: b"acme".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        pull: 24,
+        address: b"https://github.com/acme/widget/pull/24/files".as_slice().into(),
+        title: b"A change".as_slice().into(),
+        since: SECOND,
+        scope: project,
+        rule: 4,
+        role: 5,
+        required: 2,
+        counted: 1,
+        sets: List::with_capacity(0),
+        whole: true,
+        yours: w::ApprovalYours::Counts,
+        signed: List::with_capacity(0),
+        can_sign: List::with_capacity(0),
+        can_sign_more: 0,
+        size,
+    }
 }
 fn budget() -> c::Budget {
     c::Budget {

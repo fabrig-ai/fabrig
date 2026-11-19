@@ -1,9 +1,9 @@
 //! A person's facts (temper/docs/design/client/forge/records.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Subject, subject_from, subject_record};
 
@@ -42,18 +42,13 @@ pub fn watch(limits: &Limits) -> Option<Watchable> {
 pub fn ask(what: PersonFact, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
     let (project, what) = match what {
-        PersonFact::ToBegin { project } => {
-            (project, w::PersonFact::ToBegin(w::ToBegin { project }))
+        PersonFact::ToBegin { project } => (project, w::PersonFact::ToBegin(w::ToBegin { project })),
+        PersonFact::GoalFrom { project, chat, goal, at } => {
+            (project, w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at }))
         }
-        PersonFact::GoalFrom { project, chat, goal, at } => (
-            project,
-            w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at }),
-        ),
         PersonFact::KeepAsking { project, subject, at } => (
             project,
-            w::PersonFact::KeepAsking(
-                w::KeepAsking { project, subject: subject_record(subject), at: at.as_nanos() },
-            ),
+            w::PersonFact::KeepAsking(w::KeepAsking { project, subject: subject_record(subject), at: at.as_nanos() }),
         ),
     };
     let dismiss = w::Dismiss { what };
@@ -222,12 +217,9 @@ fn rows(record: &Family, limits: Limits) -> Option<Box<[PersonFact]>> {
                 at: Wall::from_nanos(value.at),
             },
             w::PersonFact::ToBegin(value) => PersonFact::ToBegin { project: value.project },
-            w::PersonFact::GoalFrom(value) => PersonFact::GoalFrom {
-                project: value.project,
-                chat: value.chat,
-                goal: value.goal,
-                at: value.at,
-            },
+            w::PersonFact::GoalFrom(value) => {
+                PersonFact::GoalFrom { project: value.project, chat: value.chat, goal: value.goal, at: value.at }
+            }
         };
         rows.push(what).expect("wire bounds dismissal rows");
     }

@@ -614,17 +614,15 @@ fn playground_change_page(playground_forge: u16) {
     let goal = fixtures::goal_with_pushed_change(world.front(), BRANCH);
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    world.front().playground = Some(
-        w::PlaygroundAnswer {
-                state: w::PlaygroundState::Running,
-                project: Some(1),
-                forge: playground_forge,
-                provider: 17,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
-            },
-    );
+    world.front().playground = Some(w::PlaygroundAnswer {
+        state: w::PlaygroundState::Running,
+        project: Some(1),
+        forge: playground_forge,
+        provider: 17,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        cues,
+    });
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     let on_playground = playground_forge == REPOSITORY.forge;
     let link = Find::exactly_named(Role::Link, "View on forge ↗".as_bytes());

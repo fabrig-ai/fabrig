@@ -42,8 +42,7 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
         let deployment = service.engine.as_ref().unwrap().deployment();
         let mut input = read_input(people::ApplicationScope::Deployment);
         if let kit::ToApplication::Read { record, .. } = &mut input {
-            *record =
-                wire::reading(&w::Reading { read: w::Read::Deployment });
+            *record = wire::reading(&w::Reading { read: w::Read::Deployment });
         }
         let Err(answer) = family::to_root(
             &jig_protocol_config::Directories::working(),

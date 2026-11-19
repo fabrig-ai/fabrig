@@ -258,8 +258,7 @@ pub fn answer_environment(root: &mut d::Domain, words: &[u8]) {
             }
         })
         .expect("program page reads its environment");
-    let answer =
-        w::ProgramEnvironmentAnswer { environment: words.into() };
+    let answer = w::ProgramEnvironmentAnswer { environment: words.into() };
     fixtures::root_event(
         root,
         d::Event::Client {
@@ -355,9 +354,7 @@ pub fn program_root_with_line(address: d::Address, line: Option<&[u8]>) -> (d::D
                     jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
-            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment => {
-                Some(*read)
-            }
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment => Some(*read),
             d::Request::Screen { .. }
             | d::Request::KeepLook { .. }
             | d::Request::KeepSignIn { .. }

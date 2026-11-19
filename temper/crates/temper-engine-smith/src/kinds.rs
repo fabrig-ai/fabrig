@@ -2,9 +2,9 @@
 //! (temper/docs/design/domain/routing.md, 6;
 //! temper/docs/design/protocol/configuration/settings.md, 2).
 
-use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1};
 use temper_engine_domain_forge::{GateLast, GatePattern, JudgeFreshness, settings};
 use temper_engine_domain_forge_change::Route;
@@ -179,27 +179,59 @@ pub fn encode(value: &settings::Value) -> Box<[u8]> {
 #[must_use]
 pub fn size(value: &settings::Value) -> u32 {
     match value {
-        settings::Value::AgentFigures(record) => record.measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Gates(v) => settings::gates_record(v).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Landing(v) => settings::landing_record(v).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Rule(rule) => wire_rule(rule).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Charter(charter) => wire_charter(*charter).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Questions(route) => wire_questions(*route).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Ways(ways) => wire_ways(*ways).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Classes(classes) => {
-            temper_protocol_reaches::classes_record(classes).expect("admitted classes fit the record").measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        settings::Value::AgentFigures(record) => {
+            record.measure(&v1::CEILINGS).expect("admitted setting within ceilings")
         }
-        settings::Value::CharterWords(line) => wire_charter_words(line).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::ProjectWords(words) => wire_project_words(words).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Goal(goal) => wire_goal(*goal).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Dependency(value) => wire_dependency(*value).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Follow(follow) => {
-            settings::follow_record(follow).expect("admitted follow fits the record").measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        settings::Value::Gates(v) => {
+            settings::gates_record(v).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
         }
-        settings::Value::ProjectAreas(value) => wire_areas(value).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::ProjectTriager(value) => wire_triager(value).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Limits(value) => settings::limits_record(value).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
-        settings::Value::Welcome(value) => wire_welcome(*value).measure(&v1::CEILINGS).expect("admitted setting within ceilings"),
+        settings::Value::Landing(v) => {
+            settings::landing_record(v).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Rule(rule) => {
+            wire_rule(rule).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Charter(charter) => {
+            wire_charter(*charter).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Questions(route) => {
+            wire_questions(*route).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Ways(ways) => {
+            wire_ways(*ways).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Classes(classes) => temper_protocol_reaches::classes_record(classes)
+            .expect("admitted classes fit the record")
+            .measure(&v1::CEILINGS)
+            .expect("admitted setting within ceilings"),
+        settings::Value::CharterWords(line) => {
+            wire_charter_words(line).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::ProjectWords(words) => {
+            wire_project_words(words).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Goal(goal) => {
+            wire_goal(*goal).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Dependency(value) => {
+            wire_dependency(*value).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Follow(follow) => settings::follow_record(follow)
+            .expect("admitted follow fits the record")
+            .measure(&v1::CEILINGS)
+            .expect("admitted setting within ceilings"),
+        settings::Value::ProjectAreas(value) => {
+            wire_areas(value).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::ProjectTriager(value) => {
+            wire_triager(value).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Limits(value) => {
+            settings::limits_record(value).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
+        settings::Value::Welcome(value) => {
+            wire_welcome(*value).measure(&v1::CEILINGS).expect("admitted setting within ceilings")
+        }
     }
 }
 
@@ -265,41 +297,34 @@ fn wire_rule(rule: &settings::LandingRule) -> v1::LandingRule {
         segments.push(segment.clone()).expect("counted segments");
     }
     let last = match &rule.pattern.last {
-        GateLast::Exact(value) => v1::LandingLast::Exact(
-            v1::LandingExact { value: value.clone() },
-        ),
-        GateLast::Open(value) => v1::LandingLast::Open(
-            v1::LandingOpen { value: value.clone() },
-        ),
+        GateLast::Exact(value) => v1::LandingLast::Exact(v1::LandingExact { value: value.clone() }),
+        GateLast::Open(value) => v1::LandingLast::Open(v1::LandingOpen { value: value.clone() }),
     };
     let pattern = v1::LandingPattern { segments, last };
     let mut gates = List::with_capacity(u32::try_from(rule.gates.len()).expect("bounded gates"));
     for gate in &rule.gates {
-        let record = v1::RuleGate {
-                number: gate.number,
-                blocking: gate.blocking,
-                freshness: wire_freshness(gate.freshness),
-            };
+        let record =
+            v1::RuleGate { number: gate.number, blocking: gate.blocking, freshness: wire_freshness(gate.freshness) };
         gates.push(record).expect("counted gates");
     }
     let mut approvals = List::with_capacity(u32::try_from(rule.approvals.len()).expect("bounded approvals"));
     for approval in &rule.approvals {
         let record = v1::RuleApproval {
-                role: approval.role,
-                people: approval.people,
-                freshness: wire_freshness(approval.freshness),
-            };
+            role: approval.role,
+            people: approval.people,
+            freshness: wire_freshness(approval.freshness),
+        };
         approvals.push(record).expect("counted approvals");
     }
     v1::LandingRule {
-            pattern,
-            enforce: rule.enforce,
-            ci: rule.ci,
-            up_to_date: rule.up_to_date,
-            gates,
-            approvals,
-            sets: List::from_boxed(rule.sets.clone()),
-        }
+        pattern,
+        enforce: rule.enforce,
+        ci: rule.ci,
+        up_to_date: rule.up_to_date,
+        gates,
+        approvals,
+        sets: List::from_boxed(rule.sets.clone()),
+    }
 }
 
 fn wire_charter(charter: u32) -> v1::ForgeCharter {
@@ -333,18 +358,10 @@ fn wire_goal(goal: settings::TemplateGoal) -> v1::TemplateGoal {
 
 fn owner_record(value: settings::AreaOwner) -> v1::AreaOwner {
     match value {
-        settings::AreaOwner::Task(number) => v1::AreaOwner::Task(
-            v1::AreaTask { number },
-        ),
-        settings::AreaOwner::Party(number) => v1::AreaOwner::Party(
-            v1::AreaParty { number },
-        ),
-        settings::AreaOwner::Role(number) => v1::AreaOwner::Role(
-            v1::AreaRole { number },
-        ),
-        settings::AreaOwner::Charter(number) => v1::AreaOwner::Charter(
-            v1::AreaCharter { number },
-        ),
+        settings::AreaOwner::Task(number) => v1::AreaOwner::Task(v1::AreaTask { number }),
+        settings::AreaOwner::Party(number) => v1::AreaOwner::Party(v1::AreaParty { number }),
+        settings::AreaOwner::Role(number) => v1::AreaOwner::Role(v1::AreaRole { number }),
+        settings::AreaOwner::Charter(number) => v1::AreaOwner::Charter(v1::AreaCharter { number }),
     }
 }
 fn owner_from(value: v1::AreaOwner) -> settings::AreaOwner {
@@ -359,13 +376,7 @@ fn wire_areas(value: &settings::ProjectAreas) -> v1::ProjectAreas {
     let mut areas = List::with_capacity(u32::try_from(value.areas.len()).expect("admitted area count"));
     for area in &value.areas {
         areas
-            .push(
-                v1::Area {
-                        name: area.name.clone(),
-                        words: area.words.clone(),
-                        owner: owner_record(area.owner),
-                    },
-            )
+            .push(v1::Area { name: area.name.clone(), words: area.words.clone(), owner: owner_record(area.owner) })
             .expect("counted areas");
     }
     v1::ProjectAreas { areas }

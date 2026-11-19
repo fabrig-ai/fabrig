@@ -1,5 +1,4 @@
 //! Session settings, project reads and immediate edits (client/pages/settings.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use crate::{
     Address, Domain, Event, Place, Request,
@@ -10,6 +9,7 @@ use crate::{
 };
 use jig_client::{Down, Link, Readable, Readout, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Class, Classes, Item, Kind, Subject, Way};
 const OTHER: u32 = 17;
@@ -132,39 +132,42 @@ fn value(asked: Asked) -> Box<[u8]> {
 fn value_at(asked: Asked, revision: Option<u32>) -> Box<[u8]> {
     let writer = match asked {
         Asked::Ways(value) => {
-            let record = w::ProjectWays {
-                    drafts: value.drafts,
-                    goals: value.goals,
-                    changes: value.changes,
-                    way: value.way,
-                };
-            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+            let record =
+                w::ProjectWays { drafts: value.drafts, goals: value.goals, changes: value.changes, way: value.way };
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .unwrap(),
+            );
             record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
             writer
         }
         Asked::Classes(classes) => {
             let record = temper_protocol_reaches::classes_record(&classes).unwrap();
-            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .unwrap(),
+            );
             record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
             writer
         }
         Asked::Questions(route) => {
             let record = w::ProjectQuestions {
-                    route: match route {
-                        Route::None => w::QuestionsRoute::None,
-                        Route::Up => w::QuestionsRoute::Up,
-                    },
-                };
-            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                route: match route {
+                    Route::None => w::QuestionsRoute::None,
+                    Route::Up => w::QuestionsRoute::Up,
+                },
+            };
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .unwrap(),
+            );
             record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
             writer
         }
     };
     // A whole typed setting, inside the forge's setting envelope.
     let bytes = writer.finish();
-    wire::setting_answer(
-        &w::SettingAnswer { value: Some(bytes), revision },
-    )
+    wire::setting_answer(&w::SettingAnswer { value: Some(bytes), revision })
 }
 fn page(root: &mut Domain, read: Token, record: Option<Box<[u8]>>) -> Queue<Request> {
     up(root, Up::ReadDone { read, result: Readout::Family { family: wire::FORGE, record } })
@@ -317,8 +320,7 @@ fn project_values_are_read_on_open_and_dropped_on_close() {
         };
         let Readable::Family { scope, record, .. } = read else { panic!("family read") };
         assert_eq!(scope, c::Scope::Project(OTHER));
-        let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
-        else {
+        let w::Read::Setting(setting) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read else {
             panic!("setting")
         };
         assert_eq!((setting.kind, setting.scope), (8, OTHER));
@@ -380,9 +382,7 @@ fn no_value_is_the_stock() {
 }
 #[test]
 fn a_refused_read_hides_and_a_malformed_value_too() {
-    let malformed = wire::setting_answer(
-        &w::SettingAnswer { revision: None, value: Some(b"bad".as_slice().into()) },
-    );
+    let malformed = wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(b"bad".as_slice().into()) });
     for result in [
         Readout::Limit,
         Readout::NotServed { family: Some(wire::FORGE), served: None },
@@ -812,19 +812,14 @@ fn proposed_page(asked: Asked) -> Readout {
     let value = wire::decode_setting_answer(&value(asked), &w::CEILINGS).unwrap().value.unwrap();
     let mut items = List::with_capacity(1);
     items
-        .push(
-            w::ProposalItem {
-                    kind,
-                    scope: f::PROJECT,
-                    number: 1,
-                    edit: w::SettingEdit::Set(
-                        w::SettingValue { value },
-                    ),
-                },
-        )
+        .push(w::ProposalItem {
+            kind,
+            scope: f::PROJECT,
+            number: 1,
+            edit: w::SettingEdit::Set(w::SettingValue { value }),
+        })
         .unwrap();
-    let answer =
-        w::ProposalItemsAnswer { items, owned_approval: false };
+    let answer = w::ProposalItemsAnswer { items, owned_approval: false };
     Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&answer)) }
 }
 fn proposal_told(root: &mut Domain, told: Told) {
@@ -897,8 +892,7 @@ fn rule_page(owned_approval: bool) -> Readout {
 }
 fn edited_page(kind: u32, edit: w::SettingEdit, owned_approval: bool) -> Readout {
     let items = List::from_boxed(Box::new([w::ProposalItem { kind, scope: f::PROJECT, number: 1, edit }]));
-    let answer =
-        w::ProposalItemsAnswer { items, owned_approval };
+    let answer = w::ProposalItemsAnswer { items, owned_approval };
     Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&answer)) }
 }
 #[test]

@@ -111,19 +111,16 @@ fn meta_line_uses_the_home_repository_or_the_project_name() {
             w::Mode::Owned,
             super::connect_forge::connected(),
             w::Offer::NotOffered,
-        )
-        ;
+        );
         parts.repositories = List::with_capacity(1);
         if adopted {
             parts
                 .repositories
-                .push(
-                    w::Adoption {
-                            owner: b"owner".as_slice().into(),
-                            name: b"repo".as_slice().into(),
-                            project: f::PROJECT,
-                        },
-                )
+                .push(w::Adoption {
+                    owner: b"owner".as_slice().into(),
+                    name: b"repo".as_slice().into(),
+                    project: f::PROJECT,
+                })
                 .unwrap();
         }
         let mut rows = List::with_capacity(1);

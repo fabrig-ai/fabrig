@@ -6,13 +6,8 @@ use temper_client_protocol_wire::v1 as w;
 
 #[test]
 fn a_limit_card_offers_only_the_owner_a_raise_and_keeps_refusal_words() {
-    let held = w::LimitHold {
-            task: 42,
-            limit: b"forge.entries".as_slice().into(),
-            configured: 8,
-            needed: 9,
-            revision: 3,
-        };
+    let held =
+        w::LimitHold { task: 42, limit: b"forge.entries".as_slice().into(), configured: 8, needed: 9, revision: 3 };
     let refused = Outcome::Answered(Answered::Jig(c::Answer::Refused {
         at: None,
         refusal: c::Refusal::Judged {

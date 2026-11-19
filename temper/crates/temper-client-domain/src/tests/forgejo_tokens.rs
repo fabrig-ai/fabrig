@@ -33,25 +33,25 @@ fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, end
         stopped = Some(w::ConnectStopped { why: why.into() });
     }
     w::ForgeRow {
-            starts_with: w::StartsWith::Repository,
-            makings: List::with_capacity(0),
-            host: b"git.example:3000".as_slice().into(),
-            number,
-            kind,
-            mode,
-            connection,
-            offer: w::Offer::NotOffered,
-            first: None,
-            installations: List::with_capacity(0),
-            ended: stopped,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: None,
-            admin: false,
-            read_only: false,
-            ended_stop: None,
-        }
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number,
+        kind,
+        mode,
+        connection,
+        offer: w::Offer::NotOffered,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: stopped,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    }
 }
 fn deliver(root: &mut Domain, watch: Token, delivered: &[w::ForgeRow]) {
     let mut rows = List::with_capacity(u32::try_from(delivered.len()).unwrap());
@@ -67,9 +67,7 @@ fn deliver(root: &mut Domain, watch: Token, delivered: &[w::ForgeRow]) {
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(
-                            &w::Forges { forges: rows, linked: false },
-                        ),
+                        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                     },
                 },
             },
@@ -171,18 +169,14 @@ fn only_disconnected_forgejos_of_the_connected_mode_send() {
         (
             w::Kind::Forgejo,
             w::Mode::Connected,
-            w::Connection::Stopped(
-                w::Stopped { reason: b"stopped".as_slice().into() },
-            ),
+            w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() }),
             true,
         ),
         (w::Kind::Forgejo, w::Mode::Connected, w::Connection::Connecting, false),
         (
             w::Kind::Forgejo,
             w::Mode::Connected,
-            w::Connection::Connected(
-                w::Connected { id: 7, login: b"bot".as_slice().into() },
-            ),
+            w::Connection::Connected(w::Connected { id: 7, login: b"bot".as_slice().into() }),
             false,
         ),
         (w::Kind::Forgejo, w::Mode::Managed, w::Connection::NotConnected, false),
@@ -257,12 +251,7 @@ fn a_stop_clears_all_fields_and_returns_to_details_before_the_answer() {
 fn a_stopped_row_redelivered_keeps_a_fresh_paste() {
     for (connection, ended) in [
         (w::Connection::NotConnected, Some(b"tokens refused".as_slice())),
-        (
-            w::Connection::Stopped(
-                w::Stopped { reason: b"stopped".as_slice().into() },
-            ),
-            None,
-        ),
+        (w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() }), None),
     ] {
         let (mut root, watch) = opened();
         paste(&mut root, Field::Api, &bytes(1, 16));
@@ -286,12 +275,7 @@ fn a_stopped_row_redelivered_keeps_a_fresh_paste() {
 fn an_unrelated_stopped_forgejo_leaves_a_new_forges_draft() {
     for (connection, ended) in [
         (w::Connection::NotConnected, Some(b"tokens refused".as_slice())),
-        (
-            w::Connection::Stopped(
-                w::Stopped { reason: b"stopped".as_slice().into() },
-            ),
-            None,
-        ),
+        (w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() }), None),
     ] {
         let (mut root, _, watch) = connect::opened(true);
         let stopped = row(FORGE, w::Kind::Forgejo, w::Mode::Connected, connection.clone(), ended);
@@ -422,8 +406,7 @@ fn new_connected_forgejo_uses_the_shared_place_and_needs_an_address() {
                 },
         } = request
         {
-            let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            let w::Request::Connect(connect) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("connect")
             };

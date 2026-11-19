@@ -1,6 +1,6 @@
 //! The draft's sheet through the host (client/tui/pages/design-session.md, 1).
-use temper_client_protocol_wire::v1::Record;
 use super::*;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as f};
 
 pub(super) fn host(linked: bool, proposed: bool) -> Host {
@@ -97,11 +97,14 @@ fn one(
                 && setting.kind == 7
             {
                 let value = f::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };
-                let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
-                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
-                let record = wire::setting_answer(
-                    &f::SettingAnswer { revision: None, value: Some(writer.finish()) },
+                let mut writer = Writer::new(
+                    usize::try_from(
+                        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                    )
+                    .unwrap(),
                 );
+                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+                let record = wire::setting_answer(&f::SettingAnswer { revision: None, value: Some(writer.finish()) });
                 let answer = w::ReadAnswer::Value(family(record));
                 let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
                 answer.encode(&mut writer).unwrap();
@@ -253,39 +256,35 @@ fn document(scope: w::NoteScope) -> w::ReadValue {
 }
 pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
     let row = f::ForgeRow {
-            number: 2,
-            host: b"git.example".as_slice().into(),
-            kind: f::Kind::Forgejo,
-            mode,
-            connection: f::Connection::Connected(
-                f::Connected { id: 1, login: b"temper".as_slice().into() },
-            ),
-            offer: f::Offer::NotOffered,
-            first: None,
-            starts_with: f::StartsWith::Repository,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::from_boxed(Box::new([f::Adoption { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 3 }])),
-            owned: None,
-            admin: false,
-            ended_stop: None,
-            read_only: false,
-            makings: List::with_capacity(0),
-        };
-    wire::forges(
-        &f::Forges { forges: List::from_boxed(Box::new([row])), linked: false },
-    )
+        number: 2,
+        host: b"git.example".as_slice().into(),
+        kind: f::Kind::Forgejo,
+        mode,
+        connection: f::Connection::Connected(f::Connected { id: 1, login: b"temper".as_slice().into() }),
+        offer: f::Offer::NotOffered,
+        first: None,
+        starts_with: f::StartsWith::Repository,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::from_boxed(Box::new([f::Adoption {
+            owner: b"work".as_slice().into(),
+            name: b"shop".as_slice().into(),
+            project: 3,
+        }])),
+        owned: None,
+        admin: false,
+        ended_stop: None,
+        read_only: false,
+        makings: List::with_capacity(0),
+    };
+    wire::forges(&f::Forges { forges: List::from_boxed(Box::new([row])), linked: false })
 }
 fn dismissed(linked: bool) -> Box<[u8]> {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     if linked {
-        dismissed
-            .push(f::PersonFact::GoalFrom(
-                f::GoalFrom { project: 3, chat: 9, goal: 25, at: 1 },
-            ))
-            .unwrap();
+        dismissed.push(f::PersonFact::GoalFrom(f::GoalFrom { project: 3, chat: 9, goal: 25, at: 1 })).unwrap();
     }
     wire::dismissals(&f::Dismissals { dismissed })
 }

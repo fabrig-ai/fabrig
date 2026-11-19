@@ -55,14 +55,15 @@ fn made() -> w::MakingMade {
 }
 
 fn failed(step: w::MakeStep) -> w::MakingState {
-    w::MakingState::Failed(
-        w::MakingFailed { step, reason: w::MakeFailure::Taken, words: b"name taken".as_slice().into() },
-    )
+    w::MakingState::Failed(w::MakingFailed {
+        step,
+        reason: w::MakeFailure::Taken,
+        words: b"name taken".as_slice().into(),
+    })
 }
 
 #[test]
 fn a_rows_makings_are_delivered_in_order() {
-
     let expected = [
         Making {
             org: b"a".as_slice().into(),
@@ -103,42 +104,38 @@ fn a_rows_makings_are_delivered_in_order() {
     let mut makings = List::with_capacity(5);
     for row in &expected {
         makings
-            .push(
-                w::RepositoryMaking {
-                        org: row.org.clone(),
-                        name: row.name.clone(),
-                        from: row.from.clone(),
-                        into: row.into.clone(),
-                        state: row.state.clone(),
-                    },
-            )
+            .push(w::RepositoryMaking {
+                org: row.org.clone(),
+                name: row.name.clone(),
+                from: row.from.clone(),
+                into: row.into.clone(),
+                state: row.state.clone(),
+            })
             .unwrap();
     }
     let mut forges = List::with_capacity(2);
     for (number, makings) in [(3, makings), (4, List::with_capacity(0))] {
         forges
-            .push(
-                w::ForgeRow {
-                        starts_with: w::StartsWith::Repository,
-                        number,
-                        host: b"git.example:3000".as_slice().into(),
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Managed,
-                        connection: w::Connection::NotConnected,
-                        offer: w::Offer::NotOffered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: true,
-                        read_only: false,
-                        ended_stop: None,
-                        makings,
-                    },
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                number,
+                host: b"git.example:3000".as_slice().into(),
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Managed,
+                connection: w::Connection::NotConnected,
+                offer: w::Offer::NotOffered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: true,
+                read_only: false,
+                ended_stop: None,
+                makings,
+            })
             .unwrap();
     }
     let record = jig_client::Family {

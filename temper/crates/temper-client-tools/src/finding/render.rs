@@ -71,8 +71,7 @@ fn severity(value: &w::Severity) -> &'static [u8] {
 }
 fn row_text(project: u32, row: &w::FindingRow, out: &mut Text) {
     reference(project, row.number, out);
-    for word in [state(&row.state), kind(&row.kind), severity(&row.severity), row.area.as_deref().unwrap_or(b"-")]
-    {
+    for word in [state(&row.state), kind(&row.kind), severity(&row.severity), row.area.as_deref().unwrap_or(b"-")] {
         out.put(b" \xc2\xb7 ");
         out.put(word);
     }

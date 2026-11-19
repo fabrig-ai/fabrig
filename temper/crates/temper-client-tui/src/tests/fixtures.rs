@@ -1,6 +1,7 @@
 use jig_client::contract as c;
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Secret, Time, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Limits, Request, forge};
+use temper_client_protocol_wire::v1::Record;
 pub const ADDRESS: &crate::Origin =
     &crate::Origin::Http(core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 8367)));
 pub fn name_origin() -> crate::Origin {
@@ -271,19 +272,18 @@ pub fn draft_setting(drafts: bool) -> Box<[u8]> {
 }
 fn ways_setting(drafts: bool, way: u32) -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let value =
-        w::ProjectWays { drafts, goals: false, changes: false, way };
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
-    wire::setting_answer(
-        &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
-    )
+    let value = w::ProjectWays { drafts, goals: false, changes: false, way };
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
+    wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) })
 }
 
 pub fn ways_read(record: &[u8]) -> bool {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    if let w::Read::Setting(setting) = wire::decode_reading(record, &w::CEILINGS).unwrap().read() {
-        setting.kind() == 7
+    if let w::Read::Setting(setting) = &wire::decode_reading(record, &w::CEILINGS).unwrap().read {
+        setting.kind == 7
     } else {
         false
     }
@@ -409,22 +409,18 @@ impl GoalCase {
                     )])))),
                 },
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
-                    let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
-                        w::Watch::Forges => wire::forges(
-                            &w::Forges { forges: goal_forges(self.repository), linked: false },
-                        ),
+                    let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
+                        w::Watch::Forges => {
+                            wire::forges(&w::Forges { forges: goal_forges(self.repository), linked: false })
+                        }
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);
                             if self.linked {
                                 dismissed
-                                    .push(w::PersonFact::GoalFrom(
-                                        w::GoalFrom { project: 1, chat: 9, goal: 25, at: 1 },
-                                    ))
+                                    .push(w::PersonFact::GoalFrom(w::GoalFrom { project: 1, chat: 9, goal: 25, at: 1 }))
                                     .unwrap();
                             }
-                            wire::dismissals(
-                                &w::Dismissals { dismissed },
-                            )
+                            wire::dismissals(&w::Dismissals { dismissed })
                         }
                         w::Watch::Change(_)
                         | w::Watch::Follows(_)
@@ -511,31 +507,27 @@ pub(super) fn goal_forges(repository: bool) -> List<temper_client_protocol_wire:
     let mut repositories = List::with_capacity(1);
     if repository {
         repositories
-            .push(
-                w::Adoption { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 1 },
-            )
+            .push(w::Adoption { owner: b"work".as_slice().into(), name: b"shop".as_slice().into(), project: 1 })
             .unwrap();
     }
     List::from_boxed(Box::new([w::ForgeRow {
-            number: 2,
-            host: b"git.example".as_slice().into(),
-            kind: w::Kind::Forgejo,
-            mode: w::Mode::Owned,
-            connection: w::Connection::Connected(
-                w::Connected { id: 1, login: b"temper".as_slice().into() },
-            ),
-            offer: w::Offer::NotOffered,
-            first: None,
-            starts_with: w::StartsWith::Repository,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories,
-            owned: None,
-            admin: false,
-            ended_stop: None,
-            read_only: false,
-            makings: List::with_capacity(0),
-        }]))
+        number: 2,
+        host: b"git.example".as_slice().into(),
+        kind: w::Kind::Forgejo,
+        mode: w::Mode::Owned,
+        connection: w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
+        offer: w::Offer::NotOffered,
+        first: None,
+        starts_with: w::StartsWith::Repository,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories,
+        owned: None,
+        admin: false,
+        ended_stop: None,
+        read_only: false,
+        makings: List::with_capacity(0),
+    }]))
 }

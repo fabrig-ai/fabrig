@@ -28,31 +28,25 @@ fn bytes(seed: u64, length: usize) -> Box<[u8]> {
 }
 fn row(kind: w::Kind, mode: w::Mode, connection: w::Connection, ended: bool) -> w::ForgeRow {
     w::ForgeRow {
-            starts_with: w::StartsWith::Repository,
-            makings: List::with_capacity(0),
-            host: b"git.example:3000".as_slice().into(),
-            number: FORGE,
-            kind,
-            mode,
-            connection,
-            offer: w::Offer::NotOffered,
-            first: None,
-            installations: List::with_capacity(0),
-            ended: if ended {
-                Some(
-                    w::ConnectStopped { why: b"tokens refused".as_slice().into() },
-                )
-            } else {
-                None
-            },
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: None,
-            admin: false,
-            read_only: false,
-            ended_stop: None,
-        }
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: FORGE,
+        kind,
+        mode,
+        connection,
+        offer: w::Offer::NotOffered,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: if ended { Some(w::ConnectStopped { why: b"tokens refused".as_slice().into() }) } else { None },
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    }
 }
 fn deliver(root: &mut Domain, watch: Token, row: w::ForgeRow) {
     let mut rows = List::with_capacity(1);
@@ -69,9 +63,7 @@ fn deliver_rows(root: &mut Domain, watch: Token, rows: List<w::ForgeRow>) {
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(
-                            &w::Forges { forges: rows, linked: false },
-                        ),
+                        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                     },
                 },
             },
@@ -86,9 +78,7 @@ fn opened() -> (Domain, Token) {
         row(
             w::Kind::Forgejo,
             w::Mode::Connected,
-            w::Connection::Connected(
-                w::Connected { id: 7, login: b"builder".as_slice().into() },
-            ),
+            w::Connection::Connected(w::Connected { id: 7, login: b"builder".as_slice().into() }),
             false,
         ),
     );
@@ -109,14 +99,7 @@ fn replacement_bundles_carry_only_the_new_values() {
         deliver(
             &mut root,
             watch,
-            row(
-                kind,
-                w::Mode::Connected,
-                w::Connection::Stopped(
-                    w::Stopped { reason: Box::default() },
-                ),
-                false,
-            ),
+            row(kind, w::Mode::Connected, w::Connection::Stopped(w::Stopped { reason: Box::default() }), false),
         );
         let value = bytes(11, 32);
         for field in fields {
@@ -174,12 +157,7 @@ fn leaving_and_a_stop_clear_replacement_secrets() {
     deliver(
         &mut root,
         watch,
-        row(
-            w::Kind::Forgejo,
-            w::Mode::Connected,
-            w::Connection::Stopped(w::Stopped { reason: Box::default() }),
-            true,
-        ),
+        row(w::Kind::Forgejo, w::Mode::Connected, w::Connection::Stopped(w::Stopped { reason: Box::default() }), true),
     );
     assert!(!root.forge().replacement(FORGE).unwrap().has(Field::Git));
     paste(&mut root, Field::Git, &bytes(7, 32));
@@ -188,9 +166,7 @@ fn leaving_and_a_stop_clear_replacement_secrets() {
 }
 
 fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected { id: 7, login: b"builder".as_slice().into() },
-    )
+    w::Connection::Connected(w::Connected { id: 7, login: b"builder".as_slice().into() })
 }
 fn attempt(out: &Queue<Request>) -> Token {
     for request in out {
@@ -228,9 +204,7 @@ fn replacements_decode_connecting_refused_and_unknown_answers() {
         (w::Outcome::Connecting, Answer::Connecting),
         (w::Outcome::Unknown, Answer::Unknown),
         (
-            w::Outcome::ConnectRefused(
-                w::ConnectRefused { why: w::ForgeRefusal::NotConnected },
-            ),
+            w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::NotConnected }),
             Answer::Refused(w::ForgeRefusal::NotConnected),
         ),
     ] {

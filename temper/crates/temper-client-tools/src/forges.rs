@@ -620,7 +620,6 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     let Some(request) = temper_client_protocol_wire::decode_requesting(&record.bytes, &limits) else { return };
     let intent = match request.request {
         temper_client_protocol_wire::v1::Request::SetUp(request) => {
-
             let first = match request.first {
                 temper_client_protocol_wire::v1::SetUpFirst::Empty(first) => first,
                 temper_client_protocol_wire::v1::SetUpFirst::Copies(_)
@@ -1531,18 +1530,14 @@ fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
     } else {
         w::Making::Kept(w::Kept { forge: intent.forge })
     };
-    let request = w::Request::SetUp(
-        w::SetUp {
-                forge,
-                first: w::SetUpFirst::Empty(
-                    w::FirstEmpty {
-                            org: intent.org.clone(),
-                            repository: intent.repository.clone(),
-                            playground: intent.playground,
-                        },
-                ),
-            },
-    );
+    let request = w::Request::SetUp(w::SetUp {
+        forge,
+        first: w::SetUpFirst::Empty(w::FirstEmpty {
+            org: intent.org.clone(),
+            repository: intent.repository.clone(),
+            playground: intent.playground,
+        }),
+    });
     lifecycle::ask(request, limits)
 }
 

@@ -45,13 +45,11 @@ fn waiting(root: &mut f::Harness, flags: &[&str], json: bool) -> u32 {
     call
 }
 fn failed() -> w::MakingState {
-    w::MakingState::Failed(
-        w::MakingFailed {
-                step: w::MakeStep::Repository,
-                reason: w::MakeFailure::Taken,
-                words: b"name is taken".as_slice().into(),
-            },
-    )
+    w::MakingState::Failed(w::MakingFailed {
+        step: w::MakeStep::Repository,
+        reason: w::MakeFailure::Taken,
+        words: b"name is taken".as_slice().into(),
+    })
 }
 fn making(state: w::MakingState) -> Making {
     Making {
@@ -63,48 +61,41 @@ fn making(state: w::MakingState) -> Making {
     }
 }
 fn deliver(root: &mut f::Harness, states: &[w::MakingState], listed: bool) {
-
     let mut makings = List::with_capacity(wire::MAKINGS);
     for state in states {
         makings
-            .push(
-                w::RepositoryMaking {
-                        org: b"team".as_slice().into(),
-                        name: b"widget".as_slice().into(),
-                        from: w::MakeFrom::Empty,
-                        into: Some(w::MakeInto { project: 1, home: true }),
-                        state: state.clone(),
-                    },
-            )
+            .push(w::RepositoryMaking {
+                org: b"team".as_slice().into(),
+                name: b"widget".as_slice().into(),
+                from: w::MakeFrom::Empty,
+                into: Some(w::MakeInto { project: 1, home: true }),
+                state: state.clone(),
+            })
             .unwrap();
     }
     let mut forges = List::with_capacity(1);
     if listed {
         forges
-            .push(
-                w::ForgeRow {
-                        starts_with: w::StartsWith::Repository,
-                        number: 3,
-                        host: b"git.example:3000".as_slice().into(),
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Owned,
-                        connection: w::Connection::Connected(
-                            w::Connected { id: 42, login: b"bot".as_slice().into() },
-                        ),
-                        offer: w::Offer::Offered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: true,
-                        read_only: false,
-                        ended_stop: None,
-                        makings,
-                    },
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                number: 3,
+                host: b"git.example:3000".as_slice().into(),
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Owned,
+                connection: w::Connection::Connected(w::Connected { id: 42, login: b"bot".as_slice().into() }),
+                offer: w::Offer::Offered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: true,
+                read_only: false,
+                ended_stop: None,
+                makings,
+            })
             .unwrap();
     }
     let record = client::Family {
@@ -183,12 +174,7 @@ fn a_refused_home_names_no_home() {
     for words in [MAKE, COPY] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(words);
-        root.adoption_answer(
-            call,
-            w::Outcome::MakeRefused(
-                w::MakeRefused { why: w::MakeRefusal::HomeHeld },
-            ),
-        );
+        root.adoption_answer(call, w::Outcome::MakeRefused(w::MakeRefused { why: w::MakeRefusal::HomeHeld }));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
         assert!(printed.stdout.is_empty());
@@ -213,8 +199,7 @@ fn until_adopted_waits_for_the_row_to_go() {
     for json in [false, true] {
         let mut root = f::signed_in(f::PARTY);
         let call = waiting(&mut root, &["--until", "adopted"], json);
-        let made =
-            w::MakingMade { id: 7, branch: b"main".as_slice().into() };
+        let made = w::MakingMade { id: 7, branch: b"main".as_slice().into() };
         for state in [
             w::MakingState::Waiting,
             w::MakingState::Making,
@@ -291,13 +276,7 @@ fn the_same_key_sent_again_answers_kept_and_waits_again() {
     assert_eq!(root.answer(first).unwrap().status, 2);
     let again = waiting(&mut root, &["--until", "adopted"], false);
     assert_eq!(root.sent_name(again), name);
-    deliver(
-        &mut root,
-        &[w::MakingState::Adopting(
-            w::MakingMade { id: 7, branch: b"main".as_slice().into() },
-        )],
-        true,
-    );
+    deliver(&mut root, &[w::MakingState::Adopting(w::MakingMade { id: 7, branch: b"main".as_slice().into() })], true);
     assert!(root.answer(again).is_none());
     deliver(&mut root, &[], true);
     assert_eq!(root.answer(again).unwrap().status, 0);
@@ -317,15 +296,11 @@ fn forge_list_shows_the_rows() {
         let mut row = super::forges::row(Connection::NotConnected);
         row.makings = Box::new([making(w::MakingState::Making)]);
         assert!(!crate::forges::holds(&[row.clone()], b"settled"));
-        row.makings = Box::new([making(w::MakingState::Failed(
-            w::MakingFailed {
-                    step: w::MakeStep::Repository,
-                    reason: w::MakeFailure::Refused(
-                        w::Refused { status: 409 },
-                    ),
-                    words: b"name is taken".as_slice().into(),
-                },
-        ))]);
+        row.makings = Box::new([making(w::MakingState::Failed(w::MakingFailed {
+            step: w::MakeStep::Repository,
+            reason: w::MakeFailure::Refused(w::Refused { status: 409 }),
+            words: b"name is taken".as_slice().into(),
+        }))]);
         assert!(crate::forges::holds(&[row.clone()], b"settled"));
         let printed = crate::forges::print_rows(Some(&[row]), json, None, &root.limits);
         assert!(has(&printed, b"name is taken"));

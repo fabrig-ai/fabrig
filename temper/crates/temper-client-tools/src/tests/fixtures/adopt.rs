@@ -1,6 +1,6 @@
-use temper_client_protocol_wire::v1::Record;
 use super::*;
 use temper_client_domain_forge::forge;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 /// One byte past the form bound must refuse a write rather than retain its default.
 pub(crate) const FIELD_OVERFLOW: u32 = 1;
@@ -20,34 +20,30 @@ pub(crate) fn adopt_root(extra: &[&str]) -> (Harness, u32) {
     (root, call)
 }
 pub(crate) fn adopted_with_unknown_protection() -> w::Outcome {
-
-    w::Outcome::Adopted(
-        w::Adopted {
-                landing: b"staging".as_slice().into(),
-                forge: 1,
-                repository: REPOSITORY,
-                owner: Box::from(b"o".as_slice()),
-                name: Box::from(b"n".as_slice()),
-                role: w::Role::Owned,
-                home: true,
-                // All nine capabilities exercise the forge's specified output order.
-                kinds: w::Kinds {
-                        read: true,
-                        push: true,
-                        open: true,
-                        land: true,
-                        review: true,
-                        status: true,
-                        comment: true,
-                        issue: true,
-                        branch: true,
-                    },
-                protection: w::Protection::Unknown,
-            },
-    )
+    w::Outcome::Adopted(w::Adopted {
+        landing: b"staging".as_slice().into(),
+        forge: 1,
+        repository: REPOSITORY,
+        owner: Box::from(b"o".as_slice()),
+        name: Box::from(b"n".as_slice()),
+        role: w::Role::Owned,
+        home: true,
+        // All nine capabilities exercise the forge's specified output order.
+        kinds: w::Kinds {
+            read: true,
+            push: true,
+            open: true,
+            land: true,
+            review: true,
+            status: true,
+            comment: true,
+            issue: true,
+            branch: true,
+        },
+        protection: w::Protection::Unknown,
+    })
 }
 pub(crate) fn forge_refused(reason: w::ForgeReason) -> w::Outcome {
-
     w::Outcome::ForgeRefused(w::ForgeRefused { reason })
 }
 pub(crate) fn family_answer(outcome: w::Outcome) -> client::Answered {
@@ -83,11 +79,7 @@ impl Harness {
             panic!("forge ask")
         };
         let limits = forge::wire_limits(&self.limits.domain.forge).expect("forge limits");
-        match w::Requesting::decode(&limits, &mut skein_lib::Reader::new(&record.bytes))
-            .expect("valid adopt")
-            
-            .request
-        {
+        match w::Requesting::decode(&limits, &mut skein_lib::Reader::new(&record.bytes)).expect("valid adopt").request {
             w::Request::Adopt(adopt) => adopt,
             w::Request::SetUp(_)
             | w::Request::RemoveForge(_)
@@ -118,7 +110,6 @@ impl Harness {
                 panic!("expected adoption")
             }
         }
-        
     }
     pub(crate) fn adoption_bytes(&self, call: u32) -> &client::Ask {
         &self.sends.get(&call).expect("adopt sent").2
@@ -203,13 +194,10 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
     records
 }
 pub(crate) fn core_key_conflict() -> w::Outcome {
-
     let refusal = jig_client_protocol_wire::Refusal::KeyConflict;
     let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
     refusal.encode(&mut bytes).expect("refusal encoding");
-    w::Outcome::CoreRefused(
-        w::CoreRefused { refusal: bytes.finish() },
-    )
+    w::Outcome::CoreRefused(w::CoreRefused { refusal: bytes.finish() })
 }
 pub(crate) fn malformed_adoption_answer() -> client::Outcome {
     client::Outcome::Answered(client::Answered::Family(client::Family {

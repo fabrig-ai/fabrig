@@ -1,6 +1,5 @@
 //! The switch and decisions cross both roots (temper/docs/design/client/pages/README.md
 //! , Away, 4.6 and 5.13; temper/docs/design/domain/forge/attention.md, 4 and 5).
-use temper_client_protocol_wire::v1::Record as CodecRecord;
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
 use skein_ui::{Role, State};
@@ -10,6 +9,7 @@ use temper_client_domain::{
     forge::away::AwayRow,
     pages::{Act, all_home, away, home, needs},
 };
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{
     app::{Root, Temper, View},
@@ -1174,8 +1174,7 @@ fn another_partys_home_shows_nothing() {
     story.probes[other.0].answers.clear();
     let bounds = &w::CEILINGS;
     let overturn = w::Overturn { project: PROJECT, number: 1 };
-    let requesting =
-        w::Requesting { request: w::Request::Overturn(overturn) };
+    let requesting = w::Requesting { request: w::Request::Overturn(overturn) };
     story.event(
         other,
         Event::Client {

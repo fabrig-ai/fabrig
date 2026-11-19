@@ -91,17 +91,16 @@ fn page(rows: &[c::TaskLine], active: bool, more: bool) -> c::ReadValue {
 }
 fn totals() -> Readout {
     let totals = w::MilestoneTotals {
-            task: TASK,
-            done: 7,
-            failed: 0,
-            live: 1,
-            closed: 0,
-            ended: None,
-            last_landing: None,
-            spent: 212,
-        };
-    let answer =
-        w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
+        task: TASK,
+        done: 7,
+        failed: 0,
+        live: 1,
+        closed: 0,
+        ended: None,
+        last_landing: None,
+        spent: 212,
+    };
+    let answer = w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
     Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
 struct Harness {
@@ -239,7 +238,7 @@ impl Harness {
                 }
                 Down::Read { read, what: Readable::Family { record, .. } } => {
                     if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
-                        && let w::Read::Milestone(_) = reading.read()
+                        && let w::Read::Milestone(_) = &reading.read
                     {
                         Some(Up::ReadDone {
                             read,

@@ -1,5 +1,4 @@
 //! Session trial facts (temper/docs/design/domain/trial.md, 6).
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use crate::{
     Domain, Event, Request,
@@ -7,6 +6,7 @@ use crate::{
 };
 use jig_client::{Ask, Down, Family, Link, Told, Up, Watchable, contract as c};
 use skein_lib::{List, Queue, Token, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const ACCOUNT: u32 = 17;
@@ -54,18 +54,15 @@ fn running(account: u32, task: u64) -> w::TrialRow {
     row(account, Some(task), w::TrialState::Running)
 }
 fn ended() -> w::TrialRow {
-    row(
-        ACCOUNT,
-        Some(TASK),
-        w::TrialState::Failed(
-            w::TrialFailed { why: w::TrialWhy::Waited },
-        ),
-    )
+    row(ACCOUNT, Some(TASK), w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }))
 }
 fn deliver(root: &mut Domain, watch: Token, rows: &[w::TrialRow]) -> Queue<Request> {
     let rows = List::from_boxed(rows.into());
     let document = w::Trials { rows };
-    let mut writer = Writer::new(usize::try_from(document.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(document.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .unwrap(),
+    );
     document.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
@@ -85,8 +82,7 @@ fn sent(out: &mut Queue<Request>) -> Option<skein_lib::RequestKey> {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, key, .. } },
         } = request
-            && let w::Request::TryAccount(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            && let w::Request::TryAccount(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             assert!(found.is_none(), "one send");
             assert_eq!(scope, c::Scope::Own);
@@ -99,7 +95,9 @@ fn sent(out: &mut Queue<Request>) -> Option<skein_lib::RequestKey> {
 }
 fn answer(outcome: w::Outcome) -> Family {
     let answer = w::Answer { outcome };
-    let mut writer = Writer::new(usize::try_from(answer.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
     answer.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: writer.finish() }
 }
@@ -139,8 +137,7 @@ fn tries(out: Queue<Request>) -> List<(u32, bool)> {
             request:
                 jig_client::UnlinkedRequest::Down { down: Down::Send { request: Ask::Family { scope, record }, .. } },
         } = request
-            && let w::Request::TryAccount(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            && let w::Request::TryAccount(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             assert_eq!(*scope, c::Scope::Own);
             found.push((value.account, value.again)).unwrap();

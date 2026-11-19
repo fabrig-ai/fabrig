@@ -4,7 +4,6 @@
     clippy::disallowed_methods,
     reason = "ordinary Rust fixtures and golden comparisons"
 )]
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -15,6 +14,7 @@ use crate::{
 };
 use jig_client::contract as c;
 use skein_lib::{Duration, List, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 fn list<T, I: IntoIterator<Item = T>>(values: I) -> List<T> {
     let values: Vec<T> = values.into_iter().collect();
@@ -2227,9 +2227,7 @@ fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     jig_client::Readout::Family {
         family: wire::FORGE,
-        record: Some(wire::setting_answer(
-            &w::SettingAnswer { revision: None, value },
-        )),
+        record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value })),
     }
 }
 fn forge_query(root: &fixtures::Harness, call: u32) -> temper_client_protocol_wire::v1::Read {
@@ -2608,19 +2606,16 @@ fn forge_state_review(setting: c::Setting, follows: Option<c::ApplicationFollows
 fn forge_set_items(kind: u32) -> jig_client::Readout {
     use temper_client_protocol_wire::v1 as w;
     let item = w::ProposalItem {
-            kind,
-            scope: 0,
-            number: 1,
-            edit: w::SettingEdit::Set(
-                w::SettingValue { value: forge_value(kind) },
-            ),
-        };
+        kind,
+        scope: 0,
+        number: 1,
+        edit: w::SettingEdit::Set(w::SettingValue { value: forge_value(kind) }),
+    };
     forge_items_page(list([item]))
 }
 fn forge_items_page(items: List<temper_client_protocol_wire::v1::ProposalItem>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record =
-        w::ProposalItemsAnswer { items, owned_approval: false };
+    let record = w::ProposalItemsAnswer { items, owned_approval: false };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) }
 }
 fn forge_proposed_review(kind: u32, follows: Option<c::ApplicationFollows>, json: bool) -> jig::Printed {
@@ -2721,13 +2716,11 @@ fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
         assert_eq!(query.key, u64::MAX, "the review's key, not proposer 73's number 7");
         let items = list([
             w::ProposalItem {
-                    kind: 1,
-                    scope: 0,
-                    number: 1,
-                    edit: w::SettingEdit::Set(
-                        w::SettingValue { value: forge_value(1) },
-                    ),
-                },
+                kind: 1,
+                scope: 0,
+                number: 1,
+                edit: w::SettingEdit::Set(w::SettingValue { value: forge_value(1) }),
+            },
             w::ProposalItem { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
             w::ProposalItem { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
         ]);

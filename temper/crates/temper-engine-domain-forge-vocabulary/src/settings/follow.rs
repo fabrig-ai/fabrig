@@ -5,8 +5,8 @@ use skein_lib::{
     bytes::{decimal, find},
 };
 use temper_client_protocol_wire::v1 as w;
-use w::Record;
 use temper_engine_domain_forge_tiers::Format;
+use w::Record;
 
 pub(super) fn judge(value: &Follow, bounds: &Bounds) -> Result<(), Refusal> {
     if !within(value.source.paths.len(), bounds.follow_paths) {
@@ -94,40 +94,33 @@ fn entry_number(entry: &[u8]) -> Option<u8> {
 /// The kind's wire record, shared by its entrances and store's matching record.
 #[must_use]
 pub fn follow_record(value: &Follow) -> Option<w::Follow> {
-
     let mut paths = List::with_capacity(u32::try_from(value.source.paths.len()).ok()?);
     for path in &value.source.paths {
         paths.push(path.clone()).ok()?;
     }
     let source = w::FollowSource {
-            repository: repository_record(value.source.repository),
-            branch: value.source.branch.clone(),
-            paths,
-        };
-    let target = w::FollowTarget {
-            repository: repository_record(value.target.repository),
-            branch: value.target.branch.clone(),
-        };
+        repository: repository_record(value.source.repository),
+        branch: value.source.branch.clone(),
+        paths,
+    };
+    let target =
+        w::FollowTarget { repository: repository_record(value.target.repository), branch: value.target.branch.clone() };
     let owner = match value.owner {
-        FollowOwner::Person(person) => {
-            w::FollowOwner::Person(w::FollowPerson { person })
-        }
-        FollowOwner::Task(task) => {
-            w::FollowOwner::Task(w::FollowOwnerTask { task })
-        }
+        FollowOwner::Person(person) => w::FollowOwner::Person(w::FollowPerson { person }),
+        FollowOwner::Task(task) => w::FollowOwner::Task(w::FollowOwnerTask { task }),
     };
     let start = match value.start {
         FollowStart::Owner => w::FollowStart::Owner,
         FollowStart::Code => w::FollowStart::Code,
     };
     let check = w::FollowCheck {
-            workflow: value.check.workflow.clone(),
-            artifact: value.check.artifact.clone(),
-            format: match value.check.format {
-                Format::Junit => w::FollowFormat::Junit,
-                Format::Lines => w::FollowFormat::Lines,
-            },
-        };
+        workflow: value.check.workflow.clone(),
+        artifact: value.check.artifact.clone(),
+        format: match value.check.format {
+            Format::Junit => w::FollowFormat::Junit,
+            Format::Lines => w::FollowFormat::Lines,
+        },
+    };
     let record = w::Follow { source, target, owner, start, producer: value.producer.clone(), verification: check };
     record.measure(&w::CEILINGS).ok()?;
     Some(record)
@@ -141,8 +134,6 @@ fn repository_record(repository: skein_forge::api::Repository) -> w::FollowRepos
 #[must_use]
 pub fn follow_from(value: w::Follow) -> Follow {
     let w::Follow { source, target, owner, start, producer, verification: check } = value;
-
-
 
     Follow {
         source: FollowSource {

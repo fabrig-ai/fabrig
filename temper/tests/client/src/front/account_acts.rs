@@ -732,9 +732,7 @@ fn fixture_root(
     if let WelcomeForge::Playground { running: true, .. } = forge {
         let running = true;
         let playground = playground_answer(running);
-        front.playground = Some(
-            playground,
-        );
+        front.playground = Some(playground);
     }
     if matches!(forge, WelcomeForge::Playground { printed: true, .. }) {
         front.offer_printed_link(limits);
@@ -1018,14 +1016,14 @@ pub(super) fn playground_answer(running: bool) -> temper_client_protocol_wire::v
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
     w::PlaygroundAnswer {
-            project: Some(1),
-            forge: 2,
-            provider: PROVIDER,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::Starting },
-            cues,
-        }
+        project: Some(1),
+        forge: 2,
+        provider: PROVIDER,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::Starting },
+        cues,
+    }
 }
 
 /// Fresh page on the same engine and person.

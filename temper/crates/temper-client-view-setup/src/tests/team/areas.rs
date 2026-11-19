@@ -218,12 +218,11 @@ fn team_names_routing_holders_and_owners_that_do_not_stand() {
                 table.iter().any(|n| n.styles.as_slice().contains(&mark) && n.name.as_deref() == Some(name.as_bytes()))
             );
             if let w::Holder::Party(party) = holder
-                && [READER, SAM].contains(&party.number())
+                && [READER, SAM].contains(&party.number)
             {
-                let role = if party.number() == READER { "Owner" } else { "Member" };
+                let role = if party.number == READER { "Owner" } else { "Member" };
                 assert!(named(tree.nodes(), Role::Paragraph, &format!("{role} · tests, Anything else")));
-                let wait =
-                    if party.number() == READER { "Nothing waits on you." } else { "One question waits on Sam." };
+                let wait = if party.number == READER { "Nothing waits on you." } else { "One question waits on Sam." };
                 assert!(named(table, Role::Cell, wait));
             }
             if *holder != holder_task(52) {
@@ -234,14 +233,8 @@ fn team_names_routing_holders_and_owners_that_do_not_stand() {
         }
         for (owner, name) in [
             (owner_task(61), "Task 61, ended"),
-            (
-                w::AreaOwner::Party(w::AreaParty { number: 7 }),
-                "Party 7, not of vsr",
-            ),
-            (
-                w::AreaOwner::Charter(w::AreaCharter { number: 15 }),
-                "Charter 15's role, not started",
-            ),
+            (w::AreaOwner::Party(w::AreaParty { number: 7 }), "Party 7, not of vsr"),
+            (w::AreaOwner::Charter(w::AreaCharter { number: 15 }), "Charter 15's role, not started"),
         ] {
             let mut facts = facts();
             let row = facts.areas.as_mut().unwrap().rows.get_mut(0).unwrap();

@@ -63,13 +63,8 @@ fn item(name: &[u8], value: u64) -> w::LimitOverride {
 }
 #[test]
 fn a_raise_sets_one_override_and_keeps_the_rest_of_the_list() {
-    let held = w::LimitHold {
-            task: 42,
-            limit: b"forge.entries".as_slice().into(),
-            configured: 8,
-            needed: 9,
-            revision: 3,
-        };
+    let held =
+        w::LimitHold { task: 42, limit: b"forge.entries".as_slice().into(), configured: 8, needed: 9, revision: 3 };
     for previous in [None, Some(item(b"forge.entries", 10))] {
         let mut overrides = List::with_capacity(3);
         overrides.push(item(b"forge.client.entries", 12)).unwrap();

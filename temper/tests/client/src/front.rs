@@ -1818,14 +1818,12 @@ impl Joint {
         let mut rows = skein_lib::List::with_capacity(if self.reachable_pages { 10 } else { 2 });
         if self.reachable_pages && read.page == 1 {
             for id in 100..108 {
-                rows.push(
-                    w::Reached {
-                            id,
-                            owner: w::Account { id: 1, login: b"noise".as_slice().into() },
-                            name: skein_lib::Decimal::of(id).as_bytes().into(),
-                            private: false,
-                        },
-                )
+                rows.push(w::Reached {
+                    id,
+                    owner: w::Account { id: 1, login: b"noise".as_slice().into() },
+                    name: skein_lib::Decimal::of(id).as_bytes().into(),
+                    private: false,
+                })
                 .expect("page");
             }
         }
@@ -1836,19 +1834,15 @@ impl Joint {
             if self.reachable_empty {
                 break;
             }
-            rows.push(
-                w::Reached {
-                        id,
-                        owner: w::Account { id: 1, login: b"acme".as_slice().into() },
-                        name: name.into(),
-                        private: id == 8,
-                    },
-            )
+            rows.push(w::Reached {
+                id,
+                owner: w::Account { id: 1, login: b"acme".as_slice().into() },
+                name: name.into(),
+                private: id == 8,
+            })
             .expect("fixed page");
         }
-        let outcome = w::Outcome::Page(
-            w::Page { rows, more: self.reachable_pages && read.page < 3 },
-        );
+        let outcome = w::Outcome::Page(w::Page { rows, more: self.reachable_pages && read.page < 3 });
         self.callbacks.push((
             who,
             RootEvent::Client {
@@ -1860,9 +1854,7 @@ impl Joint {
                         answer: Some(jig_client::Answered::Family(jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::answer(
-                                &w::Answer { outcome },
-                            ),
+                            bytes: wire::answer(&w::Answer { outcome }),
                         })),
                     },
                 },
@@ -1899,8 +1891,7 @@ impl Joint {
                     self.playground_outcomes.pop_front().unwrap_or(w::Outcome::Running)
                 };
                 if outcome == w::Outcome::Running {
-                    let mut parts =
-                        self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true));
+                    let mut parts = self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true));
                     parts.state = w::PlaygroundState::Running;
                     self.playground = Some(parts);
                 }
@@ -1915,9 +1906,7 @@ impl Joint {
                                 answer: Some(jig_client::Answered::Family(jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::answer(
-                                        &w::Answer { outcome },
-                                    ),
+                                    bytes: wire::answer(&w::Answer { outcome }),
                                 })),
                             },
                         },
@@ -2294,38 +2283,33 @@ impl Joint {
             }
         }
         let connection = if playground.state == w::PlaygroundState::Running {
-            w::Connection::Connected(
-                w::Connected { id: 2, login: b"playground".as_slice().into() },
-            )
+            w::Connection::Connected(w::Connected { id: 2, login: b"playground".as_slice().into() })
         } else {
             w::Connection::NotConnected
         };
         forges
-            .push(
-                w::ForgeRow {
-                        starts_with: w::StartsWith::Repository,
-                        makings: skein_lib::List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: playground.forge,
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Fake,
-                        connection,
-                        offer: w::Offer::NotOffered,
-                        first: None,
-                        installations: skein_lib::List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: skein_lib::List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: skein_lib::List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: playground.forge,
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Fake,
+                connection,
+                offer: w::Offer::NotOffered,
+                first: None,
+                installations: skein_lib::List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: skein_lib::List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .expect("playground row fits");
-        *bytes =
-            wire::forges(&w::Forges { forges, linked });
+        *bytes = wire::forges(&w::Forges { forges, linked });
     }
     // Runtime records have no host-supplied version or password until the setup host reports them.
     fn host_forges(event: &mut RootEvent) {
@@ -2341,15 +2325,16 @@ impl Joint {
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
             let mut parts = row;
-            if parts.owned.as_ref().is_some_and(|owned| {
-                owned.forgejo.is_empty() && owned.runner.is_none() && owned.password.is_empty()
-            }) {
+            if parts
+                .owned
+                .as_ref()
+                .is_some_and(|owned| owned.forgejo.is_empty() && owned.runner.is_none() && owned.password.is_empty())
+            {
                 parts.owned = None;
             }
             forges.push(parts).expect("bounded forge rows");
         }
-        record.bytes =
-            wire::forges(&w::Forges { forges, linked });
+        record.bytes = wire::forges(&w::Forges { forges, linked });
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         Self::host_forges(&mut event);

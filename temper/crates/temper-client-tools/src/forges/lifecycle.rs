@@ -1,5 +1,4 @@
 //! Forge removal and playground reset (temper/docs/design/client/ctl/areas.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Forges, PLAYGROUND_END, REMOVE, finish};
 use crate::{
     jig::{
@@ -12,6 +11,7 @@ use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Event, Family, Key, Outcome, Told, contract as c};
 use skein_lib::{Env, Queue, Reader, Time};
 use temper_client_domain_forge::owner::Owner;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -48,9 +48,9 @@ pub(super) fn send(state: &mut Forges, env: &Env<Limits>, called: Called, out: &
     } else if end {
         w::Request::EndPlayground
     } else {
-        w::Request::RemoveForge(
-            w::RemoveForge { forge: u16::try_from(super::number_arg(&called.call)).expect("checked forge") },
-        )
+        w::Request::RemoveForge(w::RemoveForge {
+            forge: u16::try_from(super::number_arg(&called.call)).expect("checked forge"),
+        })
     };
     let request = ask(request, &env.limits).expect("checked limits");
     let key = Key { asker: Owner::Forge.asker(), number: (u64::from(called.call_number) << 32u32) | 7 };

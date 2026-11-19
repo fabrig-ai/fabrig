@@ -72,8 +72,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
                 request: client::UnlinkedRequest::Down { down: client::Down::Send { attempt, .. } },
             } => {
                 let Record::Answer(outcome) = record else { panic!("family answer") };
-                let bytes =
-                    wire::answer(&w::Answer { outcome: outcome.clone() });
+                let bytes = wire::answer(&w::Answer { outcome: outcome.clone() });
                 Some(client::Event::Up {
                     up: client::Up::Answer {
                         attempt,

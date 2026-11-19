@@ -1,12 +1,12 @@
 //! Starting a goal in a chat uses the shared sheet (client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic trees and prints")]
-use temper_client_protocol_wire::v1::Record;
 use super::{connect_forge, documents, fixtures as f};
 use crate::look;
 use jig_client::{Down, Readable, Up, Watchable, contract as c};
 use skein_lib::{Env, List, Queue, Time, Wall, Writer};
 use skein_ui::{Role, Tree};
 use temper_client_domain::{Action, Address, Domain, Event, Request, pages::Act};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const CHAT: u64 = f::chat::TASK;
@@ -110,14 +110,18 @@ impl Case {
                     let w::Read::Setting(setting) = &reading.read else { continue };
                     let value = if setting.kind == 7 {
                         let value = w::ProjectWays { drafts: self.offered, goals: true, changes: false, way: 2 };
-                        let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                        let mut writer = Writer::new(
+                            usize::try_from(
+                                value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                            )
+                            .unwrap(),
+                        );
                         value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                         Some(writer.finish())
                     } else {
                         None
                     };
-                    let answer =
-                        w::SettingAnswer { revision: None, value };
+                    let answer = w::SettingAnswer { revision: None, value };
                     Up::ReadDone {
                         read,
                         result: jig_client::Readout::Family {
@@ -143,21 +147,20 @@ impl Case {
                 }
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                     let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
-                        w::Watch::Forges => wire::forges(
-                            &w::Forges { forges: forges(self.repository), linked: false },
-                        ),
+                        w::Watch::Forges => wire::forges(&w::Forges { forges: forges(self.repository), linked: false }),
                         w::Watch::Dismissed => {
                             let mut dismissed = List::with_capacity(wire::DISMISSED);
                             if let Some(at) = self.linked {
                                 dismissed
-                                    .push(w::PersonFact::GoalFrom(
-                                        w::GoalFrom { project: f::PROJECT, chat: CHAT, goal: GOAL, at },
-                                    ))
+                                    .push(w::PersonFact::GoalFrom(w::GoalFrom {
+                                        project: f::PROJECT,
+                                        chat: CHAT,
+                                        goal: GOAL,
+                                        at,
+                                    }))
                                     .unwrap();
                             }
-                            wire::dismissals(
-                                &w::Dismissals { dismissed },
-                            )
+                            wire::dismissals(&w::Dismissals { dismissed })
                         }
                         w::Watch::Change(_)
                         | w::Watch::Landing(_)
@@ -235,13 +238,11 @@ fn forges(repository: bool) -> List<w::ForgeRow> {
         let mut row = rows.get(0).unwrap().clone();
         row.repositories = List::with_capacity(1);
         row.repositories
-            .push(
-                w::Adoption {
-                        owner: b"work".as_slice().into(),
-                        name: b"shop".as_slice().into(),
-                        project: f::PROJECT,
-                    },
-            )
+            .push(w::Adoption {
+                owner: b"work".as_slice().into(),
+                name: b"shop".as_slice().into(),
+                project: f::PROJECT,
+            })
             .unwrap();
         *rows.get_mut(0).unwrap() = row;
     }

@@ -12,19 +12,19 @@ pub(crate) fn draft_root(verb: &str, extra: &[&str]) -> (Harness, u32) {
 }
 pub(crate) fn landed_draft(ready: bool, chat: Option<u64>, goal: Option<u64>, at: u64) -> w::LandedDraft {
     w::LandedDraft {
-            forge: 1,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            path: DRAFT_PATH.as_bytes().into(),
-            branch: b"main".as_slice().into(),
-            commit: DRAFT_COMMIT.into(),
-            title: b"Catch-up barrier".as_slice().into(),
-            writer: PARTY,
-            at,
-            chat,
-            goal,
-            ready,
-        }
+        forge: 1,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        path: DRAFT_PATH.as_bytes().into(),
+        branch: b"main".as_slice().into(),
+        commit: DRAFT_COMMIT.into(),
+        title: b"Catch-up barrier".as_slice().into(),
+        writer: PARTY,
+        at,
+        chat,
+        goal,
+        ready,
+    }
 }
 pub(crate) fn drafts_panel(rows: &[w::LandedDraft]) -> w::DraftsPanel {
     let mut drafts = List::with_capacity(u32::try_from(rows.len()).expect("few drafts"));

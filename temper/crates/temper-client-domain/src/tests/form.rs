@@ -1,7 +1,7 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::{Event, Request, forge};
 use skein_lib::{Queue, RequestEnvelope};
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn a_new_form_holds_the_designs_defaults() {
@@ -84,7 +84,6 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         &mut skein_lib::Reader::new(&family.bytes),
     )
     .expect("adoption bytes")
-    
     .request
     {
         temper_client_protocol_wire::v1::Request::Adopt(adopt) => adopt,
@@ -116,8 +115,7 @@ fn adopt_sends_one_keyed_request_and_a_second_press_none() {
         | temper_client_protocol_wire::v1::Request::Install(_) => {
             panic!("expected adoption")
         }
-    }
-    ;
+    };
     assert_eq!(
         (adoption.project, adoption.forge, &*adoption.owner, &*adoption.name),
         (1, 1, &b"acme"[..], &b"shop"[..])
@@ -215,7 +213,6 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         &mut reader,
     )
     .expect("family adoption")
-    
     .request
     {
         temper_client_protocol_wire::v1::Request::Adopt(adopt) => adopt,
@@ -247,8 +244,7 @@ fn an_adoption_is_the_forges_family_bytes_under_its_asker() {
         | temper_client_protocol_wire::v1::Request::Install(_) => {
             panic!("expected adoption")
         }
-    }
-    ;
+    };
     assert!(reader.is_empty());
     assert_eq!(
         (record.family, record.version, adoption.project, adoption.owner.as_ref(), adoption.name.as_ref()),
@@ -440,36 +436,32 @@ fn first_rows(
     use temper_client_protocol_wire::v1 as w;
     let mut rows = skein_lib::List::with_capacity(3);
     for (number, mode) in [(1, w::Mode::Fake), (2, w::Mode::Owned), (3, w::Mode::Owned)] {
-        rows.push(
-            w::ForgeRow {
-                    starts_with: w::StartsWith::Repository,
-                    makings: skein_lib::List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number,
-                    kind: w::Kind::Forgejo,
-                    mode,
-                    connection: w::Connection::NotConnected,
-                    offer: w::Offer::NotOffered,
-                    first: Some(
-                        w::FirstRepository {
-                                playground: number == 1,
-                                org: b"work".as_slice().into(),
-                                repository: b"hello".as_slice().into(),
-                                state: state.clone(),
-                                label: b"docker".as_slice().into(),
-                            },
-                    ),
-                    installations: skein_lib::List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: skein_lib::List::with_capacity(1),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        rows.push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: skein_lib::List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number,
+            kind: w::Kind::Forgejo,
+            mode,
+            connection: w::Connection::NotConnected,
+            offer: w::Offer::NotOffered,
+            first: Some(w::FirstRepository {
+                playground: number == 1,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                state: state.clone(),
+                label: b"docker".as_slice().into(),
+            }),
+            installations: skein_lib::List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: skein_lib::List::with_capacity(1),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
     }
     rows
@@ -494,9 +486,7 @@ fn deliver_first(
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(
-                            &w::Forges { forges: rows, linked: false },
-                        ),
+                        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                     },
                 },
             },
@@ -540,16 +530,12 @@ fn the_form_leaves_defaults_for_adopted_unmade_and_fake_first_repositories() {
     let mut parts = adopted.get(0).unwrap().clone();
     parts
         .repositories
-        .push(
-            w::Adoption { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 99 },
-        )
+        .push(w::Adoption { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 99 })
         .unwrap();
     *adopted.get_mut(0).unwrap() = parts;
     let mut fake = first_rows(made());
     fake.truncate(1);
-    let failed = w::FirstState::Failed(
-        w::CreateFailed { step: w::CreateStep::Repository },
-    );
+    let failed = w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository });
     for (case, rows) in [
         ("adopted", adopted),
         ("fake", fake),

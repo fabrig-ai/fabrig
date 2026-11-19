@@ -1,35 +1,32 @@
 //! Landed drafts' wire forms and bounds (temper/docs/design/client/forge/records.md).
-use crate::v1::Record;
 use super::{fixtures, v1};
+use crate::v1::Record;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 
 fn landed() -> v1::LandedDraft {
     v1::LandedDraft {
-            forge: u16::MAX,
-            owner: Box::new([b'o'; 1024]),
-            name: Box::new([b'n'; 1024]),
-            path: Box::new([b'p'; 1024]),
-            branch: Box::new([b'b'; 1024]),
-            commit: Box::new([b'c'; 64]),
-            title: Box::new([b't'; 200]),
-            writer: u64::MAX,
-            at: u64::MAX,
-            chat: Some(7),
-            goal: Some(9),
-            ready: true,
-        }
+        forge: u16::MAX,
+        owner: Box::new([b'o'; 1024]),
+        name: Box::new([b'n'; 1024]),
+        path: Box::new([b'p'; 1024]),
+        branch: Box::new([b'b'; 1024]),
+        commit: Box::new([b'c'; 64]),
+        title: Box::new([b't'; 200]),
+        writer: u64::MAX,
+        at: u64::MAX,
+        chat: Some(7),
+        goal: Some(9),
+        ready: true,
+    }
 }
 
 #[test]
 fn draft_requests_round_trip_each_change_and_repository() {
     let repository = v1::DraftRepository { owner: b"acme".as_slice().into(), name: b"shop".as_slice().into() };
-    for change in [
-        ready(Some(7)),
-        ready(None),
-        v1::DraftChange::NotReady,
-        v1::DraftChange::Started(v1::StartedDraft { goal: 9 }),
-    ] {
+    for change in
+        [ready(Some(7)), ready(None), v1::DraftChange::NotReady, v1::DraftChange::Started(v1::StartedDraft { goal: 9 })]
+    {
         for repository in [None, Some(repository.clone())] {
             let record = request(change.clone(), repository);
             let bytes = crate::requesting(&record);
@@ -40,7 +37,8 @@ fn draft_requests_round_trip_each_change_and_repository() {
 }
 
 fn request(change: v1::DraftChange, repository: Option<v1::DraftRepository>) -> v1::Requesting {
-    let value = v1::SetDraft { project: 3, repository, path: b"docs/design/draft/catch-up.md".as_slice().into(), change };
+    let value =
+        v1::SetDraft { project: 3, repository, path: b"docs/design/draft/catch-up.md".as_slice().into(), change };
     v1::Requesting { request: v1::Request::SetDraft(value) }
 }
 

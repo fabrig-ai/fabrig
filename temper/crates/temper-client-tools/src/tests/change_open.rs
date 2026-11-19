@@ -14,8 +14,7 @@ fn sent(root: &f::Harness, call: u32) -> w::OpenChange {
     assert_eq!(*scope, c::Scope::Project(f::PROJECT));
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
     let bounds = temper_client_domain_forge::forge::wire_limits(&root.limits.domain.forge).unwrap();
-    let w::Request::OpenChange(request) = wire::decode_requesting(&record.bytes, &bounds).unwrap().request
-    else {
+    let w::Request::OpenChange(request) = wire::decode_requesting(&record.bytes, &bounds).unwrap().request else {
         panic!("OpenChange")
     };
     request
@@ -181,9 +180,7 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
     repositories.push(repository(b"o", b"b")).unwrap();
     for (why, extra, expected) in [
         (
-            w::OpenRefusal::Several(
-                w::SeveralRepositories { repositories },
-            ),
+            w::OpenRefusal::Several(w::SeveralRepositories { repositories }),
             &[][..],
             "temper ctl: change open: project shop has several repositories, o/a, o/b: name one with --repository\n",
         ),
@@ -198,13 +195,11 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
             "temper ctl: change open: o/n is not a repository of project shop\n",
         ),
         (
-            w::OpenRefusal::UnderPrefix(
-                w::UnderPrefix {
-                        owner: b"o".as_slice().into(),
-                        name: b"n".as_slice().into(),
-                        prefix: b"temper/".as_slice().into(),
-                    },
-            ),
+            w::OpenRefusal::UnderPrefix(w::UnderPrefix {
+                owner: b"o".as_slice().into(),
+                name: b"n".as_slice().into(),
+                prefix: b"temper/".as_slice().into(),
+            }),
             &["--into", "temper/x"],
             "temper ctl: change open: temper/x is under o/n's prefix temper/: a change lands into one of its landing branches\n",
         ),

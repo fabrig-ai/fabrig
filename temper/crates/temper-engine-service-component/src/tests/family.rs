@@ -87,9 +87,7 @@ fn the_deployment_read_stays_answered_before_any_party() {
             let mut input = read_input(people::ApplicationScope::Deployment);
             if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
                 *sign_in = 0;
-                *record = wire::reading(
-                    &w::Reading { read: w::Read::Deployment },
-                );
+                *record = wire::reading(&w::Reading { read: w::Read::Deployment });
             }
             let Err(answer) = family::to_root(
                 &jig_protocol_config::Directories::working(),

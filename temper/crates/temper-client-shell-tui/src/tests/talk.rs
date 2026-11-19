@@ -342,20 +342,18 @@ fn telling_on_a_roles_talk_files_in_its_area() {
         .expect("the talk's project reads findings");
     let task = f::Holder::Task(f::HolderTask { number: ROLE });
     let document = f::Findings {
-            project: 3,
-            rows: List::with_capacity(0),
-            areas: List::from_boxed(Box::new([f::AreaRow {
-                    name: b"ports".as_slice().into(),
-                    words: b"Porting".as_slice().into(),
-                    owner: f::AreaOwner::Task(
-                        f::AreaTask { number: ROLE },
-                    ),
-                    holder: Some(task.clone()),
-                }])),
-            triager: None,
-            holder: task,
-            cut: false,
-        };
+        project: 3,
+        rows: List::with_capacity(0),
+        areas: List::from_boxed(Box::new([f::AreaRow {
+            name: b"ports".as_slice().into(),
+            words: b"Porting".as_slice().into(),
+            owner: f::AreaOwner::Task(f::AreaTask { number: ROLE }),
+            holder: Some(task.clone()),
+        }])),
+        triager: None,
+        holder: task,
+        cut: false,
+    };
     let document = w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {

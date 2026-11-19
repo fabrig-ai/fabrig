@@ -136,7 +136,9 @@ impl Workers {
     ) {
         if let Some(copy) = &mut self.copy {
             if copy.restored || copy.initial.as_ref() != Some(agents) {
-                copy.writes.push(agents.encode(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted agents within ceilings"));
+                copy.writes.push(
+                    agents.encode(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted agents within ceilings"),
+                );
             }
             copy.initial = None;
             copy.restored = true;

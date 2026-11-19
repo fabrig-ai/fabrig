@@ -7,9 +7,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 fn page(welcome: bool, owned: bool) -> Readout {
     Readout::Family {
         family: wire::FORGE,
-        record: Some(wire::deployment_answer(
-            &w::DeploymentAnswer { push: None, welcome, owned, program_login: None },
-        )),
+        record: Some(wire::deployment_answer(&w::DeploymentAnswer { push: None, welcome, owned, program_login: None })),
     }
 }
 fn tell(side: &mut forge::Side, told: Told, out: &mut Queue<forge::Request>) -> bool {
@@ -283,14 +281,14 @@ fn the_deployment_command_survives_a_gap_and_changes_with_the_answer() {
     for line in [Some(b"'/box/temper' program-login".as_slice()), None] {
         let handle = read(&mut side);
         let answer = w::DeploymentAnswer {
-                push: None,
-                welcome: true,
-                owned: false,
-                program_login: match line {
-                    Some(line) => Some(line.into()),
-                    None => None,
-                },
-            };
+            push: None,
+            welcome: true,
+            owned: false,
+            program_login: match line {
+                Some(line) => Some(line.into()),
+                None => None,
+            },
+        };
         let before = forge::shown(&side);
         tell(
             &mut side,

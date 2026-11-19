@@ -1,6 +1,5 @@
 //! Model’s line, its states and controls (temper/docs/design/client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "tests inspect semantic trees and decoded controls")]
-use temper_client_protocol_wire::v1::Record;
 use super::{connect_model as model, fixtures as f};
 use crate::pages::model_check::{self, Answer, First, State};
 use crate::{accounts::Bindings, words::Words};
@@ -14,6 +13,7 @@ use temper_client_domain::{
     pages::{accounts::Way, connect_model::Act},
 };
 use temper_client_protocol_wire as wire;
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn the_welcomes_host_check_precedes_the_trial() {
@@ -136,8 +136,7 @@ fn trial_failures_say_why_and_retry_the_account() {
         (v::TrialClass::Lost, "The machine running it went away."),
         (v::TrialClass::Refused, "The try couldn't start."),
     ] {
-        let why =
-            v::TrialWhy::Ended(v::TrialEnded { class: class.clone() });
+        let why = v::TrialWhy::Ended(v::TrialEnded { class: class.clone() });
         rows(&mut root, watch, &[row(v::TrialStep::Answers, failed(why))]);
         for w in [f::words(), f::browser_words()] {
             let (tree, bindings) = from_root(&root, &w);
@@ -276,9 +275,9 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
     }
     let forges = opening(&out, d::forge::forges::watch(&f::limits().forge).unwrap());
     let forges_doc = v::Forges {
-            forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
-            linked: false,
-        };
+        forges: f::connect_forge::first_rows(f::connect_forge::connected(), f::connect_forge::made()),
+        linked: false,
+    };
     up(
         &mut root,
         jig_client::Up::FamilyDelivered {
@@ -313,7 +312,9 @@ pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
 
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
     let doc = v::Trials { rows: List::from_boxed(rows.into()) };
-    let mut writer = Writer::new(usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    let mut writer = Writer::new(
+        usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
     doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,

@@ -1,5 +1,4 @@
 //! Ask temper's stock ways and immediate acts (temper/docs/design/client/forge/records.md and temper/docs/design/client/pages/settings.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use crate::forge::{Limits, wire_limits};
 use crate::{
     owner::Owner,
@@ -8,6 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::{Client, Family, Handle, Key, Latest, Readable, Readout, Told, Watchable, contract as c};
 use skein_lib::{List, Queue};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug, PartialEq, Eq)]

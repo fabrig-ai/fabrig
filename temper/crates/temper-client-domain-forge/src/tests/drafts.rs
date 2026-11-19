@@ -20,8 +20,7 @@ fn watch_names_the_projects_drafts_with_no_window() {
 
 #[test]
 fn panel_accepts_only_a_complete_drafts_family_record() {
-    let panel =
-        w::DraftsPanel { project: f::PROJECT, drafts: List::with_capacity(0) };
+    let panel = w::DraftsPanel { project: f::PROJECT, drafts: List::with_capacity(0) };
     let record = Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::drafts_panel(&panel) };
     assert_eq!(drafts::panel(&record, f::limits().forge), Some(panel));
     let other = w::Watching { watch: w::Watch::Away };
@@ -59,8 +58,5 @@ fn ask_carries_set_draft_in_the_projects_scope() {
     };
     assert_eq!(scope, c::Scope::Project(f::PROJECT));
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(
-        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request,
-        w::Request::SetDraft(parts),
-    );
+    assert_eq!(wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request, w::Request::SetDraft(parts),);
 }

@@ -1,8 +1,8 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures as f;
 use jig_client::{self as client, contract as c};
 use skein_lib::{Reader, RequestEnvelope, Secret};
 use temper_client_domain_forge::forge::forges::PASTED_PAYLOAD;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const CONNECT: &[&str] = &["forge", "connect", "3", "github-app", "4242", "app.pem", "--key", "app"];
@@ -30,7 +30,6 @@ fn request(root: &f::Harness, call: u32) -> w::Request {
     request
 }
 fn link() -> w::Outcome {
-
     w::Outcome::Link(w::Link { address: ADDRESS.into() })
 }
 
@@ -173,12 +172,7 @@ fn every_forge_refusal_prints_words_json_and_exit_two() {
                 };
                 let call = root.submit_prepared(f::call(words), json, value);
 
-                root.adoption_answer(
-                    call,
-                    w::Outcome::ConnectRefused(
-                        w::ConnectRefused { why: why.clone() },
-                    ),
-                );
+                root.adoption_answer(call, w::Outcome::ConnectRefused(w::ConnectRefused { why: why.clone() }));
                 let printed = root.answer(call).expect("refused");
                 assert_eq!(printed.status, 2);
                 no_token(&printed);
@@ -418,37 +412,34 @@ fn an_admin_connect_is_not_recovered_as_a_durable_request() {
 }
 
 fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstState, stop: Option<w::AdminStop>) {
-
     let first = w::FirstRepository {
-            playground: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            label: b"docker".as_slice().into(),
-            state,
-        };
+        playground: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        label: b"docker".as_slice().into(),
+        state,
+    };
     let mut rows = skein_lib::List::with_capacity(1);
-    rows.push(
-        w::ForgeRow {
-                starts_with: w::StartsWith::Repository,
-                makings: skein_lib::List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: 3,
-                kind: w::Kind::Forgejo,
-                mode: w::Mode::Managed,
-                connection,
-                offer: w::Offer::NotOffered,
-                first: Some(first),
-                installations: skein_lib::List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: skein_lib::List::with_capacity(0),
-                owned: None,
-                admin: true,
-                read_only: false,
-                ended_stop: stop,
-            },
-    )
+    rows.push(w::ForgeRow {
+        starts_with: w::StartsWith::Repository,
+        makings: skein_lib::List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: 3,
+        kind: w::Kind::Forgejo,
+        mode: w::Mode::Managed,
+        connection,
+        offer: w::Offer::NotOffered,
+        first: Some(first),
+        installations: skein_lib::List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: skein_lib::List::with_capacity(0),
+        owned: None,
+        admin: true,
+        read_only: false,
+        ended_stop: stop,
+    })
     .unwrap();
     let subject = temper_client_domain_forge::forge::forges::watch(&root.limits.domain.forge).unwrap();
     let watch = root.watch_token(&subject);
@@ -467,9 +458,7 @@ fn made() -> w::FirstState {
     w::FirstState::Made(w::Made { id: 42 })
 }
 fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected { id: 5, login: b"elsewhere-bot".as_slice().into() },
-    )
+    w::Connection::Connected(w::Connected { id: 5, login: b"elsewhere-bot".as_slice().into() })
 }
 #[test]
 fn admin_first_makes_a_new_project_or_uses_its_number_or_name_then_prints_the_adoption() {
@@ -588,15 +577,11 @@ fn admin_first_stop_and_failed_create_exit_one_without_the_token() {
             (made(), Some(w::AdminStop::Other), b"admin connection stopped"),
             (
                 made(),
-                Some(w::AdminStop::Refused(
-                    w::AdminRefused { status: 403, stage: w::SetupStage::Org },
-                )),
+                Some(w::AdminStop::Refused(w::AdminRefused { status: 403, stage: w::SetupStage::Org })),
                 b"403 at organization",
             ),
             (
-                w::FirstState::Failed(
-                    w::CreateFailed { step: w::CreateStep::Repository },
-                ),
+                w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository }),
                 None,
                 b"making the repository",
             ),
@@ -625,12 +610,7 @@ fn admin_first_refused_as_the_bot_s_login_exits_two_naming_the_remedy() {
         let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin connect") };
         assert_eq!(admin.first.as_ref().unwrap().org.as_ref(), b"temper-bot");
 
-        root.adoption_answer(
-            call,
-            w::Outcome::ConnectRefused(
-                w::ConnectRefused { why: w::ForgeRefusal::FirstIsBot },
-            ),
-        );
+        root.adoption_answer(call, w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::FirstIsBot }));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
         assert!(printed.stdout.is_empty());
@@ -658,12 +638,7 @@ fn accept_sends_the_existing_id_without_a_value_and_prints_its_next_call() {
             assert_eq!((accept.forge, accept.installation), (3, 22));
             assert!(root.carried.is_empty());
 
-            root.adoption_answer(
-                call,
-                w::Outcome::Accepted(
-                    w::AcceptedInstallation { installation: 22 },
-                ),
-            );
+            root.adoption_answer(call, w::Outcome::Accepted(w::AcceptedInstallation { installation: 22 }));
             let printed = root.answer(call).expect("accepted");
             assert_eq!(printed.status, 0);
             assert_eq!(
@@ -718,12 +693,7 @@ fn a_stopped_accept_prints_its_reason_and_keeps_the_json_reason() {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(ACCEPT), json, None);
 
-            root.adoption_answer(
-                call,
-                w::Outcome::ForgeRefused(
-                    w::ForgeRefused { reason: why.clone() },
-                ),
-            );
+            root.adoption_answer(call, w::Outcome::ForgeRefused(w::ForgeRefused { reason: why.clone() }));
             let printed = root.answer(call).expect("refused");
             assert_eq!(printed.status, 2);
             assert!(printed.stdout.is_empty());
@@ -749,12 +719,7 @@ fn an_accept_recovers_its_durable_answer_with_its_own_operation_name() {
         let mut root = f::started_with(records, f::SEED, json);
         root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
 
-        root.adoption_answer(
-            0,
-            w::Outcome::Accepted(
-                w::AcceptedInstallation { installation: 22 },
-            ),
-        );
+        root.adoption_answer(0, w::Outcome::Accepted(w::AcceptedInstallation { installation: 22 }));
         let expected = if json {
             b"{\"operation\":\"forge-accept\",\"outcome\":{\"forge\":3,\"accepted\":22}}\n".as_slice()
         } else {
@@ -1119,12 +1084,7 @@ fn tokens_connect_and_replace_print_engine_refusals_with_exit_two() {
                 let mut root = f::signed_in(f::PARTY);
                 let call = root.submit_prepared(f::call(words), json, Some(Secret::new(tokens_file(&items))));
 
-                root.adoption_answer(
-                    call,
-                    w::Outcome::ConnectRefused(
-                        w::ConnectRefused { why: why.clone() },
-                    ),
-                );
+                root.adoption_answer(call, w::Outcome::ConnectRefused(w::ConnectRefused { why: why.clone() }));
                 let printed = root.answer(call).unwrap();
                 assert_eq!(printed.status, 2);
                 assert!(printed.stdout.is_empty());

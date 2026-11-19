@@ -12,17 +12,15 @@ const DRAFT: &[u8] = b"My draft";
 pub(super) fn answer(cue: &[u8]) -> Box<[u8]> {
     let mut cues = List::with_capacity(1);
     cues.push(cue.into()).unwrap();
-    wire::playground_answer(
-        &w::PlaygroundAnswer {
-                state: w::PlaygroundState::Running,
-                project: Some(f::PROJECT),
-                forge: wire::FORGE,
-                provider: PROVIDER,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
-            },
-    )
+    wire::playground_answer(&w::PlaygroundAnswer {
+        state: w::PlaygroundState::Running,
+        project: Some(f::PROJECT),
+        forge: wire::FORGE,
+        provider: PROVIDER,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        cues,
+    })
 }
 fn page() -> Readout {
     Readout::Family { family: wire::FORGE, record: Some(answer(CUE)) }
@@ -30,10 +28,7 @@ fn page() -> Readout {
 pub(super) fn page_with_state(state: w::PlaygroundState) -> Readout {
     let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap();
     parts.state = state;
-    Readout::Family {
-        family: wire::FORGE,
-        record: Some(wire::playground_answer(&parts)),
-    }
+    Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) }
 }
 fn read(side: &mut forge::Side) -> Handle {
     let mut out = Queue::with_capacity(1);
@@ -572,13 +567,7 @@ fn the_reset_opens_the_welcome_at_forge() {
 fn not_offered_ends_leaving_and_rereads_without_navigation() {
     let mut side = confirmed();
     let request = end(&mut side);
-    let mut out = result(
-        &mut side,
-        request,
-        w::Outcome::EndRefused(
-            w::EndRefused { why: w::EndRefusal::NotOffered },
-        ),
-    );
+    let mut out = result(&mut side, request, w::Outcome::EndRefused(w::EndRefused { why: w::EndRefusal::NotOffered }));
     assert!(!side.leaving());
     let Some(forge::Request::Client { asked: jig_client::Event::Read { .. } }) = out.pop() else {
         panic!("playground reread")
@@ -625,13 +614,7 @@ fn a_starting_playground_can_have_no_project() {
     let mut parts = wire::decode_playground_answer(&answer(CUE), &w::CEILINGS).unwrap();
     parts.state = w::PlaygroundState::Starting;
     parts.project = None;
-    refresh(
-        &mut side,
-        Readout::Family {
-            family: wire::FORGE,
-            record: Some(wire::playground_answer(&parts)),
-        },
-    );
+    refresh(&mut side, Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) });
     assert!(side.playground_starting());
     assert_eq!(side.playground().unwrap().project, None);
     assert_eq!(side.playground_provider(), Some(PROVIDER));
@@ -643,13 +626,7 @@ fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
     let mut side = confirmed();
     refresh(&mut side, Readout::Family { family: wire::FORGE, record: None });
     let first = sent(&mut choose(&mut side, forge::Act::StartPlayground), w::Request::StartPlayground);
-    result(
-        &mut side,
-        first,
-        w::Outcome::StartFailed(
-            w::StartFailed { why: w::StartFailure::Account },
-        ),
-    );
+    result(&mut side, first, w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }));
     assert_eq!(side.playground_failure(), Some(&playground::StartFailure::Account));
     assert!(!side.playground_starting());
     refresh(&mut side, page_with_state(w::PlaygroundState::Starting));

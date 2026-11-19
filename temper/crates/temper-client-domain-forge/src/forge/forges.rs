@@ -1,9 +1,9 @@
 //! Kept forge records and their setup (temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md).
-use temper_client_protocol_wire::v1::Record;
 use super::making::Making;
 use super::{family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Family, Watchable, contract as c};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 /// The longest setup reason rendered with one replacement per invalid byte.
 pub const FAILURE_BYTES: u32 = wire::SET_UP_WHY_BYTES.checked_mul(3).expect("reason text fits");
@@ -429,7 +429,13 @@ fn run_owned(side: &mut super::Side, limits: super::Limits, out: &mut skein_lib:
                     return;
                 }
             };
-            let Ok(copies) = ({ let value = w::CopyAddresses { addresses }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+            let Ok(copies) = ({
+                let value = w::CopyAddresses { addresses };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
                 return;
             };
             SetUpFirst::Copies(copies)
@@ -587,9 +593,7 @@ pub(crate) fn making(side: &super::Side, forge: u16, _bounds: &w::Limits, place:
             (Kind::Forgejo, Mode::Owned) => w::ForgeAsk::Owned,
             (Kind::Forgejo, Mode::Connected) => {
                 let Managed { host, port, tls, git, web } = place?;
-                w::ForgeAsk::Connected(
-                    w::ManagedForge { host, port, tls, git, web, git_program: None },
-                )
+                w::ForgeAsk::Connected(w::ManagedForge { host, port, tls, git, web, git_program: None })
             }
             (Kind::Forgejo, Mode::Managed | Mode::Fake) => return None,
         };
@@ -659,7 +663,15 @@ pub fn confirm_remove(side: &mut super::Side, limits: super::Limits, out: &mut s
         return;
     }
     let Some(bounds) = wire_limits(&limits) else { return };
-    let Ok(value) = ({ let value = w::RemoveForge { forge: removal.forge }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else { return };
+    let Ok(value) = ({
+        let value = w::RemoveForge { forge: removal.forge };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }) else {
+        return;
+    };
     let Some(ask) = request(w::Request::RemoveForge(value), &bounds) else { return };
     side.serial = side.serial.checked_add(1).expect("request serial fits");
     let token = skein_lib::Token::new(side.serial);

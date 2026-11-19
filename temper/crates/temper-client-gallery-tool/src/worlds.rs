@@ -540,14 +540,12 @@ fn told_devices(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
             b"https://updates.push.services.mozilla.com/subscription/gallery".as_slice(),
         ),
     ] {
-        rows.push(
-            w::DeviceRow {
-                    number,
-                    label: label.into(),
-                    at: now(Reference).as_nanos(),
-                    endpoint: endpoint.into(),
-                },
-        )
+        rows.push(w::DeviceRow {
+            number,
+            label: label.into(),
+            at: now(Reference).as_nanos(),
+            endpoint: endpoint.into(),
+        })
         .expect("two devices");
     }
     let document = w::Devices { rows };
@@ -1090,9 +1088,7 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Dismissed if to_begin => {
-                            let bytes = wire::dismissals(
-                                &w::Dismissals { dismissed: List::with_capacity(0) },
-                            );
+                            let bytes = wire::dismissals(&w::Dismissals { dismissed: List::with_capacity(0) });
                             step(
                                 &mut root,
                                 Event::Client {
@@ -1114,18 +1110,14 @@ fn world_in_layout(
                         w::Watch::Dismissed if matches!(goals, Some("chat-goal-linked" | "chats-drafts")) => {
                             let mut dismissed = List::with_capacity(1);
                             dismissed
-                                .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom {
-                                            project: PROJECT,
-                                            chat: 1,
-                                            goal: 2,
-                                            at: offset(w, -1).as_nanos(),
-                                        },
-                                ))
+                                .push(w::PersonFact::GoalFrom(w::GoalFrom {
+                                    project: PROJECT,
+                                    chat: 1,
+                                    goal: 2,
+                                    at: offset(w, -1).as_nanos(),
+                                }))
                                 .expect("one start");
-                            let bytes = wire::dismissals(
-                                &w::Dismissals { dismissed },
-                            );
+                            let bytes = wire::dismissals(&w::Dismissals { dismissed });
                             step(
                                 &mut root,
                                 Event::Client {
@@ -1262,11 +1254,7 @@ fn to_begin_forges_watched(root: &mut Domain, world: World, watch: Token, out: &
     adoption.project = PROJECT;
     *repository = adoption;
     *row = forge;
-    let record = jig_client::Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&parts),
-    };
+    let record = jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::forges(&parts) };
     step(
         root,
         Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record } } },
@@ -1275,8 +1263,7 @@ fn to_begin_forges_watched(root: &mut Domain, world: World, watch: Token, out: &
 }
 fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let mut rows =
-        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("making forge").forges;
+    let mut rows = wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("making forge").forges;
     let row = rows.get_mut(0).expect("owned forge");
     let mut parts = home_copies(row.clone(), "home-copying");
     let mut makings = List::with_capacity(3);
@@ -1286,33 +1273,23 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
     parts.makings = makings;
     parts
         .makings
-        .push(
-            w::RepositoryMaking {
-                    org: b"octo".as_slice().into(),
-                    name: b"vsr".as_slice().into(),
-                    from: w::MakeFrom::Copy(
-                        w::MakeCopy { address: b"https://github.com/octo/vsr".as_slice().into() },
-                    ),
-                    into: Some(
-                        w::MakeInto { project: PROJECT, home: false },
-                    ),
-                    state: w::MakingState::Failed(
-                        w::MakingFailed {
-                                step: w::MakeStep::Repository,
-                                reason: w::MakeFailure::NotAllowed,
-                                words: b"You can not import from disallowed hosts.".as_slice().into(),
-                            },
-                    ),
-                },
-        )
+        .push(w::RepositoryMaking {
+            org: b"octo".as_slice().into(),
+            name: b"vsr".as_slice().into(),
+            from: w::MakeFrom::Copy(w::MakeCopy { address: b"https://github.com/octo/vsr".as_slice().into() }),
+            into: Some(w::MakeInto { project: PROJECT, home: false }),
+            state: w::MakingState::Failed(w::MakingFailed {
+                step: w::MakeStep::Repository,
+                reason: w::MakeFailure::NotAllowed,
+                words: b"You can not import from disallowed hosts.".as_slice().into(),
+            }),
+        })
         .expect("failed row room");
     *row = parts;
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(
-            &w::Forges { forges: rows, linked: false },
-        ),
+        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
     };
     step(
         root,
@@ -1322,8 +1299,7 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
 }
 fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let mut rows =
-        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").forges;
+    let mut rows = wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").forges;
     let row = rows.get_mut(0).expect("Ready forge");
     let mut parts = row.clone();
     parts.first = None;
@@ -1332,16 +1308,12 @@ fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     for address in [b"https://github.com/acme/widget".as_slice(), b"https://source.invalid/team/tool".as_slice()] {
         addresses.push(address.into()).expect("two copies");
     }
-    parts.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses { addresses },
-    );
+    parts.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses });
     *row = parts;
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(
-            &w::Forges { forges: rows, linked: false },
-        ),
+        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
     };
     step(
         root,
@@ -1357,172 +1329,132 @@ fn forges(world: World) -> Box<[u8]> {
     }
     let mut rows = List::with_capacity(3);
     if has_playground(world) && world != (FirstRun { step: 7 }) {
-        rows.push(
-            w::ForgeRow {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: FORGE,
-                    kind: w::Kind::Forgejo,
-                    mode: w::Mode::Fake,
-                    connection: w::Connection::Connected(
-                        w::Connected { id: 1, login: b"temper".as_slice().into() },
-                    ),
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations: List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        rows.push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: FORGE,
+            kind: w::Kind::Forgejo,
+            mode: w::Mode::Fake,
+            connection: w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .expect("one forge");
     }
     if world == Solo || world == Reference {
         let mut installations = List::with_capacity(1);
         installations
-            .push(
-                w::Installation { id: 1, account: None, suspended: false, stray: false },
-            )
+            .push(w::Installation { id: 1, account: None, suspended: false, stray: false })
             .expect("installation room");
-        rows.push(
-            w::ForgeRow {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 2,
-                    kind: w::Kind::Github,
-                    mode: w::Mode::Managed,
-                    connection: w::Connection::Connected(
-                        w::Connected { id: 2, login: b"temper".as_slice().into() },
-                    ),
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations,
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: if world == Solo {
-                        let mut repositories = List::with_capacity(1);
-                        repositories
-                            .push(
-                                w::Adoption {
-                                        owner: b"robin".as_slice().into(),
-                                        name: b"tally".as_slice().into(),
-                                        project: PROJECT,
-                                    },
-                            )
-                            .expect("one repository");
-                        repositories
-                    } else {
-                        List::with_capacity(0)
-                    },
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        rows.push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 2,
+            kind: w::Kind::Github,
+            mode: w::Mode::Managed,
+            connection: w::Connection::Connected(w::Connected { id: 2, login: b"temper".as_slice().into() }),
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations,
+            ended: None,
+            app: None,
+            web: None,
+            repositories: if world == Solo {
+                let mut repositories = List::with_capacity(1);
+                repositories
+                    .push(w::Adoption {
+                        owner: b"robin".as_slice().into(),
+                        name: b"tally".as_slice().into(),
+                        project: PROJECT,
+                    })
+                    .expect("one repository");
+                repositories
+            } else {
+                List::with_capacity(0)
+            },
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .expect("forge row");
     }
     if let FirstRun { step: step @ (6..=9 | 23..=25) } = world {
         let mut repositories = List::with_capacity(1);
         if step == 7 {
             repositories
-                .push(
-                    w::Adoption {
-                            owner: b"work".as_slice().into(),
-                            name: b"hello".as_slice().into(),
-                            project: 2,
-                        },
-                )
+                .push(w::Adoption { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: 2 })
                 .expect("one repository");
         }
         let connection = match step {
-            9 => w::Connection::SetUpFailed(
-                w::SetUpFailed {
-                        why: "its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest."
-                            .as_bytes()
-                            .into(),
-                        at: Some(w::FailedStep::Prepare),
-                    },
-            ),
-            6 => w::Connection::SettingUp(
-                w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
-            ),
-            24 | 25 => w::Connection::SettingUp(
-                w::SettingUp {
-                        step: Some(w::SetUpStep::Fetch),
-                        fetched: Some(
-                            w::SetUpFetched {
-                                    binary: w::SetUpBinary::Forgejo,
-                                    done: if step == 24 { 42_000_000 } else { 41_000_000 },
-                                    total: if step == 24 { Some(100_000_000) } else { None },
-                                },
-                        ),
-                    },
-            ),
-            7 => w::Connection::Connected(
-                w::Connected { id: 2, login: b"temper".as_slice().into() },
-            ),
+            9 => w::Connection::SetUpFailed(w::SetUpFailed {
+                why: "its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest."
+                    .as_bytes()
+                    .into(),
+                at: Some(w::FailedStep::Prepare),
+            }),
+            6 => w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None }),
+            24 | 25 => w::Connection::SettingUp(w::SettingUp {
+                step: Some(w::SetUpStep::Fetch),
+                fetched: Some(w::SetUpFetched {
+                    binary: w::SetUpBinary::Forgejo,
+                    done: if step == 24 { 42_000_000 } else { 41_000_000 },
+                    total: if step == 24 { Some(100_000_000) } else { None },
+                }),
+            }),
+            7 => w::Connection::Connected(w::Connected { id: 2, login: b"temper".as_slice().into() }),
             23 => w::Connection::NotConnected,
             _ => w::Connection::NotSetUp,
         };
-        rows.push(
-            w::ForgeRow {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 3,
-                    kind: w::Kind::Forgejo,
-                    mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
-                    connection,
-                    offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
-                    first: if matches!(step, 6 | 7 | 9 | 24 | 25) {
-                        Some(
-                            w::FirstRepository {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                    state: if step == 7 {
-                                        w::FirstState::Made(
-                                            w::Made { id: 42 },
-                                        )
-                                    } else {
-                                        w::FirstState::Making
-                                    },
-                                    label: b"temper-host".as_slice().into(),
-                                },
-                        )
-                    } else {
-                        None
-                    },
-                    installations: List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: if step == 23 { Some(b"http://forgejo.test".as_slice().into()) } else { None },
-                    repositories,
-                    owned: if step == 23 {
-                        None
-                    } else {
-                        Some(
-                            w::OwnedForge {
-                                    forgejo: b"17.0.0".as_slice().into(),
-                                    runner: Some(b"13.2.0".as_slice().into()),
-                                    password: b"/fake/forge/person_password".as_slice().into(),
-                                },
-                        )
-                    },
-                    admin: step == 23,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        rows.push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 3,
+            kind: w::Kind::Forgejo,
+            mode: if step == 23 { w::Mode::Managed } else { w::Mode::Owned },
+            connection,
+            offer: if step == 23 { w::Offer::NotOffered } else { w::Offer::Offered },
+            first: if matches!(step, 6 | 7 | 9 | 24 | 25) {
+                Some(w::FirstRepository {
+                    playground: false,
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                    state: if step == 7 { w::FirstState::Made(w::Made { id: 42 }) } else { w::FirstState::Making },
+                    label: b"temper-host".as_slice().into(),
+                })
+            } else {
+                None
+            },
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: if step == 23 { Some(b"http://forgejo.test".as_slice().into()) } else { None },
+            repositories,
+            owned: if step == 23 {
+                None
+            } else {
+                Some(w::OwnedForge {
+                    forgejo: b"17.0.0".as_slice().into(),
+                    runner: Some(b"13.2.0".as_slice().into()),
+                    password: b"/fake/forge/person_password".as_slice().into(),
+                })
+            },
+            admin: step == 23,
+            read_only: false,
+            ended_stop: None,
+        })
         .expect("forge row");
     }
     wire::forges(&w::Forges { forges: rows, linked: false })
@@ -1557,38 +1489,36 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
     };
     let mut head = [0; 32];
     head[..4].copy_from_slice(&head_prefix);
-    Some(
-        w::ChangePanel {
-                wait: None,
-                source: None,
-                way: w::Way::Queue,
-                in_landing: None,
-                task,
-                forge: 1,
-                owner: Box::from(b"acme".as_slice()),
-                name: Box::from(b"kit".as_slice()),
-                branch: Box::from(branch),
-                landing: Box::from(b"main".as_slice()),
-                head: Some(head),
-                pull: Some(gallery_pull(&l, pull_number, pull_address)),
-                step,
-                hold: None,
-                runs: None,
-                ci_required: true,
-                ci: w::Ci::Passed,
-                approvals: List::with_capacity(0),
-                unmapped_reviews: List::with_capacity(0),
-                gates: List::with_capacity(0),
-                repairs: w::Used { used: 0, limit: 3 },
-                resolutions: w::Used { used: 0, limit: 3 },
-                updates: w::Used { used: 0, limit: 3 },
-                questions: w::Questions {
-                        route: w::Route::None,
-                        taken: w::Used { used: 0, limit: 4 },
-                        open: List::with_capacity(0),
-                    },
-            },
-    )
+    Some(w::ChangePanel {
+        wait: None,
+        source: None,
+        way: w::Way::Queue,
+        in_landing: None,
+        task,
+        forge: 1,
+        owner: Box::from(b"acme".as_slice()),
+        name: Box::from(b"kit".as_slice()),
+        branch: Box::from(branch),
+        landing: Box::from(b"main".as_slice()),
+        head: Some(head),
+        pull: Some(gallery_pull(&l, pull_number, pull_address)),
+        step,
+        hold: None,
+        runs: None,
+        ci_required: true,
+        ci: w::Ci::Passed,
+        approvals: List::with_capacity(0),
+        unmapped_reviews: List::with_capacity(0),
+        gates: List::with_capacity(0),
+        repairs: w::Used { used: 0, limit: 3 },
+        resolutions: w::Used { used: 0, limit: 3 },
+        updates: w::Used { used: 0, limit: 3 },
+        questions: w::Questions {
+            route: w::Route::None,
+            taken: w::Used { used: 0, limit: 4 },
+            open: List::with_capacity(0),
+        },
+    })
 }
 fn gallery_pull(
     _limits: &temper_client_protocol_wire::v1::Limits,
@@ -1639,18 +1569,18 @@ fn playground(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>
             cues.push(Box::from(cue.as_bytes())).expect("cue");
         }
         let value = v1::PlaygroundAnswer {
-                state: if w == (FirstRun { step: 10 }) {
-                    v1::PlaygroundState::Resetting
-                } else {
-                    v1::PlaygroundState::Running
-                },
-                project: Some(PROJECT),
-                forge: 1,
-                provider: 17,
-                owner: Box::from(b"playground".as_slice()),
-                name: Box::from(b"widget".as_slice()),
-                cues,
-            };
+            state: if w == (FirstRun { step: 10 }) {
+                v1::PlaygroundState::Resetting
+            } else {
+                v1::PlaygroundState::Running
+            },
+            project: Some(PROJECT),
+            forge: 1,
+            provider: 17,
+            owner: Box::from(b"playground".as_slice()),
+            name: Box::from(b"widget".as_slice()),
+            cues,
+        };
         Some(wire::playground_answer(&value))
     } else {
         None
@@ -5048,10 +4978,12 @@ pub(super) fn project_ways(
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let ways = v::ProjectWays { drafts, goals, changes, way: 0 };
-    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways fit"));
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .expect("ways fit"),
+    );
     ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
-    let value =
-        v::SettingAnswer { revision: None, value: Some(writer.finish()) };
+    let value = v::SettingAnswer { revision: None, value: Some(writer.finish()) };
     step(
         root,
         Event::Client {
@@ -5111,30 +5043,26 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
                 continue;
             }
             changes
-                .push(
-                    v::ChangesQueued {
-                            goal: changes_origin(task).0,
-                            chat: changes_origin(task).1,
-                            milestone: None,
-                            task,
-                            title: title.as_bytes().into(),
-                            ready_since: offset(Reference, -179).as_nanos(),
-                            checks_since: if task == 100 { Some(offset(Reference, -179).as_nanos()) } else { None },
-                        },
-                )
+                .push(v::ChangesQueued {
+                    goal: changes_origin(task).0,
+                    chat: changes_origin(task).1,
+                    milestone: None,
+                    task,
+                    title: title.as_bytes().into(),
+                    ready_since: offset(Reference, -179).as_nanos(),
+                    checks_since: if task == 100 { Some(offset(Reference, -179).as_nanos()) } else { None },
+                })
                 .expect("three changes");
         }
         queues
-            .push(
-                v::ChangesQueue {
-                        way: v::Way::Queue,
-                        in_flight: None,
-                        repository: b"jeremy/fabrig".as_slice().into(),
-                        branch: b"main".as_slice().into(),
-                        red: false,
-                        changes,
-                    },
-            )
+            .push(v::ChangesQueue {
+                way: v::Way::Queue,
+                in_flight: None,
+                repository: b"jeremy/fabrig".as_slice().into(),
+                branch: b"main".as_slice().into(),
+                red: false,
+                changes,
+            })
             .expect("one queue");
     }
     let mut landed = List::with_capacity(4);
@@ -5146,48 +5074,44 @@ fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
             (106, "Journey print", -408),
         ] {
             landed
-                .push(
-                    v::ChangesLanded {
-                            goal: changes_origin(task).0,
-                            chat: changes_origin(task).1,
-                            milestone: None,
-                            signed: skein_lib::List::with_capacity(8),
-                            commit: [0xab; 32],
-                            default_branch: true,
-                            task,
-                            title: title.as_bytes().into(),
-                            at: offset(Reference, minute).as_nanos(),
-                        },
-                )
+                .push(v::ChangesLanded {
+                    goal: changes_origin(task).0,
+                    chat: changes_origin(task).1,
+                    milestone: None,
+                    signed: skein_lib::List::with_capacity(8),
+                    commit: [0xab; 32],
+                    default_branch: true,
+                    task,
+                    title: title.as_bytes().into(),
+                    at: offset(Reference, minute).as_nanos(),
+                })
                 .expect("four landings");
         }
     } else if name == "changes-landed-only" {
         landed
-            .push(
-                v::ChangesLanded {
-                        goal: None,
-                        chat: changes_origin(107).1,
-                        milestone: None,
-                        signed: skein_lib::List::with_capacity(8),
-                        commit: [0xab; 32],
-                        default_branch: true,
-                        task: 107,
-                        title: b"Hello in Rust".as_slice().into(),
-                        at: offset(Reference, -58).as_nanos(),
-                    },
-            )
+            .push(v::ChangesLanded {
+                goal: None,
+                chat: changes_origin(107).1,
+                milestone: None,
+                signed: skein_lib::List::with_capacity(8),
+                commit: [0xab; 32],
+                default_branch: true,
+                task: 107,
+                title: b"Hello in Rust".as_slice().into(),
+                at: offset(Reference, -58).as_nanos(),
+            })
             .expect("one landing");
     }
     v::ChangesPanel {
-            landed_default: List::with_capacity(0),
-            landed_default_more: 0,
-            project: PROJECT,
-            landing: b"main".as_slice().into(),
-            queues,
-            more: 0,
-            landed,
-            landed_more: 0,
-        }
+        landed_default: List::with_capacity(0),
+        landed_default_more: 0,
+        project: PROJECT,
+        landing: b"main".as_slice().into(),
+        queues,
+        more: 0,
+        landed,
+        landed_more: 0,
+    }
 }
 
 /// Home's computed facts (client/pages/README.md), delivered by its status watch.
@@ -5203,28 +5127,26 @@ pub(super) fn home_status(name: &str) -> Option<temper_client_protocol_wire::v1:
         _ => return None,
     };
     let now = now(FirstRun { step: 7 });
-    Some(
-        w::ProjectStatus {
-                project: PROJECT,
-                landed,
-                seen,
-                queued,
-                red,
-                previous: previous.map(|minutes: u64| {
-                    now.as_nanos()
-                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
-                        .expect("Home previous follows epoch")
-                }),
-                last_landed: last.map(|minutes: u64| {
-                    now.as_nanos()
-                        .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
-                        .expect("Home landing follows epoch")
-                }),
-                brief: None,
-                branch: b"main".as_slice().into(),
-                unpaid: false,
-            },
-    )
+    Some(w::ProjectStatus {
+        project: PROJECT,
+        landed,
+        seen,
+        queued,
+        red,
+        previous: previous.map(|minutes: u64| {
+            now.as_nanos()
+                .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                .expect("Home previous follows epoch")
+        }),
+        last_landed: last.map(|minutes: u64| {
+            now.as_nanos()
+                .checked_sub(minutes.checked_mul(60_000_000_000).expect("Home span fits"))
+                .expect("Home landing follows epoch")
+        }),
+        brief: None,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+    })
 }
 
 /// Settings' delivered kinds 6, 7 and 8 (temper/docs/design/client/web/gallery.md, 2).
@@ -5238,27 +5160,35 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         let classes =
             classes_record(&Classes::stock(if name == "how-team" { Way::AgentsReview } else { Way::YouApprove }))
                 .expect("project classes");
-        let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("classes bytes"),
+        );
         classes.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
         writer.finish()
     } else if kind == 7 {
         let shown = name != "settings-all-hidden";
         let all = shown && name != "settings-goals";
         let ways = v::ProjectWays {
-                drafts: all && name != "settings-drafts-off",
-                goals: shown && name != "settings-goals-off",
-                changes: all && name != "settings-changes-off",
-                way: if shown { 4 } else { 0 },
-            };
-        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways bytes"));
+            drafts: all && name != "settings-drafts-off",
+            goals: shown && name != "settings-goals-off",
+            changes: all && name != "settings-changes-off",
+            way: if shown { 4 } else { 0 },
+        };
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("ways bytes"),
+        );
         ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
         writer.finish()
     } else {
         assert_eq!(kind, 6);
         let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Up };
-        let questions =
-            v::ProjectQuestions { route };
-        let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("questions bytes"));
+        let questions = v::ProjectQuestions { route };
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(questions.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("questions bytes"),
+        );
         questions.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured questions");
         writer.finish()
     }
@@ -5378,13 +5308,11 @@ fn settings_proposal_values(root: &mut Domain, read: Token, out: &mut Queue<Requ
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let mut items = List::with_capacity(2);
     for kind in [7, 6] {
-        let value =
-            v::SettingValue { value: settings_bytes("settings", kind) };
+        let value = v::SettingValue { value: settings_bytes("settings", kind) };
         let item = v::ProposalItem { kind, scope: PROJECT, number: 1, edit: v::SettingEdit::Set(value) };
         items.push(item).expect("proposal items");
     }
-    let record =
-        v::ProposalItemsAnswer { items, owned_approval: false };
+    let record = v::ProposalItemsAnswer { items, owned_approval: false };
     step(
         root,
         Event::Client {
@@ -5567,9 +5495,7 @@ pub(super) fn home_copies(
         intent.push((*address).into()).expect("copy intent");
     }
     row.first = None;
-    row.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses { addresses: intent },
-    );
+    row.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses: intent });
     row.makings = List::with_capacity(2);
     row.repositories = List::with_capacity(2);
     // The watch's key order is other, widget, while Ready asked widget first.
@@ -5579,38 +5505,26 @@ pub(super) fn home_copies(
             continue;
         }
         if matches!(state, "home-copied" | "home-copy-one") || state == "home-copy-failed" && *address == addresses[0] {
-            row.repositories
-                .push(
-                    w::Adoption { owner: org, name, project: PROJECT },
-                )
-                .expect("two copies");
+            row.repositories.push(w::Adoption { owner: org, name, project: PROJECT }).expect("two copies");
         } else {
             row.makings
-                .push(
-                    w::RepositoryMaking {
-                            org,
-                            name,
-                            from: w::MakeFrom::Copy(
-                                w::MakeCopy { address: (*address).into() },
-                            ),
-                            into: Some(
-                                w::MakeInto { project: PROJECT, home: *address == addresses[0] },
-                            ),
-                            state: if state == "home-copy-failed" {
-                                w::MakingState::Failed(
-                                    w::MakingFailed {
-                                            step: w::MakeStep::Repository,
-                                            reason: w::MakeFailure::Taken,
-                                            words: b"name taken".as_slice().into(),
-                                        },
-                                )
-                            } else if *address == addresses[0] {
-                                w::MakingState::Making
-                            } else {
-                                w::MakingState::Waiting
-                            },
-                        },
-                )
+                .push(w::RepositoryMaking {
+                    org,
+                    name,
+                    from: w::MakeFrom::Copy(w::MakeCopy { address: (*address).into() }),
+                    into: Some(w::MakeInto { project: PROJECT, home: *address == addresses[0] }),
+                    state: if state == "home-copy-failed" {
+                        w::MakingState::Failed(w::MakingFailed {
+                            step: w::MakeStep::Repository,
+                            reason: w::MakeFailure::Taken,
+                            words: b"name taken".as_slice().into(),
+                        })
+                    } else if *address == addresses[0] {
+                        w::MakingState::Making
+                    } else {
+                        w::MakingState::Waiting
+                    },
+                })
                 .expect("two copies");
         }
     }
@@ -5722,15 +5636,13 @@ pub(super) fn away_record(on: bool) -> Box<[u8]> {
     let wall = sample_now(FirstRun { step: 7 }, "rail-away-on");
     let until = temper_client_domain::forge::away::next_eight(wall, 0);
     let row = w::AwayRow {
-            project: PROJECT,
-            since: wall.as_nanos(),
-            until: Some(until.as_nanos()),
-            landed: 0,
-            off: if on { None } else { Some(wall.as_nanos()) },
-        };
-    wire::aways(
-        &w::Aways { rows: List::from_boxed(Box::new([row])) },
-    )
+        project: PROJECT,
+        since: wall.as_nanos(),
+        until: Some(until.as_nanos()),
+        landed: 0,
+        off: if on { None } else { Some(wall.as_nanos()) },
+    };
+    wire::aways(&w::Aways { rows: List::from_boxed(Box::new([row])) })
 }
 pub(super) fn rail_away_toggle(root: &mut Domain, watch: Token, on: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -5775,44 +5687,38 @@ pub(super) fn home_away_record(name: &str) -> Box<[u8]> {
     let now = sample_now(FirstRun { step: 7 }, name).as_nanos();
     let minute = 60_000_000_000;
     let row = w::AwayRow {
-            project: PROJECT,
-            since: now - 534 * minute,
-            until: None,
-            landed: 0,
-            off: if name == "home-away-one" { Some(now - minute) } else { None },
-        };
+        project: PROJECT,
+        since: now - 534 * minute,
+        until: None,
+        landed: 0,
+        off: if name == "home-away-one" { Some(now - minute) } else { None },
+    };
     if matches!(name, "home-decided" | "needs-decided" | "needs-decided-project") {
-        return wire::aways(
-            &w::Aways { rows: List::with_capacity(0) },
-        );
+        return wire::aways(&w::Aways { rows: List::with_capacity(0) });
     }
-    wire::aways(
-        &w::Aways { rows: List::from_boxed(Box::new([row])) },
-    )
+    wire::aways(&w::Aways { rows: List::from_boxed(Box::new([row])) })
 }
 pub(super) fn home_away_status() -> temper_client_protocol_wire::v1::ProjectStatus {
     use temper_client_protocol_wire::v1 as w;
     let now = sample_now(FirstRun { step: 7 }, "home-away").as_nanos();
     let lede = "first-run-projects stopped at 05:50 for funds, which always wait for you. welcome-stall landed its fix in temper serve.";
     w::ProjectStatus {
-            project: PROJECT,
+        project: PROJECT,
+        landed: 57,
+        seen: 0,
+        queued: 3,
+        red: false,
+        previous: None,
+        last_landed: Some(now - 6 * 60_000_000_000),
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: Some(w::StatusBrief {
+            sentence: b"57 changes landed.".as_slice().into(),
+            lede: lede.as_bytes().into(),
+            at: now - 9 * 60_000_000_000,
             landed: 57,
-            seen: 0,
-            queued: 3,
-            red: false,
-            previous: None,
-            last_landed: Some(now - 6 * 60_000_000_000),
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            brief: Some(
-                w::StatusBrief {
-                        sentence: b"57 changes landed.".as_slice().into(),
-                        lede: lede.as_bytes().into(),
-                        at: now - 9 * 60_000_000_000,
-                        landed: 57,
-                    },
-            ),
-        }
+        }),
+    }
 }
 fn home_away_task(name: &str, task: u64, project: u32) -> c::Task {
     let mut document = base_task(
@@ -5887,35 +5793,31 @@ pub(super) fn home_away_decisions(name: &str, project: u32) -> Box<[u8]> {
         if name == "home-away-one" && number != 1 {
             continue;
         }
-        rows.push(
-            w::Decision {
-                    number,
-                    task,
-                    at: now - minutes * 60_000_000_000,
-                    question: question.as_bytes().into(),
-                    took: took.as_bytes().into(),
-                    why: why.as_bytes().into(),
-                    overturned: name == "home-away-overturned" && number == 2,
-                    reach: w::Reach {
-                            kind: match number {
-                                3 => w::ReachKind::Retry,
-                                4 => w::ReachKind::Wording,
-                                _ => w::ReachKind::Implementation,
-                            },
-                            class: if number == 4 { w::ReachClass::Decide } else { w::ReachClass::Ask },
-                            reason: w::ReachReason::Kind,
-                            under: 0,
-                            sets: 0,
-                            matched: 0,
-                            away: number != 4,
-                        },
+        rows.push(w::Decision {
+            number,
+            task,
+            at: now - minutes * 60_000_000_000,
+            question: question.as_bytes().into(),
+            took: took.as_bytes().into(),
+            why: why.as_bytes().into(),
+            overturned: name == "home-away-overturned" && number == 2,
+            reach: w::Reach {
+                kind: match number {
+                    3 => w::ReachKind::Retry,
+                    4 => w::ReachKind::Wording,
+                    _ => w::ReachKind::Implementation,
                 },
-        )
+                class: if number == 4 { w::ReachClass::Decide } else { w::ReachClass::Ask },
+                reason: w::ReachReason::Kind,
+                under: 0,
+                sets: 0,
+                matched: 0,
+                away: number != 4,
+            },
+        })
         .expect("four Home decisions");
     }
-    wire::decisions(
-        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
-    )
+    wire::decisions(&w::Decisions { project, rows, asked: List::with_capacity(0), cut: false })
 }
 
 fn home_away_step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<Request>) {

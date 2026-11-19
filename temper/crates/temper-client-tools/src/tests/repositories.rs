@@ -34,17 +34,14 @@ fn repositories_parses_bounds_defaults_and_the_requested_installation_and_page()
         .unwrap();
 }
 fn page(more: bool) -> w::Outcome {
-
     let mut rows = List::with_capacity(2);
     for (id, name, private) in [(42, b"app".as_slice(), true), (43, b"public".as_slice(), false)] {
-        rows.push(
-            w::Reached {
-                    id,
-                    owner: w::Account { id: 10, login: b"acme".as_slice().into() },
-                    name: name.into(),
-                    private,
-                },
-        )
+        rows.push(w::Reached {
+            id,
+            owner: w::Account { id: 10, login: b"acme".as_slice().into() },
+            name: name.into(),
+            private,
+        })
         .unwrap();
     }
     w::Outcome::Page(w::Page { rows, more })

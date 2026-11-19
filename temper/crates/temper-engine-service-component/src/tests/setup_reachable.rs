@@ -3,9 +3,9 @@
 #![expect(clippy::disallowed_types, reason = "ordinary tests assemble fake JSON documents")]
 #![expect(clippy::disallowed_methods, reason = "ordinary test assertions and fixture assembly")]
 
-use temper_client_protocol_wire::v1::Record;
 use super::lifecycle_tests::{accepted, app};
 use super::*;
+use temper_client_protocol_wire::v1::Record;
 
 fn reached(service: &mut crate::Service) -> domain::ReachableAnswer {
     for _ in 0_u32..service.engine.as_ref().unwrap().events.len() {
@@ -115,11 +115,8 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
-    let request = w::Requesting {
-            request: w::Request::Reachable(
-                w::Reachable { forge: 1, installation: None, page: 1 },
-            ),
-        };
+    let request =
+        w::Requesting { request: w::Request::Reachable(w::Reachable { forge: 1, installation: None, page: 1 }) };
     let family = j::FamilyRequest::new(
         limits,
         j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },

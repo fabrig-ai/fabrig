@@ -1,5 +1,4 @@
 //! temper's pages own their handles and navigation (client/README.md, 3.1).
-use temper_client_protocol_wire::v1::Record;
 use crate::ChatsFilter;
 use crate::{Address, Limits, owner::Owner};
 use alloc::boxed::Box;
@@ -8,6 +7,7 @@ use jig_client::{
     contract::{Delivery, Me, Subject},
 };
 use skein_lib::{Env, Queue, Time};
+use temper_client_protocol_wire::v1::Record;
 mod root;
 pub use root::{Parts, Root, Routing};
 pub mod accounts;
@@ -3278,7 +3278,13 @@ fn copy_all(
             continue;
         }
         let Some((org, name)) = making::target(address) else { continue };
-        let Ok(into) = ({ let value = w::MakeInto { project, home: home && number == 1 }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+        let Ok(into) = ({
+            let value = w::MakeInto { project, home: home && number == 1 };
+            match value.encode(&w::CEILINGS) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }) else {
             continue;
         };
         let Ok(ask) = making::ask(copies.forge, &org, &name, Some(address), Some(into)) else { continue };

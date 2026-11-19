@@ -48,11 +48,7 @@ fn tell(root: &mut Domain, outcome: jig_client::Outcome) {
     crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut Queue::uncapped());
 }
 fn refused(reason: w::ForgeReason) -> jig_client::Outcome {
-    let answer = w::Answer {
-            outcome: w::Outcome::ForgeRefused(
-                w::ForgeRefused { reason },
-            ),
-        };
+    let answer = w::Answer { outcome: w::Outcome::ForgeRefused(w::ForgeRefused { reason }) };
     jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
@@ -234,9 +230,7 @@ fn copy_row(number: u16, mode: w::Mode, addresses: &[&[u8]], project: Option<u32
         number,
         w::Kind::Forgejo,
         mode,
-        w::Connection::Connected(
-            w::Connected { id: 42, login: b"temper".as_slice().into() },
-        ),
+        w::Connection::Connected(w::Connected { id: 42, login: b"temper".as_slice().into() }),
         w::Offer::NotOffered,
         None,
     );
@@ -245,16 +239,12 @@ fn copy_row(number: u16, mode: w::Mode, addresses: &[&[u8]], project: Option<u32
     for address in addresses {
         copies.push((*address).into()).unwrap();
     }
-    parts.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses { addresses: copies },
-    );
+    parts.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses: copies });
     parts.repositories.clear();
     if let Some(project) = project {
         parts
             .repositories
-            .push(
-                w::Adoption { project, owner: b"work".as_slice().into(), name: b"existing".as_slice().into() },
-            )
+            .push(w::Adoption { project, owner: b"work".as_slice().into(), name: b"existing".as_slice().into() })
             .unwrap();
     }
     parts

@@ -1,10 +1,10 @@
 //! Playground lifecycle (temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, family, wire_limits};
 pub use super::{Playground, PlaygroundState};
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 #[derive(Debug)]
 pub(super) struct State {
@@ -219,8 +219,7 @@ pub enum EndAnswer {
 }
 #[must_use]
 pub fn end_ask(limits: &Limits) -> Option<jig_client::Ask> {
-    let record =
-        w::Requesting { request: w::Request::EndPlayground };
+    let record = w::Requesting { request: w::Request::EndPlayground };
     Some(jig_client::Ask::Family {
         scope: c::Scope::Deployment,
         record: jig_client::Family {

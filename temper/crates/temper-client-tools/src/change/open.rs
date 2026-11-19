@@ -1,5 +1,4 @@
 //! Open a person's pushed branch (temper/docs/design/client/ctl/areas.md, area 6).
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -18,6 +17,7 @@ use alloc::{boxed::Box, collections::BTreeMap};
 use jig_client::{Ask, Client, Event, Key, Outcome, Told, contract as c};
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const ROW: Tool = Tool {
@@ -91,7 +91,11 @@ fn repository(bytes: &[u8]) -> Option<w::DraftRepository> {
     if owner.is_empty() || name.is_empty() || name.contains(&b'/') {
         return None;
     }
-    { let value = w::DraftRepository { owner: owner.into(), name: name.into() }; value.measure(&w::CEILINGS).ok()?; Some(value) }
+    {
+        let value = w::DraftRepository { owner: owner.into(), name: name.into() };
+        value.measure(&w::CEILINGS).ok()?;
+        Some(value)
+    }
 }
 fn hexadecimal(bytes: &[u8]) -> bool {
     for byte in bytes {
@@ -173,8 +177,7 @@ fn lowercase(bytes: Option<&[u8]>) -> Option<Box<[u8]>> {
 }
 fn ask(request: &w::OpenChange, limits: &Limits) -> Option<Ask> {
     let bounds = forge::wire_limits(&limits.domain.forge)?;
-    let record =
-        w::Requesting { request: w::Request::OpenChange(request.clone()) };
+    let record = w::Requesting { request: w::Request::OpenChange(request.clone()) };
     Some(Ask::Family {
         scope: c::Scope::Project(request.project),
         record: jig_client::Family {
@@ -198,21 +201,19 @@ pub(crate) fn ready(state: &mut Opens, client: &Client, env: &Env<Limits>, out: 
             None => None,
         };
         let budget = match number(call, 7) {
-            Some(amount) => w::OpenBudget::Amount(
-                w::OpenAmount { amount },
-            ),
+            Some(amount) => w::OpenBudget::Amount(w::OpenAmount { amount }),
             None => w::OpenBudget::AsAllowed,
         };
         let request = w::OpenChange {
-                project,
-                repository,
-                branch: text(call, 2).expect("required branch").into(),
-                at: lowercase(text(call, 3)),
-                into: owned(text(call, 4)),
-                title: text(call, 5).expect("required title").into(),
-                body: owned(text(call, 6)),
-                budget,
-            };
+            project,
+            repository,
+            branch: text(call, 2).expect("required branch").into(),
+            at: lowercase(text(call, 3)),
+            into: owned(text(call, 4)),
+            title: text(call, 5).expect("required title").into(),
+            body: owned(text(call, 6)),
+            budget,
+        };
         let Some(sent) = ask(&request, &env.limits) else {
             fail(called, b"change open past the forge's bounds", out);
             continue;

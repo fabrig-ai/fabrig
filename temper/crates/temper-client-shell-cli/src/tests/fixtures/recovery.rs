@@ -314,23 +314,21 @@ impl Frame {
     fn adopt_reply(&mut self, fd: Fd, keyed: &w::Keyed) {
         use temper_client_protocol_wire::{self as wire, v1 as f};
         let answer = f::Answer {
-                outcome: if self.setting_up_projects() {
-                    let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
-                        .expect("adoption envelope");
-                    let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
-                    let f::Request::Adopt(adopt) = request.request else { panic!("expected adoption") };
-                    assert_eq!(adopt.project, 3);
-                    assert_eq!(
-                        (adopt.owner.as_ref(), adopt.name.as_ref(), adopt.landing.as_ref()),
-                        (b"o".as_slice(), b"n".as_slice(), b"main".as_slice())
-                    );
-                    adopted()
-                } else {
-                    f::Outcome::ForgeRefused(
-                        f::ForgeRefused { reason: f::ForgeReason::NotFound },
-                    )
-                },
-            };
+            outcome: if self.setting_up_projects() {
+                let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
+                    .expect("adoption envelope");
+                let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
+                let f::Request::Adopt(adopt) = request.request else { panic!("expected adoption") };
+                assert_eq!(adopt.project, 3);
+                assert_eq!(
+                    (adopt.owner.as_ref(), adopt.name.as_ref(), adopt.landing.as_ref()),
+                    (b"o".as_slice(), b"n".as_slice(), b"main".as_slice())
+                );
+                adopted()
+            } else {
+                f::Outcome::ForgeRefused(f::ForgeRefused { reason: f::ForgeReason::NotFound })
+            },
+        };
         let owned = w::Owned::new(
             &w::CEILINGS,
             w::OwnedParts {
@@ -428,27 +426,25 @@ impl Frame {
 
 fn adopted() -> temper_client_protocol_wire::v1::Outcome {
     use temper_client_protocol_wire::v1 as f;
-    f::Outcome::Adopted(
-        f::Adopted {
-                landing: b"main".as_slice().into(),
-                forge: 3,
-                repository: 42,
-                owner: b"o".as_slice().into(),
-                name: b"n".as_slice().into(),
-                role: f::Role::Owned,
-                home: true,
-                kinds: f::Kinds {
-                        read: true,
-                        push: true,
-                        open: true,
-                        land: true,
-                        review: true,
-                        status: true,
-                        comment: true,
-                        issue: true,
-                        branch: true,
-                    },
-                protection: f::Protection::Unknown,
-            },
-    )
+    f::Outcome::Adopted(f::Adopted {
+        landing: b"main".as_slice().into(),
+        forge: 3,
+        repository: 42,
+        owner: b"o".as_slice().into(),
+        name: b"n".as_slice().into(),
+        role: f::Role::Owned,
+        home: true,
+        kinds: f::Kinds {
+            read: true,
+            push: true,
+            open: true,
+            land: true,
+            review: true,
+            status: true,
+            comment: true,
+            issue: true,
+            branch: true,
+        },
+        protection: f::Protection::Unknown,
+    })
 }

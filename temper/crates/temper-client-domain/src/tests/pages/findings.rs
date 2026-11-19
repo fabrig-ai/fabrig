@@ -95,37 +95,33 @@ fn setup_watches_with(
 }
 fn row(number: u32, at: u64) -> w::FindingRow {
     w::FindingRow {
-            number,
-            at,
-            kind: w::FindingKind::Feedback,
-            severity: w::Severity::High,
-            area: None,
-            state: w::FindingState::New,
-            title: b"The phone card is clipped".as_slice().into(),
-            holder: w::Holder::Party(
-                w::HolderParty { number: f::PARTY },
-            ),
-            why: Some(b"Your area owns the view".as_slice().into()),
-            hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
-        }
+        number,
+        at,
+        kind: w::FindingKind::Feedback,
+        severity: w::Severity::High,
+        area: None,
+        state: w::FindingState::New,
+        title: b"The phone card is clipped".as_slice().into(),
+        holder: w::Holder::Party(w::HolderParty { number: f::PARTY }),
+        why: Some(b"Your area owns the view".as_slice().into()),
+        hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+    }
 }
 fn document(project: u32, rows: Box<[w::FindingRow]>, cut: bool) -> w::Findings {
     let holder = row(1, 0).holder.clone();
     w::Findings {
-            project,
-            rows: List::from_boxed(rows),
-            areas: List::from_boxed(Box::new([w::AreaRow {
-                    name: b"view".as_slice().into(),
-                    words: b"What the person sees".as_slice().into(),
-                    owner: w::AreaOwner::Party(
-                        w::AreaParty { number: f::PARTY },
-                    ),
-                    holder: Some(holder.clone()),
-                }])),
-            triager: None,
-            holder,
-            cut,
-        }
+        project,
+        rows: List::from_boxed(rows),
+        areas: List::from_boxed(Box::new([w::AreaRow {
+            name: b"view".as_slice().into(),
+            words: b"What the person sees".as_slice().into(),
+            owner: w::AreaOwner::Party(w::AreaParty { number: f::PARTY }),
+            holder: Some(holder.clone()),
+        }])),
+        triager: None,
+        holder,
+        cut,
+    }
 }
 fn deliver(root: &mut Domain, watch: Token, document: w::Findings) -> Queue<Request> {
     event(
@@ -203,16 +199,12 @@ fn team_areas_read_the_findings_document_and_its_triager() {
     for (name, holder) in [(b"tests".as_slice(), Some(task)), (b"core", Some(person)), (b"docs", None)] {
         parts
             .areas
-            .push(
-                w::AreaRow {
-                        name: name.into(),
-                        words: name.into(),
-                        owner: w::AreaOwner::Task(
-                            w::AreaTask { number: 40 },
-                        ),
-                        holder,
-                    },
-            )
+            .push(w::AreaRow {
+                name: name.into(),
+                words: name.into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number: 40 }),
+                holder,
+            })
             .unwrap();
     }
     parts.triager = Some(w::AreaOwner::Task(w::AreaTask { number: 41 }));
@@ -349,12 +341,7 @@ fn finding_acts_send_the_forge_requests_and_keep_the_card_until_refresh() {
         (ID.project, ID.number, b"view".as_slice(), b"This is the view".as_slice())
     );
     assert!(act(&mut root, Act::Backlog { id: ID }).is_empty(), "one send per pending card");
-    answer(
-        &mut root,
-        w::Outcome::FindingRefused(
-            w::FindingRefused { reason: w::FindingRefusal::NoGoal },
-        ),
-    );
+    answer(&mut root, w::Outcome::FindingRefused(w::FindingRefused { reason: w::FindingRefusal::NoGoal }));
     assert_eq!(root.pages().needs().findings().cards()[0].refusal, Some(w::FindingRefusal::NoGoal));
     let out = act(&mut root, Act::Show { id: ID, mode: Mode::Route });
     let mut goals = None;
@@ -554,7 +541,8 @@ fn open_findings(out: &Queue<Request>) -> Option<Token> {
 fn group_inbox(limits: &crate::Limits) -> (Domain, Token, Token) {
     let (mut root, inbox, mine, decisions) = setup_watches_with(2, limits);
     for (project, watch) in decisions {
-        let document = w::Decisions { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false };
+        let document =
+            w::Decisions { project, rows: List::with_capacity(0), asked: List::with_capacity(0), cut: false };
         event(
             &mut root,
             Event::Client {
@@ -844,11 +832,7 @@ fn groups_ignore_other_projects_closed_and_missing_rows_and_allow_no_label() {
     let (mut root, _, _, open) = group_setup(false, b"Q?\nFindings: 2/8 1/2 2/10 2/2\nChoice: A");
     let mut closed = row(8, 5);
     closed.state = w::FindingState::Backlog;
-    deliver(
-        &mut root,
-        open.unwrap(),
-        document(2, Box::new([closed, row(2, 30)]), true),
-    );
+    deliver(&mut root, open.unwrap(), document(2, Box::new([closed, row(2, 30)]), true));
     let group = root.pages().needs().findings().group(group_need(&root)).unwrap();
     assert_eq!(group.rows.len(), 1);
     assert_eq!(group.rows[0].number, 2);

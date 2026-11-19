@@ -1,8 +1,8 @@
 //! Typed engine records for the two sizes of Work's project.
-use temper_client_protocol_wire::v1::Record;
 use super::*;
 use jig_client::contract as c;
 use jig_client_test_records as records;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as f};
 use temper_client_view_kit::engine::{encoded, owned};
 
@@ -233,15 +233,15 @@ impl Project {
             chats: Vec::new(),
             closed: Vec::new(),
             changes: f::ChangesPanel {
-                    project: PROJECT,
-                    landing: b"main".as_slice().into(),
-                    queues: List::with_capacity(0),
-                    more: 0,
-                    landed: List::with_capacity(0),
-                    landed_more: 0,
-                    landed_default: List::with_capacity(0),
-                    landed_default_more: 0,
-                },
+                project: PROJECT,
+                landing: b"main".as_slice().into(),
+                queues: List::with_capacity(0),
+                more: 0,
+                landed: List::with_capacity(0),
+                landed_more: 0,
+                landed_default: List::with_capacity(0),
+                landed_default_more: 0,
+            },
             drafts: f::DraftsPanel { project: PROJECT, drafts: List::with_capacity(drafts) },
         };
         for n in 0..rows {
@@ -268,15 +268,15 @@ impl Project {
                 let nested =
                     line(3000_u64.checked_add(n).expect("fixture id"), &format!("Nested goal {n}"), GOALS, false);
                 let totals = f::MilestoneTotals {
-                        task,
-                        done: 2,
-                        failed: 0,
-                        closed: 0,
-                        live: 1,
-                        ended: ended.then_some(RECENT),
-                        last_landing: None,
-                        spent: 31,
-                    };
+                    task,
+                    done: 2,
+                    failed: 0,
+                    closed: 0,
+                    live: 1,
+                    ended: ended.then_some(RECENT),
+                    last_landing: None,
+                    spent: 31,
+                };
                 milestone.parts = List::from_boxed(Box::new([temper_fixtures::milestones::part(
                     ended.then_some(Wall::from_nanos(RECENT)),
                     totals,
@@ -300,56 +300,47 @@ impl Project {
         let mut landed = List::with_capacity(changes);
         for n in 0..changes {
             queued
-                .push(
-                    f::ChangesQueued {
-                            task: 6000 + u64::from(n),
-                            title: format!("Queued change {n}").into_bytes().into(),
-                            ready_since: RECENT,
-                            checks_since: None,
-                            goal: (n == 0).then(|| from(100, "Live goal 0")),
-                            chat: (n == 1).then(|| from(4000, "Draft chat 0")),
-                            milestone: None,
-                        },
-                )
+                .push(f::ChangesQueued {
+                    task: 6000 + u64::from(n),
+                    title: format!("Queued change {n}").into_bytes().into(),
+                    ready_since: RECENT,
+                    checks_since: None,
+                    goal: (n == 0).then(|| from(100, "Live goal 0")),
+                    chat: (n == 1).then(|| from(4000, "Draft chat 0")),
+                    milestone: None,
+                })
                 .expect("queue window");
             let signed = [
+                f::ChangesSigned { party: PARTY, head: [1; 32], at: RECENT, name: Some(b"Pat".as_slice().into()) },
                 f::ChangesSigned {
-                        party: PARTY,
-                        head: [1; 32],
-                        at: RECENT,
-                        name: Some(b"Pat".as_slice().into()),
-                    },
-                f::ChangesSigned {
-                        party: 74,
-                        head: [1; 32],
-                        at: RECENT,
-                        name: Some(format!("Signer {n}").into_bytes().into()),
-                    },
+                    party: 74,
+                    head: [1; 32],
+                    at: RECENT,
+                    name: Some(format!("Signer {n}").into_bytes().into()),
+                },
             ];
             landed
-                .push(
-                    f::ChangesLanded {
-                            task: 7000 + u64::from(n),
-                            title: format!("Landed change {n}").into_bytes().into(),
-                            at: RECENT,
-                            commit: [2; 32],
-                            default_branch: true,
-                            goal: None,
-                            chat: None,
-                            milestone: None,
-                            signed: List::from_boxed(Box::new(signed)),
-                        },
-                )
+                .push(f::ChangesLanded {
+                    task: 7000 + u64::from(n),
+                    title: format!("Landed change {n}").into_bytes().into(),
+                    at: RECENT,
+                    commit: [2; 32],
+                    default_branch: true,
+                    goal: None,
+                    chat: None,
+                    milestone: None,
+                    signed: List::from_boxed(Box::new(signed)),
+                })
                 .expect("landed window");
         }
         panel.queues = List::from_boxed(Box::new([f::ChangesQueue {
-                repository: b"shop/widget".as_slice().into(),
-                branch: b"main".as_slice().into(),
-                red: false,
-                changes: queued,
-                way: f::Way::Queue,
-                in_flight: None,
-            }]));
+            repository: b"shop/widget".as_slice().into(),
+            branch: b"main".as_slice().into(),
+            red: false,
+            changes: queued,
+            way: f::Way::Queue,
+            in_flight: None,
+        }]));
         panel.landed = landed.clone();
         panel.landed_default = landed;
         project.changes = panel;
@@ -357,22 +348,20 @@ impl Project {
         for n in 0..drafts {
             panel
                 .drafts
-                .push(
-                    f::LandedDraft {
-                            forge: wire::FORGE,
-                            owner: b"shop".as_slice().into(),
-                            name: b"widget".as_slice().into(),
-                            path: format!("draft-{n}.md").into_bytes().into(),
-                            branch: b"main".as_slice().into(),
-                            commit: b"abcdef".as_slice().into(),
-                            title: format!("Landed draft {n}").into_bytes().into(),
-                            writer: PARTY,
-                            at: RECENT,
-                            chat: None,
-                            goal: None,
-                            ready: true,
-                        },
-                )
+                .push(f::LandedDraft {
+                    forge: wire::FORGE,
+                    owner: b"shop".as_slice().into(),
+                    name: b"widget".as_slice().into(),
+                    path: format!("draft-{n}.md").into_bytes().into(),
+                    branch: b"main".as_slice().into(),
+                    commit: b"abcdef".as_slice().into(),
+                    title: format!("Landed draft {n}").into_bytes().into(),
+                    writer: PARTY,
+                    at: RECENT,
+                    chat: None,
+                    goal: None,
+                    ready: true,
+                })
                 .expect("draft window");
         }
         project.drafts = panel;
@@ -519,26 +508,25 @@ impl Project {
     fn family_read(bytes: &[u8]) -> Box<[u8]> {
         let reading = wire::decode_reading(bytes, &f::CEILINGS).expect("family read");
         match &reading.read {
-            f::Read::Playground => wire::playground_answer(
-                &f::PlaygroundAnswer {
-                        forge: wire::FORGE,
-                        project: Some(PROJECT),
-                        provider: 17,
-                        owner: b"playground".as_slice().into(),
-                        name: b"widget".as_slice().into(),
-                        state: f::PlaygroundState::Running,
-                        cues: List::with_capacity(0),
-                    },
-            ),
-            f::Read::Deployment => wire::deployment_answer(
-                &f::DeploymentAnswer { welcome: true, owned: true, program_login: None, push: None },
-            ),
-            f::Read::ProgramEnvironment => wire::program_environment_answer(
-                &f::ProgramEnvironmentAnswer { environment: Box::new([]) },
-            ),
-            f::Read::Setting(_) => wire::setting_answer(
-                &f::SettingAnswer { value: None, revision: None },
-            ),
+            f::Read::Playground => wire::playground_answer(&f::PlaygroundAnswer {
+                forge: wire::FORGE,
+                project: Some(PROJECT),
+                provider: 17,
+                owner: b"playground".as_slice().into(),
+                name: b"widget".as_slice().into(),
+                state: f::PlaygroundState::Running,
+                cues: List::with_capacity(0),
+            }),
+            f::Read::Deployment => wire::deployment_answer(&f::DeploymentAnswer {
+                welcome: true,
+                owned: true,
+                program_login: None,
+                push: None,
+            }),
+            f::Read::ProgramEnvironment => {
+                wire::program_environment_answer(&f::ProgramEnvironmentAnswer { environment: Box::new([]) })
+            }
+            f::Read::Setting(_) => wire::setting_answer(&f::SettingAnswer { value: None, revision: None }),
             other => panic!("unexpected family read: {other:?}"),
         }
     }
@@ -554,30 +542,17 @@ impl Project {
                 wire::drafts_panel(&self.drafts)
             }
             f::Watch::Dismissed => {
-                let fact = f::PersonFact::GoalFrom(
-                    f::GoalFrom { project: PROJECT, chat: 4000, goal: 100, at: RECENT },
-                );
-                wire::dismissals(
-                    &f::Dismissals { dismissed: List::from_boxed(Box::new([fact])) },
-                )
+                let fact = f::PersonFact::GoalFrom(f::GoalFrom { project: PROJECT, chat: 4000, goal: 100, at: RECENT });
+                wire::dismissals(&f::Dismissals { dismissed: List::from_boxed(Box::new([fact])) })
             }
-            f::Watch::Forges => wire::forges(
-                &f::Forges { forges: List::with_capacity(0), linked: true },
-            ),
-            f::Watch::Away => {
-                wire::aways(&f::Aways { rows: List::with_capacity(0) })
-            }
+            f::Watch::Forges => wire::forges(&f::Forges { forges: List::with_capacity(0), linked: true }),
+            f::Watch::Away => wire::aways(&f::Aways { rows: List::with_capacity(0) }),
             f::Watch::Trials => {
-                let record =
-                    f::Trials { rows: List::with_capacity(0) };
+                let record = f::Trials { rows: List::with_capacity(0) };
                 record.encode(&f::CEILINGS).expect("trials within ceilings")
             }
-            f::Watch::Approvals => wire::approvals(
-                &f::Approvals { rows: List::with_capacity(0), more: 0 },
-            ),
-            f::Watch::Devices => wire::devices(
-                &f::Devices { rows: List::with_capacity(0) },
-            ),
+            f::Watch::Approvals => wire::approvals(&f::Approvals { rows: List::with_capacity(0), more: 0 }),
+            f::Watch::Devices => wire::devices(&f::Devices { rows: List::with_capacity(0) }),
             other => panic!("unexpected family watch: {other:?}"),
         }
     }

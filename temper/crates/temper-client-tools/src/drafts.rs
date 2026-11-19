@@ -1,5 +1,4 @@
 //! Landed drafts, the writer's door (temper/docs/design/client/ctl/areas.md), area 7.
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -22,6 +21,7 @@ use temper_client_domain_forge::{
     forge::{self, drafts},
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const PROJECT: jig::table::Argument =
@@ -167,7 +167,13 @@ fn text(call: &jig::call::Call, at: usize) -> Box<[u8]> {
 fn send(state: &mut Drafts, client: &Client, env: &Env<Limits>, called: Called, project: u32, out: &mut Queue<Out>) {
     let bounds = forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
     let repository = if value(&called.call, 1).is_some() {
-        let Ok(repository) = ({ let value = w::DraftRepository { owner: text(&called.call, 1), name: text(&called.call, 2) }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+        let Ok(repository) = ({
+            let value = w::DraftRepository { owner: text(&called.call, 1), name: text(&called.call, 2) };
+            match value.encode(&bounds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }) else {
             fail(called, b"repository past the forge's bounds", out);
             return;
         };
@@ -177,9 +183,7 @@ fn send(state: &mut Drafts, client: &Client, env: &Env<Limits>, called: Called, 
     };
     let is_ready = tool(&called.call).name == READY.name;
     let change = if is_ready {
-        w::DraftChange::Ready(
-            w::ReadyDraft { chat: number(&called.call, 3) },
-        )
+        w::DraftChange::Ready(w::ReadyDraft { chat: number(&called.call, 3) })
     } else {
         w::DraftChange::NotReady
     };

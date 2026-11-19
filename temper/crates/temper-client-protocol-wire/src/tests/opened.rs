@@ -1,7 +1,7 @@
 //! The person's act's bounds, beside the generated codecs' round trips
 //! (temper/docs/design/client/forge/records.md, `OpenChange`).
-use crate::v1::Record;
 use crate::v1 as w;
+use crate::v1::Record;
 
 fn repeated(byte: u8, length: u32) -> Box<[u8]> {
     let mut bytes = skein_lib::List::with_capacity(length);

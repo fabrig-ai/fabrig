@@ -84,17 +84,15 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
     admit(&mut host, duties);
     assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
 
-    let record = wire::playground_answer(
-        &f::PlaygroundAnswer {
-                state: f::PlaygroundState::Running,
-                project: Some(3),
-                forge: 2,
-                provider: 3,
-                owner: b"playground".as_slice().into(),
-                name: b"widget".as_slice().into(),
-                cues: List::with_capacity(0),
-            },
-    );
+    let record = wire::playground_answer(&f::PlaygroundAnswer {
+        state: f::PlaygroundState::Running,
+        project: Some(3),
+        forge: 2,
+        provider: 3,
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        cues: List::with_capacity(0),
+    });
     let answer = w::ReadAnswer::Value(goal::family(record));
     let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
     answer.encode(&mut writer).unwrap();

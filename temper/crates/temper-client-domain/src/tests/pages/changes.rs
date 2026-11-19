@@ -45,59 +45,53 @@ fn panel(tasks: &[u64], landed: &[u64]) -> w::ChangesPanel {
     let mut changes = List::with_capacity(32);
     for task in tasks {
         changes
-            .push(
-                w::ChangesQueued {
-                        goal: None,
-                        chat: None,
-                        milestone: None,
-                        task: *task,
-                        title: b"Queued change".as_slice().into(),
-                        ready_since: 0,
-                        checks_since: None,
-                    },
-            )
+            .push(w::ChangesQueued {
+                goal: None,
+                chat: None,
+                milestone: None,
+                task: *task,
+                title: b"Queued change".as_slice().into(),
+                ready_since: 0,
+                checks_since: None,
+            })
             .unwrap();
     }
     let mut queues = List::with_capacity(32);
     queues
-        .push(
-            w::ChangesQueue {
-                    way: w::Way::Queue,
-                    in_flight: None,
-                    repository: b"owner/repo".as_slice().into(),
-                    branch: b"main".as_slice().into(),
-                    red: false,
-                    changes,
-                },
-        )
+        .push(w::ChangesQueue {
+            way: w::Way::Queue,
+            in_flight: None,
+            repository: b"owner/repo".as_slice().into(),
+            branch: b"main".as_slice().into(),
+            red: false,
+            changes,
+        })
         .unwrap();
     let mut rows = List::with_capacity(32);
     for task in landed {
-        rows.push(
-            w::ChangesLanded {
-                    goal: None,
-                    chat: None,
-                    milestone: None,
-                    signed: List::with_capacity(8),
-                    commit: [0xab; 32],
-                    default_branch: true,
-                    task: *task,
-                    title: b"Landed change".as_slice().into(),
-                    at: 0,
-                },
-        )
+        rows.push(w::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
+            signed: List::with_capacity(8),
+            commit: [0xab; 32],
+            default_branch: true,
+            task: *task,
+            title: b"Landed change".as_slice().into(),
+            at: 0,
+        })
         .unwrap();
     }
     w::ChangesPanel {
-            landed_default: List::with_capacity(0),
-            landed_default_more: 0,
-            project: f::PROJECT,
-            landing: b"main".as_slice().into(),
-            queues,
-            more: 19,
-            landed: rows,
-            landed_more: 13,
-        }
+        landed_default: List::with_capacity(0),
+        landed_default_more: 0,
+        project: f::PROJECT,
+        landing: b"main".as_slice().into(),
+        queues,
+        more: 19,
+        landed: rows,
+        landed_more: 13,
+    }
 }
 fn show(root: &mut Domain, watch: Token, panel: &w::ChangesPanel) -> Queue<Request> {
     up(
@@ -144,9 +138,7 @@ fn changes_watch_is_project_scoped_and_leaves_with_the_page() {
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!(
         &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch,
-        &w::Watch::Changes(
-            w::ChangesSubject { project: f::PROJECT }
-        )
+        &w::Watch::Changes(w::ChangesSubject { project: f::PROJECT })
     );
     let (mut root, watch) = fixture();
     match root.pages().changes().unwrap().state() {
@@ -213,20 +205,18 @@ fn row_origins_arrive_in_the_panel_without_task_reads() {
         row.goal = goal.clone();
         row.chat = chat.clone();
         queue.changes = List::from_boxed(Box::new([row]));
-        queue.in_flight = Some(
-            w::TrainLanding {
-                    task: 100,
-                    member: 42,
-                    round: 1,
-                    step: w::LandingStep::Proving,
-                    title: b"In flight".as_slice().into(),
-                    ready_since: 0,
-                    probe: None,
-                    goal: goal.clone(),
-                    chat: chat.clone(),
-                    milestone: None,
-                },
-        );
+        queue.in_flight = Some(w::TrainLanding {
+            task: 100,
+            member: 42,
+            round: 1,
+            step: w::LandingStep::Proving,
+            title: b"In flight".as_slice().into(),
+            ready_since: 0,
+            probe: None,
+            goal: goal.clone(),
+            chat: chat.clone(),
+            milestone: None,
+        });
         parts.queues = List::from_boxed(Box::new([queue]));
         let mut row = parts.landed.get(0).unwrap().clone();
         row.goal = goal.clone();
@@ -268,19 +258,17 @@ fn default_branch_rows_need_no_task_reads() {
 fn list_for_default(tasks: &[u64]) -> List<w::ChangesLanded> {
     let mut rows = List::with_capacity(32);
     for task in tasks {
-        rows.push(
-            w::ChangesLanded {
-                    goal: None,
-                    chat: None,
-                    milestone: None,
-                    signed: List::with_capacity(8),
-                    task: *task,
-                    title: b"Main landing".as_slice().into(),
-                    at: 0,
-                    commit: [0xab; 32],
-                    default_branch: true,
-                },
-        )
+        rows.push(w::ChangesLanded {
+            goal: None,
+            chat: None,
+            milestone: None,
+            signed: List::with_capacity(8),
+            task: *task,
+            title: b"Main landing".as_slice().into(),
+            at: 0,
+            commit: [0xab; 32],
+            default_branch: true,
+        })
         .unwrap();
     }
     rows

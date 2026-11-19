@@ -1,8 +1,8 @@
 //! Away and decision rules (temper/docs/design/domain/forge/attention.md, 4, 5).
-use temper_client_protocol_wire::v1::Record;
 use super::*;
 use jig_domain_people::ApplicationScope;
 use skein_lib::ReplyTo;
+use temper_client_protocol_wire::v1::Record;
 use temper_protocol_reaches::{Class, Classes, Item, Kind, PathSet, Reach, Reason, Subject};
 
 const PARTY: u64 = 7;
@@ -236,7 +236,10 @@ fn classes_judge_every_call_and_keep_its_reach() {
                     patterns: Box::new([Box::from(b"src/**".as_slice())]),
                 }]),
             };
-            let size = temper_protocol_reaches::classes_record(&classes).unwrap().measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings");
+            let size = temper_protocol_reaches::classes_record(&classes)
+                .unwrap()
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings");
             outputs(
                 &mut d,
                 Event::Restore {

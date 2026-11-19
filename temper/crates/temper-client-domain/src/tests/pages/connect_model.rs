@@ -931,8 +931,7 @@ fn an_empty_environment_answer_confirms_the_default_directories() {
     assert!(!page.program_environment_answered());
     let mut out = environment_read(&mut page, &program_address(false), Link::Live, &mut 0);
     let Some(pages::Request::Client(C::Read { handle, .. })) = out.pop() else { panic!("read") };
-    let answer =
-        w::ProgramEnvironmentAnswer { environment: Box::new([]) };
+    let answer = w::ProgramEnvironmentAnswer { environment: Box::new([]) };
     assert!(page.environment_told(&Told::Page {
         handle,
         page: Readout::Family { family: wire::FORGE, record: Some(wire::program_environment_answer(&answer)) },

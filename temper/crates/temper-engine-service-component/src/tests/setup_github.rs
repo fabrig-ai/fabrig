@@ -1,9 +1,9 @@
 //! GitHub service composition (temper/docs/design/protocol/setup/github.md).
-use temper_client_protocol_wire::v1::Record;
 use super::*;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
 use skein_lib::{Reader, ReplyTo};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[path = "setup_github_render.rs"]
@@ -221,14 +221,10 @@ fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
 }
 
 fn connect_request_with_policy(app: u64, read_only: Option<bool>) -> w::Request {
-    w::Request::Connect(
-        w::Connect {
-                forge: w::Making::Kept(w::Kept { forge: FORGE }),
-                how: w::How::GithubApp(
-                    w::GitHubApp { id: app, read_only },
-                ),
-            },
-    )
+    w::Request::Connect(w::Connect {
+        forge: w::Making::Kept(w::Kept { forge: FORGE }),
+        how: w::How::GithubApp(w::GitHubApp { id: app, read_only }),
+    })
 }
 
 fn paste_success(service: &mut crate::Service, face: &mut Face) {
@@ -270,9 +266,7 @@ fn http_paste_with_policy(
     let (_, bundle) = carried_pem();
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
-    let record = wire::requesting(
-        &w::Requesting { request: connect_request_with_policy(app, read_only) },
-    );
+    let record = wire::requesting(&w::Requesting { request: connect_request_with_policy(app, read_only) });
     let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
     family.encode(&mut bytes).unwrap();
@@ -490,20 +484,18 @@ fn a_successful_paste_retry_clears_the_rows_readable_failure() {
 }
 
 fn adopt_request(owner: &[u8]) -> w::Request {
-    w::Request::Adopt(
-        w::Adopt {
-                project: 1,
-                home: false,
-                forge: FORGE,
-                owner: owner.into(),
-                name: b"unadopted".as_slice().into(),
-                prefix: b"temper".as_slice().into(),
-                role: w::Role::Adopted,
-                landing: b"main".as_slice().into(),
-                ci: false,
-                checks: List::with_capacity(0),
-            },
-    )
+    w::Request::Adopt(w::Adopt {
+        project: 1,
+        home: false,
+        forge: FORGE,
+        owner: owner.into(),
+        name: b"unadopted".as_slice().into(),
+        prefix: b"temper".as_slice().into(),
+        role: w::Role::Adopted,
+        landing: b"main".as_slice().into(),
+        ci: false,
+        checks: List::with_capacity(0),
+    })
 }
 
 fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8]) -> Face {

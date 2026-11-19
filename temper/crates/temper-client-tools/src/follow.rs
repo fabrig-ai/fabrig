@@ -212,10 +212,10 @@ pub(crate) fn told(state: &mut Follows, client: &Client, env: &Env<Limits>, told
                     missing(watch)
                 } else {
                     let panel = w::FollowsPanel {
-                            project: watch.project.expect("project"),
-                            follows: skein_lib::List::with_capacity(0),
-                            dependencies: skein_lib::List::with_capacity(0),
-                        };
+                        project: watch.project.expect("project"),
+                        follows: skein_lib::List::with_capacity(0),
+                        dependencies: skein_lib::List::with_capacity(0),
+                    };
                     print::print(&panel, None, projects, watch.called.json, &env.limits)
                 }
             }

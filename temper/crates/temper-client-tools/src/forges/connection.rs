@@ -1,5 +1,4 @@
 //! Forge connections (temper/docs/design/client/ctl/areas.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{ACCEPT, CONNECT, Forges, INSTALL, REPLACE, domain, finish};
 use crate::{
     jig::{
@@ -16,6 +15,7 @@ use jig_client::{Event, Key, Outcome, Told};
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::owner::Owner;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -52,35 +52,17 @@ fn request(
     let request = if let Some(installation) = installation {
         w::Request::Accept(w::Accept { forge, installation })
     } else if tokens {
-        w::Request::Connect(
-            w::Connect {
-                    forge: making,
-                    how: w::How::ForgejoTokens(w::ForgejoTokens {}),
-                },
-        )
+        w::Request::Connect(w::Connect { forge: making, how: w::How::ForgejoTokens(w::ForgejoTokens {}) })
     } else if let Some(admin) = admin {
-        w::Request::Connect(
-            w::Connect { forge: making, how: w::How::ForgejoAdmin(admin) },
-        )
+        w::Request::Connect(w::Connect { forge: making, how: w::How::ForgejoAdmin(admin) })
     } else if manifest {
-        w::Request::Connect(
-            w::Connect {
-                    forge: making,
-                    how: w::How::GithubManifest(
-                        w::GitHubManifest { back: None },
-                    ),
-                },
-        )
+        w::Request::Connect(w::Connect { forge: making, how: w::How::GithubManifest(w::GitHubManifest { back: None }) })
     } else {
         match app {
-            Some((id, read_only)) => w::Request::Connect(
-                w::Connect {
-                        forge: making,
-                        how: w::How::GithubApp(
-                            w::GitHubApp { id, read_only: Some(read_only) },
-                        ),
-                    },
-            ),
+            Some((id, read_only)) => w::Request::Connect(w::Connect {
+                forge: making,
+                how: w::How::GithubApp(w::GitHubApp { id, read_only: Some(read_only) }),
+            }),
             None => w::Request::Install(w::Install { forge, back: None }),
         }
     };
@@ -134,14 +116,28 @@ fn admin_how(call: &jig::call::Call, limits: &Limits) -> Result<w::ForgejoAdmin,
                 }
             }
             Some(
-                { let value = w::FirstAsk { org: org.into(), repository: repository.into(), label: label.into() }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+                {
+                    let value = w::FirstAsk { org: org.into(), repository: repository.into(), label: label.into() };
+                    match value.encode(&bounds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }
                 .ok()
                 .ok_or(invalid)?,
             )
         }
         _ => return Err(invalid),
     };
-    { let value = w::ForgejoAdmin { first }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }.ok().ok_or(invalid)
+    {
+        let value = w::ForgejoAdmin { first };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .ok()
+    .ok_or(invalid)
 }
 const MANAGED_FAILURE: &[u8] = b"invalid --api, --tls, --git, --web or --git-program";
 
@@ -804,7 +800,11 @@ fn managed(call: &jig::call::Call, limits: &Limits) -> Option<w::ManagedForge> {
     let tls = text_option(call, tls_at).ok()?;
     let web = text_option(call, web_at).ok()?;
     let git_program = text_option(call, program_at).ok()?;
-    { let value = w::ManagedForge { host: host.into(), port, tls, git: git.clone(), web, git_program }; value.measure(&bounds).ok()?; Some(value) }
+    {
+        let value = w::ManagedForge { host: host.into(), port, tls, git: git.clone(), web, git_program };
+        value.measure(&bounds).ok()?;
+        Some(value)
+    }
 }
 
 fn text_option(call: &jig::call::Call, index: usize) -> Result<Option<Box<[u8]>>, ()> {

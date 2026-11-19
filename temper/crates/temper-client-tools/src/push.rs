@@ -1,5 +1,4 @@
 //! Push subscriptions (temper/docs/design/client/ctl/tools.md, 2, 3).
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -21,6 +20,7 @@ use skein_lib::{
     base64::{self, Alphabet},
 };
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const LIST: Tool = Tool {
@@ -79,12 +79,16 @@ pub fn subscription(bytes: &[u8], label: &[u8]) -> Option<w::AddDevice> {
     if endpoint.is_empty() {
         return None;
     }
-    { let value = w::AddDevice {
+    {
+        let value = w::AddDevice {
             endpoint: endpoint.into(),
             p256dh: p256dh.as_ref().try_into().ok()?,
             auth: auth.as_ref().try_into().ok()?,
             label: label.into(),
-        }; value.measure(&w::CEILINGS).ok()?; Some(value) }
+        };
+        value.measure(&w::CEILINGS).ok()?;
+        Some(value)
+    }
 }
 fn string(doc: &skein_json::Document, at: u32) -> Option<&[u8]> {
     let token = doc.token(at)?;
@@ -148,8 +152,7 @@ pub(crate) fn ready(state: &mut Devices, client: &Client, env: &Env<Limits>, out
         let serial = (u64::from(called.call_number) << 32_u32) | 0x28;
         if name == LIST.name {
             let handle = Handle { asker: Owner::Forge.asker(), number: serial };
-            let watching =
-                w::Watching { watch: w::Watch::Devices };
+            let watching = w::Watching { watch: w::Watch::Devices };
             state.watching.insert(handle, called);
             out.push(Out::Client {
                 event: Event::Watch {
@@ -184,14 +187,16 @@ pub(crate) fn ready(state: &mut Devices, client: &Client, env: &Env<Limits>, out
                 };
                 w::Request::AddDevice(record)
             } else {
-                w::Request::RemoveDevice(
-                    w::RemoveDevice { number },
-                )
+                w::Request::RemoveDevice(w::RemoveDevice { number })
             };
             let record = w::Requesting { request };
             let request = Ask::Family {
                 scope: c::Scope::Own,
-                record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).expect("checked subscription") },
+                record: Family {
+                    family: wire::FORGE,
+                    version: wire::CLIENT_VERSION,
+                    bytes: record.encode(&bounds).expect("checked subscription"),
+                },
             };
             let key = Key { asker: Owner::Forge.asker(), number: serial };
             let name = match &called.call.key {

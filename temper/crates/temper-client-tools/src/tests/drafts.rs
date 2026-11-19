@@ -64,22 +64,12 @@ fn every_draft_refusal_says_what_to_do_and_exits_two() {
         (w::DraftRefusal::Full, "shop keeps 64 landed drafts, every one listed: say one not ready first\n"),
     ] {
         let (mut root, call) = f::draft_root("ready", &[]);
-        root.adoption_answer(
-            call,
-            w::Outcome::DraftRefused(
-                w::DraftRefused { reason },
-            ),
-        );
+        root.adoption_answer(call, w::Outcome::DraftRefused(w::DraftRefused { reason }));
         let printed = root.answer(call).expect("draft refused");
         assert_eq!((printed.status, printed.stderr.as_ref()), (2, expected.as_bytes()));
     }
     let (mut root, call) = f::draft_root("ready", &["--owner", "o", "--name", "n"]);
-    root.adoption_answer(
-        call,
-        w::Outcome::DraftRefused(
-            w::DraftRefused { reason: w::DraftRefusal::NoRepository },
-        ),
-    );
+    root.adoption_answer(call, w::Outcome::DraftRefused(w::DraftRefused { reason: w::DraftRefusal::NoRepository }));
     assert_eq!(root.answer(call).expect("no repository").stderr.as_ref(), b"no repository o/n in shop\n");
 }
 #[test]

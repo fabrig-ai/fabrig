@@ -1,9 +1,9 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::family;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Reader, ReplyTo, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain::ways;
@@ -15,26 +15,20 @@ const WATCHER: Token = Token::new(7);
 #[test]
 fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
     for (budget, expected_budget) in [
-        (
-            w::OpenBudget::Amount(w::OpenAmount { amount: 500 }),
-            forge::OpenBudget::Amount(500),
-        ),
+        (w::OpenBudget::Amount(w::OpenAmount { amount: 500 }), forge::OpenBudget::Amount(500)),
         (w::OpenBudget::AsAllowed, forge::OpenBudget::AsAllowed),
     ] {
         let input = w::OpenChange {
-                project: 7,
-                repository: Some(
-                    w::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
-                ),
-                branch: b"docs/x".as_slice().into(),
-                at: Some(Box::new([b'a'; 40])),
-                into: Some(b"release".as_slice().into()),
-                title: b"Fix the docs".as_slice().into(),
-                body: Some(b"Keep examples.".as_slice().into()),
-                budget,
-            };
-        let record =
-            w::Requesting { request: w::Request::OpenChange(input) };
+            project: 7,
+            repository: Some(w::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() }),
+            branch: b"docs/x".as_slice().into(),
+            at: Some(Box::new([b'a'; 40])),
+            into: Some(b"release".as_slice().into()),
+            title: b"Fix the docs".as_slice().into(),
+            body: Some(b"Keep examples.".as_slice().into()),
+            budget,
+        };
+        let record = w::Requesting { request: w::Request::OpenChange(input) };
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -81,7 +75,10 @@ fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
         panic!("open refusal")
     };
     let w::OpenRefusal::UnderPrefix(why) = &answer.reason else { panic!("under prefix") };
-    assert_eq!((why.owner.as_ref(), why.name.as_ref(), why.prefix.as_ref()), (b"org".as_slice(), b"repo".as_slice(), b"temper/".as_slice()));
+    assert_eq!(
+        (why.owner.as_ref(), why.name.as_ref(), why.prefix.as_ref()),
+        (b"org".as_slice(), b"repo".as_slice(), b"temper/".as_slice())
+    );
 }
 
 #[test]
@@ -95,26 +92,17 @@ fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
     for (act, expected) in [
         (w::FollowAct::Start(w::FollowAt { after }), A::Start { after }),
         (
-            w::FollowAct::Hold(
-                w::FollowReasonAct { after, reason: b"waits".as_slice().into() },
-            ),
+            w::FollowAct::Hold(w::FollowReasonAct { after, reason: b"waits".as_slice().into() }),
             A::Hold { after, reason: b"waits".as_slice().into() },
         ),
         (
-            w::FollowAct::Skip(
-                w::FollowReasonAct { after, reason: b"build only".as_slice().into() },
-            ),
+            w::FollowAct::Skip(w::FollowReasonAct { after, reason: b"build only".as_slice().into() }),
             A::Skip { after, reason: b"build only".as_slice().into() },
         ),
-        (
-            w::FollowAct::Merge(w::FollowMergeAct { afters }),
-            A::Merge { afters: Box::new([after, next]) },
-        ),
+        (w::FollowAct::Merge(w::FollowMergeAct { afters }), A::Merge { afters: Box::new([after, next]) }),
     ] {
-        let request =
-            w::FollowActRequest { project: 2, follow: 1, act };
-        let record =
-            w::Requesting { request: w::Request::FollowAct(request) };
+        let request = w::FollowActRequest { project: 2, follow: 1, act };
+        let record = w::Requesting { request: w::Request::FollowAct(request) };
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -152,17 +140,17 @@ fn adopt() -> w::Adopt {
     checks.push(2).unwrap();
     checks.push(3).unwrap();
     w::Adopt {
-            project: 7,
-            home: true,
-            forge: 1,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            prefix: b"repo".as_slice().into(),
-            role: w::Role::Adopted,
-            landing: b"main".as_slice().into(),
-            ci: true,
-            checks,
-        }
+        project: 7,
+        home: true,
+        forge: 1,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        prefix: b"repo".as_slice().into(),
+        role: w::Role::Adopted,
+        landing: b"main".as_slice().into(),
+        ci: true,
+        checks,
+    }
 }
 fn exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplication {
     kit::ToApplication::Request {
@@ -616,11 +604,7 @@ fn not_installed_projects_to_no_access_until_temper_07_adds_its_wire_reason() {
 
 const CHANGE_TASK: u64 = 51;
 fn watching(task: u64) -> Box<[u8]> {
-    wire::watching(
-        &w::Watching {
-                watch: w::Watch::Change(w::ChangeSubject { task }),
-            },
-    )
+    wire::watching(&w::Watching { watch: w::Watch::Change(w::ChangeSubject { task }) })
 }
 fn watch_exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplication {
     kit::ToApplication::Watch {
@@ -777,35 +761,35 @@ fn a_panel_encodes_and_decodes_back_whole() {
         gates.push(w::Gate { number, kind, blocks, verdict }).unwrap();
     }
     let expected = w::ChangePanel {
-            wait: None,
-            source: None,
-            way: w::Way::Queue,
-            in_landing: None,
-            task: CHANGE_TASK,
-            forge: 1,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            branch: b"temper/51".as_slice().into(),
-            landing: b"main".as_slice().into(),
-            head: Some([4; 32]),
-            pull: Some(w::Pull { number: 123, address: Box::new([]) }),
-            step: queued(3, &[49, 47]),
-            hold: Some(w::Hold::Updates),
-            runs: Some(81),
-            ci_required: true,
-            ci: w::Ci::Pending,
-            gates,
-            approvals: List::with_capacity(0),
-            unmapped_reviews: List::with_capacity(0),
-            repairs: w::Used { used: 1, limit: 3 },
-            resolutions: w::Used { used: 2, limit: 4 },
-            updates: w::Used { used: 3, limit: 5 },
-            questions: w::Questions {
-                    route: w::Route::None,
-                    taken: w::Used { used: 0, limit: 4 },
-                    open: List::with_capacity(0),
-                },
-        };
+        wait: None,
+        source: None,
+        way: w::Way::Queue,
+        in_landing: None,
+        task: CHANGE_TASK,
+        forge: 1,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        branch: b"temper/51".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        head: Some([4; 32]),
+        pull: Some(w::Pull { number: 123, address: Box::new([]) }),
+        step: queued(3, &[49, 47]),
+        hold: Some(w::Hold::Updates),
+        runs: Some(81),
+        ci_required: true,
+        ci: w::Ci::Pending,
+        gates,
+        approvals: List::with_capacity(0),
+        unmapped_reviews: List::with_capacity(0),
+        repairs: w::Used { used: 1, limit: 3 },
+        resolutions: w::Used { used: 2, limit: 4 },
+        updates: w::Used { used: 3, limit: 5 },
+        questions: w::Questions {
+            route: w::Route::None,
+            taken: w::Used { used: 0, limit: 4 },
+            open: List::with_capacity(0),
+        },
+    };
     assert_eq!(decoded_panel(panel(), &fixtures::forge_table(&[])), expected);
 }
 fn landing_repair_panel(reason: change::Repair, gate: u16) {
@@ -819,12 +803,7 @@ fn landing_repair_panel(reason: change::Repair, gate: u16) {
     assert_eq!(decoded.task, 4);
     assert_eq!(decoded.runs, Some(15));
     assert_eq!(decoded.in_landing, Some(13));
-    assert_eq!(
-        decoded.step,
-        repairing(w::Reason::Landing(
-            w::GateReason { gate: u64::from(gate) }
-        ))
-    );
+    assert_eq!(decoded.step, repairing(w::Reason::Landing(w::GateReason { gate: u64::from(gate) })));
 }
 #[test]
 fn a_blamed_landing_repair_panel_keeps_its_gate_and_delegate() {
@@ -853,18 +832,9 @@ fn repairing(reason: w::Reason) -> w::Step {
 fn every_panel_step_keeps_its_payload_on_the_wire() {
     for (input, expected) in [
         (forge::PanelStep::Ended, w::Step::Ended),
-        (
-            forge::PanelStep::Ready { landing: Some(61) },
-            w::Step::Ready(w::InLanding { landing: Some(61) }),
-        ),
-        (
-            forge::PanelStep::Ready { landing: None },
-            w::Step::Ready(w::InLanding { landing: None }),
-        ),
-        (
-            forge::PanelStep::Preparing { landing: Some(61) },
-            w::Step::Preparing(w::InLanding { landing: Some(61) }),
-        ),
+        (forge::PanelStep::Ready { landing: Some(61) }, w::Step::Ready(w::InLanding { landing: Some(61) })),
+        (forge::PanelStep::Ready { landing: None }, w::Step::Ready(w::InLanding { landing: None })),
+        (forge::PanelStep::Preparing { landing: Some(61) }, w::Step::Preparing(w::InLanding { landing: Some(61) })),
         (forge::PanelStep::Producing, w::Step::Producing),
         (forge::PanelStep::Opening, w::Step::Opening),
         (forge::PanelStep::Recreating, w::Step::Recreating),
@@ -876,17 +846,11 @@ fn every_panel_step_keeps_its_payload_on_the_wire() {
         (forge::PanelStep::Updating, w::Step::Updating),
         (forge::PanelStep::Resolving, w::Step::Resolving),
         (forge::PanelStep::Repairing(change::Repair::Ci), repairing(w::Reason::Ci)),
-        (
-            forge::PanelStep::Repairing(change::Repair::Gate(9)),
-            repairing(w::Reason::Gate(w::GateReason { gate: 9 })),
-        ),
+        (forge::PanelStep::Repairing(change::Repair::Gate(9)), repairing(w::Reason::Gate(w::GateReason { gate: 9 }))),
         (forge::PanelStep::Repairing(change::Repair::Semantic), repairing(w::Reason::Semantic)),
         (forge::PanelStep::Repairing(change::Repair::Review { head: [7; 32] }), repairing(w::Reason::Review)),
         (forge::PanelStep::Landing, w::Step::Landing),
-        (
-            forge::PanelStep::Landed { merge: [8; 32] },
-            w::Step::Landed(w::Landed { merge: [8; 32] }),
-        ),
+        (forge::PanelStep::Landed { merge: [8; 32] }, w::Step::Landed(w::Landed { merge: [8; 32] })),
     ] {
         let mut value = panel();
         for (way, expected_way) in [(change::Way::Queue, w::Way::Queue), (change::Way::Turn, w::Way::Turn)] {
@@ -1053,19 +1017,15 @@ fn requesting() -> w::Requesting {
 #[test]
 fn setup_requests_preserve_the_keyed_envelope_and_forge() {
     let request = w::Requesting {
-            request: w::Request::SetUp(
-                w::SetUp {
-                        forge: w::Making::Kept(w::Kept { forge: 3 }),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                        ),
-                    },
-            ),
-        };
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge: 3 }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1134,21 +1094,15 @@ fn setup_outcomes_use_the_family_answer_including_unknown() {
         (Some(forge::SetUpAnswer::SettingUp), w::Outcome::SettingUp),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::NotOffered)),
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused { why: w::SetUpRefusal::NotOffered },
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotOffered }),
         ),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::NotUnderTheBox)),
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused { why: w::SetUpRefusal::NotUnderTheBox },
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotUnderTheBox }),
         ),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Busy)),
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused { why: w::SetUpRefusal::Busy },
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Busy }),
         ),
     ] {
         let outcome = match outcome {
@@ -1263,12 +1217,7 @@ fn a_row_s_fetched_reaches_the_wire() {
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
         let w::Connection::SettingUp(setup) = &rows.forges.get(0).unwrap().connection else { panic!("setting up") };
         assert_eq!(&setup.step, &Some(w::SetUpStep::Fetch));
-        assert_eq!(
-            &setup.fetched,
-            &Some(
-                w::SetUpFetched { binary: expected_binary, done: 10, total }
-            )
-        );
+        assert_eq!(&setup.fetched, &Some(w::SetUpFetched { binary: expected_binary, done: 10, total }));
     }
 }
 
@@ -1298,9 +1247,7 @@ fn forges_encode_the_domains_rows_without_settings() {
             1,
             w::Kind::Forgejo,
             w::Mode::Owned,
-            w::Connection::SettingUp(
-                w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
-            ),
+            w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None }),
             w::Offer::Offered,
         ),
         (2, w::Kind::Github, w::Mode::Connected, w::Connection::NotConnected, w::Offer::NotOffered),
@@ -1321,35 +1268,33 @@ fn expected_forge_row(
     offer: w::Offer,
 ) -> w::ForgeRow {
     w::ForgeRow {
-            starts_with: w::StartsWith::Repository,
-            makings: List::with_capacity(0),
-            host: b"git.example:3000".as_slice().into(),
-            number,
-            kind,
-            mode,
-            connection,
-            offer,
-            first: None,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: if number == 1 {
-                Some(
-                    w::OwnedForge {
-                            forgejo: b"17.0.0".as_slice().into(),
-                            runner: Some(b"13.2.0".as_slice().into()),
-                            password: b"/fake/forge/person_password".as_slice().into(),
-                        },
-                )
-            } else {
-                None
-            },
-            admin: false,
-            read_only: false,
-            ended_stop: None,
-        }
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number,
+        kind,
+        mode,
+        connection,
+        offer,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: if number == 1 {
+            Some(w::OwnedForge {
+                forgejo: b"17.0.0".as_slice().into(),
+                runner: Some(b"13.2.0".as_slice().into()),
+                password: b"/fake/forge/person_password".as_slice().into(),
+            })
+        } else {
+            None
+        },
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    }
 }
 
 #[test]
@@ -1389,19 +1334,15 @@ fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
 #[test]
 fn setup_and_first_repository_states_translate_without_losing_fields() {
     let record = w::Requesting {
-            request: w::Request::SetUp(
-                w::SetUp {
-                        forge: w::Making::Kept(w::Kept { forge: 3 }),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty {
-                                    playground: false,
-                                    org: b"team".as_slice().into(),
-                                    repository: b"widget".as_slice().into(),
-                                },
-                        ),
-                    },
-            ),
-        };
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge: 3 }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                org: b"team".as_slice().into(),
+                repository: b"widget".as_slice().into(),
+            }),
+        }),
+    };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -1477,8 +1418,7 @@ fn invalid_setup_refusals_translate_to_the_wire() {
         &jig,
     )
     .unwrap();
-    let w::Outcome::SetUpRefused(value) =
-        w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome
+    let w::Outcome::SetUpRefused(value) = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome
     else {
         panic!("refusal")
     };
@@ -1494,35 +1434,25 @@ fn playground_start_outcomes_encode_every_failure_and_unknown() {
         (Some(forge::StartAnswer::Running), w::Outcome::Running),
         (
             Some(forge::StartAnswer::NotOffered),
-            w::Outcome::StartRefused(
-                w::StartRefused { why: w::StartRefusal::NotOffered },
-            ),
+            w::Outcome::StartRefused(w::StartRefused { why: w::StartRefusal::NotOffered }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::Account)),
-            w::Outcome::StartFailed(
-                w::StartFailed { why: w::StartFailure::Account },
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::Adoption)),
-            w::Outcome::StartFailed(
-                w::StartFailed { why: w::StartFailure::Adoption },
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Adoption }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::NotConnected)),
-            w::Outcome::StartFailed(
-                w::StartFailed { why: w::StartFailure::NotConnected },
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::NotConnected }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::Group {
                 why: b"prepare 1 exited 1".as_slice().into(),
             })),
-            w::Outcome::StartFailed(
-                w::StartFailed { why: w::StartFailure::Group(group) },
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Group(group) }),
         ),
     ] {
         let (first, playground) = match answer {
@@ -1534,10 +1464,7 @@ fn playground_start_outcomes_encode_every_failure_and_unknown() {
         };
         for answer in [first, playground] {
             let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
-            assert_eq!(
-                w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome,
-                expected
-            );
+            assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
         }
     }
 }
@@ -1570,17 +1497,11 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
         // Oversized values cannot pass the wire's own bound; all other rows also cross decode.
         if path.len() <= 512 {
             for request in [
-                w::Request::Install(
-                    w::Install { forge: 1, back: Some(path.into()) },
-                ),
-                w::Request::Connect(
-                    w::Connect {
-                            forge: w::Making::Kept(w::Kept { forge: 1 }),
-                            how: w::How::GithubManifest(
-                                w::GitHubManifest { back: Some(path.into()) },
-                            ),
-                        },
-                ),
+                w::Request::Install(w::Install { forge: 1, back: Some(path.into()) }),
+                w::Request::Connect(w::Connect {
+                    forge: w::Making::Kept(w::Kept { forge: 1 }),
+                    how: w::How::GithubManifest(w::GitHubManifest { back: Some(path.into()) }),
+                }),
             ] {
                 let request = w::Requesting { request };
                 let result = family::to_root(
@@ -1640,11 +1561,7 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
 
 #[test]
 fn install_without_a_back_is_admitted() {
-    let request = w::Requesting {
-            request: w::Request::Install(
-                w::Install { forge: 1, back: None },
-            ),
-        };
+    let request = w::Requesting { request: w::Request::Install(w::Install { forge: 1, back: None }) };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1710,9 +1627,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
     assert!(row.admin);
     assert_eq!(
         &row.ended_stop,
-        &Some(w::AdminStop::Refused(
-            w::AdminRefused { status: 403, stage: w::SetupStage::Token }
-        ))
+        &Some(w::AdminStop::Refused(w::AdminRefused { status: 403, stage: w::SetupStage::Token }))
     );
     let installation = row.installations.get(0).unwrap();
     assert_eq!((installation.id, installation.suspended, installation.stray), (11, true, false));
@@ -1796,11 +1711,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
 #[test]
 fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
     for installation in [0, 22, u64::MAX] {
-        let request = w::Requesting {
-                request: w::Request::Accept(
-                    w::Accept { forge: 1, installation },
-                ),
-            };
+        let request = w::Requesting { request: w::Request::Accept(w::Accept { forge: 1, installation }) };
         let result = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1830,21 +1741,15 @@ fn accept_answers_use_the_appended_success_and_existing_refusals() {
     for (answer, expected) in [
         (
             forge::AcceptAnswer::Accepted { installation: 22 },
-            w::Outcome::Accepted(
-                w::AcceptedInstallation { installation: 22 },
-            ),
+            w::Outcome::Accepted(w::AcceptedInstallation { installation: 22 }),
         ),
         (
             forge::AcceptAnswer::Refused(forge::ForgeRefusal::Role),
-            w::Outcome::ConnectRefused(
-                w::ConnectRefused { why: w::ForgeRefusal::Role },
-            ),
+            w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::Role }),
         ),
         (
             forge::AcceptAnswer::ForgeRefused(forge::AdoptionRefusal::NotFound),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused { reason: w::ForgeReason::NotFound },
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::NotFound }),
         ),
     ] {
         let bytes = family::answer(Some(root::ApplicationAnswer::Accept(answer)), &w::CEILINGS, &jig).unwrap();
@@ -2163,13 +2068,8 @@ fn a_landings_view_encodes_to_its_list() {
 fn the_landings_subject_names_no_task() {
     for project in [0, 7, u32::MAX] {
         for ended in [false, true] {
-            let record = wire::watching(
-                &w::Watching {
-                        watch: w::Watch::Landings(
-                            w::LandingsSubject { project, ended },
-                        ),
-                    },
-            );
+            let record =
+                wire::watching(&w::Watching { watch: w::Watch::Landings(w::LandingsSubject { project, ended }) });
             let got = family::to_root(
                 &jig_protocol_config::Directories::working(),
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -2191,13 +2091,7 @@ fn the_landings_subject_names_no_task() {
             assert!(subject.raw() >= (1_u64 << 62_u32));
         }
     }
-    let record = wire::watching(
-        &w::Watching {
-                watch: w::Watch::Landing(
-                    w::LandingSubject { task: 61 },
-                ),
-            },
-    );
+    let record = wire::watching(&w::Watching { watch: w::Watch::Landing(w::LandingSubject { task: 61 }) });
     let got = family::to_root(
         &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -2217,13 +2111,7 @@ fn the_landings_subject_names_no_task() {
             subject: Token::new(61)
         }
     );
-    let record = wire::watching(
-        &w::Watching {
-                watch: w::Watch::Landing(
-                    w::LandingSubject { task: 0 },
-                ),
-            },
-    );
+    let record = wire::watching(&w::Watching { watch: w::Watch::Landing(w::LandingSubject { task: 0 }) });
     let Err(refused) = family::to_root(
         &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -2243,29 +2131,19 @@ fn the_landings_subject_names_no_task() {
 fn forge_removal_and_playground_requests_keep_their_envelopes() {
     for (request, expected) in [
         (
-            w::Request::Dismiss(
-                w::Dismiss {
-                        what: w::PersonFact::ToBegin(
-                            w::ToBegin { project: 2 },
-                        ),
-                    },
-            ),
+            w::Request::Dismiss(w::Dismiss { what: w::PersonFact::ToBegin(w::ToBegin { project: 2 }) }),
             root::Application::Dismiss { what: forge::PersonFact::ToBegin { project: 2 } },
         ),
         (
-            w::Request::Dismiss(
-                w::Dismiss {
-                        what: w::PersonFact::KeepAsking(
-                            w::KeepAsking {
-                                    project: 2,
-                                    subject: temper_protocol_reaches::subject_record(
-                                        temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
-                                    ),
-                                    at: 17,
-                                },
-                        ),
-                    },
-            ),
+            w::Request::Dismiss(w::Dismiss {
+                what: w::PersonFact::KeepAsking(w::KeepAsking {
+                    project: 2,
+                    subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
+                        temper_protocol_reaches::Kind::Tests,
+                    )),
+                    at: 17,
+                }),
+            }),
             root::Application::Dismiss {
                 what: forge::PersonFact::KeepAsking {
                     project: 2,
@@ -2307,16 +2185,14 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
 }
 #[test]
 fn new_forge_places_reach_both_setup_and_connect_whole() {
-    let managed = w::ForgeAsk::Managed(
-        w::ManagedForge {
-                git_program: Some(b"bin/git".as_slice().into()),
-                host: b"forge.example".as_slice().into(),
-                port: 8443,
-                tls: Some(b"forge.example".as_slice().into()),
-                git: b"https://forge.example/git".as_slice().into(),
-                web: Some(b"https://forge.example".as_slice().into()),
-            },
-    );
+    let managed = w::ForgeAsk::Managed(w::ManagedForge {
+        git_program: Some(b"bin/git".as_slice().into()),
+        host: b"forge.example".as_slice().into(),
+        port: 8443,
+        tls: Some(b"forge.example".as_slice().into()),
+        git: b"https://forge.example/git".as_slice().into(),
+        web: Some(b"https://forge.example".as_slice().into()),
+    });
     let place = forge::Place {
         api: forge::Address {
             host: b"forge.example".as_slice().into(),
@@ -2341,18 +2217,14 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
         let making = w::Making::New(w::NewForge { forge: asked });
         for (request, expected) in [
             (
-                w::Request::SetUp(
-                    w::SetUp {
-                            forge: making.clone(),
-                            first: w::SetUpFirst::Empty(
-                                w::FirstEmpty {
-                                        org: b"work".as_slice().into(),
-                                        repository: b"hello".as_slice().into(),
-                                        playground: false,
-                                    },
-                            ),
-                        },
-                ),
+                w::Request::SetUp(w::SetUp {
+                    forge: making.clone(),
+                    first: w::SetUpFirst::Empty(w::FirstEmpty {
+                        org: b"work".as_slice().into(),
+                        repository: b"hello".as_slice().into(),
+                        playground: false,
+                    }),
+                }),
                 forge::Ask::SetUp {
                     forge: forge::Making::New(expected.clone()),
                     first: forge::SetUpFirst::Empty {
@@ -2363,14 +2235,10 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                 },
             ),
             (
-                w::Request::Connect(
-                    w::Connect {
-                            forge: making,
-                            how: w::How::ForgejoAdmin(
-                                w::ForgejoAdmin { first: None },
-                            ),
-                        },
-                ),
+                w::Request::Connect(w::Connect {
+                    forge: making,
+                    how: w::How::ForgejoAdmin(w::ForgejoAdmin { first: None }),
+                }),
                 forge::Ask::Connect {
                     forge: forge::Making::New(expected),
                     how: forge::How::ForgejoAdmin { first: None },
@@ -2404,24 +2272,18 @@ fn removal_and_playground_answers_use_their_own_outcomes() {
         (root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed), w::Outcome::Dismissed),
         (
             root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         ),
         (root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed), w::Outcome::Removed),
         (
             root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::ForgeRefusal::Role)),
-            w::Outcome::RemoveRefused(
-                w::RemoveRefused { why: w::ForgeRefusal::Role },
-            ),
+            w::Outcome::RemoveRefused(w::RemoveRefused { why: w::ForgeRefusal::Role }),
         ),
         (root::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running), w::Outcome::Running),
         (root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset), w::Outcome::Reset),
         (
             root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered),
-            w::Outcome::EndRefused(
-                w::EndRefused { why: w::EndRefusal::NotOffered },
-            ),
+            w::Outcome::EndRefused(w::EndRefused { why: w::EndRefusal::NotOffered }),
         ),
     ] {
         let bytes = family::answer(Some(answer), &w::CEILINGS, &jig).unwrap();
@@ -2435,10 +2297,7 @@ fn end_playground_answers_reset() {
     let bytes =
         family::answer(Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)), &w::CEILINGS, &jig)
             .unwrap();
-    assert_eq!(
-        w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome,
-        w::Outcome::Reset
-    );
+    assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, w::Outcome::Reset);
 }
 
 #[test]
@@ -2476,20 +2335,13 @@ fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
 fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
     for (request, expected) in [
         (
-            w::Request::Connect(
-                w::Connect {
-                        forge: w::Making::Kept(w::Kept { forge: 9 }),
-                        how: w::How::ForgejoTokens(
-                            w::ForgejoTokens {},
-                        ),
-                    },
-            ),
+            w::Request::Connect(w::Connect {
+                forge: w::Making::Kept(w::Kept { forge: 9 }),
+                how: w::How::ForgejoTokens(w::ForgejoTokens {}),
+            }),
             forge::Ask::Connect { forge: forge::Making::Kept(9), how: forge::How::ForgejoTokens },
         ),
-        (
-            w::Request::Replace(w::Replace { forge: 9 }),
-            forge::Ask::Replace { forge: 9 },
-        ),
+        (w::Request::Replace(w::Replace { forge: 9 }), forge::Ask::Replace { forge: 9 }),
     ] {
         let record = w::Requesting { request };
         let carried = Some(jig_domain_core::Carried { number: 27, digest: [8; 32] });
@@ -2540,9 +2392,7 @@ fn connect_and_replace_answers_share_the_connect_outcomes() {
         (Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)), w::Outcome::Connecting),
         (
             Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(forge::ForgeRefusal::NotTaken))),
-            w::Outcome::ConnectRefused(
-                w::ConnectRefused { why: w::ForgeRefusal::NotTaken },
-            ),
+            w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::NotTaken }),
         ),
         (None, w::Outcome::Unknown),
     ] {
@@ -2555,23 +2405,17 @@ fn connect_and_replace_answers_share_the_connect_outcomes() {
 fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
     for (read, query, expected_scope) in [
         (
-            w::Read::Setting(
-                w::SettingRead { kind: 2, scope: 7, number: 3 },
-            ),
+            w::Read::Setting(w::SettingRead { kind: 2, scope: 7, number: 3 }),
             root::ForgeRead::Setting { kind: 2, scope: 7, number: 3 },
             people::ApplicationScope::Deployment,
         ),
         (
-            w::Read::ProposalItems(
-                w::ProposalItemsRead { key: u64::MAX },
-            ),
+            w::Read::ProposalItems(w::ProposalItemsRead { key: u64::MAX }),
             root::ForgeRead::ProposalItems { key: u64::MAX },
             people::ApplicationScope::Deployment,
         ),
         (
-            w::Read::View(
-                w::ViewRead { project: 7, address: b"proposal t12/3".as_slice().into() },
-            ),
+            w::Read::View(w::ViewRead { project: 7, address: b"proposal t12/3".as_slice().into() }),
             root::ForgeRead::View { project: 7, address: b"proposal t12/3".as_slice().into() },
             people::ApplicationScope::Project(7),
         ),
@@ -2661,42 +2505,28 @@ fn a_panels_questions_map_field_for_field() {
             let number = 1_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
             let line = b"Which branch?".as_slice();
             open.push(forge::PanelQuestion { asker, number, line: Box::from(line), stands }).unwrap();
-            expected
-                .push(
-                    w::Question { asker, number, line: Box::from(line), stands: wire },
-                )
-                .unwrap();
+            expected.push(w::Question { asker, number, line: Box::from(line), stands: wire }).unwrap();
         }
         value.questions =
             forge::PanelQuestions { route, taken: forge::PanelUsed { used: 2, limit: 4 }, open: open.into_boxed() };
         let got = decoded_panel(value, &fixtures::forge_table(&[]));
         assert_eq!(
             &got.questions,
-            &w::Questions {
-                    route: expected_route,
-                    taken: w::Used { used: 2, limit: 4 },
-                    open: expected
-                }
+            &w::Questions { route: expected_route, taken: w::Used { used: 2, limit: 4 }, open: expected }
         );
     }
 }
 
 fn make_request(from: w::MakeFrom, into: bool) -> w::Requesting {
     w::Requesting {
-            request: w::Request::MakeRepository(
-                w::MakeRepository {
-                        forge: 1,
-                        org: b"work".as_slice().into(),
-                        name: b"copied".as_slice().into(),
-                        from,
-                        into: if into {
-                            Some(w::MakeInto { project: 7, home: true })
-                        } else {
-                            None
-                        },
-                    },
-            ),
-        }
+        request: w::Request::MakeRepository(w::MakeRepository {
+            forge: 1,
+            org: b"work".as_slice().into(),
+            name: b"copied".as_slice().into(),
+            from,
+            into: if into { Some(w::MakeInto { project: 7, home: true }) } else { None },
+        }),
+    }
 }
 #[test]
 fn make_repository_reaches_the_root_with_its_host_and_kept_source() {
@@ -2704,9 +2534,7 @@ fn make_repository_reaches_the_root_with_its_host_and_kept_source() {
     for (from, expected, into) in [
         (w::MakeFrom::Empty, forge::MakeFrom::Empty, false),
         (
-            w::MakeFrom::Copy(
-                w::MakeCopy { address: b"source.invalid/upstream/starter.git".as_slice().into() },
-            ),
+            w::MakeFrom::Copy(w::MakeCopy { address: b"source.invalid/upstream/starter.git".as_slice().into() }),
             forge::MakeFrom::Copy { address: b"https://source.invalid/upstream/starter".as_slice().into() },
             true,
         ),
@@ -2771,10 +2599,7 @@ fn make_repository_without_a_configured_forge_has_no_host() {
 #[test]
 fn make_repository_refuses_a_source_the_parser_rejects() {
     for address in [b"ssh://source.invalid/upstream/starter".as_slice(), b"source.invalid/too/many/segments"] {
-        let request = make_request(
-            w::MakeFrom::Copy(w::MakeCopy { address: address.into() }),
-            false,
-        );
+        let request = make_request(w::MakeFrom::Copy(w::MakeCopy { address: address.into() }), false);
         let answer = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -2814,8 +2639,7 @@ fn make_refused(why: w::MakeRefusal) -> w::Outcome {
 fn forge_rows_encode_the_makings_and_all_their_states() {
     // Four live states and five steps with six failure reasons.
     const STATES: u32 = 34;
-    let made =
-        w::MakingMade { id: 23, branch: b"trunk".as_slice().into() };
+    let made = w::MakingMade { id: 23, branch: b"trunk".as_slice().into() };
     let mut states = List::with_capacity(STATES);
     for state in [
         (forge::MakingState::Waiting, w::MakingState::Waiting),
@@ -2836,10 +2660,7 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
             (forge::MakeFailure::Taken, w::MakeFailure::Taken),
             (forge::MakeFailure::Empty, w::MakeFailure::Empty),
             (forge::MakeFailure::TimedOut, w::MakeFailure::TimedOut),
-            (
-                forge::MakeFailure::Refused { status: 422 },
-                w::MakeFailure::Refused(w::Refused { status: 422 }),
-            ),
+            (forge::MakeFailure::Refused { status: 422 }, w::MakeFailure::Refused(w::Refused { status: 422 })),
             (forge::MakeFailure::NotAllowed, w::MakeFailure::NotAllowed),
             (forge::MakeFailure::Other, w::MakeFailure::Other),
         ] {
@@ -2850,13 +2671,11 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
                         reason,
                         words: b"stopped".as_slice().into(),
                     }),
-                    w::MakingState::Failed(
-                        w::MakingFailed {
-                                step: expected_step.clone(),
-                                reason: expected_reason,
-                                words: b"stopped".as_slice().into(),
-                            },
-                    ),
+                    w::MakingState::Failed(w::MakingFailed {
+                        step: expected_step.clone(),
+                        reason: expected_reason,
+                        words: b"stopped".as_slice().into(),
+                    }),
                 ))
                 .unwrap();
         }
@@ -2883,9 +2702,7 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
         assert_eq!((making.org.as_ref(), making.name.as_ref()), (b"work".as_slice(), b"copied".as_slice()));
         assert_eq!(
             &making.from,
-            &w::MakeFrom::Copy(
-                w::MakeCopy { address: b"https://source.invalid/upstream/starter".as_slice().into() }
-            )
+            &w::MakeFrom::Copy(w::MakeCopy { address: b"https://source.invalid/upstream/starter".as_slice().into() })
         );
         let into = making.into.as_ref().unwrap();
         assert_eq!((into.project, into.home), (7, true));
@@ -2941,11 +2758,7 @@ fn dismissals_encode_the_partys_rows() {
         let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
         let mut expected = List::with_capacity(wire::DISMISSED);
         for project in projects {
-            expected
-                .push(w::PersonFact::ToBegin(
-                    w::ToBegin { project: *project },
-                ))
-                .unwrap();
+            expected.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
         }
         assert_eq!(got, w::Dismissals { dismissed: expected });
     }
@@ -2961,13 +2774,11 @@ fn dismissals_encode_the_partys_rows() {
         assert_eq!(got.dismissed.len(), 1);
         assert_eq!(
             got.dismissed.iter().next(),
-            Some(&w::PersonFact::KeepAsking(
-                w::KeepAsking {
-                        project: 2,
-                        subject: temper_protocol_reaches::subject_record(subject),
-                        at: u64::MAX,
-                    }
-            ))
+            Some(&w::PersonFact::KeepAsking(w::KeepAsking {
+                project: 2,
+                subject: temper_protocol_reaches::subject_record(subject),
+                at: u64::MAX,
+            }))
         );
     }
 }
@@ -2976,16 +2787,9 @@ fn dismissals_encode_the_partys_rows() {
 fn setup_copy_addresses_are_canonicalised_before_admission() {
     let mut addresses = List::with_capacity(1);
     addresses.push(Box::from(b"source.example/owner/repo.git".as_slice())).unwrap();
-    let first =
-        w::SetUpFirst::Copies(w::CopyAddresses { addresses });
-    let request = w::Requesting {
-            request: w::Request::SetUp(
-                w::SetUp {
-                        forge: w::Making::Kept(w::Kept { forge: 3 }),
-                        first,
-                    },
-            ),
-        };
+    let first = w::SetUpFirst::Copies(w::CopyAddresses { addresses });
+    let request =
+        w::Requesting { request: w::Request::SetUp(w::SetUp { forge: w::Making::Kept(w::Kept { forge: 3 }), first }) };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -3013,9 +2817,7 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 #[expect(clippy::too_many_lines, reason = "one whole document pins queue, flight and history fields")]
 fn changes_document_encodes_and_decodes() {
     let from = Some(forge::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
-    let expected = Some(
-        w::ChangeFrom { task: 23, title: b"Origin".as_slice().into() },
-    );
+    let expected = Some(w::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
     let mut value = forge::ChangesView {
         landed_default: Box::new([forge::ChangesLanded {
             goal: None,
@@ -3108,7 +2910,10 @@ fn changes_document_encodes_and_decodes() {
     assert_eq!((got.project, got.landing.as_ref(), got.more, got.landed_more), (7, b"main".as_slice(), 3, 4));
     assert_eq!(got.queues.len(), 1);
     let queue = got.queues.get(0).unwrap();
-    assert_eq!((queue.repository.as_ref(), queue.branch.as_ref(), queue.red), (b"acme/shop".as_slice(), b"main".as_slice(), true));
+    assert_eq!(
+        (queue.repository.as_ref(), queue.branch.as_ref(), queue.red),
+        (b"acme/shop".as_slice(), b"main".as_slice(), true)
+    );
     let flight = queue.in_flight.as_ref().expect("train's landing");
     assert_eq!(
         (flight.task, flight.member, flight.round, &flight.step, &flight.probe),
@@ -3156,14 +2961,9 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
     let card = ways::Card { who: b"an agent".as_slice().into(), name: b"the coder".as_slice().into(), facts };
     let mut wire_facts = List::with_capacity(4);
     for fact in &card.facts {
-        wire_facts
-            .push(
-                w::Fact { label: fact.label.clone(), value: fact.value.clone() },
-            )
-            .unwrap();
+        wire_facts.push(w::Fact { label: fact.label.clone(), value: fact.value.clone() }).unwrap();
     }
-    let wire_card =
-        w::Card { who: card.who.clone(), name: card.name.clone(), facts: wire_facts };
+    let wire_card = w::Card { who: card.who.clone(), name: card.name.clone(), facts: wire_facts };
     let mut stops = List::uncapped();
     let mut wire_stops = List::with_capacity(7);
     for (actor, step, words, opens, wire_actor, wire_step, wire_opens, needed, over) in [
@@ -3249,17 +3049,15 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             .push(ways::Stop { needed, over: over.into(), actor, step, words: words.into(), opens, card: card.clone() })
             .unwrap();
         wire_stops
-            .push(
-                w::Stop {
-                        needed,
-                        over: over.into(),
-                        actor: wire_actor,
-                        step: wire_step,
-                        words: words.into(),
-                        opens: wire_opens,
-                        card: wire_card.clone(),
-                    },
-            )
+            .push(w::Stop {
+                needed,
+                over: over.into(),
+                actor: wire_actor,
+                step: wire_step,
+                words: words.into(),
+                opens: wire_opens,
+                card: wire_card.clone(),
+            })
             .unwrap();
     }
     let repository = Some(Box::from(b"acme/shop".as_slice()));
@@ -3331,7 +3129,10 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     assert_eq!(&panel.own, &expected);
     let words = document.words.as_ref().unwrap();
     let panel_words = panel.words.as_ref().expect("the project's words are sent");
-    assert_eq!((panel_words.headline.as_ref(), panel_words.lede.as_ref()), (words.headline.as_ref(), words.lede.as_ref()));
+    assert_eq!(
+        (panel_words.headline.as_ref(), panel_words.lede.as_ref()),
+        (words.headline.as_ref(), words.lede.as_ref())
+    );
     let mut without_words = document.clone();
     without_words.words = None;
     let record = family::ways_panel(without_words, &w::CEILINGS).unwrap();
@@ -3353,12 +3154,12 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         let set = got.items.get(0).unwrap();
         assert_eq!((set.kind, set.scope, set.number), (3, 7, 1));
         let w::SettingEdit::Set(value) = &set.edit else { panic!("set item") };
-        assert_eq!(value.value.as_ref(), temper_engine_smith::kinds::encode(&forge::settings::Value::Charter(3)).as_ref());
-        let removed = got.items.get(1).unwrap();
         assert_eq!(
-            (removed.kind, removed.scope, removed.number, &removed.edit),
-            (2, 7, 4, &w::SettingEdit::Removed)
+            value.value.as_ref(),
+            temper_engine_smith::kinds::encode(&forge::settings::Value::Charter(3)).as_ref()
         );
+        let removed = got.items.get(1).unwrap();
+        assert_eq!((removed.kind, removed.scope, removed.number, &removed.edit), (2, 7, 4, &w::SettingEdit::Removed));
         let classes = got.items.get(2).unwrap();
         assert_eq!((classes.kind, classes.scope, classes.number), (8, 7, 1));
         let w::SettingEdit::Set(value) = &classes.edit else { panic!("classes item") };
@@ -3400,9 +3201,7 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     for (view, expected_view) in [
         (
             ways::View::Proposal { before: path.clone(), after },
-            w::View::Proposal(
-                w::ProposalView { before: expected.clone(), after: expected_after },
-            ),
+            w::View::Proposal(w::ProposalView { before: expected.clone(), after: expected_after }),
         ),
         (ways::View::Path(path.clone()), w::View::Path(expected.clone())),
         (
@@ -3412,30 +3211,21 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
                 path: path.clone(),
                 current: true,
             },
-            w::View::Way(
-                w::WayView {
-                        name: b"Ask first".as_slice().into(),
-                        line: b"How it lands".as_slice().into(),
-                        path: expected.clone(),
-                        current: true,
-                    },
-            ),
+            w::View::Way(w::WayView {
+                name: b"Ask first".as_slice().into(),
+                line: b"How it lands".as_slice().into(),
+                path: expected.clone(),
+                current: true,
+            }),
         ),
         (
             ways::View::Charter { charter: 3, card: card.clone() },
-            w::View::Charter(
-                w::CharterView { charter: 3, card: expected_card.clone() },
-            ),
+            w::View::Charter(w::CharterView { charter: 3, card: expected_card.clone() }),
         ),
-        (
-            ways::View::Roles(roles.into_boxed()),
-            w::View::Roles(w::RolesView { roles: expected_roles }),
-        ),
+        (ways::View::Roles(roles.into_boxed()), w::View::Roles(w::RolesView { roles: expected_roles })),
         (
             ways::View::NotDrawn(b"No such charter".as_slice().into()),
-            w::View::NotDrawn(
-                w::NotDrawn { words: b"No such charter".as_slice().into() },
-            ),
+            w::View::NotDrawn(w::NotDrawn { words: b"No such charter".as_slice().into() }),
         ),
     ] {
         let record = family::forge_read(root::ForgeReadAnswer::View(Box::new(view)), &[], &w::CEILINGS).unwrap();
@@ -3489,9 +3279,7 @@ fn view_reads_refuse_scopes_other_than_the_named_project() {
     for scope in
         [people::ApplicationScope::Deployment, people::ApplicationScope::Own, people::ApplicationScope::Project(8)]
     {
-        let read = w::Read::View(
-            w::ViewRead { project: 7, address: b"proposal t12/3".as_slice().into() },
-        );
+        let read = w::Read::View(w::ViewRead { project: 7, address: b"proposal t12/3".as_slice().into() });
         let exchange = kit::ToApplication::Read {
             reply: REPLY,
             sign_in: 3,
@@ -3561,14 +3349,8 @@ fn the_changes_watch_names_its_project_subject() {
 #[expect(clippy::too_many_lines, reason = "the family test covers Looked and its status document in both directions")]
 fn looked_and_status_translate_both_ways() {
     const PROJECT: u32 = 7;
-    let requesting = w::Requesting {
-            request: w::Request::Looked(w::Looked { project: PROJECT }),
-        };
-    let watching = w::Watching {
-            watch: w::Watch::Status(
-                w::StatusSubject { project: PROJECT },
-            ),
-        };
+    let requesting = w::Requesting { request: w::Request::Looked(w::Looked { project: PROJECT }) };
+    let watching = w::Watching { watch: w::Watch::Status(w::StatusSubject { project: PROJECT }) };
     let forges = fixtures::forge_table(&[]);
     let mut carried_request = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting));
     let carried = jig_domain_core::Carried { number: 2, digest: [9; 32] };
@@ -3633,9 +3415,7 @@ fn looked_and_status_translate_both_ways() {
         (Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)), w::Outcome::Looked),
         (
             Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge)),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         ),
         (None, w::Outcome::Unknown),
     ] {
@@ -3693,14 +3473,12 @@ fn looked_and_status_translate_both_ways() {
         assert_eq!(
             got.brief,
             match brief {
-                Some(brief) => Some(
-                    w::StatusBrief {
-                            sentence: brief.sentence,
-                            lede: brief.lede,
-                            at: brief.at.as_nanos(),
-                            landed: brief.landed,
-                        }
-                ),
+                Some(brief) => Some(w::StatusBrief {
+                    sentence: brief.sentence,
+                    lede: brief.lede,
+                    at: brief.at.as_nanos(),
+                    landed: brief.landed,
+                }),
                 None => None,
             }
         );
@@ -3957,9 +3735,7 @@ fn set_away_reads_as_the_forges_event() {
     const PROJECT: u32 = 9; // Deliberately differs from the envelope's project 7.
     for (on, until) in [(true, Some(123)), (false, None)] {
         assert_eq!(
-            away_request(w::Request::SetAway(
-                w::SetAway { project: PROJECT, on, until }
-            )),
+            away_request(w::Request::SetAway(w::SetAway { project: PROJECT, on, until })),
             root::Application::SetAway { project: PROJECT, on, until: away_wall(until) }
         );
     }
@@ -3967,9 +3743,7 @@ fn set_away_reads_as_the_forges_event() {
         (Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)), w::Outcome::Away),
         (
             Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::TooLarge)),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         ),
         (None, w::Outcome::Unknown),
     ] {
@@ -3981,24 +3755,18 @@ fn overturn_reads_as_the_forges_event() {
     const PROJECT: u32 = 9;
     const NUMBER: u32 = 12;
     assert_eq!(
-        away_request(w::Request::Overturn(
-            w::Overturn { project: PROJECT, number: NUMBER }
-        )),
+        away_request(w::Request::Overturn(w::Overturn { project: PROJECT, number: NUMBER })),
         root::Application::Overturn { project: PROJECT, number: NUMBER }
     );
     for (answer, expected) in [
         (Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Overturned)), w::Outcome::Overturned),
         (
             Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Already)),
-            w::Outcome::OverturnRefused(
-                w::OverturnRefused { reason: w::OverturnRefusal::Already },
-            ),
+            w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Already }),
         ),
         (
             Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Unknown)),
-            w::Outcome::OverturnRefused(
-                w::OverturnRefused { reason: w::OverturnRefusal::Unknown },
-            ),
+            w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Unknown }),
         ),
         (None, w::Outcome::Unknown),
     ] {
@@ -4011,9 +3779,7 @@ fn away_and_decided_subjects_are_scoped() {
     for (watch, scope, subject) in [
         (w::Watch::Away, people::ApplicationScope::Own, forge::AWAY_SUBJECT),
         (
-            w::Watch::Decided(
-                w::DecidedSubject { project: PROJECT },
-            ),
+            w::Watch::Decided(w::DecidedSubject { project: PROJECT }),
             people::ApplicationScope::Project(PROJECT),
             forge::decided_subject(PROJECT),
         ),
@@ -4058,10 +3824,7 @@ fn their_documents_encode() {
         )
         .unwrap();
         let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(
-            got.rows.as_slice(),
-            &[w::AwayRow { project: PROJECT, since: 11, until, landed: 4, off }]
-        );
+        assert_eq!(got.rows.as_slice(), &[w::AwayRow { project: PROJECT, since: 11, until, landed: 4, off }]);
     }
     for overturned in [false, true] {
         let row = forge::DecisionView {
@@ -4129,23 +3892,23 @@ fn their_documents_encode() {
         assert_eq!(
             got.rows.as_slice(),
             &[w::Decision {
-                    number: 12,
-                    task: 51,
-                    at: 44,
-                    question: b"Which?".as_slice().into(),
-                    took: b"First".as_slice().into(),
-                    why: b"Fits".as_slice().into(),
-                    overturned,
-                    reach: w::Reach {
-                            kind: w::ReachKind::Wording,
-                            class: w::ReachClass::Decide,
-                            reason: w::ReachReason::Kind,
-                            under: 0,
-                            sets: 0,
-                            matched: 0,
-                            away: false
-                        },
-                }]
+                number: 12,
+                task: 51,
+                at: 44,
+                question: b"Which?".as_slice().into(),
+                took: b"First".as_slice().into(),
+                why: b"Fits".as_slice().into(),
+                overturned,
+                reach: w::Reach {
+                    kind: w::ReachKind::Wording,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false
+                },
+            }]
         );
     }
     let forges = fixtures::forge_table(&[]);
@@ -4172,9 +3935,7 @@ fn their_documents_encode() {
 fn the_program_environment_read_goes_to_the_party() {
     let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
-        *record = wire::reading(
-            &w::Reading { read: w::Read::ProgramEnvironment },
-        );
+        *record = wire::reading(&w::Reading { read: w::Read::ProgramEnvironment });
         *sign_in = 3;
     }
     let event = family::to_root(
@@ -4205,11 +3966,7 @@ fn forge_read_encodes_the_environment() {
 #[test]
 fn trying_an_account_preserves_its_fields_and_uses_own_scope() {
     for again in [false, true] {
-        let record = w::Requesting {
-                request: w::Request::TryAccount(
-                    w::TryAccount { account: u32::MAX, again },
-                ),
-            };
+        let record = w::Requesting { request: w::Request::TryAccount(w::TryAccount { account: u32::MAX, again }) };
         let event = away_family(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)));
         let root::Event::Party(root::PartyInput::Application {
             reply_to,
@@ -4280,12 +4037,8 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
     let expected = [
         w::TrialState::Running,
         w::TrialState::Answered(w::TrialAnswered { seconds: 3 }),
-        w::TrialState::Failed(
-            w::TrialFailed { why: w::TrialWhy::Refused },
-        ),
-        w::TrialState::Failed(
-            w::TrialFailed { why: w::TrialWhy::Waited },
-        ),
+        w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Refused }),
+        w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }),
     ];
     for (index, state) in states.into_iter().enumerate() {
         let rows = Box::new([
@@ -4460,7 +4213,6 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
 
 #[test]
 fn findings_requests_keep_their_fields_and_admission_envelopes() {
-
     for (kind, expected_kind) in [
         (w::FindingKind::Qa, forge::FindingKind::Qa),
         (w::FindingKind::Flake, forge::FindingKind::Flake),
@@ -4475,16 +4227,14 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
         ] {
             for area in [None, Some(b"tests".as_slice().into())] {
                 assert_eq!(
-                    away_request(w::Request::FileFinding(
-                        w::FileFinding {
-                                project: 3,
-                                kind: kind.clone(),
-                                severity: severity.clone(),
-                                area: area.clone(),
-                                title: b"Flaky boot".as_slice().into(),
-                                body: b"boot timed out".as_slice().into()
-                            }
-                    )),
+                    away_request(w::Request::FileFinding(w::FileFinding {
+                        project: 3,
+                        kind: kind.clone(),
+                        severity: severity.clone(),
+                        area: area.clone(),
+                        title: b"Flaky boot".as_slice().into(),
+                        body: b"boot timed out".as_slice().into()
+                    })),
                     root::Application::FileFinding(forge::FileFinding {
                         project: 3,
                         kind: expected_kind,
@@ -4498,14 +4248,12 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
         }
     }
     assert_eq!(
-        away_request(w::Request::HandFinding(
-            w::HandFinding {
-                    project: 3,
-                    number: 27,
-                    area: b"tests".as_slice().into(),
-                    why: b"owns the boot".as_slice().into()
-                }
-        )),
+        away_request(w::Request::HandFinding(w::HandFinding {
+            project: 3,
+            number: 27,
+            area: b"tests".as_slice().into(),
+            why: b"owns the boot".as_slice().into()
+        })),
         root::Application::HandFinding(forge::HandFinding {
             project: 3,
             number: 27,
@@ -4514,22 +4262,15 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
         })
     );
     for (act, expected) in [
-        (
-            w::Triage::Route(w::FindingRoute { task: u64::MAX }),
-            forge::Triage::Route(u64::MAX),
-        ),
+        (w::Triage::Route(w::FindingRoute { task: u64::MAX }), forge::Triage::Route(u64::MAX)),
         (w::Triage::Backlog, forge::Triage::Backlog),
         (
-            w::Triage::Drop(
-                w::FindingDrop { reason: b"not reproducible".as_slice().into() },
-            ),
+            w::Triage::Drop(w::FindingDrop { reason: b"not reproducible".as_slice().into() }),
             forge::Triage::Drop(b"not reproducible".as_slice().into()),
         ),
     ] {
         assert_eq!(
-            away_request(w::Request::TriageFinding(
-                w::TriageFinding { project: 3, number: 27, act }
-            )),
+            away_request(w::Request::TriageFinding(w::TriageFinding { project: 3, number: 27, act })),
             root::Application::TriageFinding(forge::TriageFinding { project: 3, number: 27, act: expected })
         );
     }
@@ -4537,23 +4278,13 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
 
 fn finding_holders() -> [(forge::Holder, w::Holder); 3] {
     [
-        (
-            forge::Holder::Task(u64::MAX),
-            w::Holder::Task(w::HolderTask { number: u64::MAX }),
-        ),
-        (
-            forge::Holder::Party(19),
-            w::Holder::Party(w::HolderParty { number: 19 }),
-        ),
-        (
-            forge::Holder::Role(5),
-            w::Holder::Role(w::HolderRole { number: 5 }),
-        ),
+        (forge::Holder::Task(u64::MAX), w::Holder::Task(w::HolderTask { number: u64::MAX })),
+        (forge::Holder::Party(19), w::Holder::Party(w::HolderParty { number: 19 })),
+        (forge::Holder::Role(5), w::Holder::Role(w::HolderRole { number: 5 })),
     ]
 }
 #[test]
 fn findings_answers_preserve_each_refusal_and_its_owner() {
-
     for (answer, expected) in [
         (
             root::ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 27 }),
@@ -4574,18 +4305,13 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
             forge::FindingRefusal::NoArea(names.clone().into_boxed()),
             w::FindingRefusal::NoArea(w::FindingAreas { areas: names }),
         ),
-        (
-            forge::FindingRefusal::Full(128),
-            w::FindingRefusal::Full(w::FindingsFull { count: 128 }),
-        ),
+        (forge::FindingRefusal::Full(128), w::FindingRefusal::Full(w::FindingsFull { count: 128 })),
         (forge::FindingRefusal::NoFinding, w::FindingRefusal::NoFinding),
         (forge::FindingRefusal::NoGoal, w::FindingRefusal::NoGoal),
         (forge::FindingRefusal::Ended, w::FindingRefusal::Ended),
         (
             forge::FindingRefusal::Words(b"title".as_slice().into()),
-            w::FindingRefusal::Words(
-                w::FindingWords { field: b"title".as_slice().into() },
-            ),
+            w::FindingRefusal::Words(w::FindingWords { field: b"title".as_slice().into() }),
         ),
     ] {
         refusals.push((reason, expected)).unwrap();
@@ -4594,9 +4320,7 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
         refusals
             .push((
                 forge::FindingRefusal::NotYours(holder),
-                w::FindingRefusal::NotYours(
-                    w::FindingNotYours { holder: expected },
-                ),
+                w::FindingRefusal::NotYours(w::FindingNotYours { holder: expected }),
             ))
             .unwrap();
     }
@@ -4608,9 +4332,7 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
         ] {
             assert_eq!(
                 away_answer(Some(answer)),
-                w::Outcome::FindingRefused(
-                    w::FindingRefused { reason: expected.clone() }
-                )
+                w::Outcome::FindingRefused(w::FindingRefused { reason: expected.clone() })
             );
         }
     }
@@ -4633,19 +4355,17 @@ fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
             hander: Some(forge::Filer::Task(42)),
         },
         w::FindingRow {
-                number: 27,
-                kind: w::FindingKind::Red,
-                severity: w::Severity::Medium,
-                area: Some(b"tests".as_slice().into()),
-                state: w::FindingState::New,
-                title: b"Flaky boot".as_slice().into(),
-                holder: wire_holder,
-                at: 91,
-                why: Some(b"owns boot".as_slice().into()),
-                hander: Some(w::Filer::Task(
-                    w::HolderTask { number: 42 },
-                )),
-            },
+            number: 27,
+            kind: w::FindingKind::Red,
+            severity: w::Severity::Medium,
+            area: Some(b"tests".as_slice().into()),
+            state: w::FindingState::New,
+            title: b"Flaky boot".as_slice().into(),
+            holder: wire_holder,
+            at: 91,
+            why: Some(b"owns boot".as_slice().into()),
+            hander: Some(w::Filer::Task(w::HolderTask { number: 42 })),
+        },
     )
 }
 #[test]
@@ -4659,10 +4379,8 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
     ] {
         for mine in [false, true] {
             let watching = w::Watching {
-                    watch: w::Watch::Findings(
-                        w::FindingsSubject { project: 3, state: state.clone(), mine },
-                    ),
-                };
+                watch: w::Watch::Findings(w::FindingsSubject { project: 3, state: state.clone(), mine }),
+            };
             let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject, window }) =
                 away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
             else {
@@ -4703,21 +4421,12 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
     assert_eq!(got.project, 3);
     assert_eq!(got.rows.as_slice(), &[expected_row]);
     assert!(got.cut);
-    assert_eq!(
-        &got.holder,
-        &w::Holder::Party(w::HolderParty { number: 19 })
-    );
-    assert_eq!(
-        &got.triager,
-        &Some(w::AreaOwner::Party(w::AreaParty { number: 19 }))
-    );
+    assert_eq!(&got.holder, &w::Holder::Party(w::HolderParty { number: 19 }));
+    assert_eq!(&got.triager, &Some(w::AreaOwner::Party(w::AreaParty { number: 19 })));
     let area = got.areas.iter().next().unwrap();
     assert_eq!(area.name.as_ref(), repeated(b'a', 32).as_ref());
     assert_eq!(area.words.as_ref(), repeated(b'w', 480).as_ref());
-    assert_eq!(
-        &area.owner,
-        &w::AreaOwner::Charter(w::AreaCharter { number: 6 })
-    );
+    assert_eq!(&area.owner, &w::AreaOwner::Charter(w::AreaCharter { number: 6 }));
     assert_eq!(&area.holder, &None);
     assert!(
         family::document(
@@ -4734,11 +4443,7 @@ mod milestones;
 
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {
-    let reading = w::Reading {
-            read: w::Read::Finding(
-                w::FindingRead { project: 7, number: 27 },
-            ),
-        };
+    let reading = w::Reading { read: w::Read::Finding(w::FindingRead { project: 7, number: 27 }) };
     let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
         away_family(kit::ToApplication::Read {
             reply: REPLY,
@@ -4757,14 +4462,8 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
         (REPLY, 3, people::ApplicationScope::Project(7), root::ForgeRead::Finding { project: 7, number: 27 })
     );
     for (filer, expected) in [
-        (
-            forge::Filer::Task(51),
-            w::Filer::Task(w::HolderTask { number: 51 }),
-        ),
-        (
-            forge::Filer::Party(19),
-            w::Filer::Party(w::HolderParty { number: 19 }),
-        ),
+        (forge::Filer::Task(51), w::Filer::Task(w::HolderTask { number: 51 })),
+        (forge::Filer::Party(19), w::Filer::Party(w::HolderParty { number: 19 })),
     ] {
         for (goal, reason) in [(None, None), (Some(51), Some(repeated(b'r', 400)))] {
             let (row, expected_row) = finding_row_pair();
@@ -4785,23 +4484,18 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
             assert_eq!(&detail.goal, &goal);
             assert_eq!(
                 answer.result,
-                w::FindingResult::Finding(
-                    w::FindingDetail {
-                            row: expected_row,
-                            body: repeated(b'b', 4096),
-                            filer: expected.clone(),
-                            goal,
-                            reason
-                        }
-                )
+                w::FindingResult::Finding(w::FindingDetail {
+                    row: expected_row,
+                    body: repeated(b'b', 4096),
+                    filer: expected.clone(),
+                    goal,
+                    reason
+                })
             );
         }
     }
     let bytes = family::forge_read(root::ForgeReadAnswer::Finding(None), b"", &w::CEILINGS).unwrap();
-    assert_eq!(
-        wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap().result,
-        w::FindingResult::NoFinding
-    );
+    assert_eq!(wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap().result, w::FindingResult::NoFinding);
     let result = family::to_root(
         &jig_protocol_config::Directories::working(),
         kit::ToApplication::Read {
@@ -4909,30 +4603,18 @@ fn ways_rows_and_note_cross_the_wire_only_within_their_bounds() {
 #[test]
 fn set_draft_maps_every_change_and_repository() {
     for (change, expected) in [
-        (
-            w::DraftChange::Ready(w::ReadyDraft { chat: Some(7) }),
-            forge::DraftChange::Ready { chat: Some(7) },
-        ),
+        (w::DraftChange::Ready(w::ReadyDraft { chat: Some(7) }), forge::DraftChange::Ready { chat: Some(7) }),
         (w::DraftChange::NotReady, forge::DraftChange::NotReady),
-        (
-            w::DraftChange::Started(w::StartedDraft { goal: 40 }),
-            forge::DraftChange::Started { goal: 40 },
-        ),
+        (w::DraftChange::Started(w::StartedDraft { goal: 40 }), forge::DraftChange::Started { goal: 40 }),
     ] {
         for named in [false, true] {
             let repository = if named {
-                Some(
-                    w::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
-                )
+                Some(w::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() })
             } else {
                 None
             };
-            let request = w::SetDraft {
-                    project: 9,
-                    repository,
-                    path: b"draft.md".as_slice().into(),
-                    change: change.clone(),
-                };
+            let request =
+                w::SetDraft { project: 9, repository, path: b"draft.md".as_slice().into(), change: change.clone() };
             assert_eq!(
                 away_request(w::Request::SetDraft(request)),
                 root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft {
@@ -5039,9 +4721,7 @@ fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
     ] {
         assert_eq!(
             away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Refused(why)))),
-            w::Outcome::DraftRefused(
-                w::DraftRefused { reason: expected }
-            )
+            w::Outcome::DraftRefused(w::DraftRefused { reason: expected })
         );
     }
     assert_eq!(away_answer(None), w::Outcome::Unknown);
@@ -5092,20 +4772,18 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     let bytes: [u8; 17] = cursor.encode().as_ref().try_into().unwrap();
     for (of, expected) in [
         (w::HistoryOf::Project, h::Of::Project),
-        (
-            w::HistoryOf::Change(w::HistoryTask { task: 51 }),
-            h::Of::Change(51),
-        ),
-        (
-            w::HistoryOf::Landing(w::HistoryTask { task: 61 }),
-            h::Of::Landing(61),
-        ),
+        (w::HistoryOf::Change(w::HistoryTask { task: 51 }), h::Of::Change(51)),
+        (w::HistoryOf::Landing(w::HistoryTask { task: 61 }), h::Of::Landing(61)),
     ] {
         let reading = w::Reading {
-                read: w::Read::History(
-                    w::HistoryRead { project: 7, of, since: Some(5), until: Some(9), after: Some(bytes) },
-                ),
-            };
+            read: w::Read::History(w::HistoryRead {
+                project: 7,
+                of,
+                since: Some(5),
+                until: Some(9),
+                after: Some(bytes),
+            }),
+        };
         let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
             away_family(kit::ToApplication::Read {
                 reply: REPLY,
@@ -5139,16 +4817,14 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
         [(people::ApplicationScope::Project(8), bytes), (people::ApplicationScope::Project(7), [0; 17])]
     {
         let reading = w::Reading {
-                read: w::Read::History(
-                    w::HistoryRead {
-                            project: 7,
-                            of: w::HistoryOf::Project,
-                            since: None,
-                            until: None,
-                            after: Some(after),
-                        },
-                ),
-            };
+            read: w::Read::History(w::HistoryRead {
+                project: 7,
+                of: w::HistoryOf::Project,
+                since: None,
+                until: None,
+                after: Some(after),
+            }),
+        };
         let result = family::to_root(
             &jig_protocol_config::Directories::working(),
             kit::ToApplication::Read {
@@ -5221,9 +4897,7 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
         outcomes
             .push((
                 h::JobOutcome::Failed { class },
-                w::HistoryJobOutcome::Failed(
-                    w::HistoryJobFailed { class: expected },
-                ),
+                w::HistoryJobOutcome::Failed(w::HistoryJobFailed { class: expected }),
             ))
             .unwrap();
     }
@@ -5249,15 +4923,7 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     }
     let event = page.events.get(0).unwrap();
     assert_eq!(
-        (
-            event.project,
-            event.number,
-            event.change,
-            event.at,
-            event.source_at,
-            event.operation,
-            event.attempt
-        ),
+        (event.project, event.number, event.change, event.at, event.source_at, event.operation, event.attempt),
         (7, 33, 51, 6, Some(4), 99, 3)
     );
     assert_eq!((event.repository.forge, event.repository.repository), (2, 3));
@@ -5271,16 +4937,9 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     for (reply, expected) in [
         (
             h::Reply::Gone { from: 32, first: Some(35) },
-            w::HistoryReply::Gone(
-                w::HistoryGone { from: 32, first: Some(35) },
-            ),
+            w::HistoryReply::Gone(w::HistoryGone { from: 32, first: Some(35) }),
         ),
-        (
-            h::Reply::Gone { from: 40, first: None },
-            w::HistoryReply::Gone(
-                w::HistoryGone { from: 40, first: None },
-            ),
-        ),
+        (h::Reply::Gone { from: 40, first: None }, w::HistoryReply::Gone(w::HistoryGone { from: 40, first: None })),
         (h::Reply::Busy, w::HistoryReply::Busy),
     ] {
         let bytes = family::forge_read(root::ForgeReadAnswer::History(reply), b"", &w::CEILINGS).unwrap();
@@ -5304,10 +4963,7 @@ fn a_landing_repair_keeps_its_change_panel_readable() {
         value.in_landing = Some(61);
         value.runs = Some(88);
         let got = decoded_panel(value, &fixtures::forge_table(&[]));
-        assert_eq!(
-            got.step,
-            repairing(w::Reason::Landing(w::GateReason { gate: 0 }))
-        );
+        assert_eq!(got.step, repairing(w::Reason::Landing(w::GateReason { gate: 0 })));
         assert_eq!(got.in_landing, Some(61));
         assert_eq!(got.runs, Some(88));
     }
@@ -5315,29 +4971,23 @@ fn a_landing_repair_keeps_its_change_panel_readable() {
 
 #[test]
 fn tier_acts_translate_the_repository_reason_and_each_outcome() {
-    for repository in [
-        None,
-        Some(
-            w::DraftRepository { owner: b"acme".as_slice().into(), name: b"site".as_slice().into() },
-        ),
-    ] {
+    for repository in
+        [None, Some(w::DraftRepository { owner: b"acme".as_slice().into(), name: b"site".as_slice().into() })]
+    {
         for (act, expected) in [
             (
-                w::TierAct::Hold(
-                    w::TierHoldAct { reason: b"maintenance".as_slice().into() },
-                ),
+                w::TierAct::Hold(w::TierHoldAct { reason: b"maintenance".as_slice().into() }),
                 forge::TierAct::Hold { reason: b"maintenance".as_slice().into() },
             ),
             (w::TierAct::Release, forge::TierAct::Release),
         ] {
             let request = w::TierActRequest {
-                    project: 2,
-                    repository: repository.clone(),
-                    tier: b"browser".as_slice().into(),
-                    act,
-                };
-            let record =
-                w::Requesting { request: w::Request::TierAct(request) };
+                project: 2,
+                repository: repository.clone(),
+                tier: b"browser".as_slice().into(),
+                act,
+            };
+            let record = w::Requesting { request: w::Request::TierAct(request) };
             let event = family::to_root(
                 &jig_protocol_config::Directories::working(),
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -5384,9 +5034,7 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         (Err(forge::TierRefusal::NoTier), Some(w::TierRefusal::NoTier)),
         (
             Err(forge::TierRefusal::Held { party: 19, reason: b"maintenance".as_slice().into() }),
-            Some(w::TierRefusal::Held(
-                w::TierHeldBy { party: 19, reason: b"maintenance".as_slice().into() },
-            )),
+            Some(w::TierRefusal::Held(w::TierHeldBy { party: 19, reason: b"maintenance".as_slice().into() })),
         ),
         (Err(forge::TierRefusal::NotHeld), Some(w::TierRefusal::NotHeld)),
         (Err(forge::TierRefusal::Words), Some(w::TierRefusal::Words)),

@@ -51,22 +51,20 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
                 assert_eq!(scope, c::Scope::Own);
                 let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
                 for number in 1..=count {
-                    rows.push(
-                        w::DeviceRow {
-                                number,
-                                label: if number == 1 {
-                                    b"Chrome on Android".as_slice().into()
-                                } else {
-                                    b"Firefox on Linux".as_slice().into()
-                                },
-                                at: f::NOW.as_nanos(),
-                                endpoint: if number == 1 {
-                                    ENDPOINT.into()
-                                } else {
-                                    b"https://updates.push.services.mozilla.com/sub/private".as_slice().into()
-                                },
-                            },
-                    )
+                    rows.push(w::DeviceRow {
+                        number,
+                        label: if number == 1 {
+                            b"Chrome on Android".as_slice().into()
+                        } else {
+                            b"Firefox on Linux".as_slice().into()
+                        },
+                        at: f::NOW.as_nanos(),
+                        endpoint: if number == 1 {
+                            ENDPOINT.into()
+                        } else {
+                            b"https://updates.push.services.mozilla.com/sub/private".as_slice().into()
+                        },
+                    })
                     .unwrap();
                 }
                 let document = w::Devices { rows };
@@ -89,11 +87,11 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
                 if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment =>
             {
                 let answer = w::DeploymentAnswer {
-                        welcome: false,
-                        owned: true,
-                        program_login: None,
-                        push: push.then_some([4; 65]),
-                    };
+                    welcome: false,
+                    owned: true,
+                    program_login: None,
+                    push: push.then_some([4; 65]),
+                };
                 append(
                     &mut out,
                     up(

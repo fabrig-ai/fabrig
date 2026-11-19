@@ -1,7 +1,7 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::{End, EngineEnd};
 use skein_lib::{Time, Token, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn the_worker_dials_workers_and_its_hello_reaches_the_engine() {
@@ -473,19 +473,15 @@ fn box_setup(
     let engine = stand.service.engine.as_mut().unwrap();
     let limits = engine.client_wire();
     let request = w::Requesting {
-            request: w::Request::SetUp(
-                w::SetUp {
-                        forge: w::Making::Kept(w::Kept { forge }),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                        ),
-                    },
-            ),
-        };
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
     let family = j::FamilyRequest::new(
         limits,
         j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },

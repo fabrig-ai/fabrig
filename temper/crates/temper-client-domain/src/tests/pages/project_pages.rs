@@ -546,22 +546,16 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
         event(&mut f, Event::Went { address: address.clone() });
         assert_eq!(view_read(&mut f.out), None);
         let card = w::Card {
-                name: b"the reviewer".as_slice().into(),
-                who: b"an agent".as_slice().into(),
-                facts: List::with_capacity(0),
-            };
+            name: b"the reviewer".as_slice().into(),
+            who: b"an agent".as_slice().into(),
+            facts: List::with_capacity(0),
+        };
         let view = match address {
-            Address::Settings { .. } => w::View::Roles(
-                w::RolesView {
-                        roles: List::from_boxed(Box::new([w::CharterView { charter: 4, card }])),
-                    },
-            ),
-            Address::Role { .. } => {
-                w::View::Charter(w::CharterView { charter: 4, card })
-            }
-            Address::Rule { .. } => {
-                w::View::Rule(w::RuleView { kind: 2, number: 1, card })
-            }
+            Address::Settings { .. } => w::View::Roles(w::RolesView {
+                roles: List::from_boxed(Box::new([w::CharterView { charter: 4, card }])),
+            }),
+            Address::Role { .. } => w::View::Charter(w::CharterView { charter: 4, card }),
+            Address::Rule { .. } => w::View::Rule(w::RuleView { kind: 2, number: 1, card }),
             Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }

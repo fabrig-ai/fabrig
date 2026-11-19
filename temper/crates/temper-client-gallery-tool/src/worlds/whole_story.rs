@@ -1,10 +1,10 @@
 //! Whole-story deliveries (temper/docs/design/client/web/gallery.md, 2; client/pages/README.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Then, World, base_task, doc, offers};
 use crate::driver::down;
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Env, List, Queue, Time, Token, Wall};
 use temper_client_domain::{Address, Domain, Event, Request};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_fixtures::client_documents as documents;
 
@@ -131,24 +131,22 @@ fn status(name: &str, project: u32) -> w::ProjectStatus {
         6
     };
     w::ProjectStatus {
-            project,
+        project,
+        landed,
+        seen: if nothing_new { landed } else { 0 },
+        previous: Some(since(name, if name == "home-step-team" { 3765 } else { 540 }).as_nanos()),
+        last_landed: (landed > 0).then(|| since(name, landed_age).as_nanos()),
+        queued: u32::from(project == 4) * 3,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        red: across(name) && project == 4,
+        brief: (!lede.is_empty()).then(|| w::StatusBrief {
+            sentence: sentence.as_bytes().into(),
+            lede: lede.as_bytes().into(),
+            at: since(name, if nothing_new { 601 } else { age }).as_nanos(),
             landed,
-            seen: if nothing_new { landed } else { 0 },
-            previous: Some(since(name, if name == "home-step-team" { 3765 } else { 540 }).as_nanos()),
-            last_landed: (landed > 0).then(|| since(name, landed_age).as_nanos()),
-            queued: u32::from(project == 4) * 3,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            red: across(name) && project == 4,
-            brief: (!lede.is_empty()).then(|| {
-                w::StatusBrief {
-                        sentence: sentence.as_bytes().into(),
-                        lede: lede.as_bytes().into(),
-                        at: since(name, if nothing_new { 601 } else { age }).as_nanos(),
-                        landed,
-                    }
-            }),
-        }
+        }),
+    }
 }
 fn question(name: &str) -> c::Question {
     let (title, words) = match name {
@@ -191,35 +189,31 @@ fn approvals(name: &str) -> Box<[u8]> {
         for (task, pull, title, age) in
             [(81, 24, "Monthly totals by category", 34), (82, 25, "Dark mode for the dashboard", 1440)]
         {
-            rows.push(
-                w::ApprovalRow {
-                        task,
-                        project: 1,
-                        goal: None,
-                        forge: 2,
-                        kind: w::Kind::Github,
-                        owner: b"robin".as_slice().into(),
-                        name: b"tally".as_slice().into(),
-                        pull,
-                        address: format!("https://github.com/robin/tally/pull/{pull}/files").into_bytes().into(),
-                        title: title.as_bytes().into(),
-                        since: since(name, age).as_nanos(),
-                        scope: 1,
-                        rule: 1,
-                        role: 0,
-                        required: 1,
-                        counted: 0,
-                        sets: List::with_capacity(0),
-                        whole: true,
-                        yours: w::ApprovalYours::Counts,
-                        signed: List::with_capacity(0),
-                        can_sign: List::with_capacity(0),
-                        can_sign_more: 0,
-                        size: Some(
-                            w::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false },
-                        ),
-                    },
-            )
+            rows.push(w::ApprovalRow {
+                task,
+                project: 1,
+                goal: None,
+                forge: 2,
+                kind: w::Kind::Github,
+                owner: b"robin".as_slice().into(),
+                name: b"tally".as_slice().into(),
+                pull,
+                address: format!("https://github.com/robin/tally/pull/{pull}/files").into_bytes().into(),
+                title: title.as_bytes().into(),
+                since: since(name, age).as_nanos(),
+                scope: 1,
+                rule: 1,
+                role: 0,
+                required: 1,
+                counted: 0,
+                sets: List::with_capacity(0),
+                whole: true,
+                yours: w::ApprovalYours::Counts,
+                signed: List::with_capacity(0),
+                can_sign: List::with_capacity(0),
+                can_sign_more: 0,
+                size: Some(w::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false }),
+            })
             .expect("two approvals");
         }
     }
@@ -267,23 +261,23 @@ fn decision(task: u64) -> (u32, &'static str, u64, &'static str, &'static str, &
 fn decision_row(task: u64, wall: Wall) -> w::Decision {
     let (_, _, age, question, took, why) = decision(task);
     w::Decision {
-            number: u32::try_from(task).expect("decision number"),
-            task,
-            at: wall.as_nanos() - age * MINUTE,
-            question: question.as_bytes().into(),
-            took: took.as_bytes().into(),
-            why: why.as_bytes().into(),
-            overturned: false,
-            reach: w::Reach {
-                    kind: w::ReachKind::Tests,
-                    class: w::ReachClass::Decide,
-                    reason: w::ReachReason::Kind,
-                    under: 0,
-                    sets: 0,
-                    matched: 0,
-                    away: false,
-                },
-        }
+        number: u32::try_from(task).expect("decision number"),
+        task,
+        at: wall.as_nanos() - age * MINUTE,
+        question: question.as_bytes().into(),
+        took: took.as_bytes().into(),
+        why: why.as_bytes().into(),
+        overturned: false,
+        reach: w::Reach {
+            kind: w::ReachKind::Tests,
+            class: w::ReachClass::Decide,
+            reason: w::ReachReason::Kind,
+            under: 0,
+            sets: 0,
+            matched: 0,
+            away: false,
+        },
+    }
 }
 pub(crate) fn needs_decisions(project: u32) -> Box<[u8]> {
     let tasks: &[u64] = match project {
@@ -295,9 +289,7 @@ pub(crate) fn needs_decisions(project: u32) -> Box<[u8]> {
     for task in tasks {
         rows.push(decision_row(*task, super::now(World::Solo))).expect("Needs you decisions");
     }
-    wire::decisions(
-        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
-    )
+    wire::decisions(&w::Decisions { project, rows, asked: List::with_capacity(0), cut: false })
 }
 pub(crate) fn needs_task(task: u64) -> c::Task {
     if task == 1 {
@@ -319,31 +311,29 @@ fn decisions(name: &str, project: u32) -> Box<[u8]> {
     } else if matches!(name, "home-step-team" | "home-step-stock" | "home-step-scale") {
         let row = if name == "home-step-team" {
             w::Decision {
-                    number: 103,
-                    task: 103,
-                    at: since(name, 94).as_nanos(),
-                    question: b"A task ran out of turns on the coupon rules.".as_slice().into(),
-                    took: b"Split it in two.".as_slice().into(),
-                    why: b"Retrying or splitting a task is decided and listed.".as_slice().into(),
-                    overturned: false,
-                    reach: w::Reach {
-                            kind: w::ReachKind::Tests,
-                            class: w::ReachClass::Decide,
-                            reason: w::ReachReason::Kind,
-                            under: 0,
-                            sets: 0,
-                            matched: 0,
-                            away: false,
-                        },
-                }
+                number: 103,
+                task: 103,
+                at: since(name, 94).as_nanos(),
+                question: b"A task ran out of turns on the coupon rules.".as_slice().into(),
+                took: b"Split it in two.".as_slice().into(),
+                why: b"Retrying or splitting a task is decided and listed.".as_slice().into(),
+                overturned: false,
+                reach: w::Reach {
+                    kind: w::ReachKind::Tests,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false,
+                },
+            }
         } else {
             decision_row(101, now(name))
         };
         rows.push(row).expect("step decision");
     }
-    wire::decisions(
-        &w::Decisions { project, rows, asked: List::with_capacity(0), cut: false },
-    )
+    wire::decisions(&w::Decisions { project, rows, asked: List::with_capacity(0), cut: false })
 }
 fn task(name: &str, number: u64) -> c::Task {
     if number == 1 {
@@ -358,29 +348,21 @@ fn task(name: &str, number: u64) -> c::Task {
 }
 fn forges(name: &str) -> Box<[u8]> {
     let source = wire::decode_forges(&super::forges(World::Solo), &w::CEILINGS).expect("Solo forges");
-    let mut forge =
-        source.forges.iter().find(|row| row.kind == w::Kind::Github).expect("GitHub").clone();
+    let mut forge = source.forges.iter().find(|row| row.kind == w::Kind::Github).expect("GitHub").clone();
     if across(name) {
         forge.repositories = List::with_capacity(4);
         for (project, title) in projects(name) {
             forge
                 .repositories
-                .push(
-                    w::Adoption {
-                            owner: b"work".as_slice().into(),
-                            name: title.as_bytes().into(),
-                            project: *project,
-                        },
-                )
+                .push(w::Adoption {
+                    owner: b"work".as_slice().into(),
+                    name: title.as_bytes().into(),
+                    project: *project,
+                })
                 .expect("four repositories");
         }
     }
-    wire::forges(
-        &w::Forges {
-                forges: List::from_boxed(Box::new([forge])),
-                linked: false,
-            },
-    )
+    wire::forges(&w::Forges { forges: List::from_boxed(Box::new([forge])), linked: false })
 }
 // These document fixtures exercise all four projects independently of the shipped watch room.
 fn limits() -> temper_client_domain::Limits {
@@ -395,8 +377,7 @@ fn follows(name: &str, project: u32) -> Box<[u8]> {
     let mut follows = List::with_capacity(1);
     let mut dependencies = List::with_capacity(1);
     if !quiet(name) && project == 2 {
-        let mut row =
-            super::ways::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
+        let mut row = super::ways::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
         row.source = b"work/vsr".as_slice().into();
         row.target = b"work/vsr-rs".as_slice().into();
         let mut parity = row.parity.expect("passing check");
@@ -407,15 +388,9 @@ fn follows(name: &str, project: u32) -> Box<[u8]> {
         follows.push(row).expect("one follow");
     }
     if !quiet(name) && project == 4 {
-        dependencies
-            .push(
-                w::DependencyView { number: 1, project: 2 },
-            )
-            .expect("one dependency");
+        dependencies.push(w::DependencyView { number: 1, project: 2 }).expect("one dependency");
     }
-    wire::follows_panel(
-        &w::FollowsPanel { project, follows, dependencies },
-    )
+    wire::follows_panel(&w::FollowsPanel { project, follows, dependencies })
 }
 fn step(root: &mut Domain, name: &str, event: Event, out: &mut Queue<Request>) {
     temper_client_domain::step(root, &Env { now: Time::ZERO, wall: now(name), limits: limits() }, event, out);
@@ -535,14 +510,10 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                     w::Watch::Decided(key) => decisions(name, key.project),
                     w::Watch::Follows(key) => follows(name, key.project),
                     w::Watch::Approvals => approvals(name),
-                    w::Watch::Dismissed => wire::dismissals(
-                        &w::Dismissals { dismissed: List::with_capacity(0) },
-                    ),
+                    w::Watch::Dismissed => wire::dismissals(&w::Dismissals { dismissed: List::with_capacity(0) }),
                     w::Watch::Away => {
                         away_watch = Some(watch);
-                        wire::aways(
-                            &w::Aways { rows: away_rows(name) },
-                        )
+                        wire::aways(&w::Aways { rows: away_rows(name) })
                     }
                     _ => continue,
                 };
@@ -575,11 +546,14 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                 let bytes = match &reading.read {
                     w::Read::Setting(setting) if setting.kind == 7 => {
                         let ways = w::ProjectWays { drafts: false, goals: false, changes: false, way: 0 };
-                        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways size"));
+                        let mut writer = skein_lib::Writer::new(
+                            usize::try_from(
+                                ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                            )
+                            .expect("ways size"),
+                        );
                         ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("ways bytes");
-                        Some(wire::setting_answer(
-                            &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
-                        ))
+                        Some(wire::setting_answer(&w::SettingAnswer { revision: None, value: Some(writer.finish()) }))
                     }
                     _ => None,
                 };
@@ -610,9 +584,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
                                 answer: Some(jig_client::Answered::Family(jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::answer(
-                                        &w::Answer { outcome: w::Outcome::Looked },
-                                    ),
+                                    bytes: wire::answer(&w::Answer { outcome: w::Outcome::Looked }),
                                 })),
                             },
                         },
@@ -633,23 +605,19 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
 fn away_rows(name: &str) -> List<w::AwayRow> {
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     if across(name) && name != "all-home-nothing-new" {
-        rows.push(
-            w::AwayRow {
-                    project: 1,
-                    since: since(name, 534).as_nanos(),
-                    until: None,
-                    landed: 12,
-                    off: Some(since(name, 4).as_nanos()),
-                },
-        )
+        rows.push(w::AwayRow {
+            project: 1,
+            since: since(name, 534).as_nanos(),
+            until: None,
+            landed: 12,
+            off: Some(since(name, 4).as_nanos()),
+        })
         .expect("away spell");
     }
     if matches!(name, "all-home-away" | "all-home-away-on") {
         for project in [2, 3] {
-            rows.push(
-                w::AwayRow { project, since: since(name, 30).as_nanos(), until: None, landed: 0, off: None },
-            )
-            .expect("away spell");
+            rows.push(w::AwayRow { project, since: since(name, 30).as_nanos(), until: None, landed: 0, off: None })
+                .expect("away spell");
         }
     }
     rows
@@ -688,22 +656,14 @@ fn toggle_all(root: &mut Domain, name: &str, watch: Token) {
         }
     }
     for request in changed {
-        rows.push(
-            w::AwayRow {
-                    project: request.project,
-                    since: now(name).as_nanos(),
-                    until: request.until,
-                    landed: 0,
-                    off: None,
-                },
-        )
+        rows.push(w::AwayRow {
+            project: request.project,
+            since: now(name).as_nanos(),
+            until: request.until,
+            landed: 0,
+            off: None,
+        })
         .expect("away spell");
     }
-    family(
-        root,
-        name,
-        watch,
-        wire::aways(&w::Aways { rows }),
-        &mut out,
-    );
+    family(root, name, watch, wire::aways(&w::Aways { rows }), &mut out);
 }

@@ -45,26 +45,22 @@ fn findings() -> w::Findings {
     let mut areas = List::with_capacity(2);
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52)] {
         areas
-            .push(
-                w::AreaRow {
-                        name: name.into(),
-                        words: name.into(),
-                        owner: w::AreaOwner::Task(w::AreaTask { number }),
-                        holder: Some(w::Holder::Task(
-                            w::HolderTask { number },
-                        )),
-                    },
-            )
+            .push(w::AreaRow {
+                name: name.into(),
+                words: name.into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number }),
+                holder: Some(w::Holder::Task(w::HolderTask { number })),
+            })
             .unwrap();
     }
     w::Findings {
-            project: 1,
-            areas,
-            rows: List::with_capacity(0),
-            cut: false,
-            triager: Some(w::AreaOwner::Task(w::AreaTask { number: 52 })),
-            holder: w::Holder::Task(w::HolderTask { number: 52 }),
-        }
+        project: 1,
+        areas,
+        rows: List::with_capacity(0),
+        cut: false,
+        triager: Some(w::AreaOwner::Task(w::AreaTask { number: 52 })),
+        holder: w::Holder::Task(w::HolderTask { number: 52 }),
+    }
 }
 
 fn deliver(root: &mut d::Domain, watch: Token, delivery: c::Delivery) -> Queue<Request> {
@@ -122,38 +118,36 @@ fn fill_named(root: &mut d::Domain, mut out: Queue<Request>, title: &[u8]) {
                 )
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
-                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch().clone()) {
+                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch.clone()) {
                     Some(w::Watch::Findings(_)) => family(root, watch, wire::findings(&findings())),
                     Some(w::Watch::Decided(_)) => {
                         let row = w::Decision {
-                                number: 1,
-                                task: 99,
-                                at: 0,
-                                question: b"Which tests?".as_slice().into(),
-                                took: b"The focused suite".as_slice().into(),
-                                why: b"It covers the rule.".as_slice().into(),
-                                overturned: false,
-                                reach: temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
-                                    kind: temper_protocol_reaches::Kind::Tests,
-                                    class: temper_protocol_reaches::Class::Decide,
-                                    reason: temper_protocol_reaches::Reason::Kind,
-                                    under: 0,
-                                    sets: 0,
-                                    matched: 0,
-                                    away: false,
-                                }),
-                            };
+                            number: 1,
+                            task: 99,
+                            at: 0,
+                            question: b"Which tests?".as_slice().into(),
+                            took: b"The focused suite".as_slice().into(),
+                            why: b"It covers the rule.".as_slice().into(),
+                            overturned: false,
+                            reach: temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
+                                kind: temper_protocol_reaches::Kind::Tests,
+                                class: temper_protocol_reaches::Class::Decide,
+                                reason: temper_protocol_reaches::Reason::Kind,
+                                under: 0,
+                                sets: 0,
+                                matched: 0,
+                                away: false,
+                            }),
+                        };
                         family(
                             root,
                             watch,
-                            wire::decisions(
-                                &w::Decisions {
-                                        project: 1,
-                                        rows: List::from_boxed(Box::new([row])),
-                                        asked: List::with_capacity(0),
-                                        cut: false,
-                                    },
-                            ),
+                            wire::decisions(&w::Decisions {
+                                project: 1,
+                                rows: List::from_boxed(Box::new([row])),
+                                asked: List::with_capacity(0),
+                                cut: false,
+                            }),
                         )
                     }
                     _ => Queue::uncapped(),

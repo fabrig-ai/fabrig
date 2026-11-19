@@ -39,18 +39,12 @@ pub const AGENT_ENDPOINTS: &[(&[u8], EndpointFigures)] = &[
 pub fn agents() -> w::AgentFigures {
     let mut profile = List::with_capacity(128);
     for &(name, value) in AGENT_PROFILE {
-        profile
-            .push(
-                w::AgentFigure { name: name.into(), value },
-            )
-            .expect("stock profile bound");
+        profile.push(w::AgentFigure { name: name.into(), value }).expect("stock profile bound");
     }
     let mut endpoints = List::with_capacity(64);
     for &(endpoint, figures) in AGENT_ENDPOINTS {
         endpoints
-            .push(
-                w::AgentEndpointLimits { endpoint: endpoint.into(), limits: limits(figures) },
-            )
+            .push(w::AgentEndpointLimits { endpoint: endpoint.into(), limits: limits(figures) })
             .expect("stock endpoint bound");
     }
     w::AgentFigures { profile, endpoints, fallback: limits(AGENT_FALLBACK) }

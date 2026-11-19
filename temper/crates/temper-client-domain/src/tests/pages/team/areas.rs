@@ -85,19 +85,16 @@ pub(super) fn send(f: &mut Reads, areas: team::Areas) {
     let (handle, watch, subject) = f.findings.last().unwrap().clone();
     let mut rows = List::with_capacity(areas.rows.len());
     for area in areas.rows.into_boxed() {
-        rows.push(
-            w::AreaRow { name: area.name, words: area.words, owner: area.owner, holder: area.holder },
-        )
-        .unwrap();
+        rows.push(w::AreaRow { name: area.name, words: area.words, owner: area.owner, holder: area.holder }).unwrap();
     }
     let document = w::Findings {
-            project: subject.project,
-            rows: List::with_capacity(0),
-            areas: rows,
-            triager: areas.triager,
-            holder: areas.holder,
-            cut: false,
-        };
+        project: subject.project,
+        rows: List::with_capacity(0),
+        areas: rows,
+        triager: areas.triager,
+        holder: areas.holder,
+        cut: false,
+    };
     client(
         f,
         jig_client::Event::Up {

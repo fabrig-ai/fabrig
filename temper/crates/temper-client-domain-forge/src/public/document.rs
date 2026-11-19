@@ -1,10 +1,10 @@
 //! Each document expires independently of visibility (temper/docs/design/client/web/public.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use super::{Doc, Heard, PublicLimits, PublicRead};
 use crate::address::Public;
 use jig_client_protocol_wire::public_v1 as jig;
 use skein_lib::{Duration, Queue, Reader, Time};
 use temper_client_protocol_wire::public_v1 as forge;
+use temper_client_protocol_wire::v1::Record;
 
 #[derive(Debug)]
 pub(super) enum Document {

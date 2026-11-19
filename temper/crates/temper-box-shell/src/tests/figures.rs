@@ -1,11 +1,11 @@
 //! The box builds from its engine and its durable agents copy.
-use temper_client_protocol_wire::v1::Record;
 use crate::{serve, served};
 use std::{
     fs,
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private fixture root");
     let dirs = super::configuration::directories(root);
@@ -45,7 +45,9 @@ fn agents(turns: u64) -> w::AgentFigures {
     parts
 }
 fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")));
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(
+        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+    ));
     value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured value");
     writer.finish()
 }

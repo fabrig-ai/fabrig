@@ -1,6 +1,5 @@
 //! Dismissals cross the real roots (temper/docs/design/testing/README.md, 2.1;
 //! temper/docs/design/draft/to-begin.md, 5).
-use temper_client_protocol_wire::v1::Record as CodecRecord;
 use jig_client::{Answered, Key, contract as c};
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
@@ -9,6 +8,7 @@ use temper_client_domain::{
     forge::dismissed::{self, PersonFact},
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{
     app::{Root, Temper},
@@ -286,20 +286,14 @@ fn a_second_dismissal_is_answered_as_the_first() {
 }
 
 fn keep_asking_request(at: u64) -> jig_client::Ask {
-    let what = w::PersonFact::KeepAsking(
-        w::KeepAsking {
-                project: PROJECT,
-                subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
-                    temper_protocol_reaches::Kind::Tests,
-                )),
-                at,
-            },
-    );
-    let record = w::Requesting {
-            request: w::Request::Dismiss(
-                w::Dismiss { what },
-            ),
-        };
+    let what = w::PersonFact::KeepAsking(w::KeepAsking {
+        project: PROJECT,
+        subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
+            temper_protocol_reaches::Kind::Tests,
+        )),
+        at,
+    });
+    let record = w::Requesting { request: w::Request::Dismiss(w::Dismiss { what }) };
     jig_client::Ask::Family {
         scope: c::Scope::Project(PROJECT),
         record: jig_client::Family {

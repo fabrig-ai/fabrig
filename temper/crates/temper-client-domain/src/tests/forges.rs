@@ -18,11 +18,7 @@ fn limits() -> w::Limits {
     forge::wire_limits(&fixtures::limits().forge).unwrap()
 }
 fn answer(outcome: w::Outcome) -> Family {
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer { outcome }),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::answer(&w::Answer { outcome }) }
 }
 #[test]
 fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
@@ -33,8 +29,7 @@ fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
     };
     assert_eq!(scope, c::Scope::Deployment);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().request
-    else {
+    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().request else {
         panic!("set up")
     };
     let w::Making::Kept(kept) = &request.forge else { panic!("kept forge") };
@@ -52,21 +47,15 @@ fn set_up_accepts_only_its_outcomes_and_the_shared_unknown() {
         (w::Outcome::SettingUp, SetUpOutcome::SettingUp),
         (w::Outcome::Unknown, SetUpOutcome::Unknown),
         (
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused { why: w::SetUpRefusal::NotOffered },
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotOffered }),
             SetUpOutcome::Refused(SetUpRefusal::NotOffered),
         ),
         (
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused { why: w::SetUpRefusal::NotUnderTheBox },
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotUnderTheBox }),
             SetUpOutcome::Refused(SetUpRefusal::NotUnderTheBox),
         ),
         (
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused { why: w::SetUpRefusal::Busy },
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Busy }),
             SetUpOutcome::Refused(SetUpRefusal::Busy),
         ),
     ] {
@@ -77,19 +66,12 @@ fn set_up_accepts_only_its_outcomes_and_the_shared_unknown() {
             Some(SetUpAnswer::Outcome(expected))
         );
     }
-    let adoption = answer(w::Outcome::ForgeRefused(
-        w::ForgeRefused { reason: w::ForgeReason::NoSuchForge },
-    ));
+    let adoption = answer(w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::NoSuchForge }));
     assert_eq!(family::set_up_answer(&adoption, &limits()), None);
     let link =
         jig_client_protocol_link::Limits::new(fixtures::limits().client.domain, fixtures::limits().client.exchanges)
             .unwrap();
-    for outcome in [
-        w::Outcome::SettingUp,
-        w::Outcome::SetUpRefused(
-            w::SetUpRefused { why: w::SetUpRefusal::Busy },
-        ),
-    ] {
+    for outcome in [w::Outcome::SettingUp, w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Busy })] {
         assert_eq!(family::answer(&answer(outcome), &limits(), &link), None);
     }
     let mut record = answer(w::Outcome::SettingUp);
@@ -101,52 +83,38 @@ fn cases() -> Box<[(w::Connection, Connection, &'static [u8])]> {
         (w::Connection::NotConnected, Connection::NotConnected, b"Not connected"),
         (w::Connection::NotSetUp, Connection::NotSetUp, b"Not set up"),
         (
-            w::Connection::SettingUp(
-                w::SettingUp { step: None, fetched: None },
-            ),
+            w::Connection::SettingUp(w::SettingUp { step: None, fetched: None }),
             Connection::SettingUp { step: None },
             b"Setting up",
         ),
         (
-            w::Connection::SettingUp(
-                w::SettingUp { step: Some(w::SetUpStep::Fetch), fetched: None },
-            ),
+            w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Fetch), fetched: None }),
             Connection::SettingUp { step: Some(Step::Fetch) },
             b"Setting up: fetching",
         ),
         (
-            w::Connection::SettingUp(
-                w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
-            ),
+            w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None }),
             Connection::SettingUp { step: Some(Step::Prepare) },
             b"Setting up: preparing",
         ),
         (
-            w::Connection::SettingUp(
-                w::SettingUp { step: Some(w::SetUpStep::Run), fetched: None },
-            ),
+            w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Run), fetched: None }),
             Connection::SettingUp { step: Some(Step::Run) },
             b"Setting up: starting",
         ),
         (
-            w::Connection::SetUpFailed(
-                w::SetUpFailed { why: Box::from(b"fetch failed".as_slice()), at: None },
-            ),
+            w::Connection::SetUpFailed(w::SetUpFailed { why: Box::from(b"fetch failed".as_slice()), at: None }),
             Connection::SetUpFailed { why: Box::from(b"fetch failed".as_slice()), at: None },
             b"Set up failed: fetch failed",
         ),
         (w::Connection::Connecting, Connection::Connecting, b"Connecting"),
         (
-            w::Connection::Connected(
-                w::Connected { id: 42, login: Box::from(b"bot".as_slice()) },
-            ),
+            w::Connection::Connected(w::Connected { id: 42, login: Box::from(b"bot".as_slice()) }),
             Connection::Connected { id: 42, login: Box::from(b"bot".as_slice()) },
             b"Connected as bot (42)",
         ),
         (
-            w::Connection::Stopped(
-                w::Stopped { reason: Box::from(b"retired".as_slice()) },
-            ),
+            w::Connection::Stopped(w::Stopped { reason: Box::from(b"retired".as_slice()) }),
             Connection::Stopped { reason: Box::from(b"retired".as_slice()) },
             b"Stopped: retired",
         ),
@@ -154,13 +122,11 @@ fn cases() -> Box<[(w::Connection, Connection, &'static [u8])]> {
 }
 fn fixture_wire_owned(m: Mode) -> Option<w::OwnedForge> {
     if m == Mode::Owned {
-        Some(
-            w::OwnedForge {
-                    forgejo: b"17.0.0".as_slice().into(),
-                    runner: Some(b"13.2.0".as_slice().into()),
-                    password: b"/fake/forge/person_password".as_slice().into(),
-                },
-        )
+        Some(w::OwnedForge {
+            forgejo: b"17.0.0".as_slice().into(),
+            runner: Some(b"13.2.0".as_slice().into()),
+            password: b"/fake/forge/person_password".as_slice().into(),
+        })
     } else {
         None
     }
@@ -186,30 +152,28 @@ pub(super) fn wire_connection_row(
 ) -> w::ForgeRow {
     let mut repositories = List::with_capacity(1);
     repositories
-        .push(
-            w::Adoption { owner: b"acme".as_slice().into(), name: b"app".as_slice().into(), project: 7 },
-        )
+        .push(w::Adoption { owner: b"acme".as_slice().into(), name: b"app".as_slice().into(), project: 7 })
         .unwrap();
     w::ForgeRow {
-            starts_with: w::StartsWith::Repository,
-            host: b"git.example:3000".as_slice().into(),
-            makings: List::with_capacity(0),
-            number,
-            kind,
-            mode,
-            connection,
-            offer,
-            first: None,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: Some(b"https://forge.example".as_slice().into()),
-            repositories,
-            owned,
-            admin: false,
-            read_only: false,
-            ended_stop: None,
-        }
+        starts_with: w::StartsWith::Repository,
+        host: b"git.example:3000".as_slice().into(),
+        makings: List::with_capacity(0),
+        number,
+        kind,
+        mode,
+        connection,
+        offer,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: Some(b"https://forge.example".as_slice().into()),
+        repositories,
+        owned,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    }
 }
 #[test]
 fn every_connection_decodes_into_the_forges_words() {
@@ -344,16 +308,14 @@ fn decoded_connection_row(connection: w::Connection) -> Row {
 
 fn fetched_connection(step: Option<w::SetUpStep>, fetched: Option<Fetched>) -> w::Connection {
     let fetched = match fetched {
-        Some(fetched) => Some(
-            w::SetUpFetched {
-                    binary: match fetched.binary {
-                        Binary::Forgejo => w::SetUpBinary::Forgejo,
-                        Binary::Runner => w::SetUpBinary::Runner,
-                    },
-                    done: fetched.done,
-                    total: fetched.total,
-                },
-        ),
+        Some(fetched) => Some(w::SetUpFetched {
+            binary: match fetched.binary {
+                Binary::Forgejo => w::SetUpBinary::Forgejo,
+                Binary::Runner => w::SetUpBinary::Runner,
+            },
+            done: fetched.done,
+            total: fetched.total,
+        }),
         None => None,
     };
     w::Connection::SettingUp(w::SettingUp { step, fetched })
@@ -466,28 +428,26 @@ fn an_out_of_order_document_is_refused() {
     let mut forges = List::with_capacity(2);
     for number in [3, 1] {
         forges
-            .push(
-                w::ForgeRow {
-                        starts_with: w::StartsWith::Repository,
-                        makings: List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number,
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Owned,
-                        connection: w::Connection::NotSetUp,
-                        offer: w::Offer::Offered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number,
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Owned,
+                connection: w::Connection::NotSetUp,
+                offer: w::Offer::Offered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .unwrap();
     }
     let record = Family {
@@ -505,8 +465,7 @@ fn setup_carries_each_field_without_semantic_form_checks() {
     else {
         panic!("family")
     };
-    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().request
-    else {
+    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().request else {
         panic!("setup")
     };
     let w::Making::Kept(kept) = &request.forge else { panic!("kept forge") };
@@ -520,12 +479,7 @@ fn first_repository_decodes_each_state_and_creation_step() {
     use forge::forges::{CreateStep, First, FirstState};
     let mut states = List::with_capacity(6);
     states.push((w::FirstState::Making, FirstState::Making)).unwrap();
-    states
-        .push((
-            w::FirstState::Made(w::Made { id: 42 }),
-            FirstState::Made { id: 42 },
-        ))
-        .unwrap();
+    states.push((w::FirstState::Made(w::Made { id: 42 }), FirstState::Made { id: 42 })).unwrap();
     for (wire, domain) in [
         (w::CreateStep::Admin, CreateStep::Admin),
         (w::CreateStep::Org, CreateStep::Org),
@@ -533,44 +487,39 @@ fn first_repository_decodes_each_state_and_creation_step() {
         (w::CreateStep::File, CreateStep::File),
     ] {
         states
-            .push((
-                w::FirstState::Failed(w::CreateFailed { step: wire }),
-                FirstState::Failed { step: domain },
-            ))
+            .push((w::FirstState::Failed(w::CreateFailed { step: wire }), FirstState::Failed { step: domain }))
             .unwrap();
     }
     for (wire_state, state) in states.into_boxed() {
         let first = w::FirstRepository {
-                playground: false,
-                org: b"team".as_slice().into(),
-                repository: b"widget".as_slice().into(),
-                state: wire_state.clone(),
-                label: Box::from(b"docker_1.x-y".as_slice()),
-            };
+            playground: false,
+            org: b"team".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            state: wire_state.clone(),
+            label: Box::from(b"docker_1.x-y".as_slice()),
+        };
         let mut forges = List::with_capacity(1);
         forges
-            .push(
-                w::ForgeRow {
-                        starts_with: w::StartsWith::Repository,
-                        makings: List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: 3,
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Owned,
-                        connection: w::Connection::Connecting,
-                        offer: w::Offer::NotOffered,
-                        first: Some(first),
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: 3,
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Owned,
+                connection: w::Connection::Connecting,
+                offer: w::Offer::NotOffered,
+                first: Some(first),
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .unwrap();
         let record = Family {
             family: wire::FORGE,
@@ -597,12 +546,8 @@ fn playground_start_outcomes_fit_neither_adopt_nor_setup() {
             .unwrap();
     for outcome in [
         w::Outcome::Running,
-        w::Outcome::StartRefused(
-            w::StartRefused { why: w::StartRefusal::NotOffered },
-        ),
-        w::Outcome::StartFailed(
-            w::StartFailed { why: w::StartFailure::Account },
-        ),
+        w::Outcome::StartRefused(w::StartRefused { why: w::StartRefusal::NotOffered }),
+        w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }),
     ] {
         let record = answer(outcome);
         assert_eq!(family::set_up_answer(&record, &limits()), None);
@@ -615,45 +560,33 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
     use forge::forges::{Account, Installation};
     let limits = limits();
     let mut installations = List::with_capacity(2);
-    for (id, account, suspended, stray) in [
-        (
-            11,
-            Some(w::Account { id: 111, login: Box::from(b"acme".as_slice()) }),
-            true,
-            false,
-        ),
-        (22, None, false, true),
-    ] {
-        installations
-            .push(w::Installation { id, account, suspended, stray })
-            .unwrap();
+    for (id, account, suspended, stray) in
+        [(11, Some(w::Account { id: 111, login: Box::from(b"acme".as_slice()) }), true, false), (22, None, false, true)]
+    {
+        installations.push(w::Installation { id, account, suspended, stray }).unwrap();
     }
     let mut forges = List::with_capacity(1);
     forges
-        .push(
-            w::ForgeRow {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 1,
-                    kind: w::Kind::Github,
-                    mode: w::Mode::Connected,
-                    connection: w::Connection::NotConnected,
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations,
-                    ended: Some(
-                        w::ConnectStopped { why: Box::from(b"the pasted value changed".as_slice()) },
-                    ),
-                    app: None,
-                    web: None,
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-        )
+        .push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 1,
+            kind: w::Kind::Github,
+            mode: w::Mode::Connected,
+            connection: w::Connection::NotConnected,
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations,
+            ended: Some(w::ConnectStopped { why: Box::from(b"the pasted value changed".as_slice()) }),
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
     let bytes = wire::forges(&w::Forges { forges, linked: false });
     let rows = family::forges(&bytes, &limits).unwrap();
@@ -682,37 +615,33 @@ fn admin_form_and_typed_stops_survive_client_decode() {
         (Some(w::AdminStop::Unmarked), Some(AdminStop::Unmarked)),
         (Some(w::AdminStop::Other), Some(AdminStop::Other)),
         (
-            Some(w::AdminStop::Refused(
-                w::AdminRefused { status: 403, stage: w::SetupStage::Repository },
-            )),
+            Some(w::AdminStop::Refused(w::AdminRefused { status: 403, stage: w::SetupStage::Repository })),
             Some(AdminStop::Refused { status: 403, stage: SetupStage::Repository }),
         ),
     ] {
         for admin in [false, true] {
             let mut forges = List::with_capacity(1);
             forges
-                .push(
-                    w::ForgeRow {
-                            starts_with: w::StartsWith::Repository,
-                            makings: List::with_capacity(0),
-                            host: b"git.example:3000".as_slice().into(),
-                            number: 1,
-                            kind: w::Kind::Forgejo,
-                            mode: w::Mode::Managed,
-                            connection: w::Connection::NotConnected,
-                            offer: w::Offer::NotOffered,
-                            first: None,
-                            installations: List::with_capacity(0),
-                            ended: None,
-                            app: None,
-                            web: None,
-                            repositories: List::with_capacity(0),
-                            owned: None,
-                            admin,
-                            read_only: false,
-                            ended_stop: stop.clone(),
-                        },
-                )
+                .push(w::ForgeRow {
+                    starts_with: w::StartsWith::Repository,
+                    makings: List::with_capacity(0),
+                    host: b"git.example:3000".as_slice().into(),
+                    number: 1,
+                    kind: w::Kind::Forgejo,
+                    mode: w::Mode::Managed,
+                    connection: w::Connection::NotConnected,
+                    offer: w::Offer::NotOffered,
+                    first: None,
+                    installations: List::with_capacity(0),
+                    ended: None,
+                    app: None,
+                    web: None,
+                    repositories: List::with_capacity(0),
+                    owned: None,
+                    admin,
+                    read_only: false,
+                    ended_stop: stop.clone(),
+                })
                 .unwrap();
             let bytes = wire::forges(&w::Forges { forges, linked: false });
             let rows = family::forges(&bytes, &limits).unwrap();
@@ -745,8 +674,7 @@ fn the_first_choice_survives_forge_row_decode() {
             w::Connection::Connecting,
             w::Offer::Offered,
             None,
-        )
-        ;
+        );
         parts.starts_with = starts_with;
         let mut forges = List::with_capacity(1);
         forges.push(parts).unwrap();
@@ -762,24 +690,9 @@ fn connection_steps_replace_settings_with_the_open_row_but_keep_welcome() {
     use crate::{Address, Choice, Event, Place, Request};
     for (kind, connection) in [
         (w::Kind::Forgejo, w::Connection::Connecting),
-        (
-            w::Kind::Forgejo,
-            w::Connection::SettingUp(
-                w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None },
-            ),
-        ),
-        (
-            w::Kind::Forgejo,
-            w::Connection::Connected(
-                w::Connected { id: 7, login: b"temper".as_slice().into() },
-            ),
-        ),
-        (
-            w::Kind::Github,
-            w::Connection::Connected(
-                w::Connected { id: 7, login: b"temper".as_slice().into() },
-            ),
-        ),
+        (w::Kind::Forgejo, w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None })),
+        (w::Kind::Forgejo, w::Connection::Connected(w::Connected { id: 7, login: b"temper".as_slice().into() })),
+        (w::Kind::Github, w::Connection::Connected(w::Connected { id: 7, login: b"temper".as_slice().into() })),
     ] {
         for welcome in [false, true] {
             let (mut root, _, watch) = super::connect::opened(true);
@@ -870,11 +783,7 @@ pub(super) fn forges_document(modes: &[w::Mode], linked: bool) -> Family {
             ))
             .unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges { forges, linked }),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::forges(&w::Forges { forges, linked }) }
 }
 
 pub(super) fn deliver_forges(root: &mut crate::Domain, watch: skein_lib::Token, record: Family) {

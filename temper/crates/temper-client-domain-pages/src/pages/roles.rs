@@ -1,10 +1,10 @@
 //! How work runs, role and rule pages read the forge's view (temper/docs/design/client/pages/README.md and temper/docs/design/client/pages/chat/conversation.md, 3).
-use temper_client_protocol_wire::v1::Record;
 use super::Request;
 use crate::{Address, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Decimal, Queue};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]

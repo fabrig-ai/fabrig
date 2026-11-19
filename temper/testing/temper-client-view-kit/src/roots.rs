@@ -1,7 +1,7 @@
-use temper_client_protocol_wire::v1::Record;
 use super::*;
 use jig_client::contract as c;
 use skein_lib::{Env, Queue, Time, Token, Wall, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[must_use]
@@ -526,11 +526,7 @@ fn root_at_with_classes_from(
     if let (Some(watch), Some(projects)) = (dismissed_watch, dismissed) {
         let mut dismissed = List::with_capacity(wire::DISMISSED);
         for project in projects {
-            dismissed
-                .push(w::PersonFact::ToBegin(
-                    w::ToBegin { project: *project },
-                ))
-                .unwrap();
+            dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
         }
         root_event(
             &mut root,
@@ -541,9 +537,7 @@ fn root_at_with_classes_from(
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::dismissals(
-                                &w::Dismissals { dismissed },
-                            ),
+                            bytes: wire::dismissals(&w::Dismissals { dismissed }),
                         },
                     },
                 },
@@ -565,9 +559,7 @@ fn root_at_with_classes_from(
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::forges(
-                                &w::Forges { forges: rows, linked: false },
-                            ),
+                            bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                         },
                     },
                 },
@@ -642,8 +634,7 @@ fn root_at_with_classes_from(
                             },
                             _ => None,
                         };
-                        let answer =
-                            w::SettingAnswer { revision: None, value };
+                        let answer = w::SettingAnswer { revision: None, value };
                         temper_client_domain::step(
                             &mut root,
                             &env,
@@ -964,11 +955,11 @@ fn inbox_read_at(
                 && Some(subject) == forge::decided::watch(PROJECT, &env.limits.forge).as_ref()
             {
                 let document = w::Decisions {
-                        project: PROJECT,
-                        rows: List::with_capacity(0),
-                        asked: List::with_capacity(0),
-                        cut: false,
-                    };
+                    project: PROJECT,
+                    rows: List::with_capacity(0),
+                    asked: List::with_capacity(0),
+                    cut: false,
+                };
                 temper_client_domain::step(
                     &mut root,
                     &env,
@@ -1482,14 +1473,14 @@ pub fn deliver_playground(
     cues.push(Box::from(PLAYGROUND_CUE)).expect("first cue");
     cues.push(Box::from(PLAYGROUND_OTHER_CUE)).expect("second cue");
     let answer = w::PlaygroundAnswer {
-            state,
-            project,
-            forge,
-            provider: 17,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            cues,
-        };
+        state,
+        project,
+        forge,
+        provider: 17,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        cues,
+    };
     playground_record(root, read, Some(wire::playground_answer(&answer)));
 }
 pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
@@ -1796,19 +1787,19 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
         true,
     );
     let row = w::AwayRow {
-            project: PROJECT,
-            since: 0,
-            until: match until {
-                Some(wall) => Some(wall.as_nanos()),
-                None => None,
-            },
+        project: PROJECT,
+        since: 0,
+        until: match until {
+            Some(wall) => Some(wall.as_nanos()),
+            None => None,
+        },
 
-            landed: 0,
-            off: match off {
-                Some(wall) => Some(wall.as_nanos()),
-                None => None,
-            },
-        };
+        landed: 0,
+        off: match off {
+            Some(wall) => Some(wall.as_nanos()),
+            None => None,
+        },
+    };
     root_event(
         &mut root,
         temper_client_domain::Event::Client {
@@ -1818,9 +1809,7 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::aways(
-                            &w::Aways { rows: List::from_boxed(Box::new([row])) },
-                        ),
+                        bytes: wire::aways(&w::Aways { rows: List::from_boxed(Box::new([row])) }),
                     },
                 },
             },
@@ -1914,9 +1903,7 @@ impl ReadPage {
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::forges(
-                                &w::Forges { forges: rows, linked: false },
-                            ),
+                            bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                         },
                     });
                 }
@@ -2101,16 +2088,19 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
 pub fn sheet_root() -> temper_client_domain::Domain {
     let mut rows = List::with_capacity(1);
     let mut row =
-        connect_forge::row(1, w::Kind::Forgejo, w::Mode::Owned, connect_forge::connected(), w::Offer::NotOffered)
-            ;
-    row.repositories = List::from_boxed(Box::new([w::Adoption { owner: b"acme".as_slice().into(), name: b"kept".as_slice().into(), project: PROJECT }]));
+        connect_forge::row(1, w::Kind::Forgejo, w::Mode::Owned, connect_forge::connected(), w::Offer::NotOffered);
+    row.repositories = List::from_boxed(Box::new([w::Adoption {
+        owner: b"acme".as_slice().into(),
+        name: b"kept".as_slice().into(),
+        project: PROJECT,
+    }]));
     row.makings = List::from_boxed(Box::new([w::RepositoryMaking {
-            org: b"acme".as_slice().into(),
-            name: b"copy".as_slice().into(),
-            from: w::MakeFrom::Empty,
-            into: None,
-            state: w::MakingState::Making,
-        }]));
+        org: b"acme".as_slice().into(),
+        name: b"copy".as_slice().into(),
+        from: w::MakeFrom::Empty,
+        into: None,
+        state: w::MakingState::Making,
+    }]));
     rows.push(row).unwrap();
     forge_root(temper_client_domain::Address::Adopt { project: PROJECT }, rows)
 }

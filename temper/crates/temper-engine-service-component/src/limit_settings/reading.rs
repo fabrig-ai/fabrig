@@ -1,5 +1,4 @@
 //! The service's paged, unified limits read (configuration/limit-settings.md, 2.4 and 7).
-use w::Record;
 use super::LimitSettings;
 use alloc::boxed::Box;
 use jig_domain_core::settings::Override;
@@ -7,8 +6,8 @@ use jig_protocol_config::names as jig;
 use skein_lib::{List, Map};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_service_vocabulary::limits as own;
+use w::Record;
 
-#[expect(clippy::too_many_lines, reason = "both names tables share one ordered page")]
 pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bounds: &w::Limits) -> Option<Box<[u8]>> {
     let stock = super::resolve_limits(&state.inputs, &[], &[]).ok()?;
     let desired = super::resolve_limits(&state.inputs, &state.jig, &state.temper).ok();
@@ -24,21 +23,21 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
             },
         };
         let row = w::LimitRow {
-                name: name.name.as_bytes().into(),
-                line: name.line.as_bytes().into(),
-                unit: match name.unit {
-                    jig::Unit::Count => w::LimitUnit::Count,
-                    jig::Unit::Bytes => w::LimitUnit::Bytes,
-                    jig::Unit::Milliseconds => w::LimitUnit::Milliseconds,
-                },
-                stock: Some((name.value)(&stock.jig)),
-                setting,
-                in_force: Some(in_force),
-                applies: w::LimitApplies::NextStart,
-                waiting: (state.held && has(&state.jig, name.name.as_bytes())) || wanted != in_force,
-                left_out: false,
-                held: None,
-            };
+            name: name.name.as_bytes().into(),
+            line: name.line.as_bytes().into(),
+            unit: match name.unit {
+                jig::Unit::Count => w::LimitUnit::Count,
+                jig::Unit::Bytes => w::LimitUnit::Bytes,
+                jig::Unit::Milliseconds => w::LimitUnit::Milliseconds,
+            },
+            stock: Some((name.value)(&stock.jig)),
+            setting,
+            in_force: Some(in_force),
+            applies: w::LimitApplies::NextStart,
+            waiting: (state.held && has(&state.jig, name.name.as_bytes())) || wanted != in_force,
+            left_out: false,
+            held: None,
+        };
         rows.insert(row.name.clone(), row).ok()?;
     }
     for name in &own::NAMES {
@@ -52,24 +51,24 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
             },
         };
         let row = w::LimitRow {
-                name: name.name.as_bytes().into(),
-                line: name.line.as_bytes().into(),
-                unit: match name.unit {
-                    own::Unit::Count => w::LimitUnit::Count,
-                    own::Unit::Bytes => w::LimitUnit::Bytes,
-                    own::Unit::Milliseconds => w::LimitUnit::Milliseconds,
-                },
-                stock: Some((name.value)(&stock.temper)),
-                setting,
-                in_force: Some(in_force),
-                applies: match name.applies {
-                    own::Applies::AtOnce => w::LimitApplies::AtOnce,
-                    own::Applies::NextStart => w::LimitApplies::NextStart,
-                },
-                waiting: (state.held && has(&state.temper, name.name.as_bytes())) || wanted != in_force,
-                left_out: false,
-                held: if name.name == "transcript_memory" { Some(held) } else { None },
-            };
+            name: name.name.as_bytes().into(),
+            line: name.line.as_bytes().into(),
+            unit: match name.unit {
+                own::Unit::Count => w::LimitUnit::Count,
+                own::Unit::Bytes => w::LimitUnit::Bytes,
+                own::Unit::Milliseconds => w::LimitUnit::Milliseconds,
+            },
+            stock: Some((name.value)(&stock.temper)),
+            setting,
+            in_force: Some(in_force),
+            applies: match name.applies {
+                own::Applies::AtOnce => w::LimitApplies::AtOnce,
+                own::Applies::NextStart => w::LimitApplies::NextStart,
+            },
+            waiting: (state.held && has(&state.temper, name.name.as_bytes())) || wanted != in_force,
+            left_out: false,
+            held: if name.name == "transcript_memory" { Some(held) } else { None },
+        };
         rows.insert(row.name.clone(), row).ok()?;
     }
     for (kind, values) in [(w::LimitKind::Jig, &state.jig), (w::LimitKind::Temper, &state.temper)] {
@@ -78,17 +77,17 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
                 continue;
             }
             let row = w::LimitRow {
-                    name: item.name.clone(),
-                    line: Box::default(),
-                    unit: w::LimitUnit::Count,
-                    stock: None,
-                    setting: setting(values, &item.name, kind.clone(), bounds).ok()?,
-                    in_force: None,
-                    applies: w::LimitApplies::NextStart,
-                    waiting: state.held,
-                    left_out: true,
-                    held: None,
-                };
+                name: item.name.clone(),
+                line: Box::default(),
+                unit: w::LimitUnit::Count,
+                stock: None,
+                setting: setting(values, &item.name, kind.clone(), bounds).ok()?,
+                in_force: None,
+                applies: w::LimitApplies::NextStart,
+                waiting: state.held,
+                left_out: true,
+                held: None,
+            };
             rows.insert(item.name.clone(), row).ok()?;
         }
     }
@@ -108,8 +107,7 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
         last = Some(name.clone());
         page.push(row.clone()).ok()?;
     }
-    let record =
-        w::LimitsAnswer { rows: page, next, revision: state.revision };
+    let record = w::LimitsAnswer { rows: page, next, revision: state.revision };
     Some(wire::limits_answer(&record))
 }
 fn has(values: &[Override], name: &[u8]) -> bool {

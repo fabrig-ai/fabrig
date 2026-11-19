@@ -1,9 +1,9 @@
 //! Charter settings in the file's forms (temper/docs/design/client/ctl/tools.md, 3).
-use temper_client_protocol_wire::v1::Record;
 use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::{Duration, Writer};
+use temper_client_protocol_wire::v1::Record;
 
 // C7's coordinator paces news at 30 minutes, in the settings file's nanoseconds.
 const COORDINATOR: &[u8] = br#", "wake":{"words":"immediate","notices":"immediate","news":{"paced":1800000000000},"results":"each","questions":true,"answers":true,"timers":true}"#;
@@ -741,7 +741,10 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
             sets: Box::default(),
         };
         let record = temper_protocol_reaches::classes_record(&classes).expect("shaped record");
-        let mut bytes = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("record length"));
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("record length"),
+        );
         record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("measured record");
         let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 4096 });
         assert!(!crate::kinds::render(8, &bytes.finish(), &mut out));
@@ -973,14 +976,8 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
     let prefix = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":"#;
     let suffix = br#", "check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
     for (owner, expected) in [
-        (
-            br#"{"task":52}"#.as_slice(),
-            w::FollowOwner::Task(w::FollowOwnerTask { task: 52 }),
-        ),
-        (
-            br#"{"person":4}"#.as_slice(),
-            w::FollowOwner::Person(w::FollowPerson { person: 4 }),
-        ),
+        (br#"{"task":52}"#.as_slice(), w::FollowOwner::Task(w::FollowOwnerTask { task: 52 })),
+        (br#"{"person":4}"#.as_slice(), w::FollowOwner::Person(w::FollowPerson { person: 4 })),
     ] {
         let items = file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap();
         let item = items.get(0).unwrap();

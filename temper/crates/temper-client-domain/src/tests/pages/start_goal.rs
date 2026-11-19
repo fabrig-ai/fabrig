@@ -1,4 +1,3 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use crate::{
     Address,
@@ -10,6 +9,7 @@ use crate::{
 };
 use jig_client::{Key, Outcome, Told, contract as c};
 use skein_lib::{List, Queue};
+use temper_client_protocol_wire::v1::Record;
 
 const WAY: u32 = 2;
 const CHARTER: u32 = 7;
@@ -146,12 +146,8 @@ fn create_sends_and_goes_to_its_goal() {
     let request =
         temper_client_protocol_wire::decode_requesting(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
             .unwrap();
-    let temper_client_protocol_wire::v1::Request::Dismiss(dismiss) = request.request else {
-        panic!("dismiss fact")
-    };
-    let temper_client_protocol_wire::v1::PersonFact::GoalFrom(fact) = dismiss.what else {
-        panic!("goal fact")
-    };
+    let temper_client_protocol_wire::v1::Request::Dismiss(dismiss) = request.request else { panic!("dismiss fact") };
+    let temper_client_protocol_wire::v1::PersonFact::GoalFrom(fact) = dismiss.what else { panic!("goal fact") };
     assert_eq!((fact.project, fact.chat, fact.goal, fact.at), (fixtures::PROJECT, CHAT, GOAL, FACT_AT));
     assert_eq!(h.out.pop(), Some(Request::Show { address: Address::Task { task: GOAL } }));
     let mut chosen = self::me();
@@ -557,9 +553,7 @@ fn another_way_holds_the_landed_path_and_create_marks_it_started_after_the_sheet
     };
     assert_ne!(key, started);
     assert_eq!(scope, c::Scope::Project(fixtures::PROJECT));
-    let w::Request::SetDraft(value) =
-        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
-    else {
+    let w::Request::SetDraft(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request else {
         panic!("SetDraft")
     };
     assert_eq!(value.project, fixtures::PROJECT);
@@ -655,12 +649,12 @@ fn the_landed_recommendation_chooses_kind_sevens_way_before_sending() {
             setting = Some(*read);
         }
     }
-    let ways =
-        w::ProjectWays { drafts: true, goals: true, changes: true, way: 9 };
-    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    let ways = w::ProjectWays { drafts: true, goals: true, changes: true, way: 9 };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
     ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
-    let answer =
-        w::SettingAnswer { revision: None, value: Some(writer.finish()) };
+    let answer = w::SettingAnswer { revision: None, value: Some(writer.finish()) };
     root_event(
         &mut root,
         &limits,

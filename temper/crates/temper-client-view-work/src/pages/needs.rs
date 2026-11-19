@@ -372,10 +372,12 @@ fn limit_details(
             let label = w.say(Word::NeedsLimitRaise, &[Hole::Name(held.limit.clone()), Hole::Number(figure)]);
             b.open(Role::Button);
             b.name(&label);
-            b.bind(bindings.insert(Act::LimitSettings(limit_settings::Act::Raise {
-                task: held.task,
-                revision: held.revision,
-            })));
+            b.bind(
+                bindings.insert(Act::LimitSettings(limit_settings::Act::Raise {
+                    task: held.task,
+                    revision: held.revision,
+                })),
+            );
             if !ready {
                 b.state(State::Disabled);
             }

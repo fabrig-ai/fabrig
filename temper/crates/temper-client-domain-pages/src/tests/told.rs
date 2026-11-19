@@ -117,12 +117,7 @@ fn subscription_acts_send_keys_and_drop_only_after_removal_answers() {
     assert_eq!(value.p256dh, KEY);
     assert_eq!(value.auth, [8; 16]);
     assert_eq!(&*value.label, b"Safari on iPhone");
-    answered(
-        &mut page,
-        key,
-        w::Outcome::DeviceAdded(w::DeviceAdded { number: 7 }),
-        &mut out,
-    );
+    answered(&mut page, key, w::Outcome::DeviceAdded(w::DeviceAdded { number: 7 }), &mut out);
     page.act(Act::TurnOff, Some(KEY), &mut serial, f::limits().forge, &mut out);
     let (key, request) = asked(&mut out);
     let w::Request::RemoveDevice(value) = request else { panic!("remove") };
@@ -155,12 +150,7 @@ fn subscription_acts_send_keys_and_drop_only_after_removal_answers() {
             &mut out,
         );
         let (key, _) = asked(&mut out);
-        answered(
-            &mut page,
-            key,
-            w::Outcome::DeviceRefused(w::DeviceRefused { reason }),
-            &mut out,
-        );
+        answered(&mut page, key, w::Outcome::DeviceRefused(w::DeviceRefused { reason }), &mut out);
         assert_eq!(page.refusal(), Some(expected));
         page.browser.as_mut().unwrap().endpoint = None;
     }

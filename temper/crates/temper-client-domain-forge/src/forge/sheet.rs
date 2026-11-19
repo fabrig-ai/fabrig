@@ -1,12 +1,12 @@
 //! Add repositories: reads, selections and sends (temper/docs/design/client/forge/family.md, 4 and 5 and temper/docs/design/client/forge/records.md
 //! ; temper/docs/design/client/forge/repositories.md, 1).
-use temper_client_protocol_wire::v1::Record;
 use super::{
     Field, Limits, Request, Side, Typed,
     forges::{Connection, Kind, Mode, Row, State},
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const PICKER_ROWS: usize = 2000;
@@ -282,7 +282,9 @@ pub fn shown<'a>(sheet: &'a Sheet, project: u32, rows: &State) -> List<Shown<'a>
             let mut mark = if reached.private { Mark::Private } else { Mark::None };
             if let Some(row) = row(rows, sheet.forge) {
                 for making in &row.makings {
-                    if making.org.as_ref() == reached.owner.login.as_ref() && making.name.as_ref() == reached.name.as_ref() {
+                    if making.org.as_ref() == reached.owner.login.as_ref()
+                        && making.name.as_ref() == reached.name.as_ref()
+                    {
                         let taken = match &making.state {
                             w::MakingState::Failed(failed) => failed.reason == w::MakeFailure::Taken,
                             w::MakingState::Waiting
@@ -634,9 +636,7 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
         Act::Pick { id, on } => {
             if on {
                 for shown in &shown(sheet, sheet.project, &side.forges) {
-                    if shown.row.id == id
-                        && !shown.picked
-                        && (shown.mark == Mark::None || shown.mark == Mark::Private)
+                    if shown.row.id == id && !shown.picked && (shown.mark == Mark::None || shown.mark == Mark::Private)
                     {
                         sheet.picks.push(pick(shown.row)).expect("bounded picks");
                         break;
@@ -758,7 +758,6 @@ pub(crate) fn received(
     }
     match answer {
         Ok(answer) => {
-
             sheet.more = answer.more && !answer.rows.is_empty();
             sheet.page = page;
             sheet.reading = Reading::Idle;
@@ -844,8 +843,7 @@ fn send(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
             let mut requests = List::with_capacity(CAP);
             match sheet.source {
                 Source::Empty => {
-                    let into =
-                        w::MakeInto { project: sheet.project, home: sheet.home };
+                    let into = w::MakeInto { project: sheet.project, home: sheet.home };
                     let Ok(request) = super::making::ask(forge, &sheet.org.text, &sheet.name.text, None, Some(into))
                     else {
                         return;
@@ -856,10 +854,8 @@ fn send(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
                     for line in &lines(sheet, &side.forges) {
                         match line {
                             super::making::Line::To { address, org, name } => {
-                                let into = w::MakeInto {
-                                        project: sheet.project,
-                                        home: sheet.home && requests.is_empty(),
-                                    };
+                                let into =
+                                    w::MakeInto { project: sheet.project, home: sheet.home && requests.is_empty() };
                                 let Ok(request) = super::making::ask(forge, org, name, Some(address), Some(into))
                                 else {
                                     return;

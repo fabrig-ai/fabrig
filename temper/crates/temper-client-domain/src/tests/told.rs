@@ -44,14 +44,12 @@ fn devices_are_own_scope_watched_only_while_the_page_is_open() {
         .expect("devices watch");
     up(&mut root, Up::Watched { watch, event: jig_client::contract::WatchEvent::Opened });
     let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
-    rows.push(
-        w::DeviceRow {
-                number: 7,
-                label: b"Safari on iPhone".as_slice().into(),
-                at: 10,
-                endpoint: ENDPOINT.into(),
-            },
-    )
+    rows.push(w::DeviceRow {
+        number: 7,
+        label: b"Safari on iPhone".as_slice().into(),
+        at: 10,
+        endpoint: ENDPOINT.into(),
+    })
     .unwrap();
     let document = w::Devices { rows };
     up(

@@ -14,13 +14,7 @@ pub fn owned_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     parts.repositories = skein_lib::List::with_capacity(1);
     parts
         .repositories
-        .push(
-            w::Adoption {
-                    owner: b"work".as_slice().into(),
-                    name: b"hello".as_slice().into(),
-                    project: f::PROJECT,
-                },
-        )
+        .push(w::Adoption { owner: b"work".as_slice().into(), name: b"hello".as_slice().into(), project: f::PROJECT })
         .unwrap();
     *rows.get_mut(0).unwrap() = parts;
     rows

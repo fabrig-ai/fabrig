@@ -9,38 +9,28 @@ fn cursor() -> [u8; 17] {
 }
 fn event(number: u64, what: w::HistoryWhat) -> w::HistoryEvent {
     w::HistoryEvent {
-            project: 1,
-            number,
-            at: 60_000_000_000,
-            source_at: Some(5),
-            change: 51,
-            repository: w::HistoryRepository { forge: 2, repository: 3 },
-            landing: if number == 2 {
-                Some(
-                    w::HistoryInLanding { task: 61, round: 2, unit: 1 },
-                )
-            } else {
-                None
-            },
-            head: Some([0x11; 32]),
-            base: Some([0x22; 32]),
-            operation: 99,
-            attempt: 3,
-            what,
-        }
+        project: 1,
+        number,
+        at: 60_000_000_000,
+        source_at: Some(5),
+        change: 51,
+        repository: w::HistoryRepository { forge: 2, repository: 3 },
+        landing: if number == 2 { Some(w::HistoryInLanding { task: 61, round: 2, unit: 1 }) } else { None },
+        head: Some([0x11; 32]),
+        base: Some([0x22; 32]),
+        operation: 99,
+        attempt: 3,
+        what,
+    }
 }
 fn formed() -> w::HistoryWhat {
-    w::HistoryWhat::Formed(
-        w::HistoryFormed {
-                members: List::from_boxed(Box::new([w::HistoryMember { change: 51, unit: 1, head: [0x11; 32] }])),
-                place: 1,
-            },
-    )
+    w::HistoryWhat::Formed(w::HistoryFormed {
+        members: List::from_boxed(Box::new([w::HistoryMember { change: 51, unit: 1, head: [0x11; 32] }])),
+        place: 1,
+    })
 }
 fn page(events: List<w::HistoryEvent>, after: Option<[u8; 17]>) -> w::HistoryReply {
-    w::HistoryReply::Page(
-        w::HistoryPage { events, after, upper: 40, whole_since: Some(0) },
-    )
+    w::HistoryReply::Page(w::HistoryPage { events, after, upper: 40, whole_since: Some(0) })
 }
 fn serve(root: &mut f::Harness, call: u32, result: w::HistoryReply) {
     let answer = w::HistoryAnswer { result };
@@ -187,13 +177,7 @@ fn a_gone_history_cursor_refuses_in_text_and_json_and_names_the_read_again() {
                 json,
                 None,
             );
-            serve(
-                &mut root,
-                call,
-                w::HistoryReply::Gone(
-                    w::HistoryGone { from: 32, first },
-                ),
-            );
+            serve(&mut root, call, w::HistoryReply::Gone(w::HistoryGone { from: 32, first }));
             let answer = root.answer(call).unwrap();
             assert_eq!(answer.status, 2);
             assert!(answer.stdout.is_empty());
@@ -222,17 +206,13 @@ fn update_history_prints_the_named_forge_base_and_json_keeps_its_absence() {
     for forge_base in [Some([0xab; 32]), None] {
         for (what, kind, field, word) in [
             (
-                w::HistoryWhat::Update(
-                    w::HistoryUpdate { style: w::HistoryUpdateStyle::Rebase, forge_base },
-                ),
+                w::HistoryWhat::Update(w::HistoryUpdate { style: w::HistoryUpdateStyle::Rebase, forge_base }),
                 "update",
                 "style",
                 "rebase",
             ),
             (
-                w::HistoryWhat::Updated(
-                    w::HistoryUpdated { outcome: w::HistoryUpdateOutcome::Failed, forge_base },
-                ),
+                w::HistoryWhat::Updated(w::HistoryUpdated { outcome: w::HistoryUpdateOutcome::Failed, forge_base }),
                 "updated",
                 "outcome",
                 "failed",
@@ -303,8 +283,7 @@ fn change_history_reader_follows_each_cursor_to_end_and_stops_at_sixteen_pages()
         let next = pager.accept(page);
         if number < 16 {
             let Some(client::Readable::Family { record, .. }) = next else { panic!("next history read") };
-            let w::Read::History(query) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
-            else {
+            let w::Read::History(query) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read else {
                 panic!("history query")
             };
             assert_eq!(query.after, Some(cursor()));
@@ -319,28 +298,24 @@ fn change_history_reader_follows_each_cursor_to_end_and_stops_at_sixteen_pages()
 }
 #[test]
 fn history_ended_kind_names_and_nullable_page_fields_are_stable() {
-    let gate = w::HistoryWhat::GateEnded(
-        w::HistoryGateEnded { gate: 4, key: [0x33; 32], verdict: w::HistoryGateVerdict::Superseded },
-    );
-    let round = w::HistoryWhat::RoundEnded(
-        w::HistoryRoundEnded { cause: w::HistoryRoundCause::Cut },
-    );
-    let proved = w::HistoryWhat::Proved(
-        w::HistoryProved {
-                proofs: List::from_boxed(Box::new([
-                    w::HistoryProof { gate: 1, run: Some(7) },
-                    w::HistoryProof { gate: 2, run: None },
-                ])),
-            },
-    );
-    let result = w::HistoryReply::Page(
-        w::HistoryPage {
-                events: List::from_boxed(Box::new([event(1, gate), event(2, round), event(3, proved)])),
-                after: None,
-                upper: 3,
-                whole_since: None,
-            },
-    );
+    let gate = w::HistoryWhat::GateEnded(w::HistoryGateEnded {
+        gate: 4,
+        key: [0x33; 32],
+        verdict: w::HistoryGateVerdict::Superseded,
+    });
+    let round = w::HistoryWhat::RoundEnded(w::HistoryRoundEnded { cause: w::HistoryRoundCause::Cut });
+    let proved = w::HistoryWhat::Proved(w::HistoryProved {
+        proofs: List::from_boxed(Box::new([
+            w::HistoryProof { gate: 1, run: Some(7) },
+            w::HistoryProof { gate: 2, run: None },
+        ])),
+    });
+    let result = w::HistoryReply::Page(w::HistoryPage {
+        events: List::from_boxed(Box::new([event(1, gate), event(2, round), event(3, proved)])),
+        after: None,
+        upper: 3,
+        whole_since: None,
+    });
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["landing", "history", "--project", "1", "--json"]);
     serve(&mut root, call, result);
@@ -378,21 +353,14 @@ fn job_attempt_outcomes_and_failure_classes_render_in_text_and_json() {
         (w::HistoryJobFailure::Undelivered, "undelivered"),
         (w::HistoryJobFailure::Unknown, "unknown"),
     ] {
-        cases.push((
-            w::HistoryJobOutcome::Failed(
-                w::HistoryJobFailed { class },
-            ),
-            "failed",
-            Some(name),
-        ));
+        cases.push((w::HistoryJobOutcome::Failed(w::HistoryJobFailed { class }), "failed", Some(name)));
     }
     for (outcome, name, class) in cases {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(&["landing", "history", "--project", "1"]), json, None);
-            let what = w::HistoryWhat::JobEnded(
-                w::HistoryJobEnded { job: w::HistoryJob::Merge, outcome: outcome.clone() },
-            );
+            let what =
+                w::HistoryWhat::JobEnded(w::HistoryJobEnded { job: w::HistoryJob::Merge, outcome: outcome.clone() });
             serve(&mut root, call, page(List::from_boxed(Box::new([event(1, what)])), None));
             let answer = root.answer(call).unwrap();
             assert_eq!(answer.status, 0);

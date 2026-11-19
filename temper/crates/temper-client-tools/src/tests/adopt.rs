@@ -1,7 +1,7 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use jig_client::{self as client, contract as c};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 #[test]
 fn adopt_prints_adopted_in_the_forges_words() {
     let (mut root, call) = fixtures::adopt_root(&[]);
@@ -345,19 +345,15 @@ fn a_saved_setup_request_is_not_restored_as_an_adoption() {
     let held = records.get_mut(fixtures::EMPTY).expect("one saved request");
     let client::Ask::Family { record, .. } = &mut held.request.request else { panic!("family request") };
     let request = w::Requesting {
-            request: w::Request::SetUp(
-                w::SetUp {
-                        forge: w::Making::Kept(w::Kept { forge: 3 }),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                        ),
-                    },
-            ),
-        };
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge: 3 }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
     record.bytes = request.encode(&w::CEILINGS).expect("setup request");
     let mut root = fixtures::started(records);
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
@@ -400,32 +396,29 @@ fn a_retry_keeps_the_adoptions_nondefault_options_and_quotes_arguments() {
 
 #[test]
 fn a_read_only_adoption_says_so() {
-
     for role in [w::Role::Owned, w::Role::Context] {
         let (mut root, call) = fixtures::adopt_root(&[]);
-        let outcome = w::Outcome::Adopted(
-            w::Adopted {
-                    landing: b"main".as_slice().into(),
-                    forge: 1,
-                    repository: 7,
-                    owner: b"o".as_slice().into(),
-                    name: b"n".as_slice().into(),
-                    role: role.clone(),
-                    home: false,
-                    kinds: w::Kinds {
-                            read: true,
-                            push: false,
-                            open: false,
-                            land: false,
-                            review: false,
-                            status: false,
-                            comment: false,
-                            issue: false,
-                            branch: false,
-                        },
-                    protection: w::Protection::Unknown,
-                },
-        );
+        let outcome = w::Outcome::Adopted(w::Adopted {
+            landing: b"main".as_slice().into(),
+            forge: 1,
+            repository: 7,
+            owner: b"o".as_slice().into(),
+            name: b"n".as_slice().into(),
+            role: role.clone(),
+            home: false,
+            kinds: w::Kinds {
+                read: true,
+                push: false,
+                open: false,
+                land: false,
+                review: false,
+                status: false,
+                comment: false,
+                issue: false,
+                branch: false,
+            },
+            protection: w::Protection::Unknown,
+        });
         root.adoption_answer(call, outcome);
         let printed = root.answer(call).expect("answered");
         assert_eq!(printed.status, 0);

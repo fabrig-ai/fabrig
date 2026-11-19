@@ -224,9 +224,7 @@ mod tests {
             branch: b"temper/qa".as_slice().into(),
             landing: b"main".as_slice().into(),
             head: Some([0xab; 32]),
-            pull: Some(
-                w::Pull { number: 216, address: Box::new([]) },
-            ),
+            pull: Some(w::Pull { number: 216, address: Box::new([]) }),
             step,
             hold: None,
             runs: None,
@@ -632,9 +630,7 @@ mod tests {
         let mut address = b"https://forge.example/".to_vec();
         address.resize(usize::try_from(wire::ADDRESS_BYTES).expect("bound fits"), b'x');
         let mut parts = panel_parts(w::Step::Gating);
-        parts.pull = Some(
-            w::Pull { number: u64::MAX, address: address.clone().into() },
-        );
+        parts.pull = Some(w::Pull { number: u64::MAX, address: address.clone().into() });
         let (root, _) = show(parts);
         let mut view = view(&root);
         let Found::Node(node) =

@@ -1,5 +1,4 @@
 //! The limits read and kept limit holds reach the shared page and one-act card.
-use temper_client_protocol_wire::v1::Record;
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_fake_person::{Find, Step};
@@ -11,6 +10,7 @@ use temper_client_domain::{
     pages::{Act, limit_settings},
 };
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_world::{
     app::Temper,
     fixtures,
@@ -43,26 +43,22 @@ fn see(role: Role, name: &[u8]) -> Step<Address> {
 }
 fn page() -> w::LimitsAnswer {
     let mut rows = List::with_capacity(1);
-    rows.push(
-        w::LimitRow {
-                name: b"forge.entries".as_slice().into(),
-                line: b"Bounds the forge outbox.".as_slice().into(),
-                unit: w::LimitUnit::Count,
-                stock: Some(8),
-                setting: Some(
-                    w::LimitSetting {
-                            kind: w::LimitKind::Temper,
-                            value: 32,
-                            reason: b"dev's outbox".as_slice().into(),
-                        },
-                ),
-                in_force: Some(16),
-                applies: w::LimitApplies::AtOnce,
-                waiting: true,
-                left_out: false,
-                held: None,
-            },
-    )
+    rows.push(w::LimitRow {
+        name: b"forge.entries".as_slice().into(),
+        line: b"Bounds the forge outbox.".as_slice().into(),
+        unit: w::LimitUnit::Count,
+        stock: Some(8),
+        setting: Some(w::LimitSetting {
+            kind: w::LimitKind::Temper,
+            value: 32,
+            reason: b"dev's outbox".as_slice().into(),
+        }),
+        in_force: Some(16),
+        applies: w::LimitApplies::AtOnce,
+        waiting: true,
+        left_out: false,
+        held: None,
+    })
     .expect("limits fixture");
     w::LimitsAnswer { rows, next: None, revision: 1 }
 }

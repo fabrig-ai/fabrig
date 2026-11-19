@@ -1,9 +1,9 @@
 //! The session's approvals (temper/docs/design/client/pages/README.md, temper/docs/design/client/forge/records.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 /// Whether the person's review counts for the approval the change waits on.
@@ -204,10 +204,8 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
     let document = wire::decode_approvals(&record.bytes, &wire_limits(&limits)?)?;
     let mut rows = List::with_capacity(document.rows.len());
     for value in document.rows.into_boxed() {
-
         let mut sets = List::with_capacity(value.sets.len());
         for set in value.sets.into_boxed() {
-
             sets.push(ApprovalSet { number: set.number, name: set.name }).expect("wire bounds approval sets");
         }
         rows.push(Row {
@@ -236,15 +234,12 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
             can_sign: people(value.can_sign),
             can_sign_more: value.can_sign_more,
             size: match value.size {
-                Some(size) => {
-
-                    Some(Size {
-                        files: size.files,
-                        additions: size.additions,
-                        deletions: size.deletions,
-                        cut: size.cut,
-                    })
-                }
+                Some(size) => Some(Size {
+                    files: size.files,
+                    additions: size.additions,
+                    deletions: size.deletions,
+                    cut: size.cut,
+                }),
                 None => None,
             },
             yours: match value.yours {
@@ -262,7 +257,6 @@ fn rows(record: &Family, limits: Limits) -> Option<Event> {
 fn people(values: List<w::ApprovalPerson>) -> Box<[ApprovalPerson]> {
     let mut people = List::with_capacity(values.len());
     for value in values.into_boxed() {
-
         people.push(ApprovalPerson { person: value.person, name: value.name }).expect("wire bounds approval people");
     }
     people.into_boxed()

@@ -47,50 +47,32 @@ fn opened() -> (Domain, Token, Token) {
 fn record(projects: &[u32]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
-        dismissed
-            .push(w::PersonFact::ToBegin(w::ToBegin { project: *project }))
-            .unwrap();
+        dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals { dismissed }),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::dismissals(&w::Dismissals { dismissed }) }
 }
 fn fact_record(facts: &[PersonFact]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for fact in facts {
         dismissed.push(wire_fact(*fact)).unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals { dismissed }),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::dismissals(&w::Dismissals { dismissed }) }
 }
 fn wire_fact(fact: PersonFact) -> w::PersonFact {
     match fact {
-        PersonFact::ToBegin { project } => {
-            w::PersonFact::ToBegin(w::ToBegin { project })
+        PersonFact::ToBegin { project } => w::PersonFact::ToBegin(w::ToBegin { project }),
+        PersonFact::GoalFrom { project, chat, goal, at } => {
+            w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at })
         }
-        PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
-            w::GoalFrom { project, chat, goal, at },
-        ),
         PersonFact::KeepAsking { project, subject, at } => {
             let subject = match subject {
                 Subject::Kind(kind) => {
                     assert_eq!(kind, Kind::Implementation, "fixture's kind");
-                    w::ClassSubject::Kind(
-                        w::ReachKindOf { kind: w::ReachKind::Implementation },
-                    )
+                    w::ClassSubject::Kind(w::ReachKindOf { kind: w::ReachKind::Implementation })
                 }
-                Subject::Set(number) => {
-                    w::ClassSubject::Set(w::ReachSet { number })
-                }
+                Subject::Set(number) => w::ClassSubject::Set(w::ReachSet { number }),
             };
-            w::PersonFact::KeepAsking(
-                w::KeepAsking { project, subject, at: at.as_nanos() },
-            )
+            w::PersonFact::KeepAsking(w::KeepAsking { project, subject, at: at.as_nanos() })
         }
     }
 }
@@ -268,8 +250,7 @@ fn ask_is_of_the_projects_scope() {
             };
             assert_eq!(scope, c::Scope::Project(project));
             assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-            let w::Request::Dismiss(value) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            let w::Request::Dismiss(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("dismiss request")
             };
@@ -303,16 +284,10 @@ fn goal_record(facts: &[(u32, u64, u64, u64)]) -> Family {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for (project, chat, goal, at) in facts {
         dismissed
-            .push(w::PersonFact::GoalFrom(
-                w::GoalFrom { project: *project, chat: *chat, goal: *goal, at: *at },
-            ))
+            .push(w::PersonFact::GoalFrom(w::GoalFrom { project: *project, chat: *chat, goal: *goal, at: *at }))
             .unwrap();
     }
-    Family {
-        family: wire::FORGE,
-        version: wire::CLIENT_VERSION,
-        bytes: wire::dismissals(&w::Dismissals { dismissed }),
-    }
+    Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::dismissals(&w::Dismissals { dismissed }) }
 }
 
 #[test]

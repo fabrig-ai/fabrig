@@ -65,11 +65,11 @@ fn welcome() -> Host {
         })
         .expect("deployment read");
     let answer = temper_client_protocol_wire::v1::DeploymentAnswer {
-            push: None,
-            welcome: true,
-            owned: true,
-            program_login: None,
-        };
+        push: None,
+        welcome: true,
+        owned: true,
+        program_login: None,
+    };
     host.client(jig_client::Event::Up {
         up: jig_client::Up::ReadDone {
             read: deployment,

@@ -1,9 +1,9 @@
 //! The forge family's records at the clients' boundary (client/engine.md).
 //! Trials: temper/docs/design/domain/trial.md, 6.
-use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Token, Wall, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
@@ -79,12 +79,8 @@ pub fn to_root(
                     }));
                 }
                 w::Request::OpenChange(value) => {
-
                     let repository = match value.repository {
-                        Some(named) => {
-
-                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
-                        }
+                        Some(named) => Some(forge::DraftRepository { owner: named.owner, name: named.name }),
                         None => None,
                     };
                     let budget = match value.budget {
@@ -111,12 +107,8 @@ pub fn to_root(
                     }));
                 }
                 w::Request::SetDraft(value) => {
-
                     let repository = match value.repository {
-                        Some(named) => {
-
-                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
-                        }
+                        Some(named) => Some(forge::DraftRepository { owner: named.owner, name: named.name }),
                         None => None,
                     };
                     let change = match value.change {
@@ -140,12 +132,8 @@ pub fn to_root(
                     }));
                 }
                 w::Request::TierAct(value) => {
-
                     let repository = match value.repository {
-                        Some(named) => {
-
-                            Some(forge::DraftRepository { owner: named.owner, name: named.name })
-                        }
+                        Some(named) => Some(forge::DraftRepository { owner: named.owner, name: named.name }),
                         None => None,
                     };
                     let act = match value.act {
@@ -168,7 +156,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::FollowAct(value) => {
-
                     let act = match value.act {
                         w::FollowAct::Start(v) => forge::follows::FollowAct::Start { after: v.after },
                         w::FollowAct::Hold(v) => {
@@ -179,9 +166,7 @@ pub fn to_root(
                             let p = v;
                             forge::follows::FollowAct::Skip { after: p.after, reason: p.reason }
                         }
-                        w::FollowAct::Merge(v) => {
-                            forge::follows::FollowAct::Merge { afters: v.afters.into_boxed() }
-                        }
+                        w::FollowAct::Merge(v) => forge::follows::FollowAct::Merge { afters: v.afters.into_boxed() },
                     };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
@@ -194,7 +179,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::SetUp(value) => {
-
                     let Some(forge) = making(value.forge, directories) else {
                         return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
                             to: reply_to,
@@ -219,18 +203,14 @@ pub fn to_root(
                 | w::Request::Accept(_)) => {
                     let request = match value {
                         w::Request::Connect(value) => {
-
                             let how = match value.how {
                                 w::How::ForgejoAdmin(admin) => {
                                     let first = match admin.first {
-                                        Some(first) => {
-
-                                            Some(forge::FirstAsk {
-                                                org: first.org,
-                                                repository: first.repository,
-                                                label: first.label,
-                                            })
-                                        }
+                                        Some(first) => Some(forge::FirstAsk {
+                                            org: first.org,
+                                            repository: first.repository,
+                                            label: first.label,
+                                        }),
                                         None => None,
                                     };
                                     forge::How::ForgejoAdmin { first }
@@ -266,7 +246,6 @@ pub fn to_root(
                         }
                         w::Request::Replace(value) => forge::Ask::Replace { forge: value.forge },
                         w::Request::Accept(value) => {
-
                             let Some(installation) = core::num::NonZeroU64::new(value.installation) else {
                                 return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
                                     to: reply_to,
@@ -275,7 +254,6 @@ pub fn to_root(
                             forge::Ask::Accept { forge: value.forge, installation }
                         }
                         w::Request::Install(value) => {
-
                             if let Some(back) = &value.back
                                 && !return_path(back)
                             {
@@ -355,7 +333,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::Reachable(value) => {
-
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -371,7 +348,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::DismissMaking(value) => {
-
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -388,11 +364,9 @@ pub fn to_root(
                     }));
                 }
                 w::Request::MakeRepository(value) => {
-
                     let from = match value.from {
                         w::MakeFrom::Empty => forge::MakeFrom::Empty,
                         w::MakeFrom::Copy(copy) => {
-
                             let Ok(source) = wire::source::parse(&copy.address) else {
                                 return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
                                     to: reply_to,
@@ -402,17 +376,14 @@ pub fn to_root(
                         }
                     };
                     let into = match value.into {
-                        Some(into) => {
-
-                            Some(forge::MakeInto {
-                                project: into.project,
-                                home: into.home,
-                                host: match forges.get(value.forge) {
-                                    Some(forge) => host(&forge.git),
-                                    None => Box::default(),
-                                },
-                            })
-                        }
+                        Some(into) => Some(forge::MakeInto {
+                            project: into.project,
+                            home: into.home,
+                            host: match forges.get(value.forge) {
+                                Some(forge) => host(&forge.git),
+                                None => Box::default(),
+                            },
+                        }),
                         None => None,
                     };
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -502,7 +473,6 @@ pub fn to_root(
                     }));
                 }
                 w::Request::SetAway(value) => {
-
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -640,13 +610,11 @@ pub fn to_root(
                         connector: wire::FORGE,
                         subject: Token::new(0),
                     },
-                    w::Watch::Change(subject) if subject.task > 0 => {
-                        jig_domain_core::documents::Watched::Application {
-                            scope,
-                            connector: wire::FORGE,
-                            subject: Token::new(subject.task),
-                        }
-                    }
+                    w::Watch::Change(subject) if subject.task > 0 => jig_domain_core::documents::Watched::Application {
+                        scope,
+                        connector: wire::FORGE,
+                        subject: Token::new(subject.task),
+                    },
                     w::Watch::Landing(subject) if subject.task > 0 => {
                         jig_domain_core::documents::Watched::Application {
                             scope,
@@ -743,62 +711,56 @@ pub fn to_root(
 pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let landing_hold = value.landing_hold();
     let pull = match value.pull {
-        Some(number) => {
-            Some(w::Pull { number, address: address(&value, number, forges) })
-        }
+        Some(number) => Some(w::Pull { number, address: address(&value, number, forges) }),
         None => None,
     };
     let gates = panel_gates(value.gates, limits)?;
     let approvals = panel_approvals(value.approvals, limits)?;
     let unmapped_reviews = panel_unmapped(value.unmapped_reviews, limits)?;
     let record = w::ChangePanel {
-            way: match value.way {
-                change::Way::Queue => w::Way::Queue,
-                change::Way::Turn => w::Way::Turn,
-            },
-            in_landing: value.in_landing,
-            task: value.task,
-            forge: value.forge,
-            owner: value.owner,
-            name: value.name,
-            branch: value.branch,
-            landing: value.landing,
-            head: value.head,
-            pull,
-            step: panel_step(value.step, limits)?,
-            hold: if let Some(reason) = landing_hold {
-                Some(w::Hold::Authority(
-                    w::AuthorityHold { reason: Box::from(reason) },
-                ))
-            } else {
-                panel_hold(value.hold)
-            },
-            wait: match value.wait {
-                Some(forge::PanelWait::OutboxRoom) => Some(w::ChangeWait::OutboxRoom),
-                None => None,
-            },
-            runs: value.runs,
-            ci_required: value.ci_required,
-            ci: match value.ci {
-                change::Status::Unknown => w::Ci::Unknown,
-                change::Status::Pending => w::Ci::Pending,
-                change::Status::Passed => w::Ci::Passed,
-                change::Status::Failed => w::Ci::Failed,
-            },
-            gates,
-            approvals,
-            unmapped_reviews,
-            repairs: used(value.repairs, limits)?,
-            resolutions: used(value.resolutions, limits)?,
-            updates: used(value.updates, limits)?,
-            questions: panel_questions(value.questions, limits)?,
-            source: match value.source {
-                Some(source) => Some(
-                    w::PanelSource { branch: source.branch, at: source.at, kept: source.kept },
-                ),
-                None => None,
-            },
-        };
+        way: match value.way {
+            change::Way::Queue => w::Way::Queue,
+            change::Way::Turn => w::Way::Turn,
+        },
+        in_landing: value.in_landing,
+        task: value.task,
+        forge: value.forge,
+        owner: value.owner,
+        name: value.name,
+        branch: value.branch,
+        landing: value.landing,
+        head: value.head,
+        pull,
+        step: panel_step(value.step, limits)?,
+        hold: if let Some(reason) = landing_hold {
+            Some(w::Hold::Authority(w::AuthorityHold { reason: Box::from(reason) }))
+        } else {
+            panel_hold(value.hold)
+        },
+        wait: match value.wait {
+            Some(forge::PanelWait::OutboxRoom) => Some(w::ChangeWait::OutboxRoom),
+            None => None,
+        },
+        runs: value.runs,
+        ci_required: value.ci_required,
+        ci: match value.ci {
+            change::Status::Unknown => w::Ci::Unknown,
+            change::Status::Pending => w::Ci::Pending,
+            change::Status::Passed => w::Ci::Passed,
+            change::Status::Failed => w::Ci::Failed,
+        },
+        gates,
+        approvals,
+        unmapped_reviews,
+        repairs: used(value.repairs, limits)?,
+        resolutions: used(value.resolutions, limits)?,
+        updates: used(value.updates, limits)?,
+        questions: panel_questions(value.questions, limits)?,
+        source: match value.source {
+            Some(source) => Some(w::PanelSource { branch: source.branch, at: source.at, kept: source.kept }),
+            None => None,
+        },
+    };
     record.encode(limits).ok()
 }
 
@@ -806,23 +768,21 @@ fn panel_gates(value: Box<[forge::PanelGate]>, _limits: &w::Limits) -> Option<Li
     let mut gates = List::with_capacity(forge::PANEL_GATES);
     for gate in value {
         gates
-            .push(
-                w::Gate {
-                        number: gate.number,
-                        kind: match gate.kind {
-                            change::GateKind::Agent => w::GateKind::Review,
-                            change::GateKind::Person => w::GateKind::Approval,
-                            change::GateKind::Check | change::GateKind::Follow => w::GateKind::Check,
-                        },
-                        blocks: gate.blocking,
-                        verdict: match gate.verdict {
-                            change::Status::Unknown => w::Verdict::None,
-                            change::Status::Pending => w::Verdict::Pending,
-                            change::Status::Passed => w::Verdict::Approved,
-                            change::Status::Failed => w::Verdict::Changes,
-                        },
-                    },
-            )
+            .push(w::Gate {
+                number: gate.number,
+                kind: match gate.kind {
+                    change::GateKind::Agent => w::GateKind::Review,
+                    change::GateKind::Person => w::GateKind::Approval,
+                    change::GateKind::Check | change::GateKind::Follow => w::GateKind::Check,
+                },
+                blocks: gate.blocking,
+                verdict: match gate.verdict {
+                    change::Status::Unknown => w::Verdict::None,
+                    change::Status::Pending => w::Verdict::Pending,
+                    change::Status::Passed => w::Verdict::Approved,
+                    change::Status::Failed => w::Verdict::Changes,
+                },
+            })
             .ok()?;
     }
     Some(gates)
@@ -832,33 +792,27 @@ fn panel_approvals(value: Box<[forge::PanelApproval]>, limits: &w::Limits) -> Op
     for line in value {
         let mut counted = List::with_capacity(limits.approval_counted);
         for review in line.counted {
-            counted
-                .push(
-                    w::CountedReview { person: review.person, head: review.head },
-                )
-                .ok()?;
+            counted.push(w::CountedReview { person: review.person, head: review.head }).ok()?;
         }
         approvals
-            .push(
-                w::Approval {
-                        scope: line.scope,
-                        number: line.rule,
-                        role: line.role,
-                        freshness: match line.freshness {
-                            forge::JudgeFreshness::Exact => w::RuleFreshness::Exact,
-                            forge::JudgeFreshness::Clean => w::RuleFreshness::Clean,
-                        },
-                        required: line.required,
-                        read: match line.read {
-                            forge::ReviewRead::Unread => w::ReviewRead::Unread,
-                            forge::ReviewRead::Incomplete => w::ReviewRead::Incomplete,
-                            forge::ReviewRead::Complete => w::ReviewRead::Complete,
-                        },
-                        counted,
-                        remaining: line.remaining,
-                        refused: line.refused,
-                    },
-            )
+            .push(w::Approval {
+                scope: line.scope,
+                number: line.rule,
+                role: line.role,
+                freshness: match line.freshness {
+                    forge::JudgeFreshness::Exact => w::RuleFreshness::Exact,
+                    forge::JudgeFreshness::Clean => w::RuleFreshness::Clean,
+                },
+                required: line.required,
+                read: match line.read {
+                    forge::ReviewRead::Unread => w::ReviewRead::Unread,
+                    forge::ReviewRead::Incomplete => w::ReviewRead::Incomplete,
+                    forge::ReviewRead::Complete => w::ReviewRead::Complete,
+                },
+                counted,
+                remaining: line.remaining,
+                refused: line.refused,
+            })
             .ok()?;
     }
     Some(approvals)
@@ -867,17 +821,15 @@ fn panel_unmapped(value: Box<[forge::UnmappedReview]>, limits: &w::Limits) -> Op
     let mut reviews = List::with_capacity(limits.change_panel_unmapped_reviews);
     for review in value {
         reviews
-            .push(
-                w::UnmappedReview {
-                        account: review.account,
-                        head: review.head,
-                        verdict: match review.verdict {
-                            skein_forge::api::Verdict::Approve => w::Verdict::Approved,
-                            skein_forge::api::Verdict::Comment => w::Verdict::None,
-                            skein_forge::api::Verdict::RequestChanges => w::Verdict::Changes,
-                        },
-                    },
-            )
+            .push(w::UnmappedReview {
+                account: review.account,
+                head: review.head,
+                verdict: match review.verdict {
+                    skein_forge::api::Verdict::Approve => w::Verdict::Approved,
+                    skein_forge::api::Verdict::Comment => w::Verdict::None,
+                    skein_forge::api::Verdict::RequestChanges => w::Verdict::Changes,
+                },
+            })
             .ok()?;
     }
     Some(reviews)
@@ -886,91 +838,85 @@ fn panel_unmapped(value: Box<[forge::UnmappedReview]>, limits: &w::Limits) -> Op
 fn panel_questions(value: forge::PanelQuestions, limits: &w::Limits) -> Option<w::Questions> {
     let mut open = List::with_capacity(8);
     for question in value.open {
-        open.push(
-            w::Question {
-                    asker: question.asker,
-                    number: question.number,
-                    line: question.line,
-                    stands: match question.stands {
-                        forge::PanelStands::Taken => w::Stands::Taken,
-                        forge::PanelStands::Asked => w::Stands::Asked,
-                        forge::PanelStands::Held => w::Stands::Held,
-                    },
-                },
-        )
+        open.push(w::Question {
+            asker: question.asker,
+            number: question.number,
+            line: question.line,
+            stands: match question.stands {
+                forge::PanelStands::Taken => w::Stands::Taken,
+                forge::PanelStands::Asked => w::Stands::Asked,
+                forge::PanelStands::Held => w::Stands::Held,
+            },
+        })
         .ok()?;
     }
-    { let value = w::Questions {
+    {
+        let value = w::Questions {
             route: match value.route {
                 change::Route::None => w::Route::None,
                 change::Route::Up => w::Route::Up,
             },
             taken: used(value.taken, limits)?,
             open,
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 
 fn used(value: forge::PanelUsed, limits: &w::Limits) -> Option<w::Used> {
-    { let value = w::Used { used: value.used, limit: value.limit }; value.measure(limits).ok()?; Some(value) }
+    {
+        let value = w::Used { used: value.used, limit: value.limit };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 
 fn panel_step(value: forge::PanelStep, limits: &w::Limits) -> Option<w::Step> {
     let value = {
-    Some(match value {
-        forge::PanelStep::Ended => w::Step::Ended,
-        forge::PanelStep::Ready { landing } => {
-            w::Step::Ready(w::InLanding { landing })
-        }
-        forge::PanelStep::Preparing { landing } => {
-            w::Step::Preparing(w::InLanding { landing })
-        }
-        forge::PanelStep::Taking => w::Step::Taking,
-        forge::PanelStep::Producing => w::Step::Producing,
-        forge::PanelStep::Opening => w::Step::Opening,
-        forge::PanelStep::Recreating => w::Step::Recreating,
-        forge::PanelStep::Reopening => w::Step::Reopening,
-        forge::PanelStep::Checking => w::Step::Checking,
-        forge::PanelStep::Gating => w::Step::Gating,
-        forge::PanelStep::Queued { place, ahead } => {
-            let mut tasks = List::with_capacity(forge::PANEL_AHEAD);
-            for task in ahead {
-                tasks.push(task).ok()?;
+        Some(match value {
+            forge::PanelStep::Ended => w::Step::Ended,
+            forge::PanelStep::Ready { landing } => w::Step::Ready(w::InLanding { landing }),
+            forge::PanelStep::Preparing { landing } => w::Step::Preparing(w::InLanding { landing }),
+            forge::PanelStep::Taking => w::Step::Taking,
+            forge::PanelStep::Producing => w::Step::Producing,
+            forge::PanelStep::Opening => w::Step::Opening,
+            forge::PanelStep::Recreating => w::Step::Recreating,
+            forge::PanelStep::Reopening => w::Step::Reopening,
+            forge::PanelStep::Checking => w::Step::Checking,
+            forge::PanelStep::Gating => w::Step::Gating,
+            forge::PanelStep::Queued { place, ahead } => {
+                let mut tasks = List::with_capacity(forge::PANEL_AHEAD);
+                for task in ahead {
+                    tasks.push(task).ok()?;
+                }
+                w::Step::Queued(w::Queued { place, ahead: tasks })
             }
-            w::Step::Queued(w::Queued { place, ahead: tasks })
-        }
-        forge::PanelStep::First => w::Step::First,
-        forge::PanelStep::Updating => w::Step::Updating,
-        forge::PanelStep::Resolving => w::Step::Resolving,
-        forge::PanelStep::Repairing(reason) => w::Step::Repairing(
-            w::Repairing {
-                    reason: match reason {
-                        change::Repair::Ci => w::Reason::Ci,
-                        change::Repair::Review { .. } => w::Reason::Review,
-                        change::Repair::Gate(gate) => {
-                            w::Reason::Gate(w::GateReason { gate })
-                        }
-                        change::Repair::Semantic => w::Reason::Semantic,
-                        change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {
-                            w::Reason::Landing(
-                                w::GateReason { gate: u64::from(gate) },
-                            )
-                        }
-                    },
+            forge::PanelStep::First => w::Step::First,
+            forge::PanelStep::Updating => w::Step::Updating,
+            forge::PanelStep::Resolving => w::Step::Resolving,
+            forge::PanelStep::Repairing(reason) => w::Step::Repairing(w::Repairing {
+                reason: match reason {
+                    change::Repair::Ci => w::Reason::Ci,
+                    change::Repair::Review { .. } => w::Reason::Review,
+                    change::Repair::Gate(gate) => w::Reason::Gate(w::GateReason { gate }),
+                    change::Repair::Semantic => w::Reason::Semantic,
+                    change::Repair::LandingAt { gate, .. } | change::Repair::Landing { gate } => {
+                        w::Reason::Landing(w::GateReason { gate: u64::from(gate) })
+                    }
                 },
-        ),
-        forge::PanelStep::Landing => w::Step::Landing,
-        forge::PanelStep::Landed { merge } => w::Step::Landed(w::Landed { merge }),
-        forge::PanelStep::Verifying { merge, tiers } => {
-            w::Step::Verifying(w::Verifying { merge, tiers: panel_tiers(tiers) })
-        }
-        forge::PanelStep::Red { merge, tiers } => {
-            w::Step::Red(w::Red { merge, tiers: panel_tiers(tiers) })
-        }
-        forge::PanelStep::Cleared { merge, tiers, uncleared } => w::Step::Cleared(
-            w::Cleared { merge, tiers: panel_tiers(tiers), uncleared },
-        ),
-    })
-}?;
+            }),
+            forge::PanelStep::Landing => w::Step::Landing,
+            forge::PanelStep::Landed { merge } => w::Step::Landed(w::Landed { merge }),
+            forge::PanelStep::Verifying { merge, tiers } => {
+                w::Step::Verifying(w::Verifying { merge, tiers: panel_tiers(tiers) })
+            }
+            forge::PanelStep::Red { merge, tiers } => w::Step::Red(w::Red { merge, tiers: panel_tiers(tiers) }),
+            forge::PanelStep::Cleared { merge, tiers, uncleared } => {
+                w::Step::Cleared(w::Cleared { merge, tiers: panel_tiers(tiers), uncleared })
+            }
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
@@ -989,9 +935,9 @@ fn panel_hold(value: Option<change::Hold>) -> Option<w::Hold> {
         change::Hold::Failed => w::Hold::Failed,
         change::Hold::Flake => w::Hold::Flake,
         change::Hold::Rejected => w::Hold::Rejected,
-        change::Hold::Authority(cause) => w::Hold::Authority(
-            w::AuthorityHold { reason: change::authority_words(cause) },
-        ),
+        change::Hold::Authority(cause) => {
+            w::Hold::Authority(w::AuthorityHold { reason: change::authority_words(cause) })
+        }
     })
 }
 
@@ -1049,14 +995,12 @@ pub fn answer(
         Some(root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Page(page))) => {
             let mut rows = List::with_capacity(limits.page_rows);
             for row in page.rows {
-                rows.push(
-                    w::Reached {
-                            id: row.id,
-                            owner: w::Account { id: row.owner_id, login: row.owner },
-                            name: row.name,
-                            private: row.private,
-                        },
-                )
+                rows.push(w::Reached {
+                    id: row.id,
+                    owner: w::Account { id: row.owner_id, login: row.owner },
+                    name: row.name,
+                    private: row.private,
+                })
                 .ok()?;
             }
             w::Outcome::Page(w::Page { rows, more: page.more })
@@ -1089,9 +1033,7 @@ pub fn answer(
                 Err(why) => Some(match why {
                     forge::TierRefusal::NoRepository => w::TierRefusal::NoRepository,
                     forge::TierRefusal::NoTier => w::TierRefusal::NoTier,
-                    forge::TierRefusal::Held { party, reason } => {
-                        w::TierRefusal::Held(w::TierHeldBy { party, reason })
-                    }
+                    forge::TierRefusal::Held { party, reason } => w::TierRefusal::Held(w::TierHeldBy { party, reason }),
                     forge::TierRefusal::NotHeld => w::TierRefusal::NotHeld,
                     forge::TierRefusal::Words => w::TierRefusal::Words,
                 }),
@@ -1106,22 +1048,18 @@ pub fn answer(
         Some(root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed)) => w::Outcome::Dismissed,
         Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)) => w::Outcome::Looked,
         Some(root::ApplicationAnswer::Device(answer)) => match answer {
-            forge::DeviceAnswer::Added { number } => w::Outcome::DeviceAdded(
-                w::DeviceAdded { number },
-            ),
+            forge::DeviceAnswer::Added { number } => w::Outcome::DeviceAdded(w::DeviceAdded { number }),
             forge::DeviceAnswer::Removed => w::Outcome::DeviceRemoved,
-            forge::DeviceAnswer::Refused(why) => w::Outcome::DeviceRefused(
-                w::DeviceRefused {
-                        reason: match why {
-                            forge::DeviceRefusal::Person => w::DeviceRefusal::Person,
-                            forge::DeviceRefusal::Off => w::DeviceRefusal::Off,
-                            forge::DeviceRefusal::Service => w::DeviceRefusal::Service,
-                            forge::DeviceRefusal::Malformed => w::DeviceRefusal::Malformed,
-                            forge::DeviceRefusal::TooMany => w::DeviceRefusal::TooMany,
-                            forge::DeviceRefusal::Unknown => w::DeviceRefusal::Unknown,
-                        },
-                    },
-            ),
+            forge::DeviceAnswer::Refused(why) => w::Outcome::DeviceRefused(w::DeviceRefused {
+                reason: match why {
+                    forge::DeviceRefusal::Person => w::DeviceRefusal::Person,
+                    forge::DeviceRefusal::Off => w::DeviceRefusal::Off,
+                    forge::DeviceRefusal::Service => w::DeviceRefusal::Service,
+                    forge::DeviceRefusal::Malformed => w::DeviceRefusal::Malformed,
+                    forge::DeviceRefusal::TooMany => w::DeviceRefusal::TooMany,
+                    forge::DeviceRefusal::Unknown => w::DeviceRefusal::Unknown,
+                },
+            }),
         },
         Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)) => w::Outcome::Away,
         Some(root::ApplicationAnswer::SetDraft(answer)) => match answer {
@@ -1141,20 +1079,18 @@ pub fn answer(
         },
         Some(root::ApplicationAnswer::Overturn(answer)) => match answer {
             forge::OverturnAnswer::Overturned => w::Outcome::Overturned,
-            forge::OverturnAnswer::Already => w::Outcome::OverturnRefused(
-                w::OverturnRefused { reason: w::OverturnRefusal::Already },
-            ),
-            forge::OverturnAnswer::Unknown => w::Outcome::OverturnRefused(
-                w::OverturnRefused { reason: w::OverturnRefusal::Unknown },
-            ),
+            forge::OverturnAnswer::Already => {
+                w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Already })
+            }
+            forge::OverturnAnswer::Unknown => {
+                w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Unknown })
+            }
         },
         Some(
             root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge)
             | root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge)
             | root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::TooLarge),
-        ) => w::Outcome::ForgeRefused(
-            w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-        ),
+        ) => w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         Some(root::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Opened { task })) => {
             w::Outcome::Opened(w::Opened { task })
         }
@@ -1163,34 +1099,32 @@ pub fn answer(
             w::Outcome::OpenRefused(w::OpenRefused { reason })
         }
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::Adopted(a))) => {
-            w::Outcome::Adopted(
-                w::Adopted {
-                        forge: a.repository.forge,
-                        repository: a.repository.repository,
-                        // A made repository can name a plan branch past the client's adoption bound.
-                        landing: if a.landing.len() <= skein_lib::usize_of(limits.adopted_landing) {
-                            a.landing
-                        } else {
-                            Box::new([])
-                        },
-                        owner: a.owner,
-                        name: a.name,
-                        role: encoded_role(a.role),
-                        home: a.home,
-                        kinds: w::Kinds {
-                                read: a.kinds.read,
-                                push: a.kinds.push,
-                                open: a.kinds.open,
-                                land: a.kinds.land,
-                                review: a.kinds.review,
-                                status: a.kinds.status,
-                                comment: a.kinds.comment,
-                                issue: a.kinds.issue,
-                                branch: a.kinds.branch,
-                            },
-                        protection: protection(a.protection, limits)?,
-                    },
-            )
+            w::Outcome::Adopted(w::Adopted {
+                forge: a.repository.forge,
+                repository: a.repository.repository,
+                // A made repository can name a plan branch past the client's adoption bound.
+                landing: if a.landing.len() <= skein_lib::usize_of(limits.adopted_landing) {
+                    a.landing
+                } else {
+                    Box::new([])
+                },
+                owner: a.owner,
+                name: a.name,
+                role: encoded_role(a.role),
+                home: a.home,
+                kinds: w::Kinds {
+                    read: a.kinds.read,
+                    push: a.kinds.push,
+                    open: a.kinds.open,
+                    land: a.kinds.land,
+                    review: a.kinds.review,
+                    status: a.kinds.status,
+                    comment: a.kinds.comment,
+                    issue: a.kinds.issue,
+                    branch: a.kinds.branch,
+                },
+                protection: protection(a.protection, limits)?,
+            })
         }
         Some(temper_engine_domain::ApplicationAnswer::Adopt(forge::ApplicationOutcome::CoreRefused(value))) => {
             let value = refusals::refusal(value, jig).ok()?;
@@ -1203,30 +1137,26 @@ pub fn answer(
             | root::ApplicationAnswer::Reachable(forge::ReachableAnswer::ForgeRefused(reason))
             | root::ApplicationAnswer::Accept(forge::AcceptAnswer::ForgeRefused(reason)),
         ) => {
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused {
-                        reason: match reason {
-                            forge::AdoptionRefusal::NoSuchForge => w::ForgeReason::NoSuchForge,
-                            forge::AdoptionRefusal::NotFound => w::ForgeReason::NotFound,
-                            // The client wire has no not-installed reason (client/forge/family.md, 6).
-                            forge::AdoptionRefusal::NotInstalled | forge::AdoptionRefusal::NoAccess => {
-                                w::ForgeReason::NoAccess
-                            }
-                            forge::AdoptionRefusal::Refused => w::ForgeReason::Refused,
-                            forge::AdoptionRefusal::InFlight => w::ForgeReason::InFlight,
-                            forge::AdoptionRefusal::TooLarge => w::ForgeReason::TooLarge,
-                            forge::AdoptionRefusal::Unreachable => w::ForgeReason::Unreachable,
-                            forge::AdoptionRefusal::InvalidAnswer => w::ForgeReason::InvalidAnswer,
-                            forge::AdoptionRefusal::AnotherProject => w::ForgeReason::AnotherProject,
-                            forge::AdoptionRefusal::HomeHeld => w::ForgeReason::HomeHeld,
-                            forge::AdoptionRefusal::PrefixOccupied => w::ForgeReason::PrefixOccupied,
-                        },
-                    },
-            )
+            w::Outcome::ForgeRefused(w::ForgeRefused {
+                reason: match reason {
+                    forge::AdoptionRefusal::NoSuchForge => w::ForgeReason::NoSuchForge,
+                    forge::AdoptionRefusal::NotFound => w::ForgeReason::NotFound,
+                    // The client wire has no not-installed reason (client/forge/family.md, 6).
+                    forge::AdoptionRefusal::NotInstalled | forge::AdoptionRefusal::NoAccess => w::ForgeReason::NoAccess,
+                    forge::AdoptionRefusal::Refused => w::ForgeReason::Refused,
+                    forge::AdoptionRefusal::InFlight => w::ForgeReason::InFlight,
+                    forge::AdoptionRefusal::TooLarge => w::ForgeReason::TooLarge,
+                    forge::AdoptionRefusal::Unreachable => w::ForgeReason::Unreachable,
+                    forge::AdoptionRefusal::InvalidAnswer => w::ForgeReason::InvalidAnswer,
+                    forge::AdoptionRefusal::AnotherProject => w::ForgeReason::AnotherProject,
+                    forge::AdoptionRefusal::HomeHeld => w::ForgeReason::HomeHeld,
+                    forge::AdoptionRefusal::PrefixOccupied => w::ForgeReason::PrefixOccupied,
+                },
+            })
         }
-        Some(root::ApplicationAnswer::Accept(forge::AcceptAnswer::Accepted { installation })) => w::Outcome::Accepted(
-            w::AcceptedInstallation { installation },
-        ),
+        Some(root::ApplicationAnswer::Accept(forge::AcceptAnswer::Accepted { installation })) => {
+            w::Outcome::Accepted(w::AcceptedInstallation { installation })
+        }
         Some(
             root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)
             | root::ApplicationAnswer::Install(forge::InstallAnswer::Connecting),
@@ -1240,31 +1170,27 @@ pub fn answer(
             | root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Refused(why))
             | root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(why))
             | root::ApplicationAnswer::Install(forge::InstallAnswer::Refused(why)),
-        ) => w::Outcome::ConnectRefused(
-            w::ConnectRefused { why: forge_refusal(why) },
-        ),
+        ) => w::Outcome::ConnectRefused(w::ConnectRefused { why: forge_refusal(why) }),
         Some(root::ApplicationAnswer::StartPlayground(answer)) => start_answer(answer, limits)?,
         Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)) => w::Outcome::Removed,
-        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))) => w::Outcome::RemoveRefused(
-            w::RemoveRefused { why: forge_refusal(why) },
-        ),
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))) => {
+            w::Outcome::RemoveRefused(w::RemoveRefused { why: forge_refusal(why) })
+        }
         Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)) => w::Outcome::Reset,
-        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => w::Outcome::EndRefused(
-            w::EndRefused { why: w::EndRefusal::NotOffered },
-        ),
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => {
+            w::Outcome::EndRefused(w::EndRefused { why: w::EndRefusal::NotOffered })
+        }
         None => w::Outcome::Unknown,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused {
-                        why: match why {
-                            forge::SetUpRefusal::NotOffered => w::SetUpRefusal::NotOffered,
-                            forge::SetUpRefusal::NotUnderTheBox => w::SetUpRefusal::NotUnderTheBox,
-                            forge::SetUpRefusal::Busy => w::SetUpRefusal::Busy,
-                            forge::SetUpRefusal::Invalid => w::SetUpRefusal::Invalid,
-                        },
-                    },
-            )
+            w::Outcome::SetUpRefused(w::SetUpRefused {
+                why: match why {
+                    forge::SetUpRefusal::NotOffered => w::SetUpRefusal::NotOffered,
+                    forge::SetUpRefusal::NotUnderTheBox => w::SetUpRefusal::NotUnderTheBox,
+                    forge::SetUpRefusal::Busy => w::SetUpRefusal::Busy,
+                    forge::SetUpRefusal::Invalid => w::SetUpRefusal::Invalid,
+                },
+            })
         }
     };
     let answer = w::Answer { outcome };
@@ -1272,25 +1198,21 @@ pub fn answer(
 }
 fn start_answer(answer: forge::StartAnswer, limits: &w::Limits) -> Option<w::Outcome> {
     let value = {
-    Some(match answer {
-        forge::StartAnswer::Running => w::Outcome::Running,
-        forge::StartAnswer::NotOffered => w::Outcome::StartRefused(
-            w::StartRefused { why: w::StartRefusal::NotOffered },
-        ),
-        forge::StartAnswer::Failed(why) => w::Outcome::StartFailed(
-            w::StartFailed {
-                    why: match why {
-                        forge::StartFailure::Group { why } => {
-                            w::StartFailure::Group(w::GroupFailed { why })
-                        }
-                        forge::StartFailure::Account => w::StartFailure::Account,
-                        forge::StartFailure::Adoption => w::StartFailure::Adoption,
-                        forge::StartFailure::NotConnected => w::StartFailure::NotConnected,
-                    },
+        Some(match answer {
+            forge::StartAnswer::Running => w::Outcome::Running,
+            forge::StartAnswer::NotOffered => {
+                w::Outcome::StartRefused(w::StartRefused { why: w::StartRefusal::NotOffered })
+            }
+            forge::StartAnswer::Failed(why) => w::Outcome::StartFailed(w::StartFailed {
+                why: match why {
+                    forge::StartFailure::Group { why } => w::StartFailure::Group(w::GroupFailed { why }),
+                    forge::StartFailure::Account => w::StartFailure::Account,
+                    forge::StartFailure::Adoption => w::StartFailure::Adoption,
+                    forge::StartFailure::NotConnected => w::StartFailure::NotConnected,
                 },
-        ),
-    })
-}?;
+            }),
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
@@ -1303,14 +1225,12 @@ fn protection(value: forge::Protection, limits: &w::Limits) -> Option<w::Protect
             for context in rule.contexts {
                 contexts.push(context).ok()?;
             }
-            w::Protection::Rule(
-                w::Rule {
-                        branch: rule.branch,
-                        contexts,
-                        approvals: rule.approvals,
-                        dismiss_stale: rule.dismiss_stale,
-                    },
-            )
+            w::Protection::Rule(w::Rule {
+                branch: rule.branch,
+                contexts,
+                approvals: rule.approvals,
+                dismiss_stale: rule.dismiss_stale,
+            })
         }
     })
 }
@@ -1333,7 +1253,8 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
     for row in row.makings {
         makings.push(repository_making(row, limits)?).ok()?;
     }
-    { let value = w::ForgeRow {
+    {
+        let value = w::ForgeRow {
             number: row.number,
             host: row.host,
             makings,
@@ -1370,30 +1291,25 @@ fn forge_row(row: forge::Row, limits: &w::Limits) -> Option<w::ForgeRow> {
                 Some(stop) => Some(admin_stop(stop, limits)?),
                 None => None,
             },
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn open_refusal(reason: forge::OpenRefusal, limits: &w::Limits) -> Option<w::OpenRefusal> {
     Some(match reason {
         forge::OpenRefusal::NoRepository => w::OpenRefusal::NoRepository,
         forge::OpenRefusal::NotARepository => w::OpenRefusal::NotARepository,
-        forge::OpenRefusal::NamePast { bound } => {
-            w::OpenRefusal::NamePast(w::NamePast { bound })
-        }
+        forge::OpenRefusal::NamePast { bound } => w::OpenRefusal::NamePast(w::NamePast { bound }),
         forge::OpenRefusal::UnderPrefix { owner, name, prefix } => {
             w::OpenRefusal::UnderPrefix(w::UnderPrefix { owner, name, prefix })
         }
         forge::OpenRefusal::Several(names) => {
             let mut repositories = List::with_capacity(limits.several_repositories_repositories);
             for named in names {
-                repositories
-                    .push(
-                        w::DraftRepository { owner: named.owner, name: named.name },
-                    )
-                    .ok()?;
+                repositories.push(w::DraftRepository { owner: named.owner, name: named.name }).ok()?;
             }
-            w::OpenRefusal::Several(
-                w::SeveralRepositories { repositories },
-            )
+            w::OpenRefusal::Several(w::SeveralRepositories { repositories })
         }
     })
 }
@@ -1401,9 +1317,7 @@ fn open_refusal(reason: forge::OpenRefusal, limits: &w::Limits) -> Option<w::Ope
 fn repository_making(row: forge::RepositoryMaking, limits: &w::Limits) -> Option<w::RepositoryMaking> {
     let from = match row.from {
         forge::MakeFrom::Empty => w::MakeFrom::Empty,
-        forge::MakeFrom::Copy { address } => {
-            w::MakeFrom::Copy(w::MakeCopy { address })
-        }
+        forge::MakeFrom::Copy { address } => w::MakeFrom::Copy(w::MakeCopy { address }),
     };
     let into = match row.into {
         Some(into) => Some(w::MakeInto { project: into.project, home: into.home }),
@@ -1412,12 +1326,8 @@ fn repository_making(row: forge::RepositoryMaking, limits: &w::Limits) -> Option
     let state = match row.state {
         forge::MakingState::Waiting => w::MakingState::Waiting,
         forge::MakingState::Making => w::MakingState::Making,
-        forge::MakingState::Made { id, branch } => {
-            w::MakingState::Made(w::MakingMade { id, branch })
-        }
-        forge::MakingState::Adopting { id, branch } => {
-            w::MakingState::Adopting(w::MakingMade { id, branch })
-        }
+        forge::MakingState::Made { id, branch } => w::MakingState::Made(w::MakingMade { id, branch }),
+        forge::MakingState::Adopting { id, branch } => w::MakingState::Adopting(w::MakingMade { id, branch }),
         forge::MakingState::Failed(failed) => {
             let step = match failed.step {
                 forge::MakeStep::Admin => w::MakeStep::Admin,
@@ -1430,27 +1340,23 @@ fn repository_making(row: forge::RepositoryMaking, limits: &w::Limits) -> Option
                 forge::MakeFailure::Taken => w::MakeFailure::Taken,
                 forge::MakeFailure::Empty => w::MakeFailure::Empty,
                 forge::MakeFailure::TimedOut => w::MakeFailure::TimedOut,
-                forge::MakeFailure::Refused { status } => {
-                    w::MakeFailure::Refused(w::Refused { status })
-                }
+                forge::MakeFailure::Refused { status } => w::MakeFailure::Refused(w::Refused { status }),
                 forge::MakeFailure::NotAllowed => w::MakeFailure::NotAllowed,
                 forge::MakeFailure::Other => w::MakeFailure::Other,
             };
-            w::MakingState::Failed(
-                w::MakingFailed { step, reason, words: failed.words },
-            )
+            w::MakingState::Failed(w::MakingFailed { step, reason, words: failed.words })
         }
     };
-    { let value = w::RepositoryMaking { org: row.key.org, name: row.key.name, from, into, state }; value.measure(limits).ok()?; Some(value) }
+    {
+        let value = w::RepositoryMaking { org: row.key.org, name: row.key.name, from, into, state };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn forge_adoptions(values: Box<[forge::AdoptedRow]>, limits: &w::Limits) -> Option<List<w::Adoption>> {
     let mut repositories = List::with_capacity(limits.forge_row_repositories);
     for adopted in values {
-        repositories
-            .push(
-                w::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project },
-            )
-            .ok()?;
+        repositories.push(w::Adoption { owner: adopted.owner, name: adopted.name, project: adopted.project }).ok()?;
     }
     Some(repositories)
 }
@@ -1462,16 +1368,18 @@ fn forge_installations(values: Box<[(u64, forge::Installation)]>, limits: &w::Li
             None => None,
         };
         installations
-            .push(
-                w::Installation { id, account, suspended: installation.suspended, stray: installation.stray },
-            )
+            .push(w::Installation { id, account, suspended: installation.suspended, stray: installation.stray })
             .ok()?;
     }
     Some(installations)
 }
 fn owned_forge(owned: Option<forge::Owned>, limits: &w::Limits) -> Option<w::OwnedForge> {
     match owned {
-        Some(owned) => { let value = w::OwnedForge { forgejo: owned.forgejo, runner: owned.runner, password: owned.password }; value.measure(limits).ok()?; Some(value) },
+        Some(owned) => {
+            let value = w::OwnedForge { forgejo: owned.forgejo, runner: owned.runner, password: owned.password };
+            value.measure(limits).ok()?;
+            Some(value)
+        }
         None => None,
     }
 }
@@ -1497,54 +1405,44 @@ fn connection(
     limits: &w::Limits,
 ) -> Option<w::Connection> {
     let value = {
-    Some(match value {
-        forge::Connection::NotConnected => w::Connection::NotConnected,
-        forge::Connection::NotSetUp => w::Connection::NotSetUp,
-        forge::Connection::SettingUp { step } => w::Connection::SettingUp(
-            w::SettingUp {
-                    fetched: match fetched {
-                        None => None,
-                        Some(fetched) => Some(
-                            w::SetUpFetched {
-                                    binary: match fetched.binary {
-                                        forge::SetUpBinary::Forgejo => w::SetUpBinary::Forgejo,
-                                        forge::SetUpBinary::Runner => w::SetUpBinary::Runner,
-                                    },
-                                    done: fetched.done,
-                                    total: fetched.total,
-                                },
-                        ),
-                    },
-                    step: match step {
-                        None => None,
-                        Some(forge::SetUpStep::Fetch) => Some(w::SetUpStep::Fetch),
-                        Some(forge::SetUpStep::Prepare) => Some(w::SetUpStep::Prepare),
-                        Some(forge::SetUpStep::Run) => Some(w::SetUpStep::Run),
-                        Some(forge::SetUpStep::Source) => Some(w::SetUpStep::Source),
-                    },
+        Some(match value {
+            forge::Connection::NotConnected => w::Connection::NotConnected,
+            forge::Connection::NotSetUp => w::Connection::NotSetUp,
+            forge::Connection::SettingUp { step } => w::Connection::SettingUp(w::SettingUp {
+                fetched: match fetched {
+                    None => None,
+                    Some(fetched) => Some(w::SetUpFetched {
+                        binary: match fetched.binary {
+                            forge::SetUpBinary::Forgejo => w::SetUpBinary::Forgejo,
+                            forge::SetUpBinary::Runner => w::SetUpBinary::Runner,
+                        },
+                        done: fetched.done,
+                        total: fetched.total,
+                    }),
                 },
-        ),
-        forge::Connection::SetUpFailed { why } => w::Connection::SetUpFailed(
-            w::SetUpFailed {
-                    why,
-                    at: match failed {
-                        Some(forge::FailedStep::Fetch) => Some(w::FailedStep::Fetch),
-                        Some(forge::FailedStep::Prepare) => Some(w::FailedStep::Prepare),
-                        Some(forge::FailedStep::Run) => Some(w::FailedStep::Run),
-                        Some(forge::FailedStep::Connect) => Some(w::FailedStep::Connect),
-                        None => None,
-                    },
+                step: match step {
+                    None => None,
+                    Some(forge::SetUpStep::Fetch) => Some(w::SetUpStep::Fetch),
+                    Some(forge::SetUpStep::Prepare) => Some(w::SetUpStep::Prepare),
+                    Some(forge::SetUpStep::Run) => Some(w::SetUpStep::Run),
+                    Some(forge::SetUpStep::Source) => Some(w::SetUpStep::Source),
                 },
-        ),
-        forge::Connection::Connecting => w::Connection::Connecting,
-        forge::Connection::Connected { id, login } => {
-            w::Connection::Connected(w::Connected { id, login })
-        }
-        forge::Connection::Stopped { reason } => {
-            w::Connection::Stopped(w::Stopped { reason })
-        }
-    })
-}?;
+            }),
+            forge::Connection::SetUpFailed { why } => w::Connection::SetUpFailed(w::SetUpFailed {
+                why,
+                at: match failed {
+                    Some(forge::FailedStep::Fetch) => Some(w::FailedStep::Fetch),
+                    Some(forge::FailedStep::Prepare) => Some(w::FailedStep::Prepare),
+                    Some(forge::FailedStep::Run) => Some(w::FailedStep::Run),
+                    Some(forge::FailedStep::Connect) => Some(w::FailedStep::Connect),
+                    None => None,
+                },
+            }),
+            forge::Connection::Connecting => w::Connection::Connecting,
+            forge::Connection::Connected { id, login } => w::Connection::Connected(w::Connected { id, login }),
+            forge::Connection::Stopped { reason } => w::Connection::Stopped(w::Stopped { reason }),
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
@@ -1553,24 +1451,26 @@ fn first_repository(first: forge::First, limits: &w::Limits) -> Option<w::FirstR
     let state = match first.state {
         forge::FirstState::Making => w::FirstState::Making,
         forge::FirstState::Made { id } => w::FirstState::Made(w::Made { id }),
-        forge::FirstState::Failed { step } => w::FirstState::Failed(
-            w::CreateFailed {
-                    step: match step {
-                        forge::CreateStep::Admin => w::CreateStep::Admin,
-                        forge::CreateStep::Org => w::CreateStep::Org,
-                        forge::CreateStep::Repository => w::CreateStep::Repository,
-                        forge::CreateStep::File => w::CreateStep::File,
-                    },
-                },
-        ),
+        forge::FirstState::Failed { step } => w::FirstState::Failed(w::CreateFailed {
+            step: match step {
+                forge::CreateStep::Admin => w::CreateStep::Admin,
+                forge::CreateStep::Org => w::CreateStep::Org,
+                forge::CreateStep::Repository => w::CreateStep::Repository,
+                forge::CreateStep::File => w::CreateStep::File,
+            },
+        }),
     };
-    { let value = w::FirstRepository {
+    {
+        let value = w::FirstRepository {
             playground: first.playground,
             org: first.org,
             repository: first.repository,
             state,
             label: first.label,
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 
 /// A bounded path on this clients listener, checked before root admission (client/engine.md).
@@ -1596,85 +1496,73 @@ pub fn return_path(path: &[u8]) -> bool {
 
 fn admin_stop(stop: forge::AdminStop, limits: &w::Limits) -> Option<w::AdminStop> {
     let value = {
-    Some(match stop {
-        forge::AdminStop::NotAdmin => w::AdminStop::NotAdmin,
-        forge::AdminStop::Unmarked => w::AdminStop::Unmarked,
-        forge::AdminStop::Other => w::AdminStop::Other,
-        forge::AdminStop::Refused { status, stage } => w::AdminStop::Refused(
-            w::AdminRefused {
-                    status,
-                    stage: match stage {
-                        forge::SetupStage::Admin => w::SetupStage::Admin,
-                        forge::SetupStage::Bot => w::SetupStage::Bot,
-                        forge::SetupStage::Token => w::SetupStage::Token,
-                        forge::SetupStage::Org => w::SetupStage::Org,
-                        forge::SetupStage::Repository => w::SetupStage::Repository,
-                        forge::SetupStage::File => w::SetupStage::File,
-                        forge::SetupStage::App => w::SetupStage::App,
-                        forge::SetupStage::Installation => w::SetupStage::Installation,
-                        forge::SetupStage::State => w::SetupStage::State,
-                    },
+        Some(match stop {
+            forge::AdminStop::NotAdmin => w::AdminStop::NotAdmin,
+            forge::AdminStop::Unmarked => w::AdminStop::Unmarked,
+            forge::AdminStop::Other => w::AdminStop::Other,
+            forge::AdminStop::Refused { status, stage } => w::AdminStop::Refused(w::AdminRefused {
+                status,
+                stage: match stage {
+                    forge::SetupStage::Admin => w::SetupStage::Admin,
+                    forge::SetupStage::Bot => w::SetupStage::Bot,
+                    forge::SetupStage::Token => w::SetupStage::Token,
+                    forge::SetupStage::Org => w::SetupStage::Org,
+                    forge::SetupStage::Repository => w::SetupStage::Repository,
+                    forge::SetupStage::File => w::SetupStage::File,
+                    forge::SetupStage::App => w::SetupStage::App,
+                    forge::SetupStage::Installation => w::SetupStage::Installation,
+                    forge::SetupStage::State => w::SetupStage::State,
                 },
-        ),
-    })
-}?;
+            }),
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
 
 fn project_status(value: forge::StatusView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let brief = match value.brief {
-        Some(brief) => Some(
-            w::StatusBrief {
-                    sentence: brief.sentence,
-                    lede: brief.lede,
-                    at: brief.at.as_nanos(),
-                    landed: brief.landed,
-                },
-        ),
+        Some(brief) => Some(w::StatusBrief {
+            sentence: brief.sentence,
+            lede: brief.lede,
+            at: brief.at.as_nanos(),
+            landed: brief.landed,
+        }),
         None => None,
     };
     let document = w::ProjectStatus {
-            project: value.project,
-            landed: value.landed,
-            last_landed: match value.last_landed {
-                Some(at) => Some(at.as_nanos()),
-                None => None,
-            },
-            brief,
-            previous: match value.previous {
-                Some(at) => Some(at.as_nanos()),
-                None => None,
-            },
-            seen: value.seen,
-            queued: value.queued,
-            red: value.red,
-            branch: value.branch,
-            unpaid: value.unpaid,
-        };
+        project: value.project,
+        landed: value.landed,
+        last_landed: match value.last_landed {
+            Some(at) => Some(at.as_nanos()),
+            None => None,
+        },
+        brief,
+        previous: match value.previous {
+            Some(at) => Some(at.as_nanos()),
+            None => None,
+        },
+        seen: value.seen,
+        queued: value.queued,
+        red: value.red,
+        branch: value.branch,
+        unpaid: value.unpaid,
+    };
     document.encode(limits).ok()
 }
 
 fn follow_state(value: forge::FollowState, limits: &w::Limits) -> Option<w::FollowState> {
     let value = {
-    Some(match value {
-        forge::FollowState::NotMade => w::FollowState::NotMade,
-        forge::FollowState::WaitsWord => w::FollowState::WaitsWord,
-        forge::FollowState::Producing => w::FollowState::Producing,
-        forge::FollowState::WaitsFor(change) => {
-            w::FollowState::WaitsFor(w::FollowWait { change })
-        }
-        forge::FollowState::HeldByOwner(words) => {
-            w::FollowState::HeldByOwner(w::FollowWords { words })
-        }
-        forge::FollowState::Held(words) => {
-            w::FollowState::Held(w::FollowWords { words })
-        }
-        forge::FollowState::Ended(words) => {
-            w::FollowState::Ended(w::FollowWords { words })
-        }
-    })
-}?;
+        Some(match value {
+            forge::FollowState::NotMade => w::FollowState::NotMade,
+            forge::FollowState::WaitsWord => w::FollowState::WaitsWord,
+            forge::FollowState::Producing => w::FollowState::Producing,
+            forge::FollowState::WaitsFor(change) => w::FollowState::WaitsFor(w::FollowWait { change }),
+            forge::FollowState::HeldByOwner(words) => w::FollowState::HeldByOwner(w::FollowWords { words }),
+            forge::FollowState::Held(words) => w::FollowState::Held(w::FollowWords { words }),
+            forge::FollowState::Ended(words) => w::FollowState::Ended(w::FollowWords { words }),
+        })
+    }?;
     value.measure(limits).ok()?;
     Some(value)
 }
@@ -1684,64 +1572,50 @@ fn follows_document(value: forge::FollowsView, limits: &w::Limits) -> Option<Box
         let mut entries = List::with_capacity(limits.follow_view_entries);
         for entry in row.entries {
             entries
-                .push(
-                    w::FollowEntry {
-                            after: entry.after,
-                            change: entry.change,
-                            state: follow_state(entry.state, limits)?,
-                        },
-                )
+                .push(w::FollowEntry {
+                    after: entry.after,
+                    change: entry.change,
+                    state: follow_state(entry.state, limits)?,
+                })
                 .ok()?;
         }
         let mut skips = List::with_capacity(limits.follow_view_skips);
         for skip in row.skips {
-            skips
-                .push(w::FollowSkip { after: skip.after, reason: skip.reason })
-                .ok()?;
+            skips.push(w::FollowSkip { after: skip.after, reason: skip.reason }).ok()?;
         }
         let parity = match row.parity {
-            Some(parity) => Some(
-                w::FollowParity {
-                        source: parity.source,
-                        head: parity.head,
-                        run: parity.run,
-                        verdict: match parity.verdict {
-                            forge::FollowVerdict::Passed => w::FollowVerdict::Passed,
-                            forge::FollowVerdict::Failing(count) => w::FollowVerdict::Failing(
-                                w::FollowFailing { count },
-                            ),
-                            forge::FollowVerdict::Many => w::FollowVerdict::Many,
-                        },
-                    },
-            ),
+            Some(parity) => Some(w::FollowParity {
+                source: parity.source,
+                head: parity.head,
+                run: parity.run,
+                verdict: match parity.verdict {
+                    forge::FollowVerdict::Passed => w::FollowVerdict::Passed,
+                    forge::FollowVerdict::Failing(count) => w::FollowVerdict::Failing(w::FollowFailing { count }),
+                    forge::FollowVerdict::Many => w::FollowVerdict::Many,
+                },
+            }),
             None => None,
         };
         follows
-            .push(
-                w::FollowView {
-                        number: row.number,
-                        setting: forge::settings::follow_record(&row.setting)?,
-                        source: row.source,
-                        source_branch: row.source_branch,
-                        target: row.target,
-                        target_branch: row.target_branch,
-                        task: row.task,
-                        stopped: row.stopped,
-                        lag: row.lag,
-                        entries,
-                        skips,
-                        parity,
-                    },
-            )
+            .push(w::FollowView {
+                number: row.number,
+                setting: forge::settings::follow_record(&row.setting)?,
+                source: row.source,
+                source_branch: row.source_branch,
+                target: row.target,
+                target_branch: row.target_branch,
+                task: row.task,
+                stopped: row.stopped,
+                lag: row.lag,
+                entries,
+                skips,
+                parity,
+            })
             .ok()?;
     }
     let mut dependencies = List::with_capacity(limits.follows_panel_dependencies);
     for row in value.dependencies {
-        dependencies
-            .push(
-                w::DependencyView { number: row.number, project: row.project },
-            )
-            .ok()?;
+        dependencies.push(w::DependencyView { number: row.number, project: row.project }).ok()?;
     }
     (w::FollowsPanel { project: value.project, follows, dependencies }).encode(limits).ok()
 }
@@ -1757,19 +1631,17 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             let mut dismissed = List::with_capacity(u32::try_from(rows.len()).ok()?);
             for row in rows {
                 let value = match row {
-                    forge::PersonFact::KeepAsking { project, subject, at } => w::PersonFact::KeepAsking(
-                        w::KeepAsking {
-                                project,
-                                subject: temper_protocol_reaches::subject_record(subject),
-                                at,
-                            },
-                    ),
-                    forge::PersonFact::ToBegin { project } => {
-                        w::PersonFact::ToBegin(w::ToBegin { project })
+                    forge::PersonFact::KeepAsking { project, subject, at } => {
+                        w::PersonFact::KeepAsking(w::KeepAsking {
+                            project,
+                            subject: temper_protocol_reaches::subject_record(subject),
+                            at,
+                        })
                     }
-                    forge::PersonFact::GoalFrom { project, chat, goal, at } => w::PersonFact::GoalFrom(
-                        w::GoalFrom { project, chat, goal, at },
-                    ),
+                    forge::PersonFact::ToBegin { project } => w::PersonFact::ToBegin(w::ToBegin { project }),
+                    forge::PersonFact::GoalFrom { project, chat, goal, at } => {
+                        w::PersonFact::GoalFrom(w::GoalFrom { project, chat, goal, at })
+                    }
                 };
                 dismissed.push(value).ok()?;
             }
@@ -1784,53 +1656,49 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                 None => None,
             };
             let pull = match (value.round.pull, value.members.first()) {
-                (Some(number), Some(member)) => Some(
-                    w::Pull {
-                            number,
-                            address: pull_address(member.forge, &member.owner, &member.name, number, forges),
-                        },
-                ),
+                (Some(number), Some(member)) => Some(w::Pull {
+                    number,
+                    address: pull_address(member.forge, &member.owner, &member.name, number, forges),
+                }),
                 (Some(_), None) | (None, _) => None,
             };
             let round = if value.round.branch.is_empty() {
                 None
             } else {
-                Some(
-                    w::LandingRound {
-                            search,
-                            number: value.preparation,
-                            branch: value.round.branch,
-                            pull,
-                            combined: match value.round.combined {
-                                Some(value) => Some(landing_views::combined(value)),
-                                None => None,
-                            },
-                            step: landing_views::step(value.step),
-                            upstream: value.round.upstream,
-                            failure: forge::text::fit(
-                                &value.round.failure,
-                                skein_lib::usize_of(limits.landing_round_failure),
-                                b"...",
-                            ),
-                        },
-                )
+                Some(w::LandingRound {
+                    search,
+                    number: value.preparation,
+                    branch: value.round.branch,
+                    pull,
+                    combined: match value.round.combined {
+                        Some(value) => Some(landing_views::combined(value)),
+                        None => None,
+                    },
+                    step: landing_views::step(value.step),
+                    upstream: value.round.upstream,
+                    failure: forge::text::fit(
+                        &value.round.failure,
+                        skein_lib::usize_of(limits.landing_round_failure),
+                        b"...",
+                    ),
+                })
             };
             let mut members = List::with_capacity(u32::try_from(value.members.len()).ok()?);
             for member in value.members {
                 members.push(landing_member(member, forges, limits)?).ok()?;
             }
             let panel = w::LandingPanel {
-                    task: value.task,
-                    project: value.project,
-                    phase: landing_phase(&value.phase),
-                    hold,
-                    members,
-                    preparation: value.preparation,
-                    stale_proofs: value.stale_proofs,
-                    turn: value.turn,
-                    train,
-                    round,
-                };
+                task: value.task,
+                project: value.project,
+                phase: landing_phase(&value.phase),
+                hold,
+                members,
+                preparation: value.preparation,
+                stale_proofs: value.stale_proofs,
+                turn: value.turn,
+                train,
+                round,
+            };
             panel.encode(limits).ok()
         }
         forge::Document::Devices(value) => devices(value, limits),
@@ -1856,19 +1724,17 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                     landed.push(commit).ok()?;
                 }
                 landings
-                    .push(
-                        w::LandingLine {
-                                train: match line.train {
-                                    Some(train) => Some(landing_views::train(train, limits)?),
-                                    None => None,
-                                },
-                                task: line.task,
-                                phase: landing_phase(&line.phase),
-                                changes,
-                                repositories,
-                                landed,
-                            },
-                    )
+                    .push(w::LandingLine {
+                        train: match line.train {
+                            Some(train) => Some(landing_views::train(train, limits)?),
+                            None => None,
+                        },
+                        task: line.task,
+                        phase: landing_phase(&line.phase),
+                        changes,
+                        repositories,
+                        landed,
+                    })
                     .ok()?;
             }
             let panel = w::LandingsPanel { project: value.project, turn: value.turn, landings };
@@ -1879,21 +1745,19 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
 fn aways(value: forge::AwaysView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut rows = List::with_capacity(u32::try_from(value.rows.len()).ok()?);
     for row in value.rows {
-        rows.push(
-            w::AwayRow {
-                    project: row.project,
-                    since: row.since.as_nanos(),
-                    until: match row.until {
-                        Some(at) => Some(at.as_nanos()),
-                        None => None,
-                    },
-                    landed: row.landed,
-                    off: match row.off {
-                        Some(at) => Some(at.as_nanos()),
-                        None => None,
-                    },
-                },
-        )
+        rows.push(w::AwayRow {
+            project: row.project,
+            since: row.since.as_nanos(),
+            until: match row.until {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+            landed: row.landed,
+            off: match row.off {
+                Some(at) => Some(at.as_nanos()),
+                None => None,
+            },
+        })
         .ok()?;
     }
     let document = w::Aways { rows };
@@ -1903,41 +1767,37 @@ fn aways(value: forge::AwaysView, limits: &w::Limits) -> Option<Box<[u8]>> {
 fn decisions(value: forge::DecisionsView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut rows = List::with_capacity(u32::try_from(value.rows.len()).ok()?);
     for row in value.rows {
-        rows.push(
-            w::Decision {
-                    number: row.number,
-                    task: row.task,
-                    at: row.at.as_nanos(),
-                    question: row.question,
-                    took: row.took,
-                    why: row.why,
-                    overturned: row.overturned,
-                    reach: temper_protocol_reaches::reach_record(&row.reach),
-                },
-        )
+        rows.push(w::Decision {
+            number: row.number,
+            task: row.task,
+            at: row.at.as_nanos(),
+            question: row.question,
+            took: row.took,
+            why: row.why,
+            overturned: row.overturned,
+            reach: temper_protocol_reaches::reach_record(&row.reach),
+        })
         .ok()?;
     }
     let mut asked = List::with_capacity(u32::try_from(value.asked.len()).ok()?);
     for row in value.asked {
         asked
-            .push(
-                w::Asked {
-                        number: row.number,
-                        task: row.task,
-                        at: row.at.as_nanos(),
-                        reach: temper_protocol_reaches::reach_record(&row.reach),
-                    },
-            )
+            .push(w::Asked {
+                number: row.number,
+                task: row.task,
+                at: row.at.as_nanos(),
+                reach: temper_protocol_reaches::reach_record(&row.reach),
+            })
             .ok()?;
     }
-    let document =
-        w::Decisions { project: value.project, rows, asked, cut: value.cut };
+    let document = w::Decisions { project: value.project, rows, asked, cut: value.cut };
     document.encode(limits).ok()
 }
 
 fn landed_draft(view: forge::DraftView, limits: &w::Limits) -> Option<w::LandedDraft> {
     let row = view.row;
-    { let value = w::LandedDraft {
+    {
+        let value = w::LandedDraft {
             forge: row.repository.forge,
             owner: view.owner,
             name: view.name,
@@ -1950,7 +1810,10 @@ fn landed_draft(view: forge::DraftView, limits: &w::Limits) -> Option<w::LandedD
             chat: row.chat,
             goal: row.goal,
             ready: row.ready,
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn drafts_panel(value: forge::DraftsView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut drafts = List::with_capacity(forge::DRAFTS);
@@ -1967,79 +1830,73 @@ fn changes_panel(value: forge::ChangesView, limits: &w::Limits) -> Option<Box<[u
         let mut changes = List::with_capacity(limits.changes_queue_changes);
         for row in queue.changes {
             changes
-                .push(
-                    w::ChangesQueued {
-                            goal: change_from(row.goal, limits).ok()?,
-                            chat: change_from(row.chat, limits).ok()?,
-                            milestone: change_from(row.milestone, limits).ok()?,
-                            task: row.task,
-                            title: row.title,
-                            ready_since: row.ready_since.as_nanos(),
-                            checks_since: match row.checks_since {
-                                Some(at) => Some(at.as_nanos()),
-                                None => None,
-                            },
-                        },
-                )
+                .push(w::ChangesQueued {
+                    goal: change_from(row.goal, limits).ok()?,
+                    chat: change_from(row.chat, limits).ok()?,
+                    milestone: change_from(row.milestone, limits).ok()?,
+                    task: row.task,
+                    title: row.title,
+                    ready_since: row.ready_since.as_nanos(),
+                    checks_since: match row.checks_since {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                })
                 .ok()?;
         }
         queues
-            .push(
-                w::ChangesQueue {
-                        repository: queue.repository,
-                        branch: queue.branch,
-                        red: queue.red,
-                        way: match queue.way {
-                            change::Way::Queue => w::Way::Queue,
-                            change::Way::Turn => w::Way::Turn,
-                        },
-                        in_flight: match queue.in_flight {
-                            Some(value) => Some(
-                                w::TrainLanding {
-                                        goal: change_from(value.goal, limits).ok()?,
-                                        chat: change_from(value.chat, limits).ok()?,
-                                        milestone: change_from(value.milestone, limits).ok()?,
-                                        probe: value.probe,
-                                        task: value.task,
-                                        member: value.member,
-                                        round: value.round,
-                                        step: landing_views::step(value.step),
-                                        title: value.title,
-                                        ready_since: value.ready_since.as_nanos(),
-                                    },
-                            ),
-                            None => None,
-                        },
-                        changes,
-                    },
-            )
+            .push(w::ChangesQueue {
+                repository: queue.repository,
+                branch: queue.branch,
+                red: queue.red,
+                way: match queue.way {
+                    change::Way::Queue => w::Way::Queue,
+                    change::Way::Turn => w::Way::Turn,
+                },
+                in_flight: match queue.in_flight {
+                    Some(value) => Some(w::TrainLanding {
+                        goal: change_from(value.goal, limits).ok()?,
+                        chat: change_from(value.chat, limits).ok()?,
+                        milestone: change_from(value.milestone, limits).ok()?,
+                        probe: value.probe,
+                        task: value.task,
+                        member: value.member,
+                        round: value.round,
+                        step: landing_views::step(value.step),
+                        title: value.title,
+                        ready_since: value.ready_since.as_nanos(),
+                    }),
+                    None => None,
+                },
+                changes,
+            })
             .ok()?;
     }
     let landed = changes_landed(value.landed, limits.changes_panel_landed, limits)?;
     let landed_default = changes_landed(value.landed_default, limits.changes_panel_landed_default, limits)?;
     let panel = w::ChangesPanel {
-            project: value.project,
-            landing: value.landing,
-            queues,
-            more: value.more,
-            landed,
-            landed_more: value.landed_more,
-            landed_default,
-            landed_default_more: value.landed_default_more,
-        };
+        project: value.project,
+        landing: value.landing,
+        queues,
+        more: value.more,
+        landed,
+        landed_more: value.landed_more,
+        landed_default,
+        landed_default_more: value.landed_default_more,
+    };
     panel.encode(limits).ok()
 }
 
 fn change_from(value: Option<forge::ChangeFrom>, limits: &w::Limits) -> Result<Option<w::ChangeFrom>, w::Problem> {
     let value = {
-    match value {
-        Some(value) => {
-            Ok(Some(w::ChangeFrom { task: value.task, title: value.title }))
+        match value {
+            Some(value) => Ok(Some(w::ChangeFrom { task: value.task, title: value.title })),
+            None => Ok(None),
         }
-        None => Ok(None),
+    }?;
+    if let Some(record) = &value {
+        record.measure(limits)?;
     }
-}?;
-    if let Some(record) = &value { record.measure(limits)?; }
     Ok(value)
 }
 
@@ -2053,30 +1910,21 @@ fn changes_landed(
         let mut signed = List::with_capacity(u32::try_from(forge::SIGN_OFFS).ok()?);
         for sign in row.signed {
             signed
-                .push(
-                    w::ChangesSigned {
-                            name: sign.name,
-                            party: sign.person,
-                            head: sign.head,
-                            at: sign.at.as_nanos(),
-                        },
-                )
+                .push(w::ChangesSigned { name: sign.name, party: sign.person, head: sign.head, at: sign.at.as_nanos() })
                 .ok()?;
         }
         landed
-            .push(
-                w::ChangesLanded {
-                        goal: change_from(row.goal, limits).ok()?,
-                        chat: change_from(row.chat, limits).ok()?,
-                        milestone: change_from(row.milestone, limits).ok()?,
-                        signed,
-                        task: row.task,
-                        title: row.title,
-                        at: row.at.as_nanos(),
-                        commit: row.commit,
-                        default_branch: row.default_branch,
-                    },
-            )
+            .push(w::ChangesLanded {
+                goal: change_from(row.goal, limits).ok()?,
+                chat: change_from(row.chat, limits).ok()?,
+                milestone: change_from(row.milestone, limits).ok()?,
+                signed,
+                task: row.task,
+                title: row.title,
+                at: row.at.as_nanos(),
+                commit: row.commit,
+                default_branch: row.default_branch,
+            })
             .ok()?;
     }
     Some(landed)
@@ -2088,12 +1936,9 @@ fn landing_member(
     limits: &w::Limits,
 ) -> Option<w::Member> {
     let pull = match member.pull {
-        Some(number) => Some(
-            w::Pull {
-                    number,
-                    address: pull_address(member.forge, &member.owner, &member.name, number, forges),
-                },
-        ),
+        Some(number) => {
+            Some(w::Pull { number, address: pull_address(member.forge, &member.owner, &member.name, number, forges) })
+        }
         None => None,
     };
     let mut gates = List::with_capacity(u32::try_from(member.gates.len()).ok()?);
@@ -2102,25 +1947,16 @@ fn landing_member(
             forge::GateProof::Unkeyed => w::Proof::Unkeyed,
             forge::GateProof::Keyed => w::Proof::Keyed,
             forge::GateProof::Waiting => w::Proof::Waiting,
-            forge::GateProof::Dispatched { attempt, run } => {
-                w::Proof::Dispatched(w::Dispatched { attempt, run })
-            }
+            forge::GateProof::Dispatched { attempt, run } => w::Proof::Dispatched(w::Dispatched { attempt, run }),
             forge::GateProof::Passed(run) => w::Proof::Passed(receipted(run, limits)?),
             forge::GateProof::Failed(run) => w::Proof::Failed(receipted(run, limits)?),
         };
         gates
-            .push(
-                w::GateProof {
-                        name: gate.name,
-                        blocking: gate.blocking,
-                        key: gate.key,
-                        proof,
-                        faults: gate.faults,
-                    },
-            )
+            .push(w::GateProof { name: gate.name, blocking: gate.blocking, key: gate.key, proof, faults: gate.faults })
             .ok()?;
     }
-    { let value = w::Member {
+    {
+        let value = w::Member {
             head: member.head,
             left: match member.left {
                 Some(value) => Some(landing_views::left(value, limits)?),
@@ -2141,10 +1977,17 @@ fn landing_member(
             candidate: member.candidate,
             landed: member.landed,
             gates,
-        }; value.measure(limits).ok()?; Some(value) }
+        };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn receipted(run: forge::ReceiptRun, limits: &w::Limits) -> Option<w::Receipted> {
-    { let value = w::Receipted { run: run.id, number: run.number, address: run.url }; value.measure(limits).ok()?; Some(value) }
+    {
+        let value = w::Receipted { run: run.id, number: run.number, address: run.url };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 fn landing_phase(phase: &forge::LandingPhase) -> w::LandingPhase {
     match phase {
@@ -2206,11 +2049,11 @@ fn forge_refusal(value: forge::ForgeRefusal) -> w::ForgeRefusal {
 
 fn deployment_answer(deployment: &Deployment, limits: &w::Limits) -> Box<[u8]> {
     let answer = w::DeploymentAnswer {
-            welcome: deployment.welcome,
-            owned: deployment.owned,
-            program_login: deployment.program_login.clone(),
-            push: deployment.push,
-        };
+        welcome: deployment.welcome,
+        owned: deployment.owned,
+        program_login: deployment.program_login.clone(),
+        push: deployment.push,
+    };
     answer.encode(limits).expect("checked deployment facts fit the wire")
 }
 
@@ -2222,18 +2065,18 @@ fn playground_answer(row: &forge::Playground, demo: &crate::settings::Demo, limi
         cues.push(cue.clone()).expect("bounded playground cues");
     }
     let answer = w::PlaygroundAnswer {
-            state: match row.state {
-                forge::PlaygroundState::Starting => w::PlaygroundState::Starting,
-                forge::PlaygroundState::Running => w::PlaygroundState::Running,
-                forge::PlaygroundState::Resetting(_) => w::PlaygroundState::Resetting,
-            },
-            forge: row.forge,
-            project: row.project,
-            provider: demo.provider,
-            owner: demo.owner.clone(),
-            name: demo.name.clone(),
-            cues,
-        };
+        state: match row.state {
+            forge::PlaygroundState::Starting => w::PlaygroundState::Starting,
+            forge::PlaygroundState::Running => w::PlaygroundState::Running,
+            forge::PlaygroundState::Resetting(_) => w::PlaygroundState::Resetting,
+        },
+        forge: row.forge,
+        project: row.project,
+        provider: demo.provider,
+        owner: demo.owner.clone(),
+        name: demo.name.clone(),
+        cues,
+    };
     answer.encode(limits).expect("playground checked at startup")
 }
 
@@ -2255,15 +2098,13 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
             let mut encoded = List::with_capacity(limits.limit_holds_answer_rows);
             for row in rows {
                 encoded
-                    .push(
-                        w::LimitHold {
-                                task: row.task,
-                                limit: row.member,
-                                configured: row.configured,
-                                needed: row.needed,
-                                revision: row.revision,
-                            },
-                    )
+                    .push(w::LimitHold {
+                        task: row.task,
+                        limit: row.member,
+                        configured: row.configured,
+                        needed: row.needed,
+                        revision: row.revision,
+                    })
                     .ok()?;
             }
             let record = w::LimitHoldsAnswer { rows: encoded, next };
@@ -2289,20 +2130,15 @@ pub fn forge_read(answer: root::ForgeReadAnswer, program_environment: &[u8], lim
             let mut items = List::with_capacity(limits.proposal_items_answer_items);
             for (key, edit) in values {
                 let edit = match edit {
-                    Edit::Set(value) => w::SettingEdit::Set(
-                        w::SettingValue { value: temper_engine_smith::kinds::encode(&value.value) },
-                    ),
+                    Edit::Set(value) => {
+                        w::SettingEdit::Set(w::SettingValue { value: temper_engine_smith::kinds::encode(&value.value) })
+                    }
                     Edit::Remove => w::SettingEdit::Removed,
                     Edit::Reset => w::SettingEdit::Reset,
                 };
-                items
-                    .push(
-                        w::ProposalItem { kind: key.kind, scope: key.scope, number: key.number, edit },
-                    )
-                    .ok()?;
+                items.push(w::ProposalItem { kind: key.kind, scope: key.scope, number: key.number, edit }).ok()?;
             }
-            let record =
-                w::ProposalItemsAnswer { items, owned_approval };
+            let record = w::ProposalItemsAnswer { items, owned_approval };
             record.encode(limits).ok()
         }
     }
@@ -2359,7 +2195,11 @@ fn copy_addresses(addresses: Box<[Box<[u8]>]>, limits: &w::Limits) -> Option<w::
     for address in addresses {
         list.push(address).ok()?;
     }
-    { let value = w::CopyAddresses { addresses: list }; value.measure(limits).ok()?; Some(value) }
+    {
+        let value = w::CopyAddresses { addresses: list };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }
 
 /// The person's whole trials document (temper/docs/design/domain/trial.md, 6).
@@ -2370,48 +2210,42 @@ pub fn trials(rows: Box<[root::TrialRow]>, limits: &w::Limits) -> Option<Box<[u8
     for row in rows {
         let state = match row.state {
             State::Running => w::TrialState::Running,
-            State::Answered { seconds } => {
-                w::TrialState::Answered(w::TrialAnswered { seconds })
-            }
+            State::Answered { seconds } => w::TrialState::Answered(w::TrialAnswered { seconds }),
             State::Failed { why } => {
                 let why = match why {
                     Why::Refused => w::TrialWhy::Refused,
                     Why::Waited => w::TrialWhy::Waited,
-                    Why::Ended { class } => w::TrialWhy::Ended(
-                        w::TrialEnded {
-                                class: match class {
-                                    Class::Transient => w::TrialClass::Transient,
-                                    Class::Permanent => w::TrialClass::Permanent,
-                                    Class::Run => w::TrialClass::Run,
-                                    Class::Agent => w::TrialClass::Agent,
-                                    Class::Lost => w::TrialClass::Lost,
-                                    Class::Invalid => w::TrialClass::Invalid,
-                                    Class::Infrastructure => w::TrialClass::Infrastructure,
-                                    Class::Refused => w::TrialClass::Refused,
-                                },
-                            },
-                    ),
+                    Why::Ended { class } => w::TrialWhy::Ended(w::TrialEnded {
+                        class: match class {
+                            Class::Transient => w::TrialClass::Transient,
+                            Class::Permanent => w::TrialClass::Permanent,
+                            Class::Run => w::TrialClass::Run,
+                            Class::Agent => w::TrialClass::Agent,
+                            Class::Lost => w::TrialClass::Lost,
+                            Class::Invalid => w::TrialClass::Invalid,
+                            Class::Infrastructure => w::TrialClass::Infrastructure,
+                            Class::Refused => w::TrialClass::Refused,
+                        },
+                    }),
                 };
                 w::TrialState::Failed(w::TrialFailed { why })
             }
         };
         encoded
-            .push(
-                w::TrialRow {
-                        run_wait: match row.run_wait {
-                            Some(wait) => Some(trial_wait(wait)?),
-                            None => None,
-                        },
-                        account: row.account,
-                        task: row.task,
-                        took: row.took,
-                        step: match row.step {
-                            Step::Starts => w::TrialStep::Starts,
-                            Step::Answers => w::TrialStep::Answers,
-                        },
-                        state,
-                    },
-            )
+            .push(w::TrialRow {
+                run_wait: match row.run_wait {
+                    Some(wait) => Some(trial_wait(wait)?),
+                    None => None,
+                },
+                account: row.account,
+                task: row.task,
+                took: row.took,
+                step: match row.step {
+                    Step::Starts => w::TrialStep::Starts,
+                    Step::Answers => w::TrialStep::Answers,
+                },
+                state,
+            })
             .ok()?;
     }
     let document = w::Trials { rows: encoded };
@@ -2451,51 +2285,46 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
         };
         let mut sets = List::with_capacity(6);
         for set in row.sets {
-            sets.push(w::ApprovalSet { number: set.number, name: set.name })
-                .ok()?;
+            sets.push(w::ApprovalSet { number: set.number, name: set.name }).ok()?;
         }
-        rows.push(
-            w::ApprovalRow {
-                    task: row.task,
-                    project: row.project,
-                    goal: row.goal,
-                    forge: row.forge,
-                    kind,
-                    owner: row.owner,
-                    name: row.name,
-                    pull: row.pull,
-                    address,
-                    title: row.title,
-                    since: row.since.as_nanos(),
-                    scope: row.scope,
-                    rule: row.rule,
-                    role: row.role,
-                    required: row.required,
-                    counted: row.counted,
-                    sets,
-                    whole: row.whole,
-                    signed: approval_people(row.signed, limits)?,
-                    can_sign: approval_people(row.can_sign, limits)?,
-                    can_sign_more: row.can_sign_more,
-                    yours: match row.yours {
-                        root::YourReview::Counts => w::ApprovalYours::Counts,
-                        root::YourReview::NoAccount => w::ApprovalYours::NoAccount,
-                        root::YourReview::TooFew => w::ApprovalYours::TooFew,
-                        root::YourReview::OtherRole => w::ApprovalYours::OtherRole,
-                    },
-                    size: match row.size {
-                        Some(size) => Some(
-                            w::ApprovalSize {
-                                    files: size.files,
-                                    additions: size.additions,
-                                    deletions: size.deletions,
-                                    cut: size.cut,
-                                },
-                        ),
-                        None => None,
-                    },
-                },
-        )
+        rows.push(w::ApprovalRow {
+            task: row.task,
+            project: row.project,
+            goal: row.goal,
+            forge: row.forge,
+            kind,
+            owner: row.owner,
+            name: row.name,
+            pull: row.pull,
+            address,
+            title: row.title,
+            since: row.since.as_nanos(),
+            scope: row.scope,
+            rule: row.rule,
+            role: row.role,
+            required: row.required,
+            counted: row.counted,
+            sets,
+            whole: row.whole,
+            signed: approval_people(row.signed, limits)?,
+            can_sign: approval_people(row.can_sign, limits)?,
+            can_sign_more: row.can_sign_more,
+            yours: match row.yours {
+                root::YourReview::Counts => w::ApprovalYours::Counts,
+                root::YourReview::NoAccount => w::ApprovalYours::NoAccount,
+                root::YourReview::TooFew => w::ApprovalYours::TooFew,
+                root::YourReview::OtherRole => w::ApprovalYours::OtherRole,
+            },
+            size: match row.size {
+                Some(size) => Some(w::ApprovalSize {
+                    files: size.files,
+                    additions: size.additions,
+                    deletions: size.deletions,
+                    cut: size.cut,
+                }),
+                None => None,
+            },
+        })
         .ok()?;
     }
     let document = w::Approvals { rows, more: document.more };
@@ -2505,11 +2334,7 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
 fn approval_people(people: Box<[root::ApprovalPerson]>, _limits: &w::Limits) -> Option<List<w::ApprovalPerson>> {
     let mut values = List::with_capacity(8);
     for person in people {
-        values
-            .push(
-                w::ApprovalPerson { person: person.person, name: person.name },
-            )
-            .ok()?;
+        values.push(w::ApprovalPerson { person: person.person, name: person.name }).ok()?;
     }
     Some(values)
 }
@@ -2517,15 +2342,8 @@ fn approval_people(people: Box<[root::ApprovalPerson]>, _limits: &w::Limits) -> 
 fn devices(value: forge::DevicesView, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut rows = List::with_capacity(forge::DEVICES);
     for row in value.rows {
-        rows.push(
-            w::DeviceRow {
-                    number: row.number,
-                    label: row.label,
-                    at: row.at.as_nanos(),
-                    endpoint: row.endpoint,
-                },
-        )
-        .ok()?;
+        rows.push(w::DeviceRow { number: row.number, label: row.label, at: row.at.as_nanos(), endpoint: row.endpoint })
+            .ok()?;
     }
     let document = w::Devices { rows };
     document.encode(limits).ok()

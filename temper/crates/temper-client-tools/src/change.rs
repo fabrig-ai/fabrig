@@ -1,7 +1,6 @@
 //! A change's way to landing, using the browser's panel (client/ctl/tools.md, 4).
 mod history;
 pub(crate) mod open;
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -24,6 +23,7 @@ use temper_client_domain_forge::{
     forge::{self, change as words},
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const READ: Tool = Tool {
@@ -1554,13 +1554,10 @@ fn text_checks(panel: &w::ChangePanel, out: &mut Text) {
         out.put(b"\n");
     }
     text_approvals(panel, out);
-    for (i, (label, used)) in [
-        (b"repairs ".as_slice(), &panel.repairs),
-        (b"resolutions ", &panel.resolutions),
-        (b"updates ", &panel.updates),
-    ]
-    .iter()
-    .enumerate()
+    for (i, (label, used)) in
+        [(b"repairs ".as_slice(), &panel.repairs), (b"resolutions ", &panel.resolutions), (b"updates ", &panel.updates)]
+            .iter()
+            .enumerate()
     {
         if i > 0 {
             out.put(b" \xc2\xb7 ");

@@ -1,9 +1,9 @@
 //! Session trial facts and their run's wait (temper/docs/design/domain/trial.md, 6).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Side, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use skein_lib::{List, Queue, Reader, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -270,7 +270,6 @@ fn rows(record: &Family, limits: &crate::Limits) -> Option<Box<[Row]>> {
     }
     let mut rows = List::with_capacity(bounds.trials_rows);
     for value in document.rows.into_boxed() {
-
         let step = match value.step {
             w::TrialStep::Starts => Step::Starts,
             w::TrialStep::Answers => Step::Answers,

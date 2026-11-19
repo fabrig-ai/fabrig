@@ -11,25 +11,25 @@ pub const GITHUB: u16 = 2;
 #[must_use]
 pub fn row(number: u16, kind: w::Kind, mode: w::Mode, connection: w::Connection, offer: w::Offer) -> w::ForgeRow {
     w::ForgeRow {
-            starts_with: w::StartsWith::Repository,
-            makings: List::with_capacity(0),
-            host: b"git.example:3000".as_slice().into(),
-            number,
-            kind,
-            mode,
-            connection,
-            offer,
-            first: None,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: None,
-            admin: false,
-            read_only: false,
-            ended_stop: None,
-        }
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number,
+        kind,
+        mode,
+        connection,
+        offer,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    }
 }
 
 #[must_use]
@@ -43,9 +43,7 @@ pub fn rows(connection: w::Connection, offer: w::Offer) -> List<w::ForgeRow> {
 
 #[must_use]
 pub fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected { id: 42, login: b"temper".as_slice().into() },
-    )
+    w::Connection::Connected(w::Connected { id: 42, login: b"temper".as_slice().into() })
 }
 
 #[expect(clippy::must_use_candidate, reason = "fixture callers also use this helper to assert presence")]
@@ -161,9 +159,7 @@ pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event 
                 answer: Some(jig_client::Answered::Family(jig_client::Family {
                     family: temper_client_protocol_wire::FORGE,
                     version: temper_client_protocol_wire::CLIENT_VERSION,
-                    bytes: temper_client_protocol_wire::answer(
-                        &w::Answer { outcome },
-                    ),
+                    bytes: temper_client_protocol_wire::answer(&w::Answer { outcome }),
                 })),
             },
         },
@@ -173,35 +169,33 @@ pub fn answer_event(attempt: skein_lib::Token, outcome: w::Outcome) -> d::Event 
 #[must_use]
 pub fn first_rows(connection: w::Connection, state: w::FirstState) -> List<w::ForgeRow> {
     let first = w::FirstRepository {
-            playground: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state,
-            label: Box::from(b"temper-host".as_slice()),
-        };
+        playground: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state,
+        label: Box::from(b"temper-host".as_slice()),
+    };
     let mut rows = List::with_capacity(1);
-    rows.push(
-        w::ForgeRow {
-                starts_with: w::StartsWith::Repository,
-                makings: List::with_capacity(0),
-                host: b"git.example:3000".as_slice().into(),
-                number: HERE,
-                kind: w::Kind::Forgejo,
-                mode: w::Mode::Owned,
-                connection,
-                offer: w::Offer::Offered,
-                first: Some(first),
-                installations: List::with_capacity(0),
-                ended: None,
-                app: None,
-                web: None,
-                repositories: List::with_capacity(0),
-                owned: None,
-                admin: false,
-                read_only: false,
-                ended_stop: None,
-            },
-    )
+    rows.push(w::ForgeRow {
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: HERE,
+        kind: w::Kind::Forgejo,
+        mode: w::Mode::Owned,
+        connection,
+        offer: w::Offer::Offered,
+        first: Some(first),
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    })
     .unwrap();
     rows
 }
@@ -216,9 +210,7 @@ pub fn deliver(root: &mut d::Domain, watch: skein_lib::Token, rows: List<w::Forg
                     record: jig_client::Family {
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: temper_client_protocol_wire::forges(
-                            &w::Forges { forges: rows, linked: false },
-                        ),
+                        bytes: temper_client_protocol_wire::forges(&w::Forges { forges: rows, linked: false }),
                     },
                 },
             },
@@ -237,36 +229,23 @@ pub fn github_rows(accepted: bool) -> List<w::ForgeRow> {
         GITHUB,
         w::Kind::Github,
         w::Mode::Connected,
-        w::Connection::Connected(
-            w::Connected { id: 9, login: b"my-app[bot]".as_slice().into() },
-        ),
+        w::Connection::Connected(w::Connected { id: 9, login: b"my-app[bot]".as_slice().into() }),
         w::Offer::NotOffered,
-    )
-    ;
-    row.ended = Some(
-        w::ConnectStopped { why: b"fixture stopped".as_slice().into() },
     );
+    row.ended = Some(w::ConnectStopped { why: b"fixture stopped".as_slice().into() });
     row.installations = List::with_capacity(3);
     if accepted {
         row.installations
-            .push(
-                w::Installation {
-                        id: 1,
-                        account: Some(
-                            w::Account { id: 10, login: b"acme".as_slice().into() },
-                        ),
-                        suspended: false,
-                        stray: false,
-                    },
-            )
+            .push(w::Installation {
+                id: 1,
+                account: Some(w::Account { id: 10, login: b"acme".as_slice().into() }),
+                suspended: false,
+                stray: false,
+            })
             .unwrap();
     }
     for (id, suspended, stray) in [(2, true, !accepted), (3, false, true)] {
-        row.installations
-            .push(
-                w::Installation { id, account: None, suspended, stray },
-            )
-            .unwrap();
+        row.installations.push(w::Installation { id, account: None, suspended, stray }).unwrap();
     }
     let mut rows = List::with_capacity(1);
     rows.push(row).unwrap();
@@ -288,14 +267,12 @@ pub fn parent(tree: &skein_ui::Tree, id: skein_ui::NodeId) -> Option<skein_ui::N
 pub fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static str); 6] {
     let rows = |at| {
         first_rows(
-            w::Connection::SetUpFailed(
-                w::SetUpFailed {
-                        why: "its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest."
-                            .as_bytes()
-                            .into(),
-                        at,
-                    },
-            ),
+            w::Connection::SetUpFailed(w::SetUpFailed {
+                why: "its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest."
+                    .as_bytes()
+                    .into(),
+                at,
+            }),
             w::FirstState::Making,
         )
     };
@@ -321,12 +298,7 @@ pub fn failure_cases() -> [(List<w::ForgeRow>, Option<usize>, &'static str); 6] 
             "Connecting failed: its port, 127.0.0.1:8368, is taken by another program. temper box’s output has the rest.",
         ),
         (
-            first_rows(
-                w::Connection::Connecting,
-                w::FirstState::Failed(
-                    w::CreateFailed { step: w::CreateStep::File },
-                ),
-            ),
+            first_rows(w::Connection::Connecting, w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::File })),
             Some(4),
             "Making work/hello failed: adding the starter workflow",
         ),
@@ -373,13 +345,11 @@ pub fn failed_progress(tree: &skein_ui::Tree, failed: Option<usize>, why: &str) 
 pub fn pinned_rows(connection: w::Connection, pins: bool, runner: bool) -> List<w::ForgeRow> {
     let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered);
     if pins {
-        parts.owned = Some(
-            w::OwnedForge {
-                    forgejo: b"17.0.0".as_slice().into(),
-                    runner: runner.then(|| b"11.2.1".as_slice().into()),
-                    password: b"/fake/first-password".as_slice().into(),
-                },
-        );
+        parts.owned = Some(w::OwnedForge {
+            forgejo: b"17.0.0".as_slice().into(),
+            runner: runner.then(|| b"11.2.1".as_slice().into()),
+            password: b"/fake/first-password".as_slice().into(),
+        });
     }
     let mut rows = List::with_capacity(1);
     rows.push(parts).unwrap();

@@ -1,9 +1,9 @@
 //! Deployment settings and retained revision documents (client/ctl/tools.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use crate::Limits;
 use crate::view as c;
 use crate::{Text, values};
 use skein_json::writer::Encoder;
+use temper_client_protocol_wire::v1::Record;
 use temper_protocol_reaches::{Class, Subject, classes_from};
 
 pub fn setting_text(setting: c::Setting, out: &mut Text) {

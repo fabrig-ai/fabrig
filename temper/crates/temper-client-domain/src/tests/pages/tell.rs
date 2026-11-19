@@ -88,25 +88,14 @@ fn tell_files_trimmed_feedback_once_and_keeps_each_outcome() {
     );
     assert!(tell(&mut root, b"Another").is_empty(), "one in flight");
     assert_eq!(root.pages().tell().unwrap().serial, 1);
-    answer(
-        &mut root,
-        attempt,
-        Some(w::Outcome::Filed(w::Filed { number: 12 })),
-    );
+    answer(&mut root, attempt, Some(w::Outcome::Filed(w::Filed { number: 12 })));
     assert_eq!(root.pages().tell().unwrap().state, State::Filed { number: 12 });
     assert!(tell(&mut root, b" \n ").is_empty());
     assert_eq!(root.pages().tell().unwrap().serial, 1, "empty words keep last outcome");
     let (attempt, _) = sent(&tell(&mut root, b"Another"));
     assert_eq!(root.pages().tell().unwrap().serial, 2);
-    let refusal =
-        w::FindingRefusal::Full(w::FindingsFull { count: 128 });
-    answer(
-        &mut root,
-        attempt,
-        Some(w::Outcome::FindingRefused(
-            w::FindingRefused { reason: refusal.clone() },
-        )),
-    );
+    let refusal = w::FindingRefusal::Full(w::FindingsFull { count: 128 });
+    answer(&mut root, attempt, Some(w::Outcome::FindingRefused(w::FindingRefused { reason: refusal.clone() })));
     assert_eq!(root.pages().tell().unwrap().state, State::Refused(refusal));
 }
 
@@ -175,23 +164,19 @@ fn document() -> w::Findings {
     let mut areas = List::with_capacity(3);
     for (name, number) in [(b"docs".as_slice(), 40), (b"tests", 52), (b"more-tests", 52)] {
         areas
-            .push(
-                w::AreaRow {
-                        name: name.into(),
-                        words: name.into(),
-                        owner: w::AreaOwner::Task(w::AreaTask { number }),
-                        holder: Some(task_holder(number)),
-                    },
-            )
+            .push(w::AreaRow {
+                name: name.into(),
+                words: name.into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number }),
+                holder: Some(task_holder(number)),
+            })
             .unwrap();
     }
     w::Findings {
         project: 1,
         rows: List::with_capacity(0),
         areas,
-        triager: Some(w::AreaOwner::Charter(
-            w::AreaCharter { number: 14 },
-        )),
+        triager: Some(w::AreaOwner::Charter(w::AreaCharter { number: 14 })),
         holder: task_holder(60),
         cut: false,
     }
@@ -265,11 +250,8 @@ fn tell_falls_back_to_a_standing_triager_then_owners() {
             let expected = match fallback {
                 0 => Goes::Triager { holder: Holder::Task(60), areas: true },
                 1 => {
-                    document.triager = Some(w::AreaOwner::Task(
-                        w::AreaTask { number: 61 },
-                    ));
-                    document.holder =
-                        w::Holder::Role(w::HolderRole { number: 0 });
+                    document.triager = Some(w::AreaOwner::Task(w::AreaTask { number: 61 }));
+                    document.holder = w::Holder::Role(w::HolderRole { number: 0 });
                     Goes::Owners { areas: true }
                 }
                 2 => {
@@ -511,15 +493,8 @@ fn a_filed_tell_clears_the_field_and_says_its_destination_once() {
     assert_eq!(root.pages().tell_words(), b"Next words");
     assert_eq!(root.pages().needs().toast(), None, "a repeated outcome never says it again");
     let (attempt, _) = sent(&tell(&mut root, b"Next words"));
-    let reason =
-        w::FindingRefusal::Full(w::FindingsFull { count: 128 });
-    answer(
-        &mut root,
-        attempt,
-        Some(w::Outcome::FindingRefused(
-            w::FindingRefused { reason },
-        )),
-    );
+    let reason = w::FindingRefusal::Full(w::FindingsFull { count: 128 });
+    answer(&mut root, attempt, Some(w::Outcome::FindingRefused(w::FindingRefused { reason })));
     assert_eq!(root.pages().tell_words(), b"Next words", "a refusal keeps the words");
 }
 

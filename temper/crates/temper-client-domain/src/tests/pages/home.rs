@@ -141,9 +141,7 @@ fn row(number: u16) -> w::ForgeRow {
         number,
         kind: w::Kind::Forgejo,
         mode: w::Mode::Owned,
-        connection: w::Connection::Connected(
-            w::Connected { id: 1, login: b"temper".as_slice().into() },
-        ),
+        connection: w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
         offer: w::Offer::Offered,
         first: None,
         installations: List::with_capacity(EMPTY),
@@ -162,24 +160,18 @@ fn first() -> First {
     First { forge: FORGE, org: b"work".as_slice().into(), name: b"hello".as_slice().into() }
 }
 fn with_first(mut row: w::ForgeRow) -> w::ForgeRow {
-    row.first = Some(
-        w::FirstRepository {
-                playground: false,
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
-                state: w::FirstState::Made(w::Made { id: 1 }),
-                label: b"main".as_slice().into(),
-            },
-    );
+    row.first = Some(w::FirstRepository {
+        playground: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state: w::FirstState::Made(w::Made { id: 1 }),
+        label: b"main".as_slice().into(),
+    });
     row
 }
 fn adopted(mut row: w::ForgeRow, project: u32, name: &[u8]) -> w::ForgeRow {
     row.repositories = List::with_capacity(REPOSITORIES);
-    row.repositories
-        .push(
-            w::Adoption { owner: b"work".as_slice().into(), name: name.into(), project },
-        )
-        .unwrap();
+    row.repositories.push(w::Adoption { owner: b"work".as_slice().into(), name: name.into(), project }).unwrap();
     row
 }
 fn rows(root: &mut Domain, watch: Token, parts: Box<[w::ForgeRow]>) {
@@ -219,13 +211,9 @@ fn refusal() -> jig_client::Outcome {
     jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(
-            &w::Answer {
-                    outcome: w::Outcome::ForgeRefused(
-                        w::ForgeRefused { reason: w::ForgeReason::HomeHeld },
-                    ),
-                },
-        ),
+        bytes: wire::answer(&w::Answer {
+            outcome: w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::HomeHeld }),
+        }),
     }))
 }
 #[test]
@@ -355,24 +343,12 @@ fn the_first_project_repository_uses_forge_then_repository_order() {
     let mut lower = adopted(row(FORGE), OTHER_PROJECT, b"another-project");
     lower
         .repositories
-        .push(
-            w::Adoption {
-                    owner: b"work".as_slice().into(),
-                    name: b"first".as_slice().into(),
-                    project: f::PROJECT,
-                },
-        )
+        .push(w::Adoption { owner: b"work".as_slice().into(), name: b"first".as_slice().into(), project: f::PROJECT })
         .unwrap();
     // Two repositories on the lower forge precede the higher forge's row.
     lower
         .repositories
-        .push(
-            w::Adoption {
-                    owner: b"work".as_slice().into(),
-                    name: b"second".as_slice().into(),
-                    project: f::PROJECT,
-                },
-        )
+        .push(w::Adoption { owner: b"work".as_slice().into(), name: b"second".as_slice().into(), project: f::PROJECT })
         .unwrap();
     rows(&mut f.root, f.forges, Box::new([lower, adopted(row(OTHER_FORGE), f::PROJECT, b"higher")]));
     assert_eq!(
@@ -468,12 +444,7 @@ fn github_uses_the_first_accepted_usable_installations_account() {
             if let Some(login) = login {
                 account = Some(w::Account { id, login: login.into() });
             }
-            github
-                .installations
-                .push(
-                    w::Installation { id, suspended, stray, account },
-                )
-                .unwrap();
+            github.installations.push(w::Installation { id, suspended, stray, account }).unwrap();
         }
         rows(&mut f.root, f.forges, Box::new([github]));
         assert_eq!(
@@ -757,9 +728,7 @@ fn chat_page(f: &mut Fixture, rows: List<c::TaskLine>, live: bool, after: Option
 fn dismissal_rows(f: &mut Fixture, projects: &[u32]) {
     let mut dismissed = List::with_capacity(wire::DISMISSED);
     for project in projects {
-        dismissed
-            .push(w::PersonFact::ToBegin(w::ToBegin { project: *project }))
-            .unwrap();
+        dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
     }
     up(
         &mut f.root,
@@ -984,9 +953,7 @@ fn deliver_fact(f: &mut Fixture, fact: u32) {
 fn a_skipped_project_hides_to_begin_and_a_refused_skip_brings_it_back() {
     let refusals = [
         refusal(),
-        family_answer(w::Outcome::CoreRefused(
-            w::CoreRefused { refusal: Box::default() },
-        )),
+        family_answer(w::Outcome::CoreRefused(w::CoreRefused { refusal: Box::default() })),
         family_answer(w::Outcome::Removed),
         jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
             family: wire::FORGE,
@@ -1500,9 +1467,7 @@ fn a_refused_goal_from_changes_no_page() {
         },
     );
     for outcome in [
-        family_answer(w::Outcome::ForgeRefused(
-            w::ForgeRefused { reason: w::ForgeReason::TooLarge },
-        )),
+        family_answer(w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge })),
         family_answer(w::Outcome::Dismissed),
     ] {
         skip_answer(&mut f, key, outcome);
@@ -1563,40 +1528,33 @@ fn needs_count_falls_when_answered_and_keeps_later_cards() {
 const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
 fn copy_row() -> w::ForgeRow {
     let mut row = row(FORGE);
-    row.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses { addresses: List::from_boxed(COPY_ADDRESSES.map(Into::into).into()) },
-    );
+    row.starts_with =
+        w::StartsWith::Copies(w::CopyAddresses { addresses: List::from_boxed(COPY_ADDRESSES.map(Into::into).into()) });
     row
 }
 fn copy_making(address: &[u8], state: w::MakingState, project: Option<u32>) -> w::RepositoryMaking {
     let (org, name) = forge::making::target(address).unwrap();
     w::RepositoryMaking {
-            org,
-            name,
-            from: w::MakeFrom::Copy(
-                w::MakeCopy { address: address.into() },
-            ),
-            into: match project {
-                Some(project) => Some(
-                    w::MakeInto { project, home: address == COPY_ADDRESSES[0] },
-                ),
-                None => None,
-            },
-            state,
-        }
+        org,
+        name,
+        from: w::MakeFrom::Copy(w::MakeCopy { address: address.into() }),
+        into: match project {
+            Some(project) => Some(w::MakeInto { project, home: address == COPY_ADDRESSES[0] }),
+            None => None,
+        },
+        state,
+    }
 }
 fn copy_adopted(address: &[u8], project: u32) -> w::Adoption {
     let (owner, name) = forge::making::target(address).unwrap();
     w::Adoption { owner, name, project }
 }
 fn copy_failed() -> w::MakingState {
-    w::MakingState::Failed(
-        w::MakingFailed {
-                step: w::MakeStep::Repository,
-                reason: w::MakeFailure::Taken,
-                words: b"name taken".as_slice().into(),
-            },
-    )
+    w::MakingState::Failed(w::MakingFailed {
+        step: w::MakeStep::Repository,
+        reason: w::MakeFailure::Taken,
+        words: b"name taken".as_slice().into(),
+    })
 }
 fn copy_line(name: &[u8], state: home::CopyState) -> home::CopyLine {
     home::CopyLine { org: b"acme".as_slice().into(), name: name.into(), state }
@@ -1691,8 +1649,7 @@ fn copies_elsewhere_are_asked_but_have_no_line_and_renamed_destinations_are_not_
         Repository::CopiesIn { names: Box::new([b"acme/other".as_slice().into()]) }
     );
     let renamed = row.repositories.get(0).unwrap().clone();
-    *row.repositories.get_mut(0).unwrap() =
-        w::Adoption { name: b"renamed".as_slice().into(), ..renamed };
+    *row.repositories.get_mut(0).unwrap() = w::Adoption { name: b"renamed".as_slice().into(), ..renamed };
     rows(&mut f.root, f.forges, Box::new([row]));
     assert_eq!(
         home::facts(&f.root, f::PROJECT, Wall::EPOCH).repository,
@@ -1701,8 +1658,7 @@ fn copies_elsewhere_are_asked_but_have_no_line_and_renamed_destinations_are_not_
 }
 #[test]
 fn made_and_adopting_copies_share_the_adopting_line_and_other_rows_follow_intent() {
-    let made =
-        w::MakingMade { id: 1, branch: b"main".as_slice().into() };
+    let made = w::MakingMade { id: 1, branch: b"main".as_slice().into() };
     let mut f = fixture();
     let mut row = copy_row();
     row.makings = List::from_boxed(Box::new([
@@ -1968,10 +1924,7 @@ fn task_reads(out: &Queue<Request>) -> Box<[(u64, Token)]> {
 }
 fn spell(f: &mut Fixture, off: Option<u64>, until: Option<u64>, landed: u64) {
     let mut rows = List::with_capacity(1);
-    rows.push(
-        w::AwayRow { project: f::PROJECT, since: 10, until, off, landed },
-    )
-    .unwrap();
+    rows.push(w::AwayRow { project: f::PROJECT, since: 10, until, off, landed }).unwrap();
     up(
         &mut f.root,
         Up::FamilyDelivered {
@@ -2114,10 +2067,7 @@ fn the_seven_newest_are_kept_oldest_first() {
     parts.overturned = true;
     decisions(&mut f, &[parts]);
     assert!(away_form(&f, 100).unwrap().rows[0].overturned);
-    for (reason, expected) in [
-        (w::ReachReason::Kind, true),
-        (w::ReachReason::Set(w::ReachSet { number: 0 }), false),
-    ] {
+    for (reason, expected) in [(w::ReachReason::Kind, true), (w::ReachReason::Set(w::ReachSet { number: 0 }), false)] {
         let mut parts = decision(1, 100);
         let mut reach = parts.reach.clone();
         reach.reason = reason;
@@ -2154,11 +2104,11 @@ fn the_seven_newest_are_kept_oldest_first() {
     let watch = opened(&out, &forge::decided::watch(OTHER_PROJECT, &f::limits().forge).unwrap()).unwrap();
     decisions(&mut f, &values);
     let mut document = w::Decisions {
-            project: OTHER_PROJECT,
-            rows: List::from_boxed(Box::new([decision(1, 95), decision(2, 96)])),
-            asked: List::with_capacity(0),
-            cut: true,
-        };
+        project: OTHER_PROJECT,
+        rows: List::from_boxed(Box::new([decision(1, 95), decision(2, 96)])),
+        asked: List::with_capacity(0),
+        cut: true,
+    };
     up(
         &mut f.root,
         Up::FamilyDelivered {
@@ -2634,12 +2584,8 @@ fn a_refused_message_leaves_the_row_and_toasts() {
 #[test]
 fn a_refused_overturn_sends_no_message() {
     for outcome in [
-        family_answer(w::Outcome::OverturnRefused(
-            w::OverturnRefused { reason: w::OverturnRefusal::Already },
-        )),
-        family_answer(w::Outcome::OverturnRefused(
-            w::OverturnRefused { reason: w::OverturnRefusal::Unknown },
-        )),
+        family_answer(w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Already })),
+        family_answer(w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Unknown })),
         family_answer(w::Outcome::Unknown),
         jig_client::Outcome::Unknown,
     ] {

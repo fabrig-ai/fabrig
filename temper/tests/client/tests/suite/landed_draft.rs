@@ -1,7 +1,6 @@
 //! A landed draft joins the engine's row to Work and its goal
 //! (temper/docs/design/domain/forge/drafts.md, 1-3; client/pages/work.md, 1;
 //! client/pages/goal.md, 3, From a landed draft).
-use temper_client_protocol_wire::v1::Record;
 use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_fake_forge_domain::api as raw;
 use skein_fake_person::{Find, Step};
@@ -10,6 +9,7 @@ use skein_lib::{Duration, Reader};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
 use temper_client_domain::{Address, WorkFilter, forge::drafts, pages::drafts::State};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain_forge::settings;

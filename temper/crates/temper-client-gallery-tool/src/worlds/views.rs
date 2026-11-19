@@ -33,20 +33,14 @@ pub(super) fn activity(name: &str) -> c::ActivityPage {
 
 pub(super) fn answer(root: &mut Domain, read: Token, address: &[u8], out: &mut Queue<temper_client_domain::Request>) {
     let view = match address {
-        b"way Agents review" => w::View::Way(
-            w::WayView {
-                    name: b"Agents review".as_slice().into(),
-                    line: b"Agents make the change and review it; temper lands it.".as_slice().into(),
-                    path: path(true),
-                    current: true,
-                },
-        ),
-        b"proposal t10/1" => w::View::Proposal(
-            w::ProposalView { before: path(false), after: path(true) },
-        ),
-        b"charter 1" => w::View::Charter(
-            w::CharterView { charter: 1, card: card() },
-        ),
+        b"way Agents review" => w::View::Way(w::WayView {
+            name: b"Agents review".as_slice().into(),
+            line: b"Agents make the change and review it; temper lands it.".as_slice().into(),
+            path: path(true),
+            current: true,
+        }),
+        b"proposal t10/1" => w::View::Proposal(w::ProposalView { before: path(false), after: path(true) }),
+        b"charter 1" => w::View::Charter(w::CharterView { charter: 1, card: card() }),
         _ => panic!("the reply's view address"),
     };
     let value = w::ViewAnswer { view };
@@ -74,17 +68,11 @@ fn card() -> w::Card {
         ("Can", "read the code and the forge; change and push its branch; run commands; never merge"),
         ("Asked to", "“Make the change on its branch and report what changed and what was checked.”"),
     ] {
-        facts
-            .push(
-                w::Fact { label: label.as_bytes().into(), value: value.as_bytes().into() },
-            )
-            .expect("three facts");
+        facts.push(w::Fact { label: label.as_bytes().into(), value: value.as_bytes().into() }).expect("three facts");
     }
     w::Card {
-            name: b"The coding agent".as_slice().into(),
-            who: "an agent · makes the change".as_bytes().into(),
-            facts,
-        }
+        name: b"The coding agent".as_slice().into(), who: "an agent · makes the change".as_bytes().into(), facts
+    }
 }
 
 fn path(review: bool) -> w::BranchPath {
@@ -110,22 +98,16 @@ fn path(review: bool) -> w::BranchPath {
         (Bar, Branch, "main"),
     ] {
         stops
-            .push(
-                w::Stop {
-                        needed: false,
-                        over: Box::default(),
-                        actor,
-                        step,
-                        words: words.as_bytes().into(),
-                        opens: w::Opens::Nothing,
-                        card: card(),
-                    },
-            )
+            .push(w::Stop {
+                needed: false,
+                over: Box::default(),
+                actor,
+                step,
+                words: words.as_bytes().into(),
+                opens: w::Opens::Nothing,
+                card: card(),
+            })
             .expect("ten stops");
     }
-    w::BranchPath {
-            repository: Some(b"robin/tally".as_slice().into()),
-            branch: b"main".as_slice().into(),
-            stops,
-        }
+    w::BranchPath { repository: Some(b"robin/tally".as_slice().into()), branch: b"main".as_slice().into(), stops }
 }

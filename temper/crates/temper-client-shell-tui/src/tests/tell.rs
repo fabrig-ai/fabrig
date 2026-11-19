@@ -83,11 +83,7 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
         assert_eq!(&file.area, &None);
         assert_eq!(host.words(), []);
         assert_eq!(host.root.pages().tell().unwrap().words.as_ref(), WORDS);
-        answer(
-            &mut host,
-            exchange,
-            f::Outcome::Filed(f::Filed { number: 12 }),
-        );
+        answer(&mut host, exchange, f::Outcome::Filed(f::Filed { number: 12 }));
         assert_eq!(host.state().place(), None);
         assert_eq!(host.state().tell_serial(), 1);
         assert_eq!(host.state().notice(), Some(&Notice::Filed { number: 12, project: b"Project".as_slice().into() }));
@@ -121,13 +117,7 @@ fn tell_restores_refused_lost_and_long_words_until_send_or_screen() {
             "refused" => {
                 let refusal = f::FindingRefusal::NoFinding;
                 let expected = temper_client_view::shared::finding_refusal(host.view.words().view(), &refusal);
-                answer(
-                    &mut host,
-                    sent.unwrap().0,
-                    f::Outcome::FindingRefused(
-                        f::FindingRefused { reason: refusal },
-                    ),
-                );
+                answer(&mut host, sent.unwrap().0, f::Outcome::FindingRefused(f::FindingRefused { reason: refusal }));
                 expected
             }
             "lost" => {

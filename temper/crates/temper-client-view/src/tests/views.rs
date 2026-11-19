@@ -28,19 +28,19 @@ const FENCED: &[u8] = b"````text\n```view\nway Free\n```\n````";
 
 fn card() -> w::Card {
     w::Card {
-            name: b"The coding agent".as_slice().into(),
-            who: "an agent · makes the change".as_bytes().into(),
-            facts: List::from_boxed(
-                vec![
-                    w::Fact { label: b"Model".as_slice().into(), value: "A model · high".as_bytes().into() },
-                    w::Fact {
-                            label: b"Can".as_slice().into(),
-                            value: b"change and push its branch; never merge".as_slice().into(),
-                        },
-                ]
-                .into_boxed_slice(),
-            ),
-        }
+        name: b"The coding agent".as_slice().into(),
+        who: "an agent · makes the change".as_bytes().into(),
+        facts: List::from_boxed(
+            vec![
+                w::Fact { label: b"Model".as_slice().into(), value: "A model · high".as_bytes().into() },
+                w::Fact {
+                    label: b"Can".as_slice().into(),
+                    value: b"change and push its branch; never merge".as_slice().into(),
+                },
+            ]
+            .into_boxed_slice(),
+        ),
+    }
 }
 fn path(repository: bool) -> w::BranchPath {
     let stops = [
@@ -50,35 +50,31 @@ fn path(repository: bool) -> w::BranchPath {
         (w::Actor::Bar, w::PathStep::Branch, b"main"),
     ];
     w::BranchPath {
-            repository: repository.then(|| b"acme/shop".as_slice().into()),
-            branch: b"main".as_slice().into(),
-            stops: List::from_boxed(
-                stops
-                    .into_iter()
-                    .map(|(actor, step, words)| {
-                        w::Stop {
-                                needed: false,
-                                over: Box::default(),
-                                actor,
-                                step,
-                                words: words.into(),
-                                opens: w::Opens::Nothing,
-                                card: card(),
-                            }
-                    })
-                    .collect(),
-            ),
-        }
+        repository: repository.then(|| b"acme/shop".as_slice().into()),
+        branch: b"main".as_slice().into(),
+        stops: List::from_boxed(
+            stops
+                .into_iter()
+                .map(|(actor, step, words)| w::Stop {
+                    needed: false,
+                    over: Box::default(),
+                    actor,
+                    step,
+                    words: words.into(),
+                    opens: w::Opens::Nothing,
+                    card: card(),
+                })
+                .collect(),
+        ),
+    }
 }
 fn way(current: bool) -> Shown {
-    Shown::Drawn(Box::new(w::View::Way(
-        w::WayView {
-                name: b"Free".as_slice().into(),
-                line: b"Agents make the change.".as_slice().into(),
-                path: path(true),
-                current,
-            },
-    )))
+    Shown::Drawn(Box::new(w::View::Way(w::WayView {
+        name: b"Free".as_slice().into(),
+        line: b"Agents make the change.".as_slice().into(),
+        path: path(true),
+        current,
+    })))
 }
 fn activity(text: &[u8]) -> c::ActivityPage {
     let turn = c::Turn {
@@ -189,8 +185,7 @@ fn root(text: &[u8], shown: &Shown, document: bool) -> d::Domain {
                         Shown::Asking => None,
                         Shown::Failed => Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused))),
                         Shown::Drawn(value) => {
-                            let answer =
-                                w::ViewAnswer { view: *value.clone() };
+                            let answer = w::ViewAnswer { view: *value.clone() };
                             Some(jig_client::Readout::Family {
                                 family: wire::FORGE,
                                 record: Some(wire::view_answer(&answer)),
@@ -269,71 +264,66 @@ fn view_states_draw_in_both_shells_and_committed_text_keeps_its_order() {
         },
         Row {
             name: "proposal",
-            shown: Shown::Drawn(Box::new(w::View::Proposal(
-                w::ProposalView { before: path(true), after: path(false) },
-            ))),
+            shown: Shown::Drawn(Box::new(w::View::Proposal(w::ProposalView {
+                before: path(true),
+                after: path(false),
+            }))),
             groups: &[b"Before", b"After"],
             labels: &[b"Before", b"After"],
             print: "After",
         },
         Row {
             name: "charter",
-            shown: Shown::Drawn(Box::new(w::View::Charter(
-                w::CharterView { charter: 1, card: card() },
-            ))),
+            shown: Shown::Drawn(Box::new(w::View::Charter(w::CharterView { charter: 1, card: card() }))),
             groups: &[b"The coding agent"],
             labels: &[],
             print: "A model · high",
         },
         Row {
             name: "roles",
-            shown: Shown::Drawn(Box::new(w::View::Roles(
-                w::RolesView {
-                        roles: List::from_boxed(Box::new([
-                            w::CharterView { charter: 1, card: card() },
-                            w::CharterView {
-                                    charter: 9,
-                                    card: w::Card {
-                                            name: b"Status agent".as_slice().into(),
-                                            who: b"When you look at Home after landings or findings".as_slice().into(),
-                                            facts: List::from_boxed(Box::new([w::Fact {
-                                                    label: b"Can".as_slice().into(),
-                                                    value: b"read the facts in its task; never merge".as_slice().into(),
-                                                }])),
-                                        },
-                                },
-                        ])),
+            shown: Shown::Drawn(Box::new(w::View::Roles(w::RolesView {
+                roles: List::from_boxed(Box::new([
+                    w::CharterView { charter: 1, card: card() },
+                    w::CharterView {
+                        charter: 9,
+                        card: w::Card {
+                            name: b"Status agent".as_slice().into(),
+                            who: b"When you look at Home after landings or findings".as_slice().into(),
+                            facts: List::from_boxed(Box::new([w::Fact {
+                                label: b"Can".as_slice().into(),
+                                value: b"read the facts in its task; never merge".as_slice().into(),
+                            }])),
+                        },
                     },
-            ))),
+                ])),
+            }))),
             groups: &[b"The coding agent", b"Status agent"],
             labels: &[],
             print: "read the facts in its task; never merge",
         },
         Row {
             name: "rule",
-            shown: Shown::Drawn(Box::new(w::View::Rule(
-                w::RuleView {
-                        kind: 2,
-                        number: 1,
-                        card: w::Card {
-                                who: "a landing rule · holds a merge until it is met".as_bytes().into(),
-                                name: b"the project's rule 1".as_slice().into(),
-                                facts: List::from_boxed(Box::new([w::Fact {
-                                        label: b"Covers".as_slice().into(),
-                                        value: b"every branch".as_slice().into(),
-                                    }])),
-                            },
-                    },
-            ))),
+            shown: Shown::Drawn(Box::new(w::View::Rule(w::RuleView {
+                kind: 2,
+                number: 1,
+                card: w::Card {
+                    who: "a landing rule · holds a merge until it is met".as_bytes().into(),
+                    name: b"the project's rule 1".as_slice().into(),
+                    facts: List::from_boxed(Box::new([w::Fact {
+                        label: b"Covers".as_slice().into(),
+                        value: b"every branch".as_slice().into(),
+                    }])),
+                },
+            }))),
             groups: &[b"the project's rule 1"],
             labels: &[],
             print: "every branch",
         },
         Row {
             name: "not drawn",
-            shown: Shown::Drawn(Box::new(w::View::NotDrawn(
-                w::NotDrawn { words: b"This revision isn't drawn yet.".as_slice().into() },
-            ))),
+            shown: Shown::Drawn(Box::new(w::View::NotDrawn(w::NotDrawn {
+                words: b"This revision isn't drawn yet.".as_slice().into(),
+            }))),
             groups: &[],
             labels: &[],
             print: "This revision isn't drawn yet.",

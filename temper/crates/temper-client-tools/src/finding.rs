@@ -1,6 +1,5 @@
 //! Findings on the forge family (temper/docs/design/client/ctl/tools.md, 2 and 3).
 mod render;
-use temper_client_protocol_wire::v1::Record;
 use crate::{
     jig::{
         self,
@@ -17,6 +16,7 @@ use jig_client::{
 };
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -98,8 +98,7 @@ pub(crate) fn ready(state: &mut Findings, client: &Client, env: &Env<Limits>, ou
             Act::Show => read(state, handle, pending, out),
             Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop => {
                 let key = jig::key::local(Owner::Forge.asker(), number);
-                let request =
-                    w::Requesting { request: request.expect("act request") };
+                let request = w::Requesting { request: request.expect("act request") };
                 let name = Some(crate::key::engine(
                     pending.called.as_ref().expect("live call").call.key.as_ref().expect("keyed act"),
                 ));
@@ -169,14 +168,20 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
             if title.is_empty() {
                 return Err(b"finding title must not be empty");
             }
-            let file = { let value = w::FileFinding {
+            let file = {
+                let value = w::FileFinding {
                     project,
                     kind,
                     severity,
                     area: area.clone(),
                     title: title.into(),
                     body: text(call, 5)?.into(),
-                }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+                };
+                match value.encode(&w::CEILINGS) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             .or(Err(b"finding words past their bounds".as_slice()))?;
             (Act::File, Some(w::Request::FileFinding(file)))
         }
@@ -186,18 +191,21 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
             if why.is_empty() {
                 return Err(b"hand-off why must not be empty");
             }
-            let hand = { let value = w::HandFinding { project, number, area: text(call, 1)?.into(), why: why.into() }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+            let hand = {
+                let value = w::HandFinding { project, number, area: text(call, 1)?.into(), why: why.into() };
+                match value.encode(&w::CEILINGS) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             .or(Err(b"hand-off words past their bounds".as_slice()))?;
             (Act::Hand, Some(w::Request::HandFinding(hand)))
         }
         rows::FINDING_ROUTE_AT | rows::FINDING_BACKLOG_AT | rows::FINDING_DROP_AT => {
             let (act, triage) = match call.tool {
-                rows::FINDING_ROUTE_AT => (
-                    Act::Route,
-                    w::Triage::Route(
-                        w::FindingRoute { task: jig::call::number(call, 1).expect("goal") },
-                    ),
-                ),
+                rows::FINDING_ROUTE_AT => {
+                    (Act::Route, w::Triage::Route(w::FindingRoute { task: jig::call::number(call, 1).expect("goal") }))
+                }
                 rows::FINDING_BACKLOG_AT => (Act::Backlog, w::Triage::Backlog),
                 _ => {
                     let reason = text(call, 1)?;
@@ -207,18 +215,19 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
                     (
                         Act::Drop,
                         w::Triage::Drop(
-                            { let value = w::FindingDrop { reason: reason.into() }; match value.encode(&w::CEILINGS) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-                                .or(Err(b"drop reason past 400 bytes".as_slice()))?,
+                            {
+                                let value = w::FindingDrop { reason: reason.into() };
+                                match value.encode(&w::CEILINGS) {
+                                    Ok(_) => Ok(value),
+                                    Err(problem) => Err(problem),
+                                }
+                            }
+                            .or(Err(b"drop reason past 400 bytes".as_slice()))?,
                         ),
                     )
                 }
             };
-            (
-                act,
-                Some(w::Request::TriageFinding(
-                    w::TriageFinding { project, number, act: triage },
-                )),
-            )
+            (act, Some(w::Request::TriageFinding(w::TriageFinding { project, number, act: triage })))
         }
         _ => unreachable!("finding tool"),
     };
@@ -242,10 +251,8 @@ fn reference(call: &Call, me: &c::Me) -> Result<(u32, u32), &'static [u8]> {
     }
 }
 pub(crate) fn subject(project: u32, state: Option<w::FindingState>, mine: bool) -> Watchable {
-    let subject =
-        w::FindingsSubject { project, state, mine };
-    let watching =
-        w::Watching { watch: w::Watch::Findings(subject) };
+    let subject = w::FindingsSubject { project, state, mine };
+    let watching = w::Watching { watch: w::Watch::Findings(subject) };
     Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
@@ -271,9 +278,7 @@ fn watch(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue
     state.views.insert(handle, pending);
 }
 fn read(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue<Out>) {
-    let read = w::Read::Finding(
-        w::FindingRead { project: pending.project, number: pending.number },
-    );
+    let read = w::Read::Finding(w::FindingRead { project: pending.project, number: pending.number });
     let reading = w::Reading { read };
     out.push(Out::Client {
         event: Event::Read {

@@ -14,23 +14,21 @@ fn limit_rows_distinguish_the_stock_override_running_figure_and_wait() {
     assert!(setting.windows(long_reason.len()).any(|part| part == long_reason));
     for (value, waiting) in [(16, false), (32, true)] {
         let row = w::LimitRow {
-                name: b"forge.entries".as_slice().into(),
-                line: b"Bounds the forge outbox.".as_slice().into(),
-                unit: w::LimitUnit::Count,
-                stock: Some(8),
-                setting: Some(
-                    w::LimitSetting {
-                            kind: w::LimitKind::Temper,
-                            value,
-                            reason: b"dev's outbox".as_slice().into(),
-                        },
-                ),
-                in_force: Some(16),
-                applies: w::LimitApplies::AtOnce,
-                waiting,
-                left_out: false,
-                held: None,
-            };
+            name: b"forge.entries".as_slice().into(),
+            line: b"Bounds the forge outbox.".as_slice().into(),
+            unit: w::LimitUnit::Count,
+            stock: Some(8),
+            setting: Some(w::LimitSetting {
+                kind: w::LimitKind::Temper,
+                value,
+                reason: b"dev's outbox".as_slice().into(),
+            }),
+            in_force: Some(16),
+            applies: w::LimitApplies::AtOnce,
+            waiting,
+            left_out: false,
+            held: None,
+        };
         let mut builder = Builder::new(&f::tree_limits());
         limit_row(&mut builder, &words, &row);
         let tree = builder.finish();

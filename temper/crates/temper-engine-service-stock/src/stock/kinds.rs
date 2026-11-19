@@ -1,9 +1,9 @@
 //! temper's kind declarations
 //! (temper/docs/design/protocol/configuration/settings.md, 2 and temper/docs/design/protocol/configuration/stock.md and temper/docs/design/protocol/configuration/settings.md, 5).
-use temper_client_protocol_wire::v1::Record;
 use alloc::boxed::Box;
 use jig_domain_core::settings::{Kind, KindScope};
 use skein_lib::{List, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain::Limits;
 use temper_engine_domain_forge::{self as forge, settings};
 use temper_engine_smith::kinds::size;
@@ -84,7 +84,8 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             .expect("bounded override count");
     }
     let limits_bytes = size(&settings::Value::Limits(overrides.into_boxed()));
-    let agents_bytes = largest_agents().measure(&temper_client_protocol_wire::v1::CEILINGS).expect("stock settings within ceilings");
+    let agents_bytes =
+        largest_agents().measure(&temper_client_protocol_wire::v1::CEILINGS).expect("stock settings within ceilings");
     Box::new([
         Kind {
             number: 1,
@@ -256,30 +257,26 @@ fn word(len: u32) -> Box<[u8]> {
 fn largest_agents() -> temper_client_protocol_wire::v1::AgentFigures {
     use temper_client_protocol_wire::v1 as w;
     let limits = w::AgentLimits {
-            window: u32::MAX,
-            output: u32::MAX,
-            reasoning_item: u32::MAX,
-            head_ms: u64::MAX,
-            idle_ms: u64::MAX,
-            oversized: w::Oversized::Drop,
-        };
+        window: u32::MAX,
+        output: u32::MAX,
+        reasoning_item: u32::MAX,
+        head_ms: u64::MAX,
+        idle_ms: u64::MAX,
+        oversized: w::Oversized::Drop,
+    };
     let mut profile = List::with_capacity(w::CEILINGS.agent_figures_profile);
     for _ in 0..w::CEILINGS.agent_figures_profile {
         profile
-            .push(
-                w::AgentFigure { name: word(w::CEILINGS.agent_figure_name), value: u64::MAX },
-            )
+            .push(w::AgentFigure { name: word(w::CEILINGS.agent_figure_name), value: u64::MAX })
             .expect("full profile");
     }
     let mut endpoints = List::with_capacity(w::CEILINGS.agent_figures_endpoints);
     for _ in 0..w::CEILINGS.agent_figures_endpoints {
         endpoints
-            .push(
-                w::AgentEndpointLimits {
-                        endpoint: word(w::CEILINGS.agent_endpoint_limits_endpoint),
-                        limits: limits.clone(),
-                    },
-            )
+            .push(w::AgentEndpointLimits {
+                endpoint: word(w::CEILINGS.agent_endpoint_limits_endpoint),
+                limits: limits.clone(),
+            })
             .expect("full endpoints");
     }
     w::AgentFigures { profile, endpoints, fallback: limits }

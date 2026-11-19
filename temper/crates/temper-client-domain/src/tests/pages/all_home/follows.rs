@@ -75,8 +75,7 @@ fn project_home_needs_you_and_launchpad_hold_no_follows() {
     }
 }
 fn follow(stopped: Option<&[u8]>) -> w::FollowView {
-    let mut row =
-        super::super::how::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
+    let mut row = super::super::how::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
     row.source = b"acme/vsr".as_slice().into();
     row.stopped = match stopped {
         Some(words) => Some(Box::from(words)),
@@ -94,12 +93,10 @@ fn follow(stopped: Option<&[u8]>) -> w::FollowView {
 fn panel(project: u32, follows: &[w::FollowView], dependencies: &[u32]) -> w::FollowsPanel {
     let mut rows = List::with_capacity(w::CEILINGS.follows_panel_dependencies);
     for (index, project) in dependencies.iter().enumerate() {
-        rows.push(
-            w::DependencyView {
-                    number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
-                    project: *project,
-                },
-        )
+        rows.push(w::DependencyView {
+            number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
+            project: *project,
+        })
         .unwrap();
     }
     w::FollowsPanel { project, follows: List::from_boxed(follows.into()), dependencies: rows }
@@ -169,11 +166,7 @@ fn relation_boxes_keep_project_and_document_order_and_words() {
         *source = b"aaa/second".as_slice().into();
     }
     assert_eq!(
-        all_home::relations(
-            &[panel(SECOND, &[follow(None), second], &[FIRST])],
-            me.projects.as_slice()
-        )
-        .as_ref(),
+        all_home::relations(&[panel(SECOND, &[follow(None), second], &[FIRST])], me.projects.as_slice()).as_ref(),
         [expected_follow(None), expected_second, expected_dependency(SECOND, b"vsr-rs", b"vsr"),],
         "a document's follows keep their order before its dependencies"
     );

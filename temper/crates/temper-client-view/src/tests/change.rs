@@ -72,9 +72,7 @@ fn parts(step: w::Step) -> w::ChangePanel {
     parts.name = Box::from(*b"shop");
     parts.branch = Box::from(*b"temper/9");
     parts.landing = Box::from(*b"main");
-    parts.pull = Some(
-        w::Pull { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") },
-    );
+    parts.pull = Some(w::Pull { number: 23, address: Box::from(*b"https://forge.example/acme/shop/pull/23") });
     parts.hold = None;
     parts.runs = None;
     parts.gates = List::with_capacity(0);

@@ -33,19 +33,19 @@ fn query(root: &f::Harness, call: u32) -> w::HistoryRead {
 }
 fn event(number: u64) -> w::HistoryEvent {
     w::HistoryEvent {
-            project: 1,
-            number,
-            at: 60_000_000_000,
-            source_at: None,
-            change: 2,
-            repository: w::HistoryRepository { forge: 3, repository: 4 },
-            landing: None,
-            head: None,
-            base: None,
-            operation: number,
-            attempt: 0,
-            what: w::HistoryWhat::Ready,
-        }
+        project: 1,
+        number,
+        at: 60_000_000_000,
+        source_at: None,
+        change: 2,
+        repository: w::HistoryRepository { forge: 3, repository: 4 },
+        landing: None,
+        head: None,
+        base: None,
+        operation: number,
+        attempt: 0,
+        what: w::HistoryWhat::Ready,
+    }
 }
 fn cursor(number: u64) -> [u8; 17] {
     let mut bytes = skein_lib::Writer::new(17);
@@ -66,13 +66,7 @@ fn page(root: &mut f::Harness, call: u32, numbers: core::ops::Range<u64>, after:
     for number in numbers {
         events.push(event(number)).unwrap();
     }
-    reply(
-        root,
-        call,
-        w::HistoryReply::Page(
-            w::HistoryPage { events, after, upper: 20, whole_since: None },
-        ),
-    );
+    reply(root, call, w::HistoryReply::Page(w::HistoryPage { events, after, upper: 20, whole_since: None }));
 }
 fn eleven(json: bool) -> crate::jig::Printed {
     let (mut root, call) = missing(json);

@@ -1,5 +1,5 @@
-use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
+use temper_client_protocol_wire::v1::Record;
 
 use jig_client::contract::*;
 
@@ -382,19 +382,16 @@ fn the_repository_context_links_into_its_project() {
             w::Mode::Owned,
             super::connect_forge::connected(),
             w::Offer::NotOffered,
-        )
-        ;
+        );
         parts.repositories = List::with_capacity(1);
         if adopted {
             parts
                 .repositories
-                .push(
-                    w::Adoption {
-                            owner: b"work".as_slice().into(),
-                            name: b"hello".as_slice().into(),
-                            project: fixtures::PROJECT,
-                        },
-                )
+                .push(w::Adoption {
+                    owner: b"work".as_slice().into(),
+                    name: b"hello".as_slice().into(),
+                    project: fixtures::PROJECT,
+                })
                 .unwrap();
         }
         let mut rows = List::with_capacity(1);
@@ -775,9 +772,12 @@ impl DraftsPage {
                         // Newer clock, then higher goal, win; another chat isn't watched.
                         for (chat, goal, at) in [(TASK, 40, 1), (TASK, 41, 2), (TASK, DRAFT_GOAL, 2), (99, 43, 3)] {
                             dismissed
-                                .push(w::PersonFact::GoalFrom(
-                                    w::GoalFrom { project: fixtures::PROJECT, chat, goal, at },
-                                ))
+                                .push(w::PersonFact::GoalFrom(w::GoalFrom {
+                                    project: fixtures::PROJECT,
+                                    chat,
+                                    goal,
+                                    at,
+                                }))
                                 .unwrap();
                         }
                     }
@@ -786,9 +786,7 @@ impl DraftsPage {
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::dismissals(
-                                &w::Dismissals { dismissed },
-                            ),
+                            bytes: wire::dismissals(&w::Dismissals { dismissed }),
                         },
                     }
                 }
@@ -797,7 +795,12 @@ impl DraftsPage {
                     let w::Read::Setting(setting) = &reading.read else { continue };
                     let value = if setting.kind == 7 {
                         let value = w::ProjectWays { drafts: offered, goals: false, changes: false, way: 0 };
-                        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                        let mut writer = skein_lib::Writer::new(
+                            usize::try_from(
+                                value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                            )
+                            .unwrap(),
+                        );
                         value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                         Some(writer.finish())
                     } else {
@@ -807,9 +810,7 @@ impl DraftsPage {
                         read,
                         result: jig_client::Readout::Family {
                             family: wire::FORGE,
-                            record: Some(wire::setting_answer(
-                                &w::SettingAnswer { revision: None, value },
-                            )),
+                            record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value })),
                         },
                     }
                 }

@@ -25,9 +25,7 @@ fn tier_commands_send_keyed_home_or_named_requests_and_print_every_outcome() {
                 (Some(w::TierRefusal::NoRepository), "no repository acme/site\n"),
                 (Some(w::TierRefusal::NoTier), "no tier browser on acme/site\n"),
                 (
-                    Some(w::TierRefusal::Held(
-                        w::TierHeldBy { party: 19, reason: b"maintenance".as_slice().into() },
-                    )),
+                    Some(w::TierRefusal::Held(w::TierHeldBy { party: 19, reason: b"maintenance".as_slice().into() })),
                     "browser of acme/site is held already by party 19: maintenance\n",
                 ),
                 (Some(w::TierRefusal::NotHeld), "browser of acme/site is not held\n"),
@@ -60,7 +58,10 @@ fn tier_commands_send_keyed_home_or_named_requests_and_print_every_outcome() {
                 assert_eq!((request.project, request.tier.as_ref()), (f::PROJECT, b"browser".as_slice()));
                 assert_eq!(request.repository.is_some(), named);
                 if let Some(repository) = &request.repository {
-                    assert_eq!((repository.owner.as_ref(), repository.name.as_ref()), (b"acme".as_slice(), b"site".as_slice()));
+                    assert_eq!(
+                        (repository.owner.as_ref(), repository.name.as_ref()),
+                        (b"acme".as_slice(), b"site".as_slice())
+                    );
                 }
                 match &request.act {
                     w::TierAct::Hold(value) => {
@@ -70,10 +71,7 @@ fn tier_commands_send_keyed_home_or_named_requests_and_print_every_outcome() {
                     w::TierAct::Release => assert_eq!(verb, "release"),
                 }
                 let refused = refusal.is_some();
-                root.adoption_answer(
-                    call,
-                    w::Outcome::Tier(w::TierOutcome { refusal }),
-                );
+                root.adoption_answer(call, w::Outcome::Tier(w::TierOutcome { refusal }));
                 if !named {
                     assert_eq!(root.reads.get(&call).unwrap().1, c::Read::Project { project: f::PROJECT });
                     root.serve(call, home());

@@ -1,5 +1,4 @@
 //! Home's facts, watches and entry look (temper/docs/design/client/pages/README.md, Home).
-use temper_client_protocol_wire::v1::Record;
 use super::{Request, welcome};
 use crate::pages::{Root, Routing};
 use crate::{forge, owner::Owner};
@@ -7,6 +6,7 @@ use alloc::boxed::Box;
 use forge::dismissed::{self, PersonFact};
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::{Env, List, Queue, Wall, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{source, v1 as w};
 
 #[derive(Debug)]

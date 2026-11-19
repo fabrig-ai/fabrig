@@ -1,9 +1,9 @@
 //! A connected Forgejo's one-shot bot tokens (temper/docs/design/client/forge/deployment.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
 use skein_lib::{Queue, Secret};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -151,18 +151,15 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     }
     let bounds = super::wire_limits(&limits).expect("checked limits");
     let Some(target) = forges::making(side, forge, &bounds, place) else { return };
-    let request = w::Request::Connect(
-        w::Connect {
-                forge: target,
-                how: w::How::ForgejoTokens(
-                    w::ForgejoTokens {},
-                ),
-            },
-    );
+    let request = w::Request::Connect(w::Connect { forge: target, how: w::How::ForgejoTokens(w::ForgejoTokens {}) });
     let record = w::Requesting { request };
     let request = Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).expect("request fits") },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(&bounds).expect("request fits"),
+        },
     };
     side.tokens_form.clear();
     side.serial = side.serial.checked_add(1).expect("keys fit");

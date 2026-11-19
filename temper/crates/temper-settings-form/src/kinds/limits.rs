@@ -1,11 +1,11 @@
 //! The two limit settings' shared file form (protocol/configuration/limit-settings.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use crate::file::{Decoder, Error, error, field};
 use crate::{Text, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 pub(crate) fn read(d: &Decoder<'_>, at: u32) -> Result<List<c::Override>, Error> {
     let positions = d.array(at, d.kinds.limit_overrides_overrides, b"overrides")?;
@@ -28,13 +28,25 @@ pub(super) fn value(d: &Decoder<'_>, at: u32) -> Result<Box<[u8]>, Error> {
     for value in values.into_boxed() {
         overrides
             .push(
-                { let value = w::LimitOverride { name: value.name, value: value.value, reason: value.reason }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
+                {
+                    let value = w::LimitOverride { name: value.name, value: value.value, reason: value.reason };
+                    match value.encode(&d.kinds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }
                 .or(Err(error(b"overrides", b"wire value bound")))?,
             )
             .expect("counted overrides");
     }
-    let record = { let value = w::LimitOverrides { overrides }; match value.encode(&d.kinds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }
-        .or(Err(error(b"overrides", b"wire value bound")))?;
+    let record = {
+        let value = w::LimitOverrides { overrides };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"overrides", b"wire value bound")))?;
     let mut out = Writer::new(skein_lib::usize_of(record.measure(&d.kinds).expect("checked wire value")));
     record.write(&d.kinds, &mut out).expect("measured record");
     Ok(out.finish())

@@ -1,12 +1,12 @@
 //! Limits and one-act raises from Needs you (configuration/limit-settings.md, 7).
 #[cfg(test)]
 mod tests;
-use temper_client_protocol_wire::v1::Record;
 use super::{Pages, Request, accounts, inbox::Card};
 use crate::{Address, Limits, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Handle, Key, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Decimal, Duration, List, Map, Queue, Reader, Time, Writer, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -207,15 +207,13 @@ pub(super) fn configure(
         && !page.refused
     {
         let pending = handle(&mut pages.next);
-        let query =
-            w::LimitsRead { after: page.after.clone() };
+        let query = w::LimitsRead { after: page.after.clone() };
         read(pending, w::Read::Limits(query), &bounds, out);
         page.pending = Some(pending);
     }
     if party.is_some() && held_card && !state.holds_done && state.holds_pending.is_none() {
         let pending = handle(&mut pages.next);
-        let query =
-            w::LimitHoldsRead { after: state.holds_after };
+        let query = w::LimitHoldsRead { after: state.holds_after };
         read(pending, w::Read::LimitHolds(query), &bounds, out);
         state.holds_pending = Some(pending);
     }
@@ -227,8 +225,7 @@ pub(super) fn configure(
         && let Some(newest) = newest
     {
         let pending = handle(&mut pages.next);
-        let query =
-            w::SettingRead { kind: 22, scope: 0, number: 1 };
+        let query = w::SettingRead { kind: 22, scope: 0, number: 1 };
         read(pending, w::Read::Setting(query), &bounds, out);
         state.value_pending = Some((pending, newest));
     }
@@ -338,7 +335,11 @@ fn value(encoded: &[u8], bounds: &w::Limits) -> Option<w::LimitOverrides> {
             let value = w::LimitOverrides::decode(bounds, &mut reader).ok()?;
             if reader.is_empty() { Some(value) } else { None }
         }
-        None => { let value = w::LimitOverrides { overrides: List::with_capacity(bounds.limit_overrides_overrides) }; value.measure(bounds).ok()?; Some(value) },
+        None => {
+            let value = w::LimitOverrides { overrides: List::with_capacity(bounds.limit_overrides_overrides) };
+            value.measure(bounds).ok()?;
+            Some(value)
+        }
     }
 }
 pub(super) fn act(pages: &mut Pages, client: &jig_client::Client, limits: &Limits, act: Act, out: &mut Queue<Request>) {
@@ -415,8 +416,7 @@ fn raised_item(value: &w::LimitOverrides, held: &w::LimitHold, bounds: &w::Limit
         b", which needed ",
         Decimal::of(held.needed).as_bytes(),
     ]);
-    let raised =
-        w::LimitOverride { name: held.limit.clone(), value: figure, reason };
+    let raised = w::LimitOverride { name: held.limit.clone(), value: figure, reason };
     let mut overrides = List::with_capacity(bounds.limit_overrides_overrides);
     let mut added = false;
     for old in &value.overrides {

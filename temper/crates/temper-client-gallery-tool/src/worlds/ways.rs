@@ -1,8 +1,8 @@
 //! Hand-made ways documents and page presses (temper/docs/design/client/web/gallery.md, 2).
-use temper_client_protocol_wire::v1::Record;
 use super::{Address, Domain, Event, FirstRun, List, Queue, Request, Then, c, doc, step, world_in_layout};
 use skein_lib::{RequestEnvelope, Token, Writer, bytes};
 use temper_client_domain::{Action, pages::Act};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_protocol_reaches::{Classes, Way, classes_record};
 
@@ -60,7 +60,10 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
 pub(super) fn setting(name: &str) -> Box<[u8]> {
     let draft = is_draft(name);
     let ways = w::ProjectWays { drafts: draft, goals: draft, changes: false, way: if draft { 4 } else { 0 } };
-    let mut writer = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways bytes"));
+    let mut writer = Writer::new(
+        usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .expect("ways bytes"),
+    );
     ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
     writer.finish()
 }
@@ -90,7 +93,10 @@ pub(super) fn reaches_setting(name: &str) -> Box<[u8]> {
         }]),
     };
     let record = classes_record(&classes).expect("whole story's classes");
-    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .expect("classes bytes"),
+    );
     record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
     writer.finish()
 }
@@ -98,17 +104,15 @@ pub(super) fn reaches_setting(name: &str) -> Box<[u8]> {
 pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Option<&str>, out: &mut Queue<Request>) {
     let mut ways = List::with_capacity(3);
     for (index, (way_name, line)) in NAMES.into_iter().zip(LINES).enumerate() {
-        ways.push(
-            w::StockWay {
-                    headline: HEADLINES[index].as_bytes().into(),
-                    name: way_name.as_bytes().into(),
-                    line: line.as_bytes().into(),
-                    path: delivered_path(index, name),
-                    items: items(project, index),
-                    delegation: false,
-                    roles: List::with_capacity(0),
-                },
-        )
+        ways.push(w::StockWay {
+            headline: HEADLINES[index].as_bytes().into(),
+            name: way_name.as_bytes().into(),
+            line: line.as_bytes().into(),
+            path: delivered_path(index, name),
+            items: items(project, index),
+            delegation: false,
+            roles: List::with_capacity(0),
+        })
         .expect("three ways");
     }
     let yours = matches!(
@@ -129,24 +133,24 @@ pub(super) fn deliver(root: &mut Domain, watch: Token, project: u32, name: Optio
         _ => 1,
     };
     let panel = w::WaysPanel {
-            rules: rules(name),
-            words: project_words(name),
-            project,
-            ways,
-            current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },
-            own: match name {
-                Some("how-rules" | "how-rules-card") => rules_path(false),
-                Some("how-team") => rules_path(true),
-                _ => {
-                    if yours {
-                        own()
-                    } else {
-                        delivered_path(current, name)
-                    }
+        rules: rules(name),
+        words: project_words(name),
+        project,
+        ways,
+        current: if yours { None } else { Some(u32::try_from(current).expect("stock way")) },
+        own: match name {
+            Some("how-rules" | "how-rules-card") => rules_path(false),
+            Some("how-team") => rules_path(true),
+            _ => {
+                if yours {
+                    own()
+                } else {
+                    delivered_path(current, name)
                 }
-            },
-            may_change: name != Some("ask-ways-member"),
-        };
+            }
+        },
+        may_change: name != Some("ask-ways-member"),
+    };
     for up in [
         jig_client::Up::Watched { watch, event: c::WatchEvent::Opened },
         jig_client::Up::FamilyDelivered {
@@ -181,9 +185,7 @@ fn project_words(name: Option<&str>) -> Option<w::ProjectWords> {
         ),
         _ => return None,
     };
-    Some(
-        w::ProjectWords { headline: headline.as_bytes().into(), lede: lede.as_bytes().into() },
-    )
+    Some(w::ProjectWords { headline: headline.as_bytes().into(), lede: lede.as_bytes().into() })
 }
 
 fn rules(name: Option<&str>) -> w::PathRules {
@@ -198,14 +200,12 @@ fn rules(name: Option<&str>) -> w::PathRules {
     let mut records = List::with_capacity(u32::try_from(rows.len()).expect("path rules"));
     for (paths, review, sign_off, lands) in rows {
         records
-            .push(
-                w::PathRule {
-                        paths: paths.as_bytes().into(),
-                        review: review.as_bytes().into(),
-                        sign_off: sign_off.as_bytes().into(),
-                        lands: lands.as_bytes().into(),
-                    },
-            )
+            .push(w::PathRule {
+                paths: paths.as_bytes().into(),
+                review: review.as_bytes().into(),
+                sign_off: sign_off.as_bytes().into(),
+                lands: lands.as_bytes().into(),
+            })
             .expect("path rules");
     }
     w::PathRules { rows: records, note: if rows.is_empty() { "" } else { SIGN_NOTE }.as_bytes().into() }
@@ -312,13 +312,9 @@ pub(super) fn roles(root: &mut Domain, read: Token, team: bool, out: &mut Queue<
     }
     let roles = rows
         .into_iter()
-        .map(|(charter, name, who, can, asked)| {
-            w::CharterView { charter, card: agent(who, name, can, asked) }
-        })
+        .map(|(charter, name, who, can, asked)| w::CharterView { charter, card: agent(who, name, can, asked) })
         .collect();
-    let view = w::View::Roles(
-        w::RolesView { roles: List::from_boxed(roles) },
-    );
+    let view = w::View::Roles(w::RolesView { roles: List::from_boxed(roles) });
     let answer = w::ViewAnswer { view };
     step(
         root,
@@ -459,12 +455,8 @@ fn stop(step: w::PathStep) -> w::Stop {
             Repair, Resolve, Review, Turn, Verify,
         },
     };
-    let rule = w::Opens::Rule(
-        w::OpensRule { kind: 2, scope: PROJECT, number: 1 },
-    );
-    let coder = w::Opens::Charter(
-        w::OpensCharter { charter: 1 },
-    );
+    let rule = w::Opens::Rule(w::OpensRule { kind: 2, scope: PROJECT, number: 1 });
+    let coder = w::Opens::Charter(w::OpensCharter { charter: 1 });
     let (actor, words, opens, card) = match step {
         Ask => (
             Person,
@@ -481,9 +473,7 @@ fn stop(step: w::PathStep) -> w::Stop {
         Plan | w::PathStep::Design | w::PathStep::CloseOut => (
             Agent,
             "plan",
-            w::Opens::Charter(
-                w::OpensCharter { charter: 5 },
-            ),
+            w::Opens::Charter(w::OpensCharter { charter: 5 }),
             agent(
                 "an agent · cuts the draft into changes",
                 "the coordinator",
@@ -527,9 +517,7 @@ fn stop(step: w::PathStep) -> w::Stop {
         Review => (
             Agent,
             "review",
-            w::Opens::Gate(
-                w::OpensGate { number: 1, charter: 4 },
-            ),
+            w::Opens::Gate(w::OpensGate { number: 1, charter: 4 }),
             agent(
                 "an agent · holds a change until it approves",
                 "the reviewer",
@@ -570,9 +558,7 @@ fn stop(step: w::PathStep) -> w::Stop {
         Verify => (
             Code,
             "verify",
-            w::Opens::Tier(
-                w::OpensTier { name: b"main checks".as_slice().into() },
-            ),
+            w::Opens::Tier(w::OpensTier { name: b"main checks".as_slice().into() }),
             card("code · checks what landed", "main checks", &[("Runs", "the tier main checks after each landing")]),
         ),
         Branch => (Bar, "main", w::Opens::Nothing, card("a branch · where the change lands", "main", &[])),
@@ -583,10 +569,10 @@ fn stop(step: w::PathStep) -> w::Stop {
 
 fn branch(stops: Vec<w::Stop>) -> w::BranchPath {
     w::BranchPath {
-            repository: Some(b"work/hello".as_slice().into()),
-            branch: b"main".as_slice().into(),
-            stops: List::from_boxed(stops.into_boxed_slice()),
-        }
+        repository: Some(b"work/hello".as_slice().into()),
+        branch: b"main".as_slice().into(),
+        stops: List::from_boxed(stops.into_boxed_slice()),
+    }
 }
 fn path(index: usize) -> w::BranchPath {
     use w::PathStep::{
@@ -619,9 +605,7 @@ fn path(index: usize) -> w::BranchPath {
     if index == 2 {
         let goal_check = stops.get_mut(4).expect("goal tier");
         let mut parts = goal_check.clone();
-        parts.opens = w::Opens::Tier(
-            w::OpensTier { name: b"goal checks".as_slice().into() },
-        );
+        parts.opens = w::Opens::Tier(w::OpensTier { name: b"goal checks".as_slice().into() });
         parts.card = card(
             "code · checks the goal's branch",
             "goal checks",
@@ -630,9 +614,7 @@ fn path(index: usize) -> w::BranchPath {
         *goal_check = parts;
         let repair = stops.get_mut(5).expect("goal repair");
         let mut parts = repair.clone();
-        parts.opens = w::Opens::Charter(
-            w::OpensCharter { charter: 5 },
-        );
+        parts.opens = w::Opens::Charter(w::OpensCharter { charter: 5 });
         parts.card = agent(
             "an agent · repairs a red on the goal's branch",
             "the coordinator",
@@ -690,69 +672,57 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
                 segments.push(b"temper".as_slice().into()).expect("goal prefix");
             }
             let last = if index == 2 && !goal {
-                w::LandingLast::Exact(
-                    w::LandingExact { value: b"main".as_slice().into() },
-                )
+                w::LandingLast::Exact(w::LandingExact { value: b"main".as_slice().into() })
             } else {
-                w::LandingLast::Open(
-                    w::LandingOpen { value: Box::default() },
-                )
+                w::LandingLast::Open(w::LandingOpen { value: Box::default() })
             };
             let pattern = w::LandingPattern { segments, last };
             let mut gates = List::with_capacity(u32::from(index == 1));
             if index == 1 {
                 gates
-                    .push(
-                        w::RuleGate { number: 1, blocking: true, freshness: w::RuleFreshness::Clean },
-                    )
+                    .push(w::RuleGate { number: 1, blocking: true, freshness: w::RuleFreshness::Clean })
                     .expect("one gate");
             }
             let mut approvals = List::with_capacity(u32::from(index == 0));
             if index == 0 {
                 approvals
-                    .push(
-                        w::RuleApproval { role: 0, people: 1, freshness: w::RuleFreshness::Clean },
-                    )
+                    .push(w::RuleApproval { role: 0, people: 1, freshness: w::RuleFreshness::Clean })
                     .expect("one approval");
             }
             let rule = w::LandingRule {
-                    pattern,
-                    enforce: true,
-                    ci: !goal,
-                    up_to_date: !goal,
-                    gates,
-                    approvals,
-                    sets: List::with_capacity(0),
-                };
-            let mut writer = Writer::new(usize::try_from(rule.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("rule bytes"));
+                pattern,
+                enforce: true,
+                ci: !goal,
+                up_to_date: !goal,
+                gates,
+                approvals,
+                sets: List::with_capacity(0),
+            };
+            let mut writer = Writer::new(
+                usize::try_from(rule.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .expect("rule bytes"),
+            );
             rule.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured rule");
-            w::SettingEdit::Set(
-                w::SettingValue { value: writer.finish() },
-            )
+            w::SettingEdit::Set(w::SettingValue { value: writer.finish() })
         } else {
             w::SettingEdit::Removed
         };
-        items
-            .push(
-                w::ProposalItem { kind: 2, scope: project, number, edit },
-            )
-            .expect("four rules");
+        items.push(w::ProposalItem { kind: 2, scope: project, number, edit }).expect("four rules");
     }
     if index == 2 {
         let ways = w::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };
-        let mut writer = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways bytes"));
+        let mut writer = Writer::new(
+            usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("ways bytes"),
+        );
         ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
         items
-            .push(
-                w::ProposalItem {
-                        kind: 7,
-                        scope: project,
-                        number: 1,
-                        edit: w::SettingEdit::Set(
-                            w::SettingValue { value: writer.finish() },
-                        ),
-                    },
-            )
+            .push(w::ProposalItem {
+                kind: 7,
+                scope: project,
+                number: 1,
+                edit: w::SettingEdit::Set(w::SettingValue { value: writer.finish() }),
+            })
             .expect("fifth item");
     }
     let way = match index {
@@ -762,19 +732,18 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
         _ => unreachable!("three stock ways"),
     };
     let classes = classes_record(&Classes::stock(way)).expect("stock classes fit the record");
-    let mut writer = Writer::new(usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+    let mut writer = Writer::new(
+        usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .expect("classes bytes"),
+    );
     classes.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
     items
-        .push(
-            w::ProposalItem {
-                    kind: 8,
-                    scope: project,
-                    number: 1,
-                    edit: w::SettingEdit::Set(
-                        w::SettingValue { value: writer.finish() },
-                    ),
-                },
-        )
+        .push(w::ProposalItem {
+            kind: 8,
+            scope: project,
+            number: 1,
+            edit: w::SettingEdit::Set(w::SettingValue { value: writer.finish() }),
+        })
         .expect("six stock items at most");
     items
 }
@@ -787,48 +756,49 @@ pub(super) fn follow_row(
 ) -> w::FollowView {
     let repo = w::FollowRepository { forge: 1, repository: 7 };
     let setting = w::Follow {
-            source: w::FollowSource {
-                    repository: repo.clone(),
-                    branch: b"main".as_slice().into(),
-                    paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
-                },
-            target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
-            owner: w::FollowOwner::Person(
-                w::FollowPerson { person: 4 },
-            ),
-            start,
-            producer: None,
-            verification: w::FollowCheck {
-                    workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
-                    artifact: b"results".as_slice().into(),
-                    format: w::FollowFormat::Junit,
-                },
-        };
-    let parity = verdict.map(|verdict| {
-        w::FollowParity { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() }
+        source: w::FollowSource {
+            repository: repo.clone(),
+            branch: b"main".as_slice().into(),
+            paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
+        },
+        target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
+        owner: w::FollowOwner::Person(w::FollowPerson { person: 4 }),
+        start,
+        producer: None,
+        verification: w::FollowCheck {
+            workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: w::FollowFormat::Junit,
+        },
+    };
+    let parity = verdict.map(|verdict| w::FollowParity {
+        source: [0xab; 32],
+        head: [0xcd; 32],
+        verdict,
+        run: b"check".as_slice().into(),
     });
     w::FollowView {
-            number: 1,
-            setting,
-            source: b"cowsql/vsr".as_slice().into(),
-            source_branch: b"main".as_slice().into(),
-            target: b"cowsql/vsr-rs".as_slice().into(),
-            target_branch: b"main".as_slice().into(),
-            task: None,
-            stopped: None,
-            lag,
-            entries: List::with_capacity(0),
-            skips: List::with_capacity(0),
-            parity,
-        }
+        number: 1,
+        setting,
+        source: b"cowsql/vsr".as_slice().into(),
+        source_branch: b"main".as_slice().into(),
+        target: b"cowsql/vsr-rs".as_slice().into(),
+        target_branch: b"main".as_slice().into(),
+        task: None,
+        stopped: None,
+        lag,
+        entries: List::with_capacity(0),
+        skips: List::with_capacity(0),
+        parity,
+    }
 }
 pub(super) fn follows(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     let row = follow_row(&[b"src", b"include"], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
     let panel = w::FollowsPanel {
-            project: PROJECT,
-            follows: List::from_boxed(Box::new([row])),
-            dependencies: List::with_capacity(0),
-        };
+        project: PROJECT,
+        follows: List::from_boxed(Box::new([row])),
+        dependencies: List::with_capacity(0),
+    };
     for up in [
         jig_client::Up::Watched { watch, event: c::WatchEvent::Opened },
         jig_client::Up::FamilyDelivered {

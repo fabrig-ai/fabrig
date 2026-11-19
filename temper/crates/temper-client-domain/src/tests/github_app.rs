@@ -79,9 +79,7 @@ fn carried(pem: &[u8]) -> Secret {
             assert_eq!(scope, c::Scope::Deployment);
             assert!(skein_lib::bytes::find(&record.bytes, pem).is_none());
             let bounds = forge::wire_limits(&f::limits().forge).unwrap();
-            let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &bounds).unwrap().request
-            else {
+            let w::Request::Connect(connect) = wire::decode_requesting(&record.bytes, &bounds).unwrap().request else {
                 panic!("Connect")
             };
             let w::Making::Kept(kept) = &connect.forge else { panic!("kept forge") };
@@ -201,11 +199,7 @@ fn each_forge_refusal_is_said_in_forge_md_words() {
                 attempt = Some(sent);
             }
         }
-        let record = w::Answer {
-                outcome: w::Outcome::ConnectRefused(
-                    w::ConnectRefused { why },
-                ),
-            };
+        let record = w::Answer { outcome: w::Outcome::ConnectRefused(w::ConnectRefused { why }) };
         event(
             &mut root,
             Event::Client {
@@ -336,8 +330,7 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
             attempt = Some(sent);
             assert!(value.is_none());
             let jig_client::Ask::Family { record, .. } = request else { panic!("family") };
-            let w::Request::Install(install) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
+            let w::Request::Install(install) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("Install")
             };
@@ -348,13 +341,9 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
     let answer = jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(
-            &w::Answer {
-                    outcome: w::Outcome::Link(
-                        w::Link { address: b"https://fake.invalid/install".as_slice().into() },
-                    ),
-                },
-        ),
+        bytes: wire::answer(&w::Answer {
+            outcome: w::Outcome::Link(w::Link { address: b"https://fake.invalid/install".as_slice().into() }),
+        }),
     });
     let up = jig_client::Up::Answer {
         attempt,

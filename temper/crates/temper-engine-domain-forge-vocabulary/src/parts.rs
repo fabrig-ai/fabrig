@@ -1,11 +1,11 @@
 //! Pure row-part encodings, shared by the root and service vocabulary
 //! (temper/docs/design/client/forge/parts.md, 3–4).
 #![expect(clippy::manual_map, reason = "pure encodings spell out optional fields without closures")]
-use temper_client_protocol_wire::v1::Record;
 use crate::MilestoneTotals;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents::TaskLine;
 use skein_lib::{List, Wall, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub fn kinds(connector: u16) -> Box<[jig_domain_core_vocabulary::PartKind]> {
@@ -26,11 +26,8 @@ pub fn kinds(connector: u16) -> Box<[jig_domain_core_vocabulary::PartKind]> {
 }
 
 pub fn goal(report: Option<&(Box<[u8]>, Wall)>, milestone: Option<u64>) -> Option<Box<[u8]>> {
-
     let report = match report {
-        Some((headline, at)) => Some(
-            w::GoalReport { headline: headline.clone(), at: at.as_nanos() },
-        ),
+        Some((headline, at)) => Some(w::GoalReport { headline: headline.clone(), at: at.as_nanos() }),
         None => None,
     };
     let record = w::GoalPart { report, milestone };
@@ -39,34 +36,34 @@ pub fn goal(report: Option<&(Box<[u8]>, Wall)>, milestone: Option<u64>) -> Optio
 
 pub fn chat(document: Option<&[u8]>) -> Option<Box<[u8]>> {
     let record = w::ChatPart {
-            document: match document {
-                Some(value) => Some(value.into()),
-                None => None,
-            },
-        };
+        document: match document {
+            Some(value) => Some(value.into()),
+            None => None,
+        },
+    };
     record.encode(&w::CEILINGS).ok()
 }
 
 pub fn totals(value: &MilestoneTotals, _limits: &w::Limits) -> Option<w::MilestoneTotals> {
     let last_landing = match &value.last_landing {
-        Some(landing) => Some(
-            w::MilestoneLanding { at: landing.at.as_nanos(), goal: landing.goal, change: landing.change },
-        ),
+        Some(landing) => {
+            Some(w::MilestoneLanding { at: landing.at.as_nanos(), goal: landing.goal, change: landing.change })
+        }
         None => None,
     };
     Some(w::MilestoneTotals {
-            task: value.task,
-            done: value.done,
-            failed: value.failed,
-            closed: value.closed,
-            live: value.live,
-            ended: match value.ended {
-                Some(at) => Some(at.as_nanos()),
-                None => None,
-            },
-            last_landing,
-            spent: value.spent,
-        })
+        task: value.task,
+        done: value.done,
+        failed: value.failed,
+        closed: value.closed,
+        live: value.live,
+        ended: match value.ended {
+            Some(at) => Some(at.as_nanos()),
+            None => None,
+        },
+        last_landing,
+        spent: value.spent,
+    })
 }
 
 fn milestone_goal(line: &TaskLine, headline: Option<Box<[u8]>>) -> Option<w::MilestoneGoal> {
@@ -96,11 +93,11 @@ pub fn milestone(
         let Some(goal) = milestone_goal(line, headline.clone()) else { break };
         kept.push(goal).ok()?;
         let candidate = w::MilestonePart {
-                whole,
-                totals: totals(value, limits)?,
-                goals: kept.clone(),
-                more: total.saturating_sub(kept.len()),
-            };
+            whole,
+            totals: totals(value, limits)?,
+            goals: kept.clone(),
+            more: total.saturating_sub(kept.len()),
+        };
         if candidate.measure(limits).ok()? > wire::MILESTONE_PART_BYTES {
             break;
         }

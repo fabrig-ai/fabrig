@@ -219,9 +219,7 @@ mod tests {
             branch: b"temper/qa".as_slice().into(),
             landing: b"main".as_slice().into(),
             head: Some([0xab; 32]),
-            pull: Some(
-                w::Pull { number: 216, address: Box::new([]) },
-            ),
+            pull: Some(w::Pull { number: 216, address: Box::new([]) }),
             step,
             hold: None,
             runs: None,
@@ -337,9 +335,7 @@ mod tests {
     fn another_tasks_panel_is_not_the_pages_panel() {
         let state = forge::panel::Panel {
             subject: forge::panel::Subject { task: 88, project: 1 },
-            state: forge::panel::State::Shown(Box::new(
-                panel_parts(w::Step::Checking),
-            )),
+            state: forge::panel::State::Shown(Box::new(panel_parts(w::Step::Checking))),
             handle: None,
         };
         assert!(forge::change::for_task(Some(&state), TASK).is_none(), "foreign subject never attaches to this page");

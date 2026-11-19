@@ -88,8 +88,7 @@ impl Drawing {
                     if rng.chance(500) { w::FollowStart::Owner } else { w::FollowStart::Code },
                     u32::try_from(rng.below(10)).expect("lag"),
                     None,
-                )
-                ;
+                );
                 row.number = u32::try_from(number).expect("number");
                 row.source = format!("source-{number}").into_bytes().into_boxed_slice();
                 row
@@ -98,12 +97,10 @@ impl Drawing {
         if follows.len() > 1 && rng.chance(500) {
             follows.reverse();
         }
-        let panel = rng.chance(700).then(|| {
-            w::FollowsPanel {
-                    project: 1,
-                    follows: List::from_boxed(follows.into_boxed_slice()),
-                    dependencies: List::with_capacity(0),
-                }
+        let panel = rng.chance(700).then(|| w::FollowsPanel {
+            project: 1,
+            follows: List::from_boxed(follows.into_boxed_slice()),
+            dependencies: List::with_capacity(0),
         });
         let route = rng.chance(700).then(|| super::path(&mut rng, limits)).filter(|path| !path.stops.is_empty());
         let members = rng.chance(500).then(|| -> Box<[c::ProjectMember]> {
@@ -124,9 +121,7 @@ impl Drawing {
             "seed {seed}: follow order"
         );
         let tiers = route.as_ref().is_some_and(|path| {
-            path.stops
-                .iter()
-                .any(|stop| stop.step == w::PathStep::Verify && matches!(&stop.opens, w::Opens::Tier(_)))
+            path.stops.iter().any(|stop| stop.step == w::PathStep::Verify && matches!(&stop.opens, w::Opens::Tier(_)))
         });
         assert_eq!(expected.tiers.is_some(), tiers, "seed {seed}: verify tiers only");
         for (watch, bytes) in [
@@ -134,17 +129,15 @@ impl Drawing {
             (
                 ways_watch.expect("ways watch"),
                 route.map(|path| {
-                    wire::ways_panel(
-                        &w::WaysPanel {
-                                project: 1,
-                                words: None,
-                                ways: List::with_capacity(0),
-                                current: None,
-                                own: path,
-                                rules: w::PathRules { rows: List::with_capacity(0), note: Box::default() },
-                                may_change: false,
-                            },
-                    )
+                    wire::ways_panel(&w::WaysPanel {
+                        project: 1,
+                        words: None,
+                        ways: List::with_capacity(0),
+                        current: None,
+                        own: path,
+                        rules: w::PathRules { rows: List::with_capacity(0), note: Box::default() },
+                        may_change: false,
+                    })
                 }),
             ),
         ] {
@@ -242,38 +235,39 @@ fn text(bytes: &[u8]) -> c::DocumentText {
 fn follow_row(paths: &[&[u8]], start: w::FollowStart, lag: u32, verdict: Option<w::FollowVerdict>) -> w::FollowView {
     let repo = w::FollowRepository { forge: 1, repository: 7 };
     let setting = w::Follow {
-            source: w::FollowSource {
-                    repository: repo.clone(),
-                    branch: b"main".as_slice().into(),
-                    paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
-                },
-            target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
-            owner: w::FollowOwner::Person(
-                w::FollowPerson { person: 4 },
-            ),
-            start,
-            producer: None,
-            verification: w::FollowCheck {
-                    workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
-                    artifact: b"results".as_slice().into(),
-                    format: w::FollowFormat::Junit,
-                },
-        };
-    let parity = verdict.map(|verdict| {
-        w::FollowParity { source: [0xab; 32], head: [0xcd; 32], verdict, run: b"check".as_slice().into() }
+        source: w::FollowSource {
+            repository: repo.clone(),
+            branch: b"main".as_slice().into(),
+            paths: List::from_boxed(paths.iter().map(|p| Box::from(*p)).collect()),
+        },
+        target: w::FollowTarget { repository: repo, branch: b"main".as_slice().into() },
+        owner: w::FollowOwner::Person(w::FollowPerson { person: 4 }),
+        start,
+        producer: None,
+        verification: w::FollowCheck {
+            workflow: b".forgejo/workflows/vsr-tests.yml".as_slice().into(),
+            artifact: b"results".as_slice().into(),
+            format: w::FollowFormat::Junit,
+        },
+    };
+    let parity = verdict.map(|verdict| w::FollowParity {
+        source: [0xab; 32],
+        head: [0xcd; 32],
+        verdict,
+        run: b"check".as_slice().into(),
     });
     w::FollowView {
-            number: 1,
-            setting,
-            source: b"cowsql/vsr".as_slice().into(),
-            source_branch: b"main".as_slice().into(),
-            target: b"cowsql/vsr-rs".as_slice().into(),
-            target_branch: b"main".as_slice().into(),
-            task: None,
-            stopped: None,
-            lag,
-            entries: List::with_capacity(0),
-            skips: List::with_capacity(0),
-            parity,
-        }
+        number: 1,
+        setting,
+        source: b"cowsql/vsr".as_slice().into(),
+        source_branch: b"main".as_slice().into(),
+        target: b"cowsql/vsr-rs".as_slice().into(),
+        target_branch: b"main".as_slice().into(),
+        task: None,
+        stopped: None,
+        lag,
+        entries: List::with_capacity(0),
+        skips: List::with_capacity(0),
+        parity,
+    }
 }

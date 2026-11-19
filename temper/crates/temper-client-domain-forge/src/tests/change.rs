@@ -12,24 +12,9 @@ fn repair(reason: w::Reason) -> w::Step {
 #[test]
 fn each_step_supplies_its_slot_line_and_held_word() {
     let cases = [
-        (
-            w::Step::Ready(w::InLanding { landing: Some(61) }),
-            Some(4),
-            W::ReadyLine,
-            W::HeldReady,
-        ),
-        (
-            w::Step::Ready(w::InLanding { landing: None }),
-            Some(4),
-            W::ReadyAloneLine,
-            W::HeldReady,
-        ),
-        (
-            w::Step::Preparing(w::InLanding { landing: Some(61) }),
-            Some(4),
-            W::PrepareLine,
-            W::HeldPreparing,
-        ),
+        (w::Step::Ready(w::InLanding { landing: Some(61) }), Some(4), W::ReadyLine, W::HeldReady),
+        (w::Step::Ready(w::InLanding { landing: None }), Some(4), W::ReadyAloneLine, W::HeldReady),
+        (w::Step::Preparing(w::InLanding { landing: Some(61) }), Some(4), W::PrepareLine, W::HeldPreparing),
         (w::Step::Producing, Some(0), W::ProduceLine, W::HeldProducing),
         (w::Step::Opening, Some(1), W::OpenLine, W::HeldOpening),
         (w::Step::Recreating, Some(1), W::RecreateLine, W::HeldRecreating),
@@ -41,21 +26,11 @@ fn each_step_supplies_its_slot_line_and_held_word() {
         (w::Step::Updating, Some(4), W::UpdateLine, W::HeldUpdating),
         (w::Step::Resolving, Some(4), W::ResolveLine, W::HeldResolving),
         (repair(w::Reason::Ci), Some(2), W::RepairCi, W::HeldRepairing),
-        (
-            repair(w::Reason::Gate(w::GateReason { gate: 123 })),
-            Some(3),
-            W::RepairGate,
-            W::HeldRepairing,
-        ),
+        (repair(w::Reason::Gate(w::GateReason { gate: 123 })), Some(3), W::RepairGate, W::HeldRepairing),
         (repair(w::Reason::Semantic), Some(4), W::RepairSemantic, W::HeldRepairing),
         (repair(w::Reason::Review), Some(3), W::RepairReview, W::HeldRepairing),
         (w::Step::Landing, Some(5), W::LandingLine, W::HeldLanding),
-        (
-            w::Step::Landed(w::Landed { merge: [0xab; 32] }),
-            None,
-            W::LandedLine,
-            W::HeldLanded,
-        ),
+        (w::Step::Landed(w::Landed { merge: [0xab; 32] }), None, W::LandedLine, W::HeldLanded),
     ];
     for (step, current, word, held) in cases {
         assert_eq!(change::slot(&step), Slots { current, done: current.unwrap_or(6) });
@@ -190,28 +165,18 @@ fn after_landing_steps_keep_the_merge_tiers_and_completed_slots() {
     tiers.push(Box::from(b"fast run 2".as_slice())).unwrap();
     for (step, word, held) in [
         (
-            w::Step::Verifying(
-                w::Verifying { merge: [0xab; 32], tiers: tiers.clone() },
-            ),
+            w::Step::Verifying(w::Verifying { merge: [0xab; 32], tiers: tiers.clone() }),
             W::VerifyingLine,
             W::HeldVerifying,
         ),
+        (w::Step::Red(w::Red { merge: [0xab; 32], tiers: tiers.clone() }), W::RedLine, W::HeldRed),
         (
-            w::Step::Red(w::Red { merge: [0xab; 32], tiers: tiers.clone() }),
-            W::RedLine,
-            W::HeldRed,
-        ),
-        (
-            w::Step::Cleared(
-                w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false },
-            ),
+            w::Step::Cleared(w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false }),
             W::ClearedLine,
             W::HeldCleared,
         ),
         (
-            w::Step::Cleared(
-                w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true },
-            ),
+            w::Step::Cleared(w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true }),
             W::UnclearedLine,
             W::HeldUncleared,
         ),

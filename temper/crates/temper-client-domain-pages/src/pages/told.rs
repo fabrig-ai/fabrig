@@ -1,5 +1,4 @@
 //! Telling you (temper/docs/design/client/pages/told.md; client/web/README.md, 2.7).
-use temper_client_protocol_wire::v1::Record;
 use super::Request;
 use crate::{
     forge::{Limits, devices, wire_limits},
@@ -8,6 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Outcome, Told as Tell};
 use skein_lib::{Queue, Wall};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -221,7 +221,13 @@ impl Told {
                     auth: subscription.auth,
                     label: label(&browser.user_agent),
                 };
-                let Ok(value) = ({ let value = parts; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else {
+                let Ok(value) = ({
+                    let value = parts;
+                    match value.encode(&bounds) {
+                        Ok(_) => Ok(value),
+                        Err(problem) => Err(problem),
+                    }
+                }) else {
                     self.refusal = Some(Refusal::Malformed);
                     return;
                 };
@@ -294,7 +300,15 @@ impl Told {
             }
         };
         let Some(bounds) = wire_limits(&limits) else { return };
-        let Ok(value) = ({ let value = w::RemoveDevice { number }; match value.encode(&bounds) { Ok(_) => Ok(value), Err(problem) => Err(problem) } }) else { return };
+        let Ok(value) = ({
+            let value = w::RemoveDevice { number };
+            match value.encode(&bounds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }) else {
+            return;
+        };
         if let Some(key) = send(w::Request::RemoveDevice(value), serial, limits, out) {
             self.pending = Some(Pending::Remove { key, drop });
         }

@@ -446,17 +446,14 @@ impl Goals {
 
                 let milestone = part.milestone;
                 let report = match part.report {
-                    Some(report) => {
-
-                        Some(report::Report {
-                            headline: report.headline,
-                            at: Some(Wall::from_nanos(report.at)),
-                            paragraphs: List::with_capacity(0),
-                            left: None,
-                            risk: None,
-                            decided: List::with_capacity(0),
-                        })
-                    }
+                    Some(report) => Some(report::Report {
+                        headline: report.headline,
+                        at: Some(Wall::from_nanos(report.at)),
+                        paragraphs: List::with_capacity(0),
+                        left: None,
+                        risk: None,
+                        decided: List::with_capacity(0),
+                    }),
                     None => None,
                 };
                 rows.insert(line.chip.task, Row { milestone, report }).expect("live and ended goal rows fit");

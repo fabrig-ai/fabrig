@@ -1062,17 +1062,16 @@ fn a_milestone_page_keeps_its_document_totals_ended_rows_and_line_until_answers(
         &mut out,
     );
     let totals = w::MilestoneTotals {
-            task: f::chat::TASK,
-            done: 2,
-            failed: 0,
-            closed: 0,
-            live: 4,
-            ended: None,
-            last_landing: None,
-            spent: 0,
-        };
-    let totals =
-        w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
+        task: f::chat::TASK,
+        done: 2,
+        failed: 0,
+        closed: 0,
+        live: 4,
+        ended: None,
+        last_landing: None,
+        spent: 0,
+    };
+    let totals = w::MilestoneAnswer { result: w::MilestoneResult::Totals(totals) };
     answer(
         &mut task_page,
         &h,

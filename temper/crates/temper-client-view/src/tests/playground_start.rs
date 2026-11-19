@@ -186,9 +186,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
     use temper_client_protocol_wire::v1 as w;
     for (why, expected) in [
         (
-            w::StartFailure::Group(
-                w::GroupFailed { why: b"fetch failed".as_slice().into() },
-            ),
+            w::StartFailure::Group(w::GroupFailed { why: b"fetch failed".as_slice().into() }),
             "The playground did not start: its fakes did not start (fetch failed).",
         ),
         (w::StartFailure::Account, "The playground did not start: the scripted model's account was refused."),
@@ -199,12 +197,8 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         let attempt = f::playground_start_attempt(&mut root);
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Starting").is_some());
-        let read = f::playground_start_answer(
-            &mut root,
-            attempt,
-            w::Outcome::StartFailed(w::StartFailed { why }),
-        )
-        .expect("failure rereads the playground");
+        let read = f::playground_start_answer(&mut root, attempt, w::Outcome::StartFailed(w::StartFailed { why }))
+            .expect("failure rereads the playground");
         f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
         let mut view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, b"Not started").is_some());
@@ -232,15 +226,9 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
     use temper_client_protocol_wire::v1 as w;
     let mut root = start_root();
     let attempt = f::playground_start_attempt(&mut root);
-    let why = w::StartFailure::Group(
-        w::GroupFailed { why: Box::from([255_u8; 256]) },
-    );
-    let read = f::playground_start_answer(
-        &mut root,
-        attempt,
-        w::Outcome::StartFailed(w::StartFailed { why }),
-    )
-    .expect("failure rereads the playground");
+    let why = w::StartFailure::Group(w::GroupFailed { why: Box::from([255_u8; 256]) });
+    let read = f::playground_start_answer(&mut root, attempt, w::Outcome::StartFailed(w::StartFailed { why }))
+        .expect("failure rereads the playground");
     f::deliver_playground(&mut root, read, w::PlaygroundState::Starting, f::FORGE, None);
     let domain = f::domain_limits();
     let words = f::words();

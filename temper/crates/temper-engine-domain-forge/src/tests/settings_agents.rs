@@ -4,37 +4,26 @@
     clippy::disallowed_methods,
     reason = "ordinary Rust fixtures compare smith declarations and bounded refusal words"
 )]
-use temper_client_protocol_wire::v1::Record;
 use super::{BOUNDS, Item, Value, judge};
 use crate::settings::{self as s, agents::PROFILE_FIGURES};
 use skein_lib::{List, Queue};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 fn figures(profile: &[(&[u8], u64)], endpoints: &[&[u8]], limits: w::AgentLimits) -> w::AgentFigures {
     let mut rows = List::with_capacity(128);
     for &(name, value) in profile {
-        rows.push(w::AgentFigure { name: name.into(), value })
-            .unwrap();
+        rows.push(w::AgentFigure { name: name.into(), value }).unwrap();
     }
 
     let mut ends = List::with_capacity(64);
     for &endpoint in endpoints {
-        ends.push(
-            w::AgentEndpointLimits { endpoint: endpoint.into(), limits: limits.clone() },
-        )
-        .unwrap();
+        ends.push(w::AgentEndpointLimits { endpoint: endpoint.into(), limits: limits.clone() }).unwrap();
     }
     w::AgentFigures { profile: rows, endpoints: ends, fallback: limits }
 }
 fn limits() -> w::AgentLimits {
-    w::AgentLimits {
-        window: 1,
-        output: 1,
-        reasoning_item: 1,
-        head_ms: 1,
-        idle_ms: 1,
-        oversized: w::Oversized::Fail,
-    }
+    w::AgentLimits { window: 1, output: 1, reasoning_item: 1, head_ms: 1, idle_ms: 1, oversized: w::Oversized::Fail }
 }
 fn item(value: w::AgentFigures) -> Item {
     Item { kind: 21, scope: 0, number: 1, value: Some(Value::AgentFigures(value)) }
@@ -114,14 +103,20 @@ fn agent_figures_read_defaults_and_changes_and_resets() {
         kind: 21,
         scope: 0,
         number: 1,
-        value: s::SizedValue { size: default.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"), value: Value::AgentFigures(default.clone()) },
+        value: s::SizedValue {
+            size: default.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+            value: Value::AgentFigures(default.clone()),
+        },
     }]));
     assert_eq!(domain.agent_figures(), &default);
     let mut out = Queue::uncapped();
     for (revision, edit, expected) in [
         (
             2,
-            s::Edit::Set(s::SizedValue { size: changed.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"), value: Value::AgentFigures(changed.clone()) }),
+            s::Edit::Set(s::SizedValue {
+                size: changed.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                value: Value::AgentFigures(changed.clone()),
+            }),
             &changed,
         ),
         (3, s::Edit::Remove, &default),

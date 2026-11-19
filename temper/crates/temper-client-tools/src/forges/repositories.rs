@@ -1,5 +1,4 @@
 //! The picker's one fresh page (client/ctl/areas.md).
-use temper_client_protocol_wire::v1::Record;
 use super::{Forges, REPOSITORIES, domain, finish};
 use crate::{
     jig::{
@@ -18,6 +17,7 @@ use temper_client_domain_forge::{
     forge::family::{self, Page},
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -32,8 +32,7 @@ pub(super) fn owns(call: &jig::call::Call) -> bool {
 }
 fn request(forge: u16, installation: Option<u64>, page: u32, limits: &Limits) -> Option<Ask> {
     let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
-    let request =
-        w::Request::Reachable(w::Reachable { forge, installation, page });
+    let request = w::Request::Reachable(w::Reachable { forge, installation, page });
     let request = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Deployment,

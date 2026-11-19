@@ -1,4 +1,3 @@
-use temper_client_protocol_wire::v1::Record;
 use jig_client_kit::{
     harness::{App, Until},
     observe,
@@ -6,6 +5,7 @@ use jig_client_kit::{
 use skein_fake_person::{Face, Find, Found, Step, Target, TreeFace};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
+use temper_client_protocol_wire::v1::Record;
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 
 fn running_delegate_page() -> (jig_client_kit::harness::World<Temper, Joint>, jig_client_kit::harness::ClientId, u64) {

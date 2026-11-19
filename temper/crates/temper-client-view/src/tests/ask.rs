@@ -192,27 +192,30 @@ fn panel(current: Option<u32>, may_change: bool) -> w::WaysPanel {
         .into_iter()
         .zip(LINES)
         .enumerate()
-        .map(|(index, (name, line))| {
-            w::StockWay {
-                    headline: b"".as_slice().into(),
-                    name: name.into(),
-                    line: line.into(),
-                    path: path(index),
-                    items: List::from_boxed(Box::new([w::ProposalItem { kind: 7, scope: f::PROJECT, number: 1, edit: w::SettingEdit::Removed }])),
-                    delegation: false,
-                    roles: List::with_capacity(0),
-                }
+        .map(|(index, (name, line))| w::StockWay {
+            headline: b"".as_slice().into(),
+            name: name.into(),
+            line: line.into(),
+            path: path(index),
+            items: List::from_boxed(Box::new([w::ProposalItem {
+                kind: 7,
+                scope: f::PROJECT,
+                number: 1,
+                edit: w::SettingEdit::Removed,
+            }])),
+            delegation: false,
+            roles: List::with_capacity(0),
         })
         .collect();
     w::WaysPanel {
-            rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
-            words: None,
-            project: f::PROJECT,
-            ways: List::from_boxed(ways),
-            current,
-            own: path(0),
-            may_change,
-        }
+        rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
+        words: None,
+        project: f::PROJECT,
+        ways: List::from_boxed(ways),
+        current,
+        own: path(0),
+        may_change,
+    }
 }
 #[expect(clippy::too_many_lines, reason = "the three paths keep their stops and supplied cards in one fixture")]
 fn path(index: usize) -> w::BranchPath {
@@ -274,18 +277,14 @@ fn path(index: usize) -> w::BranchPath {
                     "merges exactly the commit its checks saw",
                 )),
                 S::Check if index == 2 && at == 4 => Some((
-                    w::Opens::Tier(
-                        w::OpensTier { name: b"slow".as_slice().into() },
-                    ),
+                    w::Opens::Tier(w::OpensTier { name: b"slow".as_slice().into() }),
                     "code · checks the goal's branch",
                     "slow",
                     "Runs",
                     "the tier slow on the goal's branch",
                 )),
                 S::Check => Some((
-                    w::Opens::Rule(
-                        w::OpensRule { kind: 1, scope: 0, number: 1 },
-                    ),
+                    w::Opens::Rule(w::OpensRule { kind: 1, scope: 0, number: 1 }),
                     "code · holds a change until CI passes",
                     "CI",
                     "Checks",
@@ -302,9 +301,7 @@ fn path(index: usize) -> w::BranchPath {
                     "the change reaches the front of the queue: main is merged into it, never by an agent",
                 )),
                 S::Verify => Some((
-                    w::Opens::Tier(
-                        w::OpensTier { name: b"slow".as_slice().into() },
-                    ),
+                    w::Opens::Tier(w::OpensTier { name: b"slow".as_slice().into() }),
                     "code · checks what landed",
                     "slow",
                     "Runs",
@@ -328,62 +325,59 @@ fn path(index: usize) -> w::BranchPath {
             };
             let code = if *actor == Code { code } else { None };
             w::Stop {
-                    needed: false,
-                    over: Box::default(),
-                    actor: actor.clone(),
-                    step: step.clone(),
-                    words: (*words).into(),
-                    opens: if let Some((opens, ..)) = &code {
-                        opens.clone()
-                    } else if *step == S::Review {
-                        w::Opens::Gate(
-                            w::OpensGate { number: 1, charter: 4 },
-                        )
-                    } else if *step == S::Produce {
-                        w::Opens::Charter(
-                            w::OpensCharter { charter: 3 },
-                        )
-                    } else {
-                        w::Opens::Nothing
-                    },
-                    card: if let Some((_, who, name, label, value)) = code {
-                        w::Card {
-                                who: who.as_bytes().into(),
-                                name: name.as_bytes().into(),
-                                facts: List::from_boxed(Box::new([w::Fact { label: label.as_bytes().into(), value: value.as_bytes().into() }])),
-                            }
-                    } else if *actor == Person {
-                        w::Card {
-                                who: "a person · decides whether it lands".as_bytes().into(),
-                                name: b"owner".as_slice().into(),
-                                facts: List::from_boxed(Box::new([w::Fact {
-                                        label: b"Role".as_slice().into(),
-                                        value: b"owner".as_slice().into(),
-                                    }])),
-                            }
-                    } else {
-                        w::Card {
-                                who: "an agent · holds a change until it approves".as_bytes().into(),
-                                name: if *step == S::Produce {
-                                    b"the producer".as_slice().into()
-                                } else {
-                                    b"the reviewer".as_slice().into()
-                                },
-                                facts: List::from_boxed(
-                                    [
-                                        (b"Model".as_slice(), "Claude Opus 5.5 · high".as_bytes()),
-                                        (b"Can", b"read the change and its checks; never edit, push or merge"),
-                                        (b"Asked to", b"Review the change at the named head."),
-                                    ]
-                                    .into_iter()
-                                    .map(|(label, value)| {
-                                        w::Fact { label: label.into(), value: value.into() }
-                                    })
-                                    .collect(),
-                                ),
-                            }
-                    },
-                }
+                needed: false,
+                over: Box::default(),
+                actor: actor.clone(),
+                step: step.clone(),
+                words: (*words).into(),
+                opens: if let Some((opens, ..)) = &code {
+                    opens.clone()
+                } else if *step == S::Review {
+                    w::Opens::Gate(w::OpensGate { number: 1, charter: 4 })
+                } else if *step == S::Produce {
+                    w::Opens::Charter(w::OpensCharter { charter: 3 })
+                } else {
+                    w::Opens::Nothing
+                },
+                card: if let Some((_, who, name, label, value)) = code {
+                    w::Card {
+                        who: who.as_bytes().into(),
+                        name: name.as_bytes().into(),
+                        facts: List::from_boxed(Box::new([w::Fact {
+                            label: label.as_bytes().into(),
+                            value: value.as_bytes().into(),
+                        }])),
+                    }
+                } else if *actor == Person {
+                    w::Card {
+                        who: "a person · decides whether it lands".as_bytes().into(),
+                        name: b"owner".as_slice().into(),
+                        facts: List::from_boxed(Box::new([w::Fact {
+                            label: b"Role".as_slice().into(),
+                            value: b"owner".as_slice().into(),
+                        }])),
+                    }
+                } else {
+                    w::Card {
+                        who: "an agent · holds a change until it approves".as_bytes().into(),
+                        name: if *step == S::Produce {
+                            b"the producer".as_slice().into()
+                        } else {
+                            b"the reviewer".as_slice().into()
+                        },
+                        facts: List::from_boxed(
+                            [
+                                (b"Model".as_slice(), "Claude Opus 5.5 · high".as_bytes()),
+                                (b"Can", b"read the change and its checks; never edit, push or merge"),
+                                (b"Asked to", b"Review the change at the named head."),
+                            ]
+                            .into_iter()
+                            .map(|(label, value)| w::Fact { label: label.into(), value: value.into() })
+                            .collect(),
+                        ),
+                    }
+                },
+            }
         })
         .collect();
     w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops: List::from_boxed(stops) }
@@ -668,9 +662,8 @@ fn own_way_uses_project_lede_or_named_fallback_and_back_returns_to_it() {
             me.projects.get_mut(0).unwrap().name = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
             f::deliver_me(&mut f.root, f.me, me);
             let mut parts = panel(None, true);
-            parts.words = lede.map(|lede| {
-                w::ProjectWords { headline: b"Not the line".as_slice().into(), lede: lede.into() }
-            });
+            parts.words =
+                lede.map(|lede| w::ProjectWords { headline: b"Not the line".as_slice().into(), lede: lede.into() });
             show(&mut f, &parts);
             for browser in [false, true] {
                 let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
