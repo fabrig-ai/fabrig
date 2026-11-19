@@ -872,10 +872,11 @@ pub enum ChangeWord {
     ProbingByTest,
     ProbingByTestAt,
     FlakeHold,
+    NoTestHold,
     OutboxRoom,
 }
 pub type ChangeRow = (ChangeWord, &'static [&'static [u8]], &'static [HoleKind]);
-pub const CHANGES: [ChangeRow; 143] = [
+pub const CHANGES: [ChangeRow; 144] = [
     (ChangeWord::Tag, &[b"Change \xc2\xb7 Task ", b""], &[Number]),
     (ChangeWord::Pull, &[b"PR #", b" \xc2\xb7 "], &[Number]),
     (ChangeWord::NoPull, &[b"No pull request yet \xc2\xb7 "], &[]),
@@ -1023,6 +1024,7 @@ pub const CHANGES: [ChangeRow; 143] = [
     (ChangeWord::ProbingByTest, &[b"probing by test"], &[]),
     (ChangeWord::ProbingByTestAt, &[b"probing by test at ", b""], &[Name]),
     (ChangeWord::FlakeHold, &[b"its repair found only flakes"], &[]),
+    (ChangeWord::NoTestHold, &[b"its repair found no failed test"], &[]),
 ];
 impl ChangeWord {
     #[must_use]
@@ -1181,6 +1183,7 @@ pub fn change_name_bytes(word: ChangeWord, index: usize) -> u32 {
         | ChangeWord::Retargeted
         | ChangeWord::FailedHold
         | ChangeWord::FlakeHold
+        | ChangeWord::NoTestHold
         | ChangeWord::Rejected
         | ChangeWord::Gates
         | ChangeWord::Ci

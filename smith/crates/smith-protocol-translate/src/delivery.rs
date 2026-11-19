@@ -9,9 +9,9 @@ use smith_domain::run;
 pub fn saved_delivery(source: &channel::Delivery) -> Result<run::Delivery, Error> {
     let delivery = match source {
         channel::Delivery::Delivered(delivered) => {
-            let mut receipts = List::with_capacity(delivered.receipts().len());
-            for receipt in delivered.receipts() {
-                let receipt = run::Receipt::new(receipt.directory(), Box::from(receipt.text()))
+            let mut receipts = List::with_capacity(delivered.receipts.len());
+            for receipt in &delivered.receipts {
+                let receipt = run::Receipt::new(receipt.directory, Box::from(receipt.text.as_ref()))
                     .ok_or(Error::InvalidSavedAnswer)?;
                 if receipts.push(receipt).is_err() {
                     return Err(Error::InvalidSavedAnswer);
@@ -22,18 +22,19 @@ pub fn saved_delivery(source: &channel::Delivery) -> Result<run::Delivery, Error
         }
         channel::Delivery::Nothing => run::Delivery::Nothing,
         channel::Delivery::Refused(refused) => {
-            let marker = match refused.marker() {
+            let marker = match &refused.marker {
                 Some(marker) => Some(
-                    run::Marker::new(marker.directory(), Box::from(marker.path())).ok_or(Error::InvalidSavedAnswer)?,
+                    run::Marker::new(marker.directory, Box::from(marker.path.as_ref()))
+                        .ok_or(Error::InvalidSavedAnswer)?,
                 ),
                 None => None,
             };
             let refusal =
-                run::DeliveryRefusal::new(marker, Box::from(refused.explanation())).ok_or(Error::InvalidSavedAnswer)?;
+                run::DeliveryRefusal::new(marker, refused.explanation.clone()).ok_or(Error::InvalidSavedAnswer)?;
             run::Delivery::Refused(refusal)
         }
         channel::Delivery::Failed(failed) => {
-            let reason = match failed.reason() {
+            let reason = match failed.reason {
                 channel::DeliveryReason::Unreachable => run::DeliveryReason::Unreachable,
                 channel::DeliveryReason::RefusedByTarget => run::DeliveryReason::RefusedByTarget,
                 channel::DeliveryReason::TimedOut => run::DeliveryReason::TimedOut,
@@ -46,9 +47,9 @@ pub fn saved_delivery(source: &channel::Delivery) -> Result<run::Delivery, Error
                 channel::DeliveryReason::Unknown => run::DeliveryReason::Unknown,
             };
             run::Delivery::Failed(run::DeliveryFailure {
-                directory: failed.directory(),
+                directory: failed.directory,
                 reason,
-                diagnostic: run::Diagnostic::new(failed.diagnostic(), failed.dropped()),
+                diagnostic: run::Diagnostic::new(&failed.diagnostic, failed.dropped),
             })
         }
         channel::Delivery::Stale => run::Delivery::Stale,

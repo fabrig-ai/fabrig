@@ -5,6 +5,7 @@
 use crate::service::link::HostLink;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Map, Queue, Time, Token, Writer};
+use smith_channel::Record;
 use smith_domain::llm;
 use smith_protocol_channel::{self as channel, Piece};
 
@@ -64,7 +65,7 @@ pub(crate) struct Live {
 
 pub(crate) fn wanted(ask: Option<&smith_channel::LiveAsk>, prompt: &llm::Prompt) -> bool {
     let selected = match ask {
-        Some(ask) => ask.text() || ask.input(),
+        Some(ask) => ask.text || ask.input,
         None => false,
     };
     let ordinary = match prompt.purpose {
@@ -102,7 +103,7 @@ impl Live {
     pub(crate) fn deltas(&self, prompt: &llm::Prompt, observed: bool) -> smith_protocol_llm::Deltas {
         let eligible = self.wants(prompt);
         let (text, input) = match &self.ask {
-            Some(ask) => (ask.text(), ask.input()),
+            Some(ask) => (ask.text, ask.input),
             None => (false, false),
         };
         smith_protocol_llm::Deltas { text: observed || (eligible && text), input: eligible && input }
@@ -148,12 +149,10 @@ impl Live {
         {
             return;
         }
-        let Ok(identity) = smith_channel::LiveCall::new(
-            &smith_channel::CEILINGS,
-            smith_channel::LiveCallParts { id: id.into(), tool: tool.into() },
-        ) else {
+        let identity = smith_channel::LiveCall { id: id.into(), tool: tool.into() };
+        if identity.measure(&smith_channel::CEILINGS).is_err() {
             return;
-        };
+        }
         self.calls.insert(index, Call { identity, held: 0 }).expect("one identity per held byte plus open call");
         self.current = Some(index);
     }
@@ -172,7 +171,7 @@ impl Live {
 
     fn delta(&mut self, owner: Token, bytes: &[u8], now: Time, room: &mut HostLink<'_>) {
         match &self.ask {
-            Some(ask) if ask.text() => self.append(owner, None, bytes, now, room),
+            Some(ask) if ask.text => self.append(owner, None, bytes, now, room),
             Some(_) | None => {}
         }
     }
@@ -271,7 +270,7 @@ impl Live {
             let kind = match call {
                 Some(index) => {
                     let identity = &self.calls.get(&index).expect("held identity").identity;
-                    channel::PieceKind::Input { id: identity.id(), tool: identity.tool() }
+                    channel::PieceKind::Input { id: identity.id.as_ref(), tool: identity.tool.as_ref() }
                 }
                 None => channel::PieceKind::Text,
             };

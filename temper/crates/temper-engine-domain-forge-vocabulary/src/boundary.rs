@@ -472,6 +472,7 @@ pub struct Bot {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EmptyIntent {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub label: Box<[u8]>,
@@ -486,7 +487,7 @@ pub enum FirstIntent {
 /// The set up's admitted input (temper/docs/design/client/forge/records.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SetUpFirst {
-    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool },
+    Empty { org: Box<[u8]>, repository: Box<[u8]>, playground: bool, sample: bool },
     Copies { addresses: Box<[Box<[u8]>]> },
     Nothing,
 }
@@ -654,6 +655,7 @@ pub enum AdminStop {
 #[derive(Clone, Hash, Debug, PartialEq, Eq)]
 pub struct First {
     pub playground: bool,
+    pub sample: bool,
     pub org: Box<[u8]>,
     pub repository: Box<[u8]>,
     pub state: FirstState,
@@ -1079,6 +1081,8 @@ pub struct ChangeRow {
     pub delegate_status: change::Status,
     /// A flake terminal awaiting the branch read after its end.
     pub delegate_flake: bool,
+    /// A no-test terminal awaiting the branch read after its end.
+    pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
     /// Bounded current verdict per gate, retained through clean updates.
@@ -1174,6 +1178,8 @@ pub struct ChangeHot {
     pub delegate_status: change::Status,
     /// A flake terminal awaiting the branch read after its end.
     pub delegate_flake: bool,
+    /// A no-test terminal awaiting the branch read after its end.
+    pub delegate_no_test: bool,
     /// The branch head when this delegate was asked.
     pub delegate_head: Option<skein_forge::api::Commit>,
     pub verdicts: Box<[change::GateReport]>,
@@ -1225,6 +1231,7 @@ impl ChangeRow {
             delegate,
             delegate_status,
             delegate_flake,
+            delegate_no_test,
             delegate_head,
             verdicts,
             gate_remarks,
@@ -1294,6 +1301,7 @@ impl ChangeRow {
                 delegate,
                 delegate_status,
                 delegate_flake,
+                delegate_no_test,
                 delegate_head,
                 verdicts,
                 gate_remarks,
@@ -1358,6 +1366,7 @@ impl ChangeRow {
             delegate,
             delegate_status,
             delegate_flake,
+            delegate_no_test,
             delegate_head,
             verdicts,
             gate_remarks,
@@ -1404,6 +1413,7 @@ impl ChangeRow {
             delegate,
             delegate_status,
             delegate_flake,
+            delegate_no_test,
             delegate_head,
             verdicts,
             gate_remarks,
@@ -1528,6 +1538,9 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub last_event: Option<skein_lib::Wall>,
+    pub turn_since: Option<skein_lib::Wall>,
+    pub waiting: Option<landing::Awaited>,
     pub room: Option<u64>,
     pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
@@ -2522,6 +2535,7 @@ pub enum Event {
         no_change: bool,
         /// A repair concluded with the flake verdict.
         flake: bool,
+        no_test: bool,
         /// The child failed to produce a result, rather than returning a negative verdict.
         failed: bool,
         /// The delegate was cancelled; it supplied no verdict and used no review retry.
@@ -2846,6 +2860,10 @@ pub enum Request {
         task: u64,
         member: u16,
         step: LandingNews,
+    },
+    /// Facts are gathered; the root admits the decision in its due procedure step.
+    LandingReady {
+        task: u64,
     },
     LandingDecision {
         task: u64,

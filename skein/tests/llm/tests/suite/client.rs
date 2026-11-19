@@ -296,7 +296,9 @@ fn reuse_preserves_binding_and_rejects_other_authority() {
 
 #[test]
 fn hostile_request_is_refused_before_connection() {
-    for field in [0, 2, 3] {
+    for (field, cause) in
+        [(0, skein_llm::Invalid::Credential), (2, skein_llm::Invalid::Endpoint), (3, skein_llm::Invalid::Endpoint)]
+    {
         let mut request = call(1);
         match field {
             0 => request.credential.as_mut().expect("fixture credential").value = b"bad\r\ninjected".to_vec().into(),
@@ -304,7 +306,9 @@ fn hostile_request_is_refused_before_connection() {
             3 => request.endpoint.authority = b"bad/name".to_vec().into(),
             _ => unreachable!(),
         }
-        assert!(matches!(client::Client::prepare(request, &limits()), Err(Error::Invalid)));
+        assert!(
+            matches!(client::Client::prepare(request, &limits()), Err(Error::Invalid { cause: actual }) if actual == cause)
+        );
     }
 }
 

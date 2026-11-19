@@ -869,6 +869,30 @@ fn an_untooled_failure_keeps_its_tag_on_the_usual_answer_route() {
 }
 
 #[test]
+fn an_unsent_models_refusal_names_the_run_hold() {
+    let ending = host::Ending::Failed {
+        failure: host::Failure::Run(host::RunFailure::Model),
+        detail: b"operator diagnostic".as_slice().into(),
+        work: host::Work { left: None, saved: None },
+        model: Some(host::ModelFailure {
+            endpoint: b"anthropic-api".as_slice().into(),
+            model: b"claude-opus-5-5".as_slice().into(),
+            kind: host::ModelFailureKind::Invalid,
+            evidence: host::ModelEvidence::Unsent,
+            status: None,
+            refusal: Some(b"empty-message".as_slice().into()),
+        }),
+    };
+    assert_eq!(
+        payload::ending(&ending),
+        tasks::End::FailedWithReason {
+            class: tasks::Class::Run,
+            reason: b"anthropic-api claude-opus-5-5: invalid, unsent: empty-message".as_slice().into(),
+        }
+    );
+}
+
+#[test]
 fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
     use host::{ModelEvidence as Evidence, ModelFailureKind as Kind};
     for (kind, evidence, status, class, words) in [
@@ -897,6 +921,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
                 kind,
                 evidence,
                 status,
+                refusal: None,
             }),
         };
         assert_eq!(payload::ending(&ending), tasks::End::FailedWithReason { class, reason: words.into() });
@@ -931,6 +956,7 @@ fn a_named_model_failure_classes_only_its_unsent_outages_as_infrastructure() {
             kind: Kind::Unavailable,
             evidence: Evidence::Unsent,
             status: None,
+            refusal: None,
         });
         assert_eq!(payload::ending(&ending), expected, "{failure:?}");
     }

@@ -1,33 +1,26 @@
 //! Executor and dependency pieces of a party batch.
 use super::super::policy::{decode_person_address, encode_person_address};
-use super::super::{Box, List, Reader, Writer, count, domain, problem, wire};
-pub(crate) fn encode_executor(
-    value: domain::TaskExecutor,
-    limits: &wire::Limits,
-) -> Result<wire::TaskExecutor, wire::Problem> {
-    Ok(match value {
-        domain::TaskExecutor::Agent { charter } => {
-            wire::TaskExecutor::Agent(wire::TaskExecutorAgent::new(limits, wire::TaskExecutorAgentParts { charter })?)
+use super::super::{Box, List, Reader, count, domain, problem, wire};
+use wire::Record;
+pub(crate) fn encode_executor(value: domain::TaskExecutor, limits: &wire::Limits) -> wire::TaskExecutor {
+    match value {
+        domain::TaskExecutor::Agent { charter } => wire::TaskExecutor::Agent(wire::TaskExecutorAgent { charter }),
+        domain::TaskExecutor::Procedure { connector, code } => {
+            wire::TaskExecutor::Procedure(wire::TaskExecutorProcedure { connector, code })
         }
-        domain::TaskExecutor::Procedure { connector, code } => wire::TaskExecutor::Procedure(
-            wire::TaskExecutorProcedure::new(limits, wire::TaskExecutorProcedureParts { connector, code })?,
-        ),
-        domain::TaskExecutor::Person(address) => wire::TaskExecutor::Person(wire::TaskExecutorPerson::new(
-            limits,
-            wire::TaskExecutorPersonParts { address: encode_person_address(&address, limits)? },
-        )?),
-    })
+        domain::TaskExecutor::Person(address) => {
+            wire::TaskExecutor::Person(wire::TaskExecutorPerson { address: encode_person_address(&address, limits) })
+        }
+    }
 }
 pub(crate) fn decode_executor(value: wire::TaskExecutor) -> domain::TaskExecutor {
     match value {
-        wire::TaskExecutor::Agent(value) => domain::TaskExecutor::Agent { charter: value.into_parts().charter },
+        wire::TaskExecutor::Agent(value) => domain::TaskExecutor::Agent { charter: value.charter },
         wire::TaskExecutor::Procedure(value) => {
-            let wire::TaskExecutorProcedureParts { connector, code } = value.into_parts();
+            let wire::TaskExecutorProcedure { connector, code } = value;
             domain::TaskExecutor::Procedure { connector, code }
         }
-        wire::TaskExecutor::Person(value) => {
-            domain::TaskExecutor::Person(decode_person_address(value.into_parts().address))
-        }
+        wire::TaskExecutor::Person(value) => domain::TaskExecutor::Person(decode_person_address(value.address)),
     }
 }
 pub(super) fn encode_dependencies(
@@ -37,17 +30,11 @@ pub(super) fn encode_dependencies(
     let mut items = List::with_capacity(count(values.len())?);
     for value in values {
         let value = match *value {
-            domain::Dependency::Batch(at) => {
-                wire::Dependency::Batch(wire::DependencyBatch::new(limits, wire::DependencyBatchParts { at })?)
-            }
-            domain::Dependency::Existing(task) => wire::Dependency::Existing(wire::DependencyExisting::new(
-                limits,
-                wire::DependencyExistingParts { task },
-            )?),
+            domain::Dependency::Batch(at) => wire::Dependency::Batch(wire::DependencyBatch { at }),
+            domain::Dependency::Existing(task) => wire::Dependency::Existing(wire::DependencyExisting { task }),
         };
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured dependency");
-        items.push(writer.finish()).expect("dependency count");
+        let writer = value.encode(limits)?;
+        items.push(writer).expect("dependency count");
     }
     super::joined(items, limits.member_dependencies)
 }
@@ -60,8 +47,8 @@ pub(super) fn decode_dependencies(
     for _ in 0..bytes.len() {
         let Some(bytes) = super::super::pieces::split(&mut reader)? else { break };
         let value = match wire::Dependency::decode(limits, &mut Reader::new(&bytes))? {
-            wire::Dependency::Batch(value) => domain::Dependency::Batch(value.into_parts().at),
-            wire::Dependency::Existing(value) => domain::Dependency::Existing(value.into_parts().task),
+            wire::Dependency::Batch(value) => domain::Dependency::Batch(value.at),
+            wire::Dependency::Existing(value) => domain::Dependency::Existing(value.task),
         };
         values.push(value).expect("framed dependency count");
     }

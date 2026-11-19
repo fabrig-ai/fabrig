@@ -162,7 +162,7 @@ fn a_transcript_piece_that_does_not_split_is_refused_as_invalid() {
     }
 }
 
-fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v17::Limits) {
+fn check_up_records(records: &[skein_fake_channel::Observed], limits: &wire::v18::Limits) {
     let turn = wire::Turn::decode(limits, &mut Reader::new(&records[1].body)).expect("turn");
     assert_eq!(
         (turn.task, turn.attempt, turn.number, turn.spent, turn.read, turn.opens_window, turn.body.as_ref()),
@@ -265,6 +265,7 @@ fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
             kind: Kind::Unavailable,
             evidence: Evidence::Unsent,
             status: Some(403),
+            refusal: None,
         }),
         Some(host::ModelFailure {
             endpoint: Box::new([255; 40]),
@@ -272,6 +273,7 @@ fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
             kind: Kind::ContextTooLong,
             evidence: Evidence::Response,
             status: Some(u16::MAX),
+            refusal: None,
         }),
         Some(host::ModelFailure {
             endpoint: Box::new([]),
@@ -279,6 +281,15 @@ fn a_failed_answers_named_model_call_crosses_both_translations_unchanged() {
             kind: Kind::Invalid,
             evidence: Evidence::Unknown,
             status: None,
+            refusal: None,
+        }),
+        Some(host::ModelFailure {
+            endpoint: b"anthropic-api".as_slice().into(),
+            model: b"claude-opus-5-5".as_slice().into(),
+            kind: Kind::Invalid,
+            evidence: Evidence::Unsent,
+            status: None,
+            refusal: Some(b"empty-message".as_slice().into()),
         }),
         None,
     ]

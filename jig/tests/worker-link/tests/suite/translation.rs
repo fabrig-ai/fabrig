@@ -5,7 +5,8 @@ use jig_protocol_engine_workers as engine;
 use jig_protocol_worker_link::Request;
 use jig_protocol_worker_wire::{self as wire, Application, Spoken};
 use jig_worker_link_world::fixtures;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::{List, Reader};
+use smith_charter::Record;
 
 pub(super) fn capped(jig: u16, charter: u16) -> List<Spoken> {
     let mut wires = wire::spoken();
@@ -43,15 +44,10 @@ pub(super) fn charter(contract: u16) -> Box<[u8]> {
         "record_charter_smallest",
     );
     let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes))
-        .expect("bounded translation fixture")
-        .into_parts();
-    let mut tools = parts.tools.into_parts();
-    tools.contract = contract;
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("bounded translation fixture");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("bounded translation fixture");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("bounded translation fixture");
-    writer.finish()
+        .expect("bounded translation fixture");
+    parts.tools.contract = contract;
+    let record = parts;
+    record.encode(&smith_charter::CEILINGS).expect("bounded charter")
 }
 pub(super) fn world(version: u16, charter: u16, seed: u64) -> Joined {
     let mut world = Joined::with_wires(&limits(), seed, wire::spoken(), capped(version, charter));

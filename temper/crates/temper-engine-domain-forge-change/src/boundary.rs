@@ -158,6 +158,8 @@ pub enum Hold {
     Failed,
     /// A landing repair found only flakes; release runs its gate once more.
     Flake,
+    /// A landing repair found no failed test; release runs its gate once more.
+    NoTest,
     /// A person rejected a required gate.
     Rejected,
     /// The next delegate is beyond the change's remaining authority.
@@ -292,6 +294,8 @@ pub struct Change {
     pub way: Way,
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
     pub landing: Option<u64>,
+    /// An ask handed over as the change leaves or its landing ends (domain/landing.md, 4.3).
+    pub landing_ask: Option<Box<Ask>>,
     pub state: State,
     /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
     pub ended_held: Option<Hold>,
@@ -500,6 +504,8 @@ pub struct Heard {
     pub delegate: Status,
     /// The repair's successful ending was the flake verdict.
     pub flake: bool,
+    /// The repair found no failed test.
+    pub no_test: bool,
     /// Its delegate has a claimed or running attempt, or is closing: it finishes
     /// as a run does (temper/docs/design/domain/forge/change/repairs.md).
     pub delegate_running: bool,

@@ -3,6 +3,7 @@
 
 #![forbid(unsafe_code)]
 
+use smith_channel::Record;
 use smith_host_protocol::Limits;
 
 /// Codec ceilings with a small transport queue and eight outstanding calls.

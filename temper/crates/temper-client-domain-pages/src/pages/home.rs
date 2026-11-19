@@ -297,7 +297,7 @@ impl AddSheet {
                     requests.push(request).expect("admitted copies");
                 }
             }
-            Start::Nothing => return Err(AddRefused::Unknown),
+            Start::Sample | Start::Nothing => return Err(AddRefused::Unknown),
         }
         Ok(requests)
     }

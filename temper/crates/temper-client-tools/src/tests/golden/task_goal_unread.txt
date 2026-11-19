@@ -1,0 +1,12 @@
+task 41 · goal · Running · shop · priority 2
+asked: Add a /health endpoint that reports the store's state
+requester: you · spent 1.20 of 5.00 · no deadline
+settings: revision 1
+waiting on: you: question of task 42 · 1 waiting
+unread: 2, oldest first; no run has recorded them
+  message 77 · from you · 2026-11-18 10:02 UTC · seen: Also add a /ready endpoint beside /health.
+  message 80 · from you · 2026-11-18 11:40 UTC · not yet seen: And keep the old route for… (300 bytes; task activity 41 prints them whole)
+acts:
+  task stop 41 --key KEY
+  task cancel 41 REASON --key KEY
+digest: task d9b34622bd053bdf

@@ -513,7 +513,7 @@ fn requested_opening_keeps_order_roles_and_tokens() {
 }
 
 #[test]
-fn stock_menu_draws_in_read_order_with_only_the_shown_path() {
+fn stock_menu_names_and_ticks_the_shown_way_with_current_described() {
     for browser in [false, true] {
         let mut f = fixture(Some(CURRENT), true, false);
         for (index, (name, stop)) in NAMES
@@ -535,8 +535,8 @@ fn stock_menu_draws_in_read_order_with_only_the_shown_path() {
                 assert_eq!(node.name.as_deref(), Some(expected));
                 assert_eq!(
                     node.states.as_slice().contains(&State::Selected),
-                    browser && at == 1,
-                    "the running way, not the shown one, is ticked"
+                    browser && Some(u32::try_from(at).unwrap()) == f.root.pages().stock_ways().unwrap().shown(),
+                    "the shown way is ticked"
                 );
             }
             let id = way_item(view.tree(), index).id;
@@ -557,19 +557,25 @@ fn stock_menu_draws_in_read_order_with_only_the_shown_path() {
             );
             assert_eq!(leaves(view.tree(), &styled(view.tree(), look::WAY_LINE)[0]), [LINES[index]]);
             named(view.tree(), Role::Button, stop);
-            assert_eq!(
-                styled(view.tree(), look::WAY_ACTS)
-                    .iter()
-                    .any(|n| n.role == Role::Button && n.name.as_deref() == Some(b"Back")),
-                index != 1
-            );
+            assert!(!view.tree().nodes().iter().any(|n| n.name.as_deref() == Some(b"Back")));
+            assert_eq!(parts_of_acts(view.tree()), [if index == 1 { b"Keep it".as_slice() } else { b"Use this" }]);
+            if browser {
+                let button = styled(view.tree(), look::WAY_MENU)[0].button.as_ref().unwrap();
+                assert_eq!(button.words.as_ref(), name);
+                assert_eq!(button.name.as_ref(), [b"Way shown: ".as_slice(), name].concat());
+                for at in 0..NAMES.len() {
+                    let item = way_item(view.tree(), at);
+                    assert_eq!(item.states.as_slice().contains(&State::Selected), at == index);
+                    assert_eq!(item.description.as_deref(), if at == 1 { Some(b"current".as_slice()) } else { None });
+                }
+            }
         }
     }
 }
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the existing interaction rows cover agent and code cards in both shells")]
-fn stop_presses_open_move_close_and_menu_or_back_close_cards() {
+fn stop_presses_open_move_close_and_menu_closes_cards() {
     for browser in [false, true] {
         let mut f = fixture(Some(CURRENT), true, false);
         let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
@@ -685,26 +691,19 @@ fn stop_presses_open_move_close_and_menu_or_back_close_cards() {
         f::root_event(&mut f.root, d::Event::Act { action });
         let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
-        for back in [true, false] {
-            press(&mut f.root, browser, Role::Button, b"you approve, a person");
-            if back {
-                press(&mut f.root, browser, Role::Button, b"Back");
-            } else {
-                let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
-                let id = way_item(view.tree(), 1).id;
-                let action = crate::act(&mut view, id, Act::Press).unwrap();
-                f::root_event(&mut f.root, d::Event::Act { action });
-            }
-            let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
-            assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
-            assert_eq!(leaves(view.tree(), &styled(view.tree(), look::WAY_LINE)[0]), [LINES[1]]);
-            input(&mut f.root, pages::Act::WayTab { project: f::PROJECT, tab: 0 });
-        }
+        press(&mut f.root, browser, Role::Button, b"you approve, a person");
+        let mut view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+        let id = way_item(view.tree(), 1).id;
+        let action = crate::act(&mut view, id, Act::Press).unwrap();
+        f::root_event(&mut f.root, d::Event::Act { action });
+        let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
+        assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::WAYS_ZOOM)));
+        assert_eq!(leaves(view.tree(), &styled(view.tree(), look::WAY_LINE)[0]), [LINES[1]]);
     }
 }
 
 #[test]
-fn own_way_uses_project_lede_or_named_fallback_and_back_returns_to_it() {
+fn own_way_is_first_and_the_menu_returns_to_it() {
     for name in [b"Hello".as_slice(), b"Another project"] {
         for lede in [
             None,
@@ -734,15 +733,30 @@ fn own_way_uses_project_lede_or_named_fallback_and_back_returns_to_it() {
                         .iter()
                         .filter(|n| n.role == Role::MenuItem || n.role == Role::Button)
                         .count(),
-                    NAMES.len()
+                    NAMES.len() + 1
                 );
-                assert!(
-                    styled(view.tree(), look::WAY_MENU).iter().all(|n| !n.states.as_slice().contains(&State::Selected))
+                let own = format!("{}'s own", core::str::from_utf8(name).unwrap());
+                let item = way_item(view.tree(), 0);
+                assert_eq!(
+                    item.name.as_deref(),
+                    Some(if browser { own.as_bytes().to_vec() } else { format!("{own}, now").into_bytes() }.as_slice())
                 );
+                assert_eq!(item.states.as_slice().contains(&State::Selected), browser);
+                if browser {
+                    let button = styled(view.tree(), look::WAY_MENU)[0].button.as_ref().unwrap();
+                    assert_eq!(button.words.as_ref(), own.as_bytes());
+                    assert_eq!(button.name.as_ref(), format!("Way shown: {own}").as_bytes());
+                    assert_eq!(item.description.as_deref(), Some(b"current".as_slice()));
+                }
                 assert_eq!(parts_of_acts(view.tree()), Vec::<&[u8]>::new());
                 input(&mut f.root, pages::Act::WayTab { project: f::PROJECT, tab: 0 });
                 press(&mut f.root, browser, Role::Button, b"you approve, a person");
-                press(&mut f.root, browser, Role::Button, b"Back");
+                press(
+                    &mut f.root,
+                    browser,
+                    if browser { Role::MenuItem } else { Role::Button },
+                    if browser { own.as_bytes().to_vec() } else { format!("{own}, now").into_bytes() }.as_slice(),
+                );
                 let view = if browser { f::browser_page_view(&f.root) } else { f::page_view(&f.root) };
                 assert_eq!(leaves(view.tree(), &styled(view.tree(), look::WAY_LINE)[0]), [expected]);
                 assert_eq!(f.root.pages().stock_ways().unwrap().shown(), Some(STOCK));
@@ -787,10 +801,7 @@ fn acts_follow_current_permission_and_configuration() {
             assert_eq!(acts.last().unwrap().styles.as_slice(), &[look::WAY_PICK]);
             let buttons: Vec<_> =
                 acts.iter().filter(|n| n.role == Role::Button).map(|n| n.name.as_deref().unwrap()).collect();
-            let mut names: Vec<_> = expected.into_iter().collect();
-            if current != Some(shown) && shown != STOCK {
-                names.push(b"Back");
-            }
+            let names: Vec<_> = expected.into_iter().collect();
             assert_eq!(buttons, names);
             if let Some(node) = act {
                 let id = node.id;
@@ -942,6 +953,7 @@ fn terminal_prints_line_path_card_foot_acts_stock_list_and_last_line_in_order() 
     let view = f::page_view(&f.root);
     let out = print(&view);
     let text = String::from_utf8_lossy(out.text.as_slice());
+    assert!(!text.contains("Back"), "{text}");
     assert_eq!(text.matches("Stock ways:").count(), 1, "{text}");
     assert_eq!(text.matches("The way a change goes:").count(), 1, "{text}");
     assert!(text.contains("agent, when needed, person, code; no merge tool above"), "{text}");
@@ -1013,6 +1025,7 @@ fn terminal_prints_line_path_card_foot_acts_stock_list_and_last_line_in_order() 
     let view = f::page_view(&f.root);
     let out = print(&view);
     let text = String::from_utf8_lossy(out.text.as_slice());
+    assert!(!text.contains("Back"), "{text}");
     let mut rest = text.as_ref();
     for word in [
         core::str::from_utf8(LINES[0]).unwrap(),
@@ -1023,7 +1036,6 @@ fn terminal_prints_line_path_card_foot_acts_stock_list_and_last_line_in_order() 
         "agent",
         "How does temper work?",
         "Use this",
-        "Back",
         "Stock ways:",
         "You approve",
         "Agents review, now",

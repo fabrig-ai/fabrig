@@ -5,6 +5,7 @@
 use super::Proc;
 use skein_io::kernel::{Complete, Op, Submit};
 use skein_lib::{Duration, Time, Token};
+use smith_channel::Record;
 
 /// The real output whose completion the process adapter withholds.
 #[derive(Clone, Copy, Debug)]
@@ -163,19 +164,15 @@ impl Referee {
 }
 
 fn message(index: usize) -> Result<skein_channel::Frame, String> {
-    let message = smith_channel::Message::new(
-        &smith_channel::CEILINGS,
-        smith_channel::MessageParts {
-            finish_requested: false,
-            name: u64::try_from(index + 1).map_err(|_| String::from("two named messages"))?,
-            label: b"host".as_slice().into(),
-            text: b"hello".as_slice().into(),
-        },
-    )
-    .map_err(|_| String::from("bounded message"))?;
-    let mut writer = skein_lib::Writer::new(usize::try_from(message.measure()).map_err(|_| "record size")?);
-    message.encode(&mut writer).map_err(|_| "measured record")?;
-    let mut frame = skein_channel::frame_writer(0x0101, message.measure()).map_err(|_| "record frame")?;
-    frame.put(&writer.finish()).map_err(|_| "measured frame body")?;
+    let message = smith_channel::Message {
+        finish_requested: false,
+        name: u64::try_from(index + 1).map_err(|_| String::from("two named messages"))?,
+        label: b"host".as_slice().into(),
+        text: b"hello".as_slice().into(),
+    };
+    let bytes = message.encode(&smith_channel::CEILINGS).map_err(|_| String::from("bounded message"))?;
+    let length = u32::try_from(bytes.len()).map_err(|_| "record size")?;
+    let mut frame = skein_channel::frame_writer(0x0101, length).map_err(|_| "record frame")?;
+    frame.put(&bytes).map_err(|_| "measured frame body")?;
     frame.finish().map_err(|_| "filled frame".into())
 }

@@ -196,6 +196,7 @@ pub use verification::LandingRed;
 pub use views::{
     APPROVALS_SUBJECT, ChangesLanded, ChangesQueue, ChangesQueued, ChangesView, DependencyView, Document,
     FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine, LandingMember, LandingRound,
-    LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView, LandingsView, PrefixJudgement,
-    SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject, landings_subject,
+    LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView, LandingWait, LandingWaitFor,
+    LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject,
+    landings_subject,
 };

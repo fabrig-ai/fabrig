@@ -193,6 +193,9 @@ blamed unit, land green prefix, carry higher units to the next round.
 Probes by test T1, goal 4045: `temper_tests` probes only cases top gates
 report failed, lands nothing, one flight per workflow/commit
 (`domain/landing-search-by-test.md`; `draft/probes-by-test.status.md`).
+No landing stops silently, each wait named and shown with ages;
+a change's link goes as it leaves or its landing ends
+(`domain/landing-waits.md`).
 Engine worlds check behaviour; process tier: two stories each on fake
 forge and owned Forgejo, run by choice (`testing/process-tier.md`);
 staging walks follow landing (`draft/merge-queue.status.md`).
@@ -320,11 +323,11 @@ on the forge, `temper/verdict/<tier>` on the run's tip and a comment on
 each member's pull request, `Repaired by #M` once a repair passes. A
 project whose kind 4 says `wait: landed` ends each change at its
 landing, so the goals waiting on it go on then, while the tiers judge
-it from the landing log, which keeps its members' goals until every
-tier has; a red there is a finding blamed on its landing's goals, held
-until a run passes its tests (`domain/red-findings.md`), and switching
-a project ends its verifying and red changes uncleared, each red one
-filing its finding (`draft/after-landing-repairs.status.md`). A
+it from the landing log; a red there is a finding blamed on its
+landing's goals, held until a run passes its tests
+(`domain/red-findings.md`), and switching a project ends its verifying
+and red changes uncleared, each red one filing its finding. Its triager
+moves blame and starts repair goals (`domain/red-repairs.md`). A
 change's stall on CI and a landing's gate run past its bound name each
 pending job's state, read by skein's `JobState`, and count only the
 time CI runs, by an execution clock read each poll, a wait for a runner
@@ -507,6 +510,10 @@ the service with no terminal and the box's part played by a peer of
 the world's (`client/journey-walks.md`).
 
 Design documents:
+- [Areas](status-areas.status.md)
+- [Repair questions](domain/forge/change/repairs-later.status.md)
+- [Landings at the forge](domain/landing-forge.status.md)
+- [Git questions](protocol/git-later.status.md)
 - [`README.md`](README.status.md)
 - [`cli/README.md`](cli/README.status.md)
 - [`client/README.md`](client/README.status.md)
@@ -589,6 +596,7 @@ Design documents:
 - [`domain/agent/tools.md`](domain/agent/tools.status.md)
 - [`domain/findings.md`](domain/findings.status.md)
 - [`domain/red-findings.md`](domain/red-findings.status.md)
+- [`domain/red-repairs.md`](domain/red-repairs.status.md)
 - [`domain/forge/README.md`](domain/forge/README.status.md)
 - [`domain/forge/dependencies.md`](domain/forge/dependencies.status.md)
 - [`domain/forge/follows.md`](domain/forge/follows.status.md)
@@ -614,6 +622,7 @@ Design documents:
 - [`domain/landing-settings.md`](domain/landing-settings.status.md)
 - [`domain/landing-history.md`](domain/landing-history.status.md)
 - [`domain/landing-preparing.md`](domain/landing-preparing.status.md)
+- [`domain/landing-waits.md`](domain/landing-waits.status.md)
 - [`domain/landing-times.md`](domain/landing-times.status.md)
 - [`domain/landing-search.md`](domain/landing-search.status.md)
 - [`domain/landing-search-by-test.md`](domain/landing-search-by-test.status.md)
@@ -820,8 +829,4 @@ Archived drafts:
 - [`draft/archive/reference-landing.md`](draft/archive/reference-landing.status.md)
 - [`draft/archive/worker-reply-bound.md`](draft/archive/worker-reply-bound.status.md)
 
-Goal 684 carries R2: areas in words and their owners, the project triager
-(kinds 14 and 15), findings held by those owners with news or Needs you,
-ctl filing, handing and triage, outside service parties, and stock
-triager, prover and porter charters (`domain/areas.status.md`,
-`domain/findings.status.md`, `draft/standing-roles.status.md`).
+[Areas and routing](status-areas.md).

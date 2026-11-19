@@ -584,7 +584,9 @@ fn opaque_envelope_and_extended_thinking_transit_fit_counted_bounds() {
                     grown.peak
                 );
             }
-            Err(skein_llm::Error::Invalid | skein_llm::Error::Unsupported) => panic!("fixture metadata is valid"),
+            Err(skein_llm::Error::Invalid { .. } | skein_llm::Error::Unsupported { .. }) => {
+                panic!("fixture metadata is valid")
+            }
         }
     }
 }

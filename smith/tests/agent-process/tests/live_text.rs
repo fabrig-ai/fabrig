@@ -29,10 +29,10 @@ fn a_start_asking_for_text_gets_the_reply_as_pieces_before_its_turn() {
     assert!(world.settle());
     let pieces = world.pieces();
     let mut bytes = Vec::new();
-    let positions: Vec<_> = pieces.iter().map(|piece| (piece.turn(), piece.retry(), piece.offset())).collect();
+    let positions: Vec<_> = pieces.iter().map(|piece| (piece.turn, piece.retry, piece.offset)).collect();
     assert_eq!(positions, [(1, 0, 0)]);
     for piece in &pieces {
-        bytes.extend_from_slice(piece.bytes());
+        bytes.extend_from_slice(piece.bytes.as_ref());
     }
     assert_eq!(bytes, REPLY);
     let mut turn_told = false;
@@ -111,7 +111,7 @@ fn held_world(queries: usize) -> World {
 }
 
 fn positions(pieces: &[smith_channel::Live]) -> Vec<(u32, u64, &[u8])> {
-    pieces.iter().map(|piece| (piece.retry(), piece.offset(), piece.bytes())).collect()
+    pieces.iter().map(|piece| (piece.retry, piece.offset, piece.bytes.as_ref())).collect()
 }
 
 #[test]

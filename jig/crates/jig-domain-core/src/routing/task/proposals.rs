@@ -141,6 +141,8 @@ pub(crate) fn proposal_decided(
         | RoutedCall::Escalation { .. }
         | RoutedCall::Withdraw { .. }
         | RoutedCall::Message(_)
+        | RoutedCall::MarkRead(_)
+        | RoutedCall::RecordNote { .. }
         | RoutedCall::Introduce(_)
         | RoutedCall::Subscribe { .. }
         | RoutedCall::Unsubscribe(_)

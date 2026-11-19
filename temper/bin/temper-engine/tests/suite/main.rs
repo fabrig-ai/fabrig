@@ -112,6 +112,53 @@ fn upgrade_check_names_settings_out_of_their_numbers_without_switching_generatio
     }
 }
 
+#[test]
+fn upgrade_check_restores_under_the_limits_a_start_takes_from_the_copy() {
+    let (scratch, directories) = deployment::deployment();
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    let cache = scratch.path().join("cache");
+    // The copy's own `limits` setting raises core.settings.versions past the stock's, and the copy holds more.
+    let versions = settings::seed_raised_versions(&directories, 64);
+    let refusal = format!("restart refused during core restore: Versions, held {versions}, limit {}", versions - 1);
+    let hold = data.join("limits-held");
+    let held_line = format!(
+        "limits held: {}; the limit settings are not taken; remove it and restart to take them",
+        hold.display()
+    );
+    let active_path = data.join("state/active");
+    let active = std::fs::read(&active_path).expect("active generation");
+    let before = deployment::tree(&data.join("state"));
+    // Held at the stock, a start takes neither kind and refuses what it holds past the stock's figure.
+    for stock in [false, true] {
+        if stock {
+            std::fs::write(&hold, b"").expect("limits held at the stock");
+        }
+        let output = Command::new(skein_scratch::paths::binary("temper-engine"))
+            .args(["upgrade", "--check"])
+            .arg(data.join("state"))
+            .env_clear()
+            .env("TEMPER_CONFIG", &config)
+            .env("TEMPER_DATA", &data)
+            .env("TEMPER_CACHE", &cache)
+            .stdin(Stdio::null())
+            .output()
+            .expect("run upgrade check");
+        let out = String::from_utf8_lossy(&output.stdout);
+        let err = String::from_utf8_lossy(&output.stderr);
+        assert_eq!(output.status.code(), Some(i32::from(stock)), "{out}\n{err}");
+        assert!(err.lines().all(|line| engine_long_pass(line) || (stock && line == held_line)), "{err}");
+        if stock {
+            assert!(out.contains(&refusal), "{out}");
+        } else {
+            assert!(out.contains("registry commit, jobs and restores pass"), "{out}");
+            assert!(!out.contains("restart refused"), "{out}");
+        }
+        assert_eq!(std::fs::read(&active_path).expect("active after check"), active);
+        assert_eq!(deployment::tree(&data.join("state")), before, "the check leaves the copy unchanged");
+    }
+}
+
 fn engine_long_pass(line: &str) -> bool {
     let Some(timings) =
         line.strip_prefix("temper-engine serve: long pass: ").and_then(|line| line.strip_suffix(" ms bound"))

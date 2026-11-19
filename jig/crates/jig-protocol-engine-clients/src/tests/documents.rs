@@ -429,6 +429,42 @@ fn a_circle_hold_keeps_its_order_and_cut_through_the_client() {
 }
 
 #[test]
+fn unread_words_cross_into_the_wire_document_empty_and_full() {
+    use jig_domain_core_vocabulary::documents::UnreadWords;
+    let limits = fixtures::wire_limits();
+    let mut source = fixtures::task_with_hold();
+    for count in [0, limits.task_unread] {
+        source.unread = List::with_capacity(count);
+        for message in 0..count {
+            source
+                .unread
+                .push(UnreadWords {
+                    message: u64::from(message),
+                    by: jig_domain_tasks::Party::Person(42),
+                    at: skein_lib::Wall::from_nanos(77),
+                    seen: message % 2 == 0,
+                    head: jig_domain_core_vocabulary::documents::Text { bytes: Box::new([b'x'; 256]), cut: true },
+                    bytes: 300,
+                })
+                .unwrap();
+        }
+        let record = translate::task::document(&source, &[], &limits).unwrap();
+        assert_eq!(record.unread().len(), count);
+        for (actual, expected) in record.unread().iter().zip(source.unread.iter()) {
+            assert_eq!(actual.message(), expected.message);
+            assert_eq!(
+                actual.by(),
+                &w::Requester::Person(w::RequesterPerson::new(&limits, w::RequesterPersonParts { value: 42 }).unwrap())
+            );
+            assert_eq!(actual.at(), expected.at.as_nanos());
+            assert_eq!(actual.seen(), expected.seen);
+            assert_eq!(actual.head(), expected.head.bytes.as_ref());
+            assert_eq!(actual.bytes(), expected.bytes);
+        }
+    }
+}
+
+#[test]
 fn task_settings_revisions_cross_into_the_wire_document() {
     use jig_domain_core_vocabulary::documents::TaskSettings;
     let limits = fixtures::wire_limits();

@@ -508,7 +508,7 @@ pub fn page_words() -> temper_client_view::words::Words {
         .get_or_init(|| {
             temper_client_view::words::Words::english(
                 temper_client_protocol_wire::FORGE,
-                32,
+                temper_client_protocol_wire::v1::CEILINGS.class_item_words,
                 temper_client_view::words::Shell::Terminal,
             )
             .expect("temper words fit")

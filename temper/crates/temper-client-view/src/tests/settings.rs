@@ -1236,6 +1236,7 @@ const MOVABLE_LINES: [&str; 7] = [
     "a departure from a landed design",
     "starting work on findings: a goal for them, the backlog or a hand-off",
 ];
+const ROUTINE_REPAIR_LINE: &str = "starting work on findings: a goal for them, the backlog or a hand-off under “a repair goal for a routine red after landing”";
 const FIXED_LINES: [&str; 4] = [
     "money past a budget",
     "what can’t be undone: rewriting history, a force-push, deleting unlanded work",
@@ -1322,7 +1323,7 @@ fn reaches_columns_follow_the_project_table() {
             name: "Agents review",
             classes: Some(review.clone()),
             columns: [
-                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
+                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3], ROUTINE_REPAIR_LINE]),
                 lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5], MOVABLE_LINES[6]]),
                 lines(&FIXED_LINES),
             ],
@@ -1360,7 +1361,7 @@ fn reaches_columns_follow_the_project_table() {
             name: "item with words",
             classes: Some(words),
             columns: [
-                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
+                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3], ROUTINE_REPAIR_LINE]),
                 lines(&[
                     MOVABLE_LINES[2],
                     MOVABLE_LINES[4],
@@ -1402,7 +1403,7 @@ fn reaches_columns_follow_the_project_table() {
             name: "several projects",
             classes: Some(review),
             columns: [
-                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3]]),
+                lines(&[MOVABLE_LINES[0], MOVABLE_LINES[1], MOVABLE_LINES[3], ROUTINE_REPAIR_LINE]),
                 lines(&[MOVABLE_LINES[2], MOVABLE_LINES[4], MOVABLE_LINES[5], MOVABLE_LINES[6]]),
                 lines(&FIXED_LINES),
             ],

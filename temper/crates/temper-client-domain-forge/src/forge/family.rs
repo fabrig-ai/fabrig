@@ -232,7 +232,7 @@ pub fn set_up(
         limits,
         w::SetUpParts {
             first: w::SetUpFirst::Empty(
-                w::FirstEmpty::new(limits, w::FirstEmptyParts { org, repository, playground }).ok()?,
+                w::FirstEmpty::new(limits, w::FirstEmptyParts { org, repository, playground, sample: false }).ok()?,
             ),
             forge: w::Making::Kept(w::Kept::new(limits, w::KeptParts { forge }).ok()?),
         },
@@ -500,6 +500,7 @@ fn first_from(first: w::FirstRepository) -> forge::forges::First {
     let first = first.into_parts();
     First {
         playground: first.playground,
+        sample: first.sample,
         org: first.org,
         repository: first.repository,
         state: match first.state {

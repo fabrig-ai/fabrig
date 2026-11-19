@@ -1,7 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::v17::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v17 as wire};
+use crate::v18::Record;
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v18 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -105,15 +105,10 @@ fn golden(text: &'static str, name: &str) -> Box<[u8]> {
 }
 fn charter(contract: u16) -> Box<[u8]> {
     let bytes = golden(smith_charter::patches::kept::smith_charter::TEXTS.last().unwrap(), "record_charter_smallest");
-    let mut parts =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts();
-    let mut tools = parts.tools.into_parts();
-    tools.contract = contract;
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).unwrap();
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).unwrap();
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).unwrap();
-    writer.finish()
+    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    parts.tools.contract = contract;
+    let record = parts;
+    record.encode(&smith_charter::CEILINGS).expect("bounded charter")
 }
 fn assignment(charter: Box<[u8]>) -> wire::Assignment {
     let mut parts = super::fixtures::assignment_resumed();
@@ -138,7 +133,7 @@ fn an_untooled_answer_is_unheld_below_seventeen() {
     let record = failed_answer(wire::RunFailure::Untooled);
     let refusal = opaque().send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap_err();
     assert_eq!(refusal.wire.as_ref(), b"jig-worker-wire");
-    assert_eq!(refusal.version, 17);
+    assert_eq!(refusal.version, crate::VERSION);
     let Halt::Unheld(_) = refusal.halt else { panic!("untooled is unheld: {refusal:?}") };
 }
 
@@ -165,10 +160,69 @@ fn older_run_failures_round_trip_through_sixteen_without_changing() {
 }
 
 #[test]
-fn a_worker_of_seventeen_cannot_send_whole_to_an_engine_of_sixteen() {
-    let agreed = [Agreed { name: "jig-worker-wire", version: 16 }];
-    assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
-    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 17 }]).is_empty());
+fn a_worker_of_eighteen_cannot_send_whole_to_an_engine_below_eighteen() {
+    for version in [16, 17] {
+        let agreed = [Agreed { name: "jig-worker-wire", version }];
+        assert_eq!(opaque().incomplete(&agreed).as_slice(), &agreed);
+    }
+    assert!(opaque().incomplete(&[Agreed { name: "jig-worker-wire", version: 18 }]).is_empty());
+}
+
+fn model_answer(refusal: Option<Box<[u8]>>) -> wire::FromWorker {
+    let mut answer = super::fixtures::answer_failed();
+    let mut failed = match answer.ending {
+        wire::Ending::Failed(failed) => failed,
+        wire::Ending::Refused(_) | wire::Ending::Ended(_) | wire::Ending::Parked(_) => unreachable!("failed fixture"),
+    };
+    let model = wire::ModelFailure {
+        endpoint: b"anthropic-api".as_slice().into(),
+        model: b"claude-opus-5-5".as_slice().into(),
+        kind: wire::ModelFailureKind::Invalid,
+        evidence: wire::ModelEvidence::Unsent,
+        status: None,
+        refusal,
+    };
+    model.measure(&wire::CEILINGS).expect("bounded refusal");
+    failed.model = Some(model);
+    failed.measure(&wire::CEILINGS).expect("failed fixture");
+    answer.ending = wire::Ending::Failed(failed);
+    answer.measure(&wire::CEILINGS).expect("answer fixture");
+    wire::FromWorker::Answer(answer)
+}
+
+#[test]
+fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
+    use skein_codec::{
+        schema::{FieldIx, Shape, parse},
+        value::{Part, Path},
+    };
+    let schema = parse(channel::patches::kept::jig_worker_wire::TEXTS.last().expect("current schema").as_bytes())
+        .expect("schema");
+    let decl = schema.find(b"ModelFailure").expect("model failure record");
+    let first = match schema.declaration(decl).shape {
+        Shape::Record { first, .. } => first,
+        Shape::Enum { .. } => unreachable!("model failure is a record"),
+    };
+    let field = FieldIx::new(first.index().checked_add(5).expect("refusal's field"));
+    assert_eq!(schema.spelled(schema.field(field).name), b"refusal");
+    for refusal in [Some(b"empty-message".as_slice().into()), None] {
+        let record = model_answer(refusal.clone());
+        for version in [16, 17, 18] {
+            let sent = opaque().send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS);
+            if version < 18 && refusal.is_some() {
+                let refused = sent.expect_err("an older engine cannot hold the refusal");
+                assert_eq!(refused.wire.as_ref(), b"jig-worker-wire");
+                assert_eq!(refused.version, 18);
+                assert_eq!(refused.halt, Halt::Unheld(Path { decl, part: Part::Field(field) }));
+            } else {
+                let down = sent.expect("the engine holds this failure");
+                let up = opaque()
+                    .receive(down.kind(), body(&down), version, &agreed(version, 5), &wire::CEILINGS)
+                    .expect("failure comes back up");
+                assert_eq!(worker_value(&up), record, "version {version}");
+            }
+        }
+    }
 }
 
 #[test]

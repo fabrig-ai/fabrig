@@ -1096,6 +1096,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                                 &w::CEILINGS,
                                 w::FirstEmptyParts {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into(),
                                 },
@@ -1134,6 +1135,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                 forge: forge::Making::Kept(3),
                 first: forge::SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into()
                 }
@@ -1455,6 +1457,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
                                 &w::CEILINGS,
                                 w::FirstEmptyParts {
                                     playground: false,
+                                    sample: true,
                                     org: b"team".as_slice().into(),
                                     repository: b"widget".as_slice().into(),
                                 },
@@ -1485,6 +1488,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
             forge: forge::Making::Kept(3),
             first: forge::SetUpFirst::Empty {
                 playground: false,
+                sample: true,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into()
             }
@@ -1500,6 +1504,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
     ] {
         let first = forge::First {
             playground: false,
+            sample: true,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state,
@@ -1518,6 +1523,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
         let first = rows.get(0).unwrap().first().as_ref().unwrap();
         assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
+        assert!(first.sample());
         match (state, first.state()) {
             (forge::FirstState::Making, w::FirstState::Making) => {}
             (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
@@ -1955,6 +1961,13 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        waits: Some(forge::LandingWait {
+            on: forge::LandingWaitFor::Run,
+            change: Some(51),
+            gate: Some(b"tests".as_slice().into()),
+            run: Some(412),
+            landing: None,
+        }),
         probe: None,
         train: Some(forge::LandingTrain {
             repository: skein_forge::api::Repository { forge: 1, repository: 9 },
@@ -2180,6 +2193,11 @@ fn a_landing_view_encodes_to_its_panel() {
         family::document(forge::Document::Landing(landing_view()), &fixtures::forge_table(&forges), &w::CEILINGS)
             .unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let wait = got.waits().as_ref().unwrap();
+    assert_eq!(
+        (wait.on(), wait.change(), wait.gate().as_deref(), wait.run(), wait.landing()),
+        (&w::LandingWaitFor::Run, &Some(51), Some(b"tests".as_slice()), &Some(412), &None)
+    );
     assert_eq!(
         (got.task(), got.project(), got.phase(), got.preparation(), got.stale_proofs(), got.turn()),
         (61, 7, &w::LandingPhase::Proving, 2, 3, &Some(62))
@@ -2222,9 +2240,13 @@ fn a_landing_view_encodes_to_its_panel() {
 #[test]
 fn a_landings_view_encodes_to_its_list() {
     let value = forge::LandingsView {
+        now: skein_lib::Wall::from_nanos(100),
+        turn_since: Some(skein_lib::Wall::from_nanos(40)),
         project: 7,
         turn: Some(61),
         landings: Box::new([forge::LandingLine {
+            step: Some(forge::LandingStep::Turn),
+            last_event: Some(skein_lib::Wall::from_nanos(80)),
             train: None,
             task: 61,
             phase: forge::LandingPhase::Turn { at: skein_lib::Wall::EPOCH },
@@ -2236,9 +2258,11 @@ fn a_landings_view_encodes_to_its_list() {
     let bytes = family::document(forge::Document::Landings(value), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landings_panel(&bytes, &w::CEILINGS).unwrap();
     assert_eq!((got.project(), got.turn()), (7, &Some(61)));
+    assert_eq!((got.now(), got.turn_since()), (100, &Some(40)));
     assert_eq!(got.landings().len(), 1);
     let row = got.landings().get(0).unwrap();
     assert_eq!((row.task(), row.phase()), (61, &w::LandingPhase::Turn));
+    assert_eq!((row.step(), row.last_event()), (&Some(w::LandingStep::Turn), &Some(80)));
     assert_eq!(row.changes().as_slice(), &[51]);
     assert_eq!(row.repositories().as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);
     assert_eq!(row.landed().as_slice(), &[[3; 32]]);
@@ -2466,6 +2490,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                                         org: b"work".as_slice().into(),
                                         repository: b"hello".as_slice().into(),
                                         playground: false,
+                                        sample: false,
                                     },
                                 )
                                 .expect("setup names fit wire ceilings"),
@@ -2480,6 +2505,7 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         playground: false,
+                        sample: false,
                     },
                 },
             ),

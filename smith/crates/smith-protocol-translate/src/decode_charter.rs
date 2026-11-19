@@ -3,6 +3,7 @@ use crate::Endpoints;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};
 use smith_charter as wire;
+use smith_charter::Record;
 use smith_domain::run;
 
 /// Decode one charter and resolve all LLM endpoint names before admission.
@@ -24,132 +25,131 @@ pub fn decode_charter(
 }
 
 fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<run::Charter, run::Invalid> {
-    let mut sections = List::with_capacity(charter.brief().len());
-    for section in charter.brief() {
-        let item = run::Section { title: Box::from(section.title()), text: Box::from(section.body()) };
+    let mut sections = List::with_capacity(charter.brief.len());
+    for section in &charter.brief {
+        let item = run::Section { title: Box::from(section.title.as_ref()), text: Box::from(section.body.as_ref()) };
         if sections.push(item).is_err() {
             return Err(run::Invalid::TooLarge);
         }
     }
 
-    let tools = charter.tools();
-    let families = tools.families();
-    let mut host_tools = List::with_capacity(tools.host().len());
-    for tool in tools.host() {
-        let effect = match tool.effect() {
+    let tools = &charter.tools;
+    let families = &tools.families;
+    let mut host_tools = List::with_capacity(tools.host.len());
+    for tool in &tools.host {
+        let effect = match &tool.effect {
             wire::Effect::Read => run::HostEffect::Read,
             wire::Effect::Write => run::HostEffect::Write,
         };
         let item = run::HostTool {
-            reserve: tool.reserve(),
-            name: Box::from(tool.name()),
-            description: Box::from(tool.description()),
-            schema: Box::from(tool.input()),
+            reserve: tool.reserve,
+            name: Box::from(tool.name.as_ref()),
+            description: Box::from(tool.description.as_ref()),
+            schema: Box::from(tool.input.as_ref()),
             effect,
-            timeout: tool.deadline(),
+            timeout: tool.deadline,
         };
         if host_tools.push(item).is_err() {
             return Err(run::Invalid::TooLarge);
         }
     }
 
-    let deliver = match tools.deliver() {
+    let deliver = match &tools.deliver {
         Some(rule) => Some(change_rule(rule)?),
         None => None,
     };
-    let conventions = match charter.conventions() {
-        Some(paths) => Some(run::Conventions { guide: Box::from(paths.guide()), checks: Box::from(paths.checks()) }),
+    let conventions = match &charter.conventions {
+        Some(paths) => {
+            Some(run::Conventions { guide: Box::from(paths.guide.as_ref()), checks: Box::from(paths.checks.as_ref()) })
+        }
         None => None,
     };
-    let mut models = List::with_capacity(charter.models().len());
-    for model in charter.models() {
+    let mut models = List::with_capacity(charter.models.len());
+    for model in &charter.models {
         if models.push(llm(model, endpoints)?).is_err() {
             return Err(run::Invalid::TooLarge);
         }
     }
-    let budget = charter.budget();
+    let budget = &charter.budget;
     Ok(run::Charter {
-        check_timeout: *charter.check_timeout(),
-        mode: match charter.mode() {
+        check_timeout: charter.check_timeout,
+        mode: match charter.mode {
             wire::Mode::Finite => run::Mode::Finite,
             wire::Mode::Open => run::Mode::Open,
         },
-        resume: charter.resume(),
-        waiting: charter.waiting(),
-        instructions: Box::from(charter.instructions()),
+        resume: charter.resume,
+        waiting: charter.waiting,
+        instructions: charter.instructions.clone(),
         brief: run::Brief { sections: sections.into_boxed() },
         conventions,
         grants: run::charter::Grants {
-            contract: tools.contract(),
-            wait: tools.wait(),
+            contract: tools.contract,
+            wait: tools.wait,
             deliver,
-            save: tools.save(),
-            tools: run::charter::Tools {
-                inspect: families.inspect(),
-                modify: families.modify(),
-                shell: families.shell(),
-            },
-            agents: families.agents(),
+            save: tools.save,
+            tools: run::charter::Tools { inspect: families.inspect, modify: families.modify, shell: families.shell },
+            agents: families.agents,
             host_tools: host_tools.into_boxed(),
         },
-        outcome: contract(charter.contract())?,
-        budget: run::Budget { turns: budget.turns(), spend: budget.spend(), time: budget.time() },
-        reserve: run::charter::Reserve { turns: budget.reserve().turns(), time: budget.reserve().time() },
-        llm: llm(charter.main(), endpoints)?,
+        outcome: contract(&charter.contract)?,
+        budget: run::Budget { turns: budget.turns, spend: budget.spend, time: budget.time },
+        reserve: run::charter::Reserve { turns: budget.reserve.turns, time: budget.reserve.time },
+        llm: llm(&charter.main, endpoints)?,
         models: models.into_boxed(),
     })
 }
 
 fn llm(value: &wire::Llm, endpoints: &Endpoints) -> Result<run::charter::Llm, run::Invalid> {
-    let Some(endpoint) = endpoints.resolve(value.endpoint()) else {
+    let Some(endpoint) = endpoints.resolve(&value.endpoint) else {
         return Err(run::Invalid::Endpoint);
     };
-    let prices = value.prices();
+    let prices = &value.prices;
     Ok(run::charter::Llm {
         prices: run::Prices {
-            input: prices.input(),
-            cached: prices.cached(),
-            cache_write: *prices.cache_write(),
-            output: prices.output(),
-            unit: prices.unit(),
+            input: prices.input,
+            cached: prices.cached,
+            cache_write: prices.cache_write,
+            output: prices.output,
+            unit: prices.unit,
         },
         dialect: endpoint.dialect,
-        account: *value.account(),
+        account: value.account,
         endpoint: run::charter::Endpoint(endpoint.number),
-        model: Box::from(value.model()),
-        effort: value.effort().clone(),
-        window: value.window(),
-        output: value.output(),
+        model: value.model.clone(),
+        effort: value.effort.clone(),
+        window: value.window,
+        output: value.output,
     })
 }
 
 fn contract(value: &wire::Contract) -> Result<run::outcome::OutcomeSpec, run::Invalid> {
-    let report = match value.report() {
+    let report = match &value.report {
         Some(rule) => Some(text_rule(rule)?),
         None => None,
     };
-    let change = match value.change() {
+    let change = match &value.change {
         Some(rule) => Some(change_rule(rule)?),
         None => None,
     };
-    let failure = match value.failure() {
+    let failure = match &value.failure {
         Some(rule) => Some(text_rule(rule)?),
         None => None,
     };
-    let mut verdicts = List::with_capacity(value.verdicts().len());
-    for rule in value.verdicts() {
-        let mut kinds = List::with_capacity(rule.kinds().len());
-        for kind in rule.kinds() {
-            let item = run::outcome::ItemRule { kind: Box::from(kind.kind()), fields: field_rules(kind.fields())? };
+    let mut verdicts = List::with_capacity(value.verdicts.len());
+    for rule in &value.verdicts {
+        let mut kinds = List::with_capacity(rule.kinds.len());
+        for kind in &rule.kinds {
+            let item =
+                run::outcome::ItemRule { kind: Box::from(kind.kind.as_ref()), fields: field_rules(&kind.fields)? };
             if kinds.push(item).is_err() {
                 return Err(run::Invalid::TooLarge);
             }
         }
         let item = run::outcome::VerdictRule {
-            name: Box::from(rule.label()),
-            text_max: rule.text_max(),
-            fields: field_rules(rule.fields())?,
-            items: run::outcome::ItemSpec { min: rule.least(), max: rule.most(), kinds: kinds.into_boxed() },
+            name: Box::from(rule.label.as_ref()),
+            text_max: rule.text_max,
+            fields: field_rules(&rule.fields)?,
+            items: run::outcome::ItemSpec { min: rule.least, max: rule.most, kinds: kinds.into_boxed() },
         };
         if verdicts.push(item).is_err() {
             return Err(run::Invalid::TooLarge);
@@ -159,17 +159,17 @@ fn contract(value: &wire::Contract) -> Result<run::outcome::OutcomeSpec, run::In
 }
 
 fn text_rule(value: &wire::TextRule) -> Result<run::outcome::TextSpec, run::Invalid> {
-    Ok(run::outcome::TextSpec { max: value.max(), fields: field_rules(value.fields())? })
+    Ok(run::outcome::TextSpec { max: value.max, fields: field_rules(&value.fields)? })
 }
 
 fn change_rule(value: &wire::ChangeRule) -> Result<run::outcome::ChangeSpec, run::Invalid> {
-    Ok(run::outcome::ChangeSpec { checks_must_pass: value.checks_must_pass(), fields: field_rules(value.fields())? })
+    Ok(run::outcome::ChangeSpec { checks_must_pass: value.checks_must_pass, fields: field_rules(&value.fields)? })
 }
 
 fn field_rules(value: &List<wire::FieldRule>) -> Result<Box<[run::outcome::FieldRule]>, run::Invalid> {
     let mut fields = List::with_capacity(value.len());
     for field in value {
-        let item = run::outcome::FieldRule { name: Box::from(field.name()), max: field.max() };
+        let item = run::outcome::FieldRule { name: field.name.clone(), max: field.max };
         if fields.push(item).is_err() {
             return Err(run::Invalid::TooLarge);
         }

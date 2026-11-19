@@ -36,6 +36,7 @@ mod standing_lifecycle;
 mod standing_renewal;
 mod started_from;
 mod verdict_fields;
+mod words;
 
 mod fuzzy {
     mod amendments;

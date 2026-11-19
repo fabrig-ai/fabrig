@@ -1,7 +1,7 @@
 //! Bounded durable envelopes for provider-owned replay metadata.
 //! Applications keep these bytes without knowing a provider's JSON fields.
 
-use crate::{DocumentLimits, Error, Json, Provider, Replay};
+use crate::{DocumentLimits, Error, Invalid, Json, Provider, Replay, Unsupported};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer, usize_of};
 
@@ -67,20 +67,20 @@ impl Replay {
         }
         let mut input = Reader::new(data);
         if input.u16() != Some(VERSION) {
-            return Err(Error::Unsupported);
+            return Err(Error::Unsupported { cause: Unsupported::ReplayForm });
         }
         let provider = match input.u8() {
             Some(3) => Provider::OpenAi,
             Some(2) => Provider::Anthropic,
-            Some(_) | None => return Err(Error::Unsupported),
+            Some(_) | None => return Err(Error::Unsupported { cause: Unsupported::ReplayForm }),
         };
-        let length = input.u32().ok_or(Error::Invalid)?;
+        let length = input.u32().ok_or(Error::Invalid { cause: Invalid::Replay })?;
         if length > limits.bytes {
             return Err(Error::limit(crate::Cap::Retained, limits.bytes));
         }
-        let data = input.bytes(length).ok_or(Error::Invalid)?;
+        let data = input.bytes(length).ok_or(Error::Invalid { cause: Invalid::Replay })?;
         if input.remaining() != 0 {
-            return Err(Error::Invalid);
+            return Err(Error::Invalid { cause: Invalid::Replay });
         }
         let value = match Json::from_bytes(data, limits) {
             Ok(value) => value,
@@ -100,7 +100,11 @@ mod tests {
     fn unknown_provider_tags_including_one_are_refused() {
         for tag in [0, 1, 4, 255] {
             let envelope = [0, 1, tag, 0, 0, 0, 2, b'{', b'}'];
-            assert_eq!(Replay::from_bytes(&envelope, &LIMITS), Err(Error::Unsupported), "tag {tag}");
+            assert_eq!(
+                Replay::from_bytes(&envelope, &LIMITS),
+                Err(Error::Unsupported { cause: Unsupported::ReplayForm }),
+                "tag {tag}"
+            );
         }
     }
 

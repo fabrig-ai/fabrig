@@ -1,8 +1,8 @@
 //! Open conversations on one program input (smith/docs/design/protocol/programs.md 5.9).
 use skein_lib::{Duration, Reader};
 use smith_agent_process_world::program_world::{self, HostMessage, Run, When};
+use smith_channel::Record;
 use smith_fake_claude::{Seen, Step, Story, Turn};
-use smith_transcript::Record;
 
 use crate::opening;
 
@@ -16,19 +16,15 @@ fn open_charter() -> Box<[u8]> {
         parts.mode = smith_charter::Mode::Open;
         parts.waiting = WAITING;
         parts.resume = true;
-        let mut tools = parts.tools.clone().into_parts();
+        let mut tools = parts.tools.clone();
         tools.wait = true;
         tools.deliver = None;
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("Open tools");
-        let mut budget = parts.budget.clone().into_parts();
+        parts.tools = tools;
+        let mut budget = parts.budget.clone();
         budget.turns = ORDINARY_TURNS + RESERVE_TURNS;
         budget.spend = 20; // Same small allowance as the existing program-turn fixture.
-        budget.reserve = smith_charter::Reserve::new(
-            &smith_charter::CEILINGS,
-            smith_charter::ReserveParts { turns: RESERVE_TURNS, time: Duration::from_secs(1) },
-        )
-        .expect("reserve");
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("budget");
+        budget.reserve = smith_charter::Reserve { turns: RESERVE_TURNS, time: Duration::from_secs(1) };
+        parts.budget = budget;
     })
 }
 
@@ -54,7 +50,7 @@ fn host(when: When, finish_requested: bool) -> HostMessage {
 }
 fn parked(run: &Run) {
     assert!(
-        matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Parked),
+        matches!(&run.answer().expect("answer").result, smith_channel::RunResult::Parked),
         "answer={:?}; errors={}",
         run.answer(),
         String::from_utf8_lossy(&run.errors)
@@ -74,8 +70,9 @@ fn texts(run: &Run) -> Vec<String> {
     turns(run)
         .iter()
         .map(|envelope| {
-            let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(envelope.body()))
-                .expect("transcript turn");
+            let turn =
+                smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(envelope.body.as_ref()))
+                    .expect("transcript turn");
             let mut text = String::new();
             for message in &turn.messages {
                 if message.role == smith_transcript::Role::Assistant {
@@ -95,9 +92,9 @@ fn waitings(run: &Run) -> Vec<Option<u64>> {
         .iter()
         .filter(|frame| frame.kind == 0x010a)
         .map(|frame| {
-            *smith_channel::Waiting::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body))
+            smith_channel::Waiting::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.body))
                 .expect("Waiting")
-                .last_read()
+                .last_read
         })
         .collect()
 }
@@ -116,7 +113,7 @@ fn an_open_reply_is_the_turns_text() {
     let run = run(vec![text("Hello.")], &[]);
     parked(&run);
     assert_eq!(texts(&run), ["Hello."]);
-    assert_eq!(*turns(&run)[0].last_read(), Some(0));
+    assert_eq!(turns(&run)[0].last_read, Some(0));
     assert_eq!(waitings(&run), [Some(0)]);
     let prints = prints(&run);
     assert_eq!(
@@ -142,7 +139,7 @@ fn a_message_while_it_listens_is_the_programs_next_turn() {
     let run = run(vec![text("Hello."), text("Second reply.")], &[release]);
     parked(&run);
     assert_eq!(texts(&run), ["Hello.", "Second reply."]);
-    assert_eq!(turns(&run).iter().map(|turn| *turn.last_read()).collect::<Vec<_>>(), [Some(0), Some(1)]);
+    assert_eq!(turns(&run).iter().map(|turn| turn.last_read).collect::<Vec<_>>(), [Some(0), Some(1)]);
     assert_eq!(waitings(&run), [Some(0), Some(1)]);
     assert_eq!(prints(&run).len(), 1);
     assert_eq!(run.received.len(), 2);
@@ -195,7 +192,7 @@ fn a_finish_request_while_it_listens_winds_down_to_a_last_reply() {
     assert!(received_text(&run, 1).contains("Please continue with this message"));
     assert!(!received_text(&run, 1).starts_with("(The agent paused"), "the preceding turn ended naturally");
     assert_eq!(waitings(&run), [Some(0), Some(1)]);
-    assert_eq!(*run.answer().expect("parked").last_read(), Some(1));
+    assert_eq!(run.answer().expect("parked").last_read, Some(1));
 }
 
 #[test]
@@ -219,5 +216,5 @@ fn a_finish_request_mid_turn_interrupts_then_takes_the_last_reply() {
     assert!(received_text(&run, 1).contains("Please continue with this message"));
     assert_eq!(texts(&run).last().expect("last text"), "Last reply.");
     assert_eq!(prints(&run).len(), 1);
-    assert_eq!(*run.answer().expect("parked").last_read(), Some(1));
+    assert_eq!(run.answer().expect("parked").last_read, Some(1));
 }

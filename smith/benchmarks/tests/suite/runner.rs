@@ -1,4 +1,5 @@
 //! Application deadlines and live parsing on the shared process-tree supervisor.
+#[cfg(target_os = "linux")]
 use std::path::PathBuf;
 
 use skein_lib::Duration;
@@ -16,6 +17,7 @@ fn classification(result: &ProcessResult) -> smith_bench::Classification {
 }
 
 // Seed bundle lookup reads HOME and XDG_STATE_HOME through arm::state_root.
+#[cfg(target_os = "linux")]
 fn isolated_replay(name: &str) -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("SMITH_REPOSITORY_REPLAY_ROOT") {
         return Some(PathBuf::from(root));
@@ -41,6 +43,7 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
     None
 }
 
+#[cfg(target_os = "linux")]
 fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard) -> smith_bench::run::Request {
     use sha2::{Digest, Sha256};
     let fixtures = crate::common::repository().join("tests/recorded");
@@ -84,6 +87,8 @@ fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard)
     }
 }
 
+// An attempt copies caches by GNU cp --reflink and reads the shared temporary directory's owner through /proc/self.
+#[cfg(target_os = "linux")]
 #[test]
 fn a_file_left_in_tmp_by_an_attempt_is_a_write_outside() {
     let Some(root) = isolated_replay("a_file_left_in_tmp_by_an_attempt_is_a_write_outside") else { return };
@@ -156,7 +161,8 @@ fn a_recorded_answer_is_observed_before_the_tree_settles() {
     assert_eq!(classification(&result).end, End::Completed);
     assert_eq!(result.forced, Forced::No);
     assert!(result.answered.is_some_and(|answer| answer >= result.start && answer <= result.end));
-    assert_eq!(result.counts.method, Method::Walk);
+    let expected = if cfg!(target_os = "linux") { Method::Walk } else { Method::Group };
+    assert_eq!(result.counts.method, expected);
     assert_eq!(result.tree.live_pids.len(), 0);
 }
 
@@ -189,6 +195,8 @@ fn a_prepared_adapter_observes_the_answer_through_the_common_supervisor() {
     assert_eq!(result.tree.live_pids.len(), 0);
 }
 
+// Only the walk names a descendant alive at the leader's exit.
+#[cfg(target_os = "linux")]
 #[test]
 fn an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown() {
     let clock = Clock::new();

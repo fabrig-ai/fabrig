@@ -16,6 +16,7 @@ pub(crate) struct Answer {
     pub refused: Box<[u64]>,
 }
 
+/// An account terminal whose source is usable again takes a refusal pause (jig/docs/design/domain/tasks/lifecycle.md, 6).
 pub(crate) fn route_answer_payload(
     core: &mut Core,
     limits: &tasks::Limits,
@@ -74,15 +75,15 @@ pub(crate) fn route_answer_payload(
         }
     };
     let proof = core.proofs.get(&run.raw()).expect("current proof");
+    let source = match proof.account_failure {
+        Some(source) => core.accounts.source(source),
+        None => None,
+    };
     let account_wait = proof.account_terminal
-        || match proof.account_failure {
-            Some(source) => match core.accounts.source(source) {
-                Some(fact) => !fact.usable,
-                None => true,
-            },
-            None => false,
+        || match source {
+            Some(fact) => !fact.usable,
+            None => proof.account_failure.is_some(),
         };
-    let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
     let end = match end {
         tasks::End::Failed(
             tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run,
@@ -90,7 +91,12 @@ pub(crate) fn route_answer_payload(
         | tasks::End::FailedWithReason {
             class: tasks::Class::Transient | tasks::Class::Infrastructure | tasks::Class::Permanent | tasks::Class::Run,
             ..
-        } if account_wait && !unusable_history => tasks::End::Recheck,
+        } if account_wait && !unusable_history => match source {
+            Some(fact) if proof.account_terminal && fact.usable => {
+                tasks::End::RefusedWithReason { reason: account_terminal_reason(fact.account) }
+            }
+            Some(_) | None => tasks::End::Recheck,
+        },
         tasks::End::Finished { .. }
         | tasks::End::FinishedWithFollowups { .. }
         | tasks::End::Exceeded(_)
@@ -101,6 +107,7 @@ pub(crate) fn route_answer_payload(
         | tasks::End::RefusedWithReason { .. }
         | tasks::End::Recheck => end,
     };
+    let proof = core.proofs.get_mut(&run.raw()).expect("terminal proof pre-reserved");
     proof.terminal =
         Some(crate::TerminalRecord { task: run.raw(), attempt: attempt.raw(), cumulative, end: end.clone() });
     work.push(Work::Event(Event::Tasks(tasks::Event::Activation {
@@ -112,6 +119,21 @@ pub(crate) fn route_answer_payload(
         saved,
     })));
     Queue::uncapped()
+}
+
+/// Fixed words and a u32 account number fit within `REASON_BYTES` (domain/tasks/lifecycle.md, 6).
+fn account_terminal_reason(account: u32) -> Box<[u8]> {
+    let number = skein_lib::Decimal::of(u64::from(account));
+    let parts = [b"account ".as_slice(), number.as_bytes(), b"'s source ended the run and is usable again"];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded account terminal reason");
+    }
+    let mut reason = skein_lib::Writer::new(length);
+    for part in parts {
+        reason.put(part).expect("measured account terminal reason");
+    }
+    reason.finish()
 }
 
 /// The main model's program binding and the answering claim's current channel, including adoption.

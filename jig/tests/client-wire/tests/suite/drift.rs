@@ -12,8 +12,8 @@ fn codec_families_match_their_schemas_and_are_pinned() {
 fn current_client_layout() {
     use std::{fmt::Write, fs};
     let root = skein_scratch::paths::tree().join("crates/jig-client-protocol-wire/schema");
-    let text = fs::read_to_string(root.join("client-v37.schema")).expect("schema")
-        + &fs::read_to_string(root.join("client-v37-part1.schema")).expect("schema fragment");
+    let text = fs::read_to_string(root.join("client-v38.schema")).expect("schema")
+        + &fs::read_to_string(root.join("client-v38-part1.schema")).expect("schema fragment");
     let schema = skein_codec::schema::parse(text.as_bytes()).expect("schema valid");
     let mut line = format!("{} ", schema.version());
     for byte in schema.fingerprints().family().digest() {

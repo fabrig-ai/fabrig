@@ -735,7 +735,12 @@ fn a_fresh_goal_run_recovers_and_answers_an_escalated_question() {
     fresh_goal(&mut story);
     unsuccessful_answers(&mut story, question);
     let number = recovered_question(&mut story);
-    assert_waiting_question(&story.goal, story.a, number, QUESTION);
+    let asker = story.a;
+    let heading = format!(
+        "Questions asked of you, still open, oldest first:\nTask {asker} asks (question {number}); answer with message target={asker}, form=answer, question={number}:\n"
+    );
+    let words = b"\n\nWords sent to you, not yet recorded, oldest first:\nPerson 1 wrote (message 1); once it is in a spec or a note, mark_read messages=[1], or name 1 in that note's records:\nFollow the plan.\n";
+    assert_eq!(waiting_text(&story.goal), Some([heading.as_bytes(), QUESTION, words].concat().as_slice()));
     assert_ne!(number, question, "escalation and producer credits differ");
     story.world.goal_answer(&story.goal, 121, story.a, number, ANSWER);
     let producer = resumed(&mut story.world, &story.producer, story.a, question, ANSWER);

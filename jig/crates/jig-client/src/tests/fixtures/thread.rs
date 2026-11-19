@@ -15,7 +15,7 @@ pub fn row(position: u64) -> DecodedActivityLine {
             task: 7,
             position,
             at: Wall::EPOCH,
-            line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false },
+            line: Activity::RunBegan { attempt: 1, why: RunWhy::Made, resumed: false, fresh: None },
         }),
         decoded: None,
     }

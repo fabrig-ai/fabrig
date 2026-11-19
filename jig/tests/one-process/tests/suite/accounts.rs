@@ -35,13 +35,13 @@ pub(super) fn refused(seed: u64) {
     let outcome = accounts::run(seed, Story::Refused);
     assert_eq!(outcome.run_failure, Some(jig_domain_tasks::Class::Run));
     let Some(smith_channel::RunResult::Failed(failure)) = outcome.provider_failure else { panic!("provider failure") };
-    let smith_channel::RunFailure::Model(model) = failure.reason() else { panic!("model failure") };
-    let smith_channel::ModelFault::Completion(fault) = model.value() else { panic!("completion failure: {model:?}") };
-    assert_eq!(fault.failure(), &smith_channel::CompletionFailure::Unauthorized);
-    let smith_channel::CompletionEvidence::Response(response) = fault.evidence() else {
+    let smith_channel::RunFailure::Model(model) = &failure.reason else { panic!("model failure") };
+    let smith_channel::ModelFault::Completion(fault) = &model.value else { panic!("completion failure: {model:?}") };
+    assert_eq!((&fault.failure), &smith_channel::CompletionFailure::Unauthorized);
+    let smith_channel::CompletionEvidence::Response(response) = &fault.evidence else {
         panic!("HTTP response evidence")
     };
-    assert_eq!(response.status(), &Some(401));
+    assert_eq!((&response.status), &Some(401));
     assert_ne!(outcome.credentials.len(), 0);
     assert!(outcome.credentials.iter().all(Option::is_none));
     assert_eq!(outcome.queries.len(), 0);

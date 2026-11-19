@@ -875,8 +875,33 @@ impl Worker {
             no_progress_ms,
         });
     }
+    #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
+    fn note_git(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
+        repository: Box<[u8]>,
+        what: root::Git,
+    ) {
+        let job = match job {
+            Some((kind, verb)) => Some((kind.0, verb)),
+            None => None,
+        };
+        self.notes.push(crate::worker_alone::Note::Git {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            job,
+            repository,
+            what,
+        });
+    }
+    #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {
         match request {
+            root::Request::Git { run, attempt, job, repository, what } => {
+                self.note_git(run, attempt, job, repository, what);
+            }
             root::Request::AgentStopped { run, attempt, failure } => {
                 self.note_agent_stopped(run, attempt, failure);
             }
@@ -1314,17 +1339,13 @@ fn list_credential(table: &Table, grant: jig_domain_link::Grant, now: Time) -> O
     if value.scheme != scheme {
         return None;
     }
-    smith_channel::CredentialValue::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CredentialValueParts {
-            scheme: match scheme {
-                Scheme::Bearer => smith_channel::Scheme::Bearer,
-                Scheme::Key => smith_channel::Scheme::Key,
-            },
-            bytes: value.token.clone(),
+    Some(smith_channel::CredentialValue {
+        scheme: match scheme {
+            Scheme::Bearer => smith_channel::Scheme::Bearer,
+            Scheme::Key => smith_channel::Scheme::Key,
         },
-    )
-    .ok()
+        bytes: value.token.clone(),
+    })
 }
 pub(crate) fn grant_value(table: &Table, grant: smith::Grant, now: Time) -> Option<host::Values> {
     let value = account(table, grant, now)?;
@@ -1580,7 +1601,7 @@ mod prepared_tests {
                     assert_eq!((lowest, highest), (16, 16));
                     opening = Some(
                         jig_protocol_worker_wire::Credential::decode(
-                            &jig_protocol_worker_wire::v17::CEILINGS,
+                            &jig_protocol_worker_wire::v18::CEILINGS,
                             &mut Reader::new(&credential),
                         )
                         .expect("worker credential"),

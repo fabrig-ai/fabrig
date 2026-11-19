@@ -31,6 +31,11 @@ pub enum ActivityPhrase {
     Attempt,
     Resumed,
     NotResumed,
+    FreshMoved,
+    FreshClosed,
+    FreshCut,
+    FreshLimit,
+    FreshSession,
     Made,
     Ready,
     MessageCause,
@@ -132,7 +137,7 @@ pub enum ActivityPhrase {
     NothingAwaited,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 121] = [
+pub const ALL: [ActivityPhrase; 126] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -155,6 +160,11 @@ pub const ALL: [ActivityPhrase; 121] = [
     ActivityPhrase::Attempt,
     ActivityPhrase::Resumed,
     ActivityPhrase::NotResumed,
+    ActivityPhrase::FreshMoved,
+    ActivityPhrase::FreshClosed,
+    ActivityPhrase::FreshCut,
+    ActivityPhrase::FreshLimit,
+    ActivityPhrase::FreshSession,
     ActivityPhrase::Made,
     ActivityPhrase::Ready,
     ActivityPhrase::MessageCause,
@@ -285,6 +295,11 @@ impl ActivityPhrase {
             Self::Attempt => 7219,
             Self::Resumed => 7220,
             Self::NotResumed => 7221,
+            Self::FreshMoved => 7322,
+            Self::FreshClosed => 7323,
+            Self::FreshCut => 7324,
+            Self::FreshLimit => 7325,
+            Self::FreshSession => 7326,
             Self::Made => 7222,
             Self::Ready => 7223,
             Self::MessageCause => 7224,
@@ -403,6 +418,11 @@ impl ActivityPhrase {
             | Self::RunBegan
             | Self::Resumed
             | Self::NotResumed
+            | Self::FreshMoved
+            | Self::FreshClosed
+            | Self::FreshCut
+            | Self::FreshLimit
+            | Self::FreshSession
             | Self::Made
             | Self::Ready
             | Self::MessageCause
@@ -541,6 +561,11 @@ impl ActivityPhrase {
             Self::Attempt => b"Attempt: ",
             Self::Resumed => b"Resumed",
             Self::NotResumed => b"Not resumed",
+            Self::FreshMoved => b"its conversation ran on another endpoint",
+            Self::FreshClosed => b"its conversation was closed",
+            Self::FreshCut => b"a turn was too large to load",
+            Self::FreshLimit => b"its conversation passed the resume limit",
+            Self::FreshSession => b"its session had ended",
             Self::Made => b"Cause: made",
             Self::Ready => b"Cause: ready",
             Self::MessageCause => b"Cause: message",

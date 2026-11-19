@@ -98,6 +98,17 @@ fn an_ended_task_with_its_result_reads_back() {
     assert_eq!(saved_tasks(&row), Ok(row));
 }
 fn an_activity_line_of_each_kind_reads_back() {
+    for fresh in [
+        None,
+        Some(domain::Fresh::Moved),
+        Some(domain::Fresh::Closed),
+        Some(domain::Fresh::Cut),
+        Some(domain::Fresh::Limit),
+        Some(domain::Fresh::Session),
+    ] {
+        let row = activity(domain::Line::RunBegan { attempt: 3, why: domain::Why::Ready, resumed: false, fresh });
+        assert_eq!(saved_tasks(&row), Ok(row));
+    }
     for line in [
         domain::Line::Words {
             message: 5,
@@ -108,6 +119,7 @@ fn an_activity_line_of_each_kind_reads_back() {
         domain::Line::Heard(fixtures::task_word(5)),
         domain::Line::Notified { recipient: domain::Party::Task(19), word: fixtures::task_word(5) },
         domain::Line::RunBegan {
+            fresh: None,
             attempt: 3,
             why: domain::Why::Retry { tries: fixtures::task_record().tries },
             resumed: true,

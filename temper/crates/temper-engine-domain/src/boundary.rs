@@ -175,12 +175,14 @@ pub enum Tool {
     Note {
         entry: jig_domain_notes::New,
         recalled: Option<u32>,
+        records: Box<[u64]>,
     },
     /// Replace a range of a note's body lines by the revision this run recalled.
     NoteLines {
         entry: jig_domain_notes::New,
         recalled: u32,
         range: jig_domain_notes::LineRange,
+        records: Box<[u64]>,
     },
     /// Read one bounded page of notes by name or description.
     Recall {
@@ -273,6 +275,10 @@ pub enum Tool {
         target: u64,
         form: MessageForm,
         words: Box<[u8]>,
+    },
+    /// Record directing words of this run's own task.
+    MarkRead {
+        messages: Box<[u64]>,
     },
     /// Give two tasks referenced by the caller reciprocal references.
     Introduce {
@@ -374,19 +380,7 @@ pub struct ChangeCall {
     pub llm: ChangeLlm,
 }
 
-/// A change's LLM choices by role (domain/agent/tools.md, 1; domain/forge/change/README.md, 1).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct ChangeLlm {
-    pub producer: Option<tasks::LlmChoice>,
-    pub review: Option<tasks::LlmChoice>,
-}
-
-#[expect(clippy::derivable_impls, reason = "the Default derive is banned; a change names neither role by default")]
-impl Default for ChangeLlm {
-    fn default() -> Self {
-        Self { producer: None, review: None }
-    }
-}
+pub use temper_engine_domain_translate::ChangeLlm;
 
 impl ChangeCall {
     #[must_use]

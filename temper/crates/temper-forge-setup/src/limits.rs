@@ -55,7 +55,7 @@ impl Host {
         Limits {
             orgs: ORGS,
             reachable: self.reachable,
-            files: 2,
+            files: 3,
             file_bytes: 4096,
             repositories: self.repositories,
             deadline: self.deadline,
@@ -119,7 +119,7 @@ pub fn stock() -> Limits {
     Limits {
         orgs: ORGS,
         reachable: 8, // Legacy command default; checked startup supplies picker.page.
-        files: 2,
+        files: 3,
         file_bytes: 4096,
         repositories,
         deadline: Duration::from_secs(120),

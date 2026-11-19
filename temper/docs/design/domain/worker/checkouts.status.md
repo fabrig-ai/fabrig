@@ -28,6 +28,7 @@ each delivery fast-forwards r and leaves g unchanged. They use fake git
 and disk, and do not settle the deployment replay gaps below. A goal's
 saved start overtaken by a repair remains deferred (`../forge/README.md`, section 11).
 
+- **Not yet:** *Kept packed*: the cache counts no fetch, check out or merge, and no prepare asks a `Pack` [in flight: change 9629].
 - **Not yet:** *A landed dependency's catch-up*, *It asks*: the worker
   asks the engine nothing and answers its checkout not landed [in
   flight: change 6018].
@@ -107,5 +108,5 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   `../../draft/dogfood-hacks.md`, 2.1 name its hooks, which `../../protocol/git.md`,
   section 3's settings hold off, as they hold off whatever the run's own `.git`
   says; what a command writes in the worker's directory, a filter driver or a URL
-  rewrite, they do not (`../../protocol/git.md`, 10). That is acceptable only for one
+  rewrite, they do not (`../../protocol/git-later.md`, 1). That is acceptable only for one
   trusted person.

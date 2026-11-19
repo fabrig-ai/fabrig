@@ -1,7 +1,5 @@
 //! Agent-side opening limits (protocol/channel.md, sections 2 and 7).
 
-use smith_transcript::Record;
-
 /// Codec, framing and queue allowances fixed before the channel opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
@@ -31,6 +29,7 @@ pub struct Limits {
     pub grants: u32,
 }
 
+use smith_charter::Record;
 pub use smith_protocol_translate::Error;
 
 /// Room a caller keeps at the host-channel edge for one entrance.

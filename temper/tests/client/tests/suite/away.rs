@@ -898,6 +898,7 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
             "wording and names inside a spec",
             "retrying or splitting a task",
             "test-only changes",
+            "starting work on findings: a goal for them, the backlog or a hand-off under “a repair goal for a routine red after landing”",
             "Listed in Decided for you for 24 hours, to overturn.",
         ]
     );
@@ -978,6 +979,7 @@ fn what_reaches_a_person_follows_the_classes_away_and_stop_asking() {
             "retrying or splitting a task",
             "implementation choices a spec leaves open",
             "test-only changes",
+            "starting work on findings: a goal for them, the backlog or a hand-off under “a repair goal for a routine red after landing”",
             "Listed in Decided for you for 24 hours, to overturn.",
         ]
     );

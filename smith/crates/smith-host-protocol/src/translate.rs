@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use skein_channel::Frame;
 use skein_lib::List;
 use smith_channel as wire;
+use smith_channel::Record;
 use smith_host_domain::{self as host, channel};
 
 use crate::Error;
@@ -70,16 +71,13 @@ pub fn encode_start(
     };
     let mut answered = List::with_capacity(limits.start_answered);
     for call in start.answered {
-        let name = wire::CallName::new(
-            limits,
-            wire::CallNameParts {
-                activation: call.name.activation,
-                completion: call.name.completion,
-                position: call.name.position,
-            },
-        )?;
+        let name = wire::CallName {
+            activation: call.name.activation,
+            completion: call.name.completion,
+            position: call.name.position,
+        };
         let reply = encode_saved_reply(call.reply, limits)?;
-        let item = wire::AnsweredCall::new(limits, wire::AnsweredCallParts { name, tool: call.tool, reply })?;
+        let item = wire::AnsweredCall { name, tool: call.tool, reply };
         if answered.push(item).is_err() {
             return Err(Error::MissingValue);
         }
@@ -87,40 +85,32 @@ pub fn encode_start(
     let mut grants = List::with_capacity(limits.start_grants);
     for (grant, credential) in start.grants.into_iter().zip(values.credentials) {
         let value = grant_value(credential, limits)?;
-        let item = wire::Grant::new(
-            limits,
-            wire::GrantParts { account: grant.account, generation: grant.generation, valid: grant.valid, value },
-        )?;
+        let item = wire::Grant { account: grant.account, generation: grant.generation, valid: grant.valid, value };
         if grants.push(item).is_err() {
             return Err(Error::MissingValue);
         }
     }
-    let window = wire::Window::new(limits, wire::WindowParts { turns: window.turns, bytes: window.bytes })?;
+    let window = wire::Window { turns: window.turns, bytes: window.bytes };
     let live = match start.live {
-        Some(ask) => Some(wire::LiveAsk::new(
-            limits,
-            wire::LiveAskParts { text: ask.text, reasoning: ask.reasoning, input: ask.input },
-        )?),
+        Some(ask) => Some(wire::LiveAsk { text: ask.text, reasoning: ask.reasoning, input: ask.input }),
         None => None,
     };
-    let record = wire::Start::new(
-        limits,
-        wire::StartParts {
-            live,
-            messages,
-            activation: start.activation,
-            identity: match start.identity {
-                Some(identity) => Some(identity.bytes()),
-                None => None,
-            },
-            charter,
-            workspace,
-            transcript,
-            answered,
-            grants,
-            window,
+    let record = wire::Start {
+        live,
+        messages,
+        activation: start.activation,
+        identity: match start.identity {
+            Some(identity) => Some(identity.bytes()),
+            None => None,
         },
-    )?;
+        charter,
+        workspace,
+        transcript,
+        answered,
+        grants,
+        window,
+    };
+    record.measure(limits)?;
     Ok(wire::frame(wire::Body::Start(record))?)
 }
 
@@ -146,35 +136,30 @@ fn encode_workspace(
                 return Err(Error::MissingValue);
             }
         }
-        let item = wire::Directory::new(
-            limits,
-            wire::DirectoryParts {
-                name: directory.name.clone(),
-                path: path.clone(),
-                writable: directory.writable,
-                git: directory.git,
-                conflicts,
-            },
-        )?;
+        let item = wire::Directory {
+            name: directory.name.clone(),
+            path: path.clone(),
+            writable: directory.writable,
+            git: directory.git,
+            conflicts,
+        };
         if items.push(item).is_err() {
             return Err(Error::MissingValue);
         }
     }
-    Ok(Some(wire::Workspace::new(limits, wire::WorkspaceParts { directories: items })?))
+    Ok(Some(wire::Workspace { directories: items }))
 }
 
 fn encode_saved_reply(reply: channel::SavedReply, limits: &wire::Limits) -> Result<wire::SavedReply, Error> {
     let result = match reply {
-        channel::SavedReply::Host { error, body } => {
-            wire::SavedReply::Host(wire::HostReply::new(limits, wire::HostReplyParts { error, text: body })?)
-        }
+        channel::SavedReply::Host { error, body } => wire::SavedReply::Host(wire::HostReply { error, text: body }),
         channel::SavedReply::Delivery(delivery) => {
             let value = encode_delivery(*delivery, limits)?;
-            wire::SavedReply::Delivery(wire::DeliveryReply::new(limits, wire::DeliveryReplyParts { value })?)
+            wire::SavedReply::Delivery(wire::DeliveryReply { value })
         }
         channel::SavedReply::TooLarge => wire::SavedReply::TooLarge,
     };
-    Ok(wire::SavedReply::new(limits, result)?)
+    Ok(result)
 }
 
 pub(crate) fn encode_delivery(delivery: host::Delivery, limits: &wire::Limits) -> Result<wire::Delivery, Error> {
@@ -182,29 +167,20 @@ pub(crate) fn encode_delivery(delivery: host::Delivery, limits: &wire::Limits) -
         host::Delivery::Delivered(delivered) => {
             let mut receipts = List::with_capacity(limits.delivered_receipts);
             for receipt in delivered.receipts() {
-                let item = wire::Receipt::new(
-                    limits,
-                    wire::ReceiptParts { directory: receipt.directory(), text: Box::from(receipt.text()) },
-                )?;
+                let item = wire::Receipt { directory: receipt.directory(), text: Box::from(receipt.text()) };
                 if receipts.push(item).is_err() {
                     return Err(Error::MissingValue);
                 }
             }
-            wire::Delivery::Delivered(wire::Delivered::new(limits, wire::DeliveredParts { receipts })?)
+            wire::Delivery::Delivered(wire::Delivered { receipts })
         }
         host::Delivery::Nothing => wire::Delivery::Nothing,
         host::Delivery::Refused(refused) => {
             let marker = match refused.marker() {
-                Some(marker) => Some(wire::Marker::new(
-                    limits,
-                    wire::MarkerParts { directory: marker.directory(), path: Box::from(marker.path()) },
-                )?),
+                Some(marker) => Some(wire::Marker { directory: marker.directory(), path: Box::from(marker.path()) }),
                 None => None,
             };
-            wire::Delivery::Refused(wire::DeliveryRefusal::new(
-                limits,
-                wire::DeliveryRefusalParts { marker, explanation: Box::from(refused.explanation()) },
-            )?)
+            wire::Delivery::Refused(wire::DeliveryRefusal { marker, explanation: Box::from(refused.explanation()) })
         }
         host::Delivery::Failed(failed) => {
             let reason = match failed.reason {
@@ -219,45 +195,44 @@ pub(crate) fn encode_delivery(delivery: host::Delivery, limits: &wire::Limits) -
                 host::DeliveryReason::Cancelled => wire::DeliveryReason::Cancelled,
                 host::DeliveryReason::Unknown => wire::DeliveryReason::Unknown,
             };
-            wire::Delivery::Failed(wire::DeliveryFailure::new(
-                limits,
-                wire::DeliveryFailureParts {
-                    directory: failed.directory,
-                    reason,
-                    diagnostic: Box::from(failed.diagnostic.output()),
-                    dropped: failed.diagnostic.cut(),
-                },
-            )?)
+            wire::Delivery::Failed(wire::DeliveryFailure {
+                directory: failed.directory,
+                reason,
+                diagnostic: Box::from(failed.diagnostic.output()),
+                dropped: failed.diagnostic.cut(),
+            })
         }
         host::Delivery::Stale => wire::Delivery::Stale,
     };
-    Ok(wire::Delivery::new(limits, result)?)
+    Ok(result)
 }
 
 /// Move one bounded channel call into the host domain's typed operation face.
 pub(crate) fn decode_ask(call: &wire::Call) -> Result<Option<channel::Ask>, Error> {
-    let ask = match call.ask() {
+    let ask = match &call.ask {
         wire::Ask::Host(host) => {
-            let effect = match call.effect() {
+            let effect = match &call.effect {
                 wire::Effect::Read => channel::Effect::Read,
                 wire::Effect::Write => channel::Effect::Write,
             };
-            channel::Ask::Host { tool: Box::from(host.tool()), effect, body: Box::from(host.input()) }
+            channel::Ask::Host { tool: Box::from(host.tool.as_ref()), effect, body: Box::from(host.input.as_ref()) }
         }
         wire::Ask::Save => {
-            if call.effect() != &wire::Effect::Write {
+            if call.effect != wire::Effect::Write {
                 return Ok(None);
             }
             channel::Ask::Save
         }
         wire::Ask::Deliver(deliver) => {
-            if call.effect() != &wire::Effect::Write {
+            if call.effect != wire::Effect::Write {
                 return Ok(None);
             }
-            let mut fields = List::with_capacity(deliver.fields().len());
-            for field in deliver.fields() {
-                let item =
-                    smith_domain::run::outcome::Field { name: Box::from(field.name()), value: Box::from(field.text()) };
+            let mut fields = List::with_capacity(deliver.fields.len());
+            for field in &deliver.fields {
+                let item = smith_domain::run::outcome::Field {
+                    name: Box::from(field.name.as_ref()),
+                    value: Box::from(field.text.as_ref()),
+                };
                 if fields.push(item).is_err() {
                     return Err(Error::MissingValue);
                 }
@@ -275,25 +250,20 @@ pub(crate) fn encode_reply(
     reply: channel::Reply,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let name = wire::CallName::new(
-        limits,
-        wire::CallNameParts { activation: name.activation, completion: name.completion, position: name.position },
-    )?;
+    let name = wire::CallName { activation: name.activation, completion: name.completion, position: name.position };
     let reply = match reply {
-        channel::Reply::Host { error, body } => {
-            wire::Reply::Host(wire::HostReply::new(limits, wire::HostReplyParts { error, text: body })?)
+        channel::Reply::Host { error, body } => wire::Reply::Host(wire::HostReply { error, text: body }),
+        channel::Reply::Delivery(delivery) => {
+            wire::Reply::Delivery(wire::DeliveryReply { value: encode_delivery(delivery, limits)? })
         }
-        channel::Reply::Delivery(delivery) => wire::Reply::Delivery(wire::DeliveryReply::new(
-            limits,
-            wire::DeliveryReplyParts { value: encode_delivery(delivery, limits)? },
-        )?),
         channel::Reply::Busy => wire::Reply::Busy,
         channel::Reply::Unavailable => wire::Reply::Unavailable,
         channel::Reply::Withdrawn => wire::Reply::Withdrawn,
         channel::Reply::Unsent => wire::Reply::Unsent,
         channel::Reply::TooLarge => wire::Reply::TooLarge,
     };
-    let record = wire::HostAnswer::new(limits, wire::HostAnswerParts { name, reply })?;
+    let record = wire::HostAnswer { name, reply };
+    record.measure(limits)?;
     Ok(wire::frame(wire::Body::HostAnswer(record))?)
 }
 
@@ -321,28 +291,43 @@ pub(crate) fn grant_value(
         GrantValue::Key(value) => credential_value(value, wire::Scheme::Key, limits),
         GrantValue::Program(name) => {
             smith_protocol_translate::program_name(&name).or(Err(Error::Grants))?;
-            let value = wire::ProgramValue::new(limits, wire::ProgramValueParts { name }).or(Err(Error::Grants))?;
+            let value = wire::ProgramValue { name };
+            value.measure(limits).or(Err(Error::Grants))?;
             Ok(wire::GrantValue::Program(value))
         }
     }
 }
 
 fn credential_value(bytes: Box<[u8]>, scheme: wire::Scheme, limits: &wire::Limits) -> Result<wire::GrantValue, Error> {
-    let value =
-        wire::CredentialValue::new(limits, wire::CredentialValueParts { scheme, bytes: skein_lib::Secret::new(bytes) })
-            .or(Err(Error::Grants))?;
+    let value = wire::CredentialValue { scheme, bytes: skein_lib::Secret::new(bytes) };
+    value.measure(limits).or(Err(Error::Grants))?;
     Ok(wire::GrantValue::Credential(value))
 }
 
 /// Encode the same named control message in Start and on the live channel.
 pub(crate) fn encode_message(message: channel::Message, limits: &wire::Limits) -> Result<wire::Message, Error> {
-    Ok(wire::Message::new(
-        limits,
-        wire::MessageParts {
-            name: message.name.raw(),
-            label: message.label,
-            text: message.text,
-            finish_requested: message.finish_requested,
-        },
-    )?)
+    let record = wire::Message {
+        name: message.name.raw(),
+        label: message.label,
+        text: message.text,
+        finish_requested: message.finish_requested,
+    };
+    record.measure(limits)?;
+    Ok(record)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use smith_protocol_translate::GrantValue;
+
+    #[test]
+    fn grant_encoding_refusals_keep_the_grant_error() {
+        let mut limits = wire::CEILINGS;
+        limits.credential_value_bytes = 1;
+        limits.program_value_name = 1;
+        for value in [GrantValue::Bearer(Box::from(*b"key")), GrantValue::Program(Box::from(*b"source"))] {
+            assert_eq!(grant_value(value, &limits).err(), Some(Error::Grants));
+        }
+    }
 }

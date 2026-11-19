@@ -31,8 +31,9 @@ pub use document::DocumentLimits;
 pub use replay::{REPLAY_HEADER_BYTES, replay_bound, replay_bytes};
 pub use translate::decode as document_error;
 pub use types::{
-    Affinity, Block, Call, Cap, Completion, Credential, Delta, Encoding, Endpoint, Error, Failure, Message, Phase,
-    Prompt, Provider, Replay, Report, Role, Scheme, Stop, Tool, ToolChoice, Usage,
+    Affinity, Block, CAUSE_BYTES, Call, Cap, Completion, Credential, Delta, Encoding, Endpoint, Error, Failure,
+    Invalid, Message, Phase, Prompt, Provider, Replay, Report, Role, Scheme, Stop, Tool, ToolChoice, Unsupported,
+    Usage,
 };
 /// Bounded document admission errors, independent of the configured wire dialect.
 /// Callers use `document_error` to retain limit versus invalid-input refusal.

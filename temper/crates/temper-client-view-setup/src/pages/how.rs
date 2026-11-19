@@ -64,7 +64,7 @@ pub(crate) fn path(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.close();
     }
     if w.shell == Shell::Terminal {
-        super::ways::head_acts(b, ways, w, bindings, project);
+        super::ways::head_acts(b, ways, &project_name(root, w, project), w, bindings, project);
     }
     b.close();
 }

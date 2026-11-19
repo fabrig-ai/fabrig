@@ -40,11 +40,17 @@ fn replay_envelopes_keep_tag_fields_and_exact_bounds_before_negative_mutations()
         }
         let mut trailing = encoded.to_vec();
         trailing.push(0);
-        assert_eq!(Replay::from_bytes(&trailing, &bounds.native().document()), Err(Error::Invalid));
+        assert_eq!(
+            Replay::from_bytes(&trailing, &bounds.native().document()),
+            Err(Error::Invalid { cause: skein_llm::Invalid::Replay })
+        );
         for (offset, replacement) in [(0_usize, 7_u8), (2, 99)] {
             let mut corrupted = encoded.to_vec();
             corrupted[offset] = replacement;
-            assert_eq!(Replay::from_bytes(&corrupted, &bounds.native().document()), Err(Error::Unsupported));
+            assert_eq!(
+                Replay::from_bytes(&corrupted, &bounds.native().document()),
+                Err(Error::Unsupported { cause: skein_llm::Unsupported::ReplayForm })
+            );
         }
     }
 }
@@ -77,7 +83,7 @@ fn provider_mismatch_is_rejected_by_actual_client_after_positive_control() {
         }]),
     }]);
     match client::Client::prepare(input, &bounds) {
-        Err(error) => assert_eq!(error, Error::Unsupported),
+        Err(error) => assert_eq!(error, Error::Unsupported { cause: skein_llm::Unsupported::ReplayBlock }),
         Ok(_) => panic!("another dialect must not accept a retained provider tag"),
     }
 }
@@ -89,7 +95,10 @@ fn output_ceiling_uses_shared_dialect_configuration() {
     assert_eq!(input.prompt.max_output_tokens, Some(1234));
     input.prompt.output_ceiling(Provider::OpenAi, 1234).expect("unsupported wire option omitted");
     assert_eq!(input.prompt.max_output_tokens, None);
-    assert_eq!(input.prompt.output_ceiling(Provider::Anthropic, 0), Err(Error::Invalid));
+    assert_eq!(
+        input.prompt.output_ceiling(Provider::Anthropic, 0),
+        Err(Error::Invalid { cause: skein_llm::Invalid::Output })
+    );
 }
 
 #[test]
@@ -103,13 +112,16 @@ fn each_route_replays_only_its_own_metadata() {
         assert_eq!(encoded.get(TAG_OFFSET), Some(&tag), "{provider:?}");
         assert_eq!(Replay::from_bytes(&encoded, &bounds), Ok(replay), "{provider:?}");
     }
-    for (mut input, provider) in [(call(1), Provider::Anthropic), (anthropic_call(1), Provider::OpenAi)] {
+    for (mut input, provider, cause) in [
+        (call(1), Provider::Anthropic, skein_llm::Unsupported::ReplayProvider),
+        (anthropic_call(1), Provider::OpenAi, skein_llm::Unsupported::ReplayBlock),
+    ] {
         let replay = Replay { provider, value: Json::from_bytes(b"{}", &bounds).unwrap() };
         input.prompt.messages = Box::new([Message {
             role: Role::Assistant,
             content: Box::new([Block::Text { text: b"prior".as_slice().into(), replay: Some(replay) }]),
         }]);
-        assert_eq!(rejection(input, &limits()), Some(Error::Unsupported), "{provider:?}");
+        assert_eq!(rejection(input, &limits()), Some(Error::Unsupported { cause }), "{provider:?}");
     }
 }
 

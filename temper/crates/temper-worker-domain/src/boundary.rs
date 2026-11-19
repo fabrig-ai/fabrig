@@ -121,9 +121,24 @@ pub enum Event {
     Shutdown { drain: bool },
 }
 
+/// The checkout operations with operator lines (domain/worker/README.md, 4.3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Git {
+    Fetch { want: git::Want, into: git::Into },
+    CheckOut { commit: git::Commit },
+}
+
 /// domain -> protocol
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Each fetch and check out as the checkout asks it (domain/worker/README.md, 4.3).
+    Git {
+        run: Token,
+        attempt: Token,
+        job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
+        repository: Box<[u8]>,
+        what: Git,
+    },
     /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
     AgentStopped { run: Token, attempt: Token, failure: host::AgentFailure },
     /// One failed preparation's operator note, on the first answer only (domain/worker/checkouts.md, 1.3).

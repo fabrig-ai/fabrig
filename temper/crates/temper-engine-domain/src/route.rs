@@ -725,6 +725,7 @@ pub(crate) fn decide_call(
         | core::CallPart::Delegated(_)
         | core::CallPart::DelegationDenied { .. }
         | core::CallPart::DelegationRefused(_)
+        | core::CallPart::WordsRecorded { .. }
         | core::CallPart::NoteWritten { .. }
         | core::CallPart::NoteDeleted { .. }
         | core::CallPart::NoteRecalled { .. }

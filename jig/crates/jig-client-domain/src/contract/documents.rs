@@ -54,6 +54,17 @@ pub struct Concluded {
     pub at: Wall,
 }
 
+/// Directing words no run has recorded (client/domain/contract/documents.md, 1).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct UnreadWords {
+    pub message: u64,
+    pub by: super::Requester,
+    pub at: Wall,
+    pub seen: bool,
+    pub head: Text,
+    pub bytes: u32,
+}
+
 /// A complete task document with independently moving revisions.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Task {
@@ -91,6 +102,7 @@ pub struct Task {
     pub result_contract: super::TaskContractDocument,
     pub dependencies: List<super::TaskLink>,
     pub dependency_facts: List<super::Dependency>,
+    pub unread: List<UnreadWords>,
     pub references: List<super::TaskLink>,
     /// At least one task list was omitted; this does not identify which list.
     pub cut: bool,

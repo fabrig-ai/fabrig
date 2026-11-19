@@ -53,6 +53,9 @@ all. Then temper's:
    - `landing-preparing.md`: a round at preparing reading at each step
      whether its prepare lives, has answered or is absent, and
      recovering across a restart, a worker's loss and a release.
+   - `landing-waits.md`: what each step waits for, no wait that nothing
+     will answer, the next step due as a round ends, and a stall shown
+     by `temper ctl landing list` and `landing show`.
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.
@@ -68,6 +71,8 @@ all. Then temper's:
    - `red-findings.md`: under `wait: landed`, each red after landing a
      finding blamed on the landing and goal behind it, held until a run
      passes its tests.
+   - `red-repairs.md`: the triager's sorts of a red finding, its blame
+     moved, and repair goals, capped and judged at their end.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
 10. **milestones.md:** a milestone, a set of goals on jig's gathering:

@@ -181,7 +181,8 @@ pub(crate) fn room_staged(
     let Some((subscription_count, subscription_bytes)) = crate::subscriptions::credit(&record, limits) else {
         return false;
     };
-    let Some(total_count) = record.inbox.len().checked_add(reserved) else {
+    let Some(total_count) = record.inbox.len().checked_add(record.unrecorded.len()) else { return false };
+    let Some(total_count) = total_count.checked_add(reserved) else {
         return false;
     };
     // Amendment, grace and Met each have a separately priced slot. A notice
@@ -207,7 +208,7 @@ pub(crate) fn room_staged(
         return false;
     };
     let mut total_bytes = bytes;
-    for message in record.inbox {
+    for message in record.inbox.iter().chain(record.unrecorded.iter()) {
         let Some(sum) = total_bytes.checked_add(match message.payload_bytes() {
             Some(bytes) => bytes,
             None => return false,
@@ -646,9 +647,13 @@ pub(crate) fn keep_refusals(domain: &mut Domain, task: u64, refused: &[u64]) {
 
 /// A run consumes its exact offers; a procedure offers its whole fenced prefix
 /// (jig/docs/design/domain/tasks/messages.md, 2).
-pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding: Option<&[u64]>) {
+pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding: Option<&[u64]>, keeps_words: bool) {
     if let Some(number) = read {
         let mut kept = List::with_capacity(u32::try_from(task.inbox.len()).expect("bounded inbox count"));
+        let mut unrecorded = alloc::collections::BTreeMap::new();
+        for word in &task.unrecorded {
+            unrecorded.insert(word.number, word.clone());
+        }
         for word in &task.inbox {
             let unoffered = match outstanding {
                 Some(offered) => !offered.contains(&word.number),
@@ -656,8 +661,15 @@ pub(crate) fn take(task: &mut crate::TaskRecord, read: Option<u64>, outstanding:
             };
             if word.number > number || unoffered || task.refused.contains(&word.number) {
                 kept.push(word.clone()).expect("retained subset fits");
+            } else if keeps_words && crate::directing_words(task, word) {
+                unrecorded.insert(word.number, word.clone());
             }
         }
+        let mut ordered = List::with_capacity(u32::try_from(unrecorded.len()).expect("bounded words count"));
+        for word in unrecorded.into_values() {
+            ordered.push(word).expect("kept words counted");
+        }
+        task.unrecorded = ordered.into_boxed();
         task.inbox = kept.into_boxed();
     }
 }

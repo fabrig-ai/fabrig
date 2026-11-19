@@ -1,6 +1,7 @@
 use alloc::boxed::Box;
 use jig_domain_link::{Form, Grant};
 use skein_lib::{Duration, Reader};
+use smith_charter::Record;
 use smith_charter::v5 as wire;
 
 use crate::{
@@ -63,29 +64,23 @@ fn core_charter_encodes_with_the_same_sections_tools_contract_and_model() {
     let names = [EndpointName { number: 7, dialect: 3, name: Box::from(&b"primary"[..]) }];
     let bytes = encode(charter, &names, &wire::CEILINGS).expect("bounded encoding");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it");
-    assert_eq!(decoded.instructions(), b"help");
-    assert_eq!(decoded.brief().get(0).expect("one section").title(), b"Task");
-    assert_eq!(decoded.tools().host().get(0).expect("one tool").name(), b"read");
-    assert_eq!(decoded.main().endpoint(), b"primary");
-    assert_eq!(decoded.budget().spend(), 9000);
-    assert_eq!(decoded.budget().reserve().turns(), 1);
-    assert_eq!(decoded.budget().reserve().time(), Duration::from_secs(10));
-    assert_eq!(decoded.main().window(), 4096);
-    assert_eq!(decoded.main().output(), 128);
-    assert_eq!(*decoded.main().prices().cache_write(), Some(4));
-    assert_eq!(decoded.main().effort().as_deref(), Some(b"low".as_slice()), "the choice's effort reaches smith");
-    assert!(!decoded.resume(), "a resume requires a validated transcript");
+    assert_eq!(decoded.instructions.as_ref(), b"help");
+    assert_eq!(decoded.brief.get(0).expect("one section").title.as_ref(), b"Task");
+    assert_eq!(decoded.tools.host.get(0).expect("one tool").name.as_ref(), b"read");
+    assert_eq!(decoded.main.endpoint.as_ref(), b"primary");
+    assert_eq!(decoded.budget.spend, 9000);
+    assert_eq!(decoded.budget.reserve.turns, 1);
+    assert_eq!(decoded.budget.reserve.time, Duration::from_secs(10));
+    assert_eq!(decoded.main.window, 4096);
+    assert_eq!(decoded.main.output, 128);
+    assert_eq!(decoded.main.prices.cache_write, Some(4));
+    assert_eq!(decoded.main.effort.as_deref(), Some(b"low".as_slice()), "the choice's effort reaches smith");
+    assert!(!decoded.resume, "a resume requires a validated transcript");
 }
 
 fn call_name() -> Box<[u8]> {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: 7, completion: 3, position: 2 },
-    )
-    .expect("a call name within its ceilings");
-    let mut writer = skein_lib::Writer::new(16);
-    name.encode(&mut writer).expect("sixteen bytes");
-    writer.finish()
+    let name = smith_channel::CallName { activation: 7, completion: 3, position: 2 };
+    name.encode(&smith_channel::CEILINGS).expect("sixteen bytes")
 }
 
 #[test]
@@ -120,20 +115,15 @@ fn a_call_name_with_trailing_bytes_has_no_key() {
 }
 
 fn result_bytes(form: wire::Form, label: Option<Box<[u8]>>, fields: skein_lib::List<wire::Field>) -> Box<[u8]> {
-    let value = wire::RunResult::new(
-        &wire::CEILINGS,
-        wire::RunResultParts {
-            form,
-            label,
-            text: Box::from(b"finished".as_slice()),
-            fields,
-            items: skein_lib::List::with_capacity(0),
-        },
-    )
-    .expect("bounded result");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured encoding");
-    writer.finish()
+    let value = wire::RunResult {
+        form,
+        label,
+        text: Box::from(b"finished".as_slice()),
+        fields,
+        items: skein_lib::List::with_capacity(0),
+    };
+
+    value.encode(&wire::CEILINGS).expect("bounded result")
 }
 
 #[test]
@@ -146,13 +136,7 @@ fn a_report_result_reads_its_words() {
 fn a_verdict_result_reads_its_label_and_fields() {
     let mut fields = skein_lib::List::with_capacity(1);
     fields
-        .push(
-            wire::Field::new(
-                &wire::CEILINGS,
-                wire::FieldParts { name: Box::from(b"status".as_slice()), text: Box::from(b"green".as_slice()) },
-            )
-            .expect("bounded field"),
-        )
+        .push(wire::Field { name: Box::from(b"status".as_slice()), text: Box::from(b"green".as_slice()) })
         .expect("one field");
     let bytes = result_bytes(wire::Form::Verdict, Some(Box::from(b"ready".as_slice())), fields);
     assert_eq!(
@@ -214,28 +198,17 @@ fn a_report_with_a_label_does_not_decode() {
 fn a_verdict_with_items_does_not_decode() {
     let mut items = skein_lib::List::with_capacity(1);
     items
-        .push(
-            wire::Item::new(
-                &wire::CEILINGS,
-                wire::ItemParts { kind: Box::from(b"follow".as_slice()), fields: skein_lib::List::with_capacity(0) },
-            )
-            .expect("bounded item"),
-        )
+        .push(wire::Item { kind: Box::from(b"follow".as_slice()), fields: skein_lib::List::with_capacity(0) })
         .expect("one item");
-    let value = wire::RunResult::new(
-        &wire::CEILINGS,
-        wire::RunResultParts {
-            form: wire::Form::Verdict,
-            label: Some(Box::from(b"ready".as_slice())),
-            text: Box::new([]),
-            fields: skein_lib::List::with_capacity(0),
-            items,
-        },
-    )
-    .expect("bounded result");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured encoding");
-    assert_eq!(crate::result(&writer.finish()), Err(crate::Unreadable::Form));
+    let value = wire::RunResult {
+        form: wire::Form::Verdict,
+        label: Some(Box::from(b"ready".as_slice())),
+        text: Box::new([]),
+        fields: skein_lib::List::with_capacity(0),
+        items,
+    };
+    let bytes = value.encode(&wire::CEILINGS).expect("bounded result");
+    assert_eq!(crate::result(&bytes), Err(crate::Unreadable::Form));
 }
 
 #[test]
@@ -273,9 +246,9 @@ fn selected_source_grants_are_independent_of_endpoint_resolution() {
         let translated = charter(source).expect("runtime model bindings");
         let bytes = encode(translated, &names, &wire::CEILINGS).expect("grants do not resolve endpoints");
         let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("charter");
-        assert_eq!(*decoded.main().account(), main);
-        assert_eq!(*decoded.models().get(0).unwrap().account(), main);
-        assert_eq!(*decoded.models().get(1).unwrap().account(), Some(23));
+        assert_eq!(decoded.main.account, main);
+        assert_eq!(decoded.models.get(0).unwrap().account, main);
+        assert_eq!(decoded.models.get(1).unwrap().account, Some(23));
     }
 }
 
@@ -295,16 +268,16 @@ fn endpoint_resolution_still_refuses_wrong_dialects_and_unknown_numbers() {
 #[test]
 fn open_mode_is_encoded_and_never_grants_delivery() {
     let decoded = encoded_mode(smith_domain_run::Mode::Open);
-    assert_eq!(*decoded.mode(), wire::Mode::Open);
-    assert!(decoded.tools().deliver().is_none());
-    assert!(decoded.tools().wait());
+    assert_eq!(decoded.mode, wire::Mode::Open);
+    assert!(decoded.tools.deliver.is_none());
+    assert!(decoded.tools.wait);
 }
 
 #[test]
 fn finite_mode_is_encoded_with_delivery() {
     let decoded = encoded_mode(smith_domain_run::Mode::Finite);
-    assert_eq!(*decoded.mode(), wire::Mode::Finite);
-    assert!(decoded.tools().deliver().is_some());
+    assert_eq!(decoded.mode, wire::Mode::Finite);
+    assert!(decoded.tools.deliver.is_some());
 }
 
 #[test]
@@ -317,13 +290,13 @@ fn finite_report_is_encoded_with_delivery() {
     let names = [EndpointName { number: 1, dialect: 3, name: b"primary".as_slice().into() }];
     let bytes = encode(translated, &names, &crate::limits()).expect("bounded encoding");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("Smith codec accepts it");
-    assert_eq!(*decoded.mode(), wire::Mode::Finite);
-    assert!(decoded.tools().deliver().is_some());
-    assert!(decoded.tools().families().modify());
-    assert!(decoded.contract().change().is_none());
-    assert!(decoded.contract().report().is_some());
-    assert!(decoded.contract().failure().is_some());
-    assert!(decoded.contract().verdicts().is_empty());
+    assert_eq!(decoded.mode, wire::Mode::Finite);
+    assert!(decoded.tools.deliver.is_some());
+    assert!(decoded.tools.families.modify);
+    assert!(decoded.contract.change.is_none());
+    assert!(decoded.contract.report.is_some());
+    assert!(decoded.contract.failure.is_some());
+    assert!(decoded.contract.verdicts.is_empty());
 }
 
 fn encoded_mode(mode: smith_domain_run::Mode) -> wire::Charter {
@@ -886,15 +859,15 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
     )
     .expect("hosted assignment");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
-    assert_eq!(decoded.brief().len(), 19);
-    for ((_, title), pair) in titles.iter().zip(decoded.brief().as_slice().as_chunks::<2>().0) {
-        assert_eq!(pair[0].title(), *title);
-        assert_eq!(pair[0].body(), b"section text");
-        assert_eq!(pair[1].title(), *title);
-        assert_eq!(pair[1].body(), b"[missing]");
+    assert_eq!(decoded.brief.len(), 19);
+    for ((_, title), pair) in titles.iter().zip(decoded.brief.as_slice().as_chunks::<2>().0) {
+        assert_eq!(pair[0].title.as_ref(), *title);
+        assert_eq!(pair[0].body.as_ref(), b"section text");
+        assert_eq!(pair[1].title.as_ref(), *title);
+        assert_eq!(pair[1].body.as_ref(), b"[missing]");
     }
-    assert_eq!(decoded.brief().last().unwrap().title(), b"Context");
-    assert_eq!(decoded.brief().last().unwrap().body(), b"[missing]");
+    assert_eq!(decoded.brief.last().unwrap().title.as_ref(), b"Context");
+    assert_eq!(decoded.brief.last().unwrap().body.as_ref(), b"[missing]");
     assert_eq!(
         result.messages.as_ref(),
         &[
@@ -955,7 +928,7 @@ fn hosted_keeps_sections_messages_and_settled_calls_in_order() {
     assert_eq!(result.assignment.live, host::LiveAsk { text: true, reasoning: false, input: true });
     assert_eq!(result.assignment.grants, value.grants);
     assert_eq!(result.turns, value.transcript);
-    assert!(decoded.resume());
+    assert!(decoded.resume);
 }
 
 #[test]
@@ -978,9 +951,9 @@ fn hosted_titles_a_now_with_its_note_revision_and_write_time() {
     )
     .expect("hosted Now");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&result.assignment.charter)).unwrap();
-    let [section] = decoded.brief().as_slice() else { panic!("one Now") };
-    assert_eq!(section.title(), b"Now: Note 12, revision 3, written at 123 ns since Unix epoch.");
-    assert!(section.body().ends_with(b"Waiting"));
+    let [section] = decoded.brief.as_slice() else { panic!("one Now") };
+    assert_eq!(section.title.as_ref(), b"Now: Note 12, revision 3, written at 123 ns since Unix epoch.");
+    assert!(section.body.as_ref().ends_with(b"Waiting"));
 }
 
 #[test]
@@ -1015,6 +988,6 @@ fn a_producers_save_grant_is_encoded_in_charter_version_four() {
     let names = [EndpointName { number: 7, dialect: 3, name: b"primary".as_slice().into() }];
     let bytes = encode(value, &names, &wire::CEILINGS).expect("encoded charter");
     let decoded = wire::Charter::decode(&wire::CEILINGS, &mut Reader::new(&bytes)).expect("version four");
-    assert!(decoded.tools().save());
-    assert!(decoded.tools().deliver().is_some());
+    assert!(decoded.tools.save);
+    assert!(decoded.tools.deliver.is_some());
 }

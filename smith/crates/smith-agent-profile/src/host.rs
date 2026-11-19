@@ -7,6 +7,7 @@
 
 use crate::profile::{Check, Layer, LimitName, Refusal, Value};
 use skein_lib::Duration;
+use smith_channel::Record;
 use smith_host_domain as host;
 
 const HOST_FACTS: u32 = 1024;

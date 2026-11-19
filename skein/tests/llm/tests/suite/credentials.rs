@@ -56,7 +56,11 @@ fn a_credential_its_route_refuses_is_invalid() {
     ] {
         let mut input = input(provider, Scheme::Bearer);
         input.credential = credential;
-        assert_eq!(rejection(input, &limits()), Some(Error::Invalid), "{provider:?}");
+        assert_eq!(
+            rejection(input, &limits()),
+            Some(Error::Invalid { cause: skein_llm::Invalid::Credential }),
+            "{provider:?}"
+        );
     }
 }
 #[test]
@@ -72,7 +76,11 @@ fn an_endpoint_header_naming_a_credential_field_is_refused() {
         ] {
             let mut input = input(provider, if provider == Provider::Anthropic { Scheme::Key } else { Scheme::Bearer });
             input.endpoint.headers = Box::new([header(name, b"override")]);
-            assert_eq!(rejection(input, &limits()), Some(Error::Invalid), "{provider:?} {name:?}");
+            assert_eq!(
+                rejection(input, &limits()),
+                Some(Error::Invalid { cause: skein_llm::Invalid::Header }),
+                "{provider:?} {name:?}"
+            );
         }
     }
 }

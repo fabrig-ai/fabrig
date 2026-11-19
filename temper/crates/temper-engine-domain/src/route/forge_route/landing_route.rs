@@ -302,7 +302,7 @@ fn returned_gate(domain: &Domain, row: &forge::ChangeRow) -> Option<(u64, skein_
     }
     let owner = domain.core.tasks.task(row.task)?;
     for word in &owner.inbox {
-        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind).is_some() {
+        if word.from == tasks::Party::Task(child) && super::change_delegate_status(&word.kind, kind).is_some() {
             return Some(gate);
         }
     }
@@ -358,6 +358,9 @@ fn create_landing(
         super::report_resource(domain, env, project, name);
     }
     let row = forge::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -371,6 +374,7 @@ fn create_landing(
             phase: landing::Phase::Waiting,
             preparation: 0,
             stale_proofs: 0,
+            last_prepare: None,
             branch: Box::from(branch),
             members: members.into_boxed(),
         },
@@ -582,13 +586,16 @@ pub(super) fn describe_landing_effect(
 }
 
 pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: landing::Decision) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+        return;
+    };
     if connector != domain.config.forge_connector || code != LANDING_CODE {
         return;
     }
     domain.forge.offered_landing(task);
     let end = match choice {
-        landing::Decision::Wait { until } => {
+        landing::Decision::Wait { until, on: _ } => {
             domain.forge.wait_landing(&super::super::environment_forge(env), task, until);
             StepEnd::Wait
         }

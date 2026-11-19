@@ -212,7 +212,7 @@ fn an_account_sign_in_address_over_its_bound_is_an_encode_error() {
     assert_eq!(
         result,
         Err(crate::people_v17::Problem {
-            path: crate::people_v17::Path::OutcomeAccountSignInStartedAddress,
+            path: crate::people_v17::paths::OUTCOME_ACCOUNT_SIGN_IN_STARTED_ADDRESS,
             reason: skein_codec::Reason::Bound,
         })
     );

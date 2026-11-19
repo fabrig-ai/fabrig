@@ -253,6 +253,9 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
         &mut d,
         Event::Landing {
             row: LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,
@@ -286,6 +289,7 @@ fn the_connectors_own_reads_are_outside_the_roots_range() {
                     }]),
                     preparation: 0,
                     stale_proofs: 0,
+                    last_prepare: None,
                     branch: Box::from(b"main".as_slice()),
                 },
                 asks: Box::new([None]),
@@ -343,6 +347,24 @@ pub(crate) fn domain_with_limits(limits: &Limits) -> Domain {
         false,
     )
     .expect("valid connector")
+}
+fn accept_landings(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut pending = core::mem::replace(out, Queue::uncapped());
+    while let Some(request) = pending.pop() {
+        if let Request::LandingReady { task } = request {
+            d.decide_landing(environment, task, true, &mut pending);
+        } else {
+            out.push(request);
+        }
+    }
+}
+fn step(d: &mut Domain, environment: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
+    crate::step(d, environment, event, out);
+    accept_landings(d, environment, out);
+}
+fn resume(d: &mut Domain, environment: &Env<Limits>, out: &mut Queue<Request>) {
+    crate::resume(d, environment, out);
+    accept_landings(d, environment, out);
 }
 pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     if let Event::Restore { .. } = &event {
@@ -587,6 +609,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -692,6 +715,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -790,6 +814,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ProjectionSettled { .. }
         | Request::GoalUntopic { .. }
         | Request::LandingNews { .. }
+        | Request::LandingReady { .. }
         | Request::LandingDecision { .. }
         | Request::ChangeDecision { .. }
         | Request::Reviewed { .. }
@@ -2361,6 +2386,7 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
                                 request,
                                 first: SetUpFirst::Empty {
                                     playground: false,
+                                    sample: false,
                                     org: b"work".as_slice().into(),
                                     repository: b"hello".as_slice().into()
                                 }
@@ -2525,6 +2551,7 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
             forge: Making::Kept(forge),
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             },
@@ -2600,6 +2627,7 @@ fn setup_answers_reserve_room_until_retention_ends() {
             request,
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into()
             }
@@ -2704,6 +2732,7 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
                 forge: Making::Kept(1),
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                 },
@@ -2719,6 +2748,7 @@ fn a_first_repository_is_admitted_and_retained_until_it_is_made() {
                 request,
                 first: SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into()
                 }
@@ -2776,6 +2806,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     forge: Making::Kept(1),
                     first: SetUpFirst::Empty {
                         playground: false,
+                        sample: false,
                         org: org_name.clone(),
                         repository: repository.clone(),
                     },
@@ -2801,7 +2832,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                         Some(Request::SetUp {
                             forge: 1,
                             request,
-                            first: SetUpFirst::Empty { playground: false, org: org_name, repository }
+                            first: SetUpFirst::Empty { playground: false, sample: false, org: org_name, repository }
                         })
                     );
                     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Making);
@@ -2830,6 +2861,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
         let token = Token::new(number + 1);
         let first = First {
             playground: false,
+            sample: number == 91,
             org: org.into(),
             repository: repository.into(),
             state: FirstState::Making,
@@ -2839,6 +2871,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             forge: Making::Kept(1),
             first: SetUpFirst::Empty {
                 playground: false,
+                sample: number == 91,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
             },
@@ -2861,7 +2894,12 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
                 Request::SetUp {
                     forge: 1,
                     request,
-                    first: SetUpFirst::Empty { playground: false, org: org.into(), repository: repository.into() }
+                    first: SetUpFirst::Empty {
+                        playground: false,
+                        sample: number == 91,
+                        org: org.into(),
+                        repository: repository.into()
+                    }
                 }
             ]
         );
