@@ -786,19 +786,39 @@ backend.
 - **When its host asks,** for a program source, with the check's
   deadline (host.md, section 2). It is no run: no turn, budget, slot or
   model call.
-- **The command,** in the source's environment (4.2), started as a
-  status check is (5.1): `claude -p /usage --output-format json
-  --setting-sources user --tools ""`. `/usage` is Claude Code's own local
-  command: it prints the subscription's windows and calls no model.
+- **The command,** in the source's environment (4.2) with `TZ=UTC` set,
+  so that it words its resets in UTC, started as a status check is (5.1):
+  `claude -p /usage --output-format json --setting-sources user --tools
+  ""`. `/usage` is Claude Code's own local command (`"local_command":
+  "usage"`, `"num_turns": 0`): it prints the subscription's windows and
+  calls no model.
 - **Its answer** is the JSON `result`, `is_error` false, whose `result`
-  text is read line by line. A line that begins `Current session` opens
-  `five_hour`; `Current week (all models)` opens `seven_day`; any other
-  `Current week (` opens `seven_day_` and the first word after the
-  parenthesis in lower case (`seven_day_opus`). The first `N% used` after
-  it, N a whole or decimal percent, is its share; a window with none is
-  not reported. A share of 100% is limited, any other open; the length is
-  as 5.6 gives; the reset is not read, since the text words it in the
-  host's local time. At most 8 windows.
+  text is read line by line, one window to a line, as Claude Code
+  2.1.312 prints it:
+
+  ```text
+  Current session: 16% used · resets Nov 19, 4:30am (UTC)
+  Current week (all models): 60% used · resets Nov 23, 5am (UTC)
+  Current week (Fable): 8% used · resets Nov 23, 4:59am (UTC)
+  ```
+
+  - *Its label:* a line that begins `Current session` is `five_hour`;
+    `Current week (all models)` is `seven_day`; any other `Current week (`
+    is `seven_day_` and the first word inside the parenthesis in lower
+    case (`seven_day_fable`). Lines before the first window are passed
+    over, and the first blank line after it ends the windows: what
+    follows (the machine's sessions) is not read.
+  - *Its share:* the `N% used` on its line, N a whole or decimal percent;
+    a window line with none is not reported. A share of 100% is limited,
+    any other open; the length is as 5.6 gives.
+  - *Its reset:* the words after `resets ` on its line, `Mon D, H:MMam
+    (UTC)` or `Mon D, Ham (UTC)`, `am` or `pm` on a 12-hour clock, read in
+    UTC. They name no year: the year is the one, of the host's wall time's
+    year and the years either side, that puts the reset nearest the
+    host's wall time when it asked. A reset in another zone, or words that
+    don't read, give no reset, the share still read.
+  - At most 8 windows. A text with no window line, as a key's or an
+    error's, does not read.
 - **It fails** not signed in where the check's inspection finds no
   login; missing, deadline or exited as a check does, with the detail;
   unreadable where the answer does not read or names no window; and
@@ -988,10 +1008,13 @@ the next turn of that same cued script (decided 2026-11-02).
 - **The prompt tool's shape:** Claude Code does not document its input
   and answer. Default: the shape the live suite checks against the
   release it runs.
-- **The usage command** (5.11): whether `/usage` answers in `-p`, and its
-  words, are recorded nowhere, nor `utilization`'s form (5.6). Default:
-  5.11's command and words, and a fraction, until the live suite or a
-  person's recording says otherwise.
+- **The usage command** (5.11): `/usage` answers in `-p` as a local
+  command, with no model call, and words its windows as 5.11 says: a
+  person's recording on Claude Code 2.1.312, 2026-11-19, its private
+  lines kept out of the repository. Its words are Claude Code's own and
+  may change with a release; `utilization`'s form (5.6) is recorded
+  nowhere. Default: 5.11's words, and a fraction, until the live suite
+  says otherwise.
 - **How the MCP server reaches its agent:** Claude Code starts it with
   pipes of its own, and skein's io has no local sockets. Default: a
   loopback listener of the agent's (skein's `runtime/io/sockets.md`, 2), its address
