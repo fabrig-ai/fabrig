@@ -45,8 +45,11 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
             std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).expect("private directory");
         }
     }
-    let mut document: serde_json::Value =
-        serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).expect("owned example");
+    let mut file = temper_config_shell::File {
+        listen: Some("127.0.0.1:7100".parse().expect("clients")),
+        webhooks: Some("127.0.0.1:7101".parse().expect("webhooks")),
+        ..Default::default()
+    };
     // The floor keeps accounts at both providers; all endpoints remain inert and local.
     let mut providers = temper_agent_fixtures::providers::stock();
     providers["providers"].as_array_mut().expect("stock providers").truncate(1);
@@ -77,16 +80,21 @@ fn deployment() -> (skein_scratch::Scratch, Directories) {
         &temper_agent_fixtures::providers::values(&providers),
     )
     .expect("fixture providers");
-    document["application"]["test"]["github"] = serde_json::json!({
-        "api":{"socket":"127.0.0.1:1"}, "transport":"plaintext",
-        "remote":"http://127.0.0.1:1", "web":"http://127.0.0.1:1", "git":"/usr/bin/git"
+    file.test.github = Some(temper_config_shell::TestGitHub {
+        api: "127.0.0.1:1".into(),
+        transport: temper_config_shell::Transport::Plaintext,
+        remote: "http://127.0.0.1:1".into(),
+        web: "http://127.0.0.1:1".into(),
+        git: Some("/usr/bin/git".into()),
     });
-    std::fs::write(config.join("temper.json"), serde_json::to_vec(&document).expect("configuration bytes"))
-        .expect("configuration file");
+    std::fs::write(
+        config.join(temper_config_shell::FILE),
+        temper_config_shell::render(&file, temper_config_shell::Shape::Standalone),
+    )
+    .expect("configuration file");
     std::fs::create_dir(data.join("secrets")).expect("fixture secrets directory");
-    std::fs::write(data.join("secrets/worker.secret"), b"box-upgrade-test-worker-secret")
-        .expect("fixture worker secret");
-    std::fs::set_permissions(data.join("secrets/worker.secret"), std::fs::Permissions::from_mode(0o600))
+    std::fs::write(data.join("worker.secret"), b"box-upgrade-test-worker-secret").expect("fixture worker secret");
+    std::fs::set_permissions(data.join("worker.secret"), std::fs::Permissions::from_mode(0o600))
         .expect("private fixture worker secret");
     let directories = Directories {
         config: config.as_os_str().as_bytes().into(),

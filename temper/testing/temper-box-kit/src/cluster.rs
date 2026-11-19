@@ -64,7 +64,8 @@ pub fn figures_with_limits(
     let own = document.limits;
     let mut figures = temper_engine_service_vocabulary::figures::Composer::new(&engine, &own)
         .compose(&temper_service::stock::agents());
-    figures.places = engine.limits.core.fleet.slots;
+    // The fixture's worker settings each admit one place.
+    figures.places = 1;
     figures
 }
 /// Agent metadata for fixture checks; no worker configuration file is supplied.
@@ -201,6 +202,14 @@ impl Cluster {
             ("artifact.git".into(), git.to_str().expect("git path").into()),
             ("artifact.temper".into(), skein_scratch::paths::binary("temper-box").display().to_string()),
             ("experiment".into(), experiment.to_str().expect("experiment path").into()),
+            (
+                "artifact.temper-engine".into(),
+                skein_scratch::paths::binary("temper-box").with_file_name("temper-engine").display().to_string(),
+            ),
+            (
+                "artifact.temper-worker".into(),
+                skein_scratch::paths::binary("temper-box").with_file_name("temper-worker").display().to_string(),
+            ),
         ]);
         for spec in &specs {
             let name = string(&spec["name"]);
@@ -382,7 +391,23 @@ impl Cluster {
             let target = contained(&self.dir(process), string(&file["path"]));
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
-            super::write_private(&target, bytes.as_bytes());
+            if target.file_name().is_some_and(|name| name == temper_config_shell::FILE) {
+                let shape = if process == "engine" {
+                    temper_config_shell::Shape::EngineAlone
+                } else {
+                    temper_config_shell::Shape::WorkerAlone
+                };
+                let facts =
+                    temper_config_shell::Facts { login: "ada".into(), hostname: process.into(), provider_key: false };
+                let mut file =
+                    temper_config_shell::parse(bytes.as_bytes(), shape, &facts).expect("cluster configuration").file;
+                if shape == temper_config_shell::Shape::WorkerAlone {
+                    file.name = Some(process.into());
+                }
+                super::write_file(&target, &file, shape);
+            } else {
+                super::write_private(&target, bytes.as_bytes());
+            }
             if file["path"] == "data/providers.setting" {
                 temper_agent_fixtures::providers::remember(
                     target.parent().expect("provider data directory"),
@@ -392,9 +417,10 @@ impl Cluster {
         }
         if process == "engine" {
             let config = self.dir(process).join("config");
-            let mut value = temper_playground::documents::Configuration::from_jig(
-                serde_json::from_slice(&fs::read(config.join("temper.json")).expect("cluster engine")).expect("JSON"),
-            );
+            let mut value = temper_playground::documents::Configuration::from_jig(super::start_document(
+                &config.join(temper_config_shell::FILE),
+                temper_config_shell::Shape::EngineAlone,
+            ));
             super::configuration::cluster_limits(
                 &mut value,
                 self.experiment.ends_with("cluster-turn"),

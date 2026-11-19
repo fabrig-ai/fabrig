@@ -5,6 +5,7 @@ use skein_forge_connection::{self as connection, Change};
 use skein_lib::{Duration, List, Reader, Secret, Time, Wall};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1;
+use temper_protocol_worker_wire::v1::Record;
 
 fn github() -> crate::Service {
     let mut service = routing_service(8, Duration::from_secs(3600));
@@ -56,10 +57,10 @@ fn value(service: &crate::Service, generation: u64) -> Option<v1::Identity> {
 type Entries = Box<[(u64, Box<[u8]>, Box<[u8]>)]>;
 fn entries(service: &crate::Service, generation: u64) -> Entries {
     let value = value(service, generation).unwrap();
-    let v1::Kind::Github(entries) = value.kind() else { panic!("GitHub") };
-    let mut decoded = List::with_capacity(entries.entries().len());
-    for entry in entries.entries() {
-        decoded.push((entry.account(), entry.account_login().into(), entry.token().expose().into())).unwrap();
+    let v1::Kind::Github(entries) = &value.kind else { panic!("GitHub") };
+    let mut decoded = List::with_capacity(entries.entries.len());
+    for entry in &entries.entries {
+        decoded.push((entry.account, entry.account_login.clone(), entry.token.expose().into())).unwrap();
     }
     decoded.into_boxed()
 }
@@ -81,9 +82,9 @@ fn tokens_before_the_first_connected_are_announced_together_at_it() {
         ]
     );
     let identity = value(&service, 1).unwrap();
-    assert_eq!(identity.login(), b"x-access-token");
-    assert_eq!(identity.name(), b"app-fixture[bot]");
-    assert_eq!(identity.email(), b"9+app-fixture[bot]@users.noreply.github.com");
+    assert_eq!(identity.login.as_ref(), b"x-access-token");
+    assert_eq!(identity.name.as_ref(), b"app-fixture[bot]");
+    assert_eq!(identity.email.as_ref(), b"9+app-fixture[bot]@users.noreply.github.com");
 }
 #[test]
 fn configured_login_and_author_override_the_app_defaults() {
@@ -92,9 +93,9 @@ fn configured_login_and_author_override_the_app_defaults() {
     service.engine.as_mut().unwrap().values.tokens.keep(&identity, 8);
     route(&mut service, connection::Event::Connected { forge: 1 });
     let identity = value(&service, 1).unwrap();
-    assert_eq!(identity.login(), b"temper");
-    assert_eq!(identity.name(), b"temper");
-    assert_eq!(identity.email(), b"temper@forge.example");
+    assert_eq!(identity.login.as_ref(), b"temper");
+    assert_eq!(identity.name.as_ref(), b"temper");
+    assert_eq!(identity.email.as_ref(), b"temper@forge.example");
 }
 #[test]
 fn an_empty_list_is_announced_at_connected_valid_without_bound() {
@@ -250,7 +251,7 @@ fn a_github_repository_carries_its_owners_entrys_account() {
         )
         .unwrap()
         .unwrap();
-        assert_eq!(*items.repositories().get(0).unwrap().account(), expected);
+        assert_eq!(items.repositories.get(0).unwrap().account, expected);
     }
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"owner", b"repo"));
     let items = crate::translate::items(
@@ -261,7 +262,7 @@ fn a_github_repository_carries_its_owners_entrys_account() {
     )
     .unwrap()
     .unwrap();
-    assert_eq!(*items.repositories().get(0).unwrap().account(), None);
+    assert_eq!(items.repositories.get(0).unwrap().account, None);
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "formatting Debug proves root events and notes omit git tokens")]

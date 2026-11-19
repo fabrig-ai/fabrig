@@ -19,6 +19,12 @@ jig-domain-link.workspace = true
 smith-channel.workspace = true
 skein-lib.workspace = true
 
+jig-domain-authority.workspace = true
+
+jig-domain-brief.workspace = true
+
+jig-protocol-store.workspace = true
+
 [dev-dependencies]
 jig-client-domain.workspace = true
 jig-client-protocol-link.workspace = true
@@ -27,16 +33,13 @@ jig-client-test-records = { path = "../../testing/jig-client-test-records" }
 jig-conformance.workspace = true
 jig-test-store-files.workspace = true
 jig-test-store.workspace = true
-jig-protocol-store.workspace = true
 jig-fake-workers.workspace = true
 jig-fake-parties.workspace = true
 jig-test-connector.workspace = true
 jig-test-connector-kit.workspace = true
 jig-test-system.workspace = true
 jig-domain-host.workspace = true
-jig-domain-authority.workspace = true
 jig-domain-accounts.workspace = true
-jig-domain-brief.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-views.workspace = true
 jig-protocol-tools.workspace = true

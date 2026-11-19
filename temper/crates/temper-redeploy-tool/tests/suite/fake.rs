@@ -70,8 +70,15 @@ fn fake_scripts_checks_openings_ctl_documents_and_failed_lines_on_its_own_clock(
     hosts.ctl_answer("me --json", output(0, "{\"projects\": []}"));
     assert_eq!(hosts.run(Part::Engine, "ctl engine me --json").stdout, "{\"projects\": []}");
     let document = hosts.run(Part::Worker(0), "document w1");
-    let document: serde_json::Value = serde_json::from_str(&document.stdout).unwrap();
-    assert_eq!(document["workers"][0]["graces"]["grace_ms"], 30000);
+    let file = temper_config_shell::parse(
+        document.stdout.as_bytes(),
+        temper_config_shell::Shape::WorkerAlone,
+        &temper_config_shell::Facts { login: "qa".into(), hostname: "worker".into(), provider_key: false },
+    )
+    .expect("worker configuration")
+    .file;
+    assert_eq!(file.name.as_deref(), Some("w1"));
+    assert_eq!(file.engine, Some("127.0.0.1:7200".parse().expect("engine listener")));
     hosts.fail_line(Part::Worker(0), "stop w1", 23);
     assert_eq!(hosts.run(Part::Worker(0), "stop w1").code, Some(23));
     assert!(hosts.workers[0].running);

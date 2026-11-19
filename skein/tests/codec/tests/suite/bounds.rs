@@ -3,7 +3,7 @@
 #[cfg(test)]
 mod tests {
     use skein_codec::Reason;
-    use skein_codec_tests::v1::{CEILINGS, Effect, Field, FieldParts, Limits, Path, Report, check_limits};
+    use skein_codec_tests::v1::{CEILINGS, Effect, Field, Limits, Record, Report, check_limits, paths};
     use skein_lib::{Reader, Writer, bytes};
 
     fn field_bytes(name_length: u32, value_length: u32) -> Box<[u8]> {
@@ -37,25 +37,25 @@ mod tests {
         Limits { field_name: 5, field_value: 5, ..CEILINGS }
     }
 
-    fn field_parts(value_length: usize) -> FieldParts {
-        FieldParts { name: bytes::zeroed(0), value: bytes::zeroed(value_length) }
+    fn field(value_length: usize) -> Field {
+        Field { name: bytes::zeroed(0), value: bytes::zeroed(value_length) }
     }
 
     #[test]
     fn family_check_names_the_first_limit_past_its_ceiling() {
         let problem = check_limits(&limits_past_ceilings()).expect_err("limits past ceilings");
-        assert_eq!((problem.path, problem.reason), (Path::FieldName, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_NAME, Reason::Bound));
     }
 
     #[test]
-    fn constructor_with_limits_past_ceilings_accepts_a_value_at_its_ceiling() {
-        Field::new(&limits_past_ceilings(), field_parts(4)).expect("value within its ceiling");
+    fn encoder_with_limits_past_ceilings_accepts_a_value_at_its_ceiling() {
+        field(4).encode(&limits_past_ceilings()).expect("value within its ceiling");
     }
 
     #[test]
-    fn constructor_with_limits_past_ceilings_refuses_a_value_past_its_ceiling() {
-        let problem = Field::new(&limits_past_ceilings(), field_parts(5)).expect_err("value past its ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::FieldValue, Reason::Bound));
+    fn encoder_with_limits_past_ceilings_refuses_a_value_past_its_ceiling() {
+        let problem = field(5).encode(&limits_past_ceilings()).expect_err("value past its ceiling");
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_VALUE, Reason::Bound));
     }
 
     #[test]
@@ -67,12 +67,12 @@ mod tests {
     fn decoder_with_limits_past_ceilings_refuses_a_value_past_its_ceiling() {
         let problem = Field::decode(&limits_past_ceilings(), &mut Reader::new(&field_bytes(0, 5)))
             .expect_err("value past its ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::FieldValue, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_VALUE, Reason::Bound));
     }
 
     #[test]
-    fn enum_constructor_does_not_check_unrelated_family_limits() {
-        assert_eq!(Effect::new(&limits_past_ceilings(), Effect::Read), Ok(Effect::Read));
+    fn enum_encoder_does_not_check_unrelated_family_limits() {
+        assert_eq!(Effect::Read.encode(&limits_past_ceilings()).expect("no unrelated check").as_ref(), &[0]);
     }
 
     #[test]
@@ -84,22 +84,22 @@ mod tests {
     fn field_name_and_value_accept_the_ceiling_and_refuse_one_past() {
         Field::decode(&CEILINGS, &mut Reader::new(&field_bytes(4, 0))).expect("name at ceiling");
         let problem = Field::decode(&CEILINGS, &mut Reader::new(&field_bytes(5, 0))).expect_err("name over ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::FieldName, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_NAME, Reason::Bound));
 
         Field::decode(&CEILINGS, &mut Reader::new(&field_bytes(0, 4))).expect("value at ceiling");
         let problem = Field::decode(&CEILINGS, &mut Reader::new(&field_bytes(0, 5))).expect_err("value over ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::FieldValue, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::FIELD_VALUE, Reason::Bound));
     }
 
     #[test]
     fn report_title_and_field_count_accept_the_ceiling_and_refuse_one_past() {
         Report::decode(&CEILINGS, &mut Reader::new(&report_bytes(8, 0))).expect("title at ceiling");
         let problem = Report::decode(&CEILINGS, &mut Reader::new(&report_bytes(9, 0))).expect_err("title over ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::ReportTitle, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::REPORT_TITLE, Reason::Bound));
 
         Report::decode(&CEILINGS, &mut Reader::new(&report_bytes(0, 2))).expect("field count at ceiling");
         let problem =
             Report::decode(&CEILINGS, &mut Reader::new(&report_bytes(0, 3))).expect_err("field count over ceiling");
-        assert_eq!((problem.path, problem.reason), (Path::ReportFields, Reason::Bound));
+        assert_eq!((problem.path, problem.reason), (paths::REPORT_FIELDS, Reason::Bound));
     }
 }

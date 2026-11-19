@@ -732,7 +732,7 @@ fn effective_core_limits_preserve_the_configured_call_answer_budget() {
 
 #[test]
 fn secrets_schema_fits_the_small_page_ceiling() {
-    use temper_protocol_records::v1;
+    use temper_protocol_records::v1::{self, Record};
     // The row's u16 version, variant and u32 length precede the largest DER envelope.
     const APPLICATION_BYTES: u64 = 65_546;
     // Secrets keys are two owner bytes followed by a u64 number.

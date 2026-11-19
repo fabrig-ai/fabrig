@@ -241,21 +241,25 @@ fn client_configuration(
 }
 
 fn public_configuration(directory: &Path, forge: std::net::SocketAddr, temper: std::net::SocketAddr) {
-    let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
     let mut setup = super::owned::setup_value(directory, 1, "owned");
-    let email = setup["person"]["email"].clone();
-    value["engine"]["owners"] = json!([{"provider":1,"subject":email}]);
-    value["engine"]["clients"]["provider"] = json!({
-        "key":"provider.key", "addresses":[1],
-        "clients":[{"id":"forgejo", "secret":null,
-            "redirect_uri":format!("http://{forge}/user/oauth2/temper/callback")}]
+    file.owner = Some(setup["person"]["email"].as_str().expect("owner email").into());
+    file.openid = Some(temper_config_shell::OpenId {
+        key: Some("provider.key".into()),
+        addresses: Some(vec![1]),
+        clients: vec![temper_config_shell::OpenIdClient {
+            id: "forgejo".into(),
+            secret: None,
+            redirect: format!("http://{forge}/user/oauth2/temper/callback"),
+        }],
     });
-    value["application"]["clients"]["listener"] = json!({"socket":temper});
-    value["application"]["sign_in"] = Value::Null;
+    file.listen = Some(temper);
+    file.sign_in = None;
+    file.test.google = None;
     setup["sign_in"] = json!("forgejo");
     super::configuration::setup(directory, 1, setup);
-    super::write_private(&path, &serde_json::to_vec(&value).expect("public configuration"));
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
     super::write_private(&directory.join("provider.key"), b"");
     let key = Command::new("openssl")
         .args(["genpkey", "-algorithm", "RSA", "-pkeyopt", "rsa_keygen_bits:3072", "-out"])
@@ -601,10 +605,10 @@ pub(super) fn fixture_bundle(directory: &Path) {
     fs::create_dir_all(bundle.join("0123456789abcdef")).expect("bundle directory");
     fs::write(bundle.join("index.html"), b"<html><head></head><body></body></html>").expect("bundle page");
     fs::write(bundle.join("0123456789abcdef/boot.js"), b"boot();").expect("bundle asset");
-    let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["application"]["clients"]["bundle"] = json!(bundle);
-    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.internal.bundle = Some(bundle);
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
 }
 
 fn connect(

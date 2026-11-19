@@ -1,5 +1,5 @@
 //! HTTP's event reader over bounded browser pieces (examples.md, 9.2).
-use crate::records;
+use crate::records::{self, Record};
 use skein_http::sse;
 use skein_lib::{
     Env, Intake, List, Queue, Reader, Time, Wall,

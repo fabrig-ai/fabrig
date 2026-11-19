@@ -33,6 +33,22 @@ fn running_with_save(save: Box<[u8]>) -> Machine {
     m
 }
 #[test]
+fn journey_lines_fail_unkept_without_starting_a_tui() {
+    for mut m in [ready(), running(), ctl_ready()] {
+        let was_running = m.tui_running;
+        for source in ["tui mark", "tui approve"] {
+            let number = m.number + 1;
+            let actions = line(&mut m, source);
+            assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{source}: {actions:?}");
+            assert_eq!(answer(&actions).print(), format!("failed: line {number}: {source} is a journey's line\n"));
+            assert_eq!(m.tui_running, was_running);
+            assert!(m.current.is_none());
+            assert_eq!(answer(&line(&mut m, "")).print(), "ok\n");
+        }
+    }
+}
+
+#[test]
 fn first_tui_line_starts_confined_and_approves_before_acting() {
     let mut m = ready();
     m.plan.environment.extend([("SSH_TTY".into(), "outside".into()), ("COLORFGBG".into(), "0;15".into())]);

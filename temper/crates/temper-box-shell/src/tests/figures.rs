@@ -9,30 +9,19 @@ fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private fixture root");
     let dirs = super::configuration::directories(root);
     let files = temper_init::bare(
-        &temper_init::Bare {
-            binary: b"/fixture/temper-box",
-            git: None,
-            claude: None,
-            clients: core::num::NonZeroU16::new(8367).expect("port"),
-            webhooks: core::num::NonZeroU16::new(8371).expect("port"),
-        },
+        &temper_init::Bare { binary: b"/fixture/temper-box", git: None, claude: None },
         &temper_init::Directories { config: root.as_os_str().as_bytes(), data: root.as_os_str().as_bytes() },
         &[0; 32],
     )
     .expect("init files");
-    let mut document = None;
     for file in files {
         assert_ne!(file.name, b"agent.json");
         let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("bare bytes") };
-        if file.name == b"temper.json" {
-            document = Some(serde_json::from_slice::<serde_json::Value>(&bytes).expect("init JSON"));
-        } else {
-            let path = root.join(std::ffi::OsStr::from_bytes(file.name));
-            fs::write(&path, bytes).expect("private fixture");
-            fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private");
-        }
+        let path = root.join(std::ffi::OsStr::from_bytes(file.name));
+        fs::write(&path, bytes).expect("private fixture");
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private");
     }
-    let document = document.expect("init document");
+    let document = serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init start");
     let mut providers = temper_service::stock::providers();
     for value in &mut providers {
         value.provider.signed_in_plan = false;
@@ -94,6 +83,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
         &temper_service_shell::jig_directories(&dirs),
         &given,
         &temper_service::stock::agents(),
+        4,
         &[],
     )
     .expect("box part")
@@ -119,7 +109,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
         ("corrupt", Some(b"not a setting".as_slice()), &default),
     ] {
         if let Some(contents) = contents {
-            served::write_agents(&copy, contents).expect("settings copy");
+            served::write_setting(&copy, contents).expect("settings copy");
         }
         let mut owned = Vec::new();
         let checked = serve::prepare_with_limits(
@@ -139,6 +129,7 @@ fn startup_pins_composed_default_file_and_fallback_figures() {
             &[],
             None,
             None,
+            &temper_config_shell::Programs::default(),
         )
         .map(|(service, _, _)| service.operations());
         crate::close(owned);
@@ -176,7 +167,7 @@ fn corrupt_copy_is_logged_and_atomic_replacement_decodes_whole() {
     fs::write(&path, b"bad").expect("bad copy");
     assert!(serve::agents_setting(&path, &mut log).is_none());
     assert_eq!(String::from_utf8(log).expect("log"), "agents.setting: cannot decode; using the default\n");
-    served::write_agents(&path, &encoded(&agents(900))).expect("replace bad copy");
+    served::write_setting(&path, &encoded(&agents(900))).expect("replace bad copy");
     assert_eq!(serve::agents_setting(&path, &mut Vec::new()), Some(agents(900)));
     assert!(!path.with_extension("setting.new").exists());
     let mut trailing = encoded(&agents(900)).into_vec();
@@ -184,6 +175,97 @@ fn corrupt_copy_is_logged_and_atomic_replacement_decodes_whole() {
     fs::write(&path, trailing).expect("trailing bytes");
     assert!(serve::agents_setting(&path, &mut Vec::new()).is_none());
 }
+#[test]
+fn local_copy_builds_the_next_start_at_its_places_and_bad_bytes_log_once() {
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting, WorkerSettingParts};
+    let scratch = skein_scratch::Scratch::new("local-copy");
+    let (dirs, document) = document(scratch.path());
+    let bytes = serde_json::to_vec(&document).expect("JSON");
+    let given = stock_defaults(&bytes, &dirs);
+    let path = scratch.path().join("local.setting");
+    let program = scratch.path().join("fixture-agent");
+    fs::write(&program, b"box startup program fixture\n").expect("fixture program");
+    let local = WorkerSetting::new(
+        &CEILINGS,
+        WorkerSettingParts { number: 1, name: b"local".as_slice().into(), places: 2, digest: None, withdrawn: false },
+    )
+    .expect("local value");
+    let mut writer = skein_lib::Writer::new(usize::try_from(local.measure()).expect("bounded codec"));
+    local.encode(&mut writer).expect("local bytes");
+    let value = writer.finish();
+    for (contents, places, warning) in [
+        (None, 4, ""),
+        (Some(value.as_ref()), 2, ""),
+        (Some(b"bad".as_slice()), 4, "local.setting: cannot decode; using the default\n"),
+    ] {
+        if let Some(contents) = contents {
+            served::write_setting(&path, contents).expect("whole local copy");
+            assert_eq!(fs::read(&path).expect("copy"), contents);
+            assert!(!path.with_extension("setting.new").exists());
+        }
+        let mut log = Vec::new();
+        let initial = serve::local_setting(&path, &mut log);
+        assert_eq!(String::from_utf8(log).expect("log"), warning);
+        let part = temper_service::startup::box_worker(
+            &bytes,
+            &temper_service_shell::jig_directories(&dirs),
+            &given,
+            &temper_service::stock::agents(),
+            initial.as_ref().map_or(4, WorkerSetting::places),
+            &[],
+        )
+        .expect("box start")
+        .expect("worker");
+        assert_eq!(part.worker.jig.slots, places);
+        assert_eq!(part.figures.as_ref().expect("figures").places, places);
+        assert_eq!(part.limits.checkout.workspaces, places);
+        assert_eq!(part.limits.git_component.operations, places);
+        let expected = temper_service::startup::operations_with_worker(
+            &bytes,
+            &temper_service_shell::jig_directories(&dirs),
+            &given,
+            None,
+            Some(&part),
+        )
+        .expect("applied worker credit");
+        assert_eq!(
+            serve::operations_in_with("temper-box", &[], b"/", &dirs, &bytes, &given).expect("ring credit"),
+            expected
+        );
+        if places == 2 {
+            let mut owned = Vec::new();
+            let started = serve::prepare_with_limits(
+                "temper-box",
+                &[],
+                b"/",
+                &dirs,
+                &bytes,
+                &mut owned,
+                false,
+                false,
+                None,
+                None,
+                &given,
+                Some(&program),
+                false,
+                &[],
+                None,
+                None,
+                &temper_config_shell::Programs::default(),
+            )
+            .map(|(service, _, _)| service.operations());
+            crate::close(owned);
+            assert_eq!(started.expect("next start at copied places"), expected);
+        }
+    }
+    let mut trailing = value.into_vec();
+    trailing.push(0);
+    fs::write(&path, trailing).expect("trailing bytes");
+    let mut log = Vec::new();
+    assert!(serve::local_setting(&path, &mut log).is_none());
+    assert_eq!(String::from_utf8(log).expect("log"), "local.setting: cannot decode; using the default\n");
+}
+
 #[test]
 fn box_refuses_moved_worker_members_and_agent_file_by_name() {
     let scratch = skein_scratch::Scratch::new("box-moved");
@@ -205,10 +287,17 @@ fn box_refuses_moved_worker_members_and_agent_file_by_name() {
         );
     }
     fs::write(scratch.path().join("agent.json"), b"never read").expect("old file");
-    let why =
-        serve::prepare("temper-box", &[], b"/", &dirs, &serde_json::to_vec(&original).expect("JSON"), &mut Vec::new())
-            .err()
-            .expect("old file refused");
+    let why = serve::prepare(
+        "temper-box",
+        &[],
+        b"/",
+        &dirs,
+        &serde_json::to_vec(&original).expect("JSON"),
+        &mut Vec::new(),
+        &temper_config_shell::Programs::default(),
+    )
+    .err()
+    .expect("old file refused");
     assert_eq!(why, "agent.json: moved: temper writes the agent's configuration under the worker's root; remove it");
 }
 #[test]
@@ -236,6 +325,7 @@ fn box_refuses_sixty_five_endpoints_before_composing() {
         &temper_service_shell::jig_directories(&dirs),
         &given,
         &temper_service::stock::agents(),
+        4,
         &[],
     )
     .expect_err("endpoint bound");

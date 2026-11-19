@@ -157,6 +157,11 @@ impl Shape {
                 .create(path.join(name))
                 .expect("cluster directories");
         }
+        let mut file = fixtures::file::read(&data, temper_config_shell::Shape::Standalone).file;
+        let shape = match self {
+            Self::Engine { .. } => temper_config_shell::Shape::EngineAlone,
+            Self::Worker { .. } => temper_config_shell::Shape::WorkerAlone,
+        };
         let document = configuration;
         document["world_settings"] =
             serde_json::from_slice(&std::fs::read(data.join("world-settings.json")).expect("world settings"))
@@ -184,7 +189,7 @@ impl Shape {
                 document["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
                 document["workers"] = json!([]);
 
-                document["engine"]["hosts"]["listener"] = json!([{"socket":"127.0.0.1:0"}]);
+                file.workers = Some(([127, 0, 0, 1], 0).into());
                 // Every configured position admitted: the small profile admits two workers.
                 document.jig_over("fleet.workers", workers.len());
                 // One attempt per one-slot worker: the fleet counts attempts across the whole fleet.
@@ -223,24 +228,25 @@ impl Shape {
                 worker.as_object_mut().expect("worker").remove("limits");
                 worker.as_object_mut().expect("worker").remove("agent");
                 worker["name"] = (*name).into();
-                worker["secret"] = format!("secrets/{name}.secret").into();
-                worker["engine"] = json!({"socket": engine.unwrap_or(([127,0,0,1],0).into()).to_string()});
+                worker["secret"] = "secrets/worker.secret".into();
+                file = temper_config_shell::File {
+                    name: Some((*name).into()),
+                    engine: Some(engine.unwrap_or(([127, 0, 0, 1], 0).into())),
+                    ..Default::default()
+                };
                 worker.as_object_mut().expect("worker").remove("graces");
                 worker.as_object_mut().expect("worker").remove("programs");
                 document.document = json!({"workers":document["workers"],"application":{}});
-                fixtures::private(
-                    &data.join(format!("secrets/{name}.secret")),
-                    format!("{name}-fixture-secret").as_bytes(),
-                )
-                .expect("fixture secret");
+                fixtures::private(&data.join("secrets/worker.secret"), format!("{name}-fixture-secret").as_bytes())
+                    .expect("fixture secret");
             }
         }
         if let Some(flags) = document.as_object_mut().expect("cluster document").remove("world_settings") {
             fixtures::private(&data.join("world-settings.json"), &serde_json::to_vec(&flags).expect("world flags"))
                 .expect("world settings");
         }
-        fixtures::private(&config.join("temper.json"), &serde_json::to_vec(&document).expect("cluster document"))
-            .expect("private cluster document");
+        fixtures::file::write(&config, &file, shape).expect("cluster configuration file");
+        document.document = fixtures::file::document(&config, shape);
     }
 }
 

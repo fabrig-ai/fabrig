@@ -255,9 +255,15 @@ impl Place {
     }
 
     fn listeners(&self) {
-        let engine = document(&self.scratch.join("config/engine/temper.json"));
+        let engine = support::start_document(
+            &self.scratch.join("config/engine").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::EngineAlone,
+        );
         let providers = document(&self.scratch.join("config/providers.json"));
-        let worker = document(&self.scratch.join("config/worker/temper.json"));
+        let worker = support::start_document(
+            &self.scratch.join("config/worker").join(temper_config_shell::FILE),
+            temper_config_shell::Shape::WorkerAlone,
+        );
         let agent = document(&self.scratch.join("data/worker/workspaces/agent/agent.json"));
         let model = document(&self.scratch.join("config/model.json"));
         let forge = document(&self.scratch.join("config/forgejo.json"));

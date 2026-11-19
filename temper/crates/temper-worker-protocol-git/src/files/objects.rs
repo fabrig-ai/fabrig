@@ -27,7 +27,9 @@ pub(crate) struct Make {
 #[derive(Debug)]
 enum MakePhase {
     Aside,
+    AsideGitdirs,
     Create,
+    CreateGitdirs,
     Open,
     Move,
     Close,
@@ -71,10 +73,24 @@ impl Make {
                 if stop {
                     return broken();
                 }
+                self.phase = MakePhase::AsideGitdirs;
+                Action::Run(dirs.rename(dirs.gitdirs.expect("layout"), self.workspace.clone()))
+            }
+            MakePhase::AsideGitdirs => {
+                if (result.is_err() && result != Err(Error::NotFound)) || stop {
+                    return broken();
+                }
                 self.phase = MakePhase::Create;
                 Action::Run(mkdir(dirs.workspaces.expect("layout"), &self.workspace))
             }
             MakePhase::Create => {
+                if result.is_err() || stop {
+                    return broken();
+                }
+                self.phase = MakePhase::CreateGitdirs;
+                Action::Run(mkdir(dirs.gitdirs.expect("layout"), &self.workspace))
+            }
+            MakePhase::CreateGitdirs => {
                 if result.is_err() {
                     return broken();
                 }
@@ -137,7 +153,13 @@ impl Store {
     }
     pub fn install(store: Token, directory: &[u8], done: Box<git::Done>) -> Self {
         let phase = if *done == git::Done::Succeeded { StorePhase::Install } else { StorePhase::Discard };
-        Self { token: store, temporary: Box::from(directory), remote: Box::new([]), phase, done }
+        Self {
+            token: store,
+            temporary: Box::from(directory.strip_prefix(b"making/").expect("store path")),
+            remote: Box::new([]),
+            phase,
+            done,
+        }
     }
     pub fn first(&self, dirs: &mut Directories) -> Action {
         let stores = dirs.stores.expect("layout");
@@ -199,7 +221,7 @@ impl Store {
                     return self.first(dirs);
                 }
                 Action::Operation(Next::Run(Command::Store {
-                    directory: self.temporary.clone(),
+                    directory: invocation::joined(&[b"making/", &self.temporary]),
                     remote: self.remote.clone(),
                 }))
             }
@@ -222,27 +244,57 @@ impl Store {
         }
     }
 }
+/// A kept work tree is taken on without opening anything in its run's directory
+/// (protocol/git.status.md, Departs on 2, 4).
+#[derive(Debug)]
+pub(crate) struct Look {
+    directory: Box<[u8]>,
+    closing: bool,
+    stopped: bool,
+}
+impl Look {
+    pub fn new(directory: Box<[u8]>) -> Self {
+        Self { directory, closing: false, stopped: false }
+    }
+    pub fn first(&self, settings: &Settings) -> Action {
+        Action::Run(open(settings.root, self.directory.clone(), OpenHow::DirectoryNoFollow))
+    }
+    pub fn complete(&mut self, result: Result<Done, Error>, stop: bool) -> Action {
+        self.stopped |= stop;
+        if self.closing {
+            return if result.is_err() || self.stopped {
+                broken()
+            } else {
+                Action::Operation(Next::Run(Command::Format))
+            };
+        }
+        match fd(result) {
+            Ok(fd) => {
+                self.closing = true;
+                close(fd)
+            }
+            Err(Error::NotFound) if !self.stopped => Action::Operation(Next::End(git::Done::Looked { holds: false })),
+            Err(_) => broken(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub(crate) struct Alternates {
     path: Box<[u8]>,
     bytes: Box<[u8]>,
     remote: Box<[u8]>,
+    format: invocation::Format,
     fd: Option<Fd>,
     written: u32,
     closing: bool,
     failed: bool,
 }
 impl Alternates {
-    pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>) -> Self {
-        Self {
-            path: invocation::joined(&[&invocation::place(at), b"/.git/objects/info/alternates"]),
-            bytes: invocation::joined(&[b"../../../../../stores/", &name(store), b"/objects\n"]),
-            remote,
-            fd: None,
-            written: 0,
-            closing: false,
-            failed: false,
-        }
+    pub fn new(at: &git::Place, store: Token, remote: Box<[u8]>, format: invocation::Format) -> Self {
+        let path = invocation::joined(&[&invocation::git_dir(at), b"/objects/info/alternates"]);
+        let bytes = invocation::joined(&[b"../../../../stores/", &name(store), b"/objects\n"]);
+        Self { path, bytes, remote, format, fd: None, written: 0, closing: false, failed: false }
     }
     pub fn first(&self, settings: &Settings) -> Action {
         Action::Run(open(settings.root, self.path.clone(), OpenHow::CreateNoFollow { mode: Some(0o600) }))
@@ -253,7 +305,7 @@ impl Alternates {
             return if self.failed || result.is_err() || stop {
                 broken()
             } else {
-                Action::Operation(Next::Run(Command::Remote { remote: self.remote.clone() }))
+                Action::Operation(Next::Run(Command::Remote { remote: self.remote.clone(), format: self.format }))
             };
         }
         if self.fd.is_none() {

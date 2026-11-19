@@ -76,14 +76,12 @@ fn random_wakes_and_restarts_resume_only_warm_sessions_and_record_each_fresh_sta
 #[test]
 fn random_talks_words_leaves_and_wakes_pair_talks_and_resume_only_with_a_live_talk() {
     use jig_core_world::fixtures;
-    use jig_domain_core as core;
     use jig_domain_people as people;
-    use jig_test_domain as root;
     for seed in 51..55 {
         let mut rng = Rng::new(seed);
         let (mut world, mut run, _) = opened();
         let mut suppressed_quiet = false;
-        let mut saw_lapse = false;
+        let mut pairs = crate::sessions::TalkPairs::new(run.0);
         for step in 0..18_u8 {
             consume_and_park(&mut world, run);
             let session = live_row(&world, run.0).session;
@@ -116,25 +114,10 @@ fn random_talks_words_leaves_and_wakes_pair_talks_and_resume_only_with_a_live_ta
                     suppressed_quiet = true;
                 }
             }
-            let mut open = None;
-            for record in world.store.rows.values() {
-                if let root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(line))) = record
-                    && line.task == run.0
-                {
-                    match line.line {
-                        tasks::Line::TalkOpened { party } => assert_eq!(open.replace(party), None),
-                        tasks::Line::TalkEnded { party, lapsed } => {
-                            assert_eq!(open.take(), Some(party), "each opened talk ends exactly once");
-                            saw_lapse |= lapsed;
-                        }
-                        _ => {}
-                    }
-                }
-            }
-            assert_eq!(open, live_row(&world, run.0).talk.map(|talk| talk.party));
+            pairs.check(&world);
             run = next;
         }
-        assert!(suppressed_quiet && saw_lapse, "seed {seed} exercises suppression and lapse");
+        assert!(suppressed_quiet && pairs.saw_lapse, "seed {seed} exercises suppression and lapse");
         world.close();
     }
 }

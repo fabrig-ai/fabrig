@@ -5,22 +5,16 @@ use skein_lib::Wall;
 use temper_engine_domain_forge_vocabulary as d;
 fn encode_holder(value: d::Holder) -> w::FindingHolder {
     match value {
-        d::Holder::Task(number) => {
-            w::FindingHolder::Task(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
-        d::Holder::Party(number) => {
-            w::FindingHolder::Party(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
-        d::Holder::Role(number) => {
-            w::FindingHolder::Role(w::FindingCount::new(&w::CEILINGS, w::FindingCountParts { number }).expect(FITS))
-        }
+        d::Holder::Task(number) => w::FindingHolder::Task(w::Number { number }),
+        d::Holder::Party(number) => w::FindingHolder::Party(w::Number { number }),
+        d::Holder::Role(number) => w::FindingHolder::Role(w::FindingCount { number }),
     }
 }
 fn decode_holder(value: w::FindingHolder) -> d::Holder {
     match value {
-        w::FindingHolder::Task(value) => d::Holder::Task(value.number()),
-        w::FindingHolder::Party(value) => d::Holder::Party(value.number()),
-        w::FindingHolder::Role(value) => d::Holder::Role(value.number()),
+        w::FindingHolder::Task(value) => d::Holder::Task(value.number),
+        w::FindingHolder::Party(value) => d::Holder::Party(value.number),
+        w::FindingHolder::Role(value) => d::Holder::Role(value.number),
     }
 }
 fn encode_refusal(value: &d::FindingRefusal) -> w::FindingRefusal {
@@ -30,67 +24,51 @@ fn encode_refusal(value: &d::FindingRefusal) -> w::FindingRefusal {
             for name in names {
                 listed.push(name.clone()).expect(FITS);
             }
-            w::FindingRefusal::NoArea(
-                w::FindingAreas::new(&w::CEILINGS, w::FindingAreasParts { names: listed }).expect(FITS),
-            )
+            w::FindingRefusal::NoArea(w::FindingAreas { names: listed })
         }
-        d::FindingRefusal::Full(number) => w::FindingRefusal::Full(
-            w::FindingCount::new(&w::CEILINGS, w::FindingCountParts { number: *number }).expect(FITS),
-        ),
-        d::FindingRefusal::NotYours(holder) => w::FindingRefusal::NotYours(
-            w::FindingHeld::new(&w::CEILINGS, w::FindingHeldParts { holder: encode_holder(*holder) }).expect(FITS),
-        ),
+        d::FindingRefusal::Full(number) => w::FindingRefusal::Full(w::FindingCount { number: *number }),
+        d::FindingRefusal::NotYours(holder) => {
+            w::FindingRefusal::NotYours(w::FindingHeld { holder: encode_holder(*holder) })
+        }
         d::FindingRefusal::NoFinding => w::FindingRefusal::NoFinding,
         d::FindingRefusal::NoGoal => w::FindingRefusal::NoGoal,
         d::FindingRefusal::Ended => w::FindingRefusal::Ended,
-        d::FindingRefusal::Words(words) => w::FindingRefusal::Words(
-            w::FindingWords::new(&w::CEILINGS, w::FindingWordsParts { words: words.clone() }).expect(FITS),
-        ),
+        d::FindingRefusal::Words(words) => w::FindingRefusal::Words(w::FindingWords { words: words.clone() }),
     }
 }
 fn decode_refusal(value: w::FindingRefusal) -> d::FindingRefusal {
     match value {
-        w::FindingRefusal::NoArea(value) => d::FindingRefusal::NoArea(value.into_parts().names.into_boxed()),
-        w::FindingRefusal::Full(value) => d::FindingRefusal::Full(value.number()),
-        w::FindingRefusal::NotYours(value) => d::FindingRefusal::NotYours(decode_holder(value.into_parts().holder)),
+        w::FindingRefusal::NoArea(value) => d::FindingRefusal::NoArea(value.names.into_boxed()),
+        w::FindingRefusal::Full(value) => d::FindingRefusal::Full(value.number),
+        w::FindingRefusal::NotYours(value) => d::FindingRefusal::NotYours(decode_holder(value.holder)),
         w::FindingRefusal::NoFinding => d::FindingRefusal::NoFinding,
         w::FindingRefusal::NoGoal => d::FindingRefusal::NoGoal,
         w::FindingRefusal::Ended => d::FindingRefusal::Ended,
-        w::FindingRefusal::Words(value) => d::FindingRefusal::Words(value.into_parts().words),
+        w::FindingRefusal::Words(value) => d::FindingRefusal::Words(value.words),
     }
 }
 pub(super) fn encode_reply(reply: &d::FindingReply) -> w::FindingReply {
     let result = match &reply.result {
-        Ok(d::FindingDone::Filed(holder)) => w::FindingResult::Filed(
-            w::FindingHeld::new(&w::CEILINGS, w::FindingHeldParts { holder: encode_holder(*holder) }).expect(FITS),
-        ),
-        Ok(d::FindingDone::Handed(holder)) => w::FindingResult::Handed(
-            w::FindingHeld::new(&w::CEILINGS, w::FindingHeldParts { holder: encode_holder(*holder) }).expect(FITS),
-        ),
-        Ok(d::FindingDone::Routed(number)) => {
-            w::FindingResult::Routed(w::Number::new(&w::CEILINGS, w::NumberParts { number: *number }).expect(FITS))
+        Ok(d::FindingDone::Filed(holder)) => w::FindingResult::Filed(w::FindingHeld { holder: encode_holder(*holder) }),
+        Ok(d::FindingDone::Handed(holder)) => {
+            w::FindingResult::Handed(w::FindingHeld { holder: encode_holder(*holder) })
         }
+        Ok(d::FindingDone::Routed(number)) => w::FindingResult::Routed(w::Number { number: *number }),
         Ok(d::FindingDone::Backlog) => w::FindingResult::Backlog,
         Ok(d::FindingDone::Dropped) => w::FindingResult::Dropped,
-        Err(why) => w::FindingResult::Refused(
-            w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { why: encode_refusal(why) }).expect(FITS),
-        ),
+        Err(why) => w::FindingResult::Refused(w::FindingRefused { why: encode_refusal(why) }),
     };
-    w::FindingReply::new(
-        &w::CEILINGS,
-        w::FindingReplyParts { project: reply.project, number: reply.number, area: reply.area.clone(), result },
-    )
-    .expect(FITS)
+    w::FindingReply { project: reply.project, number: reply.number, area: reply.area.clone(), result }
 }
 pub(super) fn decode_reply(reply: w::FindingReply) -> d::FindingReply {
-    let w::FindingReplyParts { project, number, area, result } = reply.into_parts();
+    let w::FindingReply { project, number, area, result } = reply;
     let result = match result {
-        w::FindingResult::Filed(value) => Ok(d::FindingDone::Filed(decode_holder(value.into_parts().holder))),
-        w::FindingResult::Handed(value) => Ok(d::FindingDone::Handed(decode_holder(value.into_parts().holder))),
-        w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number())),
+        w::FindingResult::Filed(value) => Ok(d::FindingDone::Filed(decode_holder(value.holder))),
+        w::FindingResult::Handed(value) => Ok(d::FindingDone::Handed(decode_holder(value.holder))),
+        w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number)),
         w::FindingResult::Backlog => Ok(d::FindingDone::Backlog),
         w::FindingResult::Dropped => Ok(d::FindingDone::Dropped),
-        w::FindingResult::Refused(value) => Err(decode_refusal(value.into_parts().why)),
+        w::FindingResult::Refused(value) => Err(decode_refusal(value.why)),
     };
     d::FindingReply { project, number, area, result }
 }
@@ -145,16 +123,14 @@ fn decode_findingstate(value: w::FindingState) -> d::FindingState {
 }
 fn encode_filer(value: d::Filer) -> w::Filer {
     match value {
-        d::Filer::Task(number) => w::Filer::Task(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS)),
-        d::Filer::Party(number) => {
-            w::Filer::Party(w::Number::new(&w::CEILINGS, w::NumberParts { number }).expect(FITS))
-        }
+        d::Filer::Task(number) => w::Filer::Task(w::Number { number }),
+        d::Filer::Party(number) => w::Filer::Party(w::Number { number }),
     }
 }
 fn decode_filer(value: w::Filer) -> d::Filer {
     match value {
-        w::Filer::Task(value) => d::Filer::Task(value.number()),
-        w::Filer::Party(value) => d::Filer::Party(value.number()),
+        w::Filer::Task(value) => d::Filer::Task(value.number),
+        w::Filer::Party(value) => d::Filer::Party(value.number),
     }
 }
 fn encode_signature(signature: &d::FindingSignature) -> w::FindingSignature {
@@ -162,19 +138,15 @@ fn encode_signature(signature: &d::FindingSignature) -> w::FindingSignature {
     for id in &signature.ids {
         ids.push(id.clone()).expect(FITS);
     }
-    w::FindingSignature::new(
-        &w::CEILINGS,
-        w::FindingSignatureParts {
-            repository: super::names::encode_repository(signature.repository),
-            source: signature.source.clone(),
-            ids,
-            first: signature.first.clone(),
-        },
-    )
-    .expect(FITS)
+    w::FindingSignature {
+        repository: super::names::encode_repository(signature.repository),
+        source: signature.source.clone(),
+        ids,
+        first: signature.first.clone(),
+    }
 }
 fn decode_signature(signature: w::FindingSignature) -> Result<d::FindingSignature, Undecodable> {
-    let w::FindingSignatureParts { repository, source, ids, first } = signature.into_parts();
+    let w::FindingSignature { repository, source, ids, first } = signature;
     let signature = d::FindingSignature {
         repository: super::names::decode_repository(repository),
         source,
@@ -187,37 +159,33 @@ fn decode_signature(signature: w::FindingSignature) -> Result<d::FindingSignatur
     Ok(signature)
 }
 pub(super) fn encode(row: &d::Finding) -> w::Finding {
-    w::Finding::new(
-        &w::CEILINGS,
-        w::FindingParts {
-            project: row.project,
-            number: row.number,
-            kind: encode_findingkind(row.kind),
-            severity: encode_severity(row.severity),
-            area: row.area.clone(),
-            state: encode_findingstate(row.state),
-            title: row.title.clone(),
-            body: row.body.clone(),
-            filer: encode_filer(row.filer),
-            at: row.at.as_nanos(),
-            why: row.why.clone(),
-            hander: match row.hander {
-                Some(value) => Some(encode_filer(value)),
-                None => None,
-            },
-            goal: row.goal,
-            reason: row.reason.clone(),
-            signature: match &row.signature {
-                Some(signature) => Some(encode_signature(signature)),
-                None => None,
-            },
-            seen: row.seen,
+    w::Finding {
+        project: row.project,
+        number: row.number,
+        kind: encode_findingkind(row.kind),
+        severity: encode_severity(row.severity),
+        area: row.area.clone(),
+        state: encode_findingstate(row.state),
+        title: row.title.clone(),
+        body: row.body.clone(),
+        filer: encode_filer(row.filer),
+        at: row.at.as_nanos(),
+        why: row.why.clone(),
+        hander: match row.hander {
+            Some(value) => Some(encode_filer(value)),
+            None => None,
         },
-    )
-    .expect(FITS)
+        goal: row.goal,
+        reason: row.reason.clone(),
+        signature: match &row.signature {
+            Some(signature) => Some(encode_signature(signature)),
+            None => None,
+        },
+        seen: row.seen,
+    }
 }
 pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
-    let w::FindingParts {
+    let w::Finding {
         project,
         number,
         kind,
@@ -234,7 +202,7 @@ pub(super) fn decode(row: w::Finding) -> Result<d::Finding, Undecodable> {
         reason,
         signature,
         seen,
-    } = row.into_parts();
+    } = row;
     if number == 0 || !d::settings::words_fit(&title, 200) || !d::findings::body_fits(&body) {
         return Err(Undecodable::Malformed);
     }

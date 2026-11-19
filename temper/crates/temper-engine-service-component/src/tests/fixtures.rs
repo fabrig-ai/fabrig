@@ -3,6 +3,7 @@ use jig_domain_host as host;
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant};
 use skein_lib::{Secret, Token};
 use temper_protocol_records_forge as forge_records;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;
@@ -52,6 +53,8 @@ pub fn engine() -> settings::Engine {
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: None,
         directories: jig_protocol_config::Directories::working(),
         jig,
@@ -1236,7 +1239,7 @@ pub fn clients() -> crate::clients::Clients {
     .unwrap()
 }
 mod startup;
-pub use startup::{APPLICATION, Json, demo_service, document, files, value, with};
+pub use startup::{APPLICATION, Json, demo_service, document, files, value};
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime

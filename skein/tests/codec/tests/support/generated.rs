@@ -45,19 +45,19 @@ macro_rules! roots {
 }
 
 macro_rules! lean_roots {
-    ($($name:ident),+ $(,)?) => {
+    ($module:ident; $($name:ident),+ $(,)?) => {
         &[$(Root {
             name: stringify!($name),
             decode: |bytes| {
-                use skein_codec_tests::every_v3_lean::{self, Record, $name};
-                match $name::decode(&every_v3_lean::CEILINGS, &mut Reader::new(bytes)) {
+                use skein_codec_tests::$module::{self, Record, $name};
+                match $name::decode(&$module::CEILINGS, &mut Reader::new(bytes)) {
                     Ok(value) => Decoded::Value {
                         debug: format!("{value:?}"),
-                        bytes: value.encode(&every_v3_lean::CEILINGS).expect("decoded value encodes").into_vec(),
-                        measured: value.measure(&every_v3_lean::CEILINGS).expect("decoded value measures"),
+                        bytes: value.encode(&$module::CEILINGS).expect("decoded value encodes").into_vec(),
+                        measured: value.measure(&$module::CEILINGS).expect("decoded value measures"),
                     },
                     Err(problem) => Decoded::Problem {
-                        path: every_v3_lean::name(problem.path).expect("generated path").into(),
+                        path: $module::name(problem.path).expect("generated path").into(),
                         reason: problem.reason,
                     },
                 }
@@ -84,7 +84,7 @@ pub fn every_lean() -> Family {
     Family {
         name: "every",
         text: skein_codec_tests::EVERY_SCHEMA,
-        roots: lean_roots!(
+        roots: lean_roots!(every_v3_lean;
             Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every, Kinds, Lists, Options, Grouped, Held, LongRecord
         ),
     }
@@ -95,7 +95,7 @@ pub fn families() -> [Family; 7] {
         Family {
             name: "sample",
             text: skein_codec_tests::SAMPLE_SCHEMA,
-            roots: roots!(v1; Field, Effect, Report, Choice, Marker),
+            roots: lean_roots!(v1; Field, Effect, Report, Choice, Marker),
         },
         Family {
             name: "scalars",

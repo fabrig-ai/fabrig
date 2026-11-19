@@ -492,7 +492,19 @@ fn jigs_problems_keep_their_paths_under_engine() {
 fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures() {
     let document = super::stock::generated();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
-    let mut checked = crate::startup::checked_start_with(
+    let part = crate::startup::box_worker_with_agent(
+        &document,
+        &config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        4,
+        &[],
+        &agent.declaration(),
+    )
+    .unwrap()
+    .expect("local worker from its default setting");
+    let git = part.limits.git_component;
+    let mut checked = crate::startup::checked_start_with_worker(
         &document,
         &config::Directories::working(),
         &super::stock::files(),
@@ -502,6 +514,7 @@ fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures()
         None,
         &crate::stock::Given::Stock,
         None,
+        Some(part),
     )
     .unwrap();
     let own = checked.engine.limits;
@@ -518,7 +531,7 @@ fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures()
     assert_eq!(settings.jig.limits.as_ref().unwrap().hub.run_calls, 48);
     assert_eq!(prepared.root.checkout, crate::worker_settings::checkout(worker.checkout));
     assert_eq!(prepared.payload, crate::worker_settings::payload_limits(&worker).unwrap());
-    assert_eq!(checked.engine.limits.git_component, stock.git_component);
+    assert_eq!(git, stock.git_component);
 }
 
 #[test]
@@ -589,15 +602,15 @@ fn typed_box_start_names_what_to_raise_for_eight_slots() {
         &config::Directories::working(),
         &crate::stock::Given::Stock,
         &crate::stock::agents(),
+        4,
         &[],
         None,
         (&derived.jig, &derived.own),
     )
     .unwrap()
     .unwrap();
-    assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, 8);
+    assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, 4);
     for (name, expected) in [
-        ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots\n"),
         (
             "checkout.workspaces",
             "workers[0].slots: must agree with application.limits.overrides.checkout.workspaces, at least the slots\n",
@@ -609,10 +622,9 @@ fn typed_box_start_names_what_to_raise_for_eight_slots() {
     ] {
         let mut short = input.clone();
         match name {
-            "fleet.slots" => short.jig.core.fleet.slots = 7,
             "checkout.workspaces" => short.own.checkout.workspaces = 7,
             "git_component.operations" => short.own.git_component.operations = 7,
-            _ => unreachable!("three independent slot bounds"),
+            _ => unreachable!("two independent slot bounds"),
         }
         let Err(refused) = eight_slot_start(&short) else { panic!("short {name} started") };
         assert_eq!(lines(&refused).as_ref(), expected.as_bytes(), "{name}");
@@ -657,6 +669,7 @@ fn limit_settings_reach_the_box_workers_checkout_git_and_peer() {
         &directories,
         &crate::stock::Given::Stock,
         &crate::stock::agents(),
+        4,
         &[],
         Some(&agent.declaration()),
         (&resolved.jig, &resolved.temper),

@@ -101,9 +101,10 @@ impl<T: Transport> Git<T> {
                 jobs.push_back(Job::Input(*pipes.get(&0).expect("commit stdin")));
             }
             match &checked.command {
+                Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
                 Command::Version => {}
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
-                    jobs.push_back(Job::Scan(path(&checked.at, directory)));
+                    jobs.push_back(Job::Scan(path(&checked.root, directory)));
                 }
                 Command::Reds(_)
                 | Command::Format
@@ -124,9 +125,17 @@ impl<T: Transport> Git<T> {
                 | Command::MergeBases { .. }
                 | Command::BringsList { .. }
                 | Command::IsAncestor { .. }
-                | Command::Push { .. } => jobs.push_back(Job::Metadata(checked.at.to_vec())),
+                | Command::Push { .. } => jobs.push_back(match &checked.git_dir {
+                    Some(directory) => Job::Scan(directory.to_vec()),
+                    None => Job::Metadata(checked.at.to_vec()),
+                }),
                 Command::CheckOut { .. } | Command::Clean | Command::Merge { .. } | Command::Add => {
                     jobs.push_back(Job::Scan(checked.at.to_vec()));
+                    if let Some(directory) = &checked.git_dir
+                        && directory.as_ref() != checked.at.as_ref()
+                    {
+                        jobs.push_back(Job::Scan(directory.to_vec()));
+                    }
                 }
             }
         }
@@ -160,10 +169,15 @@ impl<T: Transport> Git<T> {
     // directories stay outside both sides of the disk diff, so they stay intact.
     fn needs_directory(&self, directory: &[u8], name: &[u8]) -> bool {
         let checked = self.checked.as_ref().expect("scanning a checked invocation");
-        if directory != path(&checked.at, b".git") && !(self.bare && directory == checked.at.as_ref()) {
+        let metadata = checked
+            .git_dir
+            .as_deref()
+            .map_or_else(|| if self.bare { checked.at.to_vec() } else { path(&checked.at, b".git") }, <[u8]>::to_vec);
+        if directory != metadata {
             return true;
         }
         match &checked.command {
+            Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
             Command::Version | Command::Origin { .. } | Command::Clone { .. } | Command::Store { .. } => true,
             Command::Clean | Command::Add | Command::SnapshotReset { .. } => {
                 name == b"temper-index" || name == b"temper-conflicts"
@@ -175,8 +189,7 @@ impl<T: Transport> Git<T> {
                 temper_worker_protocol_git::reds::CheckCommand::Pin
                 | temper_worker_protocol_git::reds::CheckCommand::Base { .. } => name == b"refs",
                 temper_worker_protocol_git::reds::CheckCommand::Ancestor { .. } => name == b"objects",
-                temper_worker_protocol_git::reds::CheckCommand::Path { .. }
-                | temper_worker_protocol_git::reds::CheckCommand::Merge => false,
+                temper_worker_protocol_git::reds::CheckCommand::Merge => false,
             },
             Command::Format
             | Command::Remote { .. }
@@ -299,6 +312,13 @@ impl<T: Transport> Git<T> {
                     self.jobs.push_front(Job::List(path.clone(), fd));
                     for entry in entries.iter().take(usize::try_from(count).expect("eight entries")) {
                         let full = path_of_entry(&path, *entry, &names);
+                        // Explicit metadata is scanned separately, never through the work tree.
+                        if let Some(checked) = &self.checked
+                            && checked.git_dir.is_some()
+                            && full == crate::answer::path(&checked.at, b".git")
+                        {
+                            continue;
+                        }
                         if entry.kind == k::Kind::Directory
                             && !self.needs_directory(&path, entry.name(&names).expect("listed name"))
                         {
@@ -475,7 +495,11 @@ impl<T: Transport> Git<T> {
         let checked = self.checked.as_ref().expect("admitted route invocation");
         let remote = crate::check::remote(&checked.command)
             .map(<[u8]>::to_vec)
-            .or_else(|| self.files.get(&path(&checked.at, b".git/temper-remote")).cloned())
+            .or_else(|| {
+                self.files
+                    .get(&path(checked.git_dir.as_deref().unwrap_or(&path(&checked.at, b".git")), b"temper-remote"))
+                    .cloned()
+            })
             .unwrap_or_default();
         let result = crate::exchange::Exchange::new(call, remote).and_then(|exchange| {
             let limits = self.transport.route_limits().expect("missing call's route limits");

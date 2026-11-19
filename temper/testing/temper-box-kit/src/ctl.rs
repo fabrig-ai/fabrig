@@ -1423,6 +1423,13 @@ pub fn limit_settings(directory: &Path, overrides: &[(&str, &str, u64, &str)]) -
                     serde_json::from_slice(&std::fs::read(&file).expect("limit FILE")).expect("limit JSON");
                 items.extend(change["items"].as_array().expect("limit items").iter().cloned());
             }
+            let local = directory.join("local-worker-settings.json");
+            if local.exists() {
+                let local: serde_json::Value =
+                    serde_json::from_slice(&std::fs::read(local).expect("local worker settings"))
+                        .expect("worker settings JSON");
+                items.extend(local["items"].as_array().expect("local worker items").iter().cloned());
+            }
             super::write_private(
                 &file,
                 &serde_json::to_vec(&serde_json::json!({"items":items})).expect("limit settings JSON"),

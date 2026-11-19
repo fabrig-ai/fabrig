@@ -1,5 +1,6 @@
 //! The member's goal hears every committed transition (domain/landing.md, 4.2).
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 fn produced_goal() -> (World, u64, u64) {
     produced_goal_with_checks(1000)
@@ -455,7 +456,7 @@ fn a_batch_request_grants_every_prefix_and_each_goal_hears_its_own_prefix() {
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("job spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("worker request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("worker request");
     assert_eq!(request["from"], hex(&row.landing.members[0].base.expect("base")));
     let members = request["members"].as_array().expect("members");
     assert_eq!(members.len(), 3);

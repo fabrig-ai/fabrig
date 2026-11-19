@@ -38,14 +38,17 @@ const SETTINGS: &[&[u8]] = &[
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
 #[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
-fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 25] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
     [
-        (Command::Remote { remote: remote.clone() }, &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE]),
         (
-            Command::Store { remote: remote.clone(), directory: Box::from(&b"1"[..]) },
+            Command::Remote { remote: remote.clone(), format: invocation::Format::Sha1 },
+            &[b"remote", b"add", b"origin", b"--", fixtures::REMOTE],
+        ),
+        (
+            Command::Store { remote: remote.clone(), directory: Box::from(&b"making/1"[..]) },
             &[
                 b"clone",
                 b"--bare",
@@ -55,22 +58,30 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 24] {
                 b"--quiet",
                 b"--",
                 fixtures::REMOTE,
-                b"1",
+                b"making/1",
             ],
         ),
         (Command::Format, &[b"rev-parse", b"--show-object-format"]),
         (
-            Command::Clone { directory: Box::from(&b"app"[..]), format: invocation::Format::Sha256 },
+            Command::Clone { directory: Box::from(&b"app"[..]), format: invocation::Format::Sha256, bare: false },
             &[b"init", b"--quiet", b"--object-format=sha256", b"--", b"app"],
+        ),
+        (
+            Command::Clone {
+                directory: Box::from(b"gitdirs/0/fabrig".as_slice()),
+                format: invocation::Format::Sha1,
+                bare: true,
+            },
+            &[b"init", b"--quiet", b"--bare", b"--object-format=sha1", b"--", b"gitdirs/0/fabrig"],
         ),
         (Command::UpdateRef { into: git::Into::Fetched, commit }, &[b"update-ref", b"refs/temper/fetched", ID]),
         (Command::Version, &[b"version"]),
         (
-            Command::Origin { directory: Box::from(&b"workspaces/0/app"[..]) },
-            &[b"--git-dir=workspaces/0/app/.git", b"config", b"--local", b"--get", b"remote.origin.url"],
+            Command::Origin { directory: Box::from(&b"gitdirs/0/fabrig"[..]) },
+            &[b"--git-dir=gitdirs/0/fabrig", b"config", b"--local", b"--get", b"remote.origin.url"],
         ),
         (
-            Command::Clone { directory: Box::from(&b"app"[..]), format: invocation::Format::Sha1 },
+            Command::Clone { directory: Box::from(&b"app"[..]), format: invocation::Format::Sha1, bare: false },
             &[b"init", b"--quiet", b"--object-format=sha1", b"--", b"app"],
         ),
         (
@@ -216,11 +227,50 @@ fn each_command_s_arguments_are_git_md_s_vector() {
             b"abababababababababababababababababababab:refs/heads/temper/7",
         ][..],
     )]) {
-        let actual = invocation::arguments(&command);
-        assert_eq!(actual.len(), SETTINGS.len() + tail.len(), "{command:?}");
-        for (got, expected) in actual.iter().zip(SETTINGS.iter().chain(tail.iter())) {
-            assert_eq!(&**got, *expected, "{command:?}");
+        let actual = invocation::arguments_for(&operation(&command), &command);
+        let mut expected = skein_lib::List::uncapped();
+        for word in SETTINGS {
+            expected.push(Box::from(*word)).expect("uncapped");
         }
+        let tail = if tail.starts_with(&[b"-c", b"remote.origin.promisor=true"]) {
+            for word in tail.get(..2).expect("promisor") {
+                expected.push(Box::from(*word)).expect("uncapped");
+            }
+            tail.get(2..).expect("command")
+        } else {
+            tail
+        };
+        let directories: &[&[u8]] = match command {
+            Command::Version | Command::Clone { .. } | Command::Store { .. } | Command::Origin { .. } => &[],
+            Command::Format | Command::Fetch { .. } => &[b"--git-dir=stores/9"],
+            Command::Reds(_)
+            | Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::SnapshotFetch { .. }
+            | Command::SnapshotReachable { .. }
+            | Command::SnapshotReset { .. }
+            | Command::Remote { .. }
+            | Command::UpdateRef { .. }
+            | Command::Create { .. }
+            | Command::CheckOut { .. }
+            | Command::Clean
+            | Command::Merge { .. }
+            | Command::Unmerged
+            | Command::UpdateIndex { .. }
+            | Command::Add
+            | Command::DiffIndex { .. }
+            | Command::DiffPaths { .. }
+            | Command::WriteTree
+            | Command::CommitTree { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
+            | Command::IsAncestor { .. }
+            | Command::Push { .. } => &[b"--git-dir=gitdirs/0/fabrig", b"--work-tree=workspaces/0/fabrig"],
+        };
+        for word in directories.iter().chain(tail.iter()) {
+            expected.push(Box::from(*word)).expect("uncapped");
+        }
+        assert_eq!(actual.as_ref(), expected.as_slice(), "{command:?}");
     }
     for (workspace, expected) in [
         (0, b"workspaces/0/app".as_slice()),
@@ -238,6 +288,59 @@ fn each_command_s_arguments_are_git_md_s_vector() {
         );
     }
 }
+fn operation(command: &Command) -> git::Op {
+    let at = git::Place { git: None, workspace: Token::new(0), repository: Box::from(b"fabrig".as_slice()) };
+    if let Command::Format = command {
+        git::Op::Clone { at, store: Token::new(9), remote: Box::from(fixtures::REMOTE) }
+    } else {
+        git::Op::Fetch {
+            at,
+            store: Token::new(9),
+            remote: Box::from(fixtures::REMOTE),
+            want: git::Want::Default,
+            into: git::Into::Fetched,
+            identity: 1,
+            account: None,
+        }
+    }
+}
+
+#[test]
+fn no_command_spawns_anywhere_but_the_worker_root() {
+    let commit = fixtures::COMMIT;
+    let mut commands = skein_lib::List::uncapped();
+    for (command, _) in rows() {
+        commands.push(command).expect("uncapped commands");
+    }
+    for command in [
+        Command::Reds(crate::reds::CheckCommand::Pin),
+        Command::SnapshotHead,
+        Command::SnapshotMerge { head: commit, second: None },
+        Command::SnapshotFetch { remote: Box::from(fixtures::REMOTE), head: commit, merging: None, second: commit },
+        Command::SnapshotReachable { head: commit, merging: None, second: commit },
+        Command::SnapshotReset { commit },
+        Command::DiffPaths { before: commit, after: commit },
+        Command::MergeBases { head: commit, upstream: commit },
+        Command::BringsList { bases: Box::new([commit]), base: commit },
+    ] {
+        commands.push(command).expect("uncapped commands");
+    }
+    for command in commands.into_boxed() {
+        let mut below = fixtures::Below::new();
+        let mut operation = crate::operation::Operation::new(
+            fixtures::OWNER,
+            fixtures::OWNER,
+            fixtures::DEADLINE,
+            Some(operation(&command)),
+            Some(fixtures::identity()),
+            command.clone(),
+        );
+        operation.spawn(fixtures::OWNER, command, &fixtures::settings(), &mut below.out);
+        let Some(skein_io::Request::Spawn { spawn, .. }) = below.out.io.pop() else { panic!("spawn") };
+        assert!(spawn.dir.is_empty(), "spawn dir: {:?}", spawn.dir);
+    }
+}
+
 #[test]
 fn a_remote_operation_carries_the_token_only_in_its_header() {
     let identity = fixtures::identity();

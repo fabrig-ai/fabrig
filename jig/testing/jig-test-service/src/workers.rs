@@ -15,17 +15,21 @@ pub(super) struct Workers {
     endpoints: List<jig_protocol_charter::EndpointName>,
 }
 impl Workers {
-    pub fn new(config: &config::Engine, deployment: [u8; 16], limits: &kit::Limits) -> Result<Self, Problems> {
+    pub fn new(
+        config: &config::Engine,
+        deployment: [u8; 16],
+        limits: &kit::Limits,
+        schema: Option<skein_channel::Schema>,
+    ) -> Result<Self, Problems> {
         let tokens = kit::host::Tokens {
             listeners: crate::tokens::WORKER_LISTENERS,
             connections: crate::tokens::WORKER_CONNECTIONS,
         };
-        let mut host = kit::host::Workers::new(
-            config,
-            tokens,
-            jig_protocol_worker_wire::Application::opaque(List::with_capacity(0)),
-            limits,
-        )?;
+        let application = jig_protocol_worker_wire::Application::opaque(List::with_capacity(0));
+        let mut host = match schema {
+            Some(schema) => kit::host::Workers::with_schema(config, tokens, application, limits, schema),
+            None => kit::host::Workers::new(config, tokens, application, limits),
+        }?;
         let mut limits_by_name = List::with_capacity(wire::CEILINGS.figures_limits);
         for (name, value) in &config::overrides::list(&config.limits) {
             limits_by_name.push(wire::Limit { name: name.as_bytes().into(), value: *value }).expect("uncapped limits");

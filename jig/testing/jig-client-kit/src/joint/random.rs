@@ -88,12 +88,14 @@ fn client(seed: u64) -> (jig_client_test_domain::Domain, jig_client_test_view::V
     crate::test::new(&receiving(), seed)
 }
 fn ready(seed: u64) -> (World<Test, Joint>, crate::ClientId) {
+    // This sweep observes the trees and durable store, not copies of whole offer packets.
     let mut world = fixture::seeded_world_with_receiving(
         seed,
         fixture::turn(),
         |front| front.restart_configuration(configuration),
         |limits| limits.core.views.watchers = 12,
         &receiving(),
+        false,
     );
     world.randomness(8, 0, 0);
     let client = world.client_with(1, crate::stories::conversation(), receiving(), client);

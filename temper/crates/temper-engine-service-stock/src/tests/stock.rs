@@ -9,30 +9,7 @@ use jig_protocol_config as config;
 
 /// The complete startup document emitted by init for fixed machine facts.
 pub(super) fn generated() -> Box<[u8]> {
-    use core::num::NonZeroU16;
-    let answer = temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports {
-                clients: NonZeroU16::new(8367).unwrap(),
-                webhooks: NonZeroU16::new(8371).unwrap(),
-            },
-        },
-        &temper_init::Directories { config: b"/config", data: b"/data" },
-        &[0; 32],
-    )
-    .unwrap();
-    for file in answer.files {
-        if file.name == b"temper.json" {
-            let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("document bytes") };
-            return bytes;
-        }
-    }
-    panic!("init writes temper.json")
+    temper_config_shell::init_document(false)
 }
 pub(super) fn engine(document: &[u8]) -> config::Engine {
     let mut base = config::stock();
@@ -1124,7 +1101,7 @@ fn every_stock_charter_names_its_first_choices_and_the_rest() {
             ],
         ),
         (
-            engine(include_bytes!("../../../temper-init/template/bare.json")).llm,
+            engine(&temper_config_shell::init_document(false)).llm,
             vec![
                 "claude-opus-5-5",
                 "gpt-6.1-sol",
@@ -2345,7 +2322,7 @@ fn stock_numbers_each_model_for_good() {
 
 #[test]
 fn all_deployments_keep_seven_models_and_the_boxs_default_is_scripted() {
-    let bare = engine(include_bytes!("../../../temper-init/template/bare.json"));
+    let bare = engine(&temper_config_shell::init_document(false));
     let models = crate::stock::models(&bare.llm);
     assert_eq!(models.iter().map(|entry| entry.number).collect::<Box<[_]>>().as_ref(), [1, 2, 3, 4, 5, 6, 7]);
     let mut llm = with_scripted(engine(&generated()).llm);

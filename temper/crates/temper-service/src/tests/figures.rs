@@ -16,6 +16,7 @@ fn the_box_keeps_entries_then_its_own_home_and_path() {
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &crate::stock::agents(),
+        4,
         &own,
     )
     .unwrap()
@@ -45,6 +46,50 @@ fn the_box_keeps_entries_then_its_own_home_and_path() {
 }
 
 #[test]
+fn the_box_builds_at_local_places_not_document_slots() {
+    let mut document: serde_json::Value = serde_json::from_slice(&fixtures::stock_document()).unwrap();
+    let directories = jig_protocol_config::Directories::working();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    for (slots, places) in [(1_u32, 4), (4, 4), (1, 2), (4, 2), (41, 2)] {
+        document["workers"][0]["slots"] = slots.into();
+        let bytes = serde_json::to_vec(&document).unwrap();
+        let part = startup::box_worker(
+            &bytes,
+            &directories,
+            &crate::stock::Given::Stock,
+            &crate::stock::agents(),
+            places,
+            &[],
+        )
+        .unwrap()
+        .unwrap();
+        assert_eq!(part.figures.as_ref().unwrap().places, places);
+        assert_eq!(part.worker.jig.slots, places);
+        assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, places);
+        assert_eq!(part.limits.checkout.workspaces, places);
+        assert_eq!(part.limits.git_component.operations, places);
+        let checked = startup::checked_start_with_worker(
+            &bytes,
+            &directories,
+            &fixtures::stock_files(),
+            Some(&agent),
+            &fixtures::seeds(),
+            skein_lib::List::with_capacity(0),
+            None,
+            &crate::stock::Given::Stock,
+            None,
+            Some(part),
+        )
+        .unwrap();
+        assert_eq!(checked.engine.jig.limits.core.fleet.slots, 32);
+        let (worker, prepared) = checked.worker.unwrap();
+        assert_eq!(worker.jig.slots, places);
+        assert_eq!(prepared.root.host.slots, places);
+        assert_eq!(prepared.link.sizes.slots, places);
+    }
+}
+
+#[test]
 fn a_box_derives_its_composed_carriers_from_its_agent() {
     use temper_client_protocol_wire::v1 as w;
 
@@ -70,6 +115,7 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &agents,
+        4,
         &[],
         Some(&declaration),
         (&jig, &own),
@@ -99,6 +145,7 @@ fn an_engine_alone_refuses_application_environment() {
         &jig_protocol_config::Directories::working(),
         &crate::stock::Given::Stock,
         &crate::stock::agents(),
+        4,
         &[],
     )
     .unwrap_err();
@@ -113,7 +160,7 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
     let seeds = fixtures::seeds();
     let given = crate::stock::Given::Stock;
     let agents = crate::stock::agents();
-    let part = startup::box_worker(&document, &directories, &given, &agents, &[]).unwrap().unwrap();
+    let part = startup::box_worker(&document, &directories, &given, &agents, 4, &[]).unwrap().unwrap();
     let built = part.figures.clone().unwrap();
     let mut checked = startup::checked_start_with_worker(
         &document,
@@ -133,7 +180,7 @@ fn in_process_opening_is_quiet_until_the_engines_figures_change() {
         skein_lib::Duration::from_millis(60_000)
     );
     let mut opening = temper_engine_service::figures::compose(&checked.engine, &agents);
-    opening.places = checked.engine.jig.limits.core.fleet.slots;
+    opening.places = 4;
 
     assert_eq!(built, opening, "the in-process host sends what the box composed");
     // This worker-notice fixture has no accounts shell.

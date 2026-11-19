@@ -51,7 +51,7 @@ pub fn apply(part: &mut WorkerPart, figures: Figures) -> Result<List<Box<[u8]>>,
             found.push(figure_path(name, value), what);
         }
     }
-    part.worker.jig.slots = part.worker.jig.slots.min(figures.places);
+    part.worker.jig.slots = figures.places;
     part.worker.jig.stop_bound = match config::stop_bound(&part.worker.jig.graces, jig.link.ping, jig.link.silence) {
         Some(bound) => bound,
         None => {

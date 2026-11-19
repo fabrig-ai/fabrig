@@ -43,33 +43,47 @@ fn engine_delegated(inherited: &Inherited) -> Proc {
     engine_configured(inherited, Case::Delegated)
 }
 fn engine_configured(inherited: &Inherited, case: Case) -> Proc {
-    let document = String::from_utf8(fixtures::engine_document())
-        .expect("engine JSON")
-        .replace(
-            r#""sources":{"keys":true}"#,
-            r#""manage_usage":"https://usage.example/","sources":{"programs":["claude_code"]}"#,
-        )
-        .replace(r#""dialect": 3,"#, r#""dialect": 3, "program": "claude_code","#)
-        .replace(r#""window": 1048576"#, r#""window": 272000"#)
-        .replace(r#""inspect": false"#, r#""inspect": true"#);
-    let document = if case == Case::Delegated {
-        document
-            .replace(r#""tools": 0"#, &format!(r#""tools": {}"#, core::ToolFamilies::JIG.delegate.0))
-            .replace(r#""maximum_run_spend": 100"#, r#""maximum_run_spend": 20"#)
-            .replace(r#""tasks.project_tasks":1"#, r#""tasks.project_tasks":2"#)
-            .replace(r#""tasks.tree_tasks":1"#, r#""tasks.tree_tasks":2"#)
+    static ANSWER: std::sync::OnceLock<jig_test_service::Prepared> = std::sync::OnceLock::new();
+    static OPEN: std::sync::OnceLock<jig_test_service::Prepared> = std::sync::OnceLock::new();
+    static DELEGATED: std::sync::OnceLock<jig_test_service::Prepared> = std::sync::OnceLock::new();
+    let cache = if case == Case::Open {
+        &OPEN
+    } else if case == Case::Delegated {
+        &DELEGATED
     } else {
-        document
+        &ANSWER
     };
-    if case == Case::Open {
-        let mut document: serde_json::Value = serde_json::from_str(&document).expect("engine JSON");
-        document["engine"]["templates"][0]["ended_by"] = "requester".into();
-        // Only the listening interval changes; the run and reserve deadlines stay fixed.
-        document["engine"]["charters"][0]["waiting_ms"] = 10.into();
-        processes::engine_document(inherited, &serde_json::to_vec(&document).expect("Open engine JSON"))
-    } else {
-        processes::engine_document(inherited, document.as_bytes())
-    }
+    let prepared = cache.get_or_init(|| {
+        let document = String::from_utf8(fixtures::engine_document())
+            .expect("engine JSON")
+            .replace(
+                r#""sources":{"keys":true}"#,
+                r#""manage_usage":"https://usage.example/","sources":{"programs":["claude_code"]}"#,
+            )
+            .replace(r#""dialect": 3,"#, r#""dialect": 3, "program": "claude_code","#)
+            .replace(r#""window": 1048576"#, r#""window": 272000"#)
+            .replace(r#""inspect": false"#, r#""inspect": true"#);
+        let document = if case == Case::Delegated {
+            document
+                .replace(r#""tools": 0"#, &format!(r#""tools": {}"#, core::ToolFamilies::JIG.delegate.0))
+                .replace(r#""maximum_run_spend": 100"#, r#""maximum_run_spend": 20"#)
+                .replace(r#""tasks.project_tasks":1"#, r#""tasks.project_tasks":2"#)
+                .replace(r#""tasks.tree_tasks":1"#, r#""tasks.tree_tasks":2"#)
+        } else {
+            document
+        };
+        if case == Case::Open {
+            let mut document: serde_json::Value = serde_json::from_str(&document).expect("engine JSON");
+            document["engine"]["templates"][0]["ended_by"] = "requester".into();
+            // Only the listening interval changes; the run and reserve deadlines stay fixed.
+            document["engine"]["charters"][0]["waiting_ms"] = 10.into();
+            jig_test_service::prepare(&serde_json::to_vec(&document).expect("Open engine JSON"))
+                .expect("Open configuration")
+        } else {
+            jig_test_service::prepare(document.as_bytes()).expect("program configuration")
+        }
+    });
+    processes::engine_document(inherited, prepared)
 }
 pub(crate) fn declarations() -> smith_agent_service::profile::Configuration {
     let mut declarations = smith_agent_process_world::declarations(4096);
@@ -258,11 +272,9 @@ pub struct Run {
     pub results: Vec<u64>,
 }
 impl Run {
-    fn worker(&mut self, wire: &processes::Wire) -> Result<(), String> {
+    fn worker(&mut self, wire: &processes::Wire, observed: &mut usize) -> Result<(), String> {
         self.starts = u32::try_from(wire.placements.len()).map_err(|why| format!("attempts: {why:?}"))?;
-        self.grants.clear();
-        self.messages.clear();
-        for (_, kind, body) in &wire.frames {
+        for (_, kind, body) in &wire.frames[*observed..] {
             if *kind == wire::Kind::Assignment.number() {
                 let assignment = wire::Assignment::decode(&wire::CEILINGS, &mut Reader::new(body))
                     .map_err(|why| format!("assignment: {why:?}"))?;
@@ -280,33 +292,26 @@ impl Run {
                     }
                 }
             }
+            if *kind == wire::Kind::Answer.number() {
+                self.answers.push(
+                    wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(body))
+                        .map_err(|why| format!("answer: {why:?}"))?,
+                );
+            }
+            if *kind == wire::Kind::Limited.number() {
+                self.limited.push(
+                    wire::Limited::decode(&wire::CEILINGS, &mut Reader::new(body))
+                        .map_err(|why| format!("limited notice: {why:?}"))?,
+                );
+            }
+            if *kind == wire::Kind::Unauthorized.number() {
+                self.unauthorized.push(
+                    wire::Unauthorized::decode(&wire::CEILINGS, &mut Reader::new(body))
+                        .map_err(|why| format!("unauthorized notice: {why:?}"))?,
+                );
+            }
         }
-        self.answers = wire
-            .frames
-            .iter()
-            .filter(|(_, kind, _)| *kind == wire::Kind::Answer.number())
-            .map(|(_, _, body)| {
-                wire::Answer::decode(&wire::CEILINGS, &mut Reader::new(body)).map_err(|why| format!("answer: {why:?}"))
-            })
-            .collect::<Result<_, _>>()?;
-        self.limited = wire
-            .frames
-            .iter()
-            .filter(|(_, kind, _)| *kind == wire::Kind::Limited.number())
-            .map(|(_, _, body)| {
-                wire::Limited::decode(&wire::CEILINGS, &mut Reader::new(body))
-                    .map_err(|why| format!("limited notice: {why:?}"))
-            })
-            .collect::<Result<_, _>>()?;
-        self.unauthorized = wire
-            .frames
-            .iter()
-            .filter(|(_, kind, _)| *kind == wire::Kind::Unauthorized.number())
-            .map(|(_, _, body)| {
-                wire::Unauthorized::decode(&wire::CEILINGS, &mut Reader::new(body))
-                    .map_err(|why| format!("unauthorized notice: {why:?}"))
-            })
-            .collect::<Result<_, _>>()?;
+        *observed = wire.frames.len();
         Ok(())
     }
 }
@@ -324,6 +329,7 @@ enum Opening {
 }
 struct Judge {
     finding: Option<String>,
+    observed: usize,
     shared: Rc<RefCell<Run>>,
     store: Store,
     rules: Rules,
@@ -435,7 +441,7 @@ impl Judge {
         Ok(())
     }
     fn record(
-        &self,
+        &mut self,
         procs: &mut [Proc],
         turns: Vec<core::TurnRecord>,
         terminals: Vec<core::TerminalRecord>,
@@ -508,7 +514,7 @@ impl Judge {
         for proc in procs {
             match proc {
                 Proc::Worker(host) => {
-                    run.worker(&host.wire)?;
+                    run.worker(&host.wire, &mut self.observed)?;
                     if self.done && !host.stopping {
                         host.stopping = true;
                         host.service.shutdown();
@@ -577,6 +583,7 @@ pub fn run(case: Case, story: &smith_fake_claude::Story) -> Run {
     let shared = Rc::new(RefCell::new(Run::default()));
     let judge = Judge {
         finding: None,
+        observed: 0,
         shared: shared.clone(),
         store: Store::new(),
         rules: Rules::default(),
@@ -752,5 +759,35 @@ impl Judge {
         self.record(procs, turns, terminals, signed_out)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_program_cursor_matches_whole_history_rescans() {
+        let history = crate::cursor_fixture::frames();
+        let mut wire = processes::Wire::default();
+        let mut incremental = Run::default();
+        let mut observed = 0;
+        for frame in history.frames {
+            wire.frames.push(frame);
+            incremental.worker(&wire, &mut observed).expect("new frames");
+            incremental.worker(&wire, &mut observed).expect("no new frames");
+            let mut whole = Run::default();
+            whole.worker(&wire, &mut 0).expect("whole history");
+            assert_eq!(incremental.answers, whole.answers);
+            assert_eq!(incremental.limited, whole.limited);
+            assert_eq!(incremental.unauthorized, whole.unauthorized);
+            assert_eq!(incremental.messages, whole.messages);
+            assert_eq!(incremental.grants, whole.grants);
+        }
+        assert_eq!(incremental.answers.len(), 2);
+        assert_eq!(incremental.limited.len(), 1);
+        assert_eq!(incremental.unauthorized.len(), 1);
+        assert_eq!(incremental.messages, vec![(2, 9, b"Hello".to_vec())]);
+        assert_eq!(incremental.grants, vec![(2, 1, 4, b"alice".to_vec())]);
     }
 }

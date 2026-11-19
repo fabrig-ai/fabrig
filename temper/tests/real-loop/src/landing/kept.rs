@@ -22,6 +22,8 @@ pub fn fixture() -> crate::forge::Fixture {
             for name in ["tasks.batch", "authority.batch"] {
                 value.jig_over(name, 2);
             }
+            // One local place keeps the report delegate ahead of its coding dependency.
+            value["world_settings"]["local_places"] = 1.into();
             crate::fixtures::own_policy(value);
             admit(value);
         },

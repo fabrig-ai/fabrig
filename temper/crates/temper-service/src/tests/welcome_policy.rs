@@ -7,7 +7,7 @@
 )]
 use super::{application, config, parse};
 use crate::{settings, tests::fixtures};
-use ::core::{num::NonZeroU16, str};
+use ::core::str;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use skein_lib::{List, ReplyTo, Secret, Token};
@@ -16,16 +16,8 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, forge_stand::ForgeStand, store::Store};
 
 fn generated_files() -> temper_init::Answer {
-    let port = |value| NonZeroU16::new(value).expect("nonzero synthetic port");
     temper_init::files(
-        &temper_init::Facts {
-            sign_in: false,
-            binary: b"/bin/temper",
-            git: Some(b"/bin/git"),
-            claude: None,
-            login: Some(b"ada"),
-            ports: temper_init::Ports { clients: port(8367), webhooks: port(8371) },
-        },
+        &temper_init::Facts { binary: b"/bin/temper", git: Some(b"/bin/git"), claude: None, login: Some(b"ada") },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
     )
@@ -37,12 +29,8 @@ fn generated() -> (engine::Config, engine::Limits) {
 }
 fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) {
     let mut files = settings::Files { entries: List::with_capacity(8) };
-    let mut document = None;
     for file in generated_files().files {
         if let temper_init::Content::Bytes { bytes, .. } = file.content {
-            if file.name == b"temper.json" {
-                document = Some(bytes.clone());
-            }
             let mut path = match file.directory {
                 temper_init::Directory::Config => b"/config/".to_vec(),
                 temper_init::Directory::Data => b"/data/".to_vec(),
@@ -52,7 +40,7 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
         }
     }
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").expect("absolute directories");
-    let mut document: serde_json::Value = serde_json::from_slice(&document.expect("generated temper.json")).unwrap();
+    let mut document: serde_json::Value = serde_json::from_slice(&temper_config_shell::init_document(false)).unwrap();
     if let Some(test) = test {
         document["application"]["test"] = serde_json::from_slice(test).unwrap();
     }
@@ -66,6 +54,8 @@ fn generated_with_test(test: Option<&[u8]>) -> (engine::Config, engine::Limits) 
         host_reply_bytes: None,
         agent_charter_bytes: None,
         setups: Box::new([]),
+        owned_forgejo: None,
+        owned_runner: None,
         test_github: parsed.application.test_github,
         directories: directories.clone(),
         jig: parsed.engine,
@@ -131,14 +121,7 @@ fn sign_in_owner(driver: &mut Driver) {
 
 #[test]
 fn a_fresh_init_names_the_standard_profiles() {
-    let init = generated_files()
-        .files
-        .into_iter()
-        .find_map(|file| match file.content {
-            temper_init::Content::Bytes { bytes, .. } if file.name == b"temper.json" => Some(bytes),
-            temper_init::Content::Bytes { .. } | temper_init::Content::Link { .. } => None,
-        })
-        .expect("generated temper.json");
+    let init = temper_config_shell::init_document(false);
     let document: serde_json::Value = serde_json::from_slice(&init).unwrap();
     assert!(document["engine"].get("limits").is_none());
     assert!(document["engine"].get("memory_bytes").is_none());

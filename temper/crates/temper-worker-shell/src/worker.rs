@@ -5,7 +5,7 @@ use std::{
     io::Write,
     os::unix::{
         ffi::OsStrExt,
-        fs::{DirBuilderExt, MetadataExt, OpenOptionsExt, PermissionsExt},
+        fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     },
     path::Path,
 };
@@ -19,13 +19,18 @@ pub fn alone(
     owned: &mut Vec<skein_io::kernel::Fd>,
     environment: &[EnvironmentEntry],
 ) -> Result<service::worker_alone::Service, String> {
-    let mut part = service::startup::worker_part(
-        bytes,
-        &jig_directories(directories),
-        temper_shell::lookup::find(environment, b"git").as_ref().map(|path| path.as_os_str().as_bytes()),
-        environment,
-    )
-    .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
+    alone_with_programs(directories, bytes, owned, environment, &temper_config_shell::Programs::default())
+}
+
+/// A TOML start supplies its checked program paths beside the document.
+pub(crate) fn alone_with_programs(
+    directories: &Directories,
+    bytes: &[u8],
+    owned: &mut Vec<skein_io::kernel::Fd>,
+    environment: &[EnvironmentEntry],
+    programs: &temper_config_shell::Programs,
+) -> Result<service::worker_alone::Service, String> {
+    let mut part = part(directories, bytes, environment, programs)?;
     inputs(&mut part, directories, &std::env::current_exe().map_err(|why| why.to_string())?)?;
     let files = temper_service_shell::read_files(core::mem::take(&mut part.files), skein_shell::effective_user())?;
     let seed = skein_shell::seed().map_err(|errno| format!("random seed: errno {errno}"))?;
@@ -40,6 +45,27 @@ pub fn alone(
     eprint!("{}", figures_line(&part.worker.jig.engine, &figures));
     from_figures(part, figures, &files, directories, owned, environment)
 }
+/// Resolve this worker's machine inputs before asking its engine for figures.
+pub(crate) fn part(
+    directories: &Directories,
+    bytes: &[u8],
+    environment: &[EnvironmentEntry],
+    programs: &temper_config_shell::Programs,
+) -> Result<service::startup::WorkerPart, String> {
+    let git = programs.git.clone().or_else(|| temper_shell::lookup::find(environment, b"git"));
+    let mut part = service::startup::worker_part(
+        bytes,
+        &jig_directories(directories),
+        git.as_ref().map(|path| path.as_os_str().as_bytes()),
+        environment,
+    )
+    .map_err(|why| String::from_utf8_lossy(&temper_service_core::startup::problems::lines(&why)).into_owned())?;
+    if let Some(claude) = &programs.claude {
+        part.claude = Some(claude.as_os_str().as_bytes().into());
+    }
+    Ok(part)
+}
+
 /// Construct from figures fetched on the shell's or a world's ring.
 pub fn from_figures(
     mut part: service::startup::WorkerPart,
@@ -54,13 +80,7 @@ pub fn from_figures(
     for name in &unknown {
         eprintln!("the engine's figures: unknown limit {}; skipped", String::from_utf8_lossy(name));
     }
-    let claude = part.claude.as_deref().map(path).map(Path::to_path_buf).or_else(|| find_claude(environment));
-    let bytes = agent::figures::configuration(
-        part.figures.as_ref().expect("applied figures"),
-        claude.as_deref(),
-        path(&directories.data),
-        &part.environment,
-    )?;
+    let bytes = configuration(&part, directories, environment)?;
     let agent::Prepared { agent, bytes, environment: command_environment } =
         agent::prepare_bytes(bytes).map_err(|why| format!("the engine's figures: {why}"))?;
     let user = skein_shell::effective_user();
@@ -81,6 +101,20 @@ pub fn from_figures(
         service.configure_program_sources(resources).map_err(|_| "worker refused program source resources")?;
     }
     Ok(service)
+}
+
+pub(crate) fn configuration(
+    part: &service::startup::WorkerPart,
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+) -> Result<Box<[u8]>, String> {
+    let claude = part.claude.as_deref().map(path).map(Path::to_path_buf).or_else(|| find_claude(environment));
+    agent::figures::configuration(
+        part.figures.as_ref().expect("applied figures"),
+        claude.as_deref(),
+        path(&directories.data),
+        &part.environment,
+    )
 }
 
 pub fn root(
@@ -247,9 +281,7 @@ pub fn inputs(
     Ok(())
 }
 pub(crate) fn executable_file(program: &Path, name: &str) -> Result<(), String> {
-    if !program.is_absolute()
-        || !fs::metadata(program).is_ok_and(|metadata| metadata.is_file() && metadata.mode() & 0o111 != 0)
-    {
+    if !temper_shell::lookup::is_executable(program) {
         return Err(format!("{name}: {}: must be an absolute path to an executable file", program.display()));
     }
     Ok(())
