@@ -1,6 +1,7 @@
 //! Serial durable chat operations (protocol/host.md, 5.3; skein skein/docs/design/runtime/io/files.md, 2).
 //! Compatibility, loading, fresh-history recovery and writes own their sequence
-//! data. Record versions survive operations; conversation policy is never known.
+//! data. Record versions and computed layouts survive operations and selections;
+//! conversation policy is never known.
 mod compatibility;
 mod ephemeral;
 mod fresh;
@@ -52,6 +53,7 @@ pub struct Store {
     endpoints: Endpoints,
     phase: State,
     checked: bool,
+    layouts: crate::local_store_v1::Layouts,
     closing: bool,
     versions: Map<Box<[u8]>, Digest>,
     ephemeral: Option<ephemeral::Ephemeral>,
@@ -74,6 +76,7 @@ impl Store {
             return None;
         }
         let records = limits.turns.checked_add(limits.deliveries)?.checked_add(2)?;
+        let layouts = crate::format::layouts();
         Some(Self {
             owner,
             root,
@@ -84,6 +87,7 @@ impl Store {
             endpoints,
             phase: State::Idle,
             checked: false,
+            layouts,
             closing: false,
             versions: Map::with_capacity(records),
             ephemeral: None,

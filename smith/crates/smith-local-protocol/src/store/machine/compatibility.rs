@@ -16,7 +16,7 @@ impl Store {
             Compatibility::Format => self.load_file(b"format".as_slice().into(), crate::format::max_bytes()),
             Compatibility::Admit => self.scan_request(true),
             Compatibility::CreateFormat => {
-                let marker = crate::format::file();
+                let marker = crate::format::file(&self.layouts);
                 file::Request::Store {
                     owner: self.owner,
                     root: self.root,
@@ -37,7 +37,7 @@ impl Store {
     ) -> State {
         match state {
             Compatibility::Format => match event {
-                Terminal::Loaded(bytes) => match crate::format::check(&bytes) {
+                Terminal::Loaded(bytes) => match crate::format::check(&bytes, &self.layouts) {
                     Ok(()) => {
                         self.checked = true;
                         State::Load(super::Loading::Journal)
