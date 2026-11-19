@@ -1,6 +1,10 @@
 # home: status
 
-2026-11-18. Where the tree's code lags or departs from [home.md](home.md).
+2026-11-19. Where the tree's code lags or departs from [home.md](home.md).
+
+- **Not yet:** 1, *The sheet of "Make an empty one" and "Copy a public
+  one"*: the copies' line under the sheet's own word; it shares the
+  welcome's [in flight: change 10132].
 
 
 - **Not yet:** 1, *the headline* and *Needs you*'s head: a needs read that ends without its value (busy, past the client's reads) marks the count cut, "N+", until the next whole read [in flight: change 8571].

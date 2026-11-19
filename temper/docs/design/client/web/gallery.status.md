@@ -1,6 +1,10 @@
 # gallery: status
 
-2026-11-16. Where the tree's code lags or departs from [gallery.md](gallery.md).
+2026-11-19. Where the tree's code lags or departs from [gallery.md](gallery.md).
+
+- **Not yet:** `welcome-forge-details`: the sample chosen, with no
+  fields; the state draws the empty repository's
+  [in flight: change 10139].
 
 - **Not yet:** 2: `work` and `work-drafts` hold no landed draft
   [in flight: change 664].
