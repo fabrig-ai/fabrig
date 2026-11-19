@@ -16,7 +16,7 @@ pub struct Root {
     pub decode: fn(&[u8]) -> Decoded,
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Decoded {
     Value { debug: String, bytes: Vec<u8>, measured: u32 },
     Problem { path: String, reason: skein_codec::Reason },
@@ -36,12 +36,44 @@ macro_rules! roots {
                         Decoded::Value { debug, bytes: writer.finish().into_vec(), measured: value.measure() }
                     }
                     Err(problem) => Decoded::Problem {
-                        path: format!("{:?}", problem.path), reason: problem.reason,
+                        path: problem.path.name().into(), reason: problem.reason,
                     },
                 }
             },
         }),+]
     };
+}
+
+macro_rules! lean_roots {
+    ($($name:ident),+ $(,)?) => {
+        &[$(Root {
+            name: stringify!($name),
+            decode: |bytes| {
+                use skein_codec_tests::every_v3_lean::{self, Record, $name};
+                match $name::decode(&every_v3_lean::CEILINGS, &mut Reader::new(bytes)) {
+                    Ok(value) => Decoded::Value {
+                        debug: format!("{value:?}"),
+                        bytes: value.encode(&every_v3_lean::CEILINGS).expect("decoded value encodes").into_vec(),
+                        measured: value.measure(&every_v3_lean::CEILINGS).expect("decoded value measures"),
+                    },
+                    Err(problem) => Decoded::Problem {
+                        path: every_v3_lean::name(problem.path).expect("generated path").into(),
+                        reason: problem.reason,
+                    },
+                }
+            },
+        }),+]
+    };
+}
+
+pub fn every_lean() -> Family {
+    Family {
+        name: "every",
+        text: include_str!("../../schema/every-v3.schema"),
+        roots: lean_roots!(
+            Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every, Kinds, Lists, Options, Grouped, Held, LongRecord
+        ),
+    }
 }
 
 pub fn families() -> [Family; 7] {

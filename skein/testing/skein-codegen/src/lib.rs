@@ -17,7 +17,11 @@ mod emit_functions;
 mod emit_limits;
 mod emit_tests;
 mod emit_types;
+<<<<<<< HEAD
 mod largest;
+=======
+mod lean;
+>>>>>>> refs/manual/8778
 mod parse;
 pub mod patch;
 
@@ -128,7 +132,61 @@ fn uses_box(ty: &Type) -> bool {
     }
 }
 
-/// Writes a module for one schema version.
+/// The owner's choice of generated record surface.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Form {
+    Sealed,
+    Lean,
+}
+
+/// Reads the owner's `lean` mark; an absent mark leaves the family sealed.
+pub fn form_of(schema_dir: &std::path::Path, family: &str) -> std::io::Result<Form> {
+    let source = match std::fs::read_to_string(schema_dir.join("lean")) {
+        Ok(source) => source,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(Form::Sealed),
+        Err(error) => return Err(error),
+    };
+    if source.lines().any(|line| line.split('#').next().expect("a split has a first part").trim() == family) {
+        Ok(Form::Lean)
+    } else {
+        Ok(Form::Sealed)
+    }
+}
+
+/// Checks the names added by a form, beyond the shared Rust checks in `parse`.
+/// Sealed adds no check. Lean reserves its three shared codec re-exports.
+pub fn check_as(schema: &Schema, form: Form) -> Result<(), Error> {
+    match form {
+        Form::Sealed => Ok(()),
+        Form::Lean => {
+            for declaration in &schema.declarations {
+                let (name, line) = match declaration {
+                    Declaration::Record(record) => (&record.name, record.line),
+                    Declaration::Enum(enumeration) => (&enumeration.name, enumeration.line),
+                };
+                if name == "Record" || name == "Path" || name == "Problem" {
+                    return Err(Error { line, message: format!("lean type name {name} is reserved") });
+                }
+            }
+            Ok(())
+        }
+    }
+}
+
+/// Writes either form without changing the family's wire format.
+/// A lean schema must pass `check_as` before generation.
+#[must_use]
+pub fn generate_as(schema: &Schema, form: Form) -> Output {
+    match form {
+        Form::Sealed => generate(schema),
+        Form::Lean => {
+            check_as(schema, form).expect("a lean schema passes check_as before generation");
+            lean::generate(schema)
+        }
+    }
+}
+
+/// Writes the sealed module for one schema version.
 #[must_use]
 pub fn generate(schema: &Schema) -> Output {
     let context = analysis::Context::new(schema);
@@ -177,5 +235,7 @@ fn has_boxed_variants(schema: &Schema) -> bool {
     })
 }
 
+#[cfg(test)]
+mod lean_tests;
 #[cfg(test)]
 mod tests;
