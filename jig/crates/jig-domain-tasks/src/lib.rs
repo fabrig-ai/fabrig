@@ -81,6 +81,7 @@ mod payer;
 pub use payer::{Payer, PayerLink};
 mod escalation;
 mod facts;
+mod failed;
 mod failures;
 mod flags;
 pub mod gathering;
