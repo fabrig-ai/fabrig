@@ -951,8 +951,18 @@ fn configure_model(driver: &mut Driver) -> Result<(), String> {
     require(value["model"]["name"] == "gpt-6.1-sol", "stock row 4 is sol")?;
     value["model"]["window"] = 1_048_576.into();
     value["model"]["output"] = 32_000.into();
+    let mut items = vec![json!({"setting":setting["setting"], "set":value})];
+    for number in ["1", "2"] {
+        let charter = driver.ctl(&["settings", "show", "charter", number], None)?;
+        let mut charter_value = charter["value"].clone();
+        super::super::provider_setup::use_provider(&mut charter_value, 1);
+        charter_value["model"] = value["model"].clone();
+        items.push(json!({"setting":charter["setting"], "set":charter_value}));
+    }
+    let providers = temper_agent_fixtures::providers::read(&driver.store.join("data"));
+    items.extend(super::super::provider_setup::items(&providers));
     let file = driver.store.join("model-settings.json");
-    write_json(&file, &json!({"items":[{"setting":setting["setting"], "set":value}]}));
+    write_json(&file, &json!({"items":items}));
     driver.ctl(
         &[
             "settings",
