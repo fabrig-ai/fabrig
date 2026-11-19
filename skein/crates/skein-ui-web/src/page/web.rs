@@ -442,6 +442,10 @@ impl Mounted {
             }
         }
     }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one dispatch applies every page operation before tree, dialog and measurement updates"
+    )]
     fn apply(&self, ops: &[Op]) {
         let mut trees = Vec::new();
         let mut measures = Vec::new();
@@ -449,11 +453,11 @@ impl Mounted {
             self.affected_trees(op, &mut trees);
             match op {
                 Op::Insert { node, parent, before, shown_folded, element } => {
-                    self.insert(*node, *parent, *before, *shown_folded, element)
+                    self.insert(*node, *parent, *before, *shown_folded, element);
                 }
                 Op::Remove { node } => self.remove(*node),
                 Op::Move { node, parent, before, shown_folded } => {
-                    self.move_group(*node, *parent, *before, *shown_folded)
+                    self.move_group(*node, *parent, *before, *shown_folded);
                 }
                 Op::Replace { node, element } => self.refresh(*node, element, true),
                 Op::Attributes { node, element } | Op::Text { node, element } => self.refresh(*node, element, false),
