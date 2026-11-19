@@ -6,6 +6,7 @@ mod due_ready;
 mod flake;
 mod limit_holds;
 mod reds;
+mod refused;
 mod room;
 mod settling;
 mod settling_due;
@@ -1147,85 +1148,7 @@ fn writable_repositories_exclude_an_ended_forge() {
     assert_eq!(domain.forge.readable_repositories(5).len(), 1);
 }
 
-fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
-    use super::{forge, forge_change as change};
-    forge::ChangeRow {
-        room: None,
-        source: None,
-        kept: None,
-        regate: None,
-        task_release: None,
-        job: None,
-        signed: Box::new([]),
-        task: 7,
-        repository: skein_forge::api::Repository { forge: 3, repository: 1 },
-        branch: Box::from(b"temper/7".as_slice()),
-        base: Box::from(b"main".as_slice()),
-        title: Box::from(b"Change".as_slice()),
-        body: Box::new([]),
-        priority: 0,
-        ci: None,
-        change: change::Change {
-            ended_held: None,
-            early: change::Early::None,
-            way: temper_engine_domain_forge_change::Way::Queue,
-            landing: None,
-            task: 7,
-            state: change::State::Producing { requested: false },
-            gates: Box::new([]),
-            clean: Box::new([]),
-            gate_failures: Box::new([]),
-            released_resolution: false,
-            released: None,
-            repairs: 0,
-            resolutions: 0,
-            updates: 0,
-            stale: None,
-            since: skein_lib::Wall::from_nanos(0),
-            ready_since: None,
-            owns_turn: false,
-            last_head: None,
-            last_checked: None,
-            last_checked_by: None,
-            clock: None,
-        },
-        pull,
-        pending: None,
-        effect: change::EffectResult::None,
-        delegate: None,
-        delegate_status: change::Status::Unknown,
-        delegate_flake: false,
-        delegate_head: None,
-        verdicts: Box::new([]),
-        milestone: None,
-        goal: None,
-        ending: None,
-        repair_tasks: Box::new([]),
-        resolution_tasks: Box::new([]),
-        result: forge::ChangeResult::empty(),
-        gate_remarks: Box::new([]),
-        drift: None,
-        base_repair: false,
-        queue_repair: None,
-        queue_repairs: 0,
-        producing_charter: 2,
-        review_charter: 4,
-        producing_llm: None,
-        review_llm: None,
-
-        questions: temper_engine_domain_forge_change::Questions::default(),
-        effect_account: None,
-        producer_failure: None,
-        report: Box::new([]),
-        repairs: None,
-        follows: None,
-        catch_up: None,
-        close: None,
-        merge_result: None,
-        history: None,
-        follow_check: None,
-    }
-}
+use crate::tests::change_row::change_row;
 
 #[test]
 fn a_change_drift_account_names_its_held_step_and_the_branch_not_cached_ci() {
@@ -2322,10 +2245,19 @@ fn reserved_turn_landing() -> (super::Domain, skein_lib::Env<super::Limits>, sup
     super::start_landing(&mut domain, &env, 7);
     let Some(Work::Core(resource)) = domain.work.pop() else { panic!("branch resource") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), resource));
-    let Some(Work::Forge(forge::Event::Landing { row })) = domain.work.pop() else { panic!("landing row") };
-    assert_eq!(row.landing.members[0].change, 7);
     let Some(Work::Core(event)) = domain.work.pop() else { panic!("landing task") };
     drop(jig_domain_core::step(&mut domain.core, &crate::limits::environment_core(&env), event));
+    let Some(Work::LandingAdmission { row, names }) = domain.work.pop() else { panic!("landing admission") };
+    assert_eq!(row.landing.members[0].change, 7);
+    for name in names {
+        domain.work.push(Work::Forge(forge::Event::Hold {
+            entry: 0,
+            task: row.landing.task,
+            resource: name,
+            from: None,
+        }));
+    }
+    domain.forge_forming = None;
     (domain, env, row)
 }
 
@@ -4905,7 +4837,12 @@ fn a_change_rerun_is_kind_17_on_its_own_branch() {
 fn train_root(joined: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::{forge, forge_change as c, tasks};
     use skein_lib::Queue;
-    let (mut domain, mut env) = procedure_root();
+    let mut limits = crate::tests::resume_fixture::limits();
+    // Two ready changes and their retained landing tasks need admission room.
+    limits.tasks.tasks = 16;
+    limits.tasks.project_tasks = 16;
+    limits.people.inbox_tasks = 32;
+    let (mut domain, mut env) = procedure_root_with_limits(limits);
     env.limits.tasks.batch = 2;
     env.limits.tasks.batch_bytes = 16_384;
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });

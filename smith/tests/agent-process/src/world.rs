@@ -1438,14 +1438,14 @@ impl World {
                 &mut skein_lib::Reader::new(envelope.body.as_ref()),
             )
             .expect("validated transcript");
-            for message in turn.messages() {
-                if *message.role() == smith_transcript::Role::Assistant {
-                    for block in message.blocks() {
+            for message in &turn.messages {
+                if message.role == smith_transcript::Role::Assistant {
+                    for block in &message.blocks {
                         if let smith_transcript::Block::Text(text) = block {
                             count += 1;
-                            bytes += text.text().len();
+                            bytes += text.text.as_ref().len();
                             let metadata = skein_llm::Replay::from_bytes(
-                                text.replay().as_ref().expect("text replay").bytes(),
+                                text.replay.as_ref().expect("text replay").bytes.as_ref(),
                                 &crate::limits().llm.translation.client.native().document(),
                             )
                             .expect("provider metadata");

@@ -1,6 +1,7 @@
 //! Shared constants and per-reader copies (jig/docs/design/protocol/channel/README.md, 11).
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant, Hello, Hosting, Operation, Phase, Scheme};
 use jig_protocol_worker_link::{Credential, Limits};
+use jig_protocol_worker_wire::Record;
 use skein_lib::{Duration, Secret};
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const SECRET_A: &[u8] = b"secret-a";
@@ -122,40 +123,35 @@ pub fn agreement() -> skein_channel::Frame {
 fn prepared_agreement_body() -> &'static [u8] {
     static BODY: std::sync::OnceLock<Box<[u8]>> = std::sync::OnceLock::new();
     BODY.get_or_init(|| {
-        let limits = codec();
         let mut wires = List::with_capacity(5);
         for spoken in prepared_spoken() {
             wires
-                .push(
-                    wire::AgreedWire::new(
-                        &limits,
-                        wire::AgreedWireParts { name: spoken.name.as_bytes().into(), version: spoken.highest() },
-                    )
-                    .expect("wire"),
-                )
+                .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
                 .expect("four jig wires");
         }
         wires
-            .push(
-                wire::AgreedWire::new(
-                    &limits,
-                    wire::AgreedWireParts { name: b"test-worker-wire".as_slice().into(), version: 3 },
-                )
-                .expect("wire"),
-            )
+            .push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 })
             .expect("application wire");
-        let record = wire::v17::Agreed::new(&limits, wire::v17::AgreedParts { wires }).expect("agreement");
-        let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut body).expect("measured agreement");
+        let record = wire::v17::Agreed { wires };
+        let mut body = Writer::new(skein_lib::length::usize_of(
+            record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+        ));
+        record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
         body.finish()
     })
 }
 #[must_use]
 pub fn agreement_frame(wires: List<wire::AgreedWire>) -> skein_channel::Frame {
-    let record = wire::v17::Agreed::new(&codec(), wire::v17::AgreedParts { wires }).expect("agreement");
-    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut body).expect("measured agreement");
-    let mut frame = skein_channel::frame_writer(0x018d, record.measure()).expect("frame");
+    let record = wire::v17::Agreed { wires };
+    let mut body = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("measured agreement");
+    let mut frame = skein_channel::frame_writer(
+        0x018d,
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    )
+    .expect("frame");
     frame.put(&body.finish()).expect("body");
     frame.finish().expect("measured frame")
 }
@@ -322,78 +318,55 @@ pub fn work_parts() -> Box<[Part]> {
 }
 #[must_use]
 pub fn credential_value(scheme: wire::Scheme) -> wire::GrantValue {
-    let parts = wire::CredentialValueParts { scheme, bytes: Secret::new(TOKEN_ONE.into()) };
-    wire::GrantValue::Credential(wire::CredentialValue::new(&codec(), parts).expect("credential"))
+    let parts = wire::CredentialValue { scheme, bytes: Secret::new(TOKEN_ONE.into()) };
+    wire::GrantValue::Credential(parts)
 }
 #[must_use]
 pub fn application_value() -> wire::GrantValue {
-    let parts = wire::ApplicationValueParts { secret: Secret::new(TOKEN_ONE.into()) };
-    wire::GrantValue::Application(wire::ApplicationValue::new(&codec(), parts).expect("application"))
+    let parts = wire::ApplicationValue { secret: Secret::new(TOKEN_ONE.into()) };
+    wire::GrantValue::Application(parts)
 }
 #[must_use]
 pub fn grant_record(value: wire::GrantValue) -> wire::Grant {
-    wire::Grant::new(&codec(), wire::GrantParts { number: 1, generation: 3, valid: Duration::from_secs(60), value })
-        .expect("grant")
+    wire::Grant { number: 1, generation: 3, valid: Duration::from_secs(60), value }
 }
 #[must_use]
 pub fn assignment_record(transcript: Box<[u8]>) -> wire::Assignment {
-    let limits = codec();
-    let workspace =
-        wire::Workspace::new(&limits, wire::WorkspaceParts { workstream: 3, items: b"items".as_slice().into() })
-            .expect("workspace");
+    let workspace = wire::Workspace { workstream: 3, items: b"items".as_slice().into() };
     let mut messages = List::with_capacity(1);
     messages
-        .push(
-            wire::Message::new(
-                &limits,
-                wire::MessageParts {
-                    name: 5,
-                    sender: b"sender".as_slice().into(),
-                    words: b"words".as_slice().into(),
-                    finish_requested: false,
-                },
-            )
-            .expect("message"),
-        )
+        .push(wire::Message {
+            name: 5,
+            sender: b"sender".as_slice().into(),
+            words: b"words".as_slice().into(),
+            finish_requested: false,
+        })
         .expect("room");
     let mut grants = List::with_capacity(2);
     grants.push(grant_record(credential_value(wire::Scheme::Bearer))).expect("room");
     grants.push(grant_record(application_value())).expect("room");
     let mut answered = List::with_capacity(1);
-    let answer =
-        wire::HostAnswer::new(&limits, wire::HostAnswerParts { error: false, body: b"answer".as_slice().into() })
-            .expect("answer");
+    let answer = wire::HostAnswer { error: false, body: b"answer".as_slice().into() };
     answered
-        .push(
-            wire::AnsweredCall::new(
-                &limits,
-                wire::AnsweredCallParts {
-                    name: b"call".as_slice().into(),
-                    tool: b"tool".as_slice().into(),
-                    answer: wire::SettledAnswer::Host(answer),
-                },
-            )
-            .expect("call"),
-        )
+        .push(wire::AnsweredCall {
+            name: b"call".as_slice().into(),
+            tool: b"tool".as_slice().into(),
+            answer: wire::SettledAnswer::Host(answer),
+        })
         .expect("room");
-    wire::Assignment::new(
-        &limits,
-        wire::AssignmentParts {
-            task: 7,
-            attempt: 2,
-            identity: [9; 16],
-            workspace: Some(workspace),
-            save: true,
-            live: wire::LiveAsk::new(&limits, wire::LiveAskParts { text: false, reasoning: false, input: false })
-                .expect("live ask"),
-            charter: b"charter".as_slice().into(),
-            transcript,
-            answered,
-            messages,
-            grants,
-        },
-    )
-    .expect("assignment")
+    wire::Assignment {
+        task: 7,
+        attempt: 2,
+        identity: [9; 16],
+        workspace: Some(workspace),
+        save: true,
+        live: wire::LiveAsk { text: false, reasoning: false, input: false },
+        charter: b"charter".as_slice().into(),
+        transcript,
+        answered,
+        messages,
+        grants,
+    }
 }
 #[must_use]
 pub fn window() -> Box<[u8]> {
@@ -411,50 +384,39 @@ pub fn frame(kind: u16, body: &[u8]) -> skein_channel::Frame {
 #[must_use]
 pub fn assignment_frame(transcript: Box<[u8]>) -> skein_channel::Frame {
     let record = assignment_record(transcript);
-    let body = encoded(record.measure(), |writer| record.encode(writer));
+    let body = encoded(&record);
     frame(0x0180, &body)
 }
 #[must_use]
 pub fn down_frames() -> Vec<skein_channel::Frame> {
-    let limits = codec();
     let mut frames = vec![assignment_frame(window())];
-    let record = wire::Inbound::new(
-        &limits,
-        wire::InboundParts {
-            task: 7,
-            attempt: 2,
-            name: 6,
-            sender: b"sender".as_slice().into(),
-            words: b"later".as_slice().into(),
-            finish_requested: false,
-        },
-    )
-    .expect("message");
-    let body = encoded(record.measure(), |writer| record.encode(writer));
+    let record = wire::Inbound {
+        task: 7,
+        attempt: 2,
+        name: 6,
+        sender: b"sender".as_slice().into(),
+        words: b"later".as_slice().into(),
+        finish_requested: false,
+    };
+    let body = encoded(&record);
     frames.push(frame(0x0181, &body));
-    let record = wire::TurnKept::new(&limits, wire::TurnKeptParts { task: 7, attempt: 2, number: 1 }).expect("kept");
-    let body = encoded(record.measure(), |writer| record.encode(writer));
+    let record = wire::TurnKept { task: 7, attempt: 2, number: 1 };
+    let body = encoded(&record);
     frames.push(frame(0x0183, &body));
-    let record = wire::Acknowledge::new(&limits, wire::AcknowledgeParts { task: 7, attempt: 2 }).expect("acknowledge");
-    let body = encoded(record.measure(), |writer| record.encode(writer));
+    let record = wire::Acknowledge { task: 7, attempt: 2 };
+    let body = encoded(&record);
     frames.push(frame(0x0185, &body));
-    let record = wire::Cancel::new(&limits, wire::CancelParts { task: 7, attempt: 2 }).expect("cancel");
-    let body = encoded(record.measure(), |writer| record.encode(writer));
+    let record = wire::Cancel { task: 7, attempt: 2 };
+    let body = encoded(&record);
     frames.push(frame(0x0186, &body));
-    let record = wire::Granted::new(
-        &limits,
-        wire::GrantedParts { task: 7, attempt: 2, grant: grant_record(credential_value(wire::Scheme::Bearer)) },
-    )
-    .expect("grant");
-    let body = encoded(record.measure(), |writer| record.encode(writer));
+    let record = wire::Granted { task: 7, attempt: 2, grant: grant_record(credential_value(wire::Scheme::Bearer)) };
+    let body = encoded(&record);
     frames.push(frame(0x0187, &body));
     frames
 }
 
-pub fn encoded<F: FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>>(measured: u32, encode: F) -> Box<[u8]> {
-    let mut writer = Writer::new(skein_lib::length::usize_of(measured));
-    encode(&mut writer).expect("measured record");
-    writer.finish()
+pub fn encoded<R: Record<Limits = wire::v17::Limits>>(record: &R) -> Box<[u8]> {
+    record.encode(&codec()).expect("record within fixture limits")
 }
 
 #[must_use]
@@ -472,33 +434,28 @@ pub fn call(name: &[u8]) -> host::LinkUp {
 }
 #[must_use]
 pub fn relayed(name: &[u8], busy: bool) -> skein_channel::Frame {
-    let limits = codec();
     let answer = if busy {
         wire::RelayAnswer::Busy
     } else {
-        wire::RelayAnswer::Text(
-            wire::RelayText::new(&limits, wire::RelayTextParts { error: false, text: b"answer".as_slice().into() })
-                .expect("answer"),
-        )
+        wire::RelayAnswer::Text(wire::RelayText { error: false, text: b"answer".as_slice().into() })
     };
-    let record = wire::Relayed::new(&limits, wire::RelayedParts { task: 7, attempt: 2, name: name.into(), answer })
-        .expect("relayed");
-    frame(0x0182, &encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::Relayed { task: 7, attempt: 2, name: name.into(), answer };
+    frame(0x0182, &encoded(&record))
 }
 #[must_use]
 pub fn turn_busy() -> skein_channel::Frame {
-    let record = wire::TurnBusy::new(&codec(), wire::TurnBusyParts { task: 7, attempt: 2, number: 1 }).expect("busy");
-    frame(0x0184, &encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::TurnBusy { task: 7, attempt: 2, number: 1 };
+    frame(0x0184, &encoded(&record))
 }
 #[must_use]
 pub fn turn_kept() -> skein_channel::Frame {
-    let record = wire::TurnKept::new(&codec(), wire::TurnKeptParts { task: 7, attempt: 2, number: 1 }).expect("kept");
-    frame(0x0183, &encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::TurnKept { task: 7, attempt: 2, number: 1 };
+    frame(0x0183, &encoded(&record))
 }
 #[must_use]
 pub fn acknowledge() -> skein_channel::Frame {
-    let record = wire::Acknowledge::new(&codec(), wire::AcknowledgeParts { task: 7, attempt: 2 }).expect("acknowledge");
-    frame(0x0185, &encoded(record.measure(), |writer| record.encode(writer)))
+    let record = wire::Acknowledge { task: 7, attempt: 2 };
+    frame(0x0185, &encoded(&record))
 }
 
 #[must_use]
@@ -581,11 +538,6 @@ pub fn engine_channel_limits() -> skein_channel::Limits {
 
 #[must_use]
 pub fn figures() -> wire::Figures {
-    let agents = wire::Agents::new(
-        &wire::CEILINGS,
-        wire::AgentsParts { profile: List::with_capacity(0), endpoints: List::with_capacity(0) },
-    )
-    .expect("no agents");
-    wire::Figures::new(&wire::CEILINGS, wire::FiguresParts { places: 0, limits: List::with_capacity(0), agents })
-        .expect("empty figures")
+    let agents = wire::Agents { profile: List::with_capacity(0), endpoints: List::with_capacity(0) };
+    wire::Figures { places: 0, limits: List::with_capacity(0), agents }
 }

@@ -36,7 +36,9 @@ pub fn named(name: &[u8]) -> Option<&'static Story> {
     all().iter().find(|story| story.name.as_bytes() == name)
 }
 
-pub(crate) fn admin_token(seed: u64) -> [u8; 40] {
+/// The synthetic admin credential accepted by this story's forge peer.
+#[must_use]
+pub fn admin_token(seed: u64) -> [u8; 40] {
     credential::credential(documents::seeds(seed).forge, credential::ADMIN_TOKEN)
 }
 

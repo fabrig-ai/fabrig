@@ -66,7 +66,7 @@ impl Held {
 
 fn core_row(row: &c::CoreRecord, limits: &codec::View) -> core::Value {
     let bytes = codec::core::encode(row, limits).unwrap();
-    core::Row::decode(&limits.core, &mut Reader::new(&bytes)).unwrap().into_parts().value
+    core::Row::decode(&limits.core, &mut Reader::new(&bytes)).unwrap().value
 }
 
 struct HeldRow {
@@ -84,16 +84,16 @@ fn cores_held_words_read_their_fixtures_whole() {
     else {
         panic!("call fixture")
     };
-    let core::CallPart::DelegationRefused(problem_bytes) = call.into_parts().part else { panic!("refused fixture") };
+    let core::CallPart::DelegationRefused(problem_bytes) = call.part else { panic!("refused fixture") };
     let projection = fixtures::core_rows::milestone(c::MilestoneId::Lifecycle { task: 11, position: 13 });
     let core::Value::Projection(projection_bytes) = core_row(&c::CoreRecord::Projection(projection.clone()), &limits)
     else {
         panic!("projection fixture")
     };
-    let core::ProjectionRecord::Milestone(milestone_bytes) = projection_bytes.into_parts().value else {
+    let core::ProjectionRecord::Milestone(milestone_bytes) = projection_bytes.value else {
         panic!("milestone fixture")
     };
-    let milestone_bytes = milestone_bytes.into_parts().milestone.into_parts();
+    let milestone_bytes = milestone_bytes.milestone;
     let c::ProjectionRecord::Milestone { milestone, .. } = projection else { panic!("milestone fixture") };
     let terminal = fixtures::core_rows::terminal();
     let core::Value::Terminal(terminal_bytes) = core_row(&c::CoreRecord::Terminal(terminal.clone()), &limits) else {
@@ -106,31 +106,23 @@ fn cores_held_words_read_their_fixtures_whole() {
     ) else {
         panic!("notes call fixture")
     };
-    let core::CallPart::NoteRecalled(notes_bytes) = notes_bytes.into_parts().part else { panic!("recalled fixture") };
+    let core::CallPart::NoteRecalled(notes_bytes) = notes_bytes.part else { panic!("recalled fixture") };
     let rows = [
-        HeldRow {
-            path: "TaskBytes.value",
-            bytes: problem_bytes.into_parts().value.into_parts().value,
-            expected: Held::Problem(problem),
-        },
+        HeldRow { path: "TaskBytes.value", bytes: problem_bytes.value.value, expected: Held::Problem(problem) },
         HeldRow {
             path: "PhaseBytes.value",
-            bytes: milestone_bytes.phase.unwrap().into_parts().value,
+            bytes: milestone_bytes.phase.unwrap().value,
             expected: Held::Phase(milestone.phase.unwrap()),
         },
         HeldRow {
             path: "ChangeBytes.value",
-            bytes: milestone_bytes.change.unwrap().into_parts().value,
+            bytes: milestone_bytes.change.unwrap().value,
             expected: Held::Change(milestone.change.unwrap()),
         },
-        HeldRow {
-            path: "EndBytes.value",
-            bytes: terminal_bytes.into_parts().end.into_parts().value,
-            expected: Held::End(terminal.end),
-        },
+        HeldRow { path: "EndBytes.value", bytes: terminal_bytes.end.value, expected: Held::End(terminal.end) },
         HeldRow {
             path: "NoteBytes.value",
-            bytes: notes_bytes.entries().get(0).unwrap().value().into(),
+            bytes: notes_bytes.entries.get(0).unwrap().value.clone(),
             expected: Held::Note(jig_domain_notes::Record::Entry(entry)),
         },
     ];
@@ -602,14 +594,14 @@ fn hot_projection_phases_read_as_whole_held_records() {
             | c::ProjectionRecord::TaskWords { .. } => unreachable!(),
         };
         let core::Value::Projection(value) = core_row(&c::CoreRecord::Projection(row), &limits) else { unreachable!() };
-        let phase = match value.into_parts().value {
-            core::ProjectionRecord::GoalHot(value) => value.into_parts().phase,
-            core::ProjectionRecord::TaskHot(value) => value.into_parts().phase,
+        let phase = match value.value {
+            core::ProjectionRecord::GoalHot(value) => value.phase,
+            core::ProjectionRecord::TaskHot(value) => value.phase,
             core::ProjectionRecord::Milestone(_)
             | core::ProjectionRecord::GoalWords(_)
             | core::ProjectionRecord::TaskWords(_) => unreachable!(),
         };
         let expected = Held::Phase(expected);
-        assert_eq!(expected.read(&phase.into_parts().value, &limits), expected);
+        assert_eq!(expected.read(&phase.value, &limits), expected);
     }
 }

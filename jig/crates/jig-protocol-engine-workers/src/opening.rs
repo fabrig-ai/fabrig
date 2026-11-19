@@ -1,6 +1,7 @@
 //! Ordered authentication, wires and link-only room and capacity checks (protocol/channel/README.md, 4.1).
 use crate::{Component, Statement};
 use alloc::boxed::Box;
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{Agreed, Credential, Reason};
 use skein_lib::sha256;
 use skein_lib::{List, Reader, Token};
@@ -16,14 +17,14 @@ impl Component {
         let Ok(credential) = Credential::decode(&self.codec, &mut Reader::new(credential)) else {
             return Verdict::Refuse { worker: None, reason: Reason::Unauthorized, text: Box::new([]) };
         };
-        let supplied = sha256::digest(credential.secret().expose());
+        let supplied = sha256::digest(credential.secret.expose());
         let mut found = None;
         for worker in &self.workers {
             let authorized = match &worker.digest {
                 Some(digest) => same(digest, &supplied),
                 None => in_process,
             };
-            if !worker.withdrawn && worker.name.as_ref() == credential.name() && authorized {
+            if !worker.withdrawn && worker.name.as_ref() == credential.name.as_ref() && authorized {
                 found = worker.number.checked_sub(1);
             }
         }
@@ -35,7 +36,7 @@ impl Component {
             Ok(wires) => wires,
             Err(text) => return Verdict::Refuse { worker: Some(worker), reason: Reason::Wires, text },
         };
-        if *credential.opening() == jig_protocol_worker_wire::Opening::Figures {
+        if credential.opening == jig_protocol_worker_wire::Opening::Figures {
             return if self.figures.is_some() {
                 Verdict::Accept { worker, wires, statement }
             } else {

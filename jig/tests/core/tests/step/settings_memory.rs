@@ -1,4 +1,5 @@
 //! Profile codec and settings-record edges remain representable.
+use jig_protocol_store::core_v6::Record as _;
 
 #[test]
 fn settings_records_fit_the_supplied_profiles() {

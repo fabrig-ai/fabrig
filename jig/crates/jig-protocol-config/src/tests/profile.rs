@@ -1,4 +1,5 @@
 use crate::profile;
+use jig_protocol_store::core_v6::Record as _;
 
 #[test]
 fn supplied_profiles_have_valid_domain_limits() {

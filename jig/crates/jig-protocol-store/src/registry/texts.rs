@@ -174,8 +174,8 @@ pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
 
 pub(super) fn row(layouts: &mut Layouts, key: &super::RowKey) -> Option<()> {
     let row = layouts.rows.get(key)?;
-    let text = *row.value.text();
-    let held = row.value.held().clone();
+    let text = row.value.text;
+    let held = row.value.held.clone();
     parse(layouts, text)?;
     for digest in &held {
         parse(layouts, *digest)?;

@@ -77,33 +77,29 @@ fn derive(
     ty: &crate::ValueType,
     held: &List<super::Digest>,
 ) -> Result<Option<Plan>, Unplanned> {
-    let text = layouts.texts.get(row.value.text()).ok_or(Unplanned::Text)?;
+    let text = layouts.texts.get(&row.value.text).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
         return Err(Unplanned::Text);
     }
     let old = text.schema.as_ref().ok_or(Unplanned::Text)?;
-    let old_held = texts::schemas(layouts, row.value.held(), row.stored).ok_or(Unplanned::Text)?;
-    let variant = match row.value.variant() {
-        Some(variant) => Some(variant.as_ref()),
-        None => None,
-    };
-    let old_root = old.root(row.value.root(), variant).ok_or(Unplanned::Text)?;
+    let old_held = texts::schemas(layouts, &row.value.held, row.stored).ok_or(Unplanned::Text)?;
+    let variant = row.value.variant.as_deref();
+    let old_root = old.root(&row.value.root, variant).ok_or(Unplanned::Text)?;
     let new = layouts.texts.get(&digest).ok_or(Unplanned::Text)?.schema.as_ref().ok_or(Unplanned::Text)?;
     let new_root = new.root(ty.root.as_bytes(), super::variant(ty.variant)).ok_or(Unplanned::Text)?;
     let new_held = texts::schemas(layouts, held, false).ok_or(Unplanned::Text)?;
     // Check that the kept text and the row agree, rather than trusting its id.
-    let fingerprint = binary
-        .layout(layouts, *row.value.text(), row.value.root(), variant, row.value.held())
-        .ok_or(Unplanned::Text)?;
-    if fingerprint != *row.value.layout() {
+    let fingerprint =
+        binary.layout(layouts, row.value.text, &row.value.root, variant, &row.value.held).ok_or(Unplanned::Text)?;
+    if fingerprint != row.value.layout {
         return Err(Unplanned::Text);
     }
     // The id or fingerprint alone cannot prove identical conversion inputs.
     // Digest checks have validated the stored bytes, including every held text.
-    if row.value.text() == &digest
-        && row.value.root() == ty.root.as_bytes()
+    if row.value.text == digest
+        && row.value.root.as_ref() == ty.root.as_bytes()
         && variant == super::variant(ty.variant)
-        && row.value.held() == held
+        && &row.value.held == held
         && binary.shallow(layouts, digest, new_root.decl, held)
     {
         return Ok(None);
@@ -124,7 +120,7 @@ fn job(store: &mut Store, key: &RowKey, row: &Row) -> Result<Option<&'static str
                 && key.1 == converts.value_type
             {
                 match converts.from {
-                    crate::Layouts::One(from) if row.value.layout() == &from => one = Some(job.name),
+                    crate::Layouts::One(from) if row.value.layout == from => one = Some(job.name),
                     crate::Layouts::Unplanned if !crate::jobs::kept::done(store, set.owner, job)? => {
                         return Ok(Some(job.name));
                     }

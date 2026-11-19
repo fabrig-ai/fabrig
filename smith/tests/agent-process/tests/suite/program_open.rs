@@ -74,11 +74,11 @@ fn texts(run: &Run) -> Vec<String> {
                 smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(envelope.body.as_ref()))
                     .expect("transcript turn");
             let mut text = String::new();
-            for message in turn.messages() {
-                if message.role() == &smith_transcript::Role::Assistant {
-                    for block in message.blocks() {
+            for message in &turn.messages {
+                if message.role == smith_transcript::Role::Assistant {
+                    for block in &message.blocks {
                         if let smith_transcript::Block::Text(part) = block {
-                            text.push_str(std::str::from_utf8(part.text()).expect("assistant text"));
+                            text.push_str(std::str::from_utf8(part.text.as_ref()).expect("assistant text"));
                         }
                     }
                 }

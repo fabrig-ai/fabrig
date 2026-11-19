@@ -416,17 +416,17 @@ impl Agent {
         let Ok(turn) = transcript::Turn::decode(&transcript::CEILINGS, &mut skein_lib::Reader::new(body)) else {
             return;
         };
-        for message in turn.messages() {
-            for block in message.blocks() {
+        for message in &turn.messages {
+            for block in &message.blocks {
                 match block {
                     transcript::Block::Call(call) => {
-                        if call.name() == b"finish" {
-                            self.refinish = Some(Box::from(call.input()));
+                        if call.name.as_ref() == b"finish" {
+                            self.refinish = Some(Box::from(call.input.as_ref()));
                         }
-                        self.called(call.name());
+                        self.called(call.name.as_ref());
                     }
                     transcript::Block::Text(text) => {
-                        if contains(text.text(), b"Result from task ") {
+                        if contains(text.text.as_ref(), b"Result from task ") {
                             self.result = true;
                         }
                     }
@@ -474,38 +474,31 @@ fn stream(owner: Token, agent: &Agent, step: &Step) -> Vec<root::AgentContent> {
 }
 
 fn turn(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> Box<[u8]> {
-    let limits = transcript::CEILINGS;
     let messages = turn_messages(agent, texts, step);
-    let value = transcript::Turn::new(
-        &limits,
-        transcript::TurnParts {
-            system: None,
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: transcript::TurnKind::Ordinary,
-            opening: None,
-            endpoint: b"fake".as_slice().into(),
-            dialect: DIALECT,
-            place: agent.said,
-            usage: transcript::Usage::new(
-                &limits,
-                transcript::UsageParts {
-                    input: Some(1),
-                    output: Some(1),
-                    cache_read: Some(0),
-                    cache_write: Some(0),
-                    reasoning: None,
-                },
-            )
-            .expect("usage"),
-            spent: agent.spent,
-            jobs: 0,
-            messages,
+    let value = transcript::Turn {
+        system: None,
+        model: b"model".as_slice().into(),
+        effort: None,
+        kind: transcript::TurnKind::Ordinary,
+        opening: None,
+        endpoint: b"fake".as_slice().into(),
+        dialect: DIALECT,
+        place: agent.said,
+        usage: transcript::Usage {
+            input: Some(1),
+            output: Some(1),
+            cache_read: Some(0),
+            cache_write: Some(0),
+            reasoning: None,
         },
-    )
-    .expect("bounded turn");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured turn");
+        spent: agent.spent,
+        jobs: 0,
+        messages,
+    };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&smith_transcript::CEILINGS).expect("bounded transcript"),
+    ));
+    value.write(&smith_transcript::CEILINGS, &mut writer).expect("measured turn");
     writer.finish()
 }
 
@@ -665,33 +658,21 @@ pub fn agent_bounds() -> Bounds {
 }
 
 fn turn_messages(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> List<transcript::Message> {
-    let limits = transcript::CEILINGS;
-    let text = |bytes: &[u8]| {
-        transcript::Block::Text(
-            transcript::Text::new(&limits, transcript::TextParts { text: bytes.into(), replay: None })
-                .expect("bounded turn text"),
-        )
-    };
+    let text = |bytes: &[u8]| transcript::Block::Text(transcript::Text { text: bytes.into(), replay: None });
     let message = |role, blocks: Vec<transcript::Block>| {
         let mut list = List::with_capacity(u32::try_from(blocks.len()).expect("few blocks"));
         for block in blocks {
             list.push(block).expect("counted blocks");
         }
-        transcript::Message::new(&limits, transcript::MessageParts { role, blocks: list }).expect("bounded message")
+        transcript::Message { role, blocks: list }
     };
     let call = |name: &str, input: &[u8]| {
-        transcript::Block::Call(
-            transcript::Call::new(
-                &limits,
-                transcript::CallParts {
-                    id: format!("call-{}", agent.said).into_bytes().into(),
-                    name: name.as_bytes().into(),
-                    input: input.into(),
-                    replay: None,
-                },
-            )
-            .expect("bounded call"),
-        )
+        transcript::Block::Call(transcript::Call {
+            id: format!("call-{}", agent.said).into_bytes().into(),
+            name: name.as_bytes().into(),
+            input: input.into(),
+            replay: None,
+        })
     };
     let said = match step {
         Step::Call { tool, input } => call(tool, input.as_bytes()),

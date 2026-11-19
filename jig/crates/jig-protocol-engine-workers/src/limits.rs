@@ -1,4 +1,5 @@
 //! Checked channel capacity (protocol/channel/README.md, section 10).
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{
     self as wire,
     sizes::{self, Sizes},

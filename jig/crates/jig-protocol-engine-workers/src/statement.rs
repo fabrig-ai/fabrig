@@ -46,17 +46,17 @@ pub fn judge(spoken: &List<Spoken>, room: u32, schema: &Schema, statement: &Stat
 impl Statement {
     #[expect(clippy::disallowed_methods, reason = "the credential codec validates wire names as UTF-8")]
     pub(crate) fn credential(credential: &Credential) -> Self {
-        let mut wires = List::with_capacity(credential.wires().len());
-        for wire in credential.wires() {
+        let mut wires = List::with_capacity(credential.wires.len());
+        for wire in &credential.wires {
             wires
                 .push(Stated {
-                    name: core::str::from_utf8(wire.name()).expect("credential text is UTF-8").into(),
-                    lowest: wire.lowest(),
-                    layouts: wire.layouts().clone(),
+                    name: core::str::from_utf8(wire.name.as_ref()).expect("credential text is UTF-8").into(),
+                    lowest: wire.lowest,
+                    layouts: wire.layouts.clone(),
                 })
                 .expect("one slot per stated wire");
         }
-        Self { wires, output: credential.output(), terms: List::with_capacity(0) }
+        Self { wires, output: credential.output, terms: List::with_capacity(0) }
     }
 }
 

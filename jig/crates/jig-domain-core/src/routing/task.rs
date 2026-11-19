@@ -92,7 +92,7 @@ pub(crate) fn route_connector_repair(
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         maker: None,
         places: Box::new([]),
-        reply_to: ReplyTo::new(core.internal(Internal::Repair)),
+        reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
         creator: tasks::Party::Deployment { project: seed.project },
         batch: Box::new([tasks::New {
             deadline: jig_domain_tasks::Deadline::Named,
@@ -134,7 +134,7 @@ pub(crate) fn route_person_task(
     work.push(Work::Event(Event::Tasks(tasks::Event::Make {
         maker: None,
         places: Box::new([]),
-        reply_to: ReplyTo::new(core.internal(Internal::Repair)),
+        reply_to: ReplyTo::new(core.internal(Internal::Repair { number: seed.number })),
         creator: tasks::Party::Deployment { project: jig_domain_people::DEPLOYMENT },
         batch: Box::new([tasks::New {
             deadline: tasks::Deadline::Named,

@@ -20,6 +20,13 @@ pub(crate) fn row_bytes(row: &LandingLog) -> Option<u64> {
         )?;
         for change in &landing.changes {
             held = held.checked_add(skein_lib::len_u64(change.title.len()))?;
+            held = held.checked_add(skein_lib::len_u64(change.fixes.len()).checked_mul(4)?)?;
+            if let Some(words) = &change.goal_title {
+                held = held.checked_add(skein_lib::len_u64(words.len()))?;
+            }
+            if let Some(words) = &change.draft {
+                held = held.checked_add(skein_lib::len_u64(words.len()))?;
+            }
             held = held.checked_add(
                 skein_lib::len_u64(change.signed.len())
                     .checked_mul(u64::try_from(size_of::<crate::SignOff>()).ok()?)?,

@@ -283,6 +283,7 @@ fn outputs(
             | Request::CancelFollow { .. }
             | Request::TierRun { .. }
             | Request::FileRedFinding { .. }
+            | Request::FileVerdict { .. }
             | Request::TierDecision { .. }
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)
@@ -348,6 +349,8 @@ fn outputs(
             | Request::Read { .. }
             | Request::RestartDone { .. }
             | Request::Replace { .. }
+            | Request::LandingUnmade { .. }
+            | Request::HoldDropped { .. }
             | Request::LinkNoted { .. }) => emit(out, other),
         }
     }

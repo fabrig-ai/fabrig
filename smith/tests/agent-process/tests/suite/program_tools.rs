@@ -83,12 +83,15 @@ fn told_result(run: &Run, tool: &[u8], input: &serde_json::Value) -> smith_trans
     let mut call_id = None;
     let mut results = Vec::new();
     for turn in turns(run) {
-        for message in turn.messages().as_slice() {
-            for block in message.blocks().as_slice() {
+        for message in turn.messages.as_slice() {
+            for block in message.blocks.as_slice() {
                 match block {
-                    smith_transcript::Block::Call(call) if call.name() == tool => {
-                        call_id = Some(call.id().to_vec());
-                        assert_eq!(&serde_json::from_slice::<serde_json::Value>(call.input()).expect("input"), input);
+                    smith_transcript::Block::Call(call) if call.name.as_ref() == tool => {
+                        call_id = Some(call.id.as_ref().to_vec());
+                        assert_eq!(
+                            &serde_json::from_slice::<serde_json::Value>(call.input.as_ref()).expect("input"),
+                            input
+                        );
                     }
                     smith_transcript::Block::Result(result) => results.push(result.clone()),
                     smith_transcript::Block::Text(_)
@@ -100,14 +103,14 @@ fn told_result(run: &Run, tool: &[u8], input: &serde_json::Value) -> smith_trans
         }
     }
     let id = call_id.expect("tool call is told");
-    results.into_iter().find(|result| result.id() == id).expect("tool result is told")
+    results.into_iter().find(|result| result.id.as_ref() == id).expect("tool result is told")
 }
 
 fn result(run: &Run, path: &str, expected: &[u8], error: bool) {
     let result = told_result(run, b"Read", &json!({"file_path":path}));
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("built-in text") };
-    assert_eq!(said.text(), expected);
-    assert_eq!(said.error(), error);
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("built-in text") };
+    assert_eq!(said.text.as_ref(), expected);
+    assert_eq!(said.error, error);
 }
 
 #[test]
@@ -241,9 +244,9 @@ fn a_nested_host_input_is_told_and_answered() {
     let run = steps(vec![Step::Call { tool: "lookup".into(), input: input.clone() }, finish()]);
     accepted(&run);
     let result = told_result(&run, b"lookup", &input);
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
-    assert_eq!(said.text(), b"found");
-    assert!(!said.error());
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host answer") };
+    assert_eq!(said.text.as_ref(), b"found");
+    assert!(!said.error);
     assert!(run.seen.contains(&Seen::Called { tool: "lookup".into(), error: false }));
 }
 
@@ -301,13 +304,13 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
             Reaches::Whole => {
                 accepted(&run);
                 let result = told_result(&run, b"lookup", &input);
-                let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
+                let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host answer") };
                 assert_eq!(calls.len(), 1);
                 // The host boundary receives the whole JSON, including its framing.
                 let smith_channel::Ask::Host(host) = &calls[0].ask else { panic!("host lookup") };
                 assert_eq!(host.input.as_ref(), encoded);
-                assert_eq!(said.text(), b"found");
-                assert!(!said.error());
+                assert_eq!(said.text.as_ref(), b"found");
+                assert!(!said.error);
             }
             Reaches::Refused(limit) => {
                 assert!(calls.is_empty(), "a refused call never reaches the host");
@@ -326,9 +329,9 @@ fn a_large_host_argument_reaches_the_host_or_names_its_limit() {
                     ArgumentLimit::HostInput => {
                         accepted(&run);
                         let result = told_result(&run, b"lookup", &input);
-                        let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host refusal") };
-                        assert!(said.error());
-                        assert_eq!(said.text(), b"host-rejected reason=too-large");
+                        let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host refusal") };
+                        assert!(said.error);
+                        assert_eq!(said.text.as_ref(), b"host-rejected reason=too-large");
                     }
                 }
             }
@@ -374,18 +377,18 @@ fn thinking_reply(run: &Run, messages: u32, spend: u64) {
     assert_eq!(run.answer().expect("answer").spent, spend);
     assert!(run.seen.contains(&Seen::Called { tool: "lookup".into(), error: false }));
     let result = told_result(run, b"lookup", &json!({}));
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("host answer") };
-    assert_eq!(said.text(), b"found");
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("host answer") };
+    assert_eq!(said.text.as_ref(), b"found");
     let replies: Vec<_> = turns(run)
         .into_iter()
         .flat_map(|turn| {
-            turn.messages()
+            turn.messages
                 .as_slice()
                 .iter()
-                .filter(|message| message.role() == &smith_transcript::Role::Assistant)
-                .flat_map(|message| message.blocks().as_slice())
+                .filter(|message| message.role == smith_transcript::Role::Assistant)
+                .flat_map(|message| message.blocks.as_slice())
                 .filter_map(|block| match block {
-                    smith_transcript::Block::Text(text) => Some(text.text().to_vec()),
+                    smith_transcript::Block::Text(text) => Some(text.text.as_ref().to_vec()),
                     smith_transcript::Block::Call(_)
                     | smith_transcript::Block::Result(_)
                     | smith_transcript::Block::Refusal(_)
@@ -403,9 +406,9 @@ fn a_finite_thinking_turn_calls_then_replies_once() {
     accepted(&run);
     thinking_reply(&run, FINITE_THINKING_MESSAGES, FINITE_THINKING_SPEND);
     let result = told_result(&run, b"finish", &json!({"form":"report","text":"done","fields":{}}));
-    let smith_transcript::Returned::Said(said) = result.returned() else { panic!("program result") };
-    assert_eq!(said.text(), b"accepted");
-    assert!(!said.error());
+    let smith_transcript::Returned::Said(said) = &result.returned else { panic!("program result") };
+    assert_eq!(said.text.as_ref(), b"accepted");
+    assert!(!said.error);
 }
 
 #[test]
@@ -478,8 +481,8 @@ fn a_program_remove_after_a_partial_native_read_asks_for_the_whole_file() {
         let run = coder_steps(vec![native_read(input), remove("a", "read the file whole"), finish()]);
         coder_removed(&run, true);
         let result = told_result(&run, b"remove", &json!({"path":"a"}));
-        let smith_transcript::Returned::Outcome(outcome) = result.returned() else { panic!("owned refusal") };
-        assert_eq!(outcome.value(), &smith_transcript::Outcome::NotRead);
+        let smith_transcript::Returned::Outcome(outcome) = &result.returned else { panic!("owned refusal") };
+        assert_eq!((&outcome.value), &smith_transcript::Outcome::NotRead);
         assert_eq!(run.workspace_file.as_deref(), Some(b"before\n".as_slice()));
     }
 }
@@ -522,8 +525,8 @@ fn a_program_remove_refuses_a_file_changed_after_its_native_snapshot() {
     let run = program_world::run_after_snapshot(&story, &coder_charter(true));
     coder_removed(&run, true);
     let result = told_result(&run, b"remove", &json!({"path":"a"}));
-    let smith_transcript::Returned::Outcome(outcome) = result.returned() else { panic!("owned refusal") };
-    assert_eq!(outcome.value(), &smith_transcript::Outcome::Stale);
+    let smith_transcript::Returned::Outcome(outcome) = &result.returned else { panic!("owned refusal") };
+    assert_eq!((&outcome.value), &smith_transcript::Outcome::Stale);
     assert!(run.snapshot_changed);
     assert_eq!(run.workspace_file.as_deref(), Some(b"world!\n".as_slice()));
 }

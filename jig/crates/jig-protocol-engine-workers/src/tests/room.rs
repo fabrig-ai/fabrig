@@ -217,7 +217,7 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
         let record =
             crate::translate::down(down, &fixtures::parts(), fixtures::values(), &component.codec).expect("record");
         let kind = record.kind();
-        let bytes = record.frame().wire_len();
+        let bytes = record.frame(&component.codec).unwrap().wire_len();
         let mut out = Queue::uncapped();
         let down = if assignment { hub::LinkDown::Assign { assignment: fixtures::assignment() } } else { job(false) };
         component.down(

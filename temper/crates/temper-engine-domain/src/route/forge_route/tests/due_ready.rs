@@ -12,6 +12,7 @@ pub(super) fn ready_changes(changes: &[u64], batch_size: u16) -> (Domain, Env<Li
     limits.tasks.batch_bytes = 16_384;
     limits.people.inbox_tasks = 32;
     limits.forge.landing_members = 4;
+    limits.tasks.holdings = limits.forge.landing_members;
     let (mut domain, env) = super::procedure_root_with_limits(limits);
     let (fixture, _, task) = crate::tests::live_task(None, tasks::Executor::Procedure { connector: 0, code: 2 });
     let template = fixture.core.tasks.task(task).unwrap();

@@ -20,7 +20,10 @@ fn a_notes_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 2;
     assert_eq!(
         notes::decode(&bytes, &limits),
-        Err(crate::notes_v1::Problem { path: crate::notes_v1::Path::RowVersion, reason: skein_codec::Reason::Version })
+        Err(crate::notes_v1::Problem {
+            path: crate::notes_v1::paths::ROW_VERSION,
+            reason: skein_codec::Reason::Version
+        })
     );
 }
 fn notes_limits_past_the_ceilings_are_refused() {
@@ -225,12 +228,12 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     let mut label = account_fact(FactValue::Count(0));
     label.label = Box::new([b'l'; 33]);
     for (record, path) in [
-        (facts_record(repeated_account_facts(25)), crate::accounts_v2::Path::FactsFacts),
+        (facts_record(repeated_account_facts(25)), crate::accounts_v2::paths::FACTS_FACTS),
         (
             facts_record(Box::new([account_fact(FactValue::Text(Box::new([b't'; 256])))])),
-            crate::accounts_v2::Path::FactTextText,
+            crate::accounts_v2::paths::FACT_TEXT_TEXT,
         ),
-        (facts_record(Box::new([label])), crate::accounts_v2::Path::FactLabel),
+        (facts_record(Box::new([label])), crate::accounts_v2::paths::FACT_LABEL),
     ] {
         assert_eq!(
             accounts::encode(&record),
@@ -239,13 +242,13 @@ fn the_accounts_ceilings_are_the_childs_bounds() {
     }
 }
 fn a_share_past_whole_does_not_decode() {
-    use crate::accounts_v2::{Path, Problem};
+    use crate::accounts_v2::{Problem, paths};
     use jig_domain_accounts::{FactValue, FactWindow};
     for (value, path) in [
-        (FactValue::Share(10_001), Path::FactShareBasis),
+        (FactValue::Share(10_001), paths::FACT_SHARE_BASIS),
         (
             FactValue::Window(FactWindow { length: None, used: Some(10_001), resets: None, state: 1 }),
-            Path::FactWindowUsed,
+            paths::FACT_WINDOW_USED,
         ),
     ] {
         let bytes =
@@ -278,7 +281,7 @@ fn a_notes_pattern_past_its_aggregate_limit_is_refused() {
     assert_eq!(
         notes::encode(&domain::Record::Line(line), &limits),
         Err(crate::notes_v1::Problem {
-            path: crate::notes_v1::Path::PatternSegments,
+            path: crate::notes_v1::paths::PATTERN_SEGMENTS,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -317,7 +320,7 @@ fn a_decoded_pattern_past_its_aggregate_limit_is_refused() {
     assert_eq!(
         notes::decode(&bytes, &limits),
         Err(crate::notes_v1::Problem {
-            path: crate::notes_v1::Path::PatternSegments,
+            path: crate::notes_v1::paths::PATTERN_SEGMENTS,
             reason: skein_codec::Reason::Bound,
         })
     );

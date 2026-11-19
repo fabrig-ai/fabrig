@@ -6,6 +6,7 @@ use crate::{
     worker_settings,
 };
 use jig_protocol_config as config;
+use jig_protocol_worker_wire::Record;
 use temper_service_core::derived::{self, STOCK};
 
 fn root(payload: u32, turn: u32) -> temper_worker_domain::Limits {
