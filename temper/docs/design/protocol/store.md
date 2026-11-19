@@ -710,11 +710,10 @@ written at 4,096 is brought within by the `test-ids-*` jobs (above). A
 receipt report's test keys (`ReceiptTest.key`) keep their ceiling of
 4,096: no tier row holds them, and their runtime bound is
 `test_id_bytes` too, so what the store writes is within 1,024.
-The names a tier row's `many` keeps (`../domain/after-landing.md`,
-section 4) take their own record, `ShownTest { test_id: bytes 1024 }`,
-which the wide text leaves at 1,024 (2026-11-19): no layout from before
-the narrowing holds them, and at 4,096 they pass the envelope, the tier
-row's being within 223 KB of it at 759.
+A tier row's `many` keeps at most 64 names, `list 64 ShownTest`,
+`ShownTest { test_id: bytes 1024 }`, which the wide text leaves alone
+(`../domain/after-landing.md`, 10, *Limits*; 2026-11-19): no older
+layout holds them, and the row is within 223 KB of the envelope at 759.
 
 A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the

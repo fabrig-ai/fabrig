@@ -4,8 +4,9 @@
 
 
 - **Not yet:** 4: `ShownTest`: a tier row's many names are `FailingTest`s,
-  widened to 4,096 bytes in the test-id jobs' wide text, which then
-  refuses to parse [in flight: change 9327].
+  widened to 4,096 bytes in the test-id jobs' wide text, and up to
+  1,024 of them, so the wide text refuses to parse [in flight: change
+  9327].
 - **Not yet:** 4: `ApplicationAdopted`'s `landing` [in flight: change
   8088].
 - **Not yet:** 2: family 30, `LandingLog`: its members keep no goal or

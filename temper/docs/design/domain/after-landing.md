@@ -861,11 +861,13 @@ Run: URL
   `failing_tests` per run (16), `test_id_bytes` (512, at most the
   store's 1,024, `../protocol/store.md`, 4), and a tier's
   name at most 32 bytes. A many's names, wherever kept, hold at most
-  `failing_tests` ids. A landing log's red entry keeps at most 64 of
-  them, the store's ceiling (2026-11-19): 256 landings of 32 tiers each
+  `failing_tests` ids. A tier row's `many` and a landing log's red
+  entry keep at most 64 of them, the store's ceiling (2026-11-19): a
+  tier row is within 223 KB of the store codec's `u32` worst case,
+  which 1,024 names of 1,024 bytes pass; 256 landings of 32 tiers each
   keeping 1,024 ids of 1,024 bytes pass the store codec's `u32` worst
   case, and 64 is the stock `failing_tests` and a finding's signature's
-  (`findings.md`, section 4). Past it the entry keeps the lowest 64 in
+  (`findings.md`, section 4). Past it the row or entry keeps the lowest 64 in
   byte order; its count still counts every blamed test, and a many's
   names add the ids left out to their `more`, so `read_ci`'s remainder
   (section 9) says how many more there are. The entry keeps its ids, or
