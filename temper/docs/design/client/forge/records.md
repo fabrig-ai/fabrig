@@ -599,10 +599,12 @@
   `findings`, `FindingsSubject { project, filter }`, `filter` a
   `FindingsFilter`: `triage`, `FindingsTriage { state, mine }`, `state`
   an option of `new`, `routed`, `backlog` or `dropped`, `mine` whether
-  only the reader's (`../../domain/areas.md`, section 5); or `goal` or
-  `milestone`, a u64 each, the findings whose blame names that goal or a
+  only the reader's (`../../domain/areas.md`, section 5); or `goal`, a
+  `FindingsGoal { goal }`, or `milestone`, a `FindingsMilestone {
+  milestone }`, a u64 each, the findings whose blame names that goal or a
   goal of that milestone, in every state
-  (`../../domain/red-findings.md`, section 10). The root makes its
+  (`../../domain/red-findings.md`, section 10). An enum's case carries a
+  record, as `HolderTask` does, hence the two of one field. The root makes its
   document, since holders read the core (`../../domain/areas.md`,
   section 4). Its document, `Findings`: `project`; `rows`, at most 128,
   newest first, each `FindingRow { number, kind, severity, area, state,
