@@ -121,8 +121,10 @@ filed it. What waits is section 11.
 
 Refused, naming why, in these words, checked in this order:
 
-- `repairs are off in project P`, where kind 4 has no `repairs`, or a
-  start found them incomplete (section 7);
+- `repairs are off in project P`, where kind 4 has no `repairs`, and
+  `repairs are off in project P: FIELD`, where a start found them
+  incomplete (section 7), FIELD the first it found: `goal.charter`,
+  `goal.llm` or `tasks.spec_bytes`;
 - `no triager stands in project P`, where kind 15 resolves to no
   standing task (`areas.md`, section 4);
 - `finding P/N is not yours: its owner is HOLDER`, as any act is;
@@ -299,9 +301,13 @@ BODY
 - **Checked at each start** complete again, against the deployment's
   charters, models and limits as they then stand: a charter or model
   gone, or `tasks.spec_bytes` below 8,192, turns the project's repairs
-  off until a save makes them whole, the start's report naming the
-  project and the field, and `repair` refuses `repairs are off in
-  project P`.
+  off until a save makes them whole and a start takes it. The start
+  goes on: it refuses nothing for it. Its report is `repair`'s
+  refusal, naming the project and the field (4.2), since a start has
+  no report of its own for a setting it can't honour. The root checks
+  it where the forge's records are restored (`route.rs`'s
+  `ForgeRestored`), and the forge holds which projects are off, in
+  memory, until the next start.
 - **Findings on:** the draft also refuses `repairs` without findings
   on; kind 4's `findings` member isn't built (`landing-settings.md`,
   1.1), and red findings file under `wait: landed` alone, so the check
