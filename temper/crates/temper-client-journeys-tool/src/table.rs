@@ -130,14 +130,33 @@ pub(crate) const AGAIN: Command = Command {
 };
 
 const PAGE_INPUTS: Settings = Settings { tool: "temper-client-journeys pages", ..PREPARED };
+const PAGE_BOUND: Settings = Settings {
+    tool: "temper-client-journeys pages",
+    about: "The walks' bound from the command's start; the reprint is not bounded.",
+    table: &[Setting {
+        name: "within",
+        value: "DURATION",
+        about: "Digits then s, m or h (90m).",
+        fallback: Fallback::Text(""),
+        set: Set::Internal,
+        twin: None,
+        notes: "A cut walk, or one not started before the bound passes, stops naming the bound.",
+    }],
+};
 /// The journeys' writer (temper/docs/design/client/journey-writer.md, 3).
 pub(crate) const PAGES: Command = Command {
     reach: Reach::Words(&["pages"]),
-    forms: &["[--prepared DIR]"],
-    settings: &[&PAGE_INPUTS],
+    forms: &["[--prepared DIR] [--within DURATION]", "--check"],
+    settings: &[&PAGE_INPUTS, &PAGE_BOUND],
+    switches: &[Switch {
+        name: "check",
+        set: Set::Internal,
+        line: "Name each journey fresh or stale; write nothing and start no child.",
+        notes: "Takes no other argument. Exit 0: every journey fresh; 1: a stale journey; 2: usage; 3: a root unreadable.",
+    }],
     line: "Walk each stale journey again, then reprint both clients and remove pages with no recording.",
     variables: AGAIN.variables,
-    notes: "Current journeys start nothing and change no byte. Inputs are built once when needed, unless --prepared supplies them. A stopped walk keeps its files; the others still print. Exit 0: every journey printed; 1: a walk stopped or a recording stayed stale; 2: usage; 3: printing or removal failed.",
+    notes: "Current journeys start nothing and change no byte. Inputs are built once when needed, unless --prepared supplies them; their build counts against --within. A stopped walk keeps its own scratch and leaves its journey's files as they were; the others still print. Stdout has one line a journey, the browser's then the TUI's, each in name order: fresh NAME, walked again NAME, or stopped NAME: WHY; scratch kept at PATH where a stopped walk left one. Every other word goes to stderr. Exit 0: every journey printed; 1: a journey left unprinted; 2: usage; 3: a root unreadable or unwritable.",
     ..REPRINT
 };
 
