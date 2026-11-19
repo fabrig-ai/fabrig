@@ -714,7 +714,7 @@ Drafts:
 - [`draft/claude-provider.md`](draft/claude-provider.status.md)
 - [`draft/claude-sign-in.md`](draft/claude-sign-in.status.md)
 - [`draft/cli.md`](draft/cli.status.md)
-- [`draft/codec-shape.md`](draft/codec-shape.status.md) — K2, goal 7547: `src/generated/<stem>.rs` per family, version constant inside; no item-count arrays, `LIMIT_NAMES` a slice, named booleans, functions split by declaration/field; fingerprints from schema texts. Removed jig's store and smith's local-store `generated/layouts.rs`, jig's layouts row (key `00 03` reserved), skein-oauth's `FINGERPRINT`. Merge job regenerates clean schemas with `skein-codegen` (`protocol/tooling.md`, 4.1); forges/searches mark generated files and `AGENTS.md` forbids hand merges. K3: lean tasks records, `schema/lean`, `every-v3` both ways, completeness, `missing`/`roots`/`largest`, pinned bounds, largest-value memory tests and line/compile/decode measurements against draft 3.3.
+- [`draft/codec-shape.md`](draft/codec-shape.status.md) — K1 to K4: every family's records lean, typed problems per family, in `src/generated/<stem>.rs` with no counts, versioned names or committed fingerprints; the merge job regenerates them (`protocol/tooling.md`, 4.1) and `AGENTS.md` forbids hand merges. Tests name each owner's `SCHEMA` text and take its values from `values`. The status says how 3.3 was judged.
 - [`draft/commit-failed-why.md`](draft/commit-failed-why.status.md)
 - [`draft/config.md`](draft/config.status.md)
 - [`draft/configuring.md`](draft/configuring.status.md)
