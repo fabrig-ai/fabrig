@@ -7,3 +7,4 @@
   document).
   6: a spawn's reach: `Reach`, `Rule`, `Rights` and `Unenforced`,
   `Spawn`'s `reach`, its bounds at io's entrance, and `Error::Reach`.
+  [in flight: change 9006]

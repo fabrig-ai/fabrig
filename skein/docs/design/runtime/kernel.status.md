@@ -15,6 +15,7 @@ gives the descriptor an immediate read end and accepts its writes.
   `SyncFilesystem` and btrfs's subvolume records. 6.2, 6.6: cgroups and
   contained spawn, the helper's ids and containment among them. 7: the
   invariants of those records.
-  6.2, 6.6: a spawn's reach: the helper for a reach alone, its
-  `Kernel::set_helper` and `Kernel::can_restrict`, and every backend's
-  refusal of a reach it cannot enforce.
+  6.2: every backend's refusal of a reach it cannot enforce, macOS's
+  `Unsupported` among them. [in flight: change 9006]
+  6.6: the helper for a reach alone, `Kernel::set_helper` and
+  `Kernel::can_restrict`. [in flight: change 9014]

@@ -24,6 +24,7 @@ counted around each reused pass, never by an address.
   `0o777`, times and attributes, its subvolume and filesystem answers,
   and the programs for trees, the probe's report of a contained tree among them.
   4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
+  [in flight: change 9030]
   5: `Referee` keeps `observe`, which panics on what it finds, and
   `watch`'s default calls it; the referees of jig's, temper's, smith's
   and hearth's worlds implement `observe`. [in flight: change 2882]
