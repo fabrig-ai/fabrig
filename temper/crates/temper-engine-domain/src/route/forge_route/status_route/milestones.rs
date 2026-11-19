@@ -31,6 +31,7 @@ pub(super) fn append(domain: &Domain, env: &Env<Limits>, project: u32, since: Wa
         let total = super::delegate_total(row);
         counts(words, count.done, total, count.failed, count.cancelled);
         landing_words(words, last_landing(domain.forge.milestone(row.number)));
+        reds_words(words, domain.forge.reds_owed(row.project, row.number));
     }
     for row in &ended {
         let Some(end) = &row.ended else { continue };
@@ -49,6 +50,7 @@ pub(super) fn append(domain: &Domain, env: &Env<Limits>, project: u32, since: Wa
         let total = end.done.saturating_add(end.failed);
         counts(words, end.done, total, end.failed, end.closed);
         landing_words(words, last_landing(Some(row)));
+        reds_words(words, domain.forge.reds_owed(row.project, row.task));
     }
 }
 
@@ -78,6 +80,14 @@ fn landing_words(words: &mut List<u8>, landing: Option<Wall>) {
     if let Some(at) = landing {
         super::super::append(words, b"; last landing ");
         time(words, at);
+    }
+}
+
+fn reds_words(words: &mut List<u8>, reds: u32) {
+    if reds != 0 {
+        super::super::append(words, b"; ");
+        super::super::append(words, Decimal::of(u64::from(reds)).as_bytes());
+        super::super::append(words, if reds == 1 { b" red owed" } else { b" reds owed" });
     }
     super::super::append(words, b"\n");
 }

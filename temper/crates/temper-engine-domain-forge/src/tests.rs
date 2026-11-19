@@ -555,6 +555,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         Request::Call { call, op, .. } => (*call, op.clone()),
         Request::Resource { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Adopted { .. }
         | Request::Save { .. }
@@ -657,6 +658,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         }
         Request::Call { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }
@@ -753,6 +755,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         Request::Call { op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings), .. } => {}
         Request::Call { .. }
         | Request::LinkNoted { .. }
+        | Request::MilestoneMarked { .. }
         | Request::Marked { .. }
         | Request::Resource { .. }
         | Request::Adopted { .. }

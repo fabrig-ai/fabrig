@@ -2,6 +2,7 @@
 use super::*;
 use crate::findings::findings_filter;
 use crate::settings::{Area, AreaOwner, ProjectAreas};
+use skein_lib::List;
 
 #[test]
 fn the_owner_chain_uses_standing_then_triager_then_project_owners() {
@@ -31,7 +32,7 @@ fn findings_filter_keys_are_bounded_invertible_and_apart_from_other_subjects() {
     assert_eq!(findings_subject(3, goal), Some((1_u64 << 62_u32) | (1 << 41_u32) | 0x0334));
     assert_eq!(findings_subject(3, milestone), Some((1_u64 << 62_u32) | (1 << 42_u32) | 0x032c));
     for project in [1, u32::MAX] {
-        let mut keys = skein_lib::List::uncapped();
+        let mut keys = List::uncapped();
         for filter in [
             goal,
             milestone,
@@ -165,7 +166,7 @@ fn a_full_project_erases_only_its_oldest_ended_finding_and_restore_keeps_the_bou
     assert!(d.finding(1, 2).is_none());
     let mut restored = domain_with_limits(&limits);
     restored.restore_begin(Wall::EPOCH);
-    let mut saves = skein_lib::List::with_capacity(3);
+    let mut saves = List::with_capacity(3);
     for (_, row) in d.findings(1) {
         saves.push(row.clone()).unwrap();
     }
@@ -206,6 +207,84 @@ fn blamed_red(number: u32, state: FindingState) -> Finding {
     row.blame = Some(FindingBlame { strength: BlameStrength::Unblamed, landings: Box::new([]) });
     row
 }
+#[test]
+fn reds_owed_counts_each_projects_uncleared_finding_once_in_every_state() {
+    let mut d = domain();
+    for (number, project, milestone, state, kind, cleared, strength, landings) in [
+        (1, 2, 812, FindingState::New, FindingKind::Red, false, BlameStrength::Owned, 1),
+        (2, 2, 812, FindingState::New, FindingKind::Red, false, BlameStrength::Suspected, 2),
+        (3, 2, 812, FindingState::Dropped, FindingKind::Red, false, BlameStrength::Owned, 1),
+        (4, 2, 812, FindingState::New, FindingKind::Red, true, BlameStrength::Owned, 1),
+        (5, 2, 812, FindingState::New, FindingKind::Flake, false, BlameStrength::Owned, 1),
+        (6, 2, 813, FindingState::New, FindingKind::Red, false, BlameStrength::Owned, 1),
+        (7, 3, 812, FindingState::New, FindingKind::Red, false, BlameStrength::Owned, 1),
+    ] {
+        let mut row = blamed_red(number, state);
+        row.project = project;
+        row.kind = kind;
+        row.cleared = cleared.then_some(FindingCleared { run: 17, at: Wall::from_nanos(19) });
+        let mut blamed = List::with_capacity(2);
+        for landing in 0..landings {
+            blamed
+                .push(BlamedLanding {
+                    commit: [landing; 32],
+                    goals: Box::new([BlamedGoal { goal: 820, milestone: Some(milestone), person: Some(4) }]),
+                })
+                .expect("at most two blamed landings");
+        }
+        row.blame = Some(FindingBlame { strength, landings: blamed.into_boxed() });
+        d.commit_finding(&LIMITS, FindingWrite { row, erase: None }, &mut Queue::uncapped());
+    }
+    assert_eq!(d.reds_owed(2, 812), 3);
+    assert_eq!(d.reds_owed(2, 813), 1);
+    assert_eq!(d.reds_owed(2, 999), 0);
+}
+fn blame(goal: u64, milestone: u64) -> FindingBlame {
+    FindingBlame {
+        strength: BlameStrength::Owned,
+        landings: Box::new([BlamedLanding {
+            commit: [1; 32],
+            goals: Box::new([BlamedGoal { goal, milestone: Some(milestone), person: None }]),
+        }]),
+    }
+}
+
+#[test]
+fn a_finding_write_marks_the_previous_written_and_evicted_blames() {
+    let mut d = domain();
+    for (number, goal, milestone) in [(1, 820, 812), (2, 821, 813)] {
+        let mut row = blamed_red(number, FindingState::Dropped);
+        row.blame = Some(blame(goal, milestone));
+        row.cleared = Some(FindingCleared { run: 17, at: Wall::from_nanos(19) });
+        d.commit_finding(&LIMITS, FindingWrite { row, erase: None }, &mut Queue::uncapped());
+    }
+    let mut row = d.finding(1, 1).unwrap().clone();
+    row.blame = Some(blame(822, 814));
+    let mut out = Queue::uncapped();
+    d.commit_finding(&LIMITS, FindingWrite { row, erase: Some(2) }, &mut out);
+    assert!(d.finding(1, 2).is_none());
+    for (goal, milestone) in [(820, 812), (821, 813), (822, 814)] {
+        for filter in [FindingsFilter::Goal(goal), FindingsFilter::Milestone(milestone)] {
+            let subject = findings_subject(1, filter).unwrap();
+            let mut marks = 0u32;
+            for request in &out {
+                if let Request::Marked { tasks } = request {
+                    assert!(tasks.len() <= skein_lib::usize_of(MARKED));
+                    if tasks.contains(&subject) {
+                        marks = marks.saturating_add(1);
+                    }
+                }
+            }
+            assert_eq!(marks, 1, "each old or new filtered subject: {filter:?}");
+        }
+        let mut marked = false;
+        for request in &out {
+            marked |= *request == Request::MilestoneMarked { task: milestone };
+        }
+        assert!(marked, "parts of milestone {milestone}");
+    }
+}
+
 #[test]
 fn uncleared_red_requires_red_kind_blame_and_no_clearing() {
     let mut row = blamed_red(1, FindingState::Dropped);

@@ -1764,6 +1764,22 @@ fn restored_change(
 }
 
 #[test]
+fn a_finding_blame_mark_reaches_the_core_as_a_milestone_parts_mark() {
+    use super::{Decision, Work, forge};
+    let (mut domain, env) = two_forges();
+    let mut out = skein_lib::Queue::uncapped();
+    out.push(forge::Request::MilestoneMarked { task: 812 });
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Core(jig_domain_core::Event::PartsMarked { connector, tasks })) = domain.work.pop() else {
+        panic!("finding marks the milestone's parts")
+    };
+    assert_eq!(connector, domain.config.forge_connector);
+    assert_eq!(tasks.as_slice(), &[812]);
+    assert!(domain.work.is_empty());
+}
+
+#[test]
 fn an_ended_changes_pull_wake_names_nothing() {
     use super::{Decision, Work, forge};
     // Its release unnamed it: the change row stays, its names row does not.

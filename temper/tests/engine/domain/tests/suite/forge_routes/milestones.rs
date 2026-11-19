@@ -3,7 +3,7 @@ use super::goal_landing::{ended, finish_goal, mine, row};
 use super::*;
 const STEPS: u32 = 1000;
 
-fn ask(world: &mut World, key: u8, ask: people::Ask) -> people::Outcome {
+pub(super) fn ask(world: &mut World, key: u8, ask: people::Ask) -> people::Outcome {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
         models: Box::new([]),
         reply_to: ReplyTo::new(Token::new(u64::from(key))),
@@ -47,7 +47,7 @@ pub(super) fn milestone_with_budget(world: &mut World, key: u8, words: &[u8], bu
     member.budget = people::Budget::AsAllowed { cap: Some(budget) };
     created(&ask(world, key, people::Ask::Create { project, batch }))
 }
-fn stored(world: &World, task: u64) -> &forge_top::MilestoneRow {
+pub(super) fn stored(world: &World, task: u64) -> &forge_top::MilestoneRow {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::Milestone(task))) else {
         panic!("milestone {task} stored")
     };

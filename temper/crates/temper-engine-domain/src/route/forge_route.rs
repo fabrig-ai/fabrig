@@ -4328,6 +4328,7 @@ pub(crate) fn outputs(
             }
             forge::Request::BriefTaken { .. } => unreachable!("the root takes completed sections directly"),
             forge::Request::MarkedForges => domain.mark_forges(),
+            forge::Request::MilestoneMarked { task } => super::parts::marked(domain, task),
             forge::Request::Marked { tasks } => {
                 const {
                     assert!(

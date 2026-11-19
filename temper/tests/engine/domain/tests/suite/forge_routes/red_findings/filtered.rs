@@ -35,7 +35,7 @@ fn numbers(document: &forge_top::Findings) -> Vec<u32> {
     document.rows.iter().map(|row| row.number).collect()
 }
 
-fn judged(world: &mut World, sequence: u64) {
+pub(super) fn judged(world: &mut World, sequence: u64) {
     until(world, RUN_TICKS * 3, "landing verdict filed", |world| {
         tier(world).record.sequence == sequence && tier(world).posting.is_none()
     });

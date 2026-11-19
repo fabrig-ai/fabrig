@@ -1723,6 +1723,7 @@ impl World {
                 | top::Request::MakingAct { .. }
                 | top::Request::ApplicationDone { .. }
                 | top::Request::MarkedForges
+                | top::Request::MilestoneMarked { .. }
                 | top::Request::Marked { .. } => {}
                 top::Request::ApplicationAgain { .. } => panic!("application capacity available"),
                 top::Request::Adopted { reply_to, result } => {

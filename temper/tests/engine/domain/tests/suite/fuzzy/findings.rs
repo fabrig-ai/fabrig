@@ -159,7 +159,7 @@ struct Replay {
     findings: Vec<(u32, forge::FindingAnswer)>,
     news: Vec<(u64, u64, Box<[u8]>)>,
 }
-fn scenario() -> (Driver, engine::Assignment, u64, u64) {
+pub(super) fn scenario() -> (Driver, engine::Assignment, u64, u64) {
     let (mut driver, run) = f::driver();
     driver.send(engine::Event::Party(engine::PartyInput::SignedIn {
         until: None,

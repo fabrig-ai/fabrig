@@ -1,6 +1,7 @@
 //! Reds of no goal's reach the triager without holding verification (after-landing.md, 7).
 mod filtered;
 mod follows;
+mod owed;
 use super::*;
 use temper_engine_domain_world::{
     kinds,
@@ -16,7 +17,12 @@ fn world_with_wait(wait: temper_engine_domain_forge_change::Wait) -> (World, u64
 }
 
 fn world_with_findings(wait: temper_engine_domain_forge_change::Wait, bound: u32) -> (World, u64) {
-    let mut world = tier_runs::findings_world_with(tier_runs::Tier { wait, ..tier_runs::Tier::default() });
+    world_with_sessions(wait, bound, Duration::from_secs(60))
+}
+
+fn world_with_sessions(wait: temper_engine_domain_forge_change::Wait, bound: u32, lifetime: Duration) -> (World, u64) {
+    let mut world = tier_runs::findings_world_with(tier_runs::Tier { wait, ..tier_runs::Tier::default() })
+        .with_sign_in_lifetime(lifetime);
     world.env.limits.forge.findings_per_project = bound;
     world.env.limits.tasks.project_goals = world.env.limits.tasks.project_goals.max(bound);
     let client = world.env.limits.forge.client;
