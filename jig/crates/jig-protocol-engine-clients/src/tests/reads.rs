@@ -1,5 +1,6 @@
 use super::super::*;
 use super::fixtures as f;
+use crate::cursor_v2::Record as _;
 use jig_domain_core_vocabulary::reads;
 #[test]
 fn pending_amendments_answer_their_value_over_the_exchange() {
@@ -380,13 +381,8 @@ fn cursor_boundaries_refuse_unrepresentable_scopes_oversized_values_and_other_fo
     let tree = cursor::encode_tree(&after, 7, 3, 1024).expect("tree cursor");
     assert_eq!(cursor::decode(&tree), None);
     assert_eq!(cursor::decode_window(&tree), None);
-    let bare = crate::cursor_v2::DocumentCursor::Number(
-        crate::cursor_v2::Number::new(&crate::cursor_v2::CEILINGS, crate::cursor_v2::NumberParts { value: 7 })
-            .expect("number"),
-    );
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(bare.measure()));
-    bare.encode(&mut writer).expect("measured document cursor");
-    let bytes = writer.finish();
+    let bare = crate::cursor_v2::DocumentCursor::Number(crate::cursor_v2::Number { value: 7 });
+    let bytes = bare.encode(&crate::cursor_v2::CEILINGS).expect("bounded document cursor");
     assert_eq!(cursor::decode_window(&bytes), Some(after));
     let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("small cursor"));
     trailing.put(&bytes).expect("document cursor");
