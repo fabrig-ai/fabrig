@@ -28,6 +28,15 @@ fn lean_helper_fixture_has_no_drift() {
 }
 
 #[test]
+fn lean_roots_have_a_concrete_debug_decode_entry() {
+    let schema = parse("family roots 1\nrecord Item { byte: u8 }\nrecord Root { item: Item }\n").expect("root schema");
+    let output = generate_as(&schema, Form::Lean).records;
+    let (nested, root) = output.split_once("// Record: Root.").expect("root implementation");
+    assert!(!nested.contains("fn decode("), "nested reads use the family's read entry");
+    assert!(root.contains("#[cfg(debug_assertions)]\n    fn decode("), "only debug builds override the default entry");
+}
+
+#[test]
 fn lean_surface_is_public_and_sealed_generation_is_unchanged() {
     let schema = parse(FIXTURE).expect("helper schema");
     assert_eq!(generate_as(&schema, Form::Sealed), generate(&schema));

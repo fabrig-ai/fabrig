@@ -962,6 +962,84 @@ opt-level = 3
 [profile.dev.package.skein-lib]
 opt-level = 3
 
+# Lean field helpers are instantiated in each family's crate. Test inherits dev;
+# keep these overrides out of release and the profiles that inherit it.
+[profile.dev.package.skein-codec]
+opt-level = 2
+
+[profile.dev.package.jig-client-protocol-wire]
+opt-level = 2
+
+[profile.dev.package.jig-client-view-codec]
+opt-level = 2
+
+[profile.dev.package.jig-protocol-accounts-codec]
+opt-level = 2
+
+[profile.dev.package.jig-protocol-engine-clients-codec]
+opt-level = 2
+
+[profile.dev.package.jig-protocol-store-core]
+opt-level = 2
+
+[profile.dev.package.jig-protocol-store-families]
+opt-level = 2
+
+[profile.dev.package.jig-protocol-store-people]
+opt-level = 2
+
+[profile.dev.package.jig-protocol-store-settings]
+opt-level = 2
+
+# Level 2 exceeded the isolated rebuild's spread; level 1 keeps this bound.
+[profile.dev.package.jig-protocol-store-tasks]
+opt-level = 1
+
+[profile.dev.package.jig-protocol-worker-wire]
+opt-level = 2
+
+[profile.dev.package.jig-ops-client-protocol-wire]
+opt-level = 2
+
+[profile.dev.package.jig-client-test-protocol-wire-codec]
+opt-level = 2
+
+[profile.dev.package.jig-test-store-codec]
+opt-level = 2
+
+[profile.dev.package.skein-oauth-codec]
+opt-level = 2
+
+[profile.dev.package.skein-ui-example-view-codec]
+opt-level = 2
+
+[profile.dev.package.skein-codec-tests]
+opt-level = 2
+
+[profile.dev.package.smith-channel]
+opt-level = 2
+
+[profile.dev.package.smith-charter]
+opt-level = 2
+
+[profile.dev.package.smith-local-protocol-codec]
+opt-level = 2
+
+[profile.dev.package.smith-transcript]
+opt-level = 2
+
+[profile.dev.package.temper-client-protocol-wire]
+opt-level = 2
+
+[profile.dev.package.temper-protocol-records]
+opt-level = 2
+
+[profile.dev.package.temper-protocol-store-codec]
+opt-level = 2
+
+[profile.dev.package.temper-protocol-worker-wire]
+opt-level = 2
+
 [profile.release]
 panic = "abort"
 overflow-checks = true

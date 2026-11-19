@@ -5674,6 +5674,15 @@ impl Record for Parameter {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 51)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         match self {
             Self::Number(value) => { field::put(out, &[0], paths::PARAMETER_TAG)?; value.write(limits, out) },
@@ -5903,6 +5912,15 @@ impl Record for PartSegment {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 74)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.part_segment_bytes.min(CEILINGS.part_segment_bytes) }, &self.bytes, limits, out, paths::PART_SEGMENT_BYTES)?;
         Ok(())
@@ -6038,6 +6056,15 @@ impl Record for FieldRule {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 82)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6603,6 +6630,15 @@ impl Record for Grant {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 125)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U16, &self.connector, limits, out, paths::GRANT_CONNECTOR)?;
         field::write(field::U16, &self.kind, limits, out, paths::GRANT_KIND)?;
@@ -6637,6 +6673,15 @@ impl Record for ResourceScope {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 127)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7228,6 +7273,15 @@ impl Record for Segment {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 175)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -8149,6 +8203,15 @@ impl Record for Creation {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 245)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Nested, &self.member, limits, out, paths::CREATION_MEMBER)?;
         field::write(field::Optional { item: field::Nested }, &self.recurring, limits, out, paths::CREATION_RECURRING)?;
@@ -8181,6 +8244,15 @@ impl Record for ResultField {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 248)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -15966,6 +16038,15 @@ impl Record for Row {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1001)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::ROW_VERSION)?;
         field::write(field::Nested, &self.value, limits, out, paths::ROW_VALUE)?;
@@ -17665,6 +17746,15 @@ impl Record for TaskProblem {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1144)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::TASK_PROBLEM_VERSION)?;
         field::write(field::Optional { item: field::U64 }, &self.task, limits, out, paths::TASK_PROBLEM_TASK)?;
@@ -18025,6 +18115,15 @@ impl Record for EndRecord {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::END_RECORD_VERSION)?;
         field::write(field::Nested, &self.value, limits, out, paths::END_RECORD_VALUE)?;
@@ -18058,6 +18157,15 @@ impl Record for PhaseRecord {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::put(out, &VERSION.to_be_bytes(), paths::PHASE_RECORD_VERSION)?;
         field::write(field::Nested, &self.value, limits, out, paths::PHASE_RECORD_VALUE)?;
@@ -18089,6 +18197,15 @@ impl Record for ChangeRecord {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {

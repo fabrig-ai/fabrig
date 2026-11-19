@@ -290,6 +290,15 @@ impl Record for Add {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U64, &self.key, limits, out, paths::ADD_KEY)?;
         field::write(field::Text { limit: limits.add_title.min(CEILINGS.add_title) }, &self.title, limits, out, paths::ADD_TITLE)?;
@@ -329,6 +338,15 @@ impl Record for Notes {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
