@@ -168,6 +168,7 @@ mod tests;
 pub use temper_engine_domain_forge_vocabulary::text;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod tiers;
+pub use tiers::tier_report_words;
 mod topics;
 #[expect(hidden_glob_reexports, reason = "the top keeps its module visibility around the shared vocabulary")]
 mod verification;

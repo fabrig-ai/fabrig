@@ -11,6 +11,8 @@ mod goals;
 pub(crate) mod hold;
 pub(crate) mod parts;
 mod post;
+mod report;
+pub use report::tier_report_words;
 pub(crate) mod red;
 pub(crate) mod words;
 use parts::{
@@ -1849,9 +1851,14 @@ fn verdict_words(d: &Domain, row: &TierRow, verdict: &p::Verdict, landings: &[p:
             })
             .expect("bounded range");
     }
-    posted_words(&row.tier, verdict, posted.as_slice())
+    posted_words(&row.tier, verdict, posted.as_slice(), row.many.as_ref())
 }
-fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPostedLanding]) -> Box<[u8]> {
+fn posted_words(
+    tier: &[u8],
+    verdict: &p::Verdict,
+    landings: &[crate::TierPostedLanding],
+    many: Option<&p::ManyTests>,
+) -> Box<[u8]> {
     let mut parts = List::uncapped();
     parts.push(verdict_summary(tier, verdict)).expect("verdict words");
     for (at, blame) in verdict.landings.iter().enumerate() {
@@ -1876,6 +1883,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
                 }
             }
         }
+    }
+    if verdict.failing == p::Failures::Many
+        && let Some(many) = many
+        && !many.tests.is_empty()
+    {
+        let mut names = Box::from(b"\nIts report names: ".as_slice());
+        for (at, test) in many.tests.iter().enumerate() {
+            names = joined(&[&names, if at == 0 { b"" } else { b", " }, &report_id(test)]);
+        }
+        if let Some(tail) = crate::many_remainder(many, 0) {
+            names = joined(&[&names, b" ", &tail]);
+        }
+        parts.push(joined(&[&names, b"."])).expect("many names line");
     }
     let mut words = List::uncapped();
     for part in parts.as_slice() {

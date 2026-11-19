@@ -857,17 +857,25 @@ fn a_full_length_id_stays_in_the_panel_and_has_an_explicit_report_remainder() {
 #[test]
 fn a_many_verdict_keeps_its_explicit_word_and_blamed_commit() {
     let mut failures = Vec::new();
-    for at in 0..17 {
-        failures.extend_from_slice(format!("test-{at}\n").as_bytes());
+    for at in (0..17).rev() {
+        failures.extend_from_slice(format!("t{at:02}\n").as_bytes());
     }
     let (mut world, red) = failed_landing(&failures, true);
     let forge_top::PanelStep::Red { tiers, .. } = panel(&mut world, red) else { panic!("red panel") };
     assert_eq!(tiers.as_ref(), [Box::<[u8]>::from("slow run 2 · owns many tests".as_bytes())]);
+    // The lowest sixteen, despite the report's descending order.
+    let ids: Vec<_> = (0..16).map(|at| format!("t{at:02}")).collect();
+    let quoted = ids.iter().map(|id| format!("\"{id}\"")).collect::<Vec<_>>().join(", ");
     let expected = format!(
-        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}",
+        "Tier slow run 2: red, many tests failing, blamed on 1 landing\n{} owns: many tests; change show {red}\nIts report names: {quoted} and 1 more.",
         String::from_utf8(forge_top::commit_text(&merge(&world, red)).into_vec()).expect("commit text is UTF-8")
     );
     tier_done(&world, 2, &expected);
+    let pull = change(&world, red).pull.expect("member pull");
+    let names = ids.join(", ");
+    let prefix =
+        format!("Red: slow run 2 blames this landing for many tests; its report names {names}, and 1 more.\n\nRun: ");
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(prefix.as_bytes()))));
 }
 
 #[test]
