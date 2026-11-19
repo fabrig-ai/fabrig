@@ -1,27 +1,22 @@
 # after-landing: status
 
-2026-11-18. Where temper's code lags or departs from [after-landing.md](after-landing.md).
+2026-11-19. Where temper's code lags or departs from [after-landing.md](after-landing.md).
 
 Section 10's public queue merges read the log's commits and tasks alone;
 there is no known gap in that projection. Older public history is deferred
 in section 14. The log's other gaps and the retained change rows remain below.
 
-- **Not yet:** 6, *`wait`* and *Switching*: kind 4 has no `wait`, so
-  every project's changes live to cleared, and a start ends no
-  verifying or red change [in flight: change 8587].
-- **Not yet:** 6, *Under `landed`, a change ends at landed* and *Its
-  landing is judged as any landing is*; 7, *Under `wait: landed`*; 9,
-  *The comments*, a follow's area and 10, *The completed run task's
-  report*, read from the log where no `Verification` row is; 12,
-  *ending at landing* and *switching*: a landing makes its
-  `Verification` row whatever its project's `wait`, its result has no
-  `Ended at landing` line and a switched change's none of its own, and
-  a red reaches the landing's goals as news [in flight: change 8593].
-- **Not yet:** 10, *The landing log*, *Pending and kept* and
-  `landings_pending`; 12, *the log keeps what is pending*: a logged
-  member has no goal or milestone, a landing no tiers' entries, and the
-  ring drops its oldest landing whether or not a tier has judged it
-  [in flight: change 8589].
+- **Not yet:** 10, *The landing log*: a member keeps no goal's person,
+  title or `Draft:` path.
+- **Not yet:** 7, *Under `wait: landed`*: a red is a red of no goal's,
+  filed once per landing with no blame.
+- **Not yet:** 10, *In the store* and *The completed run task's
+  report*: a tier's record keeps no red filings waiting for room, and
+  its report names none.
+- **Not yet:** 10, *The landing log*: a member keeps no findings its
+  pull request's body names.
+- **Not yet:** 6, *Switching*: a red landing's `Verification` row files
+  no finding as it goes.
 - **Not yet:** 3, by plan `forge-polls-quiet`: a tier polls its run in
   flight every `poll`, not at the client's `poll_at`.
 - **Not yet:** 5.2, 11: the suspects' rule and a

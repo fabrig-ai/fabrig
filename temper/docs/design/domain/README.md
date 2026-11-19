@@ -61,6 +61,9 @@ all. Then temper's:
    turn.
 8. **findings.md:** findings as labelled issues read back, matched,
    triaged and closed when their fix clears; QA after landing.
+   - `red-findings.md`: under `wait: landed`, each red after landing a
+     finding blamed on the landing and goal behind it, held until a run
+     passes its tests.
 9. **areas.md:** a project's areas in words and their owners, the
    triager, and how a finding reaches its owner.
 10. **milestones.md:** a milestone, a set of goals on jig's gathering:
