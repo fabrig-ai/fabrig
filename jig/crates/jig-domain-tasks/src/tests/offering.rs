@@ -580,6 +580,10 @@ fn runs_hear_and_take_only_what_their_parts_offer() {
             Request::TurnAcknowledged { .. } => true,
             _ => false,
         });
+        // Offered words handled by this fixture are recorded; this table pins offering,
+        // not the extra wake for leaving directing words unrecorded.
+        let messages = h.domain.task(TASK).expect("task").unrecorded.iter().map(|word| word.number).collect();
+        h.send(Event::RecordWords { reply_to: to(), task: TASK, messages });
         if case.park {
             end(&mut h, End::Parked);
         }

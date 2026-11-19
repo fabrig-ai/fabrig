@@ -10,5 +10,6 @@ pub(in crate::tests) mod live_delegates;
 pub(in crate::tests) mod offer;
 pub(in crate::tests) mod open_shape;
 pub(in crate::tests) mod task_specification;
+mod unread;
 pub(in crate::tests) mod virtual_words;
 pub(in crate::tests) mod waits;

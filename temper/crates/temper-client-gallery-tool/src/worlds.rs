@@ -4471,6 +4471,7 @@ fn base_task(number: u64, title: &str) -> c::Task {
         result_contract: c::TaskContractDocument::Report { words: limits().client.domain.text },
         dependencies: List::with_capacity(0),
         dependency_facts: List::with_capacity(0),
+        unread: List::with_capacity(0),
         references: List::with_capacity(0),
         cut: false,
         resources: List::with_capacity(0),

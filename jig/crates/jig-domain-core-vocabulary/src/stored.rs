@@ -102,6 +102,11 @@ pub enum CallPart {
     Sent {
         message: u64,
     },
+    /// Directing words recorded by this task's run, and names that matched none.
+    WordsRecorded {
+        recorded: Box<[u64]>,
+        unknown: Box<[u64]>,
+    },
     /// Reciprocal task references were installed.
     Introduced,
     /// A message or introduction failed admission.
@@ -131,6 +136,8 @@ pub enum CallPart {
         added: u32,
         removed: u32,
         first: u32,
+        recorded: Box<[u64]>,
+        unknown: Box<[u64]>,
     },
     /// One scoped note was dropped at the revision seen by the run (domain/engine/briefs.md, 2.1).
     NoteDeleted {
@@ -201,12 +208,14 @@ impl CallPart {
             }
             CallPart::NoteDeleted { name } => *name != 0 && *name <= deployment.messages,
             CallPart::Sent { message } => *message != 0 && *message <= deployment.messages,
-            CallPart::NoteWritten { name, revision, lines, added, first, .. } => {
+            CallPart::WordsRecorded { recorded, unknown } => recording_valid(recorded, unknown),
+            CallPart::NoteWritten { name, revision, lines, added, first, recorded, unknown, .. } => {
                 *name != 0
                     && *name <= deployment.messages
                     && *revision != 0
                     && (*lines == 0 || *first <= *lines)
                     && *added <= *lines
+                    && recording_valid(recorded, unknown)
             }
             CallPart::NoteRecalled { entries, .. } => {
                 for entry in entries {
@@ -248,6 +257,15 @@ impl CallPart {
             },
         }
     }
+}
+
+fn recording_valid(recorded: &[u64], unknown: &[u64]) -> bool {
+    for &number in recorded.iter().chain(unknown) {
+        if number == 0 {
+            return false;
+        }
+    }
+    true
 }
 
 /// A retained named-call decision, keyed by its live run and block name.

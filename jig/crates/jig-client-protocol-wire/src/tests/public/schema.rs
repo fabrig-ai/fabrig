@@ -130,7 +130,13 @@ fn listing(schema: &Schema) -> String {
 }
 
 fn client_schema() -> Schema {
+<<<<<<< HEAD
     skein_codegen::values(crate::CLIENT_SCHEMA).schema.clone()
+=======
+    let mut source = fs::read_to_string(package().join("schema/client-v38.schema")).expect("client schema");
+    source.push_str(&fs::read_to_string(package().join("schema/client-v38-part1.schema")).expect("client schema part"));
+    parse(&source).expect("client schema valid")
+>>>>>>> refs/hand5/g9120
 }
 
 #[test]

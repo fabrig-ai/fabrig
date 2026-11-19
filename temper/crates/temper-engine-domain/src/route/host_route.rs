@@ -231,7 +231,7 @@ impl DocumentFlight {
     pub(crate) fn join(&self, answer: CallAnswer) -> CallAnswer {
         use crate::{DocumentOutcome, DocumentRefusal};
         let outcome = match answer {
-            CallAnswer::NoteWritten { name, revision, lines, added, removed, first } => {
+            CallAnswer::NoteWritten { name, revision, lines, added, removed, first, .. } => {
                 DocumentOutcome::Written { name, revision, lines, added, removed, first }
             }
             CallAnswer::NoteRefused(why) => DocumentOutcome::Refused(match why {
@@ -273,6 +273,7 @@ impl DocumentFlight {
             | CallAnswer::ControlRefused(_)
             | CallAnswer::EffectRefused(_)
             | CallAnswer::ControlDenied { .. }
+            | CallAnswer::WordsRecorded { .. }
             | CallAnswer::Sent { .. }
             | CallAnswer::Introduced
             | CallAnswer::MessageRefused(_)

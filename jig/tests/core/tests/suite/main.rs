@@ -62,6 +62,11 @@ mod projections;
 mod projects;
 mod read_filters;
 mod reads;
+<<<<<<< HEAD
+=======
+mod record_words;
+mod referee;
+>>>>>>> refs/hand5/g9120
 mod refusals;
 mod restart;
 mod restore_pages;

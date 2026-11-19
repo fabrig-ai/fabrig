@@ -189,7 +189,10 @@ fn call_refused(
         });
     }
     let (key, part) = match route {
-        RoutedCall::Message(key) | RoutedCall::Introduce(key) => (key, CallPart::MessageRefused(problem)),
+        RoutedCall::Message(key)
+        | RoutedCall::Introduce(key)
+        | RoutedCall::MarkRead(key)
+        | RoutedCall::RecordNote { key, .. } => (key, CallPart::MessageRefused(problem)),
         RoutedCall::Control { key, target, .. } => {
             let part = if let tasks::Refusal::HoldOwner { hold } = problem.why {
                 let row = core.tasks.placed_hold(hold).expect("owner refusal names retained hold");

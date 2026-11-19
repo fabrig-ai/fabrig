@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dev-dependencies]
+jig-protocol-store-records.workspace = true
 jig-domain-authority.workspace = true
 jig-core-kit.workspace = true
 jig-domain-core.workspace = true

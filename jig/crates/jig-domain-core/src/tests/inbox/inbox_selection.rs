@@ -1150,6 +1150,8 @@ fn inbox_context_memory_prices_every_reserved_container_and_complete_document_en
         document_with_context_bound(&limits, &core.kinds),
         Some(
             document_bound(&limits.documents).unwrap()
+                + List::<UnreadWords>::price(limits.tasks.inbox_messages).unwrap()
+                + u64::from(limits.tasks.inbox_messages) * u64::from(UNREAD_HEAD_BYTES)
                 + delegates
                 + bound
                 + TEMPLATE_ENVELOPES

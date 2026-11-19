@@ -166,7 +166,7 @@ fn each_family_needs_both_charter_and_authority() {
     let f = jig_domain_core::ToolFamilies::JIG;
     let rows: &[(u64, &[&[u8]])] = &[
         (f.delegate.0, &[b"finding", b"red", b"follow", b"goal", b"change", b"delegate"]),
-        (f.message.0, &[b"message", b"introduce"]),
+        (f.message.0, &[b"mark_read", b"message", b"introduce"]),
         (f.control.0, &[b"decided", b"amend", b"cancel", b"release"]),
         (f.decide.0, &[b"decide", b"decide_escalation", b"withdraw"]),
         (f.propose.0, &[b"propose"]),
@@ -241,10 +241,13 @@ fn asking_charters_keep_their_own_forms_and_require_authority() {
 #[test]
 fn stock_coder_and_goal_offers_follow_their_family_intersection() {
     let coder = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(514), tasks::Tools(514));
-    assert_eq!(coder.len(), 7);
+    assert_eq!(coder.len(), 8);
     for tool in &coder {
         assert!(
-            tool.name.as_ref() == b"message" || tool.name.as_ref() == b"introduce" || tool.name.starts_with(b"read_")
+            tool.name.as_ref() == b"mark_read"
+                || tool.name.as_ref() == b"message"
+                || tool.name.as_ref() == b"introduce"
+                || tool.name.starts_with(b"read_")
         );
     }
     let goal = crate::calls::tools_for(Duration::from_secs(1), tasks::Tools(1_023), tasks::Tools(4_007));
@@ -556,6 +559,7 @@ fn tool_cases() -> &'static [(&'static [u8], &'static [u8], &'static [u8])] {
         (b"goal", br#"{"words":"plan"}"#, br"{}"),
         (b"delegate", br#"{"batch":[]}"#, br#"{"batch":{}}"#),
         (b"amend", br#"{"target":3,"revision":1,"amendment":{"reason":"x"}}"#, br#"{"target":3,"amendment":{}}"#),
+        (b"mark_read", br#"{"messages":[77]}"#, br#"{"messages":[]}"#),
         (b"message", br#"{"target":3,"form":"words","words":"x"}"#, br#"{"target":3,"form":"unknown","words":"x"}"#),
         (b"cancel", br#"{"target":3,"reason":"x"}"#, br#"{"target":3}"#),
         (b"release", br#"{"target":3,"revision":1}"#, br#"{"target":0}"#),
@@ -584,7 +588,7 @@ fn a_line_range_decodes_to_note_lines() {
         let input =
             note_input(&format!(r#", "name":20,"recalled":7,"first":3,"remove":2,"references":[9],"join":{join}"#));
         let decoded = decided(b"note", &input).expect("range decodes");
-        let engine::Tool::NoteLines { entry, recalled, range } = decoded.tool else { panic!("range tool") };
+        let engine::Tool::NoteLines { entry, recalled, range, .. } = decoded.tool else { panic!("range tool") };
         assert_eq!(recalled, 7);
         assert_eq!(range, jig_domain_notes::LineRange { first: 3, remove: 2, join });
         assert_eq!(entry.name, 20);
@@ -628,7 +632,7 @@ fn first_zero_is_out_of_range() {
 fn a_note_without_first_decodes_as_today() {
     for (members, name, revision) in [("", 0, None), (r#", "name":20,"recalled":7"#, 20, Some(7))] {
         let call = decided(b"note", &note_input(members)).expect("whole note decodes");
-        let engine::Tool::Note { entry, recalled } = call.tool else { panic!("whole-note tool") };
+        let engine::Tool::Note { entry, recalled, .. } = call.tool else { panic!("whole-note tool") };
         assert_eq!(entry.name, name);
         assert_eq!(recalled, revision);
         assert_eq!(&*entry.body, b"next");
@@ -3876,6 +3880,7 @@ mod see_person;
 #[path = "tests/remember.rs"]
 mod remember;
 
+mod record_words;
 #[path = "tests/wire.rs"]
 mod wire;
 

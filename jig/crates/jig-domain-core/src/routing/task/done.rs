@@ -201,6 +201,8 @@ fn call_done(
             return;
         }
         RoutedCall::Message(_)
+        | RoutedCall::MarkRead(_)
+        | RoutedCall::RecordNote { .. }
         | RoutedCall::Decide { .. }
         | RoutedCall::Withdraw { .. }
         | RoutedCall::Escalation { .. } => return,

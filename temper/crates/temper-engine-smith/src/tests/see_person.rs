@@ -332,6 +332,7 @@ fn task() -> d::Task {
         inputs: List::uncapped(),
         dependencies: List::uncapped(),
         dependency_facts: List::uncapped(),
+        unread: List::uncapped(),
         references: List::uncapped(),
         subscriptions: List::uncapped(),
         wake: tasks::WakePolicy::DEFAULT,

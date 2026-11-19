@@ -250,6 +250,7 @@ fn task() -> Task {
         talk: None,
         session: None,
         dependency_facts: skein_lib::List::with_capacity(0),
+        unread: skein_lib::List::with_capacity(0),
         kept_account: None,
         run_wait: None,
         settings: Some(TaskSettings { task: 1, run: None, newest: 1 }),
