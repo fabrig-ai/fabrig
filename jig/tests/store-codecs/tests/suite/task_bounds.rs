@@ -195,7 +195,8 @@ fn every_tasks_declaration_keeps_its_ceiling_bounds() {
     assert_eq!((ActivityWords::encoded_bound(&limits), ActivityWords::decoded_bound(&limits)), (Some(1_572_895), Some(1_572_864)));
     assert_eq!((HeardMessage::encoded_bound(&limits), HeardMessage::decoded_bound(&limits)), (Some(1_572_908), Some(1_572_864)));
     assert_eq!((NotifiedMessage::encoded_bound(&limits), NotifiedMessage::decoded_bound(&limits)), (Some(1_572_917), Some(1_572_864)));
-    assert_eq!((BeganLine::encoded_bound(&limits), BeganLine::decoded_bound(&limits)), (Some(38), Some(0)));
+    assert_eq!((Fresh::encoded_bound(&limits), Fresh::decoded_bound(&limits)), (Some(1), Some(0)));
+    assert_eq!((BeganLine::encoded_bound(&limits), BeganLine::decoded_bound(&limits)), (Some(40), Some(0)));
     assert_eq!((EndedLine::encoded_bound(&limits), EndedLine::decoded_bound(&limits)), (Some(20), Some(0)));
     assert_eq!((TurnLine::encoded_bound(&limits), TurnLine::decoded_bound(&limits)), (Some(29), Some(0)));
     assert_eq!((DecidedProposal::encoded_bound(&limits), DecidedProposal::decoded_bound(&limits)), (Some(9), Some(0)));

@@ -115,7 +115,7 @@ fn consume_goal_wake(world: &mut World, attempt: u64, cause: u64) {
     world.claim(1, attempt);
     assert!(world.records.values().any(|record| matches!(record,
     jig_domain_tasks::Stored::Activity(line) if line.task == 1
-        && line.line == jig_domain_tasks::Line::RunBegan {
+        && line.line == jig_domain_tasks::Line::RunBegan { fresh: None,
             attempt, why: jig_domain_tasks::Why::Message { message: cause }, resumed: false,
         })));
     goal_turn(world, attempt, 1, None);

@@ -174,9 +174,12 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
             recipient: crate::translate::facts::requester(row.recipient()),
             word: word_fields(row.word(), limits)?,
         },
-        w::Activity::RunBegan(row) => {
-            c::Activity::RunBegan { attempt: row.attempt(), why: run_why_fields(row.why()), resumed: row.resumed() }
-        }
+        w::Activity::RunBegan(row) => c::Activity::RunBegan {
+            attempt: row.attempt(),
+            why: run_why_fields(row.why()),
+            resumed: row.resumed(),
+            fresh: read_fresh(row.fresh().as_ref()),
+        },
         w::Activity::RunEnded(row) => {
             c::Activity::RunEnded { attempt: row.attempt(), end: run_end_fields(row.end()), spent: row.spent() }
         }
@@ -290,4 +293,17 @@ pub(crate) fn decoded_activity_line_fields(
         None => None,
     };
     Ok(c::DecodedActivityLine { source: Box::new(activity_line_fields(value.source(), limits)?), decoded })
+}
+
+fn read_fresh(value: Option<&w::RunFresh>) -> Option<c::RunFresh> {
+    match value {
+        None => None,
+        Some(value) => Some(match value {
+            w::RunFresh::Moved => c::RunFresh::Moved,
+            w::RunFresh::Closed => c::RunFresh::Closed,
+            w::RunFresh::Cut => c::RunFresh::Cut,
+            w::RunFresh::Limit => c::RunFresh::Limit,
+            w::RunFresh::Session => c::RunFresh::Session,
+        }),
+    }
 }

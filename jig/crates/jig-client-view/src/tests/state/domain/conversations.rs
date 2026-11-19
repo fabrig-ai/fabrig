@@ -819,6 +819,7 @@ fn row(position: u64) -> DecodedActivityLine {
                 attempt: 1,
                 why: jig_client::contract::RunWhy::Made,
                 resumed: false,
+                fresh: None,
             },
         }),
         decoded: None,

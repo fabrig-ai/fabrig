@@ -53,3 +53,37 @@ fn a_stored_run_proof_without_an_endpoint_reads_with_none() {
     assert_eq!(read, record);
     assert_eq!(*read.endpoint(), None);
 }
+
+#[test]
+fn a_stored_run_beginning_without_fresh_reads_with_none() {
+    use jig_protocol_store::tasks_v13 as tasks;
+    let text = super::values::TASKS;
+    let (before, fresh) = text.split_once(" fresh: option Fresh").expect("fresh field");
+    let (_, after) = fresh.split_once(" }").expect("end of BeganLine");
+    let old_text = format!("{before} }}{after}");
+    assert_ne!(old_text, text, "the older BeganLine has no fresh field");
+    let old = skein_codec::schema::parse(old_text.as_bytes()).expect("old schema");
+    let new = skein_codec::schema::parse(text.as_bytes()).expect("current schema");
+    let plan = skein_codec::layout::Plan::derive(
+        &old,
+        old.root(b"BeganLine", None).expect("old beginning"),
+        &[],
+        &new,
+        new.root(b"BeganLine", None).expect("current beginning"),
+        &[],
+    )
+    .expect("fresh defaults to none");
+    let limits = codec::limits(&jig_protocol_config_fixtures::small().core).expect("codec limits");
+    // Independent earlier layout: u64 attempt, Why::Ready's tag, resumed bool; no fresh option tag.
+    let mut bytes = 3_u64.to_be_bytes().to_vec();
+    bytes.extend([1, 0]);
+    let mut out = Buffer::with_capacity(64);
+    let mut work = skein_codec::layout::Workspace::new();
+    assert!(work.fit(&plan));
+    plan.convert(&bytes, &mut out, &mut work).expect("stored beginning converted");
+    let read = tasks::BeganLine::decode(&limits.tasks, &mut Reader::new(out.as_slice())).expect("current beginning");
+    assert_eq!(read.attempt(), 3);
+    assert_eq!(read.why(), &tasks::Why::Ready);
+    assert!(!read.resumed());
+    assert_eq!(*read.fresh(), None);
+}

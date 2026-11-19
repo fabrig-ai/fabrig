@@ -9,6 +9,7 @@ use skein_lib::{ReplyTo, Token};
 
 fn a_chat_answers_parks_and_resumes() {
     let mut world = World::new(Setup { seed: 101, ..Setup::default() });
+    assert!(matches!(closed_proofs::activity(&world).last(), Some(tasks::Line::RunBegan { fresh: None, .. })));
     let first = world.assigned.as_ref().expect("chat assigned").attempt;
     world.turn(1, 3, None, b"first opaque turn");
     world.park_for_message(3);
@@ -30,6 +31,10 @@ fn a_chat_answers_parks_and_resumes() {
         [Box::<[u8]>::from(&b"first opaque turn"[..]), Box::<[u8]>::from(&b"second opaque turn"[..])]
     );
     let task = third.task;
+    assert!(matches!(
+        closed_proofs::activity(&world).last(),
+        Some(tasks::Line::RunBegan { resumed: true, fresh: None, .. })
+    ));
     assert_eq!(world.spent(), 5, "each attempt's accepted spend is charged once");
     world.end(
         tasks::End::Finished {
@@ -119,6 +124,10 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
     world.park_for_message(2);
     world.say(76);
     assert!(world.assigned.as_ref().expect("fresh chat").transcript.is_empty());
+    assert!(matches!(
+        closed_proofs::activity(&world).last(),
+        Some(tasks::Line::RunBegan { resumed: false, fresh: Some(tasks::Fresh::Limit), .. })
+    ));
 }
 
 // The reference root asks resume_bytes (256), below the store page bound.
@@ -272,11 +281,9 @@ fn a_window_resumes_only_on_its_claimed_endpoint() {
         assert_eq!(jig_core_world::fixtures::live_row(&world, task).refusals, refusals);
         assert_eq!(world.domain.take_brief_failure(), None);
         assert!(
-            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, .. }) if *resumed == resume)
+            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, fresh, .. }) if *resumed == resume && *fresh == if resume { None } else { Some(tasks::Fresh::Moved) })
         );
-        if !resume {
-            f::fresh(&world);
-        }
+
         world.close();
     }
 }
@@ -295,8 +302,9 @@ fn a_closed_window_starts_fresh_with_its_tail() {
     assert_eq!(f::tail(&world), Some(f::TAIL));
     assert_eq!(f::tries(&world), f::tries(&control));
     let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    let Some(tasks::Line::RunBegan { resumed, fresh, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
+    *fresh = None;
     assert_eq!(activity, f::activity(&control));
     assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
     assert_eq!(
@@ -327,8 +335,9 @@ fn a_closed_window_keeps_its_tail_after_a_transient_try() {
     assert_eq!(f::tries(&world), f::tries(&control));
     assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
     let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    let Some(tasks::Line::RunBegan { resumed, fresh, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
+    *fresh = None;
     assert_eq!(activity, f::activity(&control));
 }
 
@@ -347,8 +356,9 @@ fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
     assert_eq!(f::tail(&world), None);
     assert_eq!(f::tries(&world), f::tries(&control));
     let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    let Some(tasks::Line::RunBegan { resumed, fresh, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
+    *fresh = None;
     assert_eq!(activity, f::activity(&control));
     // The store deliberately keeps the closed transcript unreadable.
     world.broken();

@@ -1432,12 +1432,16 @@ pub enum Path {
     NotifiedMessageWord,
     /// Bytes after `NotifiedMessage`.
     NotifiedMessageTail,
+    /// The tag of `Fresh`.
+    FreshTag,
     /// The `attempt` field of `BeganLine`.
     BeganLineAttempt,
     /// The `why` field of `BeganLine`.
     BeganLineWhy,
     /// The `resumed` field of `BeganLine`.
     BeganLineResumed,
+    /// The `fresh` field of `BeganLine`.
+    BeganLineFresh,
     /// Bytes after `BeganLine`.
     BeganLineTail,
     /// The `attempt` field of `EndedLine`.
@@ -3074,9 +3078,11 @@ impl Path {
             Self::NotifiedMessageRecipient => "NotifiedMessage.recipient",
             Self::NotifiedMessageWord => "NotifiedMessage.word",
             Self::NotifiedMessageTail => "NotifiedMessage (tail)",
+            Self::FreshTag => "Fresh (tag)",
             Self::BeganLineAttempt => "BeganLine.attempt",
             Self::BeganLineWhy => "BeganLine.why",
             Self::BeganLineResumed => "BeganLine.resumed",
+            Self::BeganLineFresh => "BeganLine.fresh",
             Self::BeganLineTail => "BeganLine (tail)",
             Self::EndedLineAttempt => "EndedLine.attempt",
             Self::EndedLineEnd => "EndedLine.end",
@@ -26817,11 +26823,112 @@ impl NotifiedMessage {
 
 fn notified_message_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(NotifiedMessage::encoded_bound_within(limits)?);
-    began_line_encoded_bound_family(limits, biggest)
+    fresh_encoded_bound_family(limits, biggest)
 }
 
 fn notified_message_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(NotifiedMessage::decoded_bound_within(limits)?);
+    fresh_decoded_bound_family(limits, biggest)
+}
+
+/// `Fresh` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Fresh {
+    /// `moved` without a payload.
+    Moved,
+    /// `closed` without a payload.
+    Closed,
+    /// `cut` without a payload.
+    Cut,
+    /// `limit` without a payload.
+    Limit,
+    /// `session` without a payload.
+    Session,
+}
+
+impl Fresh {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+impl Fresh {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Moved | Self::Closed | Self::Cut | Self::Limit | Self::Session => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Moved => writer.put(&[0_u8])?,
+            Self::Closed => writer.put(&[1_u8])?,
+            Self::Cut => writer.put(&[2_u8])?,
+            Self::Limit => writer.put(&[3_u8])?,
+            Self::Session => writer.put(&[4_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::FreshTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::FreshTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Moved,
+            1 => Self::Closed,
+            2 => Self::Cut,
+            3 => Self::Limit,
+            4 => Self::Session,
+            _ => return Err(Problem { path: Path::FreshTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl Fresh {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn fresh_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Fresh::encoded_bound_within(limits)?);
+    began_line_encoded_bound_family(limits, biggest)
+}
+
+fn fresh_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(Fresh::decoded_bound_within(limits)?);
     began_line_decoded_bound_family(limits, biggest)
 }
 
@@ -26834,6 +26941,8 @@ pub struct BeganLineParts {
     pub why: Why,
     /// The `resumed` field.
     pub resumed: bool,
+    /// The `fresh` field.
+    pub fresh: Option<Fresh>,
 }
 
 /// `BeganLine` in this codec family.
@@ -26842,13 +26951,14 @@ pub struct BeganLine {
     attempt: u64,
     why: Why,
     resumed: bool,
+    fresh: Option<Fresh>,
 }
 
 impl BeganLine {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: BeganLineParts) -> Result<Self, Problem> {
-        let BeganLineParts { attempt, why, resumed } = parts;
-        let value = Self { attempt, why, resumed };
+        let BeganLineParts { attempt, why, resumed, fresh } = parts;
+        let value = Self { attempt, why, resumed, fresh };
         Ok(value)
     }
 
@@ -26864,9 +26974,13 @@ impl BeganLine {
     #[must_use]
     pub fn resumed(&self) -> bool { self.resumed }
 
+    /// Reads the `fresh` field.
+    #[must_use]
+    pub fn fresh(&self) -> &Option<Fresh> { &self.fresh }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> BeganLineParts { BeganLineParts { attempt: self.attempt, why: self.why, resumed: self.resumed } }
+    pub fn into_parts(self) -> BeganLineParts { BeganLineParts { attempt: self.attempt, why: self.why, resumed: self.resumed, fresh: self.fresh } }
 
 }
 
@@ -26879,6 +26993,11 @@ impl BeganLine {
         let field_why = &self.why;
         size = size.checked_add(field_why.measure()).expect("schema ceilings fit u32");
         size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_fresh = &self.fresh;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_fresh.is_some() {
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -26890,6 +27009,14 @@ impl BeganLine {
         field_why.encode(writer)?;
         let field_resumed = &self.resumed;
         writer.put(&[u8::from(*field_resumed)])?;
+        let field_fresh = &self.fresh;
+        match field_fresh {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -26904,7 +27031,8 @@ impl BeganLine {
         let decoded_attempt = reader.u64().ok_or(Problem { path: Path::BeganLineAttempt, reason: skein_codec::Reason::Short })?;
         let decoded_why = Why::decode_from(limits, reader)?;
         let decoded_resumed = match reader.u8().ok_or(Problem { path: Path::BeganLineResumed, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::BeganLineResumed, reason: skein_codec::Reason::Bool }) };
-        Ok(Self { attempt: decoded_attempt, why: decoded_why, resumed: decoded_resumed })
+        let decoded_fresh = match reader.u8().ok_or(Problem { path: Path::BeganLineFresh, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(Fresh::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::BeganLineFresh, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { attempt: decoded_attempt, why: decoded_why, resumed: decoded_resumed, fresh: decoded_fresh })
     }
 }
 
@@ -26919,7 +27047,7 @@ impl BeganLine {
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
         size = size.checked_add(8_u64)?.checked_add(Why::encoded_bound_within(limits)?)?;
-        size = size.checked_add(1_u64)?;
+        size = size.checked_add(1_u64)?.checked_add(1_u64.checked_add(Fresh::encoded_bound_within(limits)?)?)?;
         size.checked_add(0)
     }
 
@@ -26933,7 +27061,7 @@ impl BeganLine {
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
         heap = heap.checked_add(0_u64)?.checked_add(Why::decoded_bound_within(limits)?)?;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(Fresh::decoded_bound_within(limits)?)?;
         heap.checked_add(0)
     }
 }

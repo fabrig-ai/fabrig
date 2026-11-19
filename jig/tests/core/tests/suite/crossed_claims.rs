@@ -118,7 +118,7 @@ fn an_in_process_crossed_claim_yet_to_commit_a_turn_is_not_started() {
     world.grant_account(1);
     world.advance(Duration::from_millis(100));
     assert!(closed_proofs::proof(&world).attempt > attempt, "retry must place a new claim");
-    closed_proofs::fresh(&world);
+    closed_proofs::fresh_because(&world, None);
     assert_eq!(closed_proofs::tail(&world), None);
     // Engine 6 step 3 settles the dead engine/in-process claim: phase, retry, reserve and activity change durably.
     world.broken();
@@ -174,7 +174,7 @@ fn a_crossed_successor_before_its_first_turn_starts_fresh_without_a_tail() {
     assert_eq!(fixtures::live_row(&world, task).tries.lost, 1);
     assert_eq!(fixtures::live_row(&world, task).refusals, refusals + 1);
     world.advance(Duration::from_millis(100));
-    closed_proofs::fresh(&world);
+    closed_proofs::fresh_because(&world, None);
     assert!(closed_proofs::proof(&world).attempt > attempt);
     // domain/engine/README.md, 10's default: no current window was committed by the
     // intervening fresh attempt, so its successor loses the old tail.
@@ -239,5 +239,5 @@ fn a_crossed_claims_writer_slot_waits_for_the_read_afresh() {
     assert_eq!(world.task(), task);
     assert!(world.attempt() > attempt, "the replacement is placed after the fresh read");
     assert!(writer_slot(&world, task, world.attempt()).is_some());
-    closed_proofs::fresh(&world);
+    closed_proofs::fresh_because(&world, None);
 }

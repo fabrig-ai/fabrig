@@ -1634,6 +1634,12 @@ pub enum Word {
     ChatFailed,
     ChatCancelled,
     RunBegan,
+    RunBeganMoved,
+    RunBeganClosed,
+    RunBeganCut,
+    RunBeganLimit,
+    RunBeganSession,
+
     RunEnded,
     /// A run ended with a result outside its admitted contract.
     RunEndedInvalid,
@@ -2258,7 +2264,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2809;
+const PHRASES: u32 = 2814;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2285,10 +2291,10 @@ const PHRASES: u32 = 2809;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5217;
+const SEGMENTS: u32 = 5232;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66249;
-const ALL: [Word; 2084] = [
+const ENGLISH_BYTES: u32 = 66495;
+const ALL: [Word; 2089] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -3841,6 +3847,11 @@ const ALL: [Word; 2084] = [
     Word::ChatFailed,
     Word::ChatCancelled,
     Word::RunBegan,
+    Word::RunBeganMoved,
+    Word::RunBeganClosed,
+    Word::RunBeganCut,
+    Word::RunBeganLimit,
+    Word::RunBeganSession,
     Word::RunEnded,
     Word::RunEndedInvalid,
     Word::RunEndedUnreadable,
@@ -6049,6 +6060,12 @@ impl Word {
             Self::ChatFailed => 1045,
             Self::ChatCancelled => 1046,
             Self::RunBegan => 150,
+            Self::RunBeganMoved => 4490,
+            Self::RunBeganClosed => 4491,
+            Self::RunBeganCut => 4492,
+            Self::RunBeganLimit => 4493,
+            Self::RunBeganSession => 4494,
+
             Self::RunEnded => 151,
             Self::RunEndedInvalid => 4183,
             Self::RunEndedUnreadable => 4184,
@@ -8480,6 +8497,12 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatFailed => (&[b"Failed \xc2\xb7 ", b""], &[Name]),
         Word::ChatCancelled => (&[b"Cancelled \xc2\xb7 ", b""], &[Name]),
         Word::RunBegan => (&[b"Run ", b" began"], &[Number]),
+        Word::RunBeganMoved => (&[b"Run ", b" began fresh: its conversation ran on another endpoint"], &[Number]),
+        Word::RunBeganClosed => (&[b"Run ", b" began fresh: its conversation was closed"], &[Number]),
+        Word::RunBeganCut => (&[b"Run ", b" began fresh: a turn was too large to load"], &[Number]),
+        Word::RunBeganLimit => (&[b"Run ", b" began fresh: its conversation passed the resume limit"], &[Number]),
+        Word::RunBeganSession => (&[b"Run ", b" began fresh: its session had ended"], &[Number]),
+
         Word::RunEnded => (&[b"Run ", b" ended"], &[Number]),
         Word::RunEndedInvalid => (&[b"Run ", b" ended: its result broke its contract (", b")"], &[Number, Name]),
         Word::RunEndedUnreadable => (&[b"Run ", b" ended: its result couldn't be read"], &[Number]),

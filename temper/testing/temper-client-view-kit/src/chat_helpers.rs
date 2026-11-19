@@ -117,6 +117,7 @@ pub fn structured_thread() -> Thread {
                     attempt: ATTEMPT,
                     why: jig_client::contract::RunWhy::Made,
                     resumed: false,
+                    fresh: None,
                 },
             ),
         ),

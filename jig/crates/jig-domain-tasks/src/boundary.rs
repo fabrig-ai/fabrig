@@ -2070,6 +2070,8 @@ pub enum Event {
         attempt: u64,
         /// Whether the prepared run includes an earlier committed transcript.
         resumed: bool,
+        /// Why the claim's preparation began fresh with an earlier window.
+        fresh: Option<crate::Fresh>,
         /// Root-checked allowance reserved from the task at this claim.
         budget: u64,
         /// Checked main account; success keeps it in this same claim decision.
