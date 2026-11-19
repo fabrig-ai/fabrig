@@ -75,7 +75,7 @@ pub fn decision(b: &mut Builder, words: &Words, page: Option<&c::ReadValue>, act
     if act == c::ActKind::Cancel {
         facts.effect = None;
     }
-    for fact in &jig_client::words::decision(&facts, &words.book, words.language) {
+    for fact in &jig_client::words::decision(&facts, words.book(), words.language) {
         text(b, Role::Paragraph, fact);
     }
 }

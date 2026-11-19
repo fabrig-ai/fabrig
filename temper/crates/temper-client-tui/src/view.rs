@@ -101,6 +101,11 @@ impl View {
     pub const fn words(&self) -> &Words {
         &self.words
     }
+    /// Recover the checked vocabulary for a fresh tree.
+    #[must_use]
+    pub fn into_words(self) -> Words {
+        self.words
+    }
     #[must_use]
     pub fn tick(&self) -> Option<Wall> {
         self.tick
