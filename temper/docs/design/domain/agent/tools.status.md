@@ -125,6 +125,6 @@ use of `remember` and the walk follow landing (`README.md`, section 8).
 
 - **Design departs:** from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (`README.md`, section 8 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
 
-- **Not yet:** `finding`'s acts `repair` and `blame`, their members and answers, and the host tools' contract's next version [in flight: change 10372].
+- **Not yet:** `finding`'s acts `repair` and `blame`, their members and answers, and the host tools' contract's next version [in flight: change 10445].
 
 
