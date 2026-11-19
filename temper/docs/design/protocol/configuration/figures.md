@@ -74,8 +74,9 @@ filled so:
 
 `temper-worker serve`, in order:
 
-1. **Its document,** `temper.json`, read and checked as today
-   (`README.md`, section 2), without the members that moved (7).
+1. **Its file,** `temper.toml`, read and checked (`file.md`, section
+   6), and the start's document it gives read as `README.md`, section 2
+   reads it.
 2. **Its figures.** It runs its link's figures form on its own, until
    the link hears the figures (jig's `protocol/channel/figures.md`,
    section 4). A refusal is logged as any opening's is (`../wires.md`,
@@ -85,8 +86,12 @@ filled so:
 3. **Applied.** jig's limits are the stock's with each figure applied by
    name. So are temper's application limits, the checkout's and the git
    component's among them. A name neither knows is skipped and logged
-   once. The hub's slots are the smaller of its worker part's `slots`
-   and the figures' places.
+   once. Its places are the figures' places, its setting's alone: its
+   hub's slots, its checkout's workspaces and its git component's
+   operations are those places (`../../draft/config.md`, section 7). The
+   start's document's `slots` gives none (`file.md`, section 4), and no
+   check of it bounds them; the checks that involve a worker's places
+   run on the places it's built with.
 4. **The agent configuration** is written from the figures and the
    machine (6), and pinned in the worker's root as today's file is
    (`../../domain/worker/README.md`, section 5).
@@ -119,6 +124,18 @@ filled so:
   isn't the store's value. The file is the value's bytes, written whole
   and renamed into place. So a change applies at the box's next start,
   as at every worker's.
+- **Its places are its setting `local`'s** (`../cluster.md`, section
+  1), 4 by default. The box builds its worker before its store opens,
+  so it builds it at its engine's `fleet.slots`, the most places a
+  worker takes, its hub's slots, workspaces and git operations sized
+  so; its engine admits it at `local`'s places, as it admits every
+  worker at the smaller of its setting's places and its hello's
+  (`../../draft/config.md`, 6.7). So the box runs `local`'s places at
+  once, and a change of them applies at the box's next start. The
+  start's document's `slots` gives none (`file.md`, section 4). Where
+  building at `fleet.slots` would allocate for each slot ahead of its
+  use, the box keeps `local`'s places in its data directory as it keeps
+  `agents.setting`, and builds at them.
 - **Its in-process link** hears its figures as any worker's does. One
   that differs is logged the same way (3, step 6).
 - **Its agent configuration** is written and pinned as a worker alone's
@@ -188,12 +205,13 @@ written as JSON by the worker's start:
   `head` and `idle` in milliseconds and `oversized_reasoning`. Smith's
   protocol provider is `openai` for dialect 3 and `anthropic` for dialect 2;
   an engine-local provider name such as `demo` remains in the figures.
-- **`programs.claude_code.path`** is the `claude` found on the worker
-  process's own `PATH` at start, or `"fetched"` with none
+- **`programs.claude_code.path`** is the file's `[programs]` `claude`
+  where it names one (`file.md`, 3.1), else the `claude` found on the
+  worker process's own `PATH` at start, or `"fetched"` with none
   (`../setup/owned.md`, 6). Its `directory` is `programs` in the data
-  directory. The document names no `claude` of its own: a path is the
-  draft's `[programs]` key, with the TOML file
-  (`../../draft/config.md`, 4.4).
+  directory. Likewise the worker's git is `[programs]` `git` where the
+  file names it, else the `git` found on `PATH` (`moved.md`, section
+  2), checked as the found one is.
 - **`environment`** is the agents' environment: the variables smith
   gives each program it runs for an agent, once it has cleared its own,
   Claude Code, a shell command and the checkout's check alike. It's the
