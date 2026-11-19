@@ -374,6 +374,75 @@ fn an_earlier_conflict_and_a_by_test_cut_keep_two_members_for_the_next_turn() {
     advance(&mut landing, &f, Decision::Finish);
 }
 #[test]
+fn a_cut_with_one_kept_member_prepares_again_when_main_moved() {
+    let (mut landing, mut f) = top_failed(3);
+    // The middle member left on an earlier conflict; the search blames the top.
+    landing.phase = Phase::Preparing;
+    landing.members[1].candidate = None;
+    f.members[1].candidate = None;
+    f.members[1].outcome = Some(crate::Outcome::EarlierConflict);
+    f.members[2].gates[0].receipt = Status::Passed;
+    f.members[2].failed[0] = None;
+    f.members[2].gates[1].receipt = Status::Failed;
+    f.members[2].gates[1].run = 81;
+    f.members[2].failed[1] = Some(ids(&[b"a", b"b"]));
+    for gate in &mut f.members[0].gates {
+        gate.receipt = Status::Passed;
+    }
+    f.turn_free = true;
+    let advance = |landing: &mut Landing, facts: &Facts, expected| {
+        let next = decide(landing, facts);
+        assert_eq!(next.decision, expected);
+        *landing = next.landing;
+    };
+    advance(&mut landing, &f, Decision::Leave { member: 1, why: Leave::EarlierConflict });
+    advance(&mut landing, &f, Decision::None);
+    advance(&mut landing, &f, Decision::Post { member: 2, gate: 0, posting: Posting::Received });
+    advance(&mut landing, &f, Decision::None);
+    advance(&mut landing, &f, Decision::Post { member: 2, gate: 1, posting: Posting::Ran { passed: false } });
+    advance(&mut landing, &f, Decision::None);
+    bounds(&landing, 1, 3);
+    advance(
+        &mut landing,
+        &f,
+        Decision::Leave { member: 2, why: Leave::Blamed { gate: 1, run: 81, red: prefix(2), green: prefix(0) } },
+    );
+    assert_eq!(landing.round.ending, Some(RoundEnd::Cut));
+    for fresh in &mut f.members {
+        fresh.main = [19; 32];
+    }
+    advance(&mut landing, &f, Decision::Close);
+    f.closed = Status::Passed;
+    advance(&mut landing, &f, Decision::Delete { member: 2 });
+    f.members[2].deleted = Status::Passed;
+    advance(&mut landing, &f, Decision::None);
+    f.opened = None;
+    f.opening = Status::Unknown;
+    advance(&mut landing, &f, Decision::None);
+    assert_eq!(landing.round.ending, Some(RoundEnd::Stale));
+    advance(&mut landing, &f, Decision::Delete { member: 0 });
+    f.members[0].deleted = Status::Passed;
+    f.members[0].candidate = None;
+    advance(&mut landing, &f, Decision::Stale);
+    advance(&mut landing, &f, Decision::Prepare { member: 0, head: super::step::head(0), main: [19; 32] });
+    assert_eq!(landing.members[0].base, Some([19; 32]));
+    let candidate = [30; 32];
+    f.members[0].candidate = Some((candidate, crate::Combine::Merge));
+    advance(&mut landing, &f, Decision::Open);
+    f.opened = Some(100);
+    advance(&mut landing, &f, Decision::None);
+    for gate in 0..2 {
+        advance(&mut landing, &f, Decision::Post { member: 0, gate, posting: Posting::Received });
+    }
+    advance(&mut landing, &f, Decision::Proved);
+    advance(&mut landing, &f, Decision::None);
+    advance(&mut landing, &f, Decision::Merge { member: 0, candidate });
+    f.members[0].main = candidate;
+    f.members[0].merged = Some(candidate);
+    advance(&mut landing, &f, Decision::Landed { member: 0, prefix: candidate });
+    advance(&mut landing, &f, Decision::Finish);
+}
+#[test]
 fn opening_the_next_round_takes_the_search_line() {
     let (mut landing, mut f) = cut(2, 1, 2);
     landing.phase = Phase::Preparing;
