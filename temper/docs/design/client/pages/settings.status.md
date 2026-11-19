@@ -5,6 +5,7 @@
 
 
 - **Not yet:** 1: *Deleting a project*: How work runs has no "Delete project", so no sheet, no `RemoveProject` from `temper-client-domain` and no going to `AllHome` after [in flight: change 633].
+- **Not yet:** 2: *The path of a change*: How work runs' head keeps "Back", the "Stock ways" button and the tick on the running way, its acts in the line's row [in flight: change 10102].
 
 
 - **Departs:** 2: A role's model is drawn among its opened terms, not

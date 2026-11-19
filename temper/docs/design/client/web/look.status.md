@@ -2,6 +2,7 @@
 
 2026-11-19. Where the tree's code lags or departs from [look.md](look.md).
 
+- **Not yet:** *Ask temper's ways*: `ways-shown`'s rules are not in `temper.css` [in flight: change 10102].
 - **Not yet:** *An account's row*: the `accounts-usage` request's
   rendered comparison follows landing on main, owned by temper/ui
   (`look-requests.md`, 4): its hand-made `journeys/accounts-usage/`
