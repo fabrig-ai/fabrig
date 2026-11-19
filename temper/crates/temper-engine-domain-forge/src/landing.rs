@@ -696,10 +696,12 @@ fn append_words(words: &mut List<u8>, bytes: &[u8]) {
         }
     }
 }
+/// A detached member consumes its handed-over ask before waiting again (domain/landing.md, 4.3 and 15).
 #[expect(clippy::match_like_matches_macro, reason = "the foundation requires explicit matching")]
 pub(crate) fn waiting(row: &crate::ChangeRow) -> bool {
     row.change.way == change::Way::Turn
         && row.change.landing.is_none()
+        && row.change.landing_ask.is_none()
         && if let change::State::Ready { .. } = row.change.state { true } else { false }
 }
 fn ordered_changes(d: &Domain, joined: &[u64], graph: &[crate::ChangeDependencies]) -> Box<[u64]> {

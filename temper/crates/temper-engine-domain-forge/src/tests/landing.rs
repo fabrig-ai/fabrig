@@ -1792,6 +1792,10 @@ fn ending_a_landing_unlinks_every_change_and_hands_over_untaken_asks() {
             d.change(fixtures::CHANGE).unwrap().change.landing_ask.as_deref(),
             Some(&c::Ask::Landed { prefix: fixtures::HEAD })
         );
+        let waiting = d.waiting_changes(REPO, b"main");
+        assert_eq!(waiting.len(), 1, "handed-over landing results must be consumed before a change can wait again");
+        assert_eq!(waiting.first().unwrap().task, OTHER_CHANGE + 1);
+        assert_eq!(d.first_waiting(REPO, b"main", &[], env().wall), Some(OTHER_CHANGE + 1));
         take_departed_change(&mut d, fixtures::HEAD, false);
         assert!(
             matches!(d.change(fixtures::CHANGE).unwrap().change.state, c::State::Landed { merge, .. } if merge == fixtures::HEAD)
@@ -1874,12 +1878,15 @@ fn restored_stale_links_drop_after_all_rows_and_both_change_parts_are_read() {
                     assert_eq!(row.change.landing_ask.as_deref(), Some(&ask));
                     assert_eq!(landing::ask_for(&restarted, row), Some(ask));
                     assert_eq!(restarted.landing(61).unwrap().asks.as_ref(), &[None]);
+                    assert!(!landing::waiting(row), "the handed-over ask must be consumed first");
+                    assert!(restarted.waiting_changes(REPO, b"main").is_empty());
+                } else {
+                    assert!(landing::waiting(row));
+                    assert_eq!(
+                        restarted.waiting_changes(REPO, b"main").as_ref(),
+                        &[c::Ready { task: fixtures::CHANGE, since, priority: row.priority }]
+                    );
                 }
-                assert!(landing::waiting(row));
-                assert_eq!(
-                    restarted.waiting_changes(REPO, b"main").as_ref(),
-                    &[c::Ready { task: fixtures::CHANGE, since, priority: row.priority }]
-                );
                 assert!(restarted.train_free(REPO, b"main"));
             }
         }
