@@ -630,6 +630,40 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
 }
 
 #[test]
+fn resolution_words_make_a_merge_jobs_result_text_before_quoting_it() {
+    let words = super::resolution_words(Some(b"{\"left\":[\"a\xffb\"]}"), &[], 4096).unwrap();
+    assert!(words.ends_with(b"{\"left\":[\"a?b\"]}"));
+    assert!(skein_lib::bytes::is_utf8(&words));
+}
+
+#[test]
+fn repair_words_make_failed_test_keys_text() {
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.report = super::forge::ReceiptReport::Tests(Box::new([super::forge::ReceiptTest {
+        key: b"test binary a\xffb".as_slice().into(),
+        fuzzy: false,
+    }]));
+    let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(skein_lib::bytes::find(&words, b"\nFailed test: test binary a?b (focused)").is_some());
+    assert!(skein_lib::bytes::is_utf8(&words));
+}
+
+#[test]
+fn repair_words_make_failed_job_names_text() {
+    let mut row = change_row(Some(42));
+    row.change.last_head = Some(SHA1);
+    let why = super::forge_change::Repair::LandingAt { gate: 1, candidate: SHA1, below: None };
+    let mut failure = repair_failure(SHA1, None);
+    failure.jobs = Box::new([super::forge::ReceiptJob { job: 9001, attempt: 1, name: b"check\xff".as_slice().into() }]);
+    let words = super::repair_words(&row, why, Some(&failure), &[], 4096).unwrap();
+    assert!(skein_lib::bytes::find(&words, b"\nFailed job: check?: read_ci what=job ").is_some());
+    assert!(skein_lib::bytes::is_utf8(&words));
+}
+
+#[test]
 fn a_resolution_preserves_both_sides_within_a_small_spec() {
     use super::tasks::Parameter;
     let parameters = [
