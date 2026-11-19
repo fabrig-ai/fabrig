@@ -206,6 +206,115 @@ fn a_fresh_start_whose_tail_reaches_the_turns_headers_still_encodes() {
     assert!(skein_lib::bytes::find(charter, b"[earlier bytes not text, cut]\nThe README's last line is in.").is_some());
 }
 #[test]
+fn an_assignments_brief_and_messages_replace_non_utf8_bytes() {
+    let settings = fixtures::engine();
+    let encoding = fixtures::encoding(&settings);
+    let mut assignment = assignment_with_identity();
+    assignment.sections = Box::new([root::BriefSection {
+        kind: root::BriefKind::Forge(root::ForgeBriefKind::Pull),
+        body: root::BriefBody::Text(b"head\xff\xfetail".as_slice().into()),
+    }]);
+    assignment.messages = Box::new([word(3, tasks::Party::Person(8), b"words\xc3")]);
+    let event = crate::assignment::down(
+        assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &fixtures::values_with_identity(1, b"forge-token-1234"),
+        Token::new(8),
+        Time::ZERO,
+    )
+    .expect("repository and message bytes become text before encoding");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else {
+        panic!("assignment event")
+    };
+    let charter = decoded_charter(&assignment.assignment.charter);
+    let section = charter.brief().get(0).unwrap();
+    assert_eq!(section.title(), b"Pull request");
+    assert_eq!(section.body(), b"head??tail");
+    assert_eq!(assignment.messages[0].words.as_ref(), b"words?");
+}
+
+#[test]
+fn an_assignments_section_titles_replace_non_utf8_bytes() {
+    let settings = fixtures::engine();
+    let encoding = fixtures::encoding(&settings);
+    let mut assignment = assignment_with_identity();
+    assignment.sections = Box::new([root::BriefSection {
+        kind: root::BriefKind::Forge(root::ForgeBriefKind::Document(b"doc\xff".as_slice().into())),
+        body: root::BriefBody::Text(b"text".as_slice().into()),
+    }]);
+    let event = crate::assignment::down(
+        assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &fixtures::values_with_identity(1, b"forge-token-1234"),
+        Token::new(8),
+        Time::ZERO,
+    )
+    .expect("section titles become text before encoding");
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else {
+        panic!("assignment event")
+    };
+    let charter = decoded_charter(&assignment.assignment.charter);
+    let section = charter.brief().get(0).unwrap();
+    assert_eq!(section.title(), b"Document doc?");
+    assert_eq!(section.body(), b"text");
+}
+
+#[test]
+fn an_assignments_answered_tools_become_text_but_their_bodies_stay_bytes() {
+    let settings = fixtures::engine();
+    let encoding = fixtures::encoding(&settings);
+    let mut assignment = assignment_with_identity();
+    assignment.settled = Box::new([
+        core::Settled {
+            key: core::CallKey { task: assignment.task, attempt: 1, completion: 2, position: 1 },
+            call: core::SettledCall {
+                serial: 6,
+                tool: b"note\xff".as_slice().into(),
+                answer: core::SettledAnswer::Host { error: false, body: b"body\xfe".as_slice().into() },
+            },
+        },
+        core::Settled {
+            key: core::CallKey { task: assignment.task, attempt: 1, completion: 2, position: 2 },
+            call: core::SettledCall {
+                serial: 7,
+                tool: b"deliver\xc3".as_slice().into(),
+                answer: core::SettledAnswer::Delivery {
+                    outcome: core::DeliveryOutcome::Delivered,
+                    evidence: b"evidence\xff".as_slice().into(),
+                },
+            },
+        },
+    ]);
+    let event = crate::assignment::down(
+        assignment,
+        &fixtures::forge_table(&fixtures::forges()),
+        &encoding,
+        &fixtures::values_with_identity(1, b"forge-token-1234"),
+        Token::new(8),
+        Time::ZERO,
+    )
+    .unwrap();
+    let jig_protocol_engine_workers::Event::Down { down: host::LinkDown::Assign { assignment }, .. } = event else {
+        panic!("assignment event")
+    };
+    assert_eq!(assignment.answered[0].tool.as_ref(), b"note?");
+    assert_eq!(assignment.answered[1].tool.as_ref(), b"deliver?");
+    assert_eq!(
+        assignment.answered[0].answer,
+        host::SettledAnswer::Host { error: false, body: b"body\xfe".as_slice().into() }
+    );
+    assert_eq!(
+        assignment.answered[1].answer,
+        host::SettledAnswer::Delivery {
+            outcome: host::DeliveryOutcome::Delivered,
+            evidence: b"evidence\xff".as_slice().into(),
+        }
+    );
+}
+
+#[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary tests assemble byte fixtures and inspect text")]
 fn a_tail_keeps_its_text_marked_and_never_grows() {
     use crate::assignment::text_tail;

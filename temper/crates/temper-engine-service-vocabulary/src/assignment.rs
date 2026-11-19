@@ -1,4 +1,5 @@
 //! Root assignments as the hub's records, with application items beside them.
+//! Text fields are made UTF-8 before fitting (domain/agent/room.md, 2).
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_host as host;
@@ -102,6 +103,8 @@ pub fn down(
         if from.kind == root::BriefKind::Core(jig_domain_brief::Core::TranscriptTail) {
             section.text = text_tail(&section.text);
         }
+        make_text(&mut section.title);
+        make_text(&mut section.text);
     }
     let charter = fitted_charter(charter, encoding)?;
     let identity = jig_protocol_charter::run_identity(&encoding.deployment, assignment.task, assignment.conversation);
@@ -252,14 +255,22 @@ fn encode_charter(charter: &smith_domain_run::Charter, encoding: &Encoding) -> R
     Err(unencoded(field))
 }
 
+fn make_text(text: &mut Box<[u8]>) {
+    if !skein_lib::bytes::is_utf8(text) {
+        *text = skein_lib::bytes::utf8_replaced(text);
+    }
+}
+
 fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     let mut messages = List::with_capacity(u32::try_from(words.len()).expect("bounded messages"));
     for word in words {
+        let mut words = root::inbox_words(task, word);
+        make_text(&mut words);
         messages
             .push(host::StartMessage {
                 name: Token::new(word.number),
                 sender: root::inbox_sender(word),
-                words: root::inbox_words(task, word),
+                words,
                 finish_requested: word.finish_requested(),
             })
             .expect("bounded messages");
@@ -294,7 +305,7 @@ fn answered(calls: &[core::Settled]) -> Box<[host::AnsweredCall]> {
                     completion: key.completion,
                     position: key.position,
                 }),
-                tool: call.tool.clone(),
+                tool: skein_lib::bytes::utf8_replaced(&call.tool),
                 answer,
             })
             .expect("bounded answered calls");
