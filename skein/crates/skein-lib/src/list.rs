@@ -161,6 +161,28 @@ impl<T> List<T> {
     }
 }
 
+impl<T: Copy> List<T> {
+    /// Appends a copy of an existing range, or refuses without changing the
+    /// list when the range is absent or its copy would exceed the capacity.
+    pub fn extend_from_within(&mut self, range: core::ops::Range<u32>) -> Option<()> {
+        let start = crate::usize_of(range.start);
+        let end = crate::usize_of(range.end);
+        let count = self.items.get(start..end)?.len();
+        let len = self.items.len();
+        let needed = len.checked_add(count)?;
+        let cap = crate::usize_of(self.capacity);
+        if needed > cap {
+            return None;
+        }
+        if needed > self.items.capacity() {
+            let additional = grown(len, needed, cap).checked_sub(len).expect("room for the copied range");
+            self.items.reserve_exact(additional);
+        }
+        self.items.extend_from_within(start..end);
+        Some(())
+    }
+}
+
 impl<'a, T> IntoIterator for &'a List<T> {
     type Item = &'a T;
     type IntoIter = slice::Iter<'a, T>;

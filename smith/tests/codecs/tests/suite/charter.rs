@@ -1,6 +1,6 @@
 //! Charter and result wire boundaries (protocol/charter.md, sections 3-6).
 
-use crate::support::goldens::assert_measured;
+use crate::support::goldens::Goldens;
 
 use skein_codec::Reason;
 use skein_lib::Reader;
@@ -8,10 +8,11 @@ use smith_charter::v5::{CEILINGS, Charter, Path, RunResult};
 
 #[test]
 fn charter_and_result_golden_records_decode() {
-    assert_measured("charter", 5, "charter", |bytes| {
+    let goldens = Goldens::new("charter", 5);
+    goldens.assert_measured("charter", |bytes| {
         Charter::decode(&CEILINGS, &mut Reader::new(bytes)).expect("charter decodes").measure()
     });
-    assert_measured("charter", 5, "run_result", |bytes| {
+    goldens.assert_measured("run_result", |bytes| {
         RunResult::decode(&CEILINGS, &mut Reader::new(bytes)).expect("result decodes").measure()
     });
 }

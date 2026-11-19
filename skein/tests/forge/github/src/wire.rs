@@ -2,7 +2,7 @@ use crate::Result;
 use skein_forge::github::request::Method;
 use skein_forge_conformance::json::Json;
 #[derive(Clone)]
-pub(crate) struct Request {
+pub struct Request {
     pub method: Method,
     pub target: String,
     pub body: Vec<u8>,
@@ -59,7 +59,7 @@ impl Request {
     }
 }
 #[derive(Clone)]
-pub(crate) struct Response {
+pub struct Response {
     pub status: u16,
     pub head: Vec<u8>,
     pub body: Vec<u8>,
