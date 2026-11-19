@@ -52,6 +52,18 @@ fn the_host_clock_passes_deadlines_through() {
 }
 
 #[test]
+fn startup_host_name_is_the_kernels_bytes_without_terminators() {
+    let hostname = crate::host_name().expect("kernel host name");
+    assert!(!hostname.contains(&0), "the NUL terminator is not part of the name");
+    assert!(!hostname.contains(&b'\n'), "the name has no line feed");
+    #[cfg(target_os = "linux")]
+    {
+        let proc = fs::read("/proc/sys/kernel/hostname").expect("Linux host name");
+        assert_eq!(hostname.as_ref(), proc.strip_suffix(b"\n").expect("proc's final line feed"));
+    }
+}
+
+#[test]
 fn startup_process_id_is_this_process() {
     assert_eq!(crate::process_id(), std::process::id());
 }

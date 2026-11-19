@@ -273,6 +273,20 @@ Neither is read again: a process's identity does not change while it
 runs. A service never reads them itself, with `std::process` or a
 syscall of its own. It takes them from its shell.
 
+**The host's name** is the kernel's, asked at startup only, for a
+service whose defaults name its machine, such as temper's worker
+(`temper/docs/design/protocol/configuration/file.md`, 5).
+`host_name() -> Result<Box<[u8]>, i32>` answers it through `uname`,
+on Linux and macOS alike, one call in `posix` (readiness.md, 5): the
+node name's bytes before its NUL, or the call's error number. On Linux
+that is the UTS namespace's host name, the bytes
+`/proc/sys/kernel/hostname` gives before its line feed; on macOS,
+which has no `/proc`, it is `kern.hostname`, the name `hostname`
+prints. It is the kernel's answer at that moment, neither checked nor
+decoded: the caller says what a name must be, and a later change of
+the name is not seen. A service never reads `/proc` or calls `uname`
+for it itself.
+
 **Whether a directory can be written** is asked the same way, at
 startup only, for a service that confirms a directory something it runs
 will write, such as smith's writable caches. `directory_access(path)`
