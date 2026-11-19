@@ -165,8 +165,19 @@ pub struct Host {
 impl Host {
     #[must_use]
     pub fn new(settings: &Settings, seed: u64, now: Time, wall: Wall) -> Host {
+        let words = limits::checked(&settings.limits).expect("TUI capacities are checked");
+        Self::with_checked_words(settings, words, seed, now, wall)
+    }
+
+    /// The words have passed the native and TUI capacity checks with these settings.
+    pub(crate) fn with_checked_words(
+        settings: &Settings,
+        words: tui::words::Words,
+        seed: u64,
+        now: Time,
+        wall: Wall,
+    ) -> Host {
         let limits = &settings.limits;
-        let words = limits::checked(limits).expect("TUI capacities are checked");
         Host {
             #[cfg(test)]
             events: Vec::new(),

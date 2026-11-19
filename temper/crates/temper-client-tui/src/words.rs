@@ -934,7 +934,7 @@ impl Word {
     }
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Words {
     book: Phrasebook,
     notice_bytes: u32,

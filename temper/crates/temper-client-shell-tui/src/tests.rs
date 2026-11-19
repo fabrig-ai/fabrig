@@ -18,7 +18,6 @@ mod goal;
 mod lending;
 #[path = "tests/playground.rs"]
 mod playground;
-pub(crate) use lending::terminal_document;
 
 use crate::{
     host::{Duties, Host, Report, Settings, Start},
@@ -48,6 +47,30 @@ fn settings() -> Settings {
 
 fn host() -> Host {
     Host::new(&settings(), 7, Time::ZERO, Wall::EPOCH)
+}
+
+/// Fresh hosts sharing only the settings and words checked by the first host.
+struct Hosts {
+    settings: Settings,
+    host: Host,
+    first: bool,
+}
+impl Hosts {
+    fn new() -> Self {
+        let settings = settings();
+        let host = Host::new(&settings, 7, Time::ZERO, Wall::EPOCH);
+        Self { settings, host, first: true }
+    }
+
+    fn next(&mut self) -> &mut Host {
+        if self.first {
+            self.first = false;
+        } else {
+            let words = self.host.view.words().clone();
+            self.host = Host::with_checked_words(&self.settings, words, 7, Time::ZERO, Wall::EPOCH);
+        }
+        &mut self.host
+    }
 }
 
 #[test]
@@ -394,6 +417,7 @@ fn approval_is_asked_once_per_opening() {
 
 #[test]
 fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
+    let mut hosts = Hosts::new();
     for (address, code, tail, opens) in [
         ("127.0.0.1:8367", "WDJB-MJHT", "", true),
         ("127.0.0.1:9000", "WDJB-MJHT", "", true),
@@ -402,7 +426,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
         ("127.0.0.1:8367", "WDJB-MJHT&next=http://x", "", false),
         ("127.0.0.1:8367", "WDJB-MJHT", "http://evil.example/", false),
     ] {
-        let mut host = host();
+        let host = hosts.next();
         let duties = host.report(Report::Start(Start {
             set_up: false,
             box_log: Box::default(),
@@ -420,7 +444,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
             credential: None,
         }));
         let exchange = ask(&duties);
-        let duties = reply(&mut host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
+        let duties = reply(host, exchange, approval_bytes(code.as_bytes(), tail.as_bytes()));
         let expected =
             opens.then(|| format!("http://{address}/terminal?code=WDJB-MJHT").into_bytes().into_boxed_slice());
         assert_eq!(duties.open, expected, "{address} {code} {tail}");
@@ -433,6 +457,7 @@ fn approval_addresses_use_only_the_tuis_authority_and_a_valid_code() {
 #[test]
 fn approval_enter_replaces_only_an_ended_or_pasted_take() {
     use jig_client_protocol_wire as w;
+    let mut hosts = Hosts::new();
     for answer in [
         w::ApprovalSignInAnswer::Refused,
         w::ApprovalSignInAnswer::Expired,
@@ -445,9 +470,9 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         w::ApprovalSignInAnswer::Waiting,
     ] {
         let waiting = answer == w::ApprovalSignInAnswer::Waiting;
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
-        let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
+        let duties = reply(host, exchange, approval_bytes(b"WDJBMJHT", b""));
         let take = duties
             .asked
             .iter()
@@ -461,7 +486,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             .expect("approval take");
         let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("test length"));
         answer.encode(&mut writer).expect("take answer");
-        reply(&mut host, take, writer.finish());
+        reply(host, take, writer.finish());
         host.frame();
         let duties = host.report(Report::Key(Key::Enter));
         if waiting {
@@ -477,7 +502,7 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
             ask(&host.report(Report::Key(Key::Enter)));
         } else {
             let exchange = ask(&duties);
-            let duties = reply(&mut host, exchange, approval_bytes(b"BCDFGHJK", b""));
+            let duties = reply(host, exchange, approval_bytes(b"BCDFGHJK", b""));
             assert_eq!(duties.open.as_deref(), Some(b"http://127.0.0.1:8367/terminal?code=BCDF-GHJK".as_slice()));
             assert!(!host.state().pasted());
         }
@@ -488,12 +513,12 @@ fn approval_enter_replaces_only_an_ended_or_pasted_take() {
         Some(w::ApprovalAskAnswer::Busy),
         None,
     ] {
-        let mut host = host();
-        let exchange = ask(&start(&mut host, None));
+        let host = hosts.next();
+        let exchange = ask(&start(host, None));
         if let Some(answer) = answer {
             let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("length"));
             answer.encode(&mut writer).expect("answer");
-            reply(&mut host, exchange, writer.finish());
+            reply(host, exchange, writer.finish());
         } else {
             host.report(Report::Heard(jig_client::Event::Lost { exchange }));
         }

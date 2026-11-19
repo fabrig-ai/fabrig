@@ -99,8 +99,10 @@ impl Replay {
                     return Ok(Some(Mark { frame: self.host.frame().clone(), live, key }));
                 }
                 Line::Deadline(_) => {
-                    // The run lays its newest frame after the turn's reports, including focus.
-                    self.host.frame();
+                    // A following mark lays this same frame before its key; other turns lay it here for focus.
+                    if !matches!(self.lines.get(self.at + 1), Some(Line::Mark(_) | Line::End(_))) {
+                        self.host.frame();
+                    }
                     self.compare(&Line::Deadline(self.host.deadline()))?;
                 }
                 Line::Journey { .. }
