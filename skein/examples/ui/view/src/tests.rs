@@ -84,18 +84,15 @@ fn sixty_four_notes_at_the_record_ceilings_fit_the_view() {
     let mut state = fixtures::state();
     let mut notes = skein_lib::List::with_capacity(64);
     for number in 0..64 {
-        let mut parts = fixtures::notes().notes().get(0).expect("fixture note").clone().into_parts();
-        parts.number = number;
-        parts.title = Box::from([b't'; 256]);
-        parts.body = Box::from([b'b'; 4096]);
-        parts.due = Box::from([b'd'; 32]);
-        notes
-            .push(crate::records::Note::new(&crate::records::CEILINGS, parts).expect("ceiling fits"))
-            .expect("64 notes fit");
+        let mut note = fixtures::notes().notes.get(0).expect("fixture note").clone();
+        note.number = number;
+        note.title = Box::from([b't'; 256]);
+        note.body = Box::from([b'b'; 4096]);
+        note.due = Box::from([b'd'; 32]);
+        notes.push(note).expect("64 notes fit");
     }
     state.draft = crate::state::DraftMode::Discarding;
-    state.notes = crate::records::Notes::new(&crate::records::CEILINGS, crate::records::NotesParts { notes })
-        .expect("64 notes fit");
+    state.notes = crate::records::Notes { notes };
     let mut view = View::new(&limits::limits());
     state.build(&mut view, &mut Queue::with_capacity(1200));
     assert_eq!(view.tree().len(), 487);
@@ -130,11 +127,11 @@ fn an_unknown_note_says_there_is_none() {
 #[test]
 fn a_notes_page_keeps_the_bodys_line_breaks() {
     let mut state = fixtures::state();
-    let mut parts = fixtures::notes().notes().get(0).expect("fixture note").clone().into_parts();
-    parts.body = b"Milk\nBread\nButter".as_slice().into();
+    let mut note = fixtures::notes().notes.get(0).expect("fixture note").clone();
+    note.body = b"Milk\nBread\nButter".as_slice().into();
     let mut notes = skein_lib::List::with_capacity(64);
-    notes.push(crate::records::Note::new(&crate::records::CEILINGS, parts).unwrap()).unwrap();
-    state.notes = crate::records::Notes::new(&crate::records::CEILINGS, crate::records::NotesParts { notes }).unwrap();
+    notes.push(note).unwrap();
+    state.notes = crate::records::Notes { notes };
     state.place = Place::Note { number: 7 };
     let mut view = View::new(&limits::limits());
     state.build(&mut view, &mut Queue::with_capacity(1200));

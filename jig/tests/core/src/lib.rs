@@ -6,3 +6,5 @@ pub use jig_core_kit::*;
 
 pub mod agents_tools;
 pub mod reference;
+
+pub mod test_support;

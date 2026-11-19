@@ -371,7 +371,10 @@ it in at once, as a walk's `approve` does (`tui/journeys.md`, 8.1): a
 save that holds a `browse`, whose address the browser opens and whose
 "Approve" it presses, then the browser loads again the address it was
 on; within 30 seconds, before the line is carried out. So no line
-approves, and a recipe holds none.
+approves, and a recipe holds none. `tui approve`, `tui mark` and
+`web mark` are a journey's lines (`journey-walks.md`, 2.2): the session
+answers each `failed: line N: tui approve is a journey's line`, with
+its own words, keeps none, and starts no TUI for it.
 
 | Line | What the session does | Bound |
 |---|---|---|

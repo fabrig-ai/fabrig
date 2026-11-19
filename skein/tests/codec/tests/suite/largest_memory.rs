@@ -181,7 +181,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         skein_codec_tests::SAMPLE_SCHEMA,
-        skein_codec_tests::v1, sealed,
+        skein_codec_tests::v1, lean,
         limits [
             field_name,
             field_value,

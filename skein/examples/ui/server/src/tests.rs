@@ -101,7 +101,7 @@ fn the_page_etag_is_its_fnv_digest() {
 #[test]
 fn a_second_add_with_one_key_makes_no_second_note() {
     use skein_lib::Reader;
-    use skein_ui_example_view::records::{CEILINGS, Notes};
+    use skein_ui_example_view::records::{CEILINGS, Notes, Record};
     let mut state = State::new();
     let bundle = bundle();
     let mut call = get(b"/api/notes");
@@ -110,7 +110,7 @@ fn a_second_add_with_one_key_makes_no_second_note() {
     let _answer = routes::route(&mut state, &bundle, &call, add);
     let _answer = routes::route(&mut state, &bundle, &call, add);
     let notes = Notes::decode(&CEILINGS, &mut Reader::new(&state.list())).expect("notes decode");
-    assert_eq!(notes.notes().len(), 1);
+    assert_eq!(notes.notes.len(), 1);
 }
 
 #[test]

@@ -14,7 +14,7 @@ use jig_ops_domain_observability as observability;
 use skein_lib::{Decision, Env, Journal, Queue, Token, length::len_u64};
 
 /// Configuration is handed to the child that owns each value.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Config {
     /// Reason used by the deployment's environment-close acts.
     pub environment_closed_reason: Box<[u8]>,

@@ -417,11 +417,11 @@ impl App for Test {
 /// Decode the transport's whole optional-value application request.
 #[must_use]
 pub fn family_request(record: &jig_client::Family) -> domain::family::Ask {
-    use jig_client_test_protocol_wire::v2 as w;
+    use jig_client_test_protocol_wire::v2::{self as w, Record};
     let mut reader = skein_lib::Reader::new(&record.bytes);
-    let request = w::Request::decode(&w::CEILINGS, &mut reader).expect("whole application request").into_parts();
+    let request = w::Request::decode(&w::CEILINGS, &mut reader).expect("whole application request");
     assert_eq!(reader.remaining(), 0);
-    let value = request.value.into_parts();
+    let value = request.value;
     domain::family::Ask::ChangeObject {
         project: request.project,
         object: value.object,
@@ -432,12 +432,12 @@ pub fn family_request(record: &jig_client::Family) -> domain::family::Ask {
 /// The typed test transport retains every supplied family subject field.
 #[must_use]
 pub fn family_subject(record: &jig_client::Family, read: bool) -> domain::family::Subject {
-    use jig_client_test_protocol_wire::v2 as w;
+    use jig_client_test_protocol_wire::v2::{self as w, Record};
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let value = if read {
-        w::Read::decode(&w::CEILINGS, &mut reader).expect("whole family read").into_parts().value
+        w::Read::decode(&w::CEILINGS, &mut reader).expect("whole family read").value
     } else {
-        w::Subject::decode(&w::CEILINGS, &mut reader).expect("whole family subject").into_parts().value
+        w::Subject::decode(&w::CEILINGS, &mut reader).expect("whole family subject").value
     };
     assert_eq!(reader.remaining(), 0);
     domain::family::wire::subject_value(value)

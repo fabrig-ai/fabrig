@@ -8,6 +8,9 @@
   change 3434].
 - **Not yet:** 8.2: `again` gives the box, the page and the TUI no fixed
   start [in flight: change 7722].
+- **Not yet:** 9's `sign-in-approved`: its `walk` is of version 1,
+  walked by `again` on a fake box, not in a world
+  (`../journey-walks.md`, 6).
 
 - **Departs:** 7, 8: `design-session`, `launchpad-chat`, `launchpad-drawn`
   and `sign-in-approved` are stale. Their recordings predate the client

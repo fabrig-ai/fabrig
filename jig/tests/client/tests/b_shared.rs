@@ -1,25 +1,7 @@
 #[global_allocator]
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
-// Person stories on the scripted and joint boundaries (client/domain/testing.md, 4–5).
+// Person stories on the joint boundary (jig/docs/design/client/domain/testing.md, 5).
 use jig_client_world::{Settings, World, joint::Joint, stories};
-fn scripted(
-    _facts: stories::shared::b_seed::Facts,
-) -> jig_client_world::World<jig_client_world::Test, jig_client_world::Scripted> {
-    let mut fixture = stories::world(8510);
-    let engine = &fixture.front().engine;
-    let mut bounds = engine.bounds();
-    bounds.rows = jig_client_world::test::limits().client.domain.rows;
-    let script = jig_client_scripted_engine::Script {
-        versions: engine.versions(),
-        bounds,
-        truth: engine.truth().clone(),
-        rules: vec![],
-    };
-    World::new(
-        Settings { seed: 8510, ..Settings::default() },
-        jig_client_world::Scripted::new(script, 8510, jig_client_world::scripted::Family::default()),
-    )
-}
 fn joint(
     facts: jig_client_world::stories::shared::b_seed::Facts,
 ) -> jig_client_world::World<jig_client_world::Test, Joint> {
@@ -56,13 +38,6 @@ fn joint(
     front.restart_configuration(|| jig_test_profile::config(8510));
     front.version_fault(jig_client_domain::contract::VersionRange { first: 8, last: 8 });
     World::new(Settings { seed: 8510, ..Settings::default() }, front)
-}
-mod scripted {
-    jig_client_world::person_story_suite!(super::scripted;
-        release: [ignore = "scripted stopped holds release without the Released notice emitted for placed holds"],
-        compound_release: [],
-        inbox_chat: [ignore = "scripted proposal decisions do not append the decision to their chat activity"],
-        close: [], family: []);
 }
 mod joint {
     jig_client_world::person_story_suite!(super::joint;
