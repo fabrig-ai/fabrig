@@ -21,3 +21,8 @@ mod fuzzy {
     mod events;
     mod patches;
 }
+
+mod codec_memory {
+    include!("../../../../../skein/testing/codec-memory.rs");
+}
+mod largest_memory;

@@ -6,7 +6,6 @@ pub(super) const CORE: &str = include_str!("../../../../crates/jig-protocol-stor
 pub(super) const PEOPLE: &str = include_str!("../../../../crates/jig-protocol-store/schema/people-v17.schema");
 pub(super) const COMPONENT: &str = include_str!("../../../../crates/jig-protocol-store/schema/component-v3.schema");
 pub(super) const ACCOUNTS: &str = include_str!("../../../../crates/jig-protocol-store/schema/accounts-v2.schema");
-pub(super) const SECRETS: &str = include_str!("../../../../crates/jig-protocol-store/schema/secrets-v1.schema");
 pub(super) const SETTINGS: &str = include_str!("../../../../crates/jig-protocol-store/schema/settings-v3.schema");
 pub(super) const TEST_CONNECTOR: &str =
     include_str!("../../../../testing/jig-test-store/schema/test-connector-v2.schema");
