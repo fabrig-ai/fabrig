@@ -304,7 +304,8 @@ exclude each other.
 
     With exit 0, its line counting the files its rehearsal linked and
     copied (`protocol/binaries.md`, section 2) is noted again in the
-    tool's words, or, where none is printed, noted as unknown: a staged
+    tool's words, or, where none is printed or the first printed is
+    malformed (6.3), noted as unknown: a staged
     build from C3 until the stop's links (jig's
     `protocol/store/opening.md`, 5, *Its reach*) has `upgrade --workers`
     but copies the checkpoint's maps whole at the stop, and prints no
@@ -456,7 +457,8 @@ opening.
     previous build left, which it opens in place with nothing to
     register or run (jig's `protocol/store/restoring.md`, 4.3);
   - **where the new build registered nothing the previous build
-    lacks,** the previous build opens the store as it stands, and `run` with that build is a redeploy as any: with
+    lacks,** the previous build opens the store as it stands, and `run`
+    with that build is a redeploy as any: with
     `--together` where that build is before milestone C3, since step 10
     of 4.1 refuses a build without `upgrade --workers` on any other
     path. Elsewhere `run` back is no way back: its check refuses a store
@@ -618,16 +620,21 @@ is swapped, the backup and the previous build.
 
 Each verdict that exits 0, before the stop and at it, notes its
 rehearsal's files after its exit's line and before what it decided,
-STEP `serving verdict` or `verdict`, N and M those of the last line of
-its output holding `upgrade: rehearsal linked ` (`protocol/binaries.md`,
-section 2):
+STEP `serving verdict` or `verdict`, N and M those of the first line of
+its output, its standard output's lines then its standard error's,
+that starts with `temper-engine upgrade: rehearsal linked `, which the
+staged build prints before its verdict's other lines
+(`protocol/binaries.md`, section 2):
 
 ```
 STEP rehearsal linked N files, copied M
 STEP rehearsal linked: unknown; the staged build may copy the whole checkpoint at the stop
 ```
 
-the second where no line holds it.
+the second where no line starts so, or where the first that does is
+malformed: its rest not `N files, copied M`, N and M each one or more
+decimal digits and nothing after M. A later line, such as one naming
+a worker or quoting a refusal, is not read for the count.
 
 ### 6.4 Exits
 
@@ -717,7 +724,9 @@ host: no `ssh`, no service manager, no network.
   composes; whose engine's start logs each worker's opening, or its
   refusal, as a test scripts it; whose `check`, `verdict` and `ctl`
   answer what a test scripts, `ctl`'s `deployment checkpoint` among
-  them; whose engine's `checkpoint` answers a new name in
+  them, a `verdict` no test scripts answering exit 0 with a count of
+  files linked and copied and `workers may stay: yes`; whose engine's
+  `checkpoint` answers a new name in
   `protocol/checkpoints.md`, 2.1's line, refused while the engine runs;
   and whose clock moves only by `sleep`. A test's description uses
   templates the fake reads.
@@ -734,8 +743,8 @@ host: no `ssh`, no service manager, no network.
   upgrade --workers`, with the `--together` line, and one that has it
   refusing (its checkpoint's lock held), with the line pointing at its
   own and no `--together` line (6.3); each verdict's count of files
-  linked and copied noted, and noted unknown where its output has
-  none; a
+  linked and copied noted from its first count line, and noted unknown
+  where its output has none or the first is malformed; a
   verdict before the stop saying no after a check's yes, every part
   together with nothing stopped before the drain; `--together`, and a
   check saying no, reading no verdict before the stop; a check saying no and unknown, the

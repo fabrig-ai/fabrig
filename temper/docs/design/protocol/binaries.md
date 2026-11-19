@@ -211,19 +211,39 @@ default; the document is `temper.json` in the configuration directory
   redeploy runs it (`../redeploy.md`, 4.1): nothing before the
   rehearsal takes the deployment's lock or writes under `--data`. It
   works in a scratch under the cache directory, `upgrade-SEED`, SEED
-  sixteen lowercase hex digits from a fresh seed, which it holds under
-  io's lock (the `flock` jig's store takes on a root, jig's
-  `protocol/store/opening.md`, 1.1) from making it until it removes it,
-  with the configuration `temper-box serve` would read. Before making
-  it, it removes each directory of the cache directory named so whose
-  lock it takes, a scratch left by a rehearsal killed partway, whose
-  links would otherwise keep a checkpoint's files on disk past its
-  retention, and leaves each whose lock is held, a rehearsal's in use;
-  a scratch it cannot remove stays, named in a line, `scratch left
-  behind not removed: NAME: errno N`, and the rehearsal goes on. A
-  rehearsal by a build before this rule holds its scratch's lock only
-  from the scratch's open, so one this sweep removes before that fails
-  as a copy failing, writing nowhere else. The open
+  sixteen lowercase hex digits from a fresh seed, with the
+  configuration `temper-box serve` would read, and holds it under io's
+  lock (the `flock` jig's store takes on a root, jig's
+  `protocol/store/opening.md`, 1.1) from making it until it removes it.
+  It makes the scratch as `upgrade-SEED.new`, a name the sweep below
+  never matches, takes its lock, then renames it `upgrade-SEED`: the
+  lock moves with the directory, so no rehearsal sees a scratch of this
+  build unlocked. Once its rehearsal ends, passed, refused or failed,
+  it removes its scratch whole, files left by a close that could not
+  empty it included, while it still holds the lock; one it cannot
+  remove stays, named in a line after the rehearsal's others, `scratch
+  not removed: NAME: errno N`, and its exit is the rehearsal's.
+  Before making it, it sweeps the cache directory: it removes, whole,
+  each directory named `upgrade-SEED` whose modification time is an
+  hour or more before its clock's reading and whose lock it then takes,
+  a scratch left by a rehearsal killed partway, whose links would
+  otherwise keep a checkpoint's files on disk past its retention. It
+  reads the time before it takes the lock, and leaves each whose lock
+  is held, a rehearsal's in use, and each modified within the hour or
+  after its clock's reading, which a rehearsal by a build before this
+  rule may still be filling: such a build makes `upgrade-SEED` itself
+  and takes its lock only at its store's open, after the whole copy,
+  and a removal that stopped partway would leave it working over
+  missing files. It leaves `upgrade-SEED.new` too: one left by a
+  rehearsal killed before its rename is empty. A leftover whose open,
+  time or removal fails, or whose lock fails other than by being held,
+  but for one gone since it listed the cache directory, stays, named in
+  a line before the rehearsal's report, `scratch left behind not
+  removed: NAME: errno N`, and the rehearsal goes on. In these lines,
+  and in `scratch: errno N`, the failure to make or lock a scratch that
+  ends the rehearsal, an error that carries no errno is named by its
+  kind, `kind KIND`, KIND the name of its `std::io::ErrorKind` variant
+  (`kind Other`). The open
   registers layouts, runs jobs and checks as a start would, restores,
   and stops before its switch step. After the floor check and before
   its plan it decodes every record by its registry layout, or by the
@@ -264,10 +284,11 @@ default; the document is `temper.json` in the configuration directory
 
   then `--check`'s lines from its verdict's alone (`wires.md`, 10.2,
   steps 1 to 4), in their words and order, and exits 0 once they are
-  printed, whatever the verdict. A redeploy notes the count
-  (`../redeploy.md`, 6.3). A refusal before the rows are read (DIRECTORY
-  in use, an unfinished restore, an unreadable `active`, a copy or a
-  recovery failing) is printed as `--check` prints a refusal, exit 1.
+  printed, whatever the verdict. A redeploy notes the count, from the
+  first line that starts so (`../redeploy.md`, 6.3). A refusal before
+  the rows are read (DIRECTORY in use, an unfinished restore, an
+  unreadable `active`, a copy or a recovery failing) is printed as
+  `--check` prints a refusal, exit 1.
   It never writes DIRECTORY.
 - **`temper-box upgrade --back`:** makes the previous generation active
   again (jig's `protocol/store/opening.md`, 5), for a binary that upgraded and
