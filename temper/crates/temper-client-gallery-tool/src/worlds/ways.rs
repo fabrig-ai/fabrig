@@ -1,4 +1,5 @@
 //! Hand-made ways documents and page presses (temper/docs/design/client/web/gallery.md, 2).
+use temper_client_protocol_wire::v1::Record;
 use super::{Address, Domain, Event, FirstRun, List, Queue, Request, Then, c, doc, step, world_in_layout};
 use skein_lib::{RequestEnvelope, Token, Writer, bytes};
 use temper_client_domain::{Action, pages::Act};
@@ -59,8 +60,8 @@ pub(super) fn frame(me: &mut c::Me, name: &str) {
 pub(super) fn setting(name: &str) -> Box<[u8]> {
     let draft = is_draft(name);
     let ways = w::ProjectWays { drafts: draft, goals: draft, changes: false, way: if draft { 4 } else { 0 } };
-    let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
-    ways.encode(&mut writer).expect("measured ways");
+    let mut writer = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways bytes"));
+    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
     writer.finish()
 }
 
@@ -89,8 +90,8 @@ pub(super) fn reaches_setting(name: &str) -> Box<[u8]> {
         }]),
     };
     let record = classes_record(&classes).expect("whole story's classes");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
-    record.encode(&mut writer).expect("measured classes");
+    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
     writer.finish()
 }
 
@@ -211,9 +212,9 @@ fn rules(name: Option<&str>) -> w::PathRules {
 }
 
 fn rules_path(team: bool) -> w::BranchPath {
-    let mut parts = delivered_path(if team { 1 } else { 2 }, Some("how-rules")).into_parts();
+    let mut parts = delivered_path(if team { 1 } else { 2 }, Some("how-rules"));
     let mut stops = parts.stops.into_boxed().into_vec();
-    let mut sign = stop(w::PathStep::Approve).into_parts();
+    let mut sign = stop(w::PathStep::Approve);
     sign.words = if team { "one of you" } else { "you" }.as_bytes().into();
     sign.over = if team { "" } else { "if protocol core" }.as_bytes().into();
     sign.card = if team {
@@ -238,7 +239,7 @@ fn rules_path(team: bool) -> w::BranchPath {
             ],
         )
     };
-    let at = stops.iter().rposition(|value| *value.step() == w::PathStep::Conflict).expect("main conflict");
+    let at = stops.iter().rposition(|value| value.step == w::PathStep::Conflict).expect("main conflict");
     stops.insert(at, sign);
     if !team {
         stops.insert(at, stop(w::PathStep::Repair));
@@ -355,7 +356,7 @@ pub(super) fn press(root: &mut Domain, name: &str, settings: Token, out: &mut Qu
         let ways = root.pages().stock_ways().expect("ways page");
         let tabs = ways.tabs();
         let tab = tabs.get(ways.shown().expect("shown tab")).expect("shown way");
-        let stop = tab.path.stops().iter().position(|value| *value.step() == stop).expect("card stop");
+        let stop = tab.path.stops.iter().position(|value| value.step == stop).expect("card stop");
         act(root, Act::WayStop { project: PROJECT, stop: u32::try_from(stop).expect("bounded stops") }, out);
     }
     if !matches!(name, "ask-ways-refused" | "ask-ways-kept") {
@@ -617,7 +618,7 @@ fn path(index: usize) -> w::BranchPath {
     let mut stops: Vec<_> = stops.into_iter().map(stop).collect();
     if index == 2 {
         let goal_check = stops.get_mut(4).expect("goal tier");
-        let mut parts = goal_check.clone().into_parts();
+        let mut parts = goal_check.clone();
         parts.opens = w::Opens::Tier(
             w::OpensTier { name: b"goal checks".as_slice().into() },
         );
@@ -628,7 +629,7 @@ fn path(index: usize) -> w::BranchPath {
         );
         *goal_check = parts;
         let repair = stops.get_mut(5).expect("goal repair");
-        let mut parts = repair.clone().into_parts();
+        let mut parts = repair.clone();
         parts.opens = w::Opens::Charter(
             w::OpensCharter { charter: 5 },
         );
@@ -640,7 +641,7 @@ fn path(index: usize) -> w::BranchPath {
         );
         *repair = parts;
         let goal = stops.get_mut(6).expect("goal landing");
-        let mut parts = goal.clone().into_parts();
+        let mut parts = goal.clone();
         parts.words = b"goal branch".as_slice().into();
         parts.card = card("a branch · holds the goal's changes until it lands whole", "goal branch", &[]);
         *goal = parts;
@@ -655,12 +656,12 @@ fn own() -> w::BranchPath {
 fn delivered_path(index: usize, name: Option<&str>) -> w::BranchPath {
     let path = path(index);
     let Some(name) = name.filter(|name| is_how(name)) else { return path };
-    let mut parts = path.into_parts();
+    let mut parts = path;
     let mut stops = parts.stops.into_boxed().into_vec();
     if name == "how-approve" {
         stops.retain(|stop| {
-            !matches!(stop.step(), w::PathStep::Check | w::PathStep::Verify)
-                && (index != 0 || *stop.step() != w::PathStep::Repair)
+            !matches!(&stop.step, w::PathStep::Check | w::PathStep::Verify)
+                && (index != 0 || stop.step != w::PathStep::Repair)
         });
     } else if index != 2 {
         let main = stops.len().checked_sub(1).expect("main bar");
@@ -668,8 +669,8 @@ fn delivered_path(index: usize, name: Option<&str>) -> w::BranchPath {
     }
     if name == "how-follows" {
         for stop in &mut stops {
-            if *stop.step() == w::PathStep::Verify {
-                let mut parts = stop.clone().into_parts();
+            if stop.step == w::PathStep::Verify {
+                let mut parts = stop.clone();
                 parts.card = card("code · checks what landed", "fuzz", &[("Checks", "fuzzing for 6 hours")]);
                 *stop = parts;
             }
@@ -679,7 +680,6 @@ fn delivered_path(index: usize, name: Option<&str>) -> w::BranchPath {
     parts
 }
 
-#[expect(clippy::too_many_lines, reason = "the fixture encodes each stock way's rules, visibility and classes")]
 fn items(project: u32, index: usize) -> List<w::ProposalItem> {
     let mut items = List::with_capacity(6);
     for number in 1..=4 {
@@ -724,8 +724,8 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
                     approvals,
                     sets: List::with_capacity(0),
                 };
-            let mut writer = Writer::new(usize::try_from(rule.measure()).expect("rule bytes"));
-            rule.encode(&mut writer).expect("measured rule");
+            let mut writer = Writer::new(usize::try_from(rule.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("rule bytes"));
+            rule.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured rule");
             w::SettingEdit::Set(
                 w::SettingValue { value: writer.finish() },
             )
@@ -740,8 +740,8 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
     }
     if index == 2 {
         let ways = w::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };
-        let mut writer = Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
-        ways.encode(&mut writer).expect("measured ways");
+        let mut writer = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways bytes"));
+        ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
         items
             .push(
                 w::ProposalItem {
@@ -762,8 +762,8 @@ fn items(project: u32, index: usize) -> List<w::ProposalItem> {
         _ => unreachable!("three stock ways"),
     };
     let classes = classes_record(&Classes::stock(way)).expect("stock classes fit the record");
-    let mut writer = Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
-    classes.encode(&mut writer).expect("measured classes");
+    let mut writer = Writer::new(usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+    classes.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
     items
         .push(
             w::ProposalItem {

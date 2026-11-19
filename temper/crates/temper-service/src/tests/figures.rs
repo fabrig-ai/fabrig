@@ -95,9 +95,9 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
 
     let document = fixtures::stock_document();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(8192, 48_000).unwrap());
-    let mut agents = crate::stock::agents().into_parts();
+    let mut agents = crate::stock::agents();
     for figure in agents.profile.iter_mut() {
-        if figure.name() == b"declared.tool_payload" {
+        if &figure.name == b"declared.tool_payload" {
             *figure = w::AgentFigure { name: b"declared.tool_payload".as_slice().into(), value: 8192 };
         }
     }

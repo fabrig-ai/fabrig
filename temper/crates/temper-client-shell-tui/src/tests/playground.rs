@@ -33,7 +33,7 @@ pub(super) fn forges_watch(duties: &Duties) -> u64 {
             }
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
             let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
-            (watch.watch() == &f::Watch::Forges).then_some(open.watch())
+            (watch.watch == f::Watch::Forges).then_some(open.watch())
         })
         .expect("session forges watch")
 }
@@ -49,7 +49,7 @@ fn playground_read(duties: &Duties) -> ReplySlot {
             }
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
             let read = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap();
-            (read.read() == &f::Read::Playground).then_some(slot)
+            (read.read == f::Read::Playground).then_some(slot)
         })
         .expect("a first fake row refreshes the playground read")
 }

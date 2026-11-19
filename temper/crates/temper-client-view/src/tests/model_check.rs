@@ -1,5 +1,6 @@
 //! Model’s line, its states and controls (temper/docs/design/client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "tests inspect semantic trees and decoded controls")]
+use temper_client_protocol_wire::v1::Record;
 use super::{connect_model as model, fixtures as f};
 use crate::pages::model_check::{self, Answer, First, State};
 use crate::{accounts::Bindings, words::Words};
@@ -268,7 +269,7 @@ pub(crate) fn fed(kind: d::WayKind) -> (d::Domain, Token, Token) {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read() == &v::Read::Deployment
+            && wire::decode_reading(&record.bytes, &v::CEILINGS).unwrap().read == v::Read::Deployment
         {
             f::deliver_deployment(&mut root, *read, true, true);
         }
@@ -312,8 +313,8 @@ pub(crate) fn row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
 
 pub(crate) fn rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) -> Queue<d::Request> {
     let doc = v::Trials { rows: List::from_boxed(rows.into()) };
-    let mut writer = Writer::new(usize::try_from(doc.measure()).unwrap());
-    doc.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     up(
         root,
         jig_client::Up::FamilyDelivered {
@@ -344,7 +345,7 @@ pub(crate) fn from_root(root: &d::Domain, w: &Words) -> (Tree, Bindings) {
 #[test]
 fn a_trial_row_draws_its_wait_and_keeps_it_after_timeout() {
     let (mut root, watch, _) = fed(d::WayKind::Program);
-    let mut parts = row(v::TrialStep::Answers, v::TrialState::Running).into_parts();
+    let mut parts = row(v::TrialStep::Answers, v::TrialState::Running);
     let wait = jig_client_protocol_wire::TaskRunWait::Credential;
     let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
     wait.encode(&mut writer).unwrap();

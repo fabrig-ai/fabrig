@@ -88,7 +88,6 @@ fn me(asking: bool, tracked: bool, several: bool) -> c::Me {
     }
     me
 }
-#[expect(clippy::too_many_lines, reason = "one How work runs fixture stages the page and its setting answers together")]
 fn fixture(
     asking: bool,
     tracked: bool,
@@ -167,7 +166,7 @@ fn fixture(
                     },
             } = request
                 && let w::Read::View(view) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
-                && &view.address == b"roles"
+                && view.address.as_ref() == b"roles"
             {
                 read = Some(*token);
             }

@@ -1,5 +1,6 @@
 //! Starting a goal in a chat uses the shared sheet (client/pages/README.md).
 #![expect(clippy::disallowed_methods, reason = "ordinary tests inspect semantic trees and prints")]
+use temper_client_protocol_wire::v1::Record;
 use super::{connect_forge, documents, fixtures as f};
 use crate::look;
 use jig_client::{Down, Readable, Up, Watchable, contract as c};
@@ -106,11 +107,11 @@ impl Case {
                 },
                 Down::Read { read, what: Readable::Family { record, .. } } => {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                    let w::Read::Setting(setting) = reading.read() else { continue };
-                    let value = if setting.kind() == 7 {
+                    let w::Read::Setting(setting) = &reading.read else { continue };
+                    let value = if setting.kind == 7 {
                         let value = w::ProjectWays { drafts: self.offered, goals: true, changes: false, way: 2 };
-                        let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-                        value.encode(&mut writer).unwrap();
+                        let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                        value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                         Some(writer.finish())
                     } else {
                         None
@@ -141,7 +142,7 @@ impl Case {
                     }
                 }
                 Down::Open { watch, subject: Watchable::Family { record, .. } } => {
-                    let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() {
+                    let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch {
                         w::Watch::Forges => wire::forges(
                             &w::Forges { forges: forges(self.repository), linked: false },
                         ),
@@ -231,7 +232,7 @@ impl Case {
 fn forges(repository: bool) -> List<w::ForgeRow> {
     let mut rows = connect_forge::first_rows(connect_forge::connected(), connect_forge::made());
     if repository {
-        let mut row = rows.get(0).unwrap().clone().into_parts();
+        let mut row = rows.get(0).unwrap().clone();
         row.repositories = List::with_capacity(1);
         row.repositories
             .push(

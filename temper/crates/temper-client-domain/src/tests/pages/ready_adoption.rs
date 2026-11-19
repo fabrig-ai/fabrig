@@ -295,8 +295,8 @@ fn assert_copies(
         assert_eq!(request.name.as_ref(), *name);
         let w::MakeFrom::Copy(copy) = &request.from else { panic!("a public copy") };
         assert_eq!(copy.address.as_ref(), *address);
-        assert_eq!(request.into().as_ref().unwrap().project(), project);
-        assert_eq!(request.into().as_ref().unwrap().home(), home && *key_name == b"welcome-copy-1");
+        assert_eq!(request.into.as_ref().unwrap().project, project);
+        assert_eq!(request.into.as_ref().unwrap().home, home && *key_name == b"welcome-copy-1");
     }
 }
 const EXPECTED: &[Expected<'_>] = &[

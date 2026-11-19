@@ -73,7 +73,7 @@ fn render(words: &[&[u8]], json: bool, record: &Record) -> tools::jig::Printed {
             } => {
                 let Record::Answer(outcome) = record else { panic!("family answer") };
                 let bytes =
-                    wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: outcome.clone() }).unwrap());
+                    wire::answer(&w::Answer { outcome: outcome.clone() });
                 Some(client::Event::Up {
                     up: client::Up::Answer {
                         attempt,
@@ -118,6 +118,6 @@ fn retained_install_link_renders_in_human_and_json_replays() {
     assert_eq!(replay, answer);
     assert_eq!((human.status, json.status), (0, 0));
     assert!(contains(&human.stdout, b"Open this address in a browser on the engine's machine:"));
-    assert!(contains(&human.stdout, link.address()));
-    assert!(contains(&json.stdout, link.address()));
+    assert!(contains(&human.stdout, &link.address));
+    assert!(contains(&json.stdout, &link.address));
 }

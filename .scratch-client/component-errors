@@ -1,0 +1,52 @@
+temper/crates/temper-engine-service-component/src/tests/setup_github_render.rs:76 E0422 cannot find struct, variant or union type `AnswerParts` in module `w`
+temper/crates/temper-engine-service-component/src/tests/figures.rs:242 E0599 no method named `measure` found for reference `&temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-component/src/tests/figures.rs:287 E0599 no method named `into_parts` found for struct `temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-component/src/tests/figures.rs:462 E0599 no method named `into_parts` found for struct `temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-component/src/tests/figures.rs:475 E0599 no associated function or constant named `decode` found for struct `temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-component/src/tests/fixtures.rs:1893 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:59 E0599 no method named `forge` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:59 E0599 no method named `project` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:59 E0599 no method named `provider` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:60 E0599 no method named `state` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:61 E0599 no method named `owner` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:62 E0599 no method named `name` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:63 E0599 no method named `cues` found for struct `temper_client_protocol_wire::v1::PlaygroundAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:111 E0599 no method named `welcome` found for struct `temper_client_protocol_wire::v1::DeploymentAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:111 E0599 no method named `owned` found for struct `temper_client_protocol_wire::v1::DeploymentAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:112 E0599 no method named `push` found for struct `temper_client_protocol_wire::v1::DeploymentAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/family.rs:139 E0599 no method named `welcome` found for struct `temper_client_protocol_wire::v1::DeploymentAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/clients.rs:996 E0599 no method named `linked` found for struct `temper_client_protocol_wire::v1::Forges` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:12 E0599 no method named `revision` found for struct `temper_client_protocol_wire::v1::LimitsAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:13 E0599 no method named `rows` found for struct `temper_client_protocol_wire::v1::LimitsAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:14 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::LimitsAnswer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:25 E0599 no method named `name` found for reference `&&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:37 E0599 no method named `name` found for struct `temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:37 E0599 no method named `name` found for struct `temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:39 E0599 no method named `stock` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:40 E0599 no method named `in_force` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:41 E0599 no method named `applies` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:42 E0599 no method named `setting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:47 E0599 no method named `waiting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:48 E0599 no method named `line` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:49 E0599 no method named `applies` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:51 E0599 no method named `held` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:52 E0599 no method named `unit` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:56 E0599 no method named `in_force` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:57 E0599 no method named `setting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:58 E0599 no method named `waiting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:74 E0599 no method named `waiting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:77 E0599 no method named `left_out` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:78 E0599 no method named `stock` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:79 E0599 no method named `in_force` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:80 E0599 no method named `setting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings/reading.rs:81 E0599 no method named `setting` found for reference `&temper_client_protocol_wire::v1::LimitRow` in the current scope
+temper/crates/temper-engine-service-component/src/tests/limit_settings.rs:388 E0599 no method named `into_parts` found for struct `temper_engine_domain_forge::settings::AgentFigures` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_reachable.rs:163 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github_render.rs:76 E0599 no associated function or constant named `new` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github_render.rs:121 E0599 no method named `address` found for reference `&temper_client_protocol_wire::v1::Link` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github_render.rs:122 E0599 no method named `address` found for reference `&temper_client_protocol_wire::v1::Link` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github.rs:82 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github.rs:208 E0599 no method named `address` found for reference `&temper_client_protocol_wire::v1::Link` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github.rs:300 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/crates/temper-engine-service-component/src/tests/setup_github.rs:583 E0599 no method named `reason` found for struct `temper_client_protocol_wire::v1::ForgeRefused` in the current scope
+diagnostics 51

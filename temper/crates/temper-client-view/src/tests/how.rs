@@ -100,8 +100,8 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
                             down: Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                         },
                 } = request
-                    && let w::Read::View(view) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                    && view.address() == b"roles"
+                    && let w::Read::View(view) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+                    && view.address.as_ref() == b"roles"
                 {
                     Some(*read)
                 } else {
@@ -937,12 +937,12 @@ fn rules_draw_the_reads_words_between_reaches_and_roles() {
                     assert_eq!(drawn.role, Role::Row);
                     let cells = children(subtree(tree, drawn));
                     assert!(cells.iter().all(|n| n.role == Role::Cell));
-                    let mut expected = vec![row.paths()];
+                    let mut expected = vec![row.paths.as_ref()];
                     if review {
-                        expected.push(if row.review().is_empty() { "–".as_bytes() } else { row.review() });
+                        expected.push(if row.review.is_empty() { "–".as_bytes() } else { row.review.as_ref() });
                     }
-                    expected.push(if row.sign_off().is_empty() { "–".as_bytes() } else { row.sign_off() });
-                    expected.push(row.lands());
+                    expected.push(if row.sign_off.is_empty() { "–".as_bytes() } else { row.sign_off.as_ref() });
+                    expected.push(row.lands.as_ref());
                     assert_eq!(
                         cells.iter().map(|n| f::nodes_text(subtree(tree, n))).collect::<Vec<_>>(),
                         expected.iter().map(|w| Box::<[u8]>::from(*w)).collect::<Vec<_>>()
@@ -951,7 +951,7 @@ fn rules_draw_the_reads_words_between_reaches_and_roles() {
                     let sign = subtree(tree, cells[if review { 2 } else { 1 }]);
                     assert_eq!(
                         sign.iter().any(|n| n.styles.as_slice().contains(&look::HOW_WHO_PERSON)),
-                        !row.sign_off().is_empty()
+                        !row.sign_off.is_empty()
                     );
                     for cell in &cells {
                         if f::nodes_text(subtree(tree, cell)).as_ref() == "–".as_bytes() {
@@ -1121,8 +1121,8 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
             }
         })
         .unwrap();
-    let mut path = path(false).into_parts();
-    let mut stop = path.stops.get(7).unwrap().clone().into_parts();
+    let mut path = path(false);
+    let mut stop = path.stops.get(7).unwrap().clone();
     stop.opens =
         w::Opens::Tier(w::OpensTier { name: b"slow".as_slice().into() });
     *path.stops.get_mut(7).unwrap() = stop;

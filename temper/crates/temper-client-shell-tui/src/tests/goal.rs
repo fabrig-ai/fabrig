@@ -1,4 +1,5 @@
 //! The draft's sheet through the host (client/tui/pages/design-session.md, 1).
+use temper_client_protocol_wire::v1::Record;
 use super::*;
 use temper_client_protocol_wire::{self as wire, v1 as f};
 
@@ -92,12 +93,12 @@ fn one(
             }
         } else {
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
-            if let f::Read::Setting(setting) = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap().read()
-                && setting.kind() == 7
+            if let f::Read::Setting(setting) = &wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap().read
+                && setting.kind == 7
             {
                 let value = f::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };
-                let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-                value.encode(&mut writer).unwrap();
+                let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                 let record = wire::setting_answer(
                     &f::SettingAnswer { revision: None, value: Some(writer.finish()) },
                 );
@@ -141,9 +142,9 @@ fn one(
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
             let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
 
-            let bytes = if watch.watch() == &f::Watch::Forges {
+            let bytes = if watch.watch == f::Watch::Forges {
                 Some(forges(f::Mode::Owned))
-            } else if watch.watch() == &f::Watch::Dismissed {
+            } else if watch.watch == f::Watch::Dismissed {
                 Some(dismissed(linked))
             } else {
                 None

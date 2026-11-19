@@ -183,8 +183,8 @@ fn root(text: &[u8], shown: &Shown, document: bool) -> d::Domain {
             }
             jig_client::Readable::Family { record, .. } => {
                 let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                if let w::Read::View(view) = reading.read() {
-                    assert_eq!(view.address(), ADDRESS);
+                if let w::Read::View(view) = &reading.read {
+                    assert_eq!(view.address.as_ref(), ADDRESS);
                     match shown {
                         Shown::Asking => None,
                         Shown::Failed => Some(jig_client::Readout::Jig(c::ReadResult::None(c::ReadNone::Refused))),

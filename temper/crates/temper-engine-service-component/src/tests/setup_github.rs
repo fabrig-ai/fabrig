@@ -1,4 +1,5 @@
 //! GitHub service composition (temper/docs/design/protocol/setup/github.md).
+use temper_client_protocol_wire::v1::Record;
 use super::*;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
@@ -81,7 +82,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                     let bytes = crate::family::answer(outcome, &w::CEILINGS, &engine.clients.env.limits.wire).unwrap();
                     let record = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
                     assert!(answer.is_none(), "one terminal per family call");
-                    answer = Some(record.into_parts().outcome);
+                    answer = Some(record.outcome);
                 }
                 root::Request::Party(root::PartyRequest::Deliver(root::Delivery::WebReply { reply, .. })) => {
                     match reply {
@@ -205,7 +206,7 @@ fn show_connected(service: &mut crate::Service) {
 
 fn link_state(answer: &w::Outcome) -> &[u8] {
     let w::Outcome::Link(link) = answer else { panic!("install link: {answer:?}") };
-    link.address().strip_prefix(b"http://127.0.0.1:3000/apps/app-fixture/installations/new?state=").unwrap()
+    link.address.strip_prefix(b"http://127.0.0.1:3000/apps/app-fixture/installations/new?state=").unwrap()
 }
 
 fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
@@ -297,7 +298,7 @@ fn http_paste_with_policy(
     else {
         panic!("family terminal")
     };
-    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome
+    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().outcome
 }
 
 #[test]
@@ -580,7 +581,7 @@ fn unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap() {
             )
         };
         // Known gap (client/forge/family.md, 6): NotInstalled projects to NoAccess on the family wire.
-        assert_eq!(refusal.reason(), &w::ForgeReason::NoAccess, "{name}");
+        assert_eq!(&refusal.reason, &w::ForgeReason::NoAccess, "{name}");
         assert!(
             service.engine.as_ref().unwrap().domain.forges().rows[0].repositories.is_empty(),
             "{name}: no adoption"

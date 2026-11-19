@@ -69,11 +69,11 @@ fn keep_panel(world: &World<Temper, Joint>, person: ClientId, panels: &mut Vec<w
                 if panels.last() != Some(value.as_ref()) {
                     if let Some(previous) = panels.last() {
                         assert!(
-                            order(value.step()) >= order(previous.step()),
+                            order(&value.step) >= order(&previous.step),
                             "panel went backwards: {panels:?} -> {value:?}"
                         );
-                        let before = slot(previous.step());
-                        let after = slot(value.step());
+                        let before = slot(&previous.step);
+                        let after = slot(&value.step);
                         assert!(after.done >= before.done, "page's done steps went backwards: {before:?} -> {after:?}");
                         // No current slot means all six are done, after every current slot.
                         assert!(
@@ -182,12 +182,12 @@ fn gate_page(
     );
     let bounds = format!(
         "Repairs {} of {} · resolutions {} of {} · updates {} of {}",
-        panel.repairs().used(),
-        panel.repairs().limit(),
-        panel.resolutions().used(),
-        panel.resolutions().limit(),
-        panel.updates().used(),
-        panel.updates().limit()
+        panel.repairs.used,
+        panel.repairs.limit,
+        panel.resolutions.used,
+        panel.resolutions.limit,
+        panel.updates.used,
+        panel.updates.limit
     );
     world.person(
         person,
@@ -381,11 +381,11 @@ fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
     assert!(world.front().engine.task(goal).is_some(), "change waits for the person's review");
     assert_eq!(facts(world.front()).pull.merged, None, "gate alone cannot admit the merge");
     let waiting = panels.last().expect("approval wait panel");
-    let [line] = waiting.approvals().as_slice() else { panic!("one deployment approval: {waiting:?}") };
-    assert_eq!(line.role(), 0);
-    assert_eq!(line.required(), 1);
-    assert_eq!(line.remaining(), &Some(1));
-    assert!(line.counted().is_empty());
+    let [line] = waiting.approvals.as_slice() else { panic!("one deployment approval: {waiting:?}") };
+    assert_eq!(line.role, 0);
+    assert_eq!(line.required, 1);
+    assert_eq!(&line.remaining, &Some(1));
+    assert!(line.counted.is_empty());
     let approval = Find::exactly_named(Role::Heading { level: 1 }, "Approve Update repository on Forgejo".as_bytes());
     let review = Find::exactly_named(Role::Link, "Review on Forgejo ↗".as_bytes());
     world.person(
@@ -493,13 +493,13 @@ fn approval_client(seed: u64) -> (temper_client_world::app::Root, temper_client_
 }
 
 fn panel_waiting_for_gate(panel: &w::ChangePanel, facts: &Facts) {
-    assert_eq!(panel.step(), &w::Step::Gating);
-    assert_eq!(panel.pull().as_ref().expect("pull opened").number(), facts.pull.number);
-    assert_eq!(panel.head(), &Some(facts.pull.commit));
-    assert_eq!(panel.ci(), &w::Ci::Passed);
-    let [gate] = panel.gates().as_slice() else { panic!("one blocking gate") };
-    assert!(gate.blocks());
-    assert_ne!(gate.verdict(), &w::Verdict::Approved);
+    assert_eq!(&panel.step, &w::Step::Gating);
+    assert_eq!(panel.pull.as_ref().expect("pull opened").number, facts.pull.number);
+    assert_eq!(&panel.head, &Some(facts.pull.commit));
+    assert_eq!(&panel.ci, &w::Ci::Passed);
+    let [gate] = panel.gates.as_slice() else { panic!("one blocking gate") };
+    assert!(gate.blocks);
+    assert_ne!(&gate.verdict, &w::Verdict::Approved);
 }
 
 fn panels_landed(
@@ -511,35 +511,35 @@ fn panels_landed(
     merge: api::Commit,
 ) {
     let last = panels.last().expect("change panel delivered");
-    assert_eq!(last.task(), goal);
-    assert_eq!(last.forge(), REPOSITORY.forge);
-    assert_eq!(last.owner(), b"acme");
-    assert_eq!(last.name(), b"shop");
-    assert_eq!(last.branch(), BRANCH);
-    assert_eq!(last.landing(), BASE);
-    assert_eq!(last.head(), &Some(head));
-    assert_eq!(last.pull().as_ref().expect("pull in panel").number(), opened.pull.number);
-    assert_eq!(last.ci(), &w::Ci::Passed);
-    assert_eq!(slot(last.step()), Slots { current: None, done: 6 });
-    let [gate] = last.gates().as_slice() else { panic!("one gate in the panel") };
-    assert_eq!(gate.number(), 1);
-    assert_eq!(gate.kind(), &w::GateKind::Review);
-    assert!(gate.blocks());
-    assert_eq!(gate.verdict(), &w::Verdict::Approved);
-    let w::Step::Landed(result) = last.step() else { panic!("landed panel: {panels:?}") };
-    assert_eq!(result.merge(), &merge);
-    assert!(panels.iter().any(|panel| matches!(panel.step(), w::Step::Gating)));
+    assert_eq!(last.task, goal);
+    assert_eq!(last.forge, REPOSITORY.forge);
+    assert_eq!(last.owner.as_ref(), b"acme");
+    assert_eq!(last.name.as_ref(), b"shop");
+    assert_eq!(last.branch.as_ref(), BRANCH);
+    assert_eq!(last.landing.as_ref(), BASE);
+    assert_eq!(&last.head, &Some(head));
+    assert_eq!(last.pull.as_ref().expect("pull in panel").number, opened.pull.number);
+    assert_eq!(&last.ci, &w::Ci::Passed);
+    assert_eq!(slot(&last.step), Slots { current: None, done: 6 });
+    let [gate] = last.gates.as_slice() else { panic!("one gate in the panel") };
+    assert_eq!(gate.number, 1);
+    assert_eq!(&gate.kind, &w::GateKind::Review);
+    assert!(gate.blocks);
+    assert_eq!(&gate.verdict, &w::Verdict::Approved);
+    let w::Step::Landed(result) = &last.step else { panic!("landed panel: {panels:?}") };
+    assert_eq!(&result.merge, &merge);
+    assert!(panels.iter().any(|panel| matches!(&panel.step, w::Step::Gating)));
     for panel in panels {
-        assert_eq!(panel.task(), goal);
-        if let Some(pull) = panel.pull() {
-            assert_eq!(pull.number(), opened.pull.number);
+        assert_eq!(panel.task, goal);
+        if let Some(pull) = &panel.pull {
+            assert_eq!(pull.number, opened.pull.number);
             assert_eq!(
-                pull.address(),
+                pull.address.as_ref(),
                 format!("http://forge.example/acme/shop/pulls/{}", opened.pull.number).as_bytes()
             );
         }
-        if panel.ci() == &w::Ci::Passed {
-            assert_eq!(panel.head(), &Some(checked.pull.commit));
+        if panel.ci == w::Ci::Passed {
+            assert_eq!(&panel.head, &Some(checked.pull.commit));
         }
     }
 }

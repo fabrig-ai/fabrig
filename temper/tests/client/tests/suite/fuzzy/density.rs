@@ -1,5 +1,6 @@
 //! Density over client deliveries and acts (temper/docs/design/client/pages/README.md,
 //! A page's parts; temper/docs/design/draft/surfaces.md, 12 and 14).
+use temper_client_protocol_wire::v1::Record;
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
 use skein_lib::{Duration, Env, List, Queue, RequestEnvelope, Rng, Time, Token, Wall, Writer};
 use std::collections::BTreeSet;
@@ -87,7 +88,7 @@ impl World {
                     if let jig_client::Ask::Family { record, .. } = request
                         && let w::Request::Looked(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
                             .expect("bounded density fixture")
-                            .into_parts()
+                            
                             .request
                     {
                         self.pending.push(Up::Answer {
@@ -388,8 +389,8 @@ impl World {
     fn setting_read(&self, what: &Readable) -> Option<Readout> {
         if let Readable::Family { scope: c::Scope::Project(project), record, .. } = what
             && let w::Read::Setting(setting) =
-                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("bounded density fixture").into_parts().read
-            && setting.kind() == 7
+                wire::decode_reading(&record.bytes, &w::CEILINGS).expect("bounded density fixture").read
+            && setting.kind == 7
         {
             let value = w::ProjectWays {
                     drafts: true,
@@ -397,8 +398,8 @@ impl World {
                     changes: true,
                     way: self.ways[usize::try_from(project - 1).expect("bounded density fixture")],
                 };
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("bounded density fixture"));
-            value.encode(&mut writer).expect("bounded density fixture");
+            let mut writer = Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("bounded density fixture"));
+            value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("bounded density fixture");
             return Some(Readout::Family {
                 family: wire::FORGE,
                 record: Some(wire::setting_answer(
@@ -474,7 +475,7 @@ impl World {
             self.watch(&forge::decided::watch(project, &self.env.limits.forge).expect("decision subject fits"))
         {
             self.decision_rows.retain(|(held, _, _)| *held != watch);
-            self.decision_rows.push((watch, project, rows.iter().map(w::Decision::at).collect()));
+            self.decision_rows.push((watch, project, rows.iter().map(|row| row.at).collect()));
         }
         let document = w::Decisions { project, rows, asked: List::with_capacity(0), cut: false };
         self.family(forge::decided::watch(project, &self.env.limits.forge), wire::decisions(&document));
@@ -507,7 +508,7 @@ impl World {
 
     fn settings(&mut self, project: u32) {
         let before = self.open();
-        if before.iter().any(|object| self.approvals.iter().any(|row| *object == c::ObjectKey::Task(row.task()))) {
+        if before.iter().any(|object| self.approvals.iter().any(|row| *object == c::ObjectKey::Task(row.task))) {
             self.observed.insert("settings with approval");
         }
         self.revision += 1;
@@ -659,7 +660,7 @@ impl World {
                     "project decisions within their day"
                 );
                 let brief_lines = page.brief().map_or(0, |brief| {
-                    assert!(!brief.lede().is_empty(), "the brief has words");
+                    assert!(!brief.lede.is_empty(), "the brief has words");
                     1
                 });
                 assert_eq!(brief_lines, usize::from(fresh(&page.status)), "only a new brief shows");
@@ -693,8 +694,8 @@ impl World {
 fn fresh(status: &home::Status) -> bool {
     match status {
         home::Status::Unknown => false,
-        home::Status::Shown(document) => document.brief().as_ref().is_some_and(|brief| {
-            brief.landed() > document.seen() || document.previous().is_some_and(|previous| brief.at() > previous)
+        home::Status::Shown(document) => document.brief.as_ref().is_some_and(|brief| {
+            brief.landed > document.seen || document.previous.is_some_and(|previous| brief.at > previous)
         }),
     }
 }
@@ -793,7 +794,7 @@ fn check_unpaid_line(world: &mut World, view: &mut temper_client_view::View) {
         Address::Home { project } => {
             let page = home::facts(&world.root, project, world.env.wall);
             let unpaid = match &page.status {
-                home::Status::Shown(document) => document.unpaid(),
+                home::Status::Shown(document) => document.unpaid,
                 home::Status::Unknown => false,
             };
             !page.to_begin() && !fresh(&page.status) && unpaid
@@ -877,7 +878,7 @@ fn check_approval_sizes(world: &mut World, view: &mut temper_client_view::View) 
 fn check_settings(before: &[c::ObjectKey], after: &[c::ObjectKey], approvals: &[w::ApprovalRow]) {
     assert_eq!(before, after, "a settings revision keeps the open set and its order");
     for row in approvals {
-        let object = c::ObjectKey::Task(row.task());
+        let object = c::ObjectKey::Task(row.task);
         if before.contains(&object) {
             assert!(after.contains(&object), "approval asked before a settings move stays open");
         }

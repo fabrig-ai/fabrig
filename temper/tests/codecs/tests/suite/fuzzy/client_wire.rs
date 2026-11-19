@@ -1,4 +1,5 @@
 //! Arbitrary and mutated forge-family records (skein's data/codec/README.md, section 6).
+use temper_client_protocol_wire::v1::Record;
 use super::super::values;
 use skein_lib::{List, Reader, Rng, Writer};
 use temper_client_protocol_wire::v1;
@@ -15,8 +16,8 @@ fn answer(bytes: &[u8]) {
         if !reader.is_empty() {
             return;
         }
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length"));
-        record.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length"));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes, "Answer");
     }
 }
@@ -97,14 +98,14 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         forges(&encoded);
         forges(&temper_codecs_world::mutated(&mut rng, &encoded));
         let rule = drawn_rule(&mut rng);
-        let mut writer = Writer::new(usize::try_from(rule.measure()).expect("measured length"));
-        rule.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(rule.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length"));
+        rule.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         let encoded = writer.finish();
         landing_rule(&encoded);
         landing_rule(&temper_codecs_world::mutated(&mut rng, &encoded));
         let charter = v1::ForgeCharter { charter: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw") };
-        let mut writer = Writer::new(usize::try_from(charter.measure()).expect("measured length"));
-        charter.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(charter.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length"));
+        charter.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         let encoded = writer.finish();
         forge_charter(&encoded);
         forge_charter(&temper_codecs_world::mutated(&mut rng, &encoded));
@@ -149,8 +150,8 @@ fn landing_rule(bytes: &[u8]) {
         if !reader.is_empty() {
             return;
         }
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length"));
-        record.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length"));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes, "LandingRule");
     }
 }
@@ -161,8 +162,8 @@ fn forge_charter(bytes: &[u8]) {
         if !reader.is_empty() {
             return;
         }
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length"));
-        record.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length"));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes, "ForgeCharter");
     }
 }
@@ -172,7 +173,7 @@ fn drawn_freshness(rng: &mut Rng) -> v1::RuleFreshness {
 }
 
 fn drawn_rule(rng: &mut Rng) -> v1::LandingRule {
-    let limits = &v1::CEILINGS;
+
     let mut segments = List::with_capacity(5);
     for _ in 0..rng.below(6) {
         segments.push(temper_codecs_world::drawn(rng, 16).into_boxed_slice()).expect("bounded segments");
@@ -311,7 +312,7 @@ fn drawn_makings(rng: &mut Rng) -> v1::Forges {
         &mut Reader::new(values::named(values::client(), "record_forge_row_smallest.bin")),
     )
     .expect("drawn fields fit the schema ceilings")
-    .into_parts();
+    ;
     parts.makings = List::with_capacity(1);
     parts
         .makings
@@ -418,8 +419,8 @@ fn project_areas(bytes: &[u8]) {
     let mut reader = Reader::new(bytes);
     if let Ok(record) = v1::ProjectAreas::decode(&v1::CEILINGS, &mut reader) {
         assert!(reader.is_empty());
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes"));
-        record.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured bytes"));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
 }
@@ -428,8 +429,8 @@ fn project_triager(bytes: &[u8]) {
     let mut reader = Reader::new(bytes);
     if let Ok(record) = v1::ProjectTriager::decode(&v1::CEILINGS, &mut reader) {
         assert!(reader.is_empty());
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes"));
-        record.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured bytes"));
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
 }

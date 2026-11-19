@@ -58,7 +58,7 @@ fn welcome() -> Host {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if reading.read() == &temper_client_protocol_wire::v1::Read::Deployment { Some(*read) } else { None }
+                if reading.read == temper_client_protocol_wire::v1::Read::Deployment { Some(*read) } else { None }
             } else {
                 None
             }

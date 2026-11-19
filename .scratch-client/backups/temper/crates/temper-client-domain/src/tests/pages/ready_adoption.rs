@@ -240,7 +240,7 @@ fn copy_row(number: u16, mode: w::Mode, addresses: &[&[u8]], project: Option<u32
         w::Offer::NotOffered,
         None,
     );
-    let mut parts = row.into_parts();
+    let mut parts = row;
     let mut copies = List::with_capacity(wire::FIRST_COPIES);
     for address in addresses {
         copies.push((*address).into()).unwrap();
@@ -289,14 +289,14 @@ fn assert_copies(
         let jig_client::Ask::Family { scope, record } = ask else { panic!("copy is a family request") };
         assert_eq!(*scope, c::Scope::Project(project));
         let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
-        let w::Request::MakeRepository(request) = request.request() else { panic!("only MakeRepository, no adoption") };
-        assert_eq!(request.forge(), COPY_FORGE);
-        assert_eq!(request.org(), *org);
-        assert_eq!(request.name(), *name);
-        let w::MakeFrom::Copy(copy) = request.from() else { panic!("a public copy") };
-        assert_eq!(copy.address(), *address);
-        assert_eq!(request.into().as_ref().unwrap().project(), project);
-        assert_eq!(request.into().as_ref().unwrap().home(), home && *key_name == b"welcome-copy-1");
+        let w::Request::MakeRepository(request) = &request.request else { panic!("only MakeRepository, no adoption") };
+        assert_eq!(request.forge, COPY_FORGE);
+        assert_eq!(request.org.as_ref(), *org);
+        assert_eq!(request.name.as_ref(), *name);
+        let w::MakeFrom::Copy(copy) = &request.from else { panic!("a public copy") };
+        assert_eq!(copy.address.as_ref(), *address);
+        assert_eq!(request.into.as_ref().unwrap().project(), project);
+        assert_eq!(request.into.as_ref().unwrap().home(), home && *key_name == b"welcome-copy-1");
     }
 }
 const EXPECTED: &[Expected<'_>] = &[

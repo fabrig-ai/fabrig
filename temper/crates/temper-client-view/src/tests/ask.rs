@@ -667,7 +667,7 @@ fn own_way_uses_project_lede_or_named_fallback_and_back_returns_to_it() {
             let mut me = f.root.pages().me(f.root.client()).unwrap().clone();
             me.projects.get_mut(0).unwrap().name = c::DocumentText::complete(c::Text::new(name.into(), 32).unwrap());
             f::deliver_me(&mut f.root, f.me, me);
-            let mut parts = panel(None, true).into_parts();
+            let mut parts = panel(None, true);
             parts.words = lede.map(|lede| {
                 w::ProjectWords { headline: b"Not the line".as_slice().into(), lede: lede.into() }
             });

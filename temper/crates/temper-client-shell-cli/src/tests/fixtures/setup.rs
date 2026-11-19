@@ -22,7 +22,7 @@ impl Frame {
         let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request()))
             .expect("family envelope");
         let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
-        let outcome = match request.into_parts().request {
+        let outcome = match request.request {
             f::Request::SetUp(_) => f::Outcome::SettingUp,
             f::Request::Adopt(_) if self.wait_task.is_some() => f::Outcome::Adopted(
                 f::Adopted {

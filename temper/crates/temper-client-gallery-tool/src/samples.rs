@@ -1,4 +1,5 @@
 //! The promised names (client/web/gallery.md, 2), sorted for the gallery index.
+use temper_client_protocol_wire::v1::Record;
 use crate::driver::step;
 use jig_client::contract as c;
 use skein_lib::{Queue, Token};
@@ -3034,7 +3035,7 @@ fn home_domain(name: &str) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                 let rows = home_forges(name, in_project);
-                let bytes = match wire::decode_watching(&record.bytes, &w::CEILINGS).expect("Home watch").watch() {
+                let bytes = match &wire::decode_watching(&record.bytes, &w::CEILINGS).expect("Home watch").watch {
                     w::Watch::Dismissed => {
                         let mut dismissed = List::with_capacity(1);
                         if name == "home-after-skip" {
@@ -3075,18 +3076,18 @@ fn home_domain(name: &str) -> Domain {
                         let document =
                             w::Trials { rows: List::from_boxed(Box::new([row])) };
                         let mut writer =
-                            skein_lib::Writer::new(usize::try_from(document.measure()).expect("trial bytes fit"));
-                        document.encode(&mut writer).expect("measured trial bytes");
+                            skein_lib::Writer::new(usize::try_from(document.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("trial bytes fit"));
+                        document.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured trial bytes");
                         writer.finish()
                     }
                     w::Watch::Away if home_away => crate::worlds::home_away_record(away_name),
                     w::Watch::Decided(subject) if home_away => {
-                        decided_watches.push((watch, subject.project())).expect("two decided projects");
+                        decided_watches.push((watch, subject.project)).expect("two decided projects");
                         continue;
                     }
                     w::Watch::Decided(subject) => wire::decisions(
                         &w::Decisions {
-                                project: subject.project(),
+                                project: subject.project,
                                 rows: List::with_capacity(0),
                                 asked: List::with_capacity(0),
                                 cut: false,
@@ -3265,7 +3266,7 @@ fn home_domain(name: &str) -> Domain {
             }
             Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. }
                 if wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|request| matches!(request.request(), w::Request::Looked(_))) =>
+                    .is_some_and(|request| matches!(&request.request, w::Request::Looked(_))) =>
             {
                 step(
                     &mut root,
@@ -3289,8 +3290,8 @@ fn home_domain(name: &str) -> Domain {
                 );
             }
             Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
-                let value = match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read() {
-                    w::Read::Setting(setting) if setting.kind() == 7 => {
+                let value = match &wire::decode_reading(&record.bytes, &w::CEILINGS).expect("Home read").read {
+                    w::Read::Setting(setting) if setting.kind == 7 => {
                         crate::worlds::project_ways(
                             &mut root,
                             read,
@@ -3301,7 +3302,7 @@ fn home_domain(name: &str) -> Domain {
                         );
                         continue;
                     }
-                    w::Read::Setting(setting) if setting.kind() == 8 => {
+                    w::Read::Setting(setting) if setting.kind == 8 => {
                         crate::worlds::project_classes(&mut root, read, &mut out);
                         continue;
                     }
@@ -3532,7 +3533,7 @@ fn home_forges(name: &str, in_project: bool) -> skein_lib::List<temper_client_pr
     )
     .expect("one forge");
     if name.starts_with("home-cop") {
-        let row = rows.get(0).expect("Home forge").clone().into_parts();
+        let row = rows.get(0).expect("Home forge").clone();
         *rows.get_mut(0).expect("Home forge") =
             crate::worlds::home_copies(row, name);
     }

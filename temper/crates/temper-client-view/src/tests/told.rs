@@ -46,7 +46,7 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
         let Request::Unlinked { request: jig_client::UnlinkedRequest::Down { down } } = request else { continue };
         match down {
             Down::Open { watch, subject: jig_client::Watchable::Family { record, scope, .. } }
-                if *wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() == w::Watch::Devices =>
+                if wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch == w::Watch::Devices =>
             {
                 assert_eq!(scope, c::Scope::Own);
                 let mut rows = List::with_capacity(w::CEILINGS.devices_rows);
@@ -86,7 +86,7 @@ fn root(push: bool, browser: Browser, count: u32) -> d::Domain {
                 );
             }
             Down::Read { read, what: jig_client::Readable::Family { record, .. } }
-                if *wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == w::Read::Deployment =>
+                if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment =>
             {
                 let answer = w::DeploymentAnswer {
                         welcome: false,

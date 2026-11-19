@@ -260,7 +260,7 @@ fn install_on_another_account_follows_an_accepted_installation() {
 #[test]
 fn all_sixty_four_installations_fit_without_shortening_their_logins() {
     let mut rows = cf::github_rows(true);
-    let mut row = rows.as_slice()[0].clone().into_parts();
+    let mut row = rows.as_slice()[0].clone();
     rows.clear();
     row.installations = List::with_capacity(d::forge::forges::INSTALLATIONS);
     for id in 1..=u64::from(d::forge::forges::INSTALLATIONS) {
@@ -325,7 +325,7 @@ fn an_owned_forge_opens_at_the_public_origin_in_the_page_facts() {
 }
 
 fn owned_row(mode: w::Mode, connection: w::Connection, runner: Option<&[u8]>) -> w::ForgeRow {
-    let mut parts = cf::row(HERE, w::Kind::Forgejo, mode, connection, w::Offer::Offered).into_parts();
+    let mut parts = cf::row(HERE, w::Kind::Forgejo, mode, connection, w::Offer::Offered);
     if parts.mode == w::Mode::Owned {
         parts.owned = Some(
             w::OwnedForge {
@@ -416,7 +416,7 @@ fn unprepared_owned_rows_and_managed_rows_have_no_runs_or_password_lines() {
 #[test]
 fn the_github_app_line_names_an_empty_installation_set_only_when_empty() {
     for empty in [false, true] {
-        let mut parts = cf::github_rows(true).get(0).unwrap().clone().into_parts();
+        let mut parts = cf::github_rows(true).get(0).unwrap().clone();
         if empty {
             parts.installations.clear();
         }
@@ -434,7 +434,7 @@ fn the_github_app_line_names_an_empty_installation_set_only_when_empty() {
 fn the_github_rows_install_block_follows_the_apps_way_and_acceptance() {
     for app in [None, Some(w::AppWay::Manifest), Some(w::AppWay::Pasted)] {
         for accepted in [false, true] {
-            let mut parts = cf::github_rows(accepted).get(0).unwrap().clone().into_parts();
+            let mut parts = cf::github_rows(accepted).get(0).unwrap().clone();
             parts.app = app.clone();
             let mut rows = List::with_capacity(1);
             rows.push(parts).unwrap();
@@ -473,7 +473,7 @@ fn the_github_rows_install_block_follows_the_apps_way_and_acceptance() {
 fn the_github_row_opens_its_configured_web_address_only_when_carried() {
     for kind in [w::Kind::Github, w::Kind::Forgejo] {
         for web in [None, Some(b"https://github.test/base/?a=1&b=2".as_slice())] {
-            let mut parts = cf::github_rows(true).get(0).unwrap().clone().into_parts();
+            let mut parts = cf::github_rows(true).get(0).unwrap().clone();
             parts.kind = kind.clone();
             parts.web = web.map(Into::into);
             let mut rows = List::with_capacity(1);
@@ -492,7 +492,7 @@ fn the_github_row_opens_its_configured_web_address_only_when_carried() {
 
 #[test]
 fn a_stopped_github_row_has_no_app_or_install_block() {
-    let mut parts = cf::github_rows(false).get(0).unwrap().clone().into_parts();
+    let mut parts = cf::github_rows(false).get(0).unwrap().clone();
     parts.connection = w::Connection::Stopped(
         w::Stopped { reason: b"fixture stopped".as_slice().into() },
     );
@@ -568,7 +568,7 @@ fn remove_confirms_with_the_kinds_words_then_sends() {
         (w::Kind::Github, w::Mode::Connected, "The GitHub App stays yours: delete it in its settings."),
     ] {
         let mut rows = List::with_capacity(1);
-        let mut row = cf::row(HERE, kind.clone(), mode, cf::connected(), w::Offer::NotOffered).into_parts();
+        let mut row = cf::row(HERE, kind.clone(), mode, cf::connected(), w::Offer::NotOffered);
         row.web = Some(b"https://forge.example/".as_slice().into());
         rows.push(row).unwrap();
         let mut root = f::forge_root(Address::Forges, rows);
@@ -993,7 +993,7 @@ fn the_source_stage_says_it_is_connecting_sign_in_after_forgejo_has_started() {
 
 #[test]
 fn a_settings_connection_lives_in_its_row_and_confirms_only_this_visit() {
-    let mut parts = cf::first_rows(cf::connected(), w::FirstState::Making).get(0).unwrap().clone().into_parts();
+    let mut parts = cf::first_rows(cf::connected(), w::FirstState::Making).get(0).unwrap().clone();
     parts.number = 2;
     parts.mode = w::Mode::Managed;
     parts.admin = true;
@@ -1023,7 +1023,7 @@ fn a_settings_connection_lives_in_its_row_and_confirms_only_this_visit() {
         assert!(!live.iter().any(|n| n.role == Role::Status));
         assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&look::CONNECT_CONFIRM)));
     }
-    let mut first = parts.first.take().unwrap().into_parts();
+    let mut first = parts.first.take().unwrap();
     first.state = cf::made();
     parts.first = Some(first);
     let mut rows = List::with_capacity(1);

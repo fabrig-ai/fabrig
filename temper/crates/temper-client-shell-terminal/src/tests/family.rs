@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 use jig_client::contract;
 use temper_client_domain::forge;
@@ -12,9 +13,9 @@ fn an_adoption_round_trips_through_the_family_record() {
         adoption.role = role;
         let record = family::request(&adoption, &limits).expect("fixture encodes");
         assert_eq!((record.family, record.version), (FORGE, CLIENT_VERSION), "{role:?}: owner");
-        let value = (match w::Requesting::decode(&limits, &mut skein_lib::Reader::new(&record.bytes))
+        let value = match w::Requesting::decode(&limits, &mut skein_lib::Reader::new(&record.bytes))
             .expect("adoption decodes")
-            .into_parts()
+            
             .request
         {
             w::Request::Adopt(adopt) => adopt,
@@ -46,8 +47,8 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::EndPlayground => {
                 panic!("expected adoption")
             }
-        })
-        .into_parts();
+        }
+        ;
         assert_eq!((value.project, value.home, value.forge), (adoption.project, adoption.home, adoption.forge));
         assert_eq!(
             (value.owner, value.name, value.prefix, value.landing),
@@ -66,7 +67,7 @@ fn an_adoption_round_trips_through_the_family_record() {
     }
 }
 fn adopted(protection: w::Protection) -> w::Outcome {
-    let limits = fixtures::wire_limits();
+
     w::Outcome::Adopted(
         w::Adopted {
                 landing: b"main".as_slice().into(),
@@ -92,7 +93,7 @@ fn adopted(protection: w::Protection) -> w::Outcome {
     )
 }
 fn protection_rule() -> w::Protection {
-    let limits = fixtures::wire_limits();
+
     let mut contexts = skein_lib::List::with_capacity(1);
     contexts.push(Box::from(*b"check")).expect("one context");
     w::Protection::Rule(

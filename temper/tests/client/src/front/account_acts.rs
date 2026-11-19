@@ -731,7 +731,7 @@ fn fixture_root(
     }
     if let WelcomeForge::Playground { running: true, .. } = forge {
         let running = true;
-        let playground = playground_answer(running).into_parts();
+        let playground = playground_answer(running);
         front.playground = Some(
             playground,
         );

@@ -1813,10 +1813,10 @@ impl Joint {
             return false;
         }
         let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
-        let w::Request::Reachable(read) = request.request() else { return false };
-        self.reachable_reads.push((read.forge(), *read.installation(), read.page()));
+        let w::Request::Reachable(read) = &request.request else { return false };
+        self.reachable_reads.push((read.forge, read.installation, read.page));
         let mut rows = skein_lib::List::with_capacity(if self.reachable_pages { 10 } else { 2 });
-        if self.reachable_pages && read.page() == 1 {
+        if self.reachable_pages && read.page == 1 {
             for id in 100..108 {
                 rows.push(
                     w::Reached {
@@ -1830,7 +1830,7 @@ impl Joint {
             }
         }
         for (page, id, name) in [(1, 7, b"shop".as_slice()), (2, 8, b"second".as_slice())] {
-            if self.reachable_pages && read.page() != page {
+            if self.reachable_pages && read.page != page {
                 continue;
             }
             if self.reachable_empty {
@@ -1847,7 +1847,7 @@ impl Joint {
             .expect("fixed page");
         }
         let outcome = w::Outcome::Page(
-            w::Page { rows, more: self.reachable_pages && read.page() < 3 },
+            w::Page { rows, more: self.reachable_pages && read.page < 3 },
         );
         self.callbacks.push((
             who,
@@ -1882,10 +1882,10 @@ impl Joint {
         {
             use temper_client_protocol_wire::{self as wire, v1 as w};
             let decoded = wire::decode_requesting(&record.bytes, &w::CEILINGS);
-            let ending = decoded.as_ref().is_some_and(|request| *request.request() == w::Request::EndPlayground);
+            let ending = decoded.as_ref().is_some_and(|request| request.request == w::Request::EndPlayground);
             if record.family == wire::FORGE
                 && decoded.is_some_and(|request| {
-                    matches!(request.request(), w::Request::StartPlayground | w::Request::EndPlayground)
+                    matches!(&request.request, w::Request::StartPlayground | w::Request::EndPlayground)
                 })
             {
                 let outcome = if ending {
@@ -1900,7 +1900,7 @@ impl Joint {
                 };
                 if outcome == w::Outcome::Running {
                     let mut parts =
-                        self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true)).into_parts();
+                        self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true));
                     parts.state = w::PlaygroundState::Running;
                     self.playground = Some(parts);
                 }
@@ -2036,7 +2036,7 @@ impl Joint {
         } = request
         {
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Deployment)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::Deployment)
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let (welcome, owned) = self.deployment;
@@ -2059,7 +2059,7 @@ impl Joint {
                 return true;
             }
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let answer = w::ProgramEnvironmentAnswer { environment: self.program_environment.clone() };
@@ -2081,7 +2081,7 @@ impl Joint {
                 return true;
             }
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Limits(_)))
+                .is_some_and(|reading| matches!(&reading.read, temper_client_protocol_wire::v1::Read::Limits(_)))
             {
                 let answer = self.limit_pages.pop_front();
                 self.callbacks.push((
@@ -2102,7 +2102,7 @@ impl Joint {
                 return true;
             }
             if !temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Playground)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::Playground)
             {
                 return false;
             }
@@ -2284,16 +2284,16 @@ impl Joint {
         use temper_client_protocol_wire::{self as wire, v1 as w};
         let Some(playground) = playground else { return };
         let Some(rows) = wire::decode_forges(bytes, &w::CEILINGS) else { return };
-        let rows = rows.into_parts();
+
         let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
             // A change story can use the engine's fake stand as its playground forge.
-            if row.number() != playground.forge() {
+            if row.number != playground.forge {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *playground.state() == w::PlaygroundState::Running {
+        let connection = if playground.state == w::PlaygroundState::Running {
             w::Connection::Connected(
                 w::Connected { id: 2, login: b"playground".as_slice().into() },
             )
@@ -2306,7 +2306,7 @@ impl Joint {
                         starts_with: w::StartsWith::Repository,
                         makings: skein_lib::List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
-                        number: playground.forge(),
+                        number: playground.forge,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,
                         connection,
@@ -2336,13 +2336,13 @@ impl Joint {
             return;
         };
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
-        let rows = rows.into_parts();
+
         let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
-            let mut parts = row.into_parts();
+            let mut parts = row;
             if parts.owned.as_ref().is_some_and(|owned| {
-                owned.forgejo().is_empty() && owned.runner().is_none() && owned.password().is_empty()
+                owned.forgejo.is_empty() && owned.runner.is_none() && owned.password.is_empty()
             }) {
                 parts.owned = None;
             }

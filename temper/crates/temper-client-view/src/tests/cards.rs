@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 pub(super) use super::fixtures::cards::batch_proposal;
 use super::fixtures::cards::{FUNDS, LEFT};
@@ -460,18 +461,18 @@ pub(crate) fn proposed_values(
                     down: jig_client::Down::Read { read: token, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && let w::Read::ProposalItems(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            && let w::Read::ProposalItems(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
         {
             read = Some(*token);
         }
     }
     let ways =
         w::ProjectWays { drafts, goals: drafts, changes: drafts, way: 0 };
-    let mut writer = Writer::new(usize::try_from(ways.measure()).unwrap());
-    ways.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     let questions = w::ProjectQuestions { route };
-    let mut q = Writer::new(usize::try_from(questions.measure()).unwrap());
-    questions.encode(&mut q).unwrap();
+    let mut q = Writer::new(usize::try_from(questions.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    questions.write(&temper_client_protocol_wire::v1::CEILINGS, &mut q).unwrap();
     let mut classes = temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview);
     classes.sets = Box::new([
         temper_protocol_reaches::PathSet {
@@ -505,8 +506,8 @@ pub(crate) fn proposed_values(
         .unwrap();
     classes.items = class_items.into_boxed();
     let record = temper_protocol_reaches::classes_record(&classes).unwrap();
-    let mut classes_value = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut classes_value).unwrap();
+    let mut classes_value = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut classes_value).unwrap();
     let mut items = List::with_capacity(3);
     for (kind, value) in [(7, writer.finish()), (6, q.finish()), (8, classes_value.finish())] {
         items

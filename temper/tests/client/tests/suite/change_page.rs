@@ -65,7 +65,7 @@ pub(super) fn review(world: &mut ClientWorld, client: ClientId, goal: u64) -> u6
         progress(world);
     };
     see(world, client, Find::text(b"Waiting for its gates at its head."));
-    let task = panel(world, client).runs().expect("gate delegate");
+    let task = panel(world, client).runs.expect("gate delegate");
     assert_eq!(task, assigned, "panel names the assigned review");
     see(world, client, fixtures::plan_item(task, b"Running"));
     task
@@ -121,7 +121,7 @@ fn a_review_stays_in_its_tasks_after_it_leaves_the_live_tree_and_after_reopening
     world.go(client, fixtures::inbox());
     world.go(client, fixtures::task_page(task));
     see(&mut world, client, fixtures::plan_item(delegate, b"Completed"));
-    assert!(matches!(panel(&world, client).step(), w::Step::Landed(_)), "retained panel after reopening");
+    assert!(matches!(&panel(&world, client).step, w::Step::Landed(_)), "retained panel after reopening");
     assert!(!text(&world, client).contains("None."), "an ended procedure with an ended child is not empty");
 }
 
@@ -177,12 +177,12 @@ fn a_change_prepared_by_the_existing_engine_driver_shows_its_current_line() {
     let client = world.client(fixtures::PARTY, fixtures::task_page(task));
     see(&mut world, client, Find::exactly_named(Role::Region, b"Gates at its head"));
     let value = panel(&world, client);
-    let step = value.step().clone();
+    let step = value.step.clone();
     let page = text(&world, client);
     let line = match step {
         w::Step::Taking => "taking",
         w::Step::Ended => "Change ended.",
-        w::Step::Ready(ref ready) => match ready.landing() {
+        w::Step::Ready(ref ready) => match &ready.landing {
             Some(_) => "Ready: its landing, task ",
             None => "Ready: waiting for room for its landing.",
         },
@@ -203,7 +203,7 @@ fn a_change_prepared_by_the_existing_engine_driver_shows_its_current_line() {
         w::Step::Verifying(_) => "Verifying · merge commit",
         w::Step::Red(_) => "Red · merge commit",
         w::Step::Cleared(ref value) => {
-            if value.uncleared() {
+            if value.uncleared {
                 "Landed, uncleared · merge commit"
             } else {
                 "Cleared · merge commit"
@@ -262,6 +262,6 @@ fn a_page_first_opened_after_landing_reads_its_ended_review() {
     see(&mut world, client, fixtures::plan_item(child, b"Completed"));
     let name = format!("Task {child}");
     see(&mut world, client, its_tasks(Find::named(Role::Link, name.as_bytes())));
-    assert!(matches!(panel(&world, client).step(), w::Step::Landed(_)), "ended panel keeps its landing");
+    assert!(matches!(&panel(&world, client).step, w::Step::Landed(_)), "ended panel keeps its landing");
     assert!(world.front().engine.task(child).is_none(), "listed child is actually ended");
 }

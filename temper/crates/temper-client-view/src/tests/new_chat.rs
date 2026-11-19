@@ -112,7 +112,7 @@ fn meta_line_uses_the_home_repository_or_the_project_name() {
             super::connect_forge::connected(),
             w::Offer::NotOffered,
         )
-        .into_parts();
+        ;
         parts.repositories = List::with_capacity(1);
         if adopted {
             parts

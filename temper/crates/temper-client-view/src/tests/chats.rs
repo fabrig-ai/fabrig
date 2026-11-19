@@ -1,3 +1,4 @@
+use temper_client_protocol_wire::v1::Record;
 use super::fixtures;
 
 use jig_client::contract::*;
@@ -382,7 +383,7 @@ fn the_repository_context_links_into_its_project() {
             super::connect_forge::connected(),
             w::Offer::NotOffered,
         )
-        .into_parts();
+        ;
         parts.repositories = List::with_capacity(1);
         if adopted {
             parts
@@ -767,7 +768,7 @@ impl DraftsPage {
                     }
                 }
                 Down::Open { watch, subject: Watchable::Family { record, .. } }
-                    if wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch() == &w::Watch::Dismissed =>
+                    if wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch == w::Watch::Dismissed =>
                 {
                     let mut dismissed = List::with_capacity(4);
                     if linked {
@@ -793,11 +794,11 @@ impl DraftsPage {
                 }
                 Down::Read { read, what: Readable::Family { record, .. } } => {
                     let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-                    let w::Read::Setting(setting) = reading.read() else { continue };
-                    let value = if setting.kind() == 7 {
+                    let w::Read::Setting(setting) = &reading.read else { continue };
+                    let value = if setting.kind == 7 {
                         let value = w::ProjectWays { drafts: offered, goals: false, changes: false, way: 0 };
-                        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-                        value.encode(&mut writer).unwrap();
+                        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+                        value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
                         Some(writer.finish())
                     } else {
                         None

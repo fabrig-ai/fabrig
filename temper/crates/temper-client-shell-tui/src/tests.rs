@@ -3165,7 +3165,7 @@ fn background_single(request: &Request) -> Option<Report> {
         && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
         && owned.owner() != &w::Owner::Jig
         && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("family read")
-        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
+        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(|record| &record.read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind == 7)
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
         let record = wire::setting_answer(

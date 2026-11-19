@@ -164,11 +164,11 @@ fn sweep(seed: u64) -> Vec<Goes> {
         if let Goes::Area { name, holder } = &actual {
             let task = task.expect("only task addresses route to an area");
             let first = document
-                .areas()
+                .areas
                 .iter()
-                .find(|area| matches!(area.holder(), Some(w::Holder::Task(held)) if held.number() == task))
+                .find(|area| matches!(&area.holder, Some(w::Holder::Task(held)) if held.number == task))
                 .expect("a destination area belongs to the page's task");
-            assert_eq!(name.as_ref(), first.name(), "first in document order");
+            assert_eq!(name.as_ref(), first.name.as_ref(), "first in document order");
             assert_eq!(holder, &Holder::Task(task));
         }
         results.push(actual);

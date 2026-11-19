@@ -321,7 +321,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             agent_figures_endpoints,
             limit_override_name,
             limit_override_reason,
-            temper_limits_overrides,
+            limit_overrides_overrides,
         ],
         roots [
             Trials,

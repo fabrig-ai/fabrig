@@ -22,8 +22,7 @@ fn the_playground_start_warns_only_until_its_answer_is_carried() {
     assert!(records::closing_loses(&stored), "sending is not an answer");
 
     let answer =
-        wire::v1::Answer::new(&wire::v1::CEILINGS, wire::v1::AnswerParts { outcome: wire::v1::Outcome::Running })
-            .expect("playground running");
+        wire::v1::Answer { outcome: wire::v1::Outcome::Running };
     let answer = w::KeyedAnswer::FinalAnswer(
         w::Owned::new(
             &w::CEILINGS,

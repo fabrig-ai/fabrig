@@ -619,9 +619,7 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
         let mut forges = List::with_capacity(1);
         forges
             .push(
-                w::ForgeRow::new(
-                    &w::CEILINGS,
-                    w::ForgeRowParts {
+                w::ForgeRow {
                         starts_with: w::StartsWith::Repository,
                         makings: skein_lib::List::with_capacity(0),
                         host: b"git.example:3000".as_slice().into(),
@@ -632,11 +630,7 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
                         kind: w::Kind::Github,
                         mode: w::Mode::Connected,
                         connection: w::Connection::Connected(
-                            w::Connected::new(
-                                &w::CEILINGS,
-                                w::ConnectedParts { id: 9, login: b"my-app[bot]".as_slice().into() },
-                            )
-                            .expect("connected App"),
+                            w::Connected { id: 9, login: b"my-app[bot]".as_slice().into() },
                         ),
                         offer: w::Offer::NotOffered,
                         first: None,
@@ -647,12 +641,10 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
                         read_only: false,
                         ended_stop: None,
                     },
-                )
-                .expect("forge row"),
             )
             .expect("one forge");
         let mut host = fixture_forges(Some(
-            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).expect("forges"),
+            &w::Forges { forges, linked: false },
         ));
         host.went(b"/forges");
         let mut page = skein_ui_web::page::Page::new(

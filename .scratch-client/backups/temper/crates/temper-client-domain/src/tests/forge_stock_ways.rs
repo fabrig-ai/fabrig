@@ -794,7 +794,7 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
                 next.current = Some(0);
             }
             Refresh::Words | Refresh::Actor | Refresh::Card => {
-                let mut stop = path.stops.get(1).unwrap().clone().into_parts();
+                let mut stop = path.stops.get(1).unwrap().clone();
                 match change {
                     Refresh::Words => stop.words = b"changed words".as_slice().into(),
                     Refresh::Actor => stop.actor = w::Actor::Code,

@@ -7,6 +7,7 @@
 pub(super) use super::fixtures::accounts::{
     PROVIDER, SOURCE, card_document, deliver, document, email_facts, sign_in_address, source,
 };
+use temper_client_protocol_wire::v1::Record;
 use super::{connect_model::text, fixtures};
 use jig_client::contract as c;
 use skein_lib::{List, Token};
@@ -103,8 +104,8 @@ fn trial_failed(why: v::TrialWhy) -> v::TrialState {
 
 fn trial_rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) {
     let doc = v::Trials { rows: List::from_boxed(rows.into()) };
-    let mut writer = skein_lib::Writer::new(usize::try_from(doc.measure()).unwrap());
-    doc.encode(&mut writer).unwrap();
+    let mut writer = skein_lib::Writer::new(usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap());
+    doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     trial_event(
         root,
         d::Event::Client {
@@ -256,7 +257,7 @@ fn a_row_answered_for_another_account_says_nothing() {
         v::TrialStep::Answers,
         v::TrialState::Answered(v::TrialAnswered { seconds: 6 }),
     )
-    .into_parts();
+    ;
     row.took = Some(OTHER_ACCOUNT);
     trial_rows(&mut root, trials, &[row]);
     for words in [fixtures::words(), fixtures::browser_words()] {

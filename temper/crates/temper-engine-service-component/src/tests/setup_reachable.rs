@@ -3,6 +3,7 @@
 #![expect(clippy::disallowed_types, reason = "ordinary tests assemble fake JSON documents")]
 #![expect(clippy::disallowed_methods, reason = "ordinary test assertions and fixture assembly")]
 
+use temper_client_protocol_wire::v1::Record;
 use super::lifecycle_tests::{accepted, app};
 use super::*;
 
@@ -161,7 +162,7 @@ fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> te
         j::Final::decode(&engine.clients.env.limits.wire, &mut skein_lib::Reader::new(answer.record()))
     );
     let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(answer.record())).unwrap();
-    answer.into_parts().outcome
+    answer.outcome
 }
 #[test]
 fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_restart() {

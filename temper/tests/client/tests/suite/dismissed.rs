@@ -1,5 +1,6 @@
 //! Dismissals cross the real roots (temper/docs/design/testing/README.md, 2.1;
 //! temper/docs/design/draft/to-begin.md, 5).
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use jig_client::{Answered, Key, contract as c};
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
@@ -197,7 +198,7 @@ impl Story {
         };
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
         let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).expect("forge answer");
-        assert_eq!(answer.outcome(), &w::Outcome::Dismissed);
+        assert_eq!(&answer.outcome, &w::Outcome::Dismissed);
         let key = self.probes[who.0].sent.expect("sent dismissal");
         assert!(self.probes[who.0].root.person().client().pending(key).is_none(), "answer retires the pending");
     }
@@ -267,11 +268,11 @@ fn a_second_dismissal_is_answered_as_the_first() {
             panic!("second device's facts delivered")
         };
         let document = wire::decode_dismissals(&record.bytes, &w::CEILINGS).expect("dismissal document");
-        assert_eq!(document.dismissed().len(), 2);
-        let facts = document.dismissed().iter().collect::<Vec<_>>();
+        assert_eq!(document.dismissed.len(), 2);
+        let facts = document.dismissed.iter().collect::<Vec<_>>();
         let w::PersonFact::KeepAsking(value) = facts[1] else { panic!("keep asking fact") };
         assert_eq!(
-            (value.project(), value.subject(), value.at()),
+            (value.project, &value.subject, value.at),
             (
                 PROJECT,
                 &temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(

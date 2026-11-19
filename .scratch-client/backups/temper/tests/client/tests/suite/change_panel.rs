@@ -1,0 +1,853 @@
+//! client/engine.md and client/testing.md; domain/forge/change/README.md, 2 and domain/forge/change/gates.md, 1 and domain/forge/change/repairs.md and domain/forge/change/README.md, 3–4 and domain/forge/change/gates.md, 2 and domain/forge/change/README.md, 5.
+//! A task page watches the whole change through CI, its gate and landing.
+use jig_client::contract as c;
+use jig_client_kit::harness::{ClientId, Until, World};
+use jig_domain_tasks as tasks;
+use skein_fake_person::{Face, Find, Found, Step, Target, TreeFace};
+use skein_forge::api;
+use skein_lib::Token;
+use skein_ui::Role;
+use skein_world::domain::Verdict;
+use std::fmt::Write as _;
+use temper_client_domain::forge::{
+    change::{Slots, slot},
+    panel::State,
+};
+use temper_client_protocol_wire::v1 as w;
+use temper_client_world::{app::Temper, fixtures, front::Joint};
+use temper_engine_domain as engine;
+use temper_engine_domain_world::forge_stand::ForgeStand;
+
+const REPOSITORY: api::Repository = api::Repository { forge: 1, repository: 7 };
+const BRANCH: &[u8] = b"temper/handed-change";
+const BASE: &[u8] = b"main";
+const BUILD: &[u8] = b"build";
+const STEPS: u32 = 200;
+const WORKER: Token = Token::new(7);
+
+struct Facts {
+    pull: api::Pull,
+    checks: Box<[api::Status]>,
+    main: api::Commit,
+}
+
+// Observe only between engine steps, without charging the engine's calls.
+fn read(front: &mut Joint, what: api::Read) -> api::Answer {
+    front.engine.forge.as_mut().expect("story's forge").read(REPOSITORY, what)
+}
+
+fn facts(front: &mut Joint) -> Facts {
+    let api::Answer::Pull(pull) = read(front, api::Read::PullFor { head: BRANCH.into(), base: BASE.into() }) else {
+        panic!("opened pull request")
+    };
+    let api::Answer::Pull(pull) = read(front, api::Read::Pull { number: pull.number, ci: true }) else {
+        panic!("pull CI for the story's observations")
+    };
+    let api::Answer::Checks(checks) = read(front, api::Read::Checks { commit: pull.commit }) else {
+        panic!("CI contexts at the pull's head")
+    };
+    let api::Answer::Commit(main) = read(front, api::Read::Branch { branch: BASE.into() }) else { panic!("main head") };
+    Facts { pull, checks, main }
+}
+
+// Joint polling fires deadlines and settles immediate work at simulated time. A run of two
+// iterations brings the client at most one panel: the transport holds the next until the
+// client takes this one (one document in flight), a later iteration's poll sends it, and it
+// is due at least the world's least latency (1 ms) after that poll. Keeping the panel after
+// each run so checks every delivery's order, not a sample of them.
+fn step(world: &mut World<Temper, Joint>, person: ClientId, panels: &mut Vec<w::ChangePanel>) {
+    let outcome = world.run(Until::Steps(2));
+    assert!(matches!(outcome.verdict, Verdict::Passed | Verdict::Open { .. }), "{outcome:?}");
+    keep_panel(world, person, panels);
+}
+
+fn keep_panel(world: &World<Temper, Joint>, person: ClientId, panels: &mut Vec<w::ChangePanel>) {
+    if let Some(panel) = world.root(person).person().forge().panel() {
+        match &panel.state {
+            State::Loading => {}
+            State::Shown(value) => {
+                if panels.last() != Some(value.as_ref()) {
+                    if let Some(previous) = panels.last() {
+                        assert!(
+                            order(&value.step) >= order(&previous.step),
+                            "panel went backwards: {panels:?} -> {value:?}"
+                        );
+                        let before = slot(&previous.step);
+                        let after = slot(&value.step);
+                        assert!(after.done >= before.done, "page's done steps went backwards: {before:?} -> {after:?}");
+                        // No current slot means all six are done, after every current slot.
+                        assert!(
+                            after.current.unwrap_or(6) >= before.current.unwrap_or(6),
+                            "page's current step went backwards: {before:?} -> {after:?}"
+                        );
+                    }
+                    panels.push(value.as_ref().clone());
+                }
+            }
+            State::Unknown | State::Ended(_) => panic!("change watch ended: {panel:?}"),
+        }
+    }
+}
+
+// client/forge/README.md, 2.1, and client/forge/served.md, 2: the successful handed-branch path.
+fn order(step: &w::Step) -> u8 {
+    match step {
+        w::Step::Producing => 0,
+        w::Step::Opening => 1,
+        w::Step::Checking => 2,
+        w::Step::Gating => 3,
+        w::Step::Queued(_) => 4,
+        w::Step::First => 5,
+        w::Step::Landing => 6,
+        w::Step::Landed(_) | w::Step::Verifying(_) | w::Step::Red(_) | w::Step::Cleared(_) => 7,
+        w::Step::Taking
+        | w::Step::Ended
+        | w::Step::Ready(_)
+        | w::Step::Preparing(_)
+        | w::Step::Recreating
+        | w::Step::Reopening
+        | w::Step::Updating
+        | w::Step::Resolving
+        | w::Step::Repairing(_) => {
+            panic!("the passing head needs no recovery: {step:?}")
+        }
+    }
+}
+
+fn pull_opened(front: &Joint, goal: u64) -> bool {
+    front.engine.store.rows.values().any(|record| {
+        matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(),
+            temper_engine_domain_forge::Stored::ChangeHot(change) if change.task == goal && change.pull.is_some()))
+    })
+}
+
+fn gate_task(front: &Joint, goal: u64) -> Option<tasks::TaskRecord> {
+    front.engine.store.rows.values().find_map(|record| {
+        if let engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = record
+            && row.root == goal
+            && row.number != goal
+            && front.hosted_attempt(row.number) == Some(row.attempt)
+        {
+            Some(*row.clone())
+        } else {
+            None
+        }
+    })
+}
+
+fn finished(document: &c::Task, goal: u64, pull: u64) {
+    assert_eq!(document.chip.task, goal);
+    assert_eq!(document.chip.phase, c::Phase::Ended);
+    let Some(c::TaskResult::Document(result)) = document.result.as_ref() else { panic!("ended task result") };
+    assert_eq!(result.task.task, goal);
+    let c::Ending::Task(ending) = &result.ending else { panic!("task's finished result") };
+    let c::ChipEnding::Done(c::ResultValue::Change { part, .. }) = ending.as_ref() else {
+        panic!("successfully landed change result");
+    };
+    assert_eq!(part.key, c::PartKey::Number(pull));
+}
+
+fn page_step(name: &[u8]) -> Find {
+    Find::exactly_named(Role::Item, name)
+        .within(Box::new([Target::ExactRole { role: Role::List, name: b"Steps".as_slice().into() }]))
+}
+
+fn its_task(number: u64) -> Find {
+    let name = format!("Task {number}");
+    Find::exactly_named(Role::Link, name.as_bytes()).within(Box::new([
+        Target::ExactRole { role: Role::Tree, name: b"Its tasks".as_slice().into() },
+        Target::ExactRole { role: Role::TreeItem, name: name.as_bytes().into() },
+    ]))
+}
+
+fn drawn<'a>(world: &'a World<Temper, Joint>, person: ClientId, find: &Find) -> &'a skein_ui::Node {
+    let tree = world.tree(person);
+    let Found::Node(id) = TreeFace::new(tree).find(find) else { panic!("person's tree lacks {find:?}") };
+    tree.find(id).expect("found node")
+}
+
+fn gate_page(
+    world: &mut World<Temper, Joint>,
+    person: ClientId,
+    goal: u64,
+    gate: u64,
+    pull: u64,
+    panel: &w::ChangePanel,
+) {
+    let tag = format!("Change · Task {goal}");
+    let pull_line = format!(
+        "PR #{pull} · acme/shop · {} → {}",
+        std::str::from_utf8(BRANCH).expect("branch"),
+        std::str::from_utf8(BASE).expect("base")
+    );
+    let bounds = format!(
+        "Repairs {} of {} · resolutions {} of {} · updates {} of {}",
+        panel.repairs.used,
+        panel.repairs.limit,
+        panel.resolutions.used,
+        panel.resolutions.limit,
+        panel.updates.used,
+        panel.updates.limit
+    );
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::text(tag.as_bytes()), within: fixtures::WITHIN },
+            Step::See { find: Find::text(pull_line.as_bytes()), within: fixtures::WITHIN },
+            Step::See { find: page_step(b"Gating"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"Waiting for its gates at its head."), within: fixtures::WITHIN },
+            Step::See {
+                find: Find::named(Role::Slot, b"CI at its headPassed").within(Box::new([Target::ExactRole {
+                    role: Role::Region,
+                    name: b"Gates at its head".as_slice().into(),
+                }])),
+                within: fixtures::WITHIN,
+            },
+            Step::See {
+                find: Find::named(Role::Slot, "Gate 1 · review · blockingWaiting".as_bytes()).within(Box::new([
+                    Target::ExactRole { role: Role::Region, name: b"Gates at its head".as_slice().into() },
+                ])),
+                within: fixtures::WITHIN,
+            },
+            Step::See {
+                find: Find::exactly_named(Role::Link, "View on forge ↗".as_bytes()), within: fixtures::WITHIN
+            },
+            Step::See { find: Find::text(bounds.as_bytes()), within: fixtures::WITHIN },
+            Step::See { find: its_task(gate), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    assert!(drawn(world, person, &page_step(b"Gating")).states.as_slice().contains(&skein_ui::State::Current));
+    assert_eq!(
+        drawn(world, person, &Find::exactly_named(Role::Link, "View on forge ↗".as_bytes())).external.as_deref(),
+        Some(format!("http://forge.example/acme/shop/pulls/{pull}").as_bytes())
+    );
+}
+
+fn landed_page(world: &mut World<Temper, Joint>, person: ClientId, goal: u64, gate: u64, merge: api::Commit) -> u64 {
+    let mut children: Vec<_> = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .filter_map(|record| {
+            if let engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row))) = record
+                && row.requester == tasks::Party::Task(goal)
+            {
+                Some(row.number)
+            } else {
+                None
+            }
+        })
+        .collect();
+    children.sort_unstable();
+    assert!(children.contains(&gate), "the gate is an ended child");
+    let merge_line =
+        format!("Landed · merge commit {:02x}{:02x}{:02x}{:x}", merge[0], merge[1], merge[2], merge[3] >> 4);
+    let mut script = vec![
+        Step::See { find: page_step(b"Landed"), within: fixtures::WITHIN },
+        Step::See { find: Find::text(merge_line.as_bytes()), within: fixtures::WITHIN },
+    ];
+    for child in &children {
+        script.push(Step::See { find: its_task(*child), within: fixtures::WITHIN });
+    }
+    for absent in ["None.", "None yet.", "More of its ended tasks are not shown."] {
+        script.push(Step::Gone {
+            find: Find::exactly_named(Role::Paragraph, absent.as_bytes())
+                .within(Box::new([Target::ExactRole { role: Role::Region, name: b"Its tasks".as_slice().into() }])),
+            within: fixtures::WITHIN,
+        });
+    }
+    script.push(Step::See {
+        find: Find::exactly_named(Role::Link, "View on forge ↗".as_bytes()),
+        within: fixtures::WITHIN,
+    });
+    world.person(person, script);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let root = world.root(person).person();
+    let page = root
+        .pages()
+        .task()
+        .expect("task page")
+        .ended
+        .as_ref()
+        .expect("ended children read")
+        .page
+        .as_ref()
+        .expect("kept ended children page");
+    let c::EndedGroup::Rows { rows, after, cut } = &page.ended else { panic!("ended children rows") };
+    assert_eq!(after, &None);
+    assert!(!cut);
+    let mut kept: Vec<_> = rows.iter().map(|row| row.chip.task).collect();
+    kept.sort_unstable();
+    assert_eq!(kept, children, "every ended child is kept exactly once");
+    outcome.callbacks
+}
+
+#[test]
+#[expect(clippy::too_many_lines, reason = "the joined story follows CI, its gate, the person's review and landing")]
+fn a_change_handed_its_pushed_branch_lands_after_ci_and_its_gate() {
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = Joint::with_change_approval(fixtures::SEED, &fixtures::domain_limits());
+    world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
+    fixtures::adopt_change_repository(world.front());
+    let content = "A change ready for review.\nIts checks pass.\nIts owner approves.\n";
+    world.front().engine.forge.as_mut().expect("story's forge").push_branch_with_file(
+        REPOSITORY.repository,
+        BRANCH,
+        b"change.txt",
+        content.as_bytes(),
+    );
+    // The base tree is empty: the new file adds every line and deletes none
+    // (skein/docs/design/testing/fakes/forge.md, 2.2).
+    let size_words = format!("+{} -0 in 1 file", content.lines().count());
+    let api::Answer::Commit(head) = read(world.front(), api::Read::Branch { branch: BRANCH.into() }) else {
+        panic!("pushed branch head")
+    };
+    let goal = fixtures::goal_with_pushed_change(world.front(), BRANCH);
+
+    let person =
+        world.client_with(fixtures::PARTY, fixtures::task_page(goal), fixtures::domain_limits(), approval_client);
+    let mut panels = Vec::new();
+
+    for _ in 0..STEPS {
+        if pull_opened(world.front(), goal) {
+            break;
+        }
+        step(&mut world, person, &mut panels);
+    }
+    assert!(pull_opened(world.front(), goal), "pull opened within the step budget");
+    let opened = facts(world.front());
+    assert_ne!(opened.pull.number, 0);
+    assert_eq!(opened.pull.state, api::State::Open);
+    assert_eq!(opened.pull.head.as_ref(), BRANCH);
+    assert_eq!(opened.pull.base.as_ref(), BASE);
+    assert_eq!(opened.pull.commit, head);
+    assert_eq!(opened.pull.merged, None);
+
+    for _ in 0..STEPS {
+        if gate_task(world.front(), goal).is_some() {
+            break;
+        }
+        step(&mut world, person, &mut panels);
+    }
+    let gate = gate_task(world.front(), goal).expect("gate assigned within the step budget");
+    let checked = facts(world.front());
+    assert_eq!(checked.pull.number, opened.pull.number);
+    assert_eq!(checked.pull.commit, head);
+    assert_eq!(checked.pull.ci, api::Ci::Passed);
+    assert_eq!(checked.checks.len(), 1);
+    assert_eq!(checked.checks[0].context.as_ref(), BUILD);
+    assert_eq!(checked.checks[0].check, api::Check::Passed);
+    assert_eq!(checked.pull.merged, None, "blocking gate has no verdict yet");
+    assert_eq!(
+        world.front().engine.task(goal).expect("change task").made,
+        2,
+        "a handed branch needs only its gate, no producer answer"
+    );
+    assert_eq!(gate.requester, tasks::Party::Task(goal));
+    assert!(matches!(gate.contract, tasks::Contract::Verdict { .. }));
+    assert!(gate.spec.parameters.contains(&tasks::Parameter::Bytes { name: 3, value: BRANCH.into() }));
+    let mut hexadecimal = String::with_capacity(40);
+    for byte in &head[..20] {
+        write!(&mut hexadecimal, "{byte:02x}").expect("hexadecimal head");
+    }
+    assert!(gate.spec.parameters.contains(&tasks::Parameter::Bytes { name: 8, value: hexadecimal.as_bytes().into() }));
+
+    let gate_line = b"Waiting for its gates at its head.";
+    world.person(person, vec![Step::See { find: Find::text(gate_line), within: fixtures::WITHIN }]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    keep_panel(&world, person, &mut panels);
+    panel_waiting_for_gate(panels.last().expect("gate panel"), &checked);
+    gate_page(&mut world, person, goal, gate.number, checked.pull.number, panels.last().expect("gate panel"));
+
+    let verdict = tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() };
+    world.front().engine.answer(
+        WORKER,
+        gate.number,
+        gate.attempt,
+        0,
+        tasks::End::Finished { result: verdict.clone(), cancel_delegates: false },
+        engine::Parts::none(),
+    );
+    world.front().engine.settle();
+    for _ in 0..STEPS {
+        step(&mut world, person, &mut panels);
+    }
+    assert!(world.front().engine.task(goal).is_some(), "change waits for the person's review");
+    assert_eq!(facts(world.front()).pull.merged, None, "gate alone cannot admit the merge");
+    let waiting = panels.last().expect("approval wait panel");
+    let [line] = waiting.approvals.as_slice() else { panic!("one deployment approval: {waiting:?}") };
+    assert_eq!(line.role, 0);
+    assert_eq!(line.required, 1);
+    assert_eq!(&line.remaining, &Some(1));
+    assert!(line.counted.is_empty());
+    let approval = Find::exactly_named(Role::Heading { level: 1 }, "Approve Update repository on Forgejo".as_bytes());
+    let review = Find::exactly_named(Role::Link, "Review on Forgejo ↗".as_bytes());
+    world.person(
+        person,
+        vec![
+            Step::Go { address: fixtures::inbox() },
+            Step::See { find: approval.clone(), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"an approval"), within: fixtures::WITHIN },
+            Step::See {
+                find: Find::text(b"The deployment's landing rule 1 asks for one approval by an owner."),
+                within: fixtures::WITHIN,
+            },
+            Step::See { find: review.clone(), within: fixtures::WITHIN },
+            Step::See { find: Find::exactly_named(Role::Button, b"Open"), within: fixtures::WITHIN },
+            Step::Gone { find: Find::exactly_named(Role::Button, b"Later"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    approval_size(&world, person, &approval, size_words.as_bytes());
+    assert_eq!(
+        drawn(&world, person, &review).external.as_deref(),
+        Some(format!("http://forge.example/acme/shop/pulls/{}/files", opened.pull.number).as_bytes())
+    );
+    world.front().engine.forge.as_mut().expect("story's forge").review(
+        REPOSITORY.repository,
+        opened.pull.number,
+        7,
+        api::Verdict::Approve,
+        head,
+    );
+    world.front().engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Hint {
+        hint: api::Hint { repository: REPOSITORY, change: api::Change::Item(opened.pull.number), key: None },
+    })));
+    world.person(person, vec![Step::Gone { find: approval, within: fixtures::WITHIN }]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    world.person(person, vec![Step::Go { address: fixtures::task_page(goal) }]);
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    for _ in 0..STEPS {
+        if world.front().engine.task(goal).is_none() {
+            break;
+        }
+        step(&mut world, person, &mut panels);
+    }
+    assert!(world.front().engine.task(goal).is_none(), "change finished within the step budget");
+    let gate_key = engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(gate.number)));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(answered)))) =
+        world.front().engine.store.rows.get(&gate_key)
+    else {
+        panic!("gate's durable answer");
+    };
+    assert_eq!(answered.phase, tasks::Phase::Ended(tasks::Ending::Done(verdict)));
+    let landed = facts(world.front());
+    assert_eq!(landed.pull.number, opened.pull.number);
+    assert_eq!(landed.pull.commit, head);
+    assert_eq!(landed.pull.state, api::State::Closed);
+    let merge = landed.pull.merged.expect("pull request's merge commit");
+    assert_eq!(landed.main, merge);
+    assert_ne!(merge, checked.main);
+
+    let callbacks = landed_page(&mut world, person, goal, gate.number, merge);
+    keep_panel(&world, person, &mut panels);
+    let root = world.root(person).person();
+    let document = root.pages().task().expect("task page").document(root.client()).expect("finished task document");
+    finished(document, goal, landed.pull.number);
+    panels_landed(&panels, goal, head, &opened, &checked, merge);
+    quiet(&mut world, person, goal, panels.last().expect("landed panel"), callbacks);
+}
+
+// client/forge/README.md, 4.1: one plain size chip on the approval card under Needs you.
+fn approval_size(world: &World<Temper, Joint>, person: ClientId, approval: &Find, expected: &[u8]) {
+    use temper_client_view::look;
+    let nodes = world.tree(person).nodes();
+    let question = drawn(world, person, approval);
+    let cards: Vec<_> = nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.styles.as_slice().contains(&look::ASK))
+        .map(|(start, node)| &nodes[start..start + usize::try_from(node.size).expect("card span")])
+        .filter(|card| card.iter().any(|node| node.id == question.id))
+        .collect();
+    let [card] = cards.as_slice() else { panic!("one approval card: {cards:?}") };
+    let rows: Vec<_> =
+        card.iter().enumerate().filter(|(_, node)| node.styles.as_slice().contains(&look::CHIPS)).collect();
+    let [(start, row)] = rows.as_slice() else { panic!("one size chips row: {rows:?}") };
+    let row = &card[*start..*start + usize::try_from(row.size).expect("chips span")];
+    let chips: Vec<_> = row.iter().filter(|node| node.styles.as_slice().contains(&look::CHIP)).collect();
+    assert_eq!(chips.len(), 1, "one size chip on the approval card");
+    let words: Vec<_> = row.iter().flat_map(|node| node.text.iter()).flat_map(|run| run.text.iter().copied()).collect();
+    assert_eq!(words, expected, "approval size from the change's file at the reviewed head");
+}
+
+fn approval_client(seed: u64) -> (temper_client_world::app::Root, temper_client_world::app::View) {
+    use temper_client_world::app::{Root, View};
+    let limits = fixtures::domain_limits();
+    let mut words = fixtures::phrasebooks(&limits);
+    words.shell = temper_client_view::words::Shell::Browser;
+    let bounds = fixtures::view_bounds(&limits, &words);
+    (
+        Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+        View::Person(Box::new(temper_client_view::View::new(&bounds, &limits, words, fixtures::FORGE))),
+    )
+}
+
+fn panel_waiting_for_gate(panel: &w::ChangePanel, facts: &Facts) {
+    assert_eq!(&panel.step, &w::Step::Gating);
+    assert_eq!(panel.pull.as_ref().expect("pull opened").number, facts.pull.number);
+    assert_eq!(&panel.head, &Some(facts.pull.commit));
+    assert_eq!(&panel.ci, &w::Ci::Passed);
+    let [gate] = panel.gates.as_slice() else { panic!("one blocking gate") };
+    assert!(gate.blocks);
+    assert_ne!(&gate.verdict, &w::Verdict::Approved);
+}
+
+fn panels_landed(
+    panels: &[w::ChangePanel],
+    goal: u64,
+    head: api::Commit,
+    opened: &Facts,
+    checked: &Facts,
+    merge: api::Commit,
+) {
+    let last = panels.last().expect("change panel delivered");
+    assert_eq!(last.task, goal);
+    assert_eq!(last.forge, REPOSITORY.forge);
+    assert_eq!(last.owner.as_ref(), b"acme");
+    assert_eq!(last.name.as_ref(), b"shop");
+    assert_eq!(last.branch.as_ref(), BRANCH);
+    assert_eq!(last.landing.as_ref(), BASE);
+    assert_eq!(&last.head, &Some(head));
+    assert_eq!(last.pull.as_ref().expect("pull in panel").number, opened.pull.number);
+    assert_eq!(&last.ci, &w::Ci::Passed);
+    assert_eq!(slot(&last.step), Slots { current: None, done: 6 });
+    let [gate] = last.gates.as_slice() else { panic!("one gate in the panel") };
+    assert_eq!(gate.number, 1);
+    assert_eq!(&gate.kind, &w::GateKind::Review);
+    assert!(gate.blocks);
+    assert_eq!(&gate.verdict, &w::Verdict::Approved);
+    let w::Step::Landed(result) = &last.step else { panic!("landed panel: {panels:?}") };
+    assert_eq!(&result.merge, &merge);
+    assert!(panels.iter().any(|panel| matches!(&panel.step, w::Step::Gating)));
+    for panel in panels {
+        assert_eq!(panel.task, goal);
+        if let Some(pull) = &panel.pull {
+            assert_eq!(pull.number, opened.pull.number);
+            assert_eq!(
+                pull.address.as_ref(),
+                format!("http://forge.example/acme/shop/pulls/{}", opened.pull.number).as_bytes()
+            );
+        }
+        if &panel.ci == &w::Ci::Passed {
+            assert_eq!(&panel.head, &Some(checked.pull.commit));
+        }
+    }
+}
+
+fn quiet(world: &mut World<Temper, Joint>, person: ClientId, goal: u64, last: &w::ChangePanel, mut callbacks: u64) {
+    let handle = world.root(person).person().forge().panel().expect("panel slot").handle.expect("live handle");
+    assert_eq!(
+        world.root(person).person().client().document(handle).expect("live document").state,
+        jig_client::State::Live
+    );
+    assert!(world.front().watching_change(person, goal));
+    // Taking the last delivery can release another task document. Drain those
+    // acknowledgements before checking the retained, idle watch.
+    let mut settled = false;
+    for _ in 0..STEPS {
+        let outcome = world.run(Until::Done);
+        assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+        if outcome.callbacks == callbacks {
+            settled = true;
+            break;
+        }
+        callbacks = outcome.callbacks;
+    }
+    assert!(settled, "final delivery acknowledgements settle within the step budget");
+    // With the final deliveries consumed, settling again has no callback at all.
+    let quiet = world.run(Until::Done);
+    assert_eq!(quiet.verdict, Verdict::Passed, "{quiet:?}");
+    assert_eq!(quiet.callbacks, callbacks, "no new delivery while the retained change is quiet");
+    assert!(world.front().engine.root.quiescent());
+    assert!(world.front().watching_change(person, goal));
+    let panel = world.root(person).person().forge().panel().expect("quiet panel");
+    assert_eq!(panel.handle, Some(handle));
+    assert_eq!(panel.state, State::Shown(Box::new(last.clone())));
+}
+
+#[test]
+fn a_forge_procedure_without_a_change_has_an_unknown_panel() {
+    let mut world = fixtures::world(fixtures::SEED);
+    let task = fixtures::goal_with_forge_panel(world.front());
+    let procedure = world.front().engine.task(task).expect("live procedure").executor;
+    assert_eq!(procedure, tasks::Executor::Procedure { connector: 1, code: 2 });
+    assert!(
+        !world.front().engine.store.rows.values().any(|record| {
+            matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(),
+            temper_engine_domain_forge::Stored::ChangeHot(change) if change.task == task))
+        }),
+        "the existing procedure fixture has no connector change"
+    );
+    let person = world.client(fixtures::PARTY, fixtures::task_page(task));
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::text(b"The forge knows no change for this task."), within: fixtures::WITHIN },
+            Step::Gone { find: Find::text(b"Shown on the forge."), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let panel = world.root(person).person().forge().panel().expect("procedure's panel slot");
+    assert_eq!(panel.subject.task, task);
+    assert_eq!(panel.state, State::Unknown);
+    assert!(panel.handle.is_none());
+    assert!(!world.front().watching_change(person, task));
+}
+
+fn playground_change_page(playground_forge: u16) {
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
+    world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
+    fixtures::adopt_change_repository(world.front());
+    world.front().engine.forge.as_mut().expect("story's forge").push_branch(REPOSITORY.repository, BRANCH);
+    let goal = fixtures::goal_with_pushed_change(world.front(), BRANCH);
+    let mut cues = skein_lib::List::with_capacity(1);
+    cues.push(b"Change the title".as_slice().into()).expect("one cue");
+    world.front().playground = Some(
+        w::PlaygroundAnswer {
+                state: w::PlaygroundState::Running,
+                project: Some(1),
+                forge: playground_forge,
+                provider: 17,
+                owner: b"acme".as_slice().into(),
+                name: b"shop".as_slice().into(),
+                cues,
+            },
+    );
+    let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
+    let on_playground = playground_forge == REPOSITORY.forge;
+    let link = Find::exactly_named(Role::Link, "View on forge ↗".as_bytes());
+    let address = format!("http://forge.example/acme/shop/pulls/{}", facts_after_open(&mut world, true).pull.number);
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::text(b"Waiting for its gates at its head."), within: fixtures::WITHIN },
+            if on_playground {
+                Step::See {
+                    find: Find::exactly_named(Role::Paragraph, format!("View on forge ↗ {address}").as_bytes()),
+                    within: fixtures::WITHIN,
+                }
+            } else {
+                Step::See { find: link.clone(), within: fixtures::WITHIN }
+            },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let root = world.root(person).person();
+    assert_eq!(root.forge().playground().expect("running playground").forge, playground_forge);
+    let external: Vec<_> =
+        world.tree(person).nodes().iter().filter(|node| node.external.as_deref() == Some(address.as_bytes())).collect();
+    if on_playground {
+        assert!(external.is_empty(), "no node can navigate to the playground address");
+        assert!(
+            !world
+                .tree(person)
+                .nodes()
+                .iter()
+                .any(|node| node.role == Role::Link && node.name.as_deref() == Some("View on forge ↗".as_bytes()))
+        );
+    } else {
+        assert_eq!(external.len(), 1);
+        assert_eq!(external[0].role, Role::Link);
+    }
+}
+fn facts_after_open(world: &mut World<Temper, Joint>, wait_for_gate: bool) -> Facts {
+    use skein_lib::Duration;
+
+    for _ in 0..STEPS {
+        if world.front().engine.store.rows.values().any(|record| matches!(record,
+            engine::Record::Forge { row } if matches!(row.as_ref(), temper_engine_domain_forge::Stored::ChangeHot(change) if change.pull.is_some() && (!wait_for_gate || matches!(change.change.state, temper_engine_domain_forge_change::State::Gating { .. }))))) {
+            return facts(world.front());
+        }
+        let outcome = world.run(Until::Time(world.now().saturating_add(Duration::from_millis(10))));
+        assert!(matches!(outcome.verdict, Verdict::Passed | Verdict::Open { .. }), "{outcome:?}");
+    }
+    panic!("pull opened within 200 slices of 10 ms");
+}
+#[test]
+fn a_playground_changes_address_is_text_not_a_link() {
+    playground_change_page(REPOSITORY.forge);
+}
+#[test]
+fn another_forges_change_keeps_its_link() {
+    playground_change_page(REPOSITORY.forge + 1);
+}
+
+fn silent_forge() -> ForgeStand {
+    use skein_fake_forge_domain::api as raw;
+    use skein_lib::Duration;
+    ForgeStand::with_setup(Box::new([raw::Setup {
+        workflows: Box::new([]),
+        id: REPOSITORY.repository,
+        name: b"acme/shop".as_slice().into(),
+        default: BASE.into(),
+        tree: Box::new([]),
+        labels: Box::new([]),
+        checks: raw::Checks {
+            cues: Box::new([]),
+            contexts: Box::new([BUILD.into()]),
+            latency_min: Duration::ZERO,
+            latency_max: Duration::ZERO,
+            silent: 1000,
+            passes: 1000,
+            reruns: 0,
+            cue: None,
+        },
+        protection: None,
+        hooked: false,
+    }]))
+}
+
+fn silent_ci_world() -> (World<Temper, Joint>, u64, u64) {
+    use temper_engine_domain_forge as forge;
+    const DELEGATE: u64 = 901;
+    let mut world = fixtures::world(fixtures::SEED);
+    *world.front() = Joint::with_change_grace(fixtures::SEED, &fixtures::domain_limits(), skein_lib::Duration::ZERO);
+    world.front().engine.forge = Some(silent_forge());
+    fixtures::adopt_change_repository(world.front());
+    world.front().engine.forge.as_mut().expect("silent forge").push_branch(REPOSITORY.repository, BRANCH);
+    let chat = fixtures::chat(world.front(), b"Follow the silent check");
+    let driver = &mut world.front().engine;
+    let owner = driver.task(chat).expect("requesting chat");
+    let attempt = owner.attempt;
+    let mut authority = owner.authority.clone();
+    authority.tools = tasks::Tools(0);
+    authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    authority.budget.spend = 40;
+    driver.call(
+        WORKER,
+        chat,
+        attempt,
+        DELEGATE,
+        engine::Call {
+            completion: 1,
+            position: 1,
+            tool: engine::Tool::Delegate {
+                batch: Box::new([engine::Delegate {
+                    executor: tasks::Executor::Procedure { connector: 1, code: 2 },
+                    spec: tasks::Spec {
+                        job: None,
+                        asks: false,
+                        words: b"Wait for CI on the pushed change".as_slice().into(),
+                        parameters: Box::new([
+                            tasks::Parameter::Resource {
+                                name: 1,
+                                connector: 1,
+                                resource: forge::tag(REPOSITORY.forge, REPOSITORY.repository),
+                            },
+                            tasks::Parameter::Bytes { name: 3, value: BRANCH.into() },
+                        ]),
+                        inputs: Box::new([]),
+                    },
+                    contract: tasks::Contract::Change { connector: 1, kind: 1, words: 32, choices: Box::new([]) },
+                    authority,
+                    ..temper_engine_domain_world::fixtures::report_delegate(b"change", Box::new([]))
+                }]),
+            },
+        },
+    );
+    driver.settle();
+    let Some(engine::CallAnswer::Delegated(children)) = driver.answered(DELEGATE) else {
+        panic!("chat delegates its change: {:?}", driver.answered(DELEGATE));
+    };
+    let change = children[0].task;
+    driver.answer(WORKER, chat, attempt, 0, tasks::End::Parked, engine::Parts::none());
+    driver.settle();
+    (world, chat, change)
+}
+
+// temper/docs/design/domain/forge/change/repairs.md; temper/docs/design/client/forge/README.md, 2.4–2.5.
+#[test]
+fn silent_ci_notifies_the_chat_and_shows_a_stall_with_a_release_action() {
+    use skein_lib::{Duration, Time};
+    use temper_engine_domain_forge as forge;
+    let (mut world, chat, change) = silent_ci_world();
+    let person = world.client(fixtures::PARTY, fixtures::chat_page(chat));
+    world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Running"), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    let before = facts_after_open(&mut world, false);
+    let observed = world.now().saturating_add(Duration::from_secs(1));
+    assert_eq!(world.run(Until::Time(observed)).verdict, Verdict::Passed);
+    let row = world
+        .front()
+        .engine
+        .store
+        .rows
+        .values()
+        .find_map(|record| {
+            if let engine::Record::Forge { row } = record
+                && let forge::Stored::ChangeHot(row) = row.as_ref()
+                && row.task == change
+            {
+                Some(row.clone())
+            } else {
+                None
+            }
+        })
+        .expect("real change row");
+    assert_eq!(before.pull.merged, None);
+    assert_eq!(before.pull.ci, api::Ci::Pending);
+    let stall = world.front().engine.env.limits.forge.change_policy.stall;
+    let clock = row.change.clock.expect("first execution reading");
+    let grace = if clock.seen == temper_engine_domain_forge_change::Execution::Unknown {
+        world.front().engine.env.limits.forge.change_policy.unknown_grace
+    } else {
+        Duration::ZERO
+    };
+    let after_stall = Time::from_nanos(clock.at.as_nanos())
+        .saturating_add(stall)
+        .saturating_add(grace)
+        .saturating_add(Duration::from_secs(1));
+    assert_eq!(world.run(Until::Time(after_stall)).verdict, Verdict::Passed);
+    assert!(
+        matches!(world.front().engine.task(change).expect("change").phase, tasks::Phase::Held { .. }),
+        "change at {:?}: {:?}",
+        world.now(),
+        world.front().engine.task(change)
+    );
+    let front = world.front();
+    let requester = front.engine.task(chat).expect("live requesting chat");
+    assert!(
+        requester
+            .inbox
+            .iter()
+            .chain(
+                front
+                    .assignments
+                    .iter()
+                    .filter(|assignment| assignment.task == chat)
+                    .flat_map(|assignment| &assignment.messages)
+            )
+            .any(|message| matches!(message.kind, tasks::MessageKind::Escalation { task, .. } if task == change)),
+        "requester receives its delegate's hold notice: {:?}",
+        requester.inbox
+    );
+    world.person(person, vec![Step::See { find: Find::named(Role::Status, b"Held"), within: fixtures::WITHIN }]);
+    assert_eq!(world.run(Until::Done).verdict, Verdict::Passed);
+    world.go(person, fixtures::task_page(change));
+    world.person(
+        person,
+        vec![
+            Step::See { find: Find::text(b"stall"), within: fixtures::WITHIN },
+            Step::See { find: Find::named(Role::Button, b"Release task"), within: fixtures::WITHIN },
+        ],
+    );
+    let outcome = world.run(Until::Done);
+    assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
+    let held = facts(world.front());
+    assert_eq!(held.pull.ci, api::Ci::Pending, "silent CI has no terminal report");
+    assert_eq!(held.pull.merged, None, "a silent check never merges");
+    assert_eq!(held.main, before.main, "main stays at its original head");
+}

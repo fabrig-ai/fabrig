@@ -1,4 +1,5 @@
 //! The box builds from its engine and its durable agents copy.
+use temper_client_protocol_wire::v1::Record;
 use crate::{serve, served};
 use std::{
     fs,
@@ -35,17 +36,17 @@ fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     (dirs, document)
 }
 fn agents(turns: u64) -> w::AgentFigures {
-    let mut parts = temper_service::stock::agents().into_parts();
+    let mut parts = temper_service::stock::agents();
     for row in parts.profile.iter_mut() {
-        if row.name() == b"policy.max_turns" {
+        if row.name.as_ref() == b"policy.max_turns" {
             *row = w::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: turns };
         }
     }
     parts
 }
 fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured value");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured value");
     writer.finish()
 }
 fn stock_defaults(bytes: &[u8], dirs: &crate::Directories) -> temper_service::stock::Given {

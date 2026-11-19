@@ -444,7 +444,7 @@ fn a_set_up_refusal_is_said_below_its_button() {
             sent = Some(attempt);
         }
     }
-    let wire_limits = d::forge::wire_limits(&limits.forge).unwrap();
+
     let outcome = w::Outcome::SetUpRefused(
         w::SetUpRefused { why: w::SetUpRefusal::Busy },
     );
@@ -576,7 +576,7 @@ fn setting_up_uses_the_sent_fields_until_the_row_carries_them() {
     act(&mut root, d::forge::Act::SetUp { forge: HERE });
     // The flow keeps the submitted fields even when it is showing Details.
     let w::SetUpFirst::Empty(first) = &root.forge().set_up().unwrap().first else { panic!("empty setup") };
-    assert_eq!(first.org(), b"work");
+    assert_eq!(first.org.as_ref(), b"work");
     let (mut root, watch) = f::forge_root_watch(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
@@ -803,15 +803,15 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
                 sent = Some(
                     temper_client_protocol_wire::decode_requesting(&record.bytes, &w::CEILINGS)
                         .unwrap()
-                        .into_parts()
+                        
                         .request,
                 );
             }
         }
         let w::Request::Connect(connect) = sent.expect("manifest Connect") else { panic!("Connect") };
-        let w::Making::New(_) = connect.forge() else { panic!("new forge") };
-        let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
-        assert_eq!(manifest.back().as_deref(), Some(back));
+        let w::Making::New(_) = &connect.forge else { panic!("new forge") };
+        let w::How::GithubManifest(manifest) = &connect.how else { panic!("manifest") };
+        assert_eq!(manifest.back.as_deref(), Some(back));
     }
 }
 #[test]
@@ -890,7 +890,7 @@ fn connecting_uses_the_apps_way_for_its_words() {
             "my-app is connected to temper, and installed nowhere yet. Install it, and choose the repositories temper may use.",
         ),
     ] {
-        let mut parts = github_rows(false).get(0).unwrap().clone().into_parts();
+        let mut parts = github_rows(false).get(0).unwrap().clone();
         parts.app = app;
         let mut rows = List::with_capacity(1);
         rows.push(parts).unwrap();
@@ -1015,7 +1015,7 @@ fn admin_row(
     first: Option<w::FirstRepository>,
     web: bool,
 ) -> w::ForgeRow {
-    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Managed, connection, w::Offer::NotOffered).into_parts();
+    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Managed, connection, w::Offer::NotOffered);
     parts.admin = true;
     parts.ended_stop = stop;
     parts.first = first;
@@ -1244,7 +1244,7 @@ fn each_admin_create_step_returns_to_details_with_its_repository() {
 }
 #[test]
 fn admin_ready_uses_the_durable_label_and_repository_link() {
-    let mut parts = admin_row(connected(), None, Some(admin_first(made())), true).into_parts();
+    let mut parts = admin_row(connected(), None, Some(admin_first(made())), true);
     parts.repositories = List::with_capacity(1);
     parts
         .repositories
@@ -1328,8 +1328,8 @@ fn setup_step_words_name_only_forgejo_with_each_fetch_figure() {
                         ),
                     },
             );
-            let mut parts = pinned_rows(connection, pins, pins).get(0).unwrap().clone().into_parts();
-            parts.first = first_rows(w::Connection::Connecting, w::FirstState::Making).get(0).unwrap().first().clone();
+            let mut parts = pinned_rows(connection, pins, pins).get(0).unwrap().clone();
+            parts.first = first_rows(w::Connection::Connecting, w::FirstState::Making).get(0).unwrap().first.clone();
             let mut rows = List::with_capacity(1);
             rows.push(parts).unwrap();
             for address in [
@@ -1430,7 +1430,7 @@ fn the_connected_forge_offers_its_links_as_terminal_commands() {
 #[test]
 fn an_unfinished_github_offers_go_on_before_start_over() {
     let mut rows = github_rows(false);
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.app = Some(w::AppWay::Manifest);
     *rows.get_mut(0).unwrap() = parts;
     let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
@@ -1503,7 +1503,7 @@ fn starting_over_waits_for_the_removal_without_sending_twice() {
 #[test]
 fn a_connected_github_row_shows_the_refused_log_origin() {
     let mut rows = github_rows(true);
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.ended = Some(
         w::ConnectStopped { why: b"Job-log origin refused: https://unrelated.test:443".as_slice().into() },
     );
@@ -1514,7 +1514,7 @@ fn a_connected_github_row_shows_the_refused_log_origin() {
 }
 
 fn tokens_row(connection: w::Connection, stopped: bool) -> w::ForgeRow {
-    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Connected, connection, w::Offer::NotOffered).into_parts();
+    let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Connected, connection, w::Offer::NotOffered);
     if stopped {
         parts.ended = Some(
             w::ConnectStopped {
@@ -1750,7 +1750,7 @@ fn deferred_setups_have_four_steps_and_finish_at_connected() {
     let copies = w::CopyAddresses { addresses: copies };
     for starts_with in [w::StartsWith::Nothing, w::StartsWith::Copies(copies)] {
         for (connection, done) in [(w::Connection::Connecting, 3), (connected(), 4)] {
-            let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered).into_parts();
+            let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered);
             parts.starts_with = starts_with.clone();
             let mut rows = List::with_capacity(1);
             rows.push(parts).unwrap();

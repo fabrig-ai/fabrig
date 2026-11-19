@@ -152,9 +152,9 @@ fn contains(text: &[u8], words: &str) -> bool {
 
 fn assert_line(panel: &w::ChangesPanel, expected: &[(&str, bool)]) {
     let mut red = List::uncapped();
-    for queue in panel.queues() {
-        if queue.red() {
-            red.push(queue.branch()).unwrap();
+    for queue in &panel.queues {
+        if queue.red {
+            red.push(queue.branch.as_ref()).unwrap();
         }
     }
     let parts = landing_line(&LandingFacts::panel(panel, red.as_slice()), &f::words(), &mut Times::new(NOW));
@@ -281,10 +281,10 @@ fn rows_link_to_tasks_show_arriving_origins_and_put_more_last_without_a_link() {
             panic!("changes need no task reads");
         }
     }
-    let mut queue_parts = queue(b"owner/repo", b"main", 3, false).into_parts();
+    let mut queue_parts = queue(b"owner/repo", b"main", 3, false);
     let mut changes = List::with_capacity(3);
     for row in queue_parts.changes.into_boxed() {
-        let mut row = row.into_parts();
+        let mut row = row;
         row.chat = Some(
             w::ChangeFrom { task: 6, title: b"chat".as_slice().into() },
         );
@@ -427,7 +427,7 @@ fn a_searching_train_shows_probing_at_its_prefix() {
     for (step, expected) in
         [(w::LandingStep::Probing, "probing at 3333333"), (w::LandingStep::ProbingByTest, "probing by test at 3333333")]
     {
-        let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
+        let mut busy = queue(b"work/hello", b"main", 1, false);
         busy.way = w::Way::Turn;
         busy.in_flight = Some(
             w::TrainLanding {
@@ -454,7 +454,7 @@ fn a_searching_train_shows_probing_at_its_prefix() {
 
 #[test]
 fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
-    let mut busy = queue(b"work/hello", b"main", 1, false).into_parts();
+    let mut busy = queue(b"work/hello", b"main", 1, false);
     busy.way = w::Way::Turn;
     busy.in_flight = Some(
         w::TrainLanding {
@@ -470,14 +470,14 @@ fn turn_trains_show_the_landing_then_waiters_and_a_free_train() {
                 ready_since: SIX_MIN_AGO,
             },
     );
-    let mut waiting = busy.changes.get(0).unwrap().clone().into_parts();
+    let mut waiting = busy.changes.get(0).unwrap().clone();
     waiting.title = b"Waiting behind".as_slice().into();
     waiting.checks_since = None;
     busy.changes = List::from_boxed(Box::new([waiting]));
-    let mut free = queue(b"work/hello", b"release", 2, false).into_parts();
+    let mut free = queue(b"work/hello", b"release", 2, false);
     free.way = w::Way::Turn;
     for (index, title) in [(0, b"First waiting".as_slice()), (1, b"Second waiting".as_slice())] {
-        let mut row = free.changes.get(index).unwrap().clone().into_parts();
+        let mut row = free.changes.get(index).unwrap().clone();
         row.title = title.into();
         row.task = 71 + u64::from(index);
         row.checks_since = None;

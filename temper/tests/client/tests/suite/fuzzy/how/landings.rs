@@ -67,7 +67,7 @@ impl Drawing {
             {
                 match subject {
                     Watchable::Family { record, .. } => {
-                        match wire::decode_watching(&record.bytes, limits).expect("watch").watch() {
+                        match &wire::decode_watching(&record.bytes, limits).expect("watch").watch {
                             w::Watch::Follows(_) => follows_watch = Some(*watch),
                             w::Watch::Ways(_) => ways_watch = Some(*watch),
                             _ => {}
@@ -89,7 +89,7 @@ impl Drawing {
                     u32::try_from(rng.below(10)).expect("lag"),
                     None,
                 )
-                .into_parts();
+                ;
                 row.number = u32::try_from(number).expect("number");
                 row.source = format!("source-{number}").into_bytes().into_boxed_slice();
                 row
@@ -105,7 +105,7 @@ impl Drawing {
                     dependencies: List::with_capacity(0),
                 }
         });
-        let route = rng.chance(700).then(|| super::path(&mut rng, limits)).filter(|path| !path.stops().is_empty());
+        let route = rng.chance(700).then(|| super::path(&mut rng, limits)).filter(|path| !path.stops.is_empty());
         let members = rng.chance(500).then(|| -> Box<[c::ProjectMember]> {
             Box::new([c::ProjectMember {
                 party: 4,
@@ -117,16 +117,16 @@ impl Drawing {
         });
         let expected = how::follows(panel.as_ref(), route.as_ref(), members.as_deref(), rng.below(5), &[]);
         let sources: Vec<_> =
-            panel.as_ref().map_or_else(Vec::new, |panel| panel.follows().iter().map(w::FollowView::source).collect());
+            panel.as_ref().map_or_else(Vec::new, |panel| panel.follows.iter().map(|row| row.source.as_ref()).collect());
         assert_eq!(
             expected.follows.iter().map(|row| row.source.as_ref()).collect::<Vec<_>>(),
             sources,
             "seed {seed}: follow order"
         );
         let tiers = route.as_ref().is_some_and(|path| {
-            path.stops()
+            path.stops
                 .iter()
-                .any(|stop| *stop.step() == w::PathStep::Verify && matches!(stop.opens(), w::Opens::Tier(_)))
+                .any(|stop| stop.step == w::PathStep::Verify && matches!(&stop.opens, w::Opens::Tier(_)))
         });
         assert_eq!(expected.tiers.is_some(), tiers, "seed {seed}: verify tiers only");
         for (watch, bytes) in [

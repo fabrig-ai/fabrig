@@ -13,7 +13,7 @@ fn request(duties: &Duties) -> Option<(skein_lib::Token, f::FileFinding)> {
         }
         let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).unwrap();
         let reading = wire::decode_requesting(envelope.record(), &f::CEILINGS).unwrap();
-        if let f::Request::FileFinding(file) = reading.request() {
+        if let f::Request::FileFinding(file) = &reading.request {
             return Some((*exchange, file.clone()));
         }
     }
@@ -77,10 +77,10 @@ fn tell_files_in_the_screens_project_and_says_each_outcome_once() {
             host.words()
         );
         let (exchange, file) = sent.unwrap();
-        assert_eq!(file.project(), 3);
-        assert_eq!(file.title(), WORDS);
-        assert_eq!(file.body(), b"The export button is grey\n\nPage: /projects/3");
-        assert_eq!(file.area(), &None);
+        assert_eq!(file.project, 3);
+        assert_eq!(file.title.as_ref(), WORDS);
+        assert_eq!(file.body.as_ref(), b"The export button is grey\n\nPage: /projects/3");
+        assert_eq!(&file.area, &None);
         assert_eq!(host.words(), []);
         assert_eq!(host.root.pages().tell().unwrap().words.as_ref(), WORDS);
         answer(

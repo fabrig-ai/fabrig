@@ -1,6 +1,7 @@
 //! Agent fixtures come from the stock figures' writer, not a retained document.
 //!
 //! temper/docs/design/testing/README.md, 5.
+use temper_client_protocol_wire::v1::Record;
 use serde_json::Value;
 
 pub mod providers;
@@ -232,10 +233,10 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
     let value = w::AgentFigures {
             profile,
             endpoints: limits,
-            fallback: temper_engine_service_stock::stock::agents().fallback().clone(),
+            fallback: temper_engine_service_stock::stock::agents().fallback.clone(),
         };
-    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("setting bytes");
+    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("setting bytes");
     std::fs::write(directory.join("agents.setting"), bytes.finish()).expect("fixture setting copy");
     providers.retain(|provider| {
         endpoints.iter().any(|endpoint| {

@@ -111,7 +111,7 @@ fn the_first_step_says_the_figure_until_it_is_fetched() {
             };
             let mut rows = forge::first_rows(connection, w::FirstState::Making);
             if pins {
-                let mut parts = rows.as_slice()[0].clone().into_parts();
+                let mut parts = rows.as_slice()[0].clone();
                 parts.owned = Some(
                     w::OwnedForge {
                             forgejo: b"17.0.1".as_slice().into(),

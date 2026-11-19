@@ -34,7 +34,7 @@ fn group_counts_agree_on_homes_and_needs_intro() {
     ] {
         rows.push(f::groups::row(number, "Flake", severity, w::FindingKind::Flake, 16));
     }
-    let mut own = f::groups::row(11, "My finding", w::Severity::Medium, w::FindingKind::Review, 24).into_parts();
+    let mut own = f::groups::row(11, "My finding", w::Severity::Medium, w::FindingKind::Review, 24);
     own.holder = w::Holder::Party(w::HolderParty { number: 1 });
     let mine = [own];
     let groups = [
@@ -691,7 +691,7 @@ fn home_repository_states_keep_their_words_and_events() {
                 super::connect_forge::connected(),
                 w::Offer::NotOffered,
             )
-            .into_parts();
+            ;
             parts.installations = List::with_capacity(1);
             parts
                 .installations
@@ -1565,7 +1565,7 @@ fn home_lede_joins_only_the_facts_it_holds() {
     ] {
         for forge in ["here", "remote", "none", "disconnected", "fake"] {
             let mut rows = forge_rows(true);
-            let mut parts = rows.get(0).expect("forge row").clone().into_parts();
+            let mut parts = rows.get(0).expect("forge row").clone();
             match forge {
                 "remote" => parts.mode = w::Mode::Managed,
                 "disconnected" => parts.connection = w::Connection::NotConnected,
@@ -2968,7 +2968,7 @@ fn the_byline_says_its_clock() {
 const COPY_ADDRESSES: [&[u8]; 2] = [b"https://github.com/acme/widget", b"https://github.com/acme/other"];
 fn copy_forges(states: &[Option<w::MakingState>], unasked: bool) -> List<w::ForgeRow> {
     let rows = forge_rows(false);
-    let mut row = rows.get(0).unwrap().clone().into_parts();
+    let mut row = rows.get(0).unwrap().clone();
     row.first = None;
     let mut addresses = List::with_capacity(2);
     for address in COPY_ADDRESSES.iter().take(states.len()) {
@@ -3107,7 +3107,7 @@ fn home_unasked_copies_offer_the_filled_addresses_and_one_copy_act_in_both_shell
 }
 
 fn add_rows() -> List<w::ForgeRow> {
-    let mut row = forge_rows(false).get(0).unwrap().clone().into_parts();
+    let mut row = forge_rows(false).get(0).unwrap().clone();
     row.first = None;
     row.starts_with = w::StartsWith::Nothing;
     List::from_boxed(Box::new([row]))
@@ -3214,7 +3214,7 @@ fn home_add_sheet_says_welcome_validation_alerts_in_both_shells() {
 }
 #[test]
 fn home_empty_making_has_its_own_words_in_both_shells() {
-    let mut row = add_rows().get(0).unwrap().clone().into_parts();
+    let mut row = add_rows().get(0).unwrap().clone();
     row.makings = List::from_boxed(Box::new([w::RepositoryMaking {
             org: b"work".as_slice().into(),
             name: b"hello".as_slice().into(),
@@ -3313,7 +3313,7 @@ fn the_kicker_reads_since_to_now() {
 fn the_kicker_reads_since_to_its_end_once_off() {
     for until in [false, true] {
         let mut away = away_fixture(1);
-        let mut spell = away.spell.take().unwrap().into_parts();
+        let mut spell = away.spell.take().unwrap();
         let end = STATUS_NOW - 10 * STATUS_MINUTE;
         if until {
             spell.until = Some(end);
@@ -3416,7 +3416,7 @@ fn spell_intro_without_decisions_uses_the_needs_sentence() {
     ] {
         let mut away = away_fixture(0);
         if off {
-            let mut spell = away.spell.take().unwrap().into_parts();
+            let mut spell = away.spell.take().unwrap();
             spell.off = Some(STATUS_NOW - 10 * STATUS_MINUTE);
             away.spell = Some(spell);
         }
@@ -3544,7 +3544,7 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                 jig_client::UnlinkedRequest::Down { down: Down::Open { watch, subject: Watchable::Family { record, .. } } },
         } = request
             && let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS)
-            && let w::Watch::Findings(subject) = watching.watch()
+            && let w::Watch::Findings(subject) = &watching.watch
         {
             let holder =
                 w::Holder::Party(w::HolderParty { number: 1 });
@@ -3553,7 +3553,7 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                 capacity = capacity.checked_add(count).unwrap();
             }
             let mut rows = List::with_capacity(capacity);
-            if subject.project() == f::PROJECT {
+            if subject.project == f::PROJECT {
                 delivered = true;
                 for (severity, count) in
                     [w::Severity::High, w::Severity::Medium, w::Severity::Low].into_iter().zip(counts)
@@ -3578,7 +3578,7 @@ fn finding_home(address: Address, counts: [u32; 3], cut: bool, question: bool, a
                 }
             }
             let document = w::Findings {
-                    project: subject.project(),
+                    project: subject.project,
                     rows,
                     areas: List::with_capacity(0),
                     triager: None,
@@ -3766,8 +3766,8 @@ fn a_row_says_title_and_clock() {
         (w::ReachKind::Retry, w::ReachClass::Ask, w::ReachReason::Kind, false, None),
     ] {
         let mut away = away_fixture(1);
-        let mut parts = away.rows.get(0).unwrap().clone().into_parts();
-        let mut reach = parts.reach.into_parts();
+        let mut parts = away.rows.get(0).unwrap().clone();
+        let mut reach = parts.reach;
         reach.kind = kind;
         reach.class = class;
         reach.reason = reason;
@@ -3829,7 +3829,7 @@ fn an_unread_task_says_task_n() {
 fn assert_decision_end(state: d::pages::decided::DecisionTask, overturned: bool, late: &str) {
     let mut away = away_fixture(1);
     away.state = state;
-    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    let mut row = away.rows.get(0).unwrap().clone();
     row.overturned = overturned;
     *away.rows.get_mut(0).unwrap() = row;
     let root = default_away(away);
@@ -3903,7 +3903,7 @@ fn away_needs_head_is_still_only_while_needs_show() {
 #[test]
 fn the_oldest_expiry_wakes_home() {
     let mut away = away_fixture(1);
-    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    let mut row = away.rows.get(0).unwrap().clone();
     row.at = STATUS_NOW - 86_400_000_000_000 + 30_000_000_000;
     *away.rows.get_mut(0).unwrap() = row;
     let root = default_away(away);
@@ -3933,7 +3933,7 @@ fn a_live_row_offers_overturn() {
 #[test]
 fn an_overturned_row_offers_none() {
     let mut away = away_fixture(1);
-    let mut row = away.rows.get(0).unwrap().clone().into_parts();
+    let mut row = away.rows.get(0).unwrap().clone();
     row.overturned = true;
     *away.rows.get_mut(0).unwrap() = row;
     let root = default_away(away);

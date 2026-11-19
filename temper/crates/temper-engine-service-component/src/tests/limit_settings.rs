@@ -385,7 +385,7 @@ fn a_written_store_resolves_both_kinds_before_a_restarted_engine_restores() {
 
 fn agents_with_payload(payload: u32) -> f::AgentFigures {
     use temper_client_protocol_wire::v1 as w;
-    let mut parts = crate::stock::agents().into_parts();
+    let mut parts = crate::stock::agents();
     parts.profile = List::from_boxed(Box::new([w::AgentFigure { name: b"declared.tool_payload".as_slice().into(), value: u64::from(payload) }]));
     parts
 }

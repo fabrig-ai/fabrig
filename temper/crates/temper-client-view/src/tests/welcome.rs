@@ -56,8 +56,8 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                == &w::Read::Deployment
+            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+                == w::Read::Deployment
         {
             return (root, *read);
         }
@@ -1216,7 +1216,7 @@ fn a_kept_real_forge_hides_the_playground() {
     cases.push(forge::rows(forge::connected(), w::Offer::Offered));
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
         let mut rows = forge::github_rows(false);
-        let mut parts = rows.get(0).unwrap().clone().into_parts();
+        let mut parts = rows.get(0).unwrap().clone();
         parts.app = Some(app);
         *rows.get_mut(0).unwrap() = parts;
         cases.push(rows);
@@ -1390,7 +1390,7 @@ fn a_failed_model_keeps_the_welcomes_sign_in_back() {
 
 fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     let mut rows = forge::github_rows(true);
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.repositories = skein_lib::List::with_capacity(1);
     parts
         .repositories
@@ -1420,7 +1420,7 @@ fn managed_forgejo_ready_uses_the_default_checklist() {
     // Forge 4 is Forgejo elsewhere in the standalone configuration.
     const ELSEWHERE: u16 = 4;
     let mut rows = owned_adopted_rows();
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.number = ELSEWHERE;
     parts.mode = w::Mode::Managed;
     parts.admin = true;
@@ -1902,9 +1902,9 @@ fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::T
         } = request
         {
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-            if reading.read() == &w::Read::Deployment {
+            if reading.read == w::Read::Deployment {
                 f::deliver_deployment(&mut root, *read, true, true);
-            } else if reading.read() == &w::Read::Playground {
+            } else if reading.read == w::Read::Playground {
                 playground = Some(*read);
             }
         }
@@ -2051,13 +2051,13 @@ fn ready_names_its_first_project_in_a_form() {
 fn forge_step_draws_its_status_in_the_column_and_continues() {
     let address = Address::Welcome { step: Step::Forge { forge: Some(d::Choice::Forge(HERE)) } };
     let mut github = forge::github_rows(true);
-    let mut parts = github.get(0).unwrap().clone().into_parts();
+    let mut parts = github.get(0).unwrap().clone();
     let accepted = parts.installations.get(0).unwrap().clone();
     *parts.installations.get_mut(0).unwrap() = parts.installations.get(1).unwrap().clone();
     *parts.installations.get_mut(1).unwrap() = accepted;
     *github.get_mut(0).unwrap() = parts;
     let mut no_first = forge::first_rows(forge::connected(), forge::made());
-    let mut parts = no_first.get(0).unwrap().clone().into_parts();
+    let mut parts = no_first.get(0).unwrap().clone();
     parts.first = None;
     *no_first.get_mut(0).unwrap() = parts;
     for (rows, address, line, done) in [
@@ -2166,7 +2166,7 @@ fn forge_step_keeps_recovery_installation_and_admin_steps_without_view() {
         ),
         w::Offer::Offered,
     );
-    let mut parts = admin.get(1).unwrap().clone().into_parts();
+    let mut parts = admin.get(1).unwrap().clone();
     parts.admin = true;
     let mut rows = skein_lib::List::with_capacity(1);
     rows.push(parts).unwrap();
@@ -2200,11 +2200,11 @@ fn forge_status_keeps_the_complete_login_and_repository() {
     let org = "o".repeat(NAME_BYTES);
     let repository = "r".repeat(NAME_BYTES);
     let mut rows = forge::first_rows(forge::connected(), forge::made());
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.connection = w::Connection::Connected(
         w::Connected { id: 42, login: login.as_bytes().into() },
     );
-    let mut first = parts.first.take().unwrap().into_parts();
+    let mut first = parts.first.take().unwrap();
     first.org = org.as_bytes().into();
     first.repository = repository.as_bytes().into();
     parts.first = Some(first);
@@ -2926,7 +2926,7 @@ fn ready_copies_name_the_project_and_lead_in_both_shells() {
         ),
     ] {
         let mut rows = owned_adopted_rows();
-        let mut parts = rows.get(0).unwrap().clone().into_parts();
+        let mut parts = rows.get(0).unwrap().clone();
         parts.first = None;
         parts.repositories.clear();
         let mut copies = skein_lib::List::with_capacity(temper_client_protocol_wire::FIRST_COPIES);

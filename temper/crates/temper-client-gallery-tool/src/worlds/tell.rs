@@ -90,7 +90,7 @@ fn fill(root: &mut Domain, reader: u64, out: &mut Queue<temper_client_domain::Re
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| matches!(watching.watch(), w::Watch::Findings(_))) =>
+                    .is_some_and(|watching| matches!(&watching.watch, w::Watch::Findings(_))) =>
             {
                 step(
                     root,

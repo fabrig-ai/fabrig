@@ -1,4 +1,5 @@
 //! Seeded visitor record decoding (temper/docs/design/client/forge/README.md, 9.4).
+use temper_client_protocol_wire::v1::Record;
 use skein_lib::{List, Reader, Rng, Writer};
 use temper_client_protocol_wire::public_v1 as w;
 
@@ -30,14 +31,14 @@ macro_rules! decode {
     ($record:ident, $reader:ident, $refuse:ident, $path:ident) => {{
         let result = w::$record::decode(&w::CEILINGS, &mut $reader);
         if $refuse {
-            assert_eq!(result.as_ref().expect_err("length past ceiling must be refused").path, w::Path::$path);
+            assert_eq!(result.as_ref().expect_err("length past ceiling must be refused").path, w::paths::$path);
         }
         if let Ok(record) = result {
             if !$reader.is_empty() {
                 return None;
             }
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length"));
-            record.encode(&mut writer).expect("measured room");
+            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings")).expect("measured length"));
+            record.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("measured room");
             Some(writer.finish())
         } else {
             None
@@ -48,9 +49,9 @@ macro_rules! decode {
 fn decode(kind: Kind, bytes: &[u8], refuse: bool) -> Option<Box<[u8]>> {
     let mut reader = Reader::new(bytes);
     match kind {
-        Kind::Change => decode!(PublicChange, reader, refuse, PublicChangeGates),
-        Kind::Landings => decode!(PublicLandings, reader, refuse, PublicLandingsLandings),
-        Kind::Landing => decode!(PublicLanding, reader, refuse, PublicLandingMembers),
+        Kind::Change => decode!(PublicChange, reader, refuse, PUBLIC_CHANGE_GATES),
+        Kind::Landings => decode!(PublicLandings, reader, refuse, PUBLIC_LANDINGS_LANDINGS),
+        Kind::Landing => decode!(PublicLanding, reader, refuse, PUBLIC_LANDING_MEMBERS),
     }
 }
 
@@ -116,16 +117,16 @@ fn fixed(kind: Kind, golden: &[u8], length_at: usize, ceiling: u32) {
 fn bound_records() -> [(Kind, Box<[u8]>, usize, u32); 3] {
     let limits = &w::CEILINGS;
     let change = change(limits);
-    let mut writer = Writer::new(usize::try_from(change.measure()).expect("seed 1: measured length"));
-    change.encode(&mut writer).expect("seed 1: measured room");
+    let mut writer = Writer::new(usize::try_from(change.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings")).expect("seed 1: measured length"));
+    change.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("seed 1: measured room");
     let change = writer.finish();
     let landings = landings(limits);
-    let mut writer = Writer::new(usize::try_from(landings.measure()).expect("seed 1: measured length"));
-    landings.encode(&mut writer).expect("seed 1: measured room");
+    let mut writer = Writer::new(usize::try_from(landings.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings")).expect("seed 1: measured length"));
+    landings.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("seed 1: measured room");
     let landings = writer.finish();
     let landing = landing(limits);
-    let mut writer = Writer::new(usize::try_from(landing.measure()).expect("seed 1: measured length"));
-    landing.encode(&mut writer).expect("seed 1: measured room");
+    let mut writer = Writer::new(usize::try_from(landing.measure(&temper_client_protocol_wire::public_v1::CEILINGS).expect("within ceilings")).expect("seed 1: measured length"));
+    landing.write(&temper_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("seed 1: measured room");
     let landing = writer.finish();
     [
         (Kind::Change, change, CHANGE_LENGTH, limits.public_change_gates),

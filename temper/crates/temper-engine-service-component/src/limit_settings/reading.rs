@@ -1,4 +1,5 @@
 //! The service's paged, unified limits read (configuration/limit-settings.md, 2.4 and 7).
+use w::Record;
 use super::LimitSettings;
 use alloc::boxed::Box;
 use jig_domain_core::settings::Override;
@@ -16,7 +17,7 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
         let setting = setting(&state.jig, name.name.as_bytes(), w::LimitKind::Jig, bounds).ok()?;
         let in_force = (name.value)(&state.in_force.jig);
         let wanted = match &setting {
-            Some(setting) => setting.value(),
+            Some(setting) => setting.value,
             None => match &desired {
                 Some(desired) => (name.value)(&desired.jig),
                 None => (name.value)(&stock.jig),
@@ -38,13 +39,13 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
                 left_out: false,
                 held: None,
             };
-        rows.insert(row.name().into(), row).ok()?;
+        rows.insert(row.name.clone(), row).ok()?;
     }
     for name in &own::NAMES {
         let setting = setting(&state.temper, name.name.as_bytes(), w::LimitKind::Temper, bounds).ok()?;
         let in_force = (name.value)(&state.in_force.temper);
         let wanted = match &setting {
-            Some(setting) => setting.value(),
+            Some(setting) => setting.value,
             None => match &desired {
                 Some(desired) => (name.value)(&desired.temper),
                 None => (name.value)(&stock.temper),
@@ -69,7 +70,7 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
                 left_out: false,
                 held: if name.name == "transcript_memory" { Some(held) } else { None },
             };
-        rows.insert(row.name().into(), row).ok()?;
+        rows.insert(row.name.clone(), row).ok()?;
     }
     for (kind, values) in [(w::LimitKind::Jig, &state.jig), (w::LimitKind::Temper, &state.temper)] {
         for item in values {
@@ -127,7 +128,9 @@ fn setting(
 ) -> Result<Option<w::LimitSetting>, w::Problem> {
     for item in values {
         if item.name.as_ref() == name {
-            return Ok(Some(w::LimitSetting { kind, value: item.value, reason: item.reason.clone() }));
+            let value = w::LimitSetting { kind, value: item.value, reason: item.reason.clone() };
+            value.measure(bounds)?;
+            return Ok(Some(value));
         }
     }
     Ok(None)

@@ -284,7 +284,7 @@ fn a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it() 
         let panel = world.root(client).person().forge().panel().expect("task page panel");
         assert_eq!(panel.handle, Some(handle));
         if let State::Shown(record) = &panel.state {
-            assert_eq!(record.task(), task);
+            assert_eq!(record.task, task);
             assert!(world.front().watching_change(client, task));
             return;
         }

@@ -129,7 +129,7 @@ fn fill(root: &mut d::Domain, mut out: Queue<Request>) {
                 )
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
-                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch().clone()) {
+                match wire::decode_watching(&record.bytes, &w::CEILINGS).map(|w| w.watch.clone()) {
                     Some(w::Watch::Findings(_)) => family(root, watch, wire::findings(&findings())),
                     Some(w::Watch::Decided(_)) => {
                         let row = w::Decision {
@@ -374,7 +374,7 @@ fn sent(out: &Queue<Request>) -> (Token, w::FileFinding) {
                 },
         } = request
             && let w::Request::FileFinding(file) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request()
+                &wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             sends.push((*attempt, file.clone()));
         }
@@ -411,7 +411,7 @@ fn tell_filing_is_once_refusal_keeps_words_and_filed_clears_with_a_toast() {
     let file = named(&view, Role::Button, "File it");
     let action = crate::act(&mut view, file, UiAct::Press).unwrap();
     let (attempt, filing) = sent(&event(&mut root, Event::Act { action: action.clone() }));
-    assert_eq!(filing.body(), b"The flake is back\n\nPage: /projects/1/talk/52 (Prover)");
+    assert_eq!(filing.body.as_ref(), b"The flake is back\n\nPage: /projects/1/talk/52 (Prover)");
     let again = event(&mut root, Event::Act { action });
     let mut sends = 0_usize;
     for request in &again {

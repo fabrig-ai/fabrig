@@ -67,7 +67,7 @@ fn deliver(root: &mut Domain, watch: Token, panel: &w::ChangePanel) {
 }
 
 fn parts(step: w::Step) -> w::ChangePanel {
-    let mut parts = p::panel(TASK, step).into_parts();
+    let mut parts = p::panel(TASK, step);
     parts.owner = Box::from(*b"acme");
     parts.name = Box::from(*b"shop");
     parts.branch = Box::from(*b"temper/9");
@@ -181,7 +181,7 @@ fn a_full_bound_panel_fits_the_production_tree_text_and_links() {
     assert_eq!(styled(tree, look::GATE).len(), 65);
     assert_eq!(styled(tree, look::STEP).len(), 6);
     let text = f::text(tree);
-    assert!(position(&text, panel.branch()).is_some());
+    assert!(position(&text, &panel.branch).is_some());
     for task in 1_u64..=64 {
         assert!(f::find(tree, Role::Link, &task_name(task)).is_some());
     }

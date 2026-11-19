@@ -1415,7 +1415,7 @@ fn a_brief_can_be_new_by_landing_or_by_when_it_was_written() {
         parts.previous = previous;
         let document = parts;
         facts.status = home::Status::Shown(Box::new(document.clone()));
-        assert_eq!(facts.brief(), if shown { document.brief().as_ref() } else { None });
+        assert_eq!(facts.brief(), if shown { document.brief.as_ref() } else { None });
     }
 }
 
@@ -1762,10 +1762,10 @@ fn restarting_offers_only_unasked_copies_under_the_ready_keys_once_while_out() {
     let sends = copy_sends(copy_act(&mut f.root, Act::CopyOffered));
     assert_eq!(sends.len(), 1);
     assert_eq!(sends[0].1, forge::copy_key(2));
-    assert_eq!(&sends[0].2.org, b"acme");
-    assert_eq!(&sends[0].2.name, b"other");
-    assert_eq!(w::MakeRepository::into(sends[0].2).as_ref().unwrap().project(), f::PROJECT);
-    assert!(!w::MakeRepository::into(sends[0].2).as_ref().unwrap().home());
+    assert_eq!(sends[0].2.org.as_ref(), b"acme");
+    assert_eq!(sends[0].2.name.as_ref(), b"other");
+    assert_eq!((sends[0].2).into.as_ref().unwrap().project(), f::PROJECT);
+    assert!(!(sends[0].2).into.as_ref().unwrap().home());
     assert!(copy_sends(copy_act(&mut f.root, Act::CopyOffered)).is_empty());
     crate::route::told(
         &mut f.root,
@@ -1786,7 +1786,7 @@ fn retry_copies_the_failed_rows_source_and_into_under_its_own_key_once_while_out
     let sends = copy_sends(copy_act(&mut f.root, act.clone()));
     assert_eq!(sends.len(), 1);
     assert_eq!(&sends[0].2.from, &making.from);
-    assert_eq!(w::MakeRepository::into(sends[0].2), w::RepositoryMaking::into(making));
+    assert_eq!(&(sends[0].2).into, &(making).into);
     let number = skein_lib::Decimal::of(sends[0].0.number);
     let label = skein_lib::bytes::concat(&[b"home-copy-again-", number.as_bytes()]);
     assert_eq!(sends[0].1, crate::key::named(crate::key::TOOLS, &crate::key::Name::new(&label).unwrap()));
@@ -2119,7 +2119,7 @@ fn the_seven_newest_are_kept_oldest_first() {
         (w::ReachReason::Set(w::ReachSet { number: 0 }), false),
     ] {
         let mut parts = decision(1, 100);
-        let mut reach = parts.reach.clone().into_parts();
+        let mut reach = parts.reach.clone();
         reach.reason = reason;
         parts.reach = reach;
         decisions(&mut f, &[parts.clone()]);

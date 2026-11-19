@@ -60,7 +60,7 @@ fn the_deployment_command_is_published_only_by_a_standalone_start() {
             panic!("deployment answer")
         };
         let answer = wire::decode_deployment_answer(&record.unwrap(), &w::CEILINGS).unwrap();
-        assert_eq!(answer.program_login().as_deref(), if standalone { Some(line.as_slice()) } else { None });
+        assert_eq!(answer.program_login.as_deref(), if standalone { Some(line.as_slice()) } else { None });
     }
 }
 

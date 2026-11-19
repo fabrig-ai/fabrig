@@ -1,4 +1,5 @@
 //! Scripted public core and forbidden sources (temper/docs/design/client/forge/README.md, 9.5).
+use temper_client_protocol_wire::v1::Record;
 use crate::{REPO, World, changes, landings};
 use skein_fake_forge_domain::api as raw;
 use skein_lib::{Duration, Reader};

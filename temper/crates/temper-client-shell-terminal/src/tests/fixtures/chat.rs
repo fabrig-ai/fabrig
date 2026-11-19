@@ -141,8 +141,8 @@ fn first_run_words(
                     },
             } if temper_client_protocol_wire::decode_watching(&record.bytes, &wire_limits())
                 .expect("forge watch")
-                .watch()
-                == &temper_client_protocol_wire::v1::Watch::Forges =>
+               .watch
+                == temper_client_protocol_wire::v1::Watch::Forges =>
             {
                 Some(jig_client::Up::FamilyDelivered {
                     watch,
@@ -162,7 +162,7 @@ fn first_run_words(
                 && matches!(
                     temper_client_protocol_wire::decode_watching(&record.bytes, &wire_limits())
                         .expect("ways watch")
-                        .watch(),
+                       .watch,
                     temper_client_protocol_wire::v1::Watch::Ways(_)
                 ) =>
             {
@@ -271,8 +271,8 @@ fn first_run_words(
                     },
             } if temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
                 .expect("forge reading")
-                .read()
-                == &temper_client_protocol_wire::v1::Read::Deployment =>
+               .read
+                == temper_client_protocol_wire::v1::Read::Deployment =>
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 Some(jig_client::Up::ReadDone {
@@ -298,8 +298,8 @@ fn first_run_words(
             } if landed
                 && temper_client_protocol_wire::decode_reading(&record.bytes, &wire_limits())
                     .expect("forge reading")
-                    .read()
-                    == &temper_client_protocol_wire::v1::Read::Playground =>
+                   .read
+                    == temper_client_protocol_wire::v1::Read::Playground =>
             {
                 Some(jig_client::Up::ReadDone {
                     read,
@@ -316,7 +316,7 @@ fn first_run_words(
                     },
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
+                if let w::Read::Setting(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
                     Some(jig_client::Up::ReadDone {
                         read,
                         result: jig_client::Readout::Family {
@@ -615,7 +615,7 @@ fn demo_answer() -> Box<[u8]> {
 
 fn demo_forges() -> Box<[u8]> {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let limits = wire_limits();
+
     let mut forges = skein_lib::List::with_capacity(1);
     forges
         .push(

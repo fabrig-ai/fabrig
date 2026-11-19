@@ -1,4 +1,5 @@
 //! Typed engine records for the two sizes of Work's project.
+use temper_client_protocol_wire::v1::Record;
 use super::*;
 use jig_client::contract as c;
 use jig_client_test_records as records;
@@ -294,7 +295,7 @@ impl Project {
             closed.parts = List::from_boxed(Box::new([temper_fixtures::client_documents::chat_part(None)]));
             project.closed.push(closed);
         }
-        let mut panel = project.changes.into_parts();
+        let mut panel = project.changes;
         let mut queued = List::with_capacity(changes);
         let mut landed = List::with_capacity(changes);
         for n in 0..changes {
@@ -352,7 +353,7 @@ impl Project {
         panel.landed = landed.clone();
         panel.landed_default = landed;
         project.changes = panel;
-        let mut panel = project.drafts.into_parts();
+        let mut panel = project.drafts;
         for n in 0..drafts {
             panel
                 .drafts
@@ -517,7 +518,7 @@ impl Project {
     }
     fn family_read(bytes: &[u8]) -> Box<[u8]> {
         let reading = wire::decode_reading(bytes, &f::CEILINGS).expect("family read");
-        match reading.read() {
+        match &reading.read {
             f::Read::Playground => wire::playground_answer(
                 &f::PlaygroundAnswer {
                         forge: wire::FORGE,
@@ -543,13 +544,13 @@ impl Project {
     }
     fn family_watch(&self, bytes: &[u8]) -> Box<[u8]> {
         let watching = wire::decode_watching(bytes, &f::CEILINGS).expect("family watch");
-        match watching.watch() {
+        match &watching.watch {
             f::Watch::Changes(subject) => {
-                assert_eq!(subject.project(), PROJECT, "the project's changes");
+                assert_eq!(subject.project, PROJECT, "the project's changes");
                 wire::changes_panel(&self.changes)
             }
             f::Watch::Drafts(subject) => {
-                assert_eq!(subject.project(), PROJECT, "the project's drafts");
+                assert_eq!(subject.project, PROJECT, "the project's drafts");
                 wire::drafts_panel(&self.drafts)
             }
             f::Watch::Dismissed => {
@@ -569,7 +570,7 @@ impl Project {
             f::Watch::Trials => {
                 let record =
                     f::Trials { rows: List::with_capacity(0) };
-                encoded(record.measure(), |w| record.encode(w))
+                record.encode(&f::CEILINGS).expect("trials within ceilings")
             }
             f::Watch::Approvals => wire::approvals(
                 &f::Approvals { rows: List::with_capacity(0), more: 0 },

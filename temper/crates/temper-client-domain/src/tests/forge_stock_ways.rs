@@ -799,7 +799,7 @@ fn later_documents_keep_the_tab_key_and_only_the_same_stops_card() {
                     Refresh::Words => stop.words = b"changed words".as_slice().into(),
                     Refresh::Actor => stop.actor = w::Actor::Code,
                     Refresh::Card => {
-                        let mut card = stop.card.into_parts();
+                        let mut card = stop.card;
                         card.who = b"New details".as_slice().into();
                         stop.card = card;
                     }

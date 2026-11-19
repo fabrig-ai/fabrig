@@ -110,7 +110,7 @@ fn project_rows(count: u32, repository: &[u8]) -> List<temper_client_protocol_wi
         super::connect_forge::connected(),
         w::Offer::Offered,
     )
-    .into_parts();
+    ;
     row.repositories = List::with_capacity(count);
     for _ in 0..count {
         row.repositories
@@ -1329,11 +1329,11 @@ fn repository_pages() -> [Address; 4] {
     ]
 }
 fn linked_rows() -> List<temper_client_protocol_wire::v1::ForgeRow> {
-    use temper_client_protocol_wire::v1 as w;
+    
     let rows = super::connect_forge::first_rows(super::connect_forge::connected(), super::connect_forge::made());
-    let mut row = rows.get(0).unwrap().clone().into_parts();
+    let mut row = rows.get(0).unwrap().clone();
     let adopted = project_rows(1, b"hello");
-    row.repositories = adopted.get(0).unwrap().clone().into_parts().repositories;
+    row.repositories = adopted.get(0).unwrap().clone().repositories;
     let mut rows = List::with_capacity(1);
     rows.push(row).unwrap();
     rows

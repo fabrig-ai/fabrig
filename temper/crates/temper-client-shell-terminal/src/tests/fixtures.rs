@@ -281,10 +281,9 @@ fn populate_page(
                     },
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                if let w::Read::Setting(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
+                if let w::Read::Setting(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
                     let value =
-                        w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value: None })
-                            .unwrap();
+                        w::SettingAnswer { revision: None, value: None };
                     client::step(
                         root,
                         env,
@@ -311,13 +310,11 @@ fn populate_page(
             } => {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("fixture family watch");
-                if let w::Watch::Changes(subject) = watching.watch() {
+                if let w::Watch::Changes(subject) = &watching.watch {
                     let mut changes = skein_lib::List::with_capacity(1);
                     changes
                         .push(
-                            w::ChangesQueued::new(
-                                &w::CEILINGS,
-                                w::ChangesQueuedParts {
+                            w::ChangesQueued {
                                     goal: None,
                                     chat: None,
                                     milestone: None,
@@ -326,16 +323,12 @@ fn populate_page(
                                     ready_since: 0,
                                     checks_since: Some(0),
                                 },
-                            )
-                            .unwrap(),
                         )
                         .unwrap();
                     let mut queues = skein_lib::List::with_capacity(1);
                     queues
                         .push(
-                            w::ChangesQueue::new(
-                                &w::CEILINGS,
-                                w::ChangesQueueParts {
+                            w::ChangesQueue {
                                     way: w::Way::Queue,
                                     in_flight: None,
                                     repository: b"owner/repo".as_slice().into(),
@@ -343,16 +336,12 @@ fn populate_page(
                                     red: false,
                                     changes,
                                 },
-                            )
-                            .unwrap(),
                         )
                         .unwrap();
                     let mut landed = skein_lib::List::with_capacity(1);
                     landed
                         .push(
-                            w::ChangesLanded::new(
-                                &w::CEILINGS,
-                                w::ChangesLandedParts {
+                            w::ChangesLanded {
                                     goal: None,
                                     chat: None,
                                     milestone: None,
@@ -363,24 +352,18 @@ fn populate_page(
                                     title: b"A landed change".as_slice().into(),
                                     at: 0,
                                 },
-                            )
-                            .unwrap(),
                         )
                         .unwrap();
-                    let panel = w::ChangesPanel::new(
-                        &w::CEILINGS,
-                        w::ChangesPanelParts {
+                    let panel = w::ChangesPanel {
                             landed_default: skein_lib::List::with_capacity(0),
                             landed_default_more: 0,
-                            project: subject.project(),
+                            project: subject.project,
                             landing: b"main".as_slice().into(),
                             queues,
                             more: 0,
                             landed,
                             landed_more: 0,
-                        },
-                    )
-                    .unwrap();
+                        };
                     client::step(
                         root,
                         env,

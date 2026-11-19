@@ -1,0 +1,141 @@
+temper/crates/temper-client-gallery-tool/src/needs.rs:225 None expected expression, found `.`
+temper/crates/temper-client-gallery-tool/src/needs.rs:225 None expected expression, found `.`
+temper/crates/temper-client-gallery-tool/src/needs.rs:615 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/needs.rs:615 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/needs.rs:615 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/needs.rs:615 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/needs.rs:616 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/needs.rs:615 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/needs.rs:616 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/needs.rs:615 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/samples.rs:3079 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/samples.rs:3079 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/samples.rs:3080 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/samples.rs:3079 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/samples.rs:3079 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/samples.rs:3079 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/samples.rs:3080 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/samples.rs:3079 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/team.rs:99 E0277 can't compare `std::boxed::Box<[u8]>` with `[u8; 10]`
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:154 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:154 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:155 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:154 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:63 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:63 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:64 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:63 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:93 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:93 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:94 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:93 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:242 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:359 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:663 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:664 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:672 E0599 no method named `step` found for mutable reference `&mut temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:673 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/team.rs:99 E0277 can't compare `std::boxed::Box<[u8]>` with `[u8; 10]`
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:728 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:728 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:729 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:744 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:744 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:745 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:154 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:154 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:766 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:766 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:767 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:155 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:728 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:744 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/rail_work.rs:154 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:766 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:63 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:63 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:64 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:63 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:362 E0599 no method named `kind` found for reference `&&temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:93 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:93 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:94 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:93 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:362 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:402 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::FollowParity` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:242 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:578 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:578 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:359 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:579 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:578 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:663 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:664 E0599 no method named `step` found for reference `&temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:672 E0599 no method named `step` found for mutable reference `&mut temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:673 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::Stop` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1051 E0277 can't compare `std::boxed::Box<[u8]>` with `[u8; 5]`
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:728 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:728 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:729 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:744 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:744 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:745 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1259 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:766 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:766 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:767 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:728 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:744 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1281 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/ways.rs:766 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1328 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:362 E0599 no method named `kind` found for reference `&&temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:362 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:402 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::FollowParity` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:578 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:578 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:579 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds/whole_story.rs:578 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5052 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5052 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1051 E0277 can't compare `std::boxed::Box<[u8]>` with `[u8; 5]`
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5053 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5052 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1259 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5243 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5243 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1281 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5244 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5255 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5255 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1328 E0599 no method named `into_parts` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5256 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5263 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5263 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5264 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5243 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5255 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5263 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5052 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5052 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5053 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5052 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5243 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5243 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5244 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5255 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5255 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5256 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/needs.rs:637 unused_variables unused variable: `b`
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5263 E0061 this method takes 1 argument but 0 arguments were supplied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5263 E0277 the trait bound `usize: TryFrom<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5264 E0308 mismatched types
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5243 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5255 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/worlds.rs:5263 E0277 the trait bound `usize: From<Result<u32, Problem<Limits>>>` is not satisfied
+temper/crates/temper-client-gallery-tool/src/needs.rs:637 unused_variables unused variable: `b`
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1358 unused_variables unused variable: `limits`
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1595 unused_variables unused variable: `limits`
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1358 unused_variables unused variable: `limits`
+temper/crates/temper-client-gallery-tool/src/worlds.rs:1595 unused_variables unused variable: `limits`
+diagnostics 140

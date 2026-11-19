@@ -318,10 +318,10 @@ impl Frame {
                     let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
                         .expect("adoption envelope");
                     let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
-                    let f::Request::Adopt(adopt) = request.into_parts().request else { panic!("expected adoption") };
-                    assert_eq!(adopt.project(), 3);
+                    let f::Request::Adopt(adopt) = request.request else { panic!("expected adoption") };
+                    assert_eq!(adopt.project, 3);
                     assert_eq!(
-                        (adopt.owner(), adopt.name(), adopt.landing()),
+                        (adopt.owner.as_ref(), adopt.name.as_ref(), adopt.landing.as_ref()),
                         (b"o".as_slice(), b"n".as_slice(), b"main".as_slice())
                     );
                     adopted()

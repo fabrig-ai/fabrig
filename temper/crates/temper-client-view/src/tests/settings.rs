@@ -5,6 +5,7 @@
     clippy::disallowed_macros,
     reason = "ordinary tests inspect semantic subtrees and their links"
 )]
+use temper_client_protocol_wire::v1::Record;
 use super::{connect_forge as cf, fixtures as f};
 use crate::look;
 use jig_client::contract as c;
@@ -355,7 +356,7 @@ fn forge_rows() -> List<w::ForgeRow> {
         (4, w::Kind::Github, w::Mode::Connected, vec![(f::PROJECT, "work", "two")]),
         (5, w::Kind::Forgejo, w::Mode::Fake, vec![(f::PROJECT, "fake", "hidden")]),
     ] {
-        let mut row = cf::row(number, kind, mode, cf::connected(), w::Offer::Offered).into_parts();
+        let mut row = cf::row(number, kind, mode, cf::connected(), w::Offer::Offered);
         row.repositories = List::with_capacity(u32::try_from(repos.len()).unwrap());
         for (project, owner, name) in repos {
             row.repositories
@@ -661,7 +662,7 @@ fn changed_ways(change: &c::ChangeSettings) -> Ways {
     let mut reader = skein_lib::Reader::new(sent_value(change, 7));
     let value = w::ProjectWays::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
-    Ways { drafts: value.drafts(), goals: value.goals(), changes: value.changes(), way: value.way() }
+    Ways { drafts: value.drafts, goals: value.goals, changes: value.changes, way: value.way }
 }
 #[test]
 fn the_shows_section_reads_kind_seven() {
@@ -742,7 +743,7 @@ fn the_questions_select_sends_its_route() {
             let (_, change) = send(&mut root, &mut view, id, Act::Press);
             let decoded =
                 w::ProjectQuestions::decode(&w::CEILINGS, &mut skein_lib::Reader::new(sent_value(&change, 6))).unwrap();
-            assert_eq!(*decoded.route(), route);
+            assert_eq!(decoded.route, route);
             // The binding table also accepts a route supplied as whole select input.
             let mut bindings = crate::forge::bindings::Bindings::new(1, 1, f::FORGE);
             let bound = bindings.insert(crate::forge::bindings::Meaning::Ways(d::forge::ways::Act::Set {
@@ -1170,13 +1171,13 @@ fn away_send(root: &mut d::Domain, view: &mut crate::View, role: Role, name: &[u
                     let w::Request::SetAway(value) =
                         temper_client_protocol_wire::decode_requesting(&record.bytes, &w::CEILINGS)
                             .unwrap()
-                            .into_parts()
+                            
                             .request
                     else {
                         panic!("SetAway")
                     };
                     assert_eq!(*scope, c::Scope::Project(f::PROJECT));
-                    Some((*attempt, value.into_parts()))
+                    Some((*attempt, value))
                 } else {
                     None
                 }
@@ -1591,7 +1592,7 @@ fn away_controls_are_numbered_in_the_terminal() {
 }
 
 fn making_rows(copy: bool, state: w::MakingState) -> List<w::ForgeRow> {
-    let mut row = cf::row(3, w::Kind::Forgejo, w::Mode::Owned, cf::connected(), w::Offer::Offered).into_parts();
+    let mut row = cf::row(3, w::Kind::Forgejo, w::Mode::Owned, cf::connected(), w::Offer::Offered);
     row.makings = List::with_capacity(3);
     for project in [Some(f::PROJECT), Some(f::SECOND_PROJECT), None] {
         row.makings
@@ -1800,7 +1801,7 @@ fn role_read(out: &Queue<d::Request>) -> Option<Token> {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && let w::Read::View(_) = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
+            && let w::Read::View(_) = &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
         {
             assert!(found.is_none(), "one view read");
             found = Some(*read);
@@ -1956,15 +1957,15 @@ fn assert_role_page(root: &d::Domain, address: &Address, value: Option<&w::View>
             terms
         );
         if let Some(w::View::Charter(card)) = value {
-            assert!(text.contains(core::str::from_utf8(card.card().who()).unwrap()));
-            for fact in card.card().facts() {
-                assert!(text.contains(core::str::from_utf8(fact.value()).unwrap()));
+            assert!(text.contains(core::str::from_utf8(&card.card.who).unwrap()));
+            for fact in &card.card.facts {
+                assert!(text.contains(core::str::from_utf8(&fact.value).unwrap()));
             }
         }
         if let Some(w::View::Rule(card)) = value {
-            assert!(text.contains(core::str::from_utf8(card.card().who()).unwrap()));
-            for fact in card.card().facts() {
-                assert!(text.contains(core::str::from_utf8(fact.value()).unwrap()));
+            assert!(text.contains(core::str::from_utf8(&card.card.who).unwrap()));
+            for fact in &card.card.facts {
+                assert!(text.contains(core::str::from_utf8(&fact.value).unwrap()));
             }
         }
         let tabs = styled(tree, look::SETTINGS_TABS);

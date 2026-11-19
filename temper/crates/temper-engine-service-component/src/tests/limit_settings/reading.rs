@@ -9,9 +9,9 @@ fn rows(state: &LimitSettings) -> Vec<w::LimitRow> {
     for _ in 0_u32..32 {
         let encoded = reading::answer(state, after.as_deref(), 1234, &w::CEILINGS).unwrap();
         let answer = wire::decode_limits_answer(&encoded, &w::CEILINGS).unwrap();
-        assert_eq!(answer.revision(), 7);
-        assert!(answer.rows().len() <= 32);
-        let w::LimitsAnswer { rows: page, next, .. } = answer.into_parts();
+        assert_eq!(answer.revision, 7);
+        assert!(answer.rows.len() <= 32);
+        let w::LimitsAnswer { rows: page, next, .. } = answer;
         rows.extend(page.into_boxed());
         if next.is_none() {
             return rows;
@@ -22,7 +22,7 @@ fn rows(state: &LimitSettings) -> Vec<w::LimitRow> {
     panic!("finite names table pages")
 }
 fn named<'a>(rows: &'a [w::LimitRow], name: &[u8]) -> &'a w::LimitRow {
-    rows.iter().find(|row| row.name() == name).unwrap()
+    rows.iter().find(|row| row.name.as_ref() == name).unwrap()
 }
 #[test]
 fn the_limits_read_unifies_names_and_preserves_stock_setting_and_running_figures() {
@@ -34,28 +34,28 @@ fn the_limits_read_unifies_names_and_preserves_stock_setting_and_running_figures
     state.temper[1].reason = b"dev's outbox".as_slice().into();
     let read = rows(&state);
     assert_eq!(read.len(), jig_protocol_config::names::NAMES.len() + crate::limits::NAMES.len());
-    assert!(read.windows(2).all(|pair| pair[0].name() < pair[1].name()));
+    assert!(read.windows(2).all(|pair| pair[0].name < pair[1].name));
     let entries = named(&read, b"forge.entries");
-    assert_eq!(entries.stock(), &Some(8));
-    assert_eq!(entries.in_force(), &Some(16));
-    assert_eq!(entries.applies(), &w::LimitApplies::AtOnce);
-    let setting = entries.setting().as_ref().unwrap();
+    assert_eq!(&entries.stock, &Some(8));
+    assert_eq!(&entries.in_force, &Some(16));
+    assert_eq!(&entries.applies, &w::LimitApplies::AtOnce);
+    let setting = entries.setting.as_ref().unwrap();
     assert_eq!(
-        (setting.kind(), setting.value(), setting.reason()),
+        (&setting.kind, setting.value, setting.reason.as_ref()),
         (&w::LimitKind::Temper, 16, b"dev's outbox".as_slice())
     );
-    assert!(!entries.waiting());
-    assert_eq!(entries.line(), crate::limits::find(b"forge.entries").unwrap().line.as_bytes());
-    assert_eq!(named(&read, b"tasks.tasks").applies(), &w::LimitApplies::NextStart);
+    assert!(!entries.waiting);
+    assert_eq!(entries.line.as_ref(), crate::limits::find(b"forge.entries").unwrap().line.as_bytes());
+    assert_eq!(&named(&read, b"tasks.tasks").applies, &w::LimitApplies::NextStart);
     let transcript = named(&read, b"transcript_memory");
-    assert_eq!(transcript.held(), &Some(1234));
-    assert_eq!(transcript.unit(), &w::LimitUnit::Bytes);
+    assert_eq!(&transcript.held, &Some(1234));
+    assert_eq!(&transcript.unit, &w::LimitUnit::Bytes);
     state.temper[1].value = 32;
     let read = rows(&state);
     let entries = named(&read, b"forge.entries");
-    assert_eq!(entries.in_force(), &Some(16));
-    assert_eq!(entries.setting().as_ref().unwrap().value(), 32);
-    assert!(entries.waiting());
+    assert_eq!(&entries.in_force, &Some(16));
+    assert_eq!(entries.setting.as_ref().unwrap().value, 32);
+    assert!(entries.waiting);
 }
 #[test]
 fn a_held_start_shows_even_invalid_and_dropped_settings_as_waiting() {
@@ -71,12 +71,12 @@ fn a_held_start_shows_even_invalid_and_dropped_settings_as_waiting() {
     };
     let read = rows(&state);
     for name in [b"tasks.tasks".as_slice(), b"forge.entries", b"old.limit"] {
-        assert!(named(&read, name).waiting());
+        assert!(named(&read, name).waiting);
     }
     let dropped = named(&read, b"old.limit");
-    assert!(dropped.left_out());
-    assert_eq!(dropped.stock(), &None);
-    assert_eq!(dropped.in_force(), &None);
-    assert_eq!(dropped.setting().as_ref().unwrap().value(), 17);
-    assert_eq!(dropped.setting().as_ref().unwrap().kind(), &w::LimitKind::Temper);
+    assert!(dropped.left_out);
+    assert_eq!(&dropped.stock, &None);
+    assert_eq!(&dropped.in_force, &None);
+    assert_eq!(dropped.setting.as_ref().unwrap().value, 17);
+    assert_eq!(&dropped.setting.as_ref().unwrap().kind, &w::LimitKind::Temper);
 }

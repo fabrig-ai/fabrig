@@ -184,8 +184,8 @@ fn no_project_reads_the_same_in_the_terminal() {
                     jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
-            } if wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read()
-                == &w::Read::Deployment =>
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read
+                == w::Read::Deployment =>
             {
                 let answer = w::DeploymentAnswer { push: None, welcome: false, owned: false, program_login: None };
                 Some(jig_client::Up::ReadDone {

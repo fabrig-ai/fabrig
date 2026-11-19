@@ -12,6 +12,7 @@ def recvstart(s,end):
     i-=1
     if s[i]==c:depth+=1
     elif s[i]==want:depth-=1
+  elif c.isspace() and i<len(s) and s[i]=='.':i-=1
   else:break
  return i
 for line in open(sys.argv[1]):
@@ -31,7 +32,7 @@ for line in open(sys.argv[1]):
  if 'is not an iterator' in msg and (t:=re.match(r'`([^`]+)` is not an iterator',msg)):
   meth=s[a:b];typ=t[1].split('::')[-1]
   if meth in types.get(typ,{}):msg=f'no method named `{meth}` found for struct `{t[1]}`'
- if (z:=re.match(r'no method named `(\w+)` found for (?:struct|reference) `([^`]+)`',msg)) and owner:
+ if (z:=re.match(r'no method named `(\w+)` found for (?:struct|reference|mutable reference) `([^`]+)`',msg)) and owner:
   meth=z[1];typ=z[2].split('::')[-1];typ=re.sub('[^a-zA-Z0-9_]','',typ)
   if meth in ['measure', 'encode', 'write', 'read', 'decode'] and (meth == 'measure' or meth not in types.get(typ,{})):
    if 'use crate::v1::Record;' not in s and 'use temper_client_protocol_wire::v1::Record;' not in s:
@@ -65,6 +66,11 @@ for line in open(sys.argv[1]):
  elif ('/tests' in str(p) or '/testing/' in str(p)) and (m.get('code') or {}).get('code')=='E0308' and s[:a].endswith('.encode(') and s[a:b].startswith('&mut '):
   family='public_v1' if 'public_v1::Limits' in (m.get('rendered') or '') or p.stem=='public_wire' else 'v1'
   add(a-7,a,'write(&temper_client_protocol_wire::'+family+'::CEILINGS, ')
+ elif (m.get('code') or {}).get('code')=='unfulfilled_lint_expectations':
+  start=s.rfind('#[expect(',0,a+1);end=s.find(')]',b)+2
+  if start>=0 and end>start and len(re.findall(r'clippy::\w+',s[start:end]))==1:
+   if s[end:end+1]=='\n':end+=1
+   add(start,end,'')
  elif (m.get('code') or {}).get('code')=='E0507' and s[b:].startswith('.into()'):
   add(a,b+7,s[a:b]+'.clone()')
  elif (m.get('code') or {}).get('code')=='clippy::redundant_locals':
@@ -90,7 +96,7 @@ for l in open(sys.argv[1]):
   for sp in m['spans']:
    if not sp['is_primary']:continue
    p=pathlib.Path(sp['file_name']);s=p.read_text();a=len(p.read_bytes()[:sp['byte_start']].decode());b=len(p.read_bytes()[:sp['byte_end']].decode())
-   if s[a:b] in ['limits','bounds','l']:
+   if s[a:b] in ['limits','bounds','l','wire_limits']:
     if s[:a].rstrip().endswith('let'):
      start=s.rfind('\n',0,a)+1;end=s.find(';',a)+1;changes[p].add((start,end,''))
     else:changes[p].add((a,b,'_'+s[a:b]))

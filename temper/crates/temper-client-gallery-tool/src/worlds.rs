@@ -1,5 +1,6 @@
 //! Mockup documents, answered through the same windows as the engine.
 //! First-run records follow temper/docs/design/client/forge/deployment.md; temper/docs/design/client/pages/README.md and temper/docs/design/client/forge/family.md, 7.
+use temper_client_protocol_wire::v1::Record;
 use temper_fixtures::client_documents as documents;
 mod chat_work;
 mod team;
@@ -960,7 +961,7 @@ fn world_in_layout(
                 }
                 jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                     use temper_client_protocol_wire::{self as wire, v1};
-                    match wire::decode_reading(&record.bytes, &v1::CEILINGS).expect("gallery forge read").read() {
+                    match &wire::decode_reading(&record.bytes, &v1::CEILINGS).expect("gallery forge read").read {
                         v1::Read::Deployment => deployment_read(
                             &mut root,
                             read,
@@ -986,12 +987,12 @@ fn world_in_layout(
                         v1::Read::Setting(setting) => {
                             let drafts =
                                 matches!(then, Then::Mode(_) | Then::DraftEmpty) || goals == Some("chats-drafts");
-                            if setting.kind() == 7 && (goals.is_some() || drafts) {
+                            if setting.kind == 7 && (goals.is_some() || drafts) {
                                 project_ways(&mut root, read, drafts, goals.is_some(), false, &mut out);
                                 continue;
                             }
                             let bytes = settings.and_then(|name| {
-                                if setting.kind() == 8
+                                if setting.kind == 8
                                     && !matches!(
                                         name,
                                         "how-approve" | "how-reaches" | "how-rules" | "how-rules-card" | "how-team"
@@ -999,10 +1000,10 @@ fn world_in_layout(
                                 {
                                     return None;
                                 }
-                                if how && setting.kind() == 7 {
+                                if how && setting.kind == 7 {
                                     Some(ways::setting(name))
                                 } else {
-                                    Some(settings_bytes(name, setting.kind()))
+                                    Some(settings_bytes(name, setting.kind))
                                 }
                             });
                             let value = v1::SettingAnswer { revision: None, value: bytes };
@@ -1047,11 +1048,11 @@ fn world_in_layout(
                         }
                         v1::Read::View(view) => {
                             if settings.is_some_and(|name| ways::is_draft(name) || name == "how-team")
-                                && view.address() == b"roles"
+                                && view.address.as_ref() == b"roles"
                             {
                                 ways::roles(&mut root, read, settings == Some("how-team"), &mut out);
                             } else if goals.is_some_and(|name| name.starts_with("chat-view-")) {
-                                views::answer(&mut root, read, view.address(), &mut out);
+                                views::answer(&mut root, read, &view.address, &mut out);
                             }
                         }
                         v1::Read::Finding(_)
@@ -1070,7 +1071,7 @@ fn world_in_layout(
                         &temper_client_domain::forge::wire_limits(&limits.forge).expect("wire limits"),
                     )
                     .expect("gallery forge watch");
-                    let subject = match watching.watch() {
+                    let subject = match &watching.watch {
                         w::Watch::Devices => {
                             told_devices(&mut root, watch, &mut out);
                             continue;
@@ -1144,7 +1145,7 @@ fn world_in_layout(
                             continue;
                         }
                         w::Watch::Ways(subject) if (asking || how) && !asking_chat => {
-                            ways::deliver(&mut root, watch, subject.project(), settings, &mut out);
+                            ways::deliver(&mut root, watch, subject.project, settings, &mut out);
                             continue;
                         }
                         w::Watch::Follows(_) if settings == Some("how-follows") => {
@@ -1168,7 +1169,7 @@ fn world_in_layout(
                             continue;
                         }
                     };
-                    if let Some(panel) = change_panel(w, subject.task()) {
+                    if let Some(panel) = change_panel(w, subject.task) {
                         for up in [
                             jig_client::Up::Watched { watch, event: c::WatchEvent::Opened },
                             jig_client::Up::FamilyDelivered {
@@ -1253,11 +1254,11 @@ pub(super) fn repositories_making_world() -> Domain {
 }
 fn to_begin_forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let mut parts = wire::decode_forges(&forges(world), &w::CEILINGS).expect("Ask forges").into_parts();
+    let mut parts = wire::decode_forges(&forges(world), &w::CEILINGS).expect("Ask forges");
     let row = parts.forges.get_mut(0).expect("Ask forge");
-    let mut forge = row.clone().into_parts();
+    let mut forge = row.clone();
     let repository = forge.repositories.get_mut(0).expect("Ask repository");
-    let mut adoption = repository.clone().into_parts();
+    let mut adoption = repository.clone();
     adoption.project = PROJECT;
     *repository = adoption;
     *row = forge;
@@ -1275,9 +1276,9 @@ fn to_begin_forges_watched(root: &mut Domain, world: World, watch: Token, out: &
 fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let mut rows =
-        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("making forge").into_parts().forges;
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("making forge").forges;
     let row = rows.get_mut(0).expect("owned forge");
-    let mut parts = home_copies(row.clone().into_parts(), "home-copying");
+    let mut parts = home_copies(row.clone(), "home-copying");
     let mut makings = List::with_capacity(3);
     for making in parts.makings.into_boxed() {
         makings.push(making).expect("making fixture rows");
@@ -1322,9 +1323,9 @@ fn repositories_making_watched(root: &mut Domain, watch: Token, out: &mut Queue<
 fn copies_watched(root: &mut Domain, watch: Token, out: &mut Queue<Request>) {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let mut rows =
-        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").into_parts().forges;
+        wire::decode_forges(&forges(FirstRun { step: 7 }), &w::CEILINGS).expect("Ready forges").forges;
     let row = rows.get_mut(0).expect("Ready forge");
-    let mut parts = row.clone().into_parts();
+    let mut parts = row.clone();
     parts.first = None;
     parts.repositories.clear();
     let mut addresses = List::with_capacity(2);
@@ -1354,7 +1355,6 @@ fn forges(world: World) -> Box<[u8]> {
     if let FirstRun { step: 20..=22 } = world {
         return github::forges(world);
     }
-    let limits = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let mut rows = List::with_capacity(3);
     if has_playground(world) && world != (FirstRun { step: 7 }) {
         rows.push(
@@ -1591,7 +1591,7 @@ fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::
     )
 }
 fn gallery_pull(
-    limits: &temper_client_protocol_wire::v1::Limits,
+    _limits: &temper_client_protocol_wire::v1::Limits,
     number: u64,
     address: &[u8],
 ) -> temper_client_protocol_wire::v1::Pull {
@@ -4982,7 +4982,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                 let watching = wire::decode_watching(&record.bytes, &v::CEILINGS).expect("gallery watch");
-                if let v::Watch::Changes(_) = watching.watch() {
+                if let v::Watch::Changes(_) = &watching.watch {
                     for up in [
                         Up::Watched { watch, event: c::WatchEvent::Opened },
                         Up::FamilyDelivered {
@@ -4996,7 +4996,7 @@ pub(super) fn changes_world(name: &str) -> Domain {
                     ] {
                         step(&mut root, Event::Client { event: jig_client::Event::Up { up } }, &mut out);
                     }
-                } else if let v::Watch::Forges = watching.watch() {
+                } else if let v::Watch::Forges = &watching.watch {
                     forges_watched(&mut root, Reference, watch, &mut out);
                 }
             }
@@ -5015,9 +5015,9 @@ pub(super) fn changes_world(name: &str) -> Domain {
             }
             Down::Read { read, what: Readable::Family { record, .. } } => {
                 if let v::Read::Setting(setting) =
-                    wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read()
+                    &wire::decode_reading(&record.bytes, &v::CEILINGS).expect("gallery setting read").read
                 {
-                    match setting.kind() {
+                    match setting.kind {
                         7 => {
                             project_ways(&mut root, read, false, false, name != "changes-landed-only", &mut out);
                         }
@@ -5048,8 +5048,8 @@ pub(super) fn project_ways(
 ) {
     use temper_client_protocol_wire::{self as wire, v1 as v};
     let ways = v::ProjectWays { drafts, goals, changes, way: 0 };
-    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
-    ways.encode(&mut writer).expect("measured ways");
+    let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways fit"));
+    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
     let value =
         v::SettingAnswer { revision: None, value: Some(writer.finish()) };
     step(
@@ -5099,7 +5099,6 @@ fn changes_origin(
     if goal { (Some(from), None) } else { (None, Some(from)) }
 }
 
-#[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes_panel(name: &str) -> temper_client_protocol_wire::v1::ChangesPanel {
     use temper_client_protocol_wire::v1 as v;
     let mut queues = List::with_capacity(1);
@@ -5239,8 +5238,8 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
         let classes =
             classes_record(&Classes::stock(if name == "how-team" { Way::AgentsReview } else { Way::YouApprove }))
                 .expect("project classes");
-        let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure()).expect("classes bytes"));
-        classes.encode(&mut writer).expect("measured classes");
+        let mut writer = skein_lib::Writer::new(usize::try_from(classes.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+        classes.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
         writer.finish()
     } else if kind == 7 {
         let shown = name != "settings-all-hidden";
@@ -5251,16 +5250,16 @@ fn settings_bytes(name: &str, kind: u32) -> Box<[u8]> {
                 changes: all && name != "settings-changes-off",
                 way: if shown { 4 } else { 0 },
             };
-        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways bytes"));
-        ways.encode(&mut writer).expect("measured ways");
+        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways bytes"));
+        ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured ways");
         writer.finish()
     } else {
         assert_eq!(kind, 6);
         let route = if name == "settings-all-hidden" { v::QuestionsRoute::None } else { v::QuestionsRoute::Up };
         let questions =
             v::ProjectQuestions { route };
-        let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure()).expect("questions bytes"));
-        questions.encode(&mut writer).expect("measured questions");
+        let mut writer = skein_lib::Writer::new(usize::try_from(questions.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("questions bytes"));
+        questions.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured questions");
         writer.finish()
     }
 }

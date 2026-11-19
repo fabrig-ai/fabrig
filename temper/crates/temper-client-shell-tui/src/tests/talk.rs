@@ -337,7 +337,7 @@ fn telling_on_a_roles_talk_files_in_its_area() {
             }
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
             let reading = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
-            matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch())
+            matches!(&reading.watch, f::Watch::Findings(subject) if subject.project == 3).then_some(open.watch())
         })
         .expect("the talk's project reads findings");
     let task = f::Holder::Task(f::HolderTask { number: ROLE });
@@ -373,6 +373,6 @@ fn telling_on_a_roles_talk_files_in_its_area() {
     }));
     admit(&mut host, duties);
     let (_, file) = super::tell::send(&mut host, b"/tell The port is stuck").expect("one filing");
-    assert_eq!(file.area().as_deref(), Some(b"ports".as_slice()));
-    assert_eq!(file.body(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
+    assert_eq!(file.area.as_deref(), Some(b"ports".as_slice()));
+    assert_eq!(file.body.as_ref(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
 }

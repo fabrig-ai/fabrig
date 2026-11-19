@@ -1,4 +1,5 @@
 //! The limits read and kept limit holds reach the shared page and one-act card.
+use temper_client_protocol_wire::v1::Record;
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Settings, Until, World};
 use skein_fake_person::{Find, Step};
@@ -155,11 +156,11 @@ fn a_limit_held_card_sends_one_whole_list_at_the_current_revision_and_stays_runn
         panic!("one limits list")
     };
     let value = w::LimitOverrides::decode(&w::CEILINGS, &mut skein_lib::Reader::new(encoded)).expect("limits fixture");
-    assert_eq!(value.overrides().len(), 1);
-    let raised = value.overrides().get(0).expect("limits fixture");
-    assert_eq!(raised.name(), row.limit());
-    assert_eq!(raised.value(), 8);
-    assert_eq!(raised.reason(), format!("raised for task {task}, which needed 5").as_bytes());
+    assert_eq!(value.overrides.len(), 1);
+    let raised = value.overrides.get(0).expect("limits fixture");
+    assert_eq!(&raised.name, &row.limit);
+    assert_eq!(raised.value, 8);
+    assert_eq!(raised.reason.as_ref(), format!("raised for task {task}, which needed 5").as_bytes());
     let kept = saved.expect("limits fixture");
     assert!(
         matches!(kept, forge::settings::Edit::Set(forge::settings::SizedValue { value: forge::settings::Value::Limits(values), .. }) if values.len() == 1 && values[0].value == 8)

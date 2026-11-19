@@ -1,4 +1,5 @@
 //! The whole story's Work and Deployment deliveries (temper/docs/design/client/web/gallery.md, 2).
+use temper_client_protocol_wire::v1::Record;
 use super::{Reference, Then, answer, base_frame, base_task, c, deliver, doc, step};
 use jig_client::{Down, Readable, Up, Watchable};
 use skein_lib::{List, Queue, Token, Wall};
@@ -73,14 +74,14 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                 let decoded = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("gallery watch");
-                if let w::Watch::Changes(_) = decoded.watch() {
+                if let w::Watch::Changes(_) = &decoded.watch {
                     family(root, watch, wire::changes_panel(&changes(work)), out);
-                } else if let w::Watch::Drafts(_) = decoded.watch() {
+                } else if let w::Watch::Drafts(_) = &decoded.watch {
                     family(root, watch, wire::drafts_panel(&drafts(work)), out);
-                } else if let w::Watch::Forges = decoded.watch() {
+                } else if let w::Watch::Forges = &decoded.watch {
                     super::forges_watched(root, Reference, watch, out);
-                } else if let w::Watch::Decided(key) = decoded.watch() {
-                    family(root, watch, decisions(key.project()), out);
+                } else if let w::Watch::Decided(key) = &decoded.watch {
+                    family(root, watch, decisions(key.project), out);
                 }
             }
             Down::Read { read, what: Readable::Jig(c::Read::Project { project }) } => {
@@ -127,8 +128,8 @@ fn settle(root: &mut Domain, out: &mut Queue<Request>, work: Work, name: &str) {
             }
             Down::Read { read, what: Readable::Family { record, .. } } => {
                 let decoded = wire::decode_reading(&record.bytes, &w::CEILINGS).expect("gallery read");
-                match decoded.read() {
-                    w::Read::Setting(setting) if setting.kind() == 7 => {
+                match &decoded.read {
+                    w::Read::Setting(setting) if setting.kind == 7 => {
                         let drafts =
                             matches!(work, Work::Whole) || name == "rail-all-projects" || name == "rail-across";
                         project_ways(root, read, drafts, work, out);
@@ -150,8 +151,8 @@ fn project_ways(root: &mut Domain, read: Token, drafts: bool, work: Work, out: &
             changes: true,
             way: if matches!(work, Work::Whole) { 2 } else { 0 },
         };
-    let mut bytes = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways fit"));
-    ways.encode(&mut bytes).expect("measured ways");
+    let mut bytes = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways fit"));
+    ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("measured ways");
     let value =
         w::SettingAnswer { revision: None, value: Some(bytes.finish()) };
     step(
@@ -378,7 +379,6 @@ fn drafts(work: Work) -> w::DraftsPanel {
     w::DraftsPanel { project: 1, drafts }
 }
 type ChangeRows = &'static [(u64, &'static str)];
-#[expect(clippy::too_many_lines, reason = "one gallery scene assembles the changes panel's bounded wire rows")]
 fn changes(work: Work) -> w::ChangesPanel {
     let (pending, landed): (ChangeRows, ChangeRows) = match work {
         Work::Whole => (&WHOLE_QUEUED, &WHOLE_LANDED),

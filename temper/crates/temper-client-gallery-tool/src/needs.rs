@@ -1,4 +1,5 @@
 //! Needs you's question states, through public documents and acts (client/web/gallery.md, 2).
+use temper_client_protocol_wire::v1::Record;
 use crate::{
     driver,
     samples::{Then, World},
@@ -161,7 +162,7 @@ pub fn domain(name: &str) -> Domain {
                 crate::samples::account_states(&mut root, name, Some(watch), &mut out);
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
-                if name.starts_with("needs-finding") && matches!(temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS).expect("finding watch").watch(), temper_client_protocol_wire::v1::Watch::Findings(_)) => {
+                if name.starts_with("needs-finding") && matches!(&temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS).expect("finding watch").watch, temper_client_protocol_wire::v1::Watch::Findings(_)) => {
                 use temper_client_protocol_wire as wire;
                 driver::step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::findings(&finding()) } } } }, &mut out);
             }
@@ -193,7 +194,7 @@ pub fn domain(name: &str) -> Domain {
                         &record.bytes,
                         &temper_client_protocol_wire::v1::CEILINGS,
                     )
-                    .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
+                    .is_some_and(|watching| watching.watch == temper_client_protocol_wire::v1::Watch::Approvals) =>
             {
                 let document = approval(name, me.party.number);
                 driver::step(
@@ -221,7 +222,7 @@ pub fn domain(name: &str) -> Domain {
                             &temper_client_protocol_wire::v1::CEILINGS
                         )
                         .expect("Needs you watch")
-                        .watch(),
+                        .watch,
                         temper_client_protocol_wire::v1::Watch::Decided(_)
                     ) =>
             {
@@ -230,7 +231,7 @@ pub fn domain(name: &str) -> Domain {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .expect("Needs you decisions");
-                let temper_client_protocol_wire::v1::Watch::Decided(project) = watching.watch() else {
+                let temper_client_protocol_wire::v1::Watch::Decided(project) = &watching.watch else {
                     unreachable!("decisions watch")
                 };
                 driver::step(
@@ -242,7 +243,7 @@ pub fn domain(name: &str) -> Domain {
                                 record: jig_client::Family {
                                     family: temper_client_protocol_wire::FORGE,
                                     version: temper_client_protocol_wire::CLIENT_VERSION,
-                                    bytes: worlds::whole_story::needs_decisions(project.project()),
+                                    bytes: worlds::whole_story::needs_decisions(project.project),
                                 },
                             },
                         },
@@ -310,7 +311,7 @@ pub fn domain(name: &str) -> Domain {
                         &record.bytes,
                         &temper_client_protocol_wire::v1::CEILINGS,
                     )
-                    .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
+                    .is_some_and(|watching| watching.watch == temper_client_protocol_wire::v1::Watch::Approvals) =>
             {
                 let document = approval(name, me.party.number);
                 driver::step(
@@ -388,7 +389,7 @@ pub fn domain(name: &str) -> Domain {
                     &record.bytes,
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
-                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Setting(setting) if setting.kind() == 8)) =>
+                .is_some_and(|reading| matches!(&reading.read, temper_client_protocol_wire::v1::Read::Setting(setting) if setting.kind == 8)) =>
             {
                 classes(&mut root, read, name, &mut out);
             }
@@ -611,8 +612,8 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
         }]);
     }
     let record = classes_record(&classes).expect("gallery classes");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
-    record.encode(&mut writer).expect("measured classes");
+    let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("classes bytes"));
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
     let document = w::SettingAnswer { revision: root.forge().settings_newest(), value: Some(writer.finish()) };
     driver::step(
         root,
@@ -633,7 +634,6 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
 
 fn finding() -> temper_client_protocol_wire::v1::Findings {
     use temper_client_protocol_wire::v1 as w;
-    let b = &w::CEILINGS;
     let holder = w::Holder::Party(
         w::HolderParty { number: 1 },
     );

@@ -1,5 +1,6 @@
 //! The switch and decisions cross both roots (temper/docs/design/client/pages/README.md
 //! , Away, 4.6 and 5.13; temper/docs/design/domain/forge/attention.md, 4 and 5).
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use jig_client_kit::harness::{App, ClientId, Duty, Front};
 use skein_lib::{Duration, Env, Queue, RequestEnvelope, Time, Wall};
 use skein_ui::{Role, State};
@@ -1167,7 +1168,7 @@ fn another_partys_home_shows_nothing() {
     story.front.add_dismissal_member(CLIENT, OTHER_PARTY, PROJECT);
     story.start_client(other);
     story.home(other);
-    assert!(story.probes[other.0].decisions.as_ref().expect("the member's Home watch delivered").rows().is_empty());
+    assert!(story.probes[other.0].decisions.as_ref().expect("the member's Home watch delivered").rows.is_empty());
     assert_eq!(story.row(other), None, "the switch belongs to its person");
     assert!(story.facts(other).decided.is_none(), "another member sees no decision form");
     story.probes[other.0].answers.clear();
@@ -1209,8 +1210,8 @@ fn another_partys_home_shows_nothing() {
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let answer = w::Answer::decode(bounds, &mut reader).expect("forge answer");
     assert!(reader.is_empty());
-    let w::Outcome::OverturnRefused(reason) = answer.outcome() else { panic!("overturn refused: {answer:?}") };
-    assert_eq!(reason.reason(), &w::OverturnRefusal::Unknown);
+    let w::Outcome::OverturnRefused(reason) = &answer.outcome else { panic!("overturn refused: {answer:?}") };
+    assert_eq!(&reason.reason, &w::OverturnRefusal::Unknown);
     assert_eq!(story.decisions(), decisions, "the other person changed no decision");
     assert!(story.facts(other).decided.is_none());
     story.event(other, Temper::went(Address::Forges));

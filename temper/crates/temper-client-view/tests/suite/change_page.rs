@@ -196,7 +196,7 @@ mod tests {
             return None;
         };
         let watching = wire::decode_watching(&record.bytes, &w::CEILINGS)?;
-        let w::Watch::Change(_) = watching.watch() else { return None };
+        let w::Watch::Change(_) = &watching.watch else { return None };
         Some(*watch)
     }
     fn tree(document: &c::Task) -> c::Delivery {

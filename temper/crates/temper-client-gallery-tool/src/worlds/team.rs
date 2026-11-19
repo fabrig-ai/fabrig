@@ -95,8 +95,8 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Read { read, what: Readable::Family { record, .. } } if role => {
                 if let Some(reading) = wire::decode_reading(&record.bytes, &w::CEILINGS)
-                    && let w::Read::View(view) = reading.read()
-                    && view.address() == b"charter 13"
+                    && let w::Read::View(view) = &reading.read
+                    && view.address.as_ref() == b"charter 13"
                 {
                     let answer = w::ViewAnswer { view: charter() };
                     step(
@@ -118,7 +118,7 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| *watching.watch() == w::Watch::Approvals) =>
+                    .is_some_and(|watching| watching.watch == w::Watch::Approvals) =>
             {
                 step(
                     &mut root,
@@ -139,7 +139,7 @@ pub(super) fn world(name: &str) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| matches!(watching.watch(), w::Watch::Changes(_))) =>
+                    .is_some_and(|watching| matches!(&watching.watch, w::Watch::Changes(_))) =>
             {
                 step(
                     &mut root,
@@ -161,7 +161,7 @@ pub(super) fn world(name: &str) -> Domain {
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if role
                     && wire::decode_watching(&record.bytes, &w::CEILINGS).is_some_and(
-                        |watching| matches!(watching.watch(), w::Watch::Findings(subject) if !subject.mine()),
+                        |watching| matches!(&watching.watch, w::Watch::Findings(subject) if !subject.mine),
                     ) =>
             {
                 step(
@@ -184,7 +184,7 @@ pub(super) fn world(name: &str) -> Domain {
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if role
                     && wire::decode_watching(&record.bytes, &w::CEILINGS)
-                        .is_some_and(|watching| matches!(watching.watch(), w::Watch::Follows(_))) =>
+                        .is_some_and(|watching| matches!(&watching.watch, w::Watch::Follows(_))) =>
             {
                 step(
                     &mut root,

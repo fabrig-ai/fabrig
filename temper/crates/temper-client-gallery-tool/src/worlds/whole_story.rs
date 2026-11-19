@@ -1,4 +1,5 @@
 //! Whole-story deliveries (temper/docs/design/client/web/gallery.md, 2; client/pages/README.md).
+use temper_client_protocol_wire::v1::Record;
 use super::{Then, World, base_task, doc, offers};
 use crate::driver::down;
 use jig_client::{Down, Readable, Readout, Up, Watchable, contract as c};
@@ -358,7 +359,7 @@ fn task(name: &str, number: u64) -> c::Task {
 fn forges(name: &str) -> Box<[u8]> {
     let source = wire::decode_forges(&super::forges(World::Solo), &w::CEILINGS).expect("Solo forges");
     let mut forge =
-        source.forges().iter().find(|row| *row.kind() == w::Kind::Github).expect("GitHub").clone().into_parts();
+        source.forges.iter().find(|row| row.kind == w::Kind::Github).expect("GitHub").clone();
     if across(name) {
         forge.repositories = List::with_capacity(4);
         for (project, title) in projects(name) {
@@ -395,10 +396,10 @@ fn follows(name: &str, project: u32) -> Box<[u8]> {
     let mut dependencies = List::with_capacity(1);
     if !quiet(name) && project == 2 {
         let mut row =
-            super::ways::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed)).into_parts();
+            super::ways::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
         row.source = b"work/vsr".as_slice().into();
         row.target = b"work/vsr-rs".as_slice().into();
-        let mut parity = row.parity.expect("passing check").into_parts();
+        let mut parity = row.parity.expect("passing check");
         let mut source = [0; 32];
         source[..6].copy_from_slice(&[0x9c, 0x04, 0xd7, 0xe1, 0xa2, 0xb3]);
         parity.source = source;
@@ -528,11 +529,11 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } } => {
                 let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("whole-story watch");
-                let bytes = match watching.watch() {
+                let bytes = match &watching.watch {
                     w::Watch::Forges => forges(name),
-                    w::Watch::Status(key) => wire::project_status(&status(name, key.project())),
-                    w::Watch::Decided(key) => decisions(name, key.project()),
-                    w::Watch::Follows(key) => follows(name, key.project()),
+                    w::Watch::Status(key) => wire::project_status(&status(name, key.project)),
+                    w::Watch::Decided(key) => decisions(name, key.project),
+                    w::Watch::Follows(key) => follows(name, key.project),
                     w::Watch::Approvals => approvals(name),
                     w::Watch::Dismissed => wire::dismissals(
                         &w::Dismissals { dismissed: List::with_capacity(0) },
@@ -571,11 +572,11 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
             }
             Down::Read { read, what: Readable::Family { record, .. } } => {
                 let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).expect("whole-story read");
-                let bytes = match reading.read() {
-                    w::Read::Setting(setting) if setting.kind() == 7 => {
+                let bytes = match &reading.read {
+                    w::Read::Setting(setting) if setting.kind == 7 => {
                         let ways = w::ProjectWays { drafts: false, goals: false, changes: false, way: 0 };
-                        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure()).expect("ways size"));
-                        ways.encode(&mut writer).expect("ways bytes");
+                        let mut writer = skein_lib::Writer::new(usize::try_from(ways.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("ways size"));
+                        ways.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("ways bytes");
                         Some(wire::setting_answer(
                             &w::SettingAnswer { revision: None, value: Some(writer.finish()) },
                         ))
@@ -595,7 +596,7 @@ pub(super) fn domain(name: &str, address: Address) -> Domain {
             }
             Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. }
                 if wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|request| matches!(request.request(), w::Request::Looked(_))) =>
+                    .is_some_and(|request| matches!(&request.request, w::Request::Looked(_))) =>
             {
                 step(
                     &mut root,
@@ -672,17 +673,17 @@ fn toggle_all(root: &mut Domain, name: &str, watch: Token) {
             continue;
         };
         let w::Request::SetAway(value) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).expect("Away request").into_parts().request
+            wire::decode_requesting(&record.bytes, &w::CEILINGS).expect("Away request").request
         else {
             continue;
         };
-        changed.push(value.into_parts());
+        changed.push(value);
         super::sample_forge_answer(root, attempt, w::Outcome::Away, &mut out);
     }
     assert!(out.is_empty(), "Away answers settle");
     let mut rows = List::with_capacity(w::CEILINGS.aways_rows);
     for row in away_rows(name).into_boxed() {
-        if !changed.iter().any(|request| request.project == row.project()) {
+        if !changed.iter().any(|request| request.project == row.project) {
             rows.push(row).expect("away spell");
         }
     }

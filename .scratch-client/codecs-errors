@@ -1,0 +1,45 @@
+temper/tests/codecs/tests/suite/client_wire.rs:16 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:18 E0599 no method named `refusal` found for struct `temper_client_protocol_wire::v1::CoreRefused` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:36 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:143 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::FirstEmpty` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:145 E0599 no method named `measure` found for struct `temper_client_protocol_wire::v1::FirstEmpty` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:146 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::FirstEmpty` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:148 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::FirstEmpty` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:161 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::FirstRepository` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:163 E0599 no method named `measure` found for struct `temper_client_protocol_wire::v1::FirstRepository` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:164 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::FirstRepository` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:166 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::FirstRepository` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:180 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::FirstEmpty` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:188 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::FirstRepository` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:224 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:227 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::GroupFailed` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:244 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:255 E0599 no variant, associated function, or constant named `decode` found for enum `temper_client_protocol_wire::v1::Request` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:266 E0599 no variant, associated function, or constant named `decode` found for enum `temper_client_protocol_wire::v1::Outcome` in the current scope
+temper/tests/codecs/tests/suite/client_wire.rs:273 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:14 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::Answer` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:100 E0599 no method named `measure` found for struct `temper_client_protocol_wire::v1::LandingRule` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:101 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::LandingRule` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:106 E0599 no method named `measure` found for struct `temper_client_protocol_wire::v1::ForgeCharter` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:107 E0599 no method named `encode` found for struct `temper_client_protocol_wire::v1::ForgeCharter` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:148 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::LandingRule` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:160 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::ForgeCharter` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:309 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::ForgeRow` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:419 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::ProjectAreas` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:429 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::v1::ProjectTriager` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:31 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:51 E0599 no associated function or constant named `PublicChangeGates` found for struct `skein_codec::Path<L>` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:31 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:52 E0599 no associated function or constant named `PublicLandingsLandings` found for struct `skein_codec::Path<L>` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:31 E0599 no associated function or constant named `decode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:53 E0599 no associated function or constant named `PublicLandingMembers` found for struct `skein_codec::Path<L>` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:119 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:120 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicChange` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:123 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:124 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLandings` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:127 E0599 no method named `measure` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/tests/codecs/tests/suite/fuzzy/public_wire.rs:128 E0599 no method named `encode` found for struct `temper_client_protocol_wire::public_v1::PublicLanding` in the current scope
+temper/tests/codecs/tests/suite/largest_memory.rs:324 E0560 struct `temper_client_protocol_wire::v1::Limits` has no field named `temper_limits_overrides`
+temper/tests/codecs/tests/suite/largest_memory.rs:324 E0609 no field `temper_limits_overrides` on type `temper_client_protocol_wire::v1::Limits`
+temper/tests/codecs/tests/suite/fuzzy/client_wire.rs:175 unused_variables unused variable: `limits`
+diagnostics 44

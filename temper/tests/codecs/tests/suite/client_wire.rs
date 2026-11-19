@@ -1,4 +1,5 @@
 //! jig's core refusal remains opaque in the forge family (client/forge/records.md).
+use temper_client_protocol_wire::v1::Record;
 use super::values;
 use jig_client_protocol_wire as jig;
 use skein_lib::{List, Reader, Writer};
@@ -14,8 +15,8 @@ fn a_core_refusal_carries_jigs_refusal_bytes_unchanged() {
     let answer = parts;
     let bytes = temper_client_protocol_wire::answer(&answer);
     let decoded = v1::Answer::decode(&v1::CEILINGS, &mut Reader::new(&bytes)).expect("decodes");
-    let v1::Outcome::CoreRefused(kept) = decoded.into_parts().outcome else { panic!("a core refusal") };
-    let back = jig::Refusal::decode(&jig::CEILINGS, &mut Reader::new(kept.refusal())).expect("jig's refusal");
+    let v1::Outcome::CoreRefused(kept) = decoded.outcome else { panic!("a core refusal") };
+    let back = jig::Refusal::decode(&jig::CEILINGS, &mut Reader::new(&kept.refusal)).expect("jig's refusal");
     assert_eq!(back, refusal);
 }
 
@@ -142,8 +143,8 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
             };
             assert_eq!((parts.clone()).encode(&limits).is_ok(), size == 2, "setup field {field}");
             let record = parts;
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
-            record.encode(&mut writer).expect("measured room");
+            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length fits usize"));
+            record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
             assert_eq!(
                 v1::FirstEmpty::decode(&limits, &mut Reader::new(&writer.finish())).is_ok(),
                 size == 2,
@@ -160,8 +161,8 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
             };
             assert_eq!((parts.clone()).encode(&limits).is_ok(), size == 2, "row field {field}");
             let record = parts;
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
-            record.encode(&mut writer).expect("measured room");
+            let mut writer = Writer::new(usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).expect("measured length fits usize"));
+            record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
             assert_eq!(
                 v1::FirstRepository::decode(&limits, &mut Reader::new(&writer.finish())).is_ok(),
                 size == 2,
@@ -255,7 +256,7 @@ fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
         let request = v1::Request::decode(&v1::CEILINGS, &mut reader).expect("reachable golden");
         assert!(reader.is_empty());
         let mut writer = Writer::new(bytes.len());
-        request.encode(&mut writer).expect("measured room");
+        request.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
     }
     for bytes in [
@@ -266,7 +267,7 @@ fn reachable_and_page_goldens_round_trip_with_ids_privacy_and_more() {
         let outcome = v1::Outcome::decode(&v1::CEILINGS, &mut reader).expect("page golden");
         assert!(reader.is_empty());
         let mut writer = Writer::new(bytes.len());
-        outcome.encode(&mut writer).expect("measured room");
+        outcome.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         assert_eq!(writer.finish().as_ref(), bytes);
         let answer = v1::Answer { outcome };
         let encoded = wire::answer(&answer);

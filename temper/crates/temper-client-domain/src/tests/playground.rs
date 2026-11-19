@@ -689,7 +689,7 @@ fn a_fake_row_gained_or_lost_reads_the_playground_again() {
             if let forge::Request::Client {
                 asked: jig_client::Event::Read { handle, read: Readable::Family { record, .. } },
             } = request
-                && &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == &w::Read::Playground
+                && wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Playground
             {
                 reads += 1;
                 assert_ne!(*handle, pending, "{row}: replaces the pending read");

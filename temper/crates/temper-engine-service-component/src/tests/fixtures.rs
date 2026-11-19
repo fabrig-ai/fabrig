@@ -1890,7 +1890,7 @@ pub fn forge_connecting(
     else {
         panic!("family terminal")
     };
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
 

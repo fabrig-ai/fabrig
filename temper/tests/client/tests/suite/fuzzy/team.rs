@@ -468,9 +468,7 @@ fn random_areas(rng: &mut Rng) -> Option<team::Areas> {
     Some(team::Areas {
         rows,
         triager: if rng.chance(750) { Some(owner) } else { None },
-        holder: holder.unwrap_or_else(|| {
-            w::Holder::Role(w::HolderRole { number: 0 })
-        }),
+        holder: holder.unwrap_or(w::Holder::Role(w::HolderRole { number: 0 })),
     })
 }
 fn check_areas(facts: &team::Facts, parts: &team::Parts) {
@@ -502,7 +500,7 @@ fn check_areas(facts: &team::Facts, parts: &team::Parts) {
     let mut reached = std::collections::BTreeMap::<u64, u32>::new();
     for row in &parts.area_rows {
         let expected = match &row.holder {
-            Some(w::Holder::Task(task)) if listed.contains(&task.number()) => Some(task.number()),
+            Some(w::Holder::Task(task)) if listed.contains(&task.number) => Some(task.number),
             _ => None,
         };
         assert_eq!(row.role, expected);
@@ -603,12 +601,12 @@ fn signed_oracle(changes: Option<&w::ChangesPanel>, party: u64) -> Option<team::
     let changes = changes?;
     let in_week = |at| at <= WALL.as_nanos() && WALL.as_nanos() - at <= 7 * DAY;
     let tasks: std::collections::BTreeSet<_> = changes
-        .landed_default()
+        .landed_default
         .iter()
-        .filter(|row| in_week(row.at()) && row.signed().iter().any(|signer| signer.party() == party))
-        .map(w::ChangesLanded::task)
+        .filter(|row| in_week(row.at) && row.signed.iter().any(|signer| signer.party == party))
+        .map(|row| row.task)
         .collect();
-    let floor = changes.landed_default_more() > 0
-        && changes.landed_default().iter().map(w::ChangesLanded::at).min().is_some_and(in_week);
+    let floor = changes.landed_default_more > 0
+        && changes.landed_default.iter().map(|row| row.at).min().is_some_and(in_week);
     Some(team::Signed { count: u32::try_from(tasks.len()).expect("few tasks"), floor })
 }
