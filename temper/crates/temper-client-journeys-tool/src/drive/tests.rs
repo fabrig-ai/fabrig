@@ -25,6 +25,19 @@ pub(super) fn plan() -> Plan {
     )
 }
 #[test]
+fn web_mark_fails_unkept_and_the_session_reads_on() {
+    for mut machine in [ready(), ctl_ready()] {
+        let actions = line(&mut machine, "");
+        assert_eq!(answer(&actions).print(), "ok\n");
+        let actions = line(&mut machine, "web mark");
+        assert!(matches!(actions.as_slice(), [Action::Answer(_)]), "{actions:?}");
+        assert_eq!(answer(&actions).print(), "failed: line 2: web mark is a journey's line\n");
+        let actions = line(&mut machine, "");
+        assert_eq!(answer(&actions).print(), "ok\n");
+    }
+}
+
+#[test]
 fn ports_are_parsed_and_invalid_lists_refuse_before_preflight() {
     let parse = |ports: &str| {
         let args =

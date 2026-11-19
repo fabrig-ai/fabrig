@@ -224,7 +224,8 @@ them (8).
     it needs did: a workspace its host could not prepare for now
     (../hosts/hub.md, 3), for a run or a job alike, or a brief's required
     section whose system failed for now or that was not gathered by the
-    brief's deadline (../engine/briefs.md, 1.1); or a run whose model's
+    brief's deadline (../engine/briefs.md, 1.1), or a dependency's or
+    input's result whose load the store answered busy (the same); or a run whose model's
     provider could not be reached, its model call failed unavailable or
     overloaded with no call reaching the model, its evidence unsent (an
     outage, ../hosts/hub.md, 3). Its allowance and backoff are its own
