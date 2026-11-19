@@ -162,6 +162,7 @@ fn terminal(d: &mut Domain, failed: bool, no_change: bool, flake: bool, cancelle
             status: if failed || cancelled { change::Status::Failed } else { change::Status::Passed },
             no_change,
             flake,
+            no_test: false,
             failed,
             cancelled,
             words: words.into(),

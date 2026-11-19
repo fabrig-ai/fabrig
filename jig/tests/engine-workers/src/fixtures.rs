@@ -342,7 +342,7 @@ fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
     refused
 }
 
-fn encoded<R: Record<Limits = jig_protocol_worker_wire::v17::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
+fn encoded<R: Record<Limits = jig_protocol_worker_wire::v18::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
     frame(kind, &record.encode(&codec()).expect("record within fixture limits"))
 }
 #[must_use]
