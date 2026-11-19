@@ -399,6 +399,28 @@ def install():
     require("platform", ["uname", "-a"])
 
 
+def install_ripgrep():
+    """Install smith's checked ripgrep pin (temper/docs/design/testing/macos.md, 6)."""
+    root = Path(os.environ["RUNNER_TEMP"])
+    version = os.environ["RIPGREP_VERSION"]
+    release = f"ripgrep-{version}-aarch64-apple-darwin"
+    archive = root / f"{release}.tar.gz"
+    require("rg-download", ["curl", "-sSfL", "-o", archive,
+                            f"https://github.com/BurntSushi/ripgrep/releases/download/{version}/{release}.tar.gz"])
+    checksum = root / "ripgrep.sha256"
+    checksum.write_text(f"{os.environ['RIPGREP_SHA256']}  {archive}\n")
+    require("rg-digest", ["shasum", "-a", "256", "-c", checksum])
+    destination = root / "ripgrep"
+    destination.mkdir()
+    require("rg-unpack", ["tar", "-xzf", archive, "-C", destination])
+    binary = destination / release / "rg"
+    if not binary.is_file():
+        raise ValueError(f"ripgrep: missing {binary}")
+    require("rg-version", [binary, "--version"])
+    with Path(os.environ["GITHUB_PATH"]).open("a") as stream:
+        stream.write(f"{binary.parent}\n")
+
+
 def wasm_compiler():
     """Select wasm C tools (temper/docs/design/testing/macos.md, 6)."""
     def query(name, command):
@@ -433,11 +455,13 @@ def wasm_compiler():
 def fetch_forge():
     # The first prepare's expected refusal is not a failed check (2).
     root = Path(os.environ["RUNNER_TEMP"]) / "fetch"
-    root.mkdir(mode=0o700)
+    root.mkdir(mode=0o700, exist_ok=True)
+    root.chmod(0o700)
     flags = []
     for name in ("config", "data", "cache"):
         directory = root / name
-        directory.mkdir(mode=0o700)
+        directory.mkdir(mode=0o700, exist_ok=name == "cache")
+        directory.chmod(0o700)
         flags += ["--" + name, str(directory)]
     binary = "target/debug/temper-box"
     require("init", [binary, "init", *flags, "--box"])
@@ -537,6 +561,7 @@ def main():
         sub.add_argument("part", choices=(*SETS["all"], "live"))
         sub.add_argument("destination", type=Path)
     commands.add_parser("install")
+    commands.add_parser("install-ripgrep")
     commands.add_parser("wasm-compiler")
     commands.add_parser("fetch-forge")
     commands.add_parser("prune")
@@ -575,6 +600,8 @@ def main():
             run_part(args.part, args.destination)
         elif args.command == "install":
             install()
+        elif args.command == "install-ripgrep":
+            install_ripgrep()
         elif args.command == "wasm-compiler":
             wasm_compiler()
         elif args.command == "fetch-forge":
