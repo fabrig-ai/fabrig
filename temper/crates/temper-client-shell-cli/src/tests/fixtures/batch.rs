@@ -9,7 +9,7 @@ impl Frame {
             w::Batch::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&request[end + 4..])).expect("batch body");
         let mut frames = Vec::new();
         let mut complete = true;
-        for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+        for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
             let (route, body) = match member {
                 w::Member::Read(read) => ("/jig/v1/read", encode!(read)),
                 w::Member::Open(open) => ("/jig/v1/watch", encode!(open)),
@@ -31,13 +31,9 @@ impl Frame {
             }
             let end = response.windows(4).position(|b| b == b"\r\n\r\n").expect("member response head");
             let reply = response.starts_with(b"HTTP/1.1 200 ").then(|| response[end + 4..].into());
-            let part = w::BatchReply::new(
-                &w::CEILINGS,
-                w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply },
-            )
-            .expect("part");
+            let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply };
             let bytes = encode!(part);
-            frames.extend_from_slice(&part.measure().to_be_bytes());
+            frames.extend_from_slice(&part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes());
             frames.extend_from_slice(&bytes);
         }
         if complete {

@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use jig_client::contract;
 use jig_client_protocol_link as link;
 use skein_lib::{RequestRecord, Token};
@@ -73,10 +74,9 @@ pub fn role_refusal() -> contract::Refusal {
 }
 pub fn core_refusal() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = *link_limits().wire();
     let value = w::Refusal::Role(w::RefusalRole { held: None });
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measure fits"));
-    value.encode(&mut writer).expect("measured room");
+    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("measure fits"));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
     writer.finish()
 }
 
@@ -937,19 +937,18 @@ pub fn native() -> crate::client::NativeClient {
 }
 pub fn service_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
-    let limits = *link_limits().wire();
     let service = w::MadeService { party: SERVICE, credential: credential() };
     let made =
         w::OutcomeMade { what: w::Made::Service(service) };
     let done =
         w::Final::Done(w::Done { outcome: w::Outcome::Made(made) });
-    let mut bytes = skein_lib::Writer::new(usize::try_from(done.measure()).expect("record fits"));
-    done.encode(&mut bytes).expect("measured final");
+    let mut bytes = skein_lib::Writer::new(usize::try_from(done.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record fits"));
+    done.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured final");
     let owned =
         w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: bytes.finish() };
     let answer = w::KeyedAnswer::FinalAnswer(owned);
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer fits"));
-    answer.encode(&mut bytes).expect("measured answer");
+    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer fits"));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured answer");
     bytes.finish()
 }
 

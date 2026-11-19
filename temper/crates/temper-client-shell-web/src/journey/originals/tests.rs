@@ -18,8 +18,8 @@ fn input(value: &[u8]) -> Line {
 
 fn kept(record: &[u8]) -> Box<[u8]> {
     let value = w::Kept { store_version: 1, record: record.into() };
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured fake record");
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured fake record");
     writer.finish()
 }
 
@@ -53,8 +53,8 @@ fn a_stored_values_kept_record_is_the_original_and_its_head_stands() {
     replaced.extend(std::iter::repeat_n(b'x', record.len()));
     let mut reader = Reader::new(&replaced);
     let decoded = w::Kept::decode(&w::CEILINGS, &mut reader).expect("head still decodes");
-    assert_eq!(decoded.record().len(), record.len());
-    assert!(decoded.record().iter().all(|byte| *byte == b'x'));
+    assert_eq!(decoded.record.as_ref().len(), record.len());
+    assert!(decoded.record.as_ref().iter().all(|byte| *byte == b'x'));
     assert!(reader.is_empty());
 }
 

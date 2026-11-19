@@ -15,7 +15,7 @@ fn sent(host: &mut Host) -> u32 {
             assert!(sent.is_none(), "one authorization exchange");
             let record =
                 w::Authorize::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("authorization record");
-            assert_eq!(record.query(), QUERY, "raw query goes to jig");
+            assert_eq!(record.query.as_ref(), QUERY, "raw query goes to jig");
             sent = Some(id);
         }
     }
@@ -41,7 +41,7 @@ fn authorization_go_replaces_the_address_once() {
     host.heard(Heard::Answered {
         exchange,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
         headers: Vec::new(),
     });
     host.requests();

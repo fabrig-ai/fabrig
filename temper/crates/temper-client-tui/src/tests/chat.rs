@@ -246,12 +246,12 @@ fn root(input: &Input) -> Domain {
         task.waits_on =
             c::WaitsOn::Party { whom: c::Whom::Person(73), entries: 1, task: TASK, kind: c::WaitedFor::Question };
     }
-    let mut run = jig_client_test_records::run_state_record().into_parts();
+    let mut run = jig_client_test_records::run_state_record();
     run.task = TASK;
     run.attempt = Some(ATTEMPT);
     run.committed_turn = 0;
     if let Some(bytes) = input.writing {
-        let mut writing = jig_client_test_records::run_text_record().into_parts();
+        let mut writing = jig_client_test_records::run_text_record();
         writing.attempt = ATTEMPT;
         writing.turn = jig_client_protocol_wire::ProvisionalTurnName { attempt: ATTEMPT, number: 2, retry: 0 };
         writing.from = 0;
@@ -261,7 +261,7 @@ fn root(input: &Input) -> Domain {
             Some(writing);
     }
     if input.current {
-        let mut call = jig_client_test_records::current_call_record().into_parts();
+        let mut call = jig_client_test_records::current_call_record();
         call.tool = b"see".as_slice().into();
         call.input = b"{\"address\":\"change 3\"}".as_slice().into();
         run.call = Some(call);

@@ -36,7 +36,7 @@ fn the_playground_start_warns_only_until_its_answer_is_carried() {
     let answered = host.report(Report::Heard(Heard::Answered {
         exchange: *id,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
         headers: Vec::new(),
     }));
     let [Asked::Erase { key }] = answered.asked.as_slice() else { panic!("erase the answered start") };

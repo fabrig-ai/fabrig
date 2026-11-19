@@ -1,4 +1,5 @@
 //! Root, view, link and native transport as one host (client/line.md, 2).
+use jig_client_protocol_wire::Record as _;
 use crate::{
     limits,
     route::{self, Down, Duty},
@@ -313,7 +314,7 @@ impl NativeClient {
                 } else {
                     match w::SignInAnswer::decode(&w::CEILINGS, &mut reader) {
                         Ok(w::SignInAnswer::SignedIn(value)) if reader.is_empty() => {
-                            Signing::SignedIn { party: value.party() }
+                            Signing::SignedIn { party: value.party }
                         }
                         Ok(w::SignInAnswer::LinkUsed) => Signing::LinkUsed,
                         Ok(w::SignInAnswer::LinkExpired) => Signing::LinkExpired,
@@ -322,9 +323,9 @@ impl NativeClient {
                         Ok(w::SignInAnswer::NotReady) => Signing::Again,
                         Ok(w::SignInAnswer::Busy) => Signing::Busy,
                         Ok(w::SignInAnswer::Full(value)) => Signing::Full {
-                            sign_ins: value.sign_ins(),
-                            earliest: skein_lib::Wall::from_nanos(value.earliest()),
-                            link_until: skein_lib::Wall::from_nanos(value.link_until()),
+                            sign_ins: value.sign_ins,
+                            earliest: skein_lib::Wall::from_nanos(value.earliest),
+                            link_until: skein_lib::Wall::from_nanos(value.link_until),
                         },
                         Ok(w::SignInAnswer::SignedIn(_)) | Err(_) => Signing::Lost,
                     }
@@ -546,7 +547,7 @@ fn kept_key(record: &jig_client::Record, limits: &link::Limits) -> Option<jig_cl
     if !reader.is_empty() {
         return None;
     }
-    let mut reader = skein_lib::Reader::new(kept.record());
+    let mut reader = skein_lib::Reader::new(kept.record.as_ref());
     let row =
         link::translate::store::restore_table(w::TableEntry::decode(limits.wire(), &mut reader).ok()?, limits).ok()?;
     if !reader.is_empty() || row.key.as_slice() != record.key.as_ref() {
@@ -561,17 +562,16 @@ fn service_credential(message: &[u8], limits: &jig_client::Limits) -> Option<(u6
     let w::KeyedAnswer::FinalAnswer(owned) = w::KeyedAnswer::decode(limits.wire(), &mut reader).ok()? else {
         return None;
     };
-    if !reader.is_empty() || owned.owner() != &w::Owner::Jig || owned.version() != w::VERSION {
+    if !reader.is_empty() || owned.owner != w::Owner::Jig || owned.version != w::VERSION {
         return None;
     }
-    let mut reader = skein_lib::Reader::new(owned.record());
+    let mut reader = skein_lib::Reader::new(owned.record.as_ref());
     let w::Final::Done(done) = w::Final::decode(limits.wire(), &mut reader).ok()? else { return None };
     if !reader.is_empty() {
         return None;
     }
-    let w::Outcome::Made(made) = done.into_parts().outcome else { return None };
-    let w::Made::Service(service) = made.into_parts().what else { return None };
-    let service = service.into_parts();
+    let w::Outcome::Made(made) = done.outcome else { return None };
+    let w::Made::Service(service) = made.what else { return None };
     if service.credential.expose().is_empty() {
         return None;
     }

@@ -1,4 +1,5 @@
 //! The originals of a recording (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md).
+use jig_client_protocol_wire::Record as _;
 use super::{Kind, Line, Originals};
 use jig_client_protocol_wire as w;
 use skein_lib::Reader;
@@ -131,7 +132,7 @@ pub fn kept_head(value: &[u8]) -> Option<usize> {
     }
     let mut reader = Reader::new(value);
     let kept = w::Kept::decode(&w::CEILINGS, &mut reader).ok()?;
-    reader.is_empty().then(|| value.len() - kept.record().len())
+    reader.is_empty().then(|| value.len() - kept.record.as_ref().len())
 }
 fn stored(value: &[u8]) -> &[u8] {
     kept_head(value).map_or(value, |head| &value[head..])

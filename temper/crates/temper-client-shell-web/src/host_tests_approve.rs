@@ -21,7 +21,7 @@ fn the_approval_address_prints_its_code_and_reads_once() {
                 && call.path.as_ref() == b"/jig/v1/approval/read"
             {
                 let read = w::ApprovalRead::decode(&w::CEILINGS, &mut Reader::new(&call.body)).unwrap();
-                assert_eq!(read.code(), b"WDJBMJHT");
+                assert_eq!((&read.code), b"WDJBMJHT");
                 count += 1;
             }
         }

@@ -167,8 +167,8 @@ fn a_refused_or_lost_startup_link_keeps_the_stored_credential() {
         let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
         let event = if refused {
             let answer = jig_client_protocol_wire::SignInAnswer::Refused;
-            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-            answer.encode(&mut writer).expect("answer room");
+            let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+            answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
             jig_client::Event::Reply { exchange: signing, message: writer.finish() }
         } else {
             jig_client::Event::Lost { exchange: signing }
@@ -184,8 +184,8 @@ fn busy_keeps_the_link_and_held_token_for_the_next_sign_in() {
     use jig_client_protocol_wire as w;
     let (mut host, signing, _) = fixtures::link_chat(Some(fixtures::credential()));
     let answer = w::SignInAnswer::Busy;
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-    answer.encode(&mut writer).expect("answer room");
+    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     host.transport(jig_client::Event::Reply { exchange: signing, message: writer.finish() });
     assert_eq!(host.signing(), Some(Signing::Busy));
     assert!(matches!(host.notices(), Some(Shown::Terminal(crate::terminal::Notice::SignInBusy))));
@@ -221,8 +221,8 @@ fn full_installs_nothing_and_hands_both_times_to_the_terminal() {
     let answer = w::SignInAnswer::Full(
         w::SignInsFull { sign_ins: 2, earliest: earliest.as_nanos(), link_until: link_until.as_nanos() },
     );
-    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-    answer.encode(&mut writer).expect("answer room");
+    let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     host.transport(jig_client::Event::Reply { exchange: signing, message: writer.finish() });
     assert_eq!(host.signing(), Some(Signing::Full { sign_ins: 2, earliest, link_until }));
     assert!(
@@ -496,10 +496,10 @@ fn a_chat_keeps_its_activity_read_through_local_exchange_pressure() {
                     &mut skein_lib::Reader::new(&bytes),
                 )
                 .expect("read envelope");
-                if owned.owner() == &jig_client_protocol_wire::Owner::Jig {
+                if owned.owner == jig_client_protocol_wire::Owner::Jig {
                     let read = jig_client_protocol_wire::Read::decode(
                         &jig_client_protocol_wire::CEILINGS,
-                        &mut skein_lib::Reader::new(owned.record()),
+                        &mut skein_lib::Reader::new(owned.record.as_ref()),
                     )
                     .expect("jig read");
                     if matches!(read, jig_client_protocol_wire::Read::Activity(_)) {

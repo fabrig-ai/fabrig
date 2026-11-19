@@ -8,11 +8,11 @@ fn request(duties: &Duties) -> Option<(skein_lib::Token, f::FileFinding)> {
     for request in &duties.asked {
         let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request else { continue };
         let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-        if keyed.owner() == &w::Owner::Jig {
+        if keyed.owner == w::Owner::Jig {
             continue;
         }
-        let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).unwrap();
-        let reading = wire::decode_requesting(envelope.record(), &f::CEILINGS).unwrap();
+        let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref())).unwrap();
+        let reading = wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).unwrap();
         if let f::Request::FileFinding(file) = reading.request() {
             return Some((*exchange, file.clone()));
         }
@@ -21,15 +21,11 @@ fn request(duties: &Duties) -> Option<(skein_lib::Token, f::FileFinding)> {
 }
 fn answer(host: &mut Host, exchange: skein_lib::Token, outcome: f::Outcome) {
     let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).unwrap();
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
+    let document = w::Owned {
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
             version: wire::CLIENT_VERSION,
             record: wire::answer(&answer),
-        },
-    )
-    .unwrap();
+        };
     reply(host, exchange, keyed_bytes(document));
 }
 pub(super) fn send(host: &mut Host, words: &[u8]) -> Option<(skein_lib::Token, f::FileFinding)> {

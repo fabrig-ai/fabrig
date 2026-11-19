@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use crate::{
     arguments,
     host::{Invocation, OneShot, Startup},
@@ -10,8 +11,8 @@ use std::collections::{BTreeMap, VecDeque};
 macro_rules! encode {
     ($value:expr) => {{
         let value = &$value;
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("record size"));
-        value.encode(&mut writer).expect("record fits");
+        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("record size"));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("record fits");
         writer.finish()
     }};
 }
@@ -733,8 +734,8 @@ impl Frame {
                             },
                     )
                 };
-                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-                answer.encode(&mut writer).expect("answer fits");
+                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
                 let body = writer.finish();
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
                 socket.reply.extend(body.iter().copied());
@@ -773,8 +774,8 @@ impl Frame {
                     self.reply(fd, &encode!(answer));
                     return;
                 }
-                if matches!(open.subject().owner(), w::Owner::Family(_)) {
-                    self.wait_task = Some(open.watch());
+                if matches!( &open.subject.owner, w::Owner::Family(_)) {
+                    self.wait_task = Some(open.watch);
                     self.reply(fd, &encode!(w::OpenAnswer::Admitted));
                     if self.change {
                         self.deliver_change();
@@ -783,19 +784,19 @@ impl Frame {
                     }
                     return;
                 }
-                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject().record()))
+                let subject = w::Subject::decode(&w::CEILINGS, &mut skein_lib::Reader::new(open.subject.record.as_ref()))
                     .expect("watch subject");
                 assert_ne!(subject, w::Subject::Me, "me comes with the stream");
-                self.wait_task = Some(open.watch());
+                self.wait_task = Some(open.watch);
                 let answer = w::OpenAnswer::Admitted;
-                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-                answer.encode(&mut writer).expect("answer fits");
+                let mut writer = skein_lib::Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+                answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer fits");
                 let body = writer.finish();
                 socket.reply.extend(format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
                 socket.reply.extend(body.iter().copied());
                 if self.deliver.is_some() {
                     if self.move_mode {
-                        self.deliver_move_accounts(open.watch(), &subject);
+                        self.deliver_move_accounts(open.watch, &subject);
                     } else {
                         self.deliver_task(false);
                     }
@@ -842,8 +843,8 @@ impl Frame {
             return;
         }
         let value = w::DeliveryValue::Me(me);
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("delivery size"));
-        value.encode(&mut writer).expect("delivery fits");
+        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("delivery size"));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("delivery fits");
         let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: writer.finish() };
         let event = w::StreamEvent::Delivery(
             w::Delivery { watch: self.watch.expect("opened watch"), document },
@@ -853,8 +854,8 @@ impl Frame {
 }
 fn sse(event: &w::StreamEvent) -> Vec<u8> {
     use skein_lib::base64::{self, Alphabet};
-    let mut writer = skein_lib::Writer::new(usize::try_from(event.measure()).expect("event size"));
-    event.encode(&mut writer).expect("event fits");
+    let mut writer = skein_lib::Writer::new(usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("event size"));
+    event.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("event fits");
     let bytes = writer.finish();
     let length =
         base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("event size")).expect("base64 size");

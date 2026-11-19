@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::*;
 use temper_client_domain_forge::forge;
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -212,8 +213,8 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
 pub(crate) fn core_key_conflict() -> w::Outcome {
     let limits = forge::wire_limits(&limits_root().domain.forge).expect("forge limits");
     let refusal = jig_client_protocol_wire::Refusal::KeyConflict;
-    let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
-    refusal.encode(&mut bytes).expect("refusal encoding");
+    let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("refusal bytes"));
+    refusal.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("refusal encoding");
     w::Outcome::CoreRefused(
         w::CoreRefused::new(&limits, w::CoreRefusedParts { refusal: bytes.finish() }).expect("core refusal"),
     )

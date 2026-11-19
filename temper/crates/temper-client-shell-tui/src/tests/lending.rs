@@ -5,7 +5,7 @@ use jig_client::contract::LoginExit;
 const LINE: &[u8] = b"temper: Claude Code signs in here. Approve it on Anthropic's page, in the tab it opens; if that page shows a code, paste it here. temper comes back when it's done, or when you press Cancel in the browser.";
 
 fn subject(number: u64) -> w::Subject {
-    w::Subject::Terminal(w::SubjectTerminal::new(&w::CEILINGS, w::SubjectTerminalParts { terminal: number }).unwrap())
+    w::Subject::Terminal(w::SubjectTerminal { terminal: number })
 }
 
 fn front_host() -> (Host, u64) {
@@ -23,19 +23,11 @@ fn front_host() -> (Host, u64) {
 
 pub(crate) fn terminal_document(login: Option<(u32, bool)>) -> w::DeliveryValue {
     w::DeliveryValue::Terminal(
-        w::Terminal::new(
-            &w::CEILINGS,
-            w::TerminalParts {
+        w::Terminal {
                 login: login.map(|(number, cancelled)| {
-                    w::TerminalLogin::new(
-                        &w::CEILINGS,
-                        w::TerminalLoginParts { number, provider: 17, name: b"work".as_slice().into(), cancelled },
-                    )
-                    .unwrap()
+                    w::TerminalLogin { number, provider: 17, name: b"work".as_slice().into(), cancelled }
                 }),
             },
-        )
-        .unwrap(),
     )
 }
 
@@ -118,19 +110,19 @@ fn a_lent_report_sends_the_end_and_shows_its_own_notice_then_takes_a_new_number(
         let duties = admit(&mut host, duties);
         let asks = sent_ask(&duties);
         let [(_, w::Ask::AccountChange(ask))] = asks.as_slice() else { panic!("one LoginEnded: {asks:?}") };
-        assert_eq!(ask.holder(), &w::AskAccountHolder::Own);
-        let w::AccountChange::LoginEnded(ended) = ask.change() else { panic!("LoginEnded") };
-        assert_eq!(ended.number(), 1);
+        assert_eq!((&ask.holder), &w::AskAccountHolder::Own);
+        let w::AccountChange::LoginEnded(ended) = &ask.change else { panic!("LoginEnded") };
+        assert_eq!(ended.number, 1);
         let expected = match exit {
             LoginExit::Exited { code } => {
-                w::LoginExit::Exited(w::LoginExitExited::new(&w::CEILINGS, w::LoginExitExitedParts { code }).unwrap())
+                w::LoginExit::Exited(w::LoginExitExited { code })
             }
             LoginExit::Killed { signal } => {
-                w::LoginExit::Killed(w::LoginExitKilled::new(&w::CEILINGS, w::LoginExitKilledParts { signal }).unwrap())
+                w::LoginExit::Killed(w::LoginExitKilled { signal })
             }
             LoginExit::NotStarted => w::LoginExit::NotStarted,
         };
-        assert_eq!(ended.exit(), &expected);
+        assert_eq!((&ended.exit), &expected);
         assert!(host.state().lending().is_none());
         assert!(text(&mut host).contains(notice), "{exit:?}: {}", text(&mut host));
         empty(&delivery(&mut host, terminal, &terminal_document(Some((1, false)))));

@@ -108,7 +108,7 @@ mod tests {
     }
 
     fn document() -> c::Task {
-        let mut parts = jig_client_test_records::task_record().into_parts();
+        let mut parts = jig_client_test_records::task_record();
         parts.chip = jig_client_test_records::owner_waiting_chip_record();
         let record = parts;
         let limits = domain_limits();

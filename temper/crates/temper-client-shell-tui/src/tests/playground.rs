@@ -28,12 +28,12 @@ pub(super) fn forges_watch(duties: &Duties) -> u64 {
         .find_map(|(_, message)| {
             let Message::Watch(bytes) = message else { return None };
             let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-            if open.subject().owner() == &w::Owner::Jig {
+            if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
-            let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
-            (watch.watch() == &f::Watch::Forges).then_some(open.watch())
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let watch = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
+            (watch.watch() == &f::Watch::Forges).then_some(open.watch)
         })
         .expect("session forges watch")
 }
@@ -44,11 +44,11 @@ fn playground_read(duties: &Duties) -> ReplySlot {
         .find_map(|(slot, message)| {
             let Message::Read(bytes) = message else { return None };
             let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-            if owned.owner() == &w::Owner::Jig {
+            if owned.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
-            let read = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap();
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap();
+            let read = wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap();
             (read.read() == &f::Read::Playground).then_some(slot)
         })
         .expect("a first fake row refreshes the playground read")
@@ -72,8 +72,7 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
 
     // The stream can coalesce away the empty forges document before this first delivery.
     let event = w::StreamEvent::Delivery(
-        w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document: goal::family(goal::forges(f::Mode::Fake)) })
-            .unwrap(),
+        w::Delivery { watch, document: goal::family(goal::forges(f::Mode::Fake)) },
     );
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
@@ -100,8 +99,8 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
         .unwrap(),
     );
     let answer = w::ReadAnswer::Value(goal::family(record));
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     let terminal = exchange.member.map(|_| exchange.exchange);
     let duties = reply_slot(&mut host, exchange, writer.finish());
     admit(&mut host, duties);

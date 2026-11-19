@@ -232,7 +232,7 @@ fn proposal_items(
         &limits.settings,
     )
     .or(Err(Problem::Range(b"items")))?;
-    let items = match wire::items(wire.into_parts().items, &models(configured), &limits.settings) {
+    let items = match wire::items(wire.items, &models(configured), &limits.settings) {
         Ok(items) => items,
         Err(why) => {
             if why.field == jig_client_protocol_wire::paths::TEMPLATE_LLM {

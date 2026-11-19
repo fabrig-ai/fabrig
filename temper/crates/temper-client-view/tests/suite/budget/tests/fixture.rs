@@ -23,14 +23,12 @@ pub fn pieces(records: impl IntoIterator<Item = Box<[u8]>>) -> Box<[u8]> {
 }
 fn need() -> Box<[u8]> {
     let cursor = w::InboxCursor::Number(
-        w::InboxCursorNumber::new(&w::CEILINGS, w::InboxCursorNumberParts { number: 1 }).expect("cursor"),
+        w::InboxCursorNumber { number: 1 },
     );
     let task = w::TaskLink::Stored(
-        w::TaskLinkStored::new(&w::CEILINGS, w::TaskLinkStoredParts { number: 100, status: None }).expect("task link"),
+        w::TaskLinkStored { number: 100, status: None },
     );
-    let entry = w::InboxEntry::new(
-        &w::CEILINGS,
-        w::InboxEntryParts {
+    let entry = w::InboxEntry {
             reply: None,
             task,
             project: Some(PROJECT),
@@ -40,63 +38,49 @@ fn need() -> Box<[u8]> {
             unread: None,
             cursor,
             projects: List::with_capacity(0),
-        },
-    )
-    .expect("need");
-    pieces([encoded(entry.measure(), |w| entry.encode(w))])
+        };
+    pieces([entry.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")])
 }
 fn text(value: &str) -> w::DocumentText {
-    w::DocumentText::new(&w::CEILINGS, w::DocumentTextParts { bytes: value.as_bytes().into(), cut: false })
-        .expect("text")
+    w::DocumentText { bytes: value.as_bytes().into(), cut: false }
 }
 fn template(number: u32, name: &str, label: u32, tracked: bool) -> w::Template {
     let task = records::task_record();
-    w::Template::new(
-        &w::CEILINGS,
-        w::TemplateParts {
+    w::Template {
             number,
             name: text(name),
             label,
             tracked: tracked.then_some(label),
             executor: w::TemplateExecutor::Charter(
-                w::TemplateCharter::new(&w::CEILINGS, w::TemplateCharterParts { value: 1 }).expect("charter"),
+                w::TemplateCharter { value: 1 },
             ),
-            contract: task.result_contract().clone(),
-            flags: task.flags().clone(),
+            contract: task.result_contract.clone(),
+            flags: task.flags.clone(),
             shallower: 1,
             budget: w::TemplateBudget::AsAllowed(
-                w::TemplateAsAllowed::new(&w::CEILINGS, w::TemplateAsAllowedParts { cap: None }).expect("budget"),
+                w::TemplateAsAllowed { cap: None },
             ),
             deadline: w::TemplateDeadline::None,
             grace: None,
             llm: None,
             resources: List::with_capacity(0),
-        },
-    )
-    .expect("template")
+        }
 }
 pub fn me() -> w::Me {
-    let mut me = records::frame_record().into_parts();
-    me.party = w::MeParty::new(
-        &w::CEILINGS,
-        w::MePartyParts { number: PARTY, kind: w::PartyKind::Person, login: text("pat"), name: text("Pat") },
-    )
-    .expect("party");
+    let mut me = records::frame_record();
+    me.party = w::MeParty { number: PARTY, kind: w::PartyKind::Person, login: text("pat"), name: text("Pat") };
     me.deployment_role = Some(w::HeldRole::Owner);
     me.retention = Duration::from_secs(3600);
     me.needs_total = 1;
     me.needs =
-        w::Needs::new(&w::CEILINGS, w::NeedsParts { questions: 0, proposals: 0, escalations: 0, person_tasks: 1 })
-            .expect("needs");
-    me.updates = w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false }).expect("count");
+        w::Needs { questions: 0, proposals: 0, escalations: 0, person_tasks: 1 };
+    me.updates = w::Count { value: 0, limited: false };
     let templates = [
         template(jig_client::shapes::GOAL, "goal", GOALS, true),
         template(jig_client::shapes::CHAT, "chat", CHATS, false),
         template(domain::milestones::TEMPLATE, "milestone", MILESTONES, true),
     ];
-    let project = w::MeProject::new(
-        &w::CEILINGS,
-        w::MeProjectParts {
+    let project = w::MeProject {
             left_out: 0,
             project: PROJECT,
             name: text("Shop"),
@@ -106,12 +90,10 @@ pub fn me() -> w::Me {
             models: List::with_capacity(0),
             defaults: List::with_capacity(0),
             public: None,
-            templates: pieces(templates.iter().map(|record| encoded(record.measure(), |w| record.encode(w)))),
-        },
-    )
-    .expect("project");
-    me.projects = pieces([encoded(project.measure(), |w| project.encode(w))]);
-    w::Me::new(&w::CEILINGS, me).expect("me")
+            templates: pieces(templates.iter().map(|record| record.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"))),
+        };
+    me.projects = pieces([project.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")]);
+    me
 }
 
 /// Stock browser/native client bounds, not enlarged to make a batch fit.
@@ -181,35 +163,27 @@ fn wire_line(line: &c::TaskLine) -> Box<[u8]> {
     let mut record =
         w::TaskLine::decode(&w::CEILINGS, &mut Reader::new(&temper_fixtures::milestones::line_bytes(line)))
             .expect("wire line")
-            .into_parts();
-    record.budget = w::Budget::new(
-        &w::CEILINGS,
-        w::BudgetParts {
-            numbers: w::Numbers::new(
-                &w::CEILINGS,
-                w::NumbersParts {
+            ;
+    record.budget = w::Budget {
+            numbers: w::Numbers {
                     budget: line.budget.numbers.budget,
                     spent: line.budget.numbers.spent,
                     spent_below: line.budget.numbers.spent_below,
                     reserved: line.budget.numbers.reserved,
                 },
-            )
-            .expect("numbers"),
             left: line.budget.left,
             deadline: line.budget.deadline.map(Wall::as_nanos),
             funder: w::Funder::Task(
-                w::FunderTask::new(&w::CEILINGS, w::FunderTaskParts { value: line.chip.task }).expect("funder"),
+                w::FunderTask { value: line.chip.task },
             ),
-        },
-    )
-    .expect("row budget");
+        };
     record.parts = List::with_capacity(1);
     for part in &line.parts {
         let c::RowPart::Value(value) = part else { panic!("fixture part") };
         record.parts.push(w::RowPart::Value(owned(value.bytes.clone(), Some(value.family)))).expect("part");
     }
-    let record = w::TaskLine::new(&w::CEILINGS, record).expect("line");
-    encoded(record.measure(), |w| record.encode(w))
+    let record = record;
+    record.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")
 }
 fn from(task: u64, title: &str) -> f::ChangeFrom {
     f::ChangeFrom::new(&f::CEILINGS, f::ChangeFromParts { task, title: title.as_bytes().into() }).expect("from")
@@ -425,128 +399,94 @@ impl Project {
             other => panic!("unknown tasks query: {other:?}"),
         }
     }
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the fake's typed jig replies remain beside its exhaustive subject checks"
-    )]
     pub fn answer(&self, subject: &w::Owned, watch: bool) -> w::Owned {
-        match subject.owner() {
+        match &subject.owner {
             w::Owner::Jig if watch => {
-                let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(subject.record())).expect("subject");
+                let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref())).expect("subject");
                 let value = match subject {
                     w::Subject::Accounts => w::DeliveryValue::Accounts(records::accounts_record(None)),
                     w::Subject::Inbox(_) => w::DeliveryValue::Inbox(
-                        w::Inbox::new(
-                            &w::CEILINGS,
-                            w::InboxParts {
+                        w::Inbox {
                                 party: PARTY,
                                 needs: need(),
                                 updates: Box::new([]),
                                 next: None,
                                 cached_needs: 1,
-                                cached_updates: w::Count::new(&w::CEILINGS, w::CountParts { value: 0, limited: false })
-                                    .expect("updates"),
+                                cached_updates: w::Count { value: 0, limited: false },
                                 results_seen: 0,
                                 updates_time_complete: true,
                                 selection: None,
                             },
-                        )
-                        .expect("session inbox"),
                     ),
                     w::Subject::Settings => w::DeliveryValue::Settings(
-                        w::SettingsDocument::new(
-                            &w::CEILINGS,
-                            w::SettingsDocumentParts {
+                        w::SettingsDocument {
                                 newest: 0,
                                 settings: List::with_capacity(0),
                                 held: List::with_capacity(0),
                                 pending: List::with_capacity(0),
                             },
-                        )
-                        .expect("settings"),
                     ),
                     w::Subject::Tasks(tasks) => {
-                        assert_eq!(tasks.window(), limits().client.domain.rows);
-                        assert_eq!(tasks.query().project(), &Some(PROJECT), "the project's tasks");
-                        let rows = self.rows(*tasks.query().label(), false);
+                        assert_eq!(tasks.window, limits().client.domain.rows);
+                        assert_eq!((&tasks.query.project), &Some(PROJECT), "the project's tasks");
+                        let rows = self.rows(tasks.query.label, false);
                         w::DeliveryValue::Tasks(
-                            w::Tasks::new(
-                                &w::CEILINGS,
-                                w::TasksParts { rows: pieces(rows.iter().map(wire_line)), more: false, ended_mark: 0 },
-                            )
-                            .expect("tasks"),
+                            w::Tasks { rows: pieces(rows.iter().map(wire_line)), more: false, ended_mark: 0 },
                         )
                     }
                     other => panic!("unexpected jig watch (no chips or deployment on Work): {other:?}"),
                 };
-                owned(encoded(value.measure(), |w| value.encode(w)), None)
+                owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"), None)
             }
             w::Owner::Jig => {
-                let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(subject.record())).expect("read");
+                let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref())).expect("read");
                 let value = match read {
                     w::Read::Project(read) => {
-                        assert_eq!(read.project(), PROJECT, "the rail's project");
-                        let mut project = records::owner_project_record().into_parts();
+                        assert_eq!(read.project, PROJECT, "the rail's project");
+                        let mut project = records::owner_project_record();
                         project.number = PROJECT;
                         project.name = text("Shop");
-                        w::ReadValue::Project(w::Project::new(&w::CEILINGS, project).expect("project"))
+                        w::ReadValue::Project(project)
                     }
                     w::Read::Tasks(read) => {
-                        assert_eq!(read.query().project(), &Some(PROJECT), "the project's ended tasks");
-                        assert_eq!(read.query().phase(), &Some(w::PhaseClass::Ended), "only the ended group is read");
-                        let rows = self.rows(*read.query().label(), true);
+                        assert_eq!((&read.query.project), &Some(PROJECT), "the project's ended tasks");
+                        assert_eq!((&read.query.phase), &Some(w::PhaseClass::Ended), "only the ended group is read");
+                        let rows = self.rows(read.query.label, true);
                         let ended = w::EndedGroup::Rows(
-                            w::EndedRows::new(
-                                &w::CEILINGS,
-                                w::EndedRowsParts { rows: pieces(rows.iter().map(wire_line)), after: None, cut: false },
-                            )
-                            .expect("ended"),
+                            w::EndedRows { rows: pieces(rows.iter().map(wire_line)), after: None, cut: false },
                         );
                         w::ReadValue::Tasks(
-                            w::TaskPage::new(
-                                &w::CEILINGS,
-                                w::TaskPageParts { live: Box::new([]), live_after: None, ended, ended_mark: 0 },
-                            )
-                            .expect("tasks page"),
+                            w::TaskPage { live: Box::new([]), live_after: None, ended, ended_mark: 0 },
                         )
                     }
                     w::Read::Inbox(read) => {
-                        assert_eq!(read.project(), &Some(PROJECT), "the project's needs");
-                        let selection = w::InboxSelection::new(
-                            &w::CEILINGS,
-                            w::InboxSelectionParts {
+                        assert_eq!((&read.project), &Some(PROJECT), "the project's needs");
+                        let selection = w::InboxSelection {
                                 cursor: w::InboxCursor::Number(
-                                    w::InboxCursorNumber::new(&w::CEILINGS, w::InboxCursorNumberParts { number: 1 })
-                                        .expect("cursor"),
+                                    w::InboxCursorNumber { number: 1 },
                                 ),
                                 goals: List::from_boxed(Box::new([100])),
-                            },
-                        )
-                        .expect("selection");
+                            };
                         w::ReadValue::Inbox(
-                            w::InboxPage::new(
-                                &w::CEILINGS,
-                                w::InboxPageParts {
-                                    selection: Some(pieces([encoded(selection.measure(), |w| selection.encode(w))])),
+                            w::InboxPage {
+                                    selection: Some(pieces([selection.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")])),
                                     cut: false,
                                     rows: Box::new([]),
                                     before: None,
                                     after: None,
                                 },
-                            )
-                            .expect("inbox"),
                         )
                     }
                     other => panic!("unexpected jig read: {other:?}"),
                 };
-                owned(encoded(value.measure(), |w| value.encode(w)), None)
+                owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"), None)
             }
             w::Owner::Family(family) => {
-                assert_eq!(family.number(), wire::FORGE, "only the forge family is spoken");
-                let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(subject.record()))
+                assert_eq!(family.number, wire::FORGE, "only the forge family is spoken");
+                let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(subject.record.as_ref()))
                     .expect("family scope and window");
                 let record =
-                    if watch { self.family_watch(envelope.record()) } else { Self::family_read(envelope.record()) };
+                    if watch { self.family_watch(envelope.record.as_ref()) } else { Self::family_read(envelope.record.as_ref()) };
                 owned(record, Some(wire::FORGE))
             }
         }

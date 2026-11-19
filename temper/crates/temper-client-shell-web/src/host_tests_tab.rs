@@ -52,7 +52,7 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
     admit_watches(&mut host);
     host.client(jig_client::Event::Stored);
     host.requests();
-    let mut me = jig_client_test_records::frame_record().into_parts();
+    let mut me = jig_client_test_records::frame_record();
     let provider = w::ProviderOffer {
             provider: 17,
             name: w::DocumentText { bytes: b"openai".as_slice().into(), cut: false },
@@ -65,15 +65,12 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
             manage_usage: None,
             key_bytes: 4096,
         };
-    me.providers = encoded(provider.measure() + 4, |writer| {
-        writer.put(&provider.measure().to_be_bytes())?;
-        provider.encode(writer)
-    });
+    me.providers = provider.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
     let value = w::DeliveryValue::Me(me);
     streamed(
         &mut host,
         &w::StreamEvent::Delivery(
-            w::Delivery { watch, document: owned(encoded(value.measure(), |writer| value.encode(writer))) },
+            w::Delivery { watch, document: owned(value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")) },
         ),
     );
     admit_watches(&mut host);
@@ -96,7 +93,7 @@ fn admit_watches(host: &mut Host) {
                 host.heard(Heard::Answered {
                     exchange: id,
                     status: 200,
-                    body: encoded(answer.measure(), |writer| answer.encode(writer)),
+                    body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
                     headers: Vec::new(),
                 });
                 admitted = true;
@@ -124,11 +121,11 @@ fn answer_sign_in(host: &mut Host) -> Duties {
         w::OutcomeDocument { value: started },
     );
     let answer = w::Final::Done(w::Done { outcome });
-    let answer = w::KeyedAnswer::FinalAnswer(owned(encoded(answer.measure(), |writer| answer.encode(writer))));
+    let answer = w::KeyedAnswer::FinalAnswer(owned(answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")));
     host.report(Report::Heard(Heard::Answered {
         exchange: signing,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
         headers: Vec::new(),
     }))
 }

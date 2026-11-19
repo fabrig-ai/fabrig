@@ -26,20 +26,16 @@ impl Frame {
             | w::Subject::Terminal(_)
             | w::Subject::Settings => panic!("move watches only accounts and deployment"),
         };
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) },
-        )
-        .expect("accounts");
+        let document = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) };
         let event = w::StreamEvent::Delivery(
-            w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
+            w::Delivery { watch, document },
         );
         self.sockets.get_mut(&self.stream.expect("stream")).expect("stream socket").reply.extend(sse(&event));
     }
     pub(super) fn move_reply(&mut self, fd: Fd, keyed: &w::Keyed) {
-        let ask = w::Ask::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request())).expect("ask");
+        let ask = w::Ask::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref())).expect("ask");
         let w::Ask::AccountChange(change) = ask else { panic!("account change") };
-        self.file_steps.push(match change.change() {
+        self.file_steps.push(match &change.change {
             w::AccountChange::Written(_) => "written",
             w::AccountChange::MoveOut(_) => "move-out",
             w::AccountChange::MoveIn(_) => "move-in",
@@ -58,7 +54,7 @@ impl Frame {
             | w::AccountChange::DeclareProgram(_)
             | w::AccountChange::CheckProgram(_) => panic!("move request"),
         });
-        self.move_requests.push((change.holder().clone(), change.change().clone()));
+        self.move_requests.push((change.holder.clone(), change.change.clone()));
         let Some(answer) = self.move_answers.pop_front() else { return };
         match answer {
             Answer::Lost => {
@@ -72,11 +68,7 @@ impl Frame {
             Answer::Moving(_) | Answer::Done | Answer::MovedIn(_) | Answer::Refused(_) => {}
         }
         let answer = final_answer(answer);
-        let owned = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) },
-        )
-        .expect("answer");
+        let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) };
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }
     pub fn no_record_leaked(&self) {
@@ -116,82 +108,45 @@ fn final_answer(answer: Answer) -> w::Final {
     match answer {
         Answer::Lost | Answer::Unsent => unreachable!("transport answers handled"),
         Answer::Moving(bytes) => w::Final::Done(
-            w::Done::new(
-                &w::CEILINGS,
-                w::DoneParts {
+            w::Done {
                     outcome: w::Outcome::Made(
-                        w::OutcomeMade::new(
-                            &w::CEILINGS,
-                            w::OutcomeMadeParts {
+                        w::OutcomeMade {
                                 what: w::Made::MovingOut(
-                                    w::MadeMovingOut::new(
-                                        &w::CEILINGS,
-                                        w::MadeMovingOutParts {
+                                    w::MadeMovingOut {
                                             account: ACCOUNT,
                                             number: NUMBER,
                                             record: skein_lib::Secret::new(bytes.into()),
                                         },
-                                    )
-                                    .expect("moving"),
                                 ),
                             },
-                        )
-                        .expect("made"),
                     ),
                 },
-            )
-            .expect("done"),
         ),
         Answer::Done => w::Final::Done(
-            w::Done::new(
-                &w::CEILINGS,
-                w::DoneParts {
+            w::Done {
                     outcome: w::Outcome::Document(
-                        w::OutcomeDocument::new(
-                            &w::CEILINGS,
-                            w::OutcomeDocumentParts { value: w::DocumentOutcome::AccountChanged },
-                        )
-                        .expect("changed"),
+                        w::OutcomeDocument { value: w::DocumentOutcome::AccountChanged },
                     ),
                 },
-            )
-            .expect("done"),
         ),
         Answer::MovedIn(renewed) => w::Final::Done(
-            w::Done::new(
-                &w::CEILINGS,
-                w::DoneParts {
+            w::Done {
                     outcome: w::Outcome::Document(
-                        w::OutcomeDocument::new(
-                            &w::CEILINGS,
-                            w::OutcomeDocumentParts {
+                        w::OutcomeDocument {
                                 value: w::DocumentOutcome::AccountMovedIn(
-                                    w::OutcomeAccountMovedIn::new(
-                                        &w::CEILINGS,
-                                        w::OutcomeAccountMovedInParts { account: ACCOUNT, renewed },
-                                    )
-                                    .expect("moved in"),
+                                    w::OutcomeAccountMovedIn { account: ACCOUNT, renewed },
                                 ),
                             },
-                        )
-                        .expect("owner"),
                     ),
                 },
-            )
-            .expect("done"),
         ),
         Answer::Refused(why) => w::Final::Refused(
-            w::Refused::new(
-                &w::CEILINGS,
-                w::RefusedParts {
+            w::Refused {
                     refusal: w::Refusal::AccountMove(
-                        w::RefusalAccountMove::new(&w::CEILINGS, w::RefusalAccountMoveParts { why })
-                            .expect("move refusal"),
+                        w::RefusalAccountMove { why },
                     ),
                     at: None,
                 },
-            )
-            .expect("refused"),
         ),
     }
 }

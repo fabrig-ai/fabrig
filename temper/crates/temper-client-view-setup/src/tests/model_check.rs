@@ -4,6 +4,7 @@
     clippy::disallowed_types,
     reason = "tests inspect semantic trees and decoded controls"
 )]
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, connect_model as model};
 use crate::{
     accounts::Bindings,
@@ -449,8 +450,8 @@ fn trial_rows_feed_the_steps_answer_and_ask_gap_in_both_shells() {
 fn wait_delivery(root: &mut d::Domain, watch: Token, wait: Option<jig_client_protocol_wire::TaskRunWait>) {
     let mut parts = row(v::TrialStep::Starts, v::TrialState::Running).into_parts();
     parts.run_wait = wait.map(|wait| {
-        let mut writer = Writer::new(usize::try_from(wait.measure()).unwrap());
-        wait.encode(&mut writer).unwrap();
+        let mut writer = Writer::new(usize::try_from(wait.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        wait.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         writer.finish()
     });
     rows(root, watch, &[v::TrialRow::new(&v::CEILINGS, parts).unwrap()]);
@@ -569,8 +570,8 @@ fn a_running_trials_wait_stops_the_line_until_it_clears_and_waited_keeps_its_wor
             task.llm = None;
             task.run_wait = jig_client_protocol_link::translate::run_wait(Some(&wait));
             let now = match &wait {
-                R::Refused(value) => match value.value() {
-                    j::TaskWaitRefused::Hello(value) => skein_lib::Wall::from_nanos(value.at()),
+                R::Refused(value) => match &value.value {
+                    j::TaskWaitRefused::Hello(value) => skein_lib::Wall::from_nanos(value.at),
                     j::TaskWaitRefused::Bounds(_) => f::NOW,
                 },
                 R::Account(_) | R::Credential | R::Host => f::NOW,

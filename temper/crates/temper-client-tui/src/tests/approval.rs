@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures as f;
 use crate::{Told, Tui, approval_address, may_ask_again};
 use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
@@ -61,8 +62,8 @@ pub(super) fn asked(state: Option<State>) -> Domain {
             }
         };
         if let Some(answer) = answer {
-            let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-            answer.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+            answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             f::client(&mut root, jig_client::Event::Reply { exchange: id, message: writer.finish() });
         }
     }
@@ -108,8 +109,8 @@ pub(super) fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
         NotSignedIn::NotReady => w::ApprovalSignInAnswer::NotReady,
         NotSignedIn::LinkUsed | NotSignedIn::LinkExpired | NotSignedIn::LinkUnknown => unreachable!("link answered"),
     };
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     f::client(root, jig_client::Event::Reply { exchange: id, message: writer.finish() });
 }
 

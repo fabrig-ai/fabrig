@@ -4,6 +4,7 @@
     clippy::disallowed_methods,
     reason = "ordinary Rust fixtures and golden comparisons"
 )]
+use jig_client_protocol_wire::Record as _;
 use crate::{
     jig::{
         self,
@@ -935,7 +936,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_policy(&policy, &crate::limits::tools().settings)
             .expect("wire policy");
-    let grant_bytes = u32::try_from(wire.ceiling().grants().len()).expect("grant bytes");
+    let grant_bytes = u32::try_from(wire.ceiling.grants.as_ref().len()).expect("grant bytes");
     for (index, name, length) in [
         (0, "charter_instructions", 23),
         (0, "charter_alternatives", 1),
@@ -1171,7 +1172,7 @@ fn remaining_nested_collections_and_bytes_obey_jigs_bounds() {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_policy(policy, &crate::limits::tools().settings)
             .expect("wire policy");
-    let resource_bytes = u32::try_from(wire.ceiling().note_resources().len()).expect("resource bytes");
+    let resource_bytes = u32::try_from(wire.ceiling.note_resources.as_ref().len()).expect("resource bytes");
     boundary!(setting, value.clone(), authority_note_resources, resource_bytes);
     boundary!(setting, value.clone(), pattern_end_exact_value, 3);
     let c::SettingValue::Policy(mut policy) = value else { panic!("policy") };
@@ -1212,10 +1213,10 @@ fn remaining_nested_collections_and_bytes_obey_jigs_bounds() {
     let jig_client_protocol_wire::SettingValue::Template(wire) = wire else {
         panic!("wire template");
     };
-    let jig_client_protocol_wire::TaskContractDocument::Verdict(verdict) = wire.contract() else {
+    let jig_client_protocol_wire::TaskContractDocument::Verdict(verdict) = &wire.contract else {
         panic!("wire verdict");
     };
-    let choice_bytes = u32::try_from(verdict.choices().len()).expect("choice bytes");
+    let choice_bytes = u32::try_from(verdict.choices.as_ref().len()).expect("choice bytes");
     boundary!(
         setting,
         c::SettingValue::Template(template.clone()),
@@ -1263,7 +1264,7 @@ fn settings_items_check_the_aggregate_wire_byte_bound_and_maximum_count() {
         &limits.settings,
     )
     .expect("wire items");
-    let size = u32::try_from(wire.items().len()).expect("wire bytes");
+    let size = u32::try_from(wire.items.as_ref().len()).expect("wire bytes");
     limits.settings.change_settings_items = size;
     settings_file::decode(file, &limits).expect("at item bytes bound");
     limits.settings.change_settings_items = size - 1;
@@ -2913,7 +2914,7 @@ fn measured_review_value(value: &c::SettingValue) -> c::ReviewValue {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_value(value, &crate::limits::tools().settings)
             .expect("wire setting");
-    c::ReviewValue::TooLarge(c::Size { bytes: u64::from(wire.measure()) })
+    c::ReviewValue::TooLarge(c::Size { bytes: u64::from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")) })
 }
 fn policy_review_proposal(values: &[(c::Setting, c::SettingValue, c::SettingValue)]) -> c::ReadValue {
     let mut proposal = review_proposal(Some(c::SettingsReview {

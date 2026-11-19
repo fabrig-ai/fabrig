@@ -5,37 +5,29 @@ pub const FILE: &[u8] = b"http://127.0.0.1:4100\nZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ
 impl Frame {
     pub(super) fn service_reply(&mut self, fd: Fd, body: &[u8]) {
         let keyed = w::Keyed::decode(&w::CEILINGS, &mut skein_lib::Reader::new(body)).expect("keyed act");
-        let ask = w::Ask::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request())).expect("service act");
+        let ask = w::Ask::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref())).expect("service act");
         let w::Ask::MakeService(make) = ask else { panic!("make service") };
-        assert_eq!(make.project(), 7);
-        assert_eq!(make.name(), b"scout");
-        assert_eq!(make.role(), &w::HeldRole::Member);
+        assert_eq!(make.project, 7);
+        assert_eq!(make.name.as_ref(), b"scout");
+        assert_eq!((&make.role), &w::HeldRole::Member);
         self.made_services += 1;
         if self.hold_service_erase {
             self.hold_stores = Some(());
         }
-        let service = w::MadeService::new(
-            &w::CEILINGS,
-            w::MadeServiceParts {
+        let service = w::MadeService {
                 party: 9,
                 credential: skein_lib::Secret::new(if self.service_replay {
                     Box::new([])
                 } else {
                     Box::new(CREDENTIAL)
                 }),
-            },
-        )
-        .expect("service");
+            };
         let outcome =
-            w::OutcomeMade::new(&w::CEILINGS, w::OutcomeMadeParts { what: w::Made::Service(service) }).expect("made");
+            w::OutcomeMade { what: w::Made::Service(service) };
         let answer = w::Final::Done(
-            w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Made(outcome) }).expect("done"),
+            w::Done { outcome: w::Outcome::Made(outcome) },
         );
-        let owned = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) },
-        )
-        .expect("answer");
+        let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) };
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }
     pub fn no_service_leaked(&self) {

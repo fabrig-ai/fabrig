@@ -25,51 +25,37 @@ fn piece(bytes: &[u8]) -> Box<[u8]> {
     out.into_boxed_slice()
 }
 pub fn chat_me() -> w::Me {
-    let lim = jig_client_test_records::limits();
     let text = jig_client_test_records::wire_text;
-    let template = w::Template::new(
-        &lim,
-        w::TemplateParts {
+    let template = w::Template {
             resources: List::with_capacity(0),
             number: jig_client::shapes::CHAT,
             name: text(b"chat"),
             executor: w::TemplateExecutor::Charter(
-                w::TemplateCharter::new(&lim, w::TemplateCharterParts { value: 1 }).expect("charter"),
+                w::TemplateCharter { value: 1 },
             ),
             contract: w::TaskContractDocument::Report(
-                w::TaskContractDocumentReport::new(&lim, w::TaskContractDocumentReportParts { words: 32 })
-                    .expect("report"),
+                w::TaskContractDocumentReport { words: 32 },
             ),
             shallower: 1,
             budget: w::TemplateBudget::Amount(
-                w::TemplateAmount::new(&lim, w::TemplateAmountParts { value: BUDGET }).expect("amount"),
+                w::TemplateAmount { value: BUDGET },
             ),
             deadline: w::TemplateDeadline::None,
             tracked: None,
-            flags: w::TaskFlags::new(
-                &lim,
-                w::TaskFlagsParts {
+            flags: w::TaskFlags {
                     ended_by: w::EndedBy::Result,
                     conversation: true,
                     listed: false,
                     retention: w::Retention::Kept,
                 },
-            )
-            .expect("flags"),
             label: jig_client::shapes::CHAT,
             grace: None,
             llm: None,
-        },
-    )
-    .expect("chat template");
+        };
     let mut charters = List::with_capacity(ONE);
     charters.push(1).expect("one charter");
-    let creating = w::CreatingBounds::new(
-        &lim,
-        w::CreatingBoundsParts {
-            within: w::BoundsCreate::new(
-                &lim,
-                w::BoundsCreateParts {
+    let creating = w::CreatingBounds {
+            within: w::BoundsCreate {
                     authority: jig_client_test_records::wire_owner_authority_document(),
                     pool_left: BUDGET,
                     charters,
@@ -79,25 +65,15 @@ pub fn chat_me() -> w::Me {
                     maximum_budget: BUDGET,
                     maximum_deadline: None,
                 },
-            )
-            .expect("bounds"),
             beyond: w::Beyond::Proposed(
-                w::BeyondProposed::new(
-                    &lim,
-                    w::BeyondProposedParts {
+                w::BeyondProposed {
                         to: w::Recipient::Party(
-                            w::RecipientParty::new(&lim, w::RecipientPartyParts { value: PARTY }).expect("recipient"),
+                            w::RecipientParty { value: PARTY },
                         ),
                     },
-                )
-                .expect("beyond"),
             ),
-        },
-    )
-    .expect("creating");
-    let project = w::MeProject::new(
-        &lim,
-        w::MeProjectParts {
+        };
+    let project = w::MeProject {
             left_out: 0,
             defaults: List::with_capacity(0),
             public: None,
@@ -108,13 +84,11 @@ pub fn chat_me() -> w::Me {
             templates: piece(&encode!(template)),
             creating: Some(creating),
             models: List::with_capacity(0),
-        },
-    )
-    .expect("membership");
-    let mut parts = jig_client_test_records::frame_record().into_parts();
+        };
+    let mut parts = jig_client_test_records::frame_record();
     parts.projects = piece(&encode!(project));
     parts.retention = Duration::from_secs(3600);
-    w::Me::new(&lim, parts).expect("chat frame")
+    parts
 }
 pub(super) fn record(party: u64) -> jig_client::Record {
     let lim = link_limits();
@@ -143,8 +117,7 @@ pub(super) fn stored_request(party: u64, request: jig_client::Ask) -> jig_client
         &lim,
     )
     .expect("kept table");
-    let kept = w::Kept::new(lim.wire(), w::KeptParts { store_version: TABLE_VERSION, record: encode!(table) })
-        .expect("kept record");
+    let kept = w::Kept { store_version: TABLE_VERSION, record: encode!(table) };
     jig_client::Record { key: KEPT_KEY.into(), bytes: encode!(kept) }
 }
 pub fn small_store(records: &[jig_client::Record]) -> Box<[u8]> {
@@ -210,41 +183,36 @@ impl Frame {
     }
     pub(super) fn act_reply(&mut self, fd: Fd, body: &[u8]) {
         let keyed = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(body)).expect("keyed request");
-        self.acts.push(*keyed.key());
-        if let Some(value) = keyed.value() {
+        self.acts.push(keyed.key);
+        if let Some(value) = &keyed.value {
             self.carried_keys.push(value.clone());
         }
-        if self.move_mode && matches!(keyed.owner(), w::Owner::Jig) {
+        if self.move_mode && matches!( &keyed.owner, w::Owner::Jig) {
             self.move_reply(fd, &keyed);
             return;
         }
-        if !if self.is_kept(keyed.key()) { self.answer_kept.is_some() } else { self.answer_new.is_some() } {
+        if !if self.is_kept(&keyed.key) { self.answer_kept.is_some() } else { self.answer_new.is_some() } {
             return;
         }
         if self.project_make_reply(fd, &keyed) || self.setup_reply(fd, &keyed) {
             return;
         }
         self.hold_stores = Some(());
-        if matches!(keyed.owner(), w::Owner::Family(_)) {
+        if matches!( &keyed.owner, w::Owner::Family(_)) {
             self.adopt_reply(fd, &keyed);
             return;
         }
         let value = w::DocumentOutcome::Created(
-            w::OutcomeCreated::new(&w::CEILINGS, w::OutcomeCreatedParts { first: 41, last: 41, given: None })
-                .expect("created"),
+            w::OutcomeCreated { first: 41, last: 41, given: None },
         );
         self.document_reply(fd, value);
     }
     fn document_reply(&mut self, fd: Fd, value: w::DocumentOutcome) {
         let outcome = w::Outcome::Document(
-            w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value }).expect("owner outcome"),
+            w::OutcomeDocument { value },
         );
-        let answer = w::Final::Done(w::Done::new(&w::CEILINGS, w::DoneParts { outcome }).expect("done"));
-        let owned = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) },
-        )
-        .expect("answer");
+        let answer = w::Final::Done(w::Done { outcome });
+        let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(answer) };
         let answer = w::KeyedAnswer::FinalAnswer(owned);
         self.reply(fd, &encode!(answer));
     }
@@ -317,9 +285,9 @@ impl Frame {
             &f::CEILINGS,
             f::AnswerParts {
                 outcome: if self.setting_up_projects() {
-                    let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request()))
+                    let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref()))
                         .expect("adoption envelope");
-                    let request = wire::decode_requesting(envelope.record(), &f::CEILINGS).expect("forge request");
+                    let request = wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).expect("forge request");
                     let f::Request::Adopt(adopt) = request.into_parts().request else { panic!("expected adoption") };
                     assert_eq!(adopt.project(), 3);
                     assert_eq!(
@@ -336,38 +304,34 @@ impl Frame {
             },
         )
         .expect("answer");
-        let owned = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts {
+        let owned = w::Owned {
                 owner: w::Owner::Family(
-                    w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).expect("family"),
+                    w::Family { number: wire::FORGE },
                 ),
                 version: wire::CLIENT_VERSION,
                 record: wire::answer(&answer),
-            },
-        )
-        .expect("owned answer");
+            };
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }
 }
 
 /// Memberships encoded independently of ctl's receiving capacity.
 pub fn project_me(count: u32) -> w::Me {
-    let mut parts = chat_me().into_parts();
+    let mut parts = chat_me();
     let mut reader = Reader::new(&parts.projects);
     let size = reader.u32().expect("membership size");
     let project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(reader.bytes(size).expect("membership")))
         .expect("membership record");
     let mut projects = Vec::new();
     for number in 1..=count {
-        let mut row = project.clone().into_parts();
+        let mut row = project.clone();
         row.project = number;
         let name = if number == 3 { "proof-5-clearer-words".to_owned() } else { format!("project-{number}") };
         row.name = jig_client_test_records::wire_text(name.as_bytes());
-        projects.extend_from_slice(&piece(&encode!(w::MeProject::new(&w::CEILINGS, row).expect("membership"))));
+        projects.extend_from_slice(&piece(&encode!(row)));
     }
     parts.projects = projects.into();
-    w::Me::new(&w::CEILINGS, parts).expect("project frame")
+    parts
 }
 
 impl Frame {
@@ -392,16 +356,16 @@ impl Frame {
         matches!(self.offers, Some(Offers::Projects(_)))
     }
     fn project_make_reply(&mut self, fd: Fd, keyed: &w::Keyed) -> bool {
-        if !self.setting_up_projects() || !matches!(keyed.owner(), w::Owner::Jig) {
+        if !self.setting_up_projects() || !matches!( &keyed.owner, w::Owner::Jig) {
             return false;
         }
-        let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request())).expect("setup ask");
+        let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(keyed.request.as_ref())).expect("setup ask");
         let w::Ask::MakeProject(make) = ask else { panic!("expected project creation") };
-        assert_eq!(make.name(), b"proof-5-clearer-words");
+        assert_eq!(make.name.as_ref(), b"proof-5-clearer-words");
         assert_eq!(self.offers, Some(Offers::Projects(2)));
         self.offers = Some(Offers::Projects(3));
         let value = w::DocumentOutcome::ProjectMade(
-            w::OutcomeProjectMade::new(&w::CEILINGS, w::OutcomeProjectMadeParts { project: 3 }).expect("made"),
+            w::OutcomeProjectMade { project: 3 },
         );
         self.document_reply(fd, value);
         true
@@ -415,18 +379,14 @@ impl Frame {
         let request = &self.sockets.get(&fd).expect("read socket").request;
         let start = skein_lib::bytes::find(request, b"\r\n\r\n").expect("HTTP head");
         let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(&request[start + 4..])).expect("owned read");
-        let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("project read");
+        let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).expect("project read");
         let w::Read::Project(read) = read else { panic!("expected project read") };
-        assert_eq!(read.project(), 3);
-        let mut parts = jig_client_test_records::owner_project_record().into_parts();
+        assert_eq!(read.project, 3);
+        let mut parts = jig_client_test_records::owner_project_record();
         parts.number = 3;
         parts.name = jig_client_test_records::wire_text(b"proof-5-clearer-words");
-        let value = w::ReadValue::Project(w::Project::new(&w::CEILINGS, parts).expect("project"));
-        let owned = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) },
-        )
-        .expect("project read answer");
+        let value = w::ReadValue::Project(parts);
+        let owned = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: encode!(value) };
         self.reply(fd, &encode!(w::ReadAnswer::Value(owned)));
     }
 }

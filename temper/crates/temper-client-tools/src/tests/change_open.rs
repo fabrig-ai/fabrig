@@ -1,4 +1,5 @@
 //! A person's open-change act, with engine answers supplied by the client fixture.
+use jig_client_protocol_wire::Record as _;
 use super::fixtures::{self as f, OPEN_CHANGE as OPEN};
 use jig_client::{self as client, contract as c};
 use skein_lib::List;
@@ -243,8 +244,8 @@ fn forge_refusals_name_projects_repositories_and_the_refused_branch() {
     );
 }
 fn core(why: jig_client_protocol_wire::Refusal) -> w::Outcome {
-    let mut bytes = skein_lib::Writer::new(usize::try_from(why.measure()).unwrap());
-    why.encode(&mut bytes).unwrap();
+    let mut bytes = skein_lib::Writer::new(usize::try_from(why.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    why.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     w::Outcome::CoreRefused(w::CoreRefused::new(&w::CEILINGS, w::CoreRefusedParts { refusal: bytes.finish() }).unwrap())
 }
 #[test]

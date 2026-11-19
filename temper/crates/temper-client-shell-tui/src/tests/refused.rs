@@ -8,17 +8,12 @@ fn not_served_hello(family: bool) -> Box<[u8]> {
     if family {
         served
             .push(
-                w::Served::new(
-                    &w::CEILINGS,
-                    w::ServedParts { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
-                )
-                .expect("Jig version"),
+                w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
             )
             .expect("Jig served, application family omitted");
     }
     let hello =
-        w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-            .expect("hello refusing a version");
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) };
     stream_bytes(&if family { records::opened(hello, records::frame_record()) } else { w::StreamEvent::Hello(hello) })
 }
 

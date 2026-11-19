@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use super::fixtures;
 use skein_ui::{Act, Role};
 use temper_client_domain::{Action, ChatsFilter, pages};
@@ -394,8 +395,8 @@ fn assert_link_main(answer: jig_client_protocol_wire::SignInAnswer, expected: &[
             assert!(exchange.replace(token).is_none());
         }
     }
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer size"));
-    answer.encode(&mut writer).expect("answer room");
+    let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("answer size"));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("answer room");
     fixtures::root_event(
         &mut root,
         Event::Client {

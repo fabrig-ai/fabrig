@@ -1,4 +1,5 @@
 //! Ctl argv and client-value adapter for the neutral settings file form.
+use jig_client_protocol_wire::Record as _;
 use super::{
     Limits,
     call::{Call, Value, Values, number, value},
@@ -128,7 +129,10 @@ pub(crate) fn request(call: &Call, limits: &Limits) -> Result<c::ChangeSettings,
     };
     let wire = settings_form::wire::wire_change_settings(&change, &form_limits.settings)
         .or(Err(Box::<[u8]>::from(b"settings file: encoded items bytes: bound".as_slice())))?;
-    if u64::from(jig_client_protocol_wire::Ask::ChangeSettings(wire).measure()) > limits.ask_bytes {
+    let measured = jig_client_protocol_wire::Ask::ChangeSettings(wire)
+        .measure(&form_limits.settings)
+        .or(Err(Box::<[u8]>::from(b"settings file: encoded items bytes: bound".as_slice())))?;
+    if u64::from(measured) > limits.ask_bytes {
         return Err(Box::from(b"settings file: encoded request bytes: bound".as_slice()));
     }
     let mut items = List::with_capacity(change.items.len());

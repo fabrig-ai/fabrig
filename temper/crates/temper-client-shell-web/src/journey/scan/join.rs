@@ -1,4 +1,5 @@
 //! Offset joins of `RunText` and `WritingCall` (temper/docs/design/client/web/journeys.md, 3.7).
+use jig_client_protocol_wire::Record as _;
 use super::{Originals, Streams, What, bytes};
 use jig_client_protocol_wire as w;
 use skein_lib::Reader;
@@ -32,26 +33,26 @@ pub(super) fn scan(streams: &Streams, originals: &Originals) -> Option<(u32, Wha
         }
         match decoded {
             w::StreamEvent::Text(text) => {
-                let run = text.value();
+                let run = &text.value;
                 add(
                     &mut groups,
-                    Key { watch: text.watch(), attempt: run.attempt(), turn: run.turn().clone(), call: None },
-                    Delivery { line: event.line, from: run.from(), through: run.through(), text: run.text().into() },
+                    Key { watch: text.watch, attempt: run.attempt, turn: run.turn.clone(), call: None },
+                    Delivery { line: event.line, from: run.from, through: run.through, text: run.text.as_ref().into() },
                 );
-                if let Some(call) = run.writing() {
+                if let Some(call) = &run.writing {
                     add(
                         &mut groups,
                         Key {
-                            watch: text.watch(),
-                            attempt: run.attempt(),
-                            turn: run.turn().clone(),
-                            call: Some(call.id().into()),
+                            watch: text.watch,
+                            attempt: run.attempt,
+                            turn: run.turn.clone(),
+                            call: Some(call.id.as_ref().into()),
                         },
                         Delivery {
                             line: event.line,
-                            from: call.from(),
-                            through: call.through(),
-                            text: call.input().into(),
+                            from: call.from,
+                            through: call.through,
+                            text: call.input.as_ref().into(),
                         },
                     );
                 }

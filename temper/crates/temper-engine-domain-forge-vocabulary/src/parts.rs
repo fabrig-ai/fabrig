@@ -1,6 +1,7 @@
 //! Pure row-part encodings, shared by the root and service vocabulary
 //! (temper/docs/design/client/forge/parts.md, 3–4).
 #![expect(clippy::manual_map, reason = "pure encodings spell out optional fields without closures")]
+use jig_client_protocol_wire::Record as _;
 use crate::MilestoneTotals;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents::TaskLine;
@@ -86,9 +87,8 @@ pub fn totals(value: &MilestoneTotals, limits: &w::Limits) -> Option<w::Mileston
 
 fn milestone_goal(line: &TaskLine, headline: Option<Box<[u8]>>) -> Option<w::MilestoneGoal> {
     let line = jig_protocol_engine_clients::translate::task_line(line, &jig_client_protocol_wire::CEILINGS).ok()?;
-    let mut out = Writer::new(skein_lib::usize_of(line.measure()));
-    line.encode(&mut out).ok()?;
-    w::MilestoneGoal::new(&w::CEILINGS, w::MilestoneGoalParts { line: out.finish(), headline }).ok()
+    let line = line.encode(&jig_client_protocol_wire::CEILINGS).ok()?;
+    w::MilestoneGoal::new(&w::CEILINGS, w::MilestoneGoalParts { line, headline }).ok()
 }
 
 pub fn milestone(

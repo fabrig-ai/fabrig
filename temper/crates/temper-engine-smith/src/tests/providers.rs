@@ -26,7 +26,7 @@ fn core(value: c::SettingValue) -> s::ProviderSetting {
     };
     let change = wire::wire_change_settings(&change, &Limits::standard().settings).unwrap();
     let items = jig_protocol_engine_clients::translate::settings::items(
-        change.into_parts().items,
+        change.items,
         &[],
         &Limits::standard().settings,
     )

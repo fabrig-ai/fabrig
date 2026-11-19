@@ -84,15 +84,15 @@ fn one(
 ) {
     if let Message::Read(bytes) = message {
         let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-        if owned.owner() == &w::Owner::Jig {
-            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
+        if owned.owner == w::Owner::Jig {
+            let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap();
             if let w::Read::Notes(notes) = read {
-                pending.extend(read_reply(host, slot, &document(notes.scope().clone())).asked);
+                pending.extend(read_reply(host, slot, &document(notes.scope.clone())).asked);
                 return;
             }
         } else {
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).unwrap();
-            if let f::Read::Setting(setting) = wire::decode_reading(envelope.record(), &f::CEILINGS).unwrap().read()
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap();
+            if let f::Read::Setting(setting) = wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap().read()
                 && setting.kind() == 7
             {
                 let value = f::ProjectWays::new(
@@ -110,8 +110,8 @@ fn one(
                     .unwrap(),
                 );
                 let answer = w::ReadAnswer::Value(family(record));
-                let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-                answer.encode(&mut writer).unwrap();
+                let mut writer = Writer::new(usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+                answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
                 pending.extend(reply_slot(host, slot, writer.finish()).asked);
                 return;
             }
@@ -123,14 +123,14 @@ fn one(
     }
     if let Message::Watch(bytes) = message {
         let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(bytes)).unwrap();
-        if open.subject().owner() == &w::Owner::Jig {
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
+        if open.subject.owner == w::Owner::Jig {
+            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             if subject == w::Subject::Me {
-                pending.extend(delivery(host, open.watch(), &w::DeliveryValue::Me(me(proposed))).asked);
+                pending.extend(delivery(host, open.watch, &w::DeliveryValue::Me(me(proposed))).asked);
             } else if let w::Subject::Task(task) = subject
-                && task.task() == 9
+                && task.task == 9
             {
-                let mut task = records::task_record().into_parts();
+                let mut task = records::task_record();
                 task.project = 3;
                 task.chip = chat_chip(9, b"Plan");
                 task.activity = 0;
@@ -139,15 +139,15 @@ fn one(
                 pending.extend(
                     delivery(
                         host,
-                        open.watch(),
-                        &w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).unwrap())),
+                        open.watch,
+                        &w::DeliveryValue::Task(Box::new(task)),
                     )
                     .asked,
                 );
             }
         } else {
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).unwrap();
-            let watch = wire::decode_watching(envelope.record(), &f::CEILINGS).unwrap();
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let watch = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
 
             let bytes = if watch.watch() == &f::Watch::Forges {
                 Some(forges(f::Mode::Owned))
@@ -158,8 +158,7 @@ fn one(
             };
             if let Some(bytes) = bytes {
                 let event = w::StreamEvent::Delivery(
-                    w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch: open.watch(), document: family(bytes) })
-                        .unwrap(),
+                    w::Delivery { watch: open.watch, document: family(bytes) },
                 );
                 pending.extend(
                     host.report(Report::Heard(jig_client::Event::Streamed {
@@ -173,89 +172,73 @@ fn one(
 }
 
 pub(super) fn family(record: Box<[u8]>) -> w::Owned {
-    w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts {
-            owner: w::Owner::Family(w::Family::new(&w::CEILINGS, w::FamilyParts { number: wire::FORGE }).unwrap()),
+    w::Owned {
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
             version: wire::CLIENT_VERSION,
             record,
-        },
-    )
-    .unwrap()
+        }
 }
 fn me(proposed: bool) -> w::Me {
-    let mut me = launchpad_me(true).into_parts();
+    let mut me = launchpad_me(true);
     let mut reader = Reader::new(&me.projects);
     let project = skein_codec::piece::split(&mut reader).unwrap().unwrap();
-    let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&project)).unwrap().into_parts();
+    let mut project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(&project)).unwrap();
     let mut reader = Reader::new(&project.templates);
     let template = skein_codec::piece::split(&mut reader).unwrap().unwrap();
     let template = w::Template::decode(&w::CEILINGS, &mut Reader::new(&template)).unwrap();
     let mut templates = vec![];
     for number in [2, 4] {
-        let mut way = template.clone().into_parts();
+        let mut way = template.clone();
         way.number = number;
         way.name = records::wire_text(if number == 2 { b"goal" } else { b"goal for a draft" });
         way.tracked = Some(10);
         if proposed {
             way.budget = w::TemplateBudget::Amount(
-                w::TemplateAmount::new(&w::CEILINGS, w::TemplateAmountParts { value: 101 }).unwrap(),
+                w::TemplateAmount { value: 101 },
             );
         }
-        let way = w::Template::new(&w::CEILINGS, way).unwrap();
-        let mut writer = Writer::new(usize::try_from(way.measure()).unwrap());
-        way.encode(&mut writer).unwrap();
+        let way = way;
+        let mut writer = Writer::new(usize::try_from(way.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+        way.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         templates.push(writer.finish());
     }
     project.templates = [project.templates.as_ref(), pieces(&templates).as_ref()].concat().into();
     if proposed {
-        let mut creating = project.creating.take().unwrap().into_parts();
-        let mut within = creating.within.into_parts();
+        let mut creating = project.creating.take().unwrap();
+        let mut within = creating.within;
         within.maximum_budget = 200;
-        creating.within = w::BoundsCreate::new(&w::CEILINGS, within).unwrap();
+        creating.within = within;
         creating.beyond = w::Beyond::Proposed(
-            w::BeyondProposed::new(
-                &w::CEILINGS,
-                w::BeyondProposedParts {
+            w::BeyondProposed {
                     to: w::Recipient::Party(
-                        w::RecipientParty::new(&w::CEILINGS, w::RecipientPartyParts { value: 7 }).unwrap(),
+                        w::RecipientParty { value: 7 },
                     ),
                 },
-            )
-            .unwrap(),
         );
-        project.creating = Some(w::CreatingBounds::new(&w::CEILINGS, creating).unwrap());
+        project.creating = Some(creating);
     }
-    me.projects = pieces(&[project_bytes(&w::MeProject::new(&w::CEILINGS, project).unwrap())]);
-    w::Me::new(&w::CEILINGS, me).unwrap()
+    me.projects = pieces(&[project_bytes(&project)]);
+    me
 }
 fn document(scope: w::NoteScope) -> w::ReadValue {
-    let note = w::Note::new(
-        &w::CEILINGS,
-        w::NoteParts {
+    let note = w::Note {
             number: 1,
-            revision: w::Revision::new(&w::CEILINGS, w::RevisionParts { value: 1 }).unwrap(),
+            revision: w::Revision { value: 1 },
             scope,
             description: records::wire_text(b"Plan"),
             body: records::wire_text(b"# Plan\n\nWords\n"),
             writer: w::NoteAuthor::Party(
-                w::NoteAuthorParty::new(&w::CEILINGS, w::NoteAuthorPartyParts { party: 7 }).unwrap(),
+                w::NoteAuthorParty { party: 7 },
             ),
             tasks: List::with_capacity(0),
             changed: None,
             acts: Box::default(),
             cut: false,
-        },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(note.measure()).unwrap());
-    note.encode(&mut writer).unwrap();
+        };
+    let mut writer = Writer::new(usize::try_from(note.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap());
+    note.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     w::ReadValue::Notes(
-        w::NotePage::new(
-            &w::CEILINGS,
-            w::NotePageParts { rows: pieces(&[writer.finish()]), before: None, after: None, cut: false },
-        )
-        .unwrap(),
+        w::NotePage { rows: pieces(&[writer.finish()]), before: None, after: None, cut: false },
     )
 }
 pub(super) fn forges(mode: f::Mode) -> Box<[u8]> {
@@ -333,7 +316,7 @@ fn a_goal_command_starts_refuses_and_cancels_its_sheet() {
             &mut host,
             asks[0].0,
             final_bytes(&w::Final::Refused(
-                w::Refused::new(&w::CEILINGS, w::RefusedParts { refusal: w::Refusal::NotOffered, at: None }).unwrap(),
+                w::Refused { refusal: w::Refusal::NotOffered, at: None },
             )),
         );
         assert!(host.root.pages().start().unwrap().error.is_some());
@@ -369,19 +352,14 @@ pub(super) fn navigation() {
             } else {
                 assert!(matches!(asks[0].1, w::Ask::Propose(_)));
                 let outcome = w::DocumentOutcome::Proposed(
-                    w::OutcomeProposed::new(&w::CEILINGS, w::OutcomeProposedParts { proposal: 1, to: 7 }).unwrap(),
+                    w::OutcomeProposed { proposal: 1, to: 7 },
                 );
                 final_bytes(&w::Final::Done(
-                    w::Done::new(
-                        &w::CEILINGS,
-                        w::DoneParts {
+                    w::Done {
                             outcome: w::Outcome::Document(
-                                w::OutcomeDocument::new(&w::CEILINGS, w::OutcomeDocumentParts { value: outcome })
-                                    .unwrap(),
+                                w::OutcomeDocument { value: outcome },
                             ),
                         },
-                    )
-                    .unwrap(),
                 ))
             };
             reply(&mut host, asks[0].0, answer);

@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use crate::{
     limits,
     route::{self, Down},
@@ -136,18 +137,18 @@ fn the_native_preset_receives_every_supported_membership() {
     use skein_lib::{Reader, Writer};
     // Small and Standard serve up to nine memberships (client/ctl/README.md, 9).
     for (count, accepted) in [(3, true), (9, true), (10, false)] {
-        let mut parts = jig_client_test_records::frame_two_projects_record().into_parts();
+        let mut parts = jig_client_test_records::frame_two_projects_record();
         let mut reader = Reader::new(&parts.projects);
         let size = reader.u32().expect("membership size");
         let project = w::MeProject::decode(&w::CEILINGS, &mut Reader::new(reader.bytes(size).expect("membership")))
             .expect("membership record");
         let mut projects = Vec::new();
         for number in 1..=count {
-            let mut row = project.clone().into_parts();
+            let mut row = project.clone();
             row.project = number;
             let row = row;
-            let mut bytes = Writer::new(usize::try_from(row.measure()).expect("membership fits"));
-            row.encode(&mut bytes).expect("measured membership");
+            let mut bytes = Writer::new(usize::try_from(row.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("membership fits"));
+            row.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured membership");
             let bytes = bytes.finish();
             projects.extend_from_slice(&u32::try_from(bytes.len()).expect("membership size").to_be_bytes());
             projects.extend_from_slice(&bytes);
