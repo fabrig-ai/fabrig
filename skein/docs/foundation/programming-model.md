@@ -1058,9 +1058,11 @@ does not hand-roll data structures: what is missing goes into lib.
 
 `skein-codec` takes lib's exception for its codecs alone: the `Record`
 trait and the generic helpers that check, measure, encode, decode and
-bound each kind of field. Generated codec code implements `Record` and
-calls them; no hand-written code implements it (skein's
-../design/data/codec/README.md, sections 1 and 4).
+bound each kind of field, with `Field`, the helpers' trait, which a
+private supertrait seals so that no other crate implements it.
+Generated codec code implements `Record` and calls the helpers; no
+hand-written code implements either trait, and a boundary test refuses
+it (skein's ../design/data/codec/README.md, sections 1 and 4).
 
 The shell, the simulator and tests are ordinary Rust, with `unsafe`
 confined to the ring adapter in code a service runs, and in tests to the
