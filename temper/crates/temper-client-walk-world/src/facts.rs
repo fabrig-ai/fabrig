@@ -11,6 +11,8 @@ pub const SERVICE: &str = "127.0.0.1:10001";
 /// Own story A's start, changing its listener and, when supplied, its model scripts.
 pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     let mut start = stories::A.start(SEED, WALL);
+    // The owned preparation's default person, on the composition's same forge.
+    start.fakes.peer.setup_mut().account(b"owner", false, b"");
     start.deployment.document["application"]["clients"]["listener"]["socket"] = SERVICE.into();
     if let Some(scripts) = scripts {
         let document =

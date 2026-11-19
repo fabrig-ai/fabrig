@@ -85,6 +85,12 @@ pub fn world(start: Start) -> World<Process<()>, Machine> {
 /// Make a harness-free world with a meter installed before admitting any process.
 #[must_use]
 pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Machine, N> {
+    world_harness::<(), N>(start, meter)
+}
+
+/// Make the same composition with a world's harness, keeping its service at zero.
+#[must_use]
+pub fn world_harness<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process<H>, Machine, N> {
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     prepare(&mut disk, &deployment, seed);
@@ -102,11 +108,11 @@ pub fn world_metered<N: Meter>(start: Start, meter: N) -> World<Process<()>, Mac
     config.wall = wall;
     config.trace = skein_sim::Trace::Off;
     let mut world = World::new(seed, config).with_machine(machine).with_meter(meter);
-    for (program, roots) in programs::programs::<()>() {
+    for (program, roots) in programs::programs::<H>() {
         world.host_roots(program, roots);
     }
     programs::with(parameters, || {
-        world.spawn_restartable(programs::service_roots(), programs::service::<()>);
+        world.spawn_restartable(programs::service_roots(), programs::service::<H>);
     });
     let printer = world.printer(b"temper serve", Stream::Output);
     let (_, _, processes) = world.parts();
