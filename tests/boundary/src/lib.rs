@@ -176,15 +176,17 @@ fn skip_generics<'a>(tokens: &mut std::iter::Peekable<impl Iterator<Item = Token
         return;
     }
     let mut depth = 0;
+    let mut previous = None;
     for token in tokens.by_ref() {
         match token {
             Token::Symbol(b'<') => depth += 1,
-            Token::Symbol(b'>') => depth -= 1,
+            Token::Symbol(b'>') if previous != Some(Token::Symbol(b'-')) => depth -= 1,
             Token::Word(_) | Token::String(_) | Token::Literal | Token::Symbol(_) => (),
         }
         if depth == 0 {
             break;
         }
+        previous = Some(token);
     }
 }
 

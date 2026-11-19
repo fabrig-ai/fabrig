@@ -21,6 +21,8 @@ fn handwritten_codec_implementations_are_refused_at_their_lines() {
         "\nimpl skein_codec::Record for Handwritten {}",
         "\nimpl<L, T> Field<L, T> for Handwritten {}",
         "\nimpl<L, T: Other<Inner<T>>>\n    skein_codec::field::Field<L, T> for Handwritten {}",
+        "\nimpl<L: Fn() -> Other<T>, T> Field<L, T> for Handwritten {}",
+        "\nimpl Field<Limits, Value> for skein_codec::field::U8 {}",
         "\nmacro_rules! handwritten { () => { impl ::skein_codec::Record for Handwritten {} } }",
     ] {
         assert_eq!(
@@ -43,9 +45,10 @@ fn only_codec_crate_and_generated_files_are_exempt() {
     ] {
         assert_eq!(findings(path, &source).len(), 1, "{path}: {source}");
     }
-    assert_eq!(findings(
-        "some/src/lib.rs",
-        r#"
+    assert_eq!(
+        findings(
+            "some/src/lib.rs",
+            r#"
 // impl Record for Comment {}
 /* impl Field<(), ()> for Comment {} */
 const TEXT: &str = "impl skein_codec::Record for StringLiteral {}";
@@ -53,7 +56,9 @@ const RAW: &str = r"impl Field<(), ()> for RawLiteral {}";
 impl<T: Record> Other for Wrapper<T> {}
 impl Record { fn inherent() {} }
 "#,
-    ), Vec::<String>::new());
+        ),
+        Vec::<String>::new()
+    );
 }
 
 #[test]
