@@ -9,6 +9,11 @@ pub fn remember(directory: &Path, configuration: &Configuration) {
     if let Some(providers) = configuration.get("world_providers") {
         temper_agent_fixtures::providers::write(&temper_agent_fixtures::data(directory), providers);
     }
+    remember_figures(directory, configuration);
+}
+
+/// Keep only figures; the browser world commits its prospective providers through ctl.
+pub fn remember_figures(directory: &Path, configuration: &Configuration) {
     let stock = Configuration::stock(Value::Null);
     let jig: Vec<_> = jig_protocol_config::names::NAMES
         .iter()

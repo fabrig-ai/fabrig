@@ -198,7 +198,7 @@ pub(crate) fn write(directory: &Path, bundle: &Path) -> temper_playground::docum
 
 /// Keep the typed figures beside the document for the owner's setup sitting.
 pub(crate) fn persist(directory: &Path, value: &temper_playground::documents::Configuration) {
-    temper_box_kit::limit_settings::remember(directory, value);
+    temper_box_kit::limit_settings::remember_figures(directory, value);
     keep_providers(directory, value);
     let mut file = if directory.join(temper_config_shell::FILE).is_file() {
         read_init(directory).file
