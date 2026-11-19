@@ -207,6 +207,8 @@ impl Exchange {
         self.component.down(
             &self.env,
             Event::Transport(crate::FromTransport::Exchange {
+                via: crate::Via::Listener,
+                source: None,
                 browser: false,
                 exchange: owner,
                 credential: Some(Secret::new(self.token.clone())),
@@ -805,7 +807,14 @@ impl Exchange {
         let owner = self.component.name();
         self.component.down(
             &self.env,
-            Event::Transport(crate::FromTransport::Exchange { exchange: owner, credential, browser, message }),
+            Event::Transport(crate::FromTransport::Exchange {
+                exchange: owner,
+                credential,
+                browser,
+                via: crate::Via::Listener,
+                source: None,
+                message,
+            }),
             &mut self.out,
         );
         owner

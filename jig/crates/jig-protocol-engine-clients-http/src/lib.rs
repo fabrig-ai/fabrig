@@ -24,12 +24,7 @@ pub struct Settings {
     /// The public name a TLS proxy serves the application at, as `Host` names it (protocol/client/default-http.md, 3).
     pub public: Option<Box<[u8]>>,
 }
-/// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Via {
-    Public,
-    Listener,
-}
+pub use kit::Via;
 /// `Public` when the call's `Host` is byte-equal to the configured public name,
 /// with no case folding or port normalising; `Listener` otherwise, including a missing `Host`.
 #[must_use]
@@ -54,7 +49,7 @@ pub struct Limits {
 #[derive(Debug)]
 pub enum Event {
     Listening { hosts: List<Box<[u8]>> },
-    Call { call: Token, head: http::Call },
+    Call { call: Token, head: http::Call, peer: Option<core::net::IpAddr> },
     Http { call: Token, event: http::Event },
     Component(kit::ToTransport),
 }
@@ -120,7 +115,7 @@ impl Mount {
     pub fn down(&mut self, env: &Env<Limits>, event: Event) {
         match event {
             Event::Listening { hosts } => self.hosts = hosts,
-            Event::Call { call, head } => {
+            Event::Call { call, head, peer } => {
                 assert!(self.room_for(&head) > 0, "application hands calls only within their room");
                 let mut value = call::Call::new(call, &env.limits);
                 value.method = head.method;
@@ -156,6 +151,7 @@ impl Mount {
                     return;
                 }
                 value.via = via(&self.settings, &head);
+                value.source = call::source(value.via, &head, peer);
                 value.browser = head.header(b"jig-client") == Some(b"browser");
                 let mut forbidden = false;
                 value.credential = match credential::read(&head) {

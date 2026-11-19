@@ -441,6 +441,8 @@ impl Composition {
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
                 self.event(Event::Transport(clients::FromTransport::Exchange {
+                    via: jig_protocol_engine_clients::Via::Listener,
+                    source: None,
                     browser: self.browsers.contains(&client),
                     exchange: name,
                     credential,

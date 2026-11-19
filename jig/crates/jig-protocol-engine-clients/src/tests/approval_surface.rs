@@ -4,6 +4,27 @@ use crate::{Event, Message, Settings};
 use jig_client_protocol_wire as w;
 use skein_lib::{Secret, Writer, length::usize_of};
 
+#[test]
+fn an_exchange_keeps_its_way_and_source_on_the_component_record() {
+    let mut world = Exchange::new();
+    let owner = skein_lib::Token::new(900);
+    let source = Some(core::net::Ipv4Addr::new(203, 0, 113, 7).into());
+    world.component.down(
+        &world.env,
+        Event::Transport(crate::FromTransport::Exchange {
+            exchange: owner,
+            credential: None,
+            browser: false,
+            via: crate::Via::Public,
+            source,
+            message: Message::ApprovalAsk(Box::new([])),
+        }),
+        &mut world.out,
+    );
+    let connection = world.component.connections.get(&owner).expect("received exchange");
+    assert_eq!((connection.via, connection.source), (crate::Via::Public, source));
+}
+
 type ApprovalCase = (&'static str, fn(Box<[u8]>) -> Message, Box<[u8]>, Box<[u8]>);
 
 fn cases(stopping: bool) -> [ApprovalCase; 4] {
