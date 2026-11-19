@@ -356,6 +356,70 @@ fn read_question(seed: u64, wakes: bool) -> (World, (u64, u64), tasks::Word) {
 }
 
 #[test]
+fn unrecorded_person_words_survive_a_park_in_the_next_brief() {
+    let (mut world, run) = first(869, true, false);
+    let words = b"Also add a /ready endpoint beside /health.";
+    fixtures::ask(&mut world, 88, people::Ask::Say { project: 1, task: run.0, words: words.as_slice().into() });
+    let message = world.inbound.last().expect("person's words relayed").clone();
+    let tasks::Party::Person(person) = message.from else { panic!("person's message") };
+    story::turn(&mut world, run, Some(message.number));
+    assert!(live_row(&world, run.0).inbox.is_empty(), "the committed turn took the words");
+    assert_eq!(live_row(&world, run.0).unrecorded.as_ref(), std::slice::from_ref(&message));
+    story::park(&mut world, run, Some(message.number));
+    let next = world.assigned.as_ref().expect("unrecorded words wake a fresh run");
+    assert_eq!(next.task, run.0);
+    assert!(next.attempt > run.1);
+    assert!(next.messages.is_empty(), "read words are not start messages");
+    let expected = format!(
+        "Words sent to you, not yet recorded, oldest first:\nPerson {person} wrote (message {0}); once it is in a spec or a note, mark_read messages=[{0}], or name {0} in that note's records:\nAlso add a /ready endpoint beside /health.\n",
+        message.number
+    );
+    assert_eq!(waiting(&world), Some(expected.as_bytes()));
+    world.close();
+}
+
+#[test]
+fn unrecorded_person_words_survive_a_stopped_run_in_the_next_brief() {
+    let (mut world, run) = first(870, true, false);
+    fixtures::ask(
+        &mut world,
+        89,
+        people::Ask::Say {
+            project: 1,
+            task: run.0,
+            words: b"Also add a /ready endpoint beside /health.".as_slice().into(),
+        },
+    );
+    let message = world.inbound.last().expect("person's words relayed").clone();
+    let tasks::Party::Person(person) = message.from else { panic!("person's message") };
+    story::turn(&mut world, run, Some(message.number));
+    assert!(live_row(&world, run.0).inbox.is_empty());
+    fixtures::ask(&mut world, 90, people::Ask::Stop { project: 1, task: run.0 });
+    assert!(world.cancellations.contains(&run), "the live attempt was stopped");
+    world.send(jig_test_domain::Event::Answer {
+        channel: skein_lib::Token::new(7),
+        task: run.0,
+        attempt: run.1,
+        cumulative: 0,
+        end: tasks::End::Recheck,
+        read: Some(message.number),
+        refused: Box::new([]),
+    });
+    let revision = live_row(&world, run.0).revisions.hold;
+    fixtures::ask(&mut world, 91, people::Ask::Release { project: 1, task: run.0, revision, again: None });
+    let next = world.assigned.as_ref().expect("released task's fresh run");
+    assert_eq!(next.task, run.0);
+    assert!(next.attempt > run.1);
+    assert!(next.messages.is_empty());
+    let expected = format!(
+        "Words sent to you, not yet recorded, oldest first:\nPerson {person} wrote (message {0}); once it is in a spec or a note, mark_read messages=[{0}], or name {0} in that note's records:\nAlso add a /ready endpoint beside /health.\n",
+        message.number
+    );
+    assert_eq!(waiting(&world), Some(expected.as_bytes()));
+    world.close();
+}
+
+#[test]
 fn an_open_question_survives_its_read_in_the_next_brief() {
     let (mut world, run, question) = read_question(866, true);
     let tasks::Party::Task(asker) = question.from else { panic!("delegate asks") };
@@ -452,6 +516,8 @@ fn waiting_keeps_whole_questions_oldest_first_and_drops_answers_and_ended_questi
         child.0,
         core::str::from_utf8(whole).expect("question UTF-8")
     );
+    let words = "Words sent to you, not yet recorded, oldest first:\nPerson 1 wrote (message 3); once it is in a spec or a note, mark_read messages=[3], or name 3 in that note's records:\nconsider again\n";
+    let expected = format!("{expected}\n{words}");
     assert_eq!(waiting(&world), Some(expected.as_bytes()));
     world.send(jig_test_domain::Event::Core(jig_domain_core::Event::Tasks(tasks::Event::CancelQuestion {
         reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(9400)),
@@ -459,7 +525,10 @@ fn waiting_keeps_whole_questions_oldest_first_and_drops_answers_and_ended_questi
         question: second,
     })));
     next_brief_after_read(&mut world, run, 89);
-    assert_eq!(waiting(&world), None);
+    let expected = format!(
+        "{words}Person 1 wrote (message 5); once it is in a spec or a note, mark_read messages=[5], or name 5 in that note's records:\nconsider again\n"
+    );
+    assert_eq!(waiting(&world), Some(expected.as_bytes()));
     world.close();
 }
 
