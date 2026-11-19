@@ -871,6 +871,156 @@ fn a_resolutions_files_are_carried_whole_or_named() {
     assert!(failed.is_empty(), "files must be whole or named; failed rows: {:?}", failed.as_slice());
 }
 
+/// The pull reader is exercised with its pinned head and real mode selection.
+fn non_text_pull_section(state: change::State, head: [u8; 32], files: Box<[skein_forge::api::File]>) -> Box<[u8]> {
+    let (mut d, owner) = pending_pull_item(b"Whole body", state, head);
+    let mut pull = fixtures::open_pull();
+    pull.commit = head;
+    pull.base_commit = Some(fixtures::BASE);
+    let mut out = Queue::uncapped();
+    assert!(brief::brief_answer(&mut d, owner, Ok(Answer::Pull(pull)), LIMITS.client.rows, env().now, &mut out));
+    out.clear();
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::PullFiles { head, files, more: false, cut: false }),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
+    let Some(Request::BriefClient {
+        event: skein_forge_client::Event::Read { read: Read::Compare { before, after }, .. },
+    }) = out.pop()
+    else {
+        panic!("pull compares: {out:?}")
+    };
+    assert!(brief::brief_answer(
+        &mut d,
+        owner,
+        Ok(Answer::Compare { before, after, files: Box::new([]), ahead: 0, behind: 1, changed: 0 }),
+        LIMITS.client.rows,
+        env().now,
+        &mut out
+    ));
+    take(&mut d)
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the table formats literal expected file contents")]
+fn a_resolutions_non_text_files_are_named_by_both_blob_ids() {
+    use skein_forge::api::File;
+    type Row = (&'static str, Option<&'static [u8]>, Option<&'static [u8]>, &'static str);
+    let rows: [Row; 8] = [
+        ("added", None, Some(b"\xff\xfe\0\x01"), "absent before, blob addec90a42e64feca765d123e18e4603ed982925 after"),
+        (
+            "replaced",
+            Some(b"hello\n"),
+            Some(b"\xff\xfe\0\x01"),
+            "blob ce013625030ba8dba906f756967f9e9ca394464a before, blob addec90a42e64feca765d123e18e4603ed982925 after",
+        ),
+        ("nul", None, Some(b"a\0b"), "absent before, blob 20b5be91886d0b6f26dc98a225c0dac05fe2c86e after"),
+        (
+            "empty_before",
+            Some(b""),
+            Some(b"\xff\xfe\0\x01"),
+            "blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 before, blob addec90a42e64feca765d123e18e4603ed982925 after",
+        ),
+        (
+            "empty_after",
+            Some(b"\xff\xfe\0\x01"),
+            Some(b""),
+            "blob addec90a42e64feca765d123e18e4603ed982925 before, blob e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 after",
+        ),
+        (
+            "removed",
+            Some(b"\xff\xfe\0\x01"),
+            None,
+            "blob addec90a42e64feca765d123e18e4603ed982925 before, absent after",
+        ),
+        (
+            "before_nul",
+            Some(b"a\0b"),
+            Some(b"hello\n"),
+            "blob 20b5be91886d0b6f26dc98a225c0dac05fe2c86e before, blob ce013625030ba8dba906f756967f9e9ca394464a after",
+        ),
+        ("past_room", None, Some(&[0; 6000]), "absent before, blob 71bc1246781ceca0fde1d7d10d7ad2af594d67a2 after"),
+    ];
+    for (name, before, after, expected) in rows {
+        let before = match before {
+            Some(bytes) => Some(bytes.into()),
+            None => None,
+        };
+        let after = match after {
+            Some(bytes) => Some(bytes.into()),
+            None => None,
+        };
+        let file = File { path: b"store/log-1".as_slice().into(), before, after };
+        // A named file takes only its own lines' room, leaving the text after it whole.
+        let bytes = resolution_section(Box::new([
+            File { path: b"a".as_slice().into(), before: None, after: Some(b"first\n".as_slice().into()) },
+            file,
+            File {
+                path: b"z".as_slice().into(),
+                before: Some(b"old\n".as_slice().into()),
+                after: Some(b"last\n".as_slice().into()),
+            },
+        ]));
+        let words = text(&bytes);
+        let files = words
+            .split_once("Files and diff:\n")
+            .expect("files")
+            .1
+            .split_once("What landed in the base:")
+            .expect("comparison")
+            .0;
+        let expected = format!(
+            "File: a\nBefore:\n\nAfter:\nfirst\n\nFile: store/log-1\n[not carried, not text: {expected}; read it from the repository]\nFile: z\nBefore:\nold\n\nAfter:\nlast\n\n"
+        );
+        assert_eq!(files, expected, "{name}");
+    }
+}
+
+#[test]
+fn reviews_and_repairs_name_non_text_files_as_resolutions_do() {
+    for state in [
+        change::State::Gating { head: HEAD, asked: Box::new([]) },
+        change::State::Repairing { requested: true, why: change::Repair::Semantic },
+    ] {
+        let bytes = non_text_pull_section(
+            state,
+            HEAD,
+            Box::new([skein_forge::api::File {
+                path: b"store/log-1".as_slice().into(),
+                before: None,
+                after: Some(b"\xff\xfe\0\x01".as_slice().into()),
+            }]),
+        );
+        let files = text(&bytes).split_once("Files and diff:\n").expect("files").1;
+        let files = match files.split_once("Against base:\n") {
+            Some((files, _)) => files,
+            None => files.split_once("What landed in the base:").expect("repair comparison").0,
+        };
+        assert_eq!(
+            files,
+            "File: store/log-1\n[not carried, not text: absent before, blob addec90a42e64feca765d123e18e4603ed982925 after; read it from the repository]\n"
+        );
+    }
+}
+
+#[test]
+fn a_sha256_pinned_head_names_both_sides_with_sha256_blob_ids() {
+    let bytes = non_text_pull_section(
+        change::State::Resolving { requested: true, base: fixtures::BASE },
+        [7; 32],
+        Box::new([skein_forge::api::File {
+            path: b"store/log-1".as_slice().into(),
+            before: Some(Box::new([])),
+            after: Some(b"\xff\xfe\0\x01".as_slice().into()),
+        }]),
+    );
+    assert!(text(&bytes).contains("File: store/log-1\n[not carried, not text: blob 473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813 before, blob da7a3abdb5be5318ce09ac2b9918c3960105c1f74a095cbdb205c47e5b67c274 after; read it from the repository]\n"));
+}
+
 #[test]
 fn a_repairs_pull_section_names_its_pull_request_before_its_contents() {
     let bytes = pull_section(b"Whole body");
