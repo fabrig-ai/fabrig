@@ -2,8 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
-- **Not yet:** 5: Darwin's no-follow opens and startup reads passing the
-  system's own links, the walk in `posix` and its tests. [in flight: change 10351]
 - **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`
