@@ -133,7 +133,7 @@ temper-engine serve --config CONFIG --data DATA --cache CACHE
 Expect: `prepare` fetches pinned binaries, printing `fetched BINARY DONE of
 TOTAL bytes`, nothing if present, and exits 0. `run` prints Forgejo's
 output; `serve` prints its sign-in link,
-`https://temper.example.com/jig/v1/sign-in/link?secret=` and its
+`https://temper.example.com/sign-in?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
 With `[[sign_in.forges]]` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
@@ -229,11 +229,11 @@ journalctl -u temper -o cat | grep 'task TASK run'
 
 ## 6. Sign in, through a tunnel, and connect the forge
 
-The proxy refuses the link's public route. Give ctl the listener's
+The proxy refuses the link's public page and route. Give ctl the listener's
 origin, on `engine` as `temper`:
 
 ```
-journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in/link?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
+journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
 ```
 
 Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.

@@ -15,7 +15,7 @@ const WALL: Wall = Wall::EPOCH;
 fn story_a_starts_with_no_box_calm_and_prints_its_link() {
     let mut started = start_idle(&A, SEED, WALL);
     let link = printed_link(&started.printed);
-    let (_, secret) = link.split_once("/jig/v1/sign-in/link?secret=").expect("the service's sign-in link");
+    let (_, secret) = link.split_once("/sign-in?secret=").expect("the service's sign-in link");
     assert!(!secret.is_empty() && !secret.contains(['\r', '\n']), "one whole link line");
 
     assert!(

@@ -4,8 +4,10 @@ const PATH: &[u8] = b"/jig/v1/public/0/1/1";
 fn mount() -> Mount {
     let mut env = f::env();
     env.limits.public_calls = 2;
-    let mut mount =
-        Mount::new(Settings { prefix: Box::from(b"/jig".as_slice()), public: None, max_age: 5 }, &env.limits);
+    let mut mount = Mount::new(
+        Settings { prefix: Box::from(b"/jig".as_slice()), public: None, page: None, max_age: 5 },
+        &env.limits,
+    );
     let mut hosts = List::with_capacity(1);
     hosts.push(Box::from(f::HOST)).unwrap();
     mount.down(&env, Event::Listening { hosts });

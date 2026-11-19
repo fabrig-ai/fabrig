@@ -14,7 +14,7 @@ const MAX_SLICES: u32 = 128;
 // temper-client-shell-web's limits::BODY_BYTES; this composition does not link the shell.
 const BODY_BYTES: u32 = 33_554_432;
 const EXCHANGE: u32 = 1;
-const PREFIX: &[u8] = b"http://127.0.0.1:7102/jig/v1/sign-in/link?secret=";
+const PREFIX: &[u8] = b"http://127.0.0.1:7102/sign-in?secret=";
 
 fn start() -> Slices<Process<()>, Machine> {
     story::slices(stories::A.start(SEED, Wall::EPOCH), story::SLICE_STEPS, Time::ZERO)

@@ -120,7 +120,7 @@ Expect:
 ```text
 Open this link in a browser on this machine.
 
-http://127.0.0.1:PORT/jig/v1/sign-in/link?secret=...
+http://127.0.0.1:PORT/sign-in?secret=...
 
 It signs you in as this temper's owner, once, within 2 hours.
 Opened after that, it prints a fresh one here.
