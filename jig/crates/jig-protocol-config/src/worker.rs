@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use skein_json::Document;
 use skein_lib::{Duration, List};
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Worker {
     pub engine: Address,
     pub name: Box<[u8]>,
@@ -41,7 +41,7 @@ pub struct Graces {
     pub save: Duration,
 }
 /// The program and the file smith's startup parses; jig does not read that document.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Agent {
     pub program: Box<[u8]>,
     pub arguments: Box<[Box<[u8]>]>,

@@ -1,8 +1,8 @@
 //! Public transcript decode against fixture bytes, with deterministic file replies.
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
+use crate::root;
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{self as store, Event, Owner, OwnerSets, Request, Root, TranscriptRead, codec, format, keys};
-use jig_store_world::root;
 use jig_test_patches_jig::frames;
 use jig_test_patches_smith::patches as smith;
 use skein_io::{file, kernel::Fd};
@@ -10,16 +10,18 @@ use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 
 const OWNER: Token = Token::new(9);
 const COMMITTED: u64 = 1024;
-pub(crate) const FRAME_KEY_BYTES: usize = 18;
-pub(crate) use jig_store_world::patches::FRAME_SETS as SETS;
-pub(crate) fn floor() -> Box<[u8]> {
+pub const FRAME_KEY_BYTES: usize = 18;
+pub use crate::patches::FRAME_SETS as SETS;
+#[must_use]
+pub fn floor() -> Box<[u8]> {
     let row = store::component_v3::Floor { number: store::FLOOR, build: Box::new([]) };
     row.encode(&jig_protocol_store::component_v3::CEILINGS).expect("measured floor")
 }
 fn env(limits: &store::Limits) -> Env<store::Limits> {
     Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits }
 }
-pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
+#[must_use]
+pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<store::Limits>) {
     let mut maps = store::Stores {
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
@@ -68,7 +70,7 @@ pub(crate) fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, 
     component.owner_sets(sets);
     (component, env(limits))
 }
-pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
+pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     let mut above = Queue::uncapped();
     let mut below = store::Below {
         store: Queue::uncapped(),
@@ -92,17 +94,12 @@ pub(crate) fn open(component: &mut store::Store, env: &Env<store::Limits>) {
     // These transcript checks do not consume the map census (protocol/store/README.md, 6.3).
     let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
 }
-pub(crate) use jig_store_world::patches::fixture_turn as turn;
+pub use crate::patches::fixture_turn as turn;
 // Six file operations and two patch stops cover one small fixture frame.
 const STEPS: u32 = 8;
 
 #[expect(clippy::too_many_lines, reason = "the frame driver exhaustively rejects checkpoint terminals too")]
-pub(crate) fn decode(
-    component: &mut store::Store,
-    env: &Env<store::Limits>,
-    raw: &[u8],
-    no_site: bool,
-) -> Option<Box<[u8]>> {
+pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8], no_site: bool) -> Option<Box<[u8]>> {
     let mut above = Queue::uncapped();
     let mut below = store::Below {
         store: Queue::uncapped(),

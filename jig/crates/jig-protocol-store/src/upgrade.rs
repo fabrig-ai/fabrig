@@ -2,6 +2,7 @@
 pub(crate) mod admission;
 pub(crate) mod check;
 pub(crate) mod phase;
+mod schemas;
 pub mod sets;
 pub(crate) mod switch;
 mod types;

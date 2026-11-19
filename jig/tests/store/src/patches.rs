@@ -242,6 +242,8 @@ impl Records {
     /// Decode by each family's kept text as well as compare every modeled byte.
     pub fn check(&self, world: &mut World, context: &dyn std::fmt::Debug) {
         world.mark_if_needed();
+        let schema = skein_codec::schema::parse(app::TOKEN.as_bytes()).expect("token schema");
+        let root = schema.find(b"Token").expect("token root");
         for (number, bytes) in &self.tokens {
             let events = world.secret(Secrets::Get { owner: SecretOwner::Application, number: *number });
             let [Event::Secret { value: Some(jig_protocol_store::SecretValue::Application(value)), .. }] =
@@ -250,8 +252,6 @@ impl Records {
                 panic!("token {number}: {events:?}, {context:?}");
             };
             assert_eq!(value.expose(), token(bytes, *number), "token {number}, {context:?}");
-            let schema = skein_codec::schema::parse(app::TOKEN.as_bytes()).expect("token schema");
-            let root = schema.find(b"Token").expect("token root");
             let mut decoded = skein_codec::value::Value::with_room(16);
             decoded.decode(&schema, root, Box::from(value.expose())).expect("token decodes at its level");
         }
@@ -262,17 +262,19 @@ impl Records {
     pub fn check_public(&self, world: &mut World, context: &dyn std::fmt::Debug) {
         let rows = world.application(false);
         assert_eq!(rows, self.rows(), "all fixture records are preserved: {context:?}");
+        let label = skein_codec::schema::parse(app::LABEL.as_bytes()).expect("label schema");
+        let shelves = skein_codec::schema::parse(app::SHELF.as_bytes()).expect("shelf schema");
+        let note = skein_codec::schema::parse(jig::kept::fixture_note::TEXTS[0].as_bytes()).expect("note schema");
         for (key, bytes) in rows {
-            let (text, root) = match key[0] {
-                b'l' => (app::LABEL, "Label"),
-                b's' => (app::SHELF, "Shelf"),
-                b'n' => (jig::kept::fixture_note::TEXTS[0], "Note"),
+            let (schema, root) = match key[0] {
+                b'l' => (&label, "Label"),
+                b's' => (&shelves, "Shelf"),
+                b'n' => (&note, "Note"),
                 _ => panic!("fixture key"),
             };
-            let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept schema");
             let root = schema.find(root.as_bytes()).expect("record root");
             let mut value = skein_codec::value::Value::with_room(16);
-            value.decode(&schema, root, bytes).expect("record decodes at its level");
+            value.decode(schema, root, bytes).expect("record decodes at its level");
         }
     }
 }

@@ -1,4 +1,4 @@
-//! Fixed sequences, never retries (protocol/git.md, section 4).
+//! Fixed git sequences and the run's disposable view (protocol/git.md, section 4).
 use crate::{
     invocation::{self, Command, Source},
     output::{self, Status},
@@ -15,10 +15,14 @@ pub enum Next {
     Results { directory: Box<[u8]> },
     Snapshot { parent: git::Commit, merging: Option<git::Commit> },
     Make,
+    Look { directory: Box<[u8]> },
     Store,
     InstallStore { directory: Box<[u8]>, done: Box<git::Done> },
-    Alternates,
-    Scan { files: Box<[Box<[u8]>]> },
+    Alternates { format: invocation::Format },
+    View { done: Box<git::Done>, retry: bool },
+    InitView { done: Box<git::Done>, format: Option<invocation::Format> },
+    RemakeView { done: Box<git::Done>, format: Option<invocation::Format> },
+    Scan { files: Box<[Box<[u8]>]>, cut: bool },
     End(git::Done),
 }
 /// The first step depends only on the operation.
@@ -28,7 +32,7 @@ pub fn first(op: &git::Op) -> Next {
         git::Op::Reds { .. } => return crate::reds::first(op),
         git::Op::Make { .. } => return Next::Make,
         git::Op::Store { .. } => return Next::Store,
-        git::Op::Look { at, .. } => Command::Origin { directory: invocation::place(at) },
+        git::Op::Look { at, .. } => Command::Origin { directory: invocation::git_dir(at) },
         git::Op::Clone { .. } => Command::Format,
         git::Op::Fetch { at, remote, want, into, .. } => Command::Fetch {
             workspace: at.workspace,
@@ -97,11 +101,12 @@ pub fn after(
             return failed(git::Fault::Broken, tail, cut);
         }
         Command::Origin { .. } => match op {
-            git::Op::Look { remote, .. } => match code {
+            git::Op::Look { at, remote, .. } => match code {
                 0 => {
                     return Next::End(git::Done::Looked { holds: stdout.strip_suffix(b"\n") == Some(remote.as_ref()) });
                 }
-                1 | 128 => return Next::End(git::Done::Looked { holds: false }),
+                1 => return Next::End(git::Done::Looked { holds: false }),
+                128 => return Next::Look { directory: invocation::place(at) },
                 _ => {}
             },
             git::Op::Store { .. }
@@ -121,17 +126,12 @@ pub fn after(
             | git::Op::Push { .. } => unreachable!("origin is a look's invocation"),
         },
         Command::Format if code == 0 => {
-            let format = match stdout {
-                b"sha1\n" => Some(invocation::Format::Sha1),
-                b"sha256\n" => Some(invocation::Format::Sha256),
-                other => {
-                    let _length = other.len();
-                    None
-                }
-            };
+            let format = format(stdout);
             if let Some(format) = format {
-                let git::Op::Clone { at, .. } = op else { unreachable!("format is a clone's first invocation") };
-                return Next::Run(Command::Clone { directory: at.repository.clone(), format });
+                let (git::Op::Clone { at, .. } | git::Op::Look { at, .. }) = op else {
+                    unreachable!("format belongs to a worker's directory being made")
+                };
+                return Next::Run(Command::Clone { directory: invocation::git_dir(at), format, bare: true });
             }
         }
         Command::Store { directory, .. } => {
@@ -145,8 +145,14 @@ pub fn after(
             };
             return Next::InstallStore { directory: directory.clone(), done: Box::new(done) };
         }
-        Command::Clone { .. } if code == 0 => return Next::Alternates,
-        Command::Remote { .. } | Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
+        Command::Clone { format, .. } if code == 0 => return Next::Alternates { format: *format },
+        Command::Remote { format, .. } if code == 0 => {
+            if let git::Op::Look { .. } = op {
+                return Next::End(git::Done::Looked { holds: true });
+            }
+            return Next::RemakeView { done: Box::new(git::Done::Succeeded), format: Some(*format) };
+        }
+        Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
         Command::Fetch { into, workspace, .. } if code == 0 => {
             if let Some(commit) = output::fetched(stdout, &invocation::store_reference(*workspace, *into)) {
                 return Next::Run(Command::UpdateRef { into: *into, commit });
@@ -181,6 +187,7 @@ pub fn after(
                 return Next::End(git::Done::Paths { files });
             }
         }
+        Command::UpdateIndex { .. } if code == 0 => return Next::Run(Command::Unmerged),
         Command::Unmerged if code == 0 => {
             if let Some(next) = unmerged(op, stdout, checkout) {
                 return next;
@@ -284,6 +291,7 @@ pub fn after(
         | Command::Clean
         | Command::DiffPaths { .. }
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::WriteTree
         | Command::CommitTree { .. } => {}
@@ -320,21 +328,24 @@ fn pushed(stdout: &[u8], branch: &[u8], create: bool, tail: &[u8], cut: u64) -> 
     Some(Next::End(done))
 }
 fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<Next> {
+    let files = output::conflict_paths(stdout, checkout)?;
+    let mut kept = 0_usize;
+    for file in &files {
+        kept = kept.checked_add(file.len())?.checked_add(1)?;
+    }
+    let cut = kept != stdout.len();
     match op {
         git::Op::Merge { .. } => {
-            let files = output::conflict_paths(stdout, checkout)?;
             if files.is_empty() {
                 return None;
             }
-            let mut kept = 0_usize;
-            for file in &files {
-                kept = kept.checked_add(file.len())?.checked_add(1)?;
-            }
-            Some(Next::End(git::Done::Conflicted { cut: kept != stdout.len(), files }))
+            Some(Next::End(git::Done::Conflicted { cut, files }))
         }
         git::Op::Commit { .. } => {
-            let files = output::paths(stdout, checkout)?;
-            Some(if files.is_empty() { Next::Run(Command::Add) } else { Next::Scan { files } })
+            if files.is_empty() {
+                return if cut { None } else { Some(Next::Run(Command::Add)) };
+            }
+            Some(Next::Scan { files, cut })
         }
         git::Op::Store { .. }
         | git::Op::Make { .. }
@@ -420,6 +431,7 @@ fn remote(command: &Command) -> bool {
         | Command::SnapshotReset { .. }
         | Command::Clean
         | Command::Unmerged
+        | Command::UpdateIndex { .. }
         | Command::Add
         | Command::DiffIndex { .. }
         | Command::DiffPaths { .. }
@@ -443,6 +455,117 @@ fn merge_bases(op: &git::Op, code: u8, stdout: &[u8], tail: &[u8], cut: u64) -> 
             bases.push(commit).expect("bounded stdout");
         }
         return Next::Run(Command::BringsList { bases: bases.into_boxed(), base: *base });
+    }
+    failed(git::Fault::Broken, tail, cut)
+}
+
+fn format(stdout: &[u8]) -> Option<invocation::Format> {
+    match stdout {
+        b"sha1\n" => Some(invocation::Format::Sha1),
+        b"sha256\n" => Some(invocation::Format::Sha256),
+        other => {
+            let _length = other.len();
+            None
+        }
+    }
+}
+/// The operations that move the worker's metadata (protocol/git.md, 4.13).
+pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
+    match op {
+        git::Op::Clone { at, .. }
+        | git::Op::Fetch { at, .. }
+        | git::Op::Point { at, .. }
+        | git::Op::CheckOut { at, .. }
+        | git::Op::Merge { at, .. }
+        | git::Op::Commit { at, .. }
+        | git::Op::Reset { at, .. } => Some(at),
+        git::Op::Make { .. }
+        | git::Op::Store { .. }
+        | git::Op::Look { .. }
+        | git::Op::Create { .. }
+        | git::Op::Push { .. }
+        | git::Op::IsAncestor { .. }
+        | git::Op::Brings { .. }
+        | git::Op::DiffPaths { .. }
+        | git::Op::Reds { .. } => None,
+    }
+}
+/// Whether the terminal still has a view to write (protocol/git.md, 4.13).
+pub(crate) fn views(op: &git::Op, done: &git::Done) -> bool {
+    match done {
+        git::Done::Failed { .. } | git::Done::FailedWithOutput { .. } => false,
+        git::Done::Results { .. }
+        | git::Done::Paths { .. }
+        | git::Done::ParentUnreachable { .. }
+        | git::Done::Looked { .. }
+        | git::Done::IsAncestor { .. }
+        | git::Done::Brings { .. }
+        | git::Done::Merged
+        | git::Done::Conflicted { .. }
+        | git::Done::Succeeded
+        | git::Done::Fetched { .. }
+        | git::Done::Committed { .. }
+        | git::Done::Unchanged
+        | git::Done::Exists
+        | git::Done::Rejected => view_place(op).is_some(),
+    }
+}
+/// Append the view once, only to a nonfailed terminal (protocol/git.md, 4.13).
+#[must_use]
+pub(crate) fn ending(op: &git::Op, done: git::Done) -> Next {
+    if views(op, &done) { Next::View { done: Box::new(done), retry: false } } else { Next::End(done) }
+}
+
+/// Reuse git's format and init commands while retaining the operation's terminal.
+pub(crate) fn after_view(
+    op: &git::Op,
+    command: &Command,
+    done: &git::Done,
+    code: u8,
+    stdout: &[u8],
+    tail: &[u8],
+    cut: u64,
+) -> Next {
+    match command {
+        Command::Format if code == 0 => {
+            if let Some(format) = format(stdout) {
+                return Next::Run(Command::Clone {
+                    directory: invocation::place(view_place(op).expect("view place")),
+                    format,
+                    bare: false,
+                });
+            }
+        }
+        Command::Clone { .. } if code == 0 => return Next::View { done: Box::new(done.clone()), retry: true },
+        Command::Reds(_)
+        | Command::Format
+        | Command::SnapshotHead
+        | Command::SnapshotMerge { .. }
+        | Command::SnapshotFetch { .. }
+        | Command::SnapshotReachable { .. }
+        | Command::SnapshotReset { .. }
+        | Command::Version
+        | Command::Origin { .. }
+        | Command::Clone { .. }
+        | Command::Remote { .. }
+        | Command::Store { .. }
+        | Command::UpdateRef { .. }
+        | Command::Fetch { .. }
+        | Command::Create { .. }
+        | Command::CheckOut { .. }
+        | Command::Clean
+        | Command::Merge { .. }
+        | Command::Unmerged
+        | Command::UpdateIndex { .. }
+        | Command::Add
+        | Command::DiffIndex { .. }
+        | Command::DiffPaths { .. }
+        | Command::WriteTree
+        | Command::CommitTree { .. }
+        | Command::MergeBases { .. }
+        | Command::BringsList { .. }
+        | Command::IsAncestor { .. }
+        | Command::Push { .. } => {}
     }
     failed(git::Fault::Broken, tail, cut)
 }

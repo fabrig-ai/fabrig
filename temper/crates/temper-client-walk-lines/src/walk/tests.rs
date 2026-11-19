@@ -21,6 +21,7 @@ fn lines_keep_their_file_numbers_skipping_empty_lines() {
         Walk {
             chain: vec![Journey {
                 name: "a".into(),
+                client: Client::Web,
                 lines: vec![
                     Numbered { number: 2, line: Line::parse(b"web see \"Hi\"").expect("see") },
                     Numbered { number: 4, line: Line::parse(b"web mark").expect("mark") },
@@ -36,7 +37,7 @@ fn lines_keep_their_file_numbers_skipping_empty_lines() {
 }
 
 #[test]
-fn session_and_tui_lines_are_refused_by_name_at_their_file_number() {
+fn session_and_look_lines_are_refused_by_name_at_their_file_number() {
     let scratch = Scratch::new("walk-forbidden");
     let roots = roots(&scratch);
     for (source, expected) in [
@@ -47,15 +48,74 @@ fn session_and_tui_lines_are_refused_by_name_at_their_file_number() {
         ("web look", "web look"),
         ("web look 320", "web look"),
         ("web requests", "web requests"),
-        ("tui key enter", "tui"),
-        ("tui see \"Ready\"", "tui"),
-        ("tui stop", "tui"),
-        ("tui look", "tui"),
+        ("tui look", "tui look"),
     ] {
         put(&roots.web, "a", format!("walk 2\n\n{source}\n").as_bytes());
         let error = read(&roots, "a").expect_err("forbidden line");
         assert_eq!((error.journey.as_str(), error.line), ("a", 3));
         assert!(error.why.contains(expected), "{source}: {error:?}");
+    }
+}
+
+#[test]
+fn tui_walk_lines_keep_their_numbers_and_client() {
+    let scratch = Scratch::new("walk-tui");
+    let roots = roots(&scratch);
+    put(&roots.tui, "t", b"walk 2\ntui see \"x\"\ntui mark\n");
+    assert_eq!(
+        read(&roots, "t").expect("TUI walk"),
+        Walk {
+            chain: vec![Journey {
+                name: "t".into(),
+                client: Client::Tui,
+                lines: vec![
+                    Numbered { number: 2, line: Line::parse(b"tui see \"x\"").expect("see") },
+                    Numbered { number: 3, line: Line::parse(b"tui mark").expect("mark") },
+                ],
+                scripts: None,
+            }],
+        }
+    );
+    put(
+        &roots.tui,
+        "t",
+        b"walk 2\ntui key enter\ntui key char \"m\"\n\ntui see \"x\"\ntui stop\ntui approve\ntui mark\n",
+    );
+    let walk = read(&roots, "t").expect("all TUI walk lines");
+    assert_eq!(walk.chain[0].client, Client::Tui);
+    assert_eq!(
+        walk.chain[0].lines.iter().map(|l| (l.number, l.line.print())).collect::<Vec<_>>(),
+        [
+            (2, b"tui key enter".as_slice()),
+            (3, b"tui key char \"m\""),
+            (5, b"tui see \"x\""),
+            (6, b"tui stop"),
+            (7, b"tui approve"),
+            (8, b"tui mark"),
+        ]
+    );
+    put(&roots.tui, "t", b"walk 2\n\ntui look\n");
+    assert_eq!(
+        read(&roots, "t").expect_err("TUI look"),
+        Unreadable { journey: "t".into(), line: 3, why: "tui look is not a journey's walk line".into() }
+    );
+}
+
+#[test]
+fn another_clients_mark_is_refused_in_the_journey_and_its_ancestor() {
+    let scratch = Scratch::new("walk-wrong-mark");
+    let roots = roots(&scratch);
+    for (root, source, expected) in [
+        (&roots.web, "tui mark", "tui mark is not a web journey's mark"),
+        (&roots.tui, "web mark", "web mark is not a TUI journey's mark"),
+    ] {
+        put(root, "wrong", format!("walk 2\n\n{source}\n").as_bytes());
+        let expected = Unreadable { journey: "wrong".into(), line: 3, why: expected.into() };
+        assert_eq!(read(&roots, "wrong").expect_err("walked journey's wrong mark"), expected);
+        put(root, "child", b"walk 2\nafter wrong\n");
+        assert_eq!(read(&roots, "child").expect_err("ancestor's wrong mark"), expected);
+        fs::remove_dir_all(root.join("wrong")).expect("remove wrong journey before switching roots");
+        fs::remove_dir_all(root.join("child")).expect("remove child before switching roots");
     }
 }
 
@@ -80,17 +140,20 @@ fn after_joins_both_roots_root_first_and_carries_scripts_unvalidated() {
     let roots = roots(&scratch);
     let a = put(&roots.web, "a", b"walk 2\nweb see \"Hi\"\n\nweb mark\n");
     fs::write(a.join("scripts.json"), b"not JSON\x00\xff").expect("scripts bytes");
-    put(&roots.tui, "b", b"walk 2\nafter a\nweb mark\n");
+    put(&roots.tui, "b", b"walk 2\nafter a\ntui mark\n");
     put(&roots.web, "c", b"walk 2\nafter b\nweb mark\n");
     let walk = read(&roots, "c").expect("cross-root chain");
     assert_eq!(walk.chain.iter().map(|j| j.name.as_str()).collect::<Vec<_>>(), ["a", "b", "c"]);
     assert_eq!(walk.chain[0].scripts.as_deref(), Some(b"not JSON\x00\xff".as_slice()));
     assert!(walk.chain[1].scripts.is_none());
     assert_eq!(walk.chain[1].lines[0].number, 3);
-    assert_eq!(walk.chain[1].lines[0].line.print(), b"web mark");
+    assert_eq!(walk.chain[1].lines[0].line.print(), b"tui mark");
+    assert_eq!(walk.chain.iter().map(|j| j.client).collect::<Vec<_>>(), [Client::Web, Client::Tui, Client::Web]);
     assert_eq!(walk.chain[0].lines[1].line.print(), b"web mark", "ancestors retain their marks");
     put(&roots.web, "b", b"walk 2\nweb see \"Web wins\"\n");
-    assert_eq!(read(&roots, "b").expect("web first").chain[0].lines[0].line.print(), b"web see \"Web wins\"");
+    let web = read(&roots, "b").expect("web first");
+    assert_eq!(web.chain[0].client, Client::Web);
+    assert_eq!(web.chain[0].lines[0].line.print(), b"web see \"Web wins\"");
 }
 
 #[test]

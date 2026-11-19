@@ -162,6 +162,22 @@ impl Disk {
     fn run(&mut self, scenario: &fixtures::Scenario, command: &Command, input: &[u8]) -> Answer {
         let mut spawn = fixtures::spawn_of(command);
         spawn.dir = scenario.at.clone().into();
+        self.run_spawn(scenario, &spawn, input, None)
+    }
+    fn named(&mut self, scenario: &fixtures::Scenario, command: &Command, directory: &[u8]) -> Answer {
+        let mut spawn = fixtures::spawn_of(command);
+        spawn.args = invocation::arguments_at(command, Some(directory), Some(&scenario.at));
+        spawn.dir = Box::new([]);
+        let forbidden = [scenario.at.as_slice(), b"/.git"].concat();
+        self.run_spawn(scenario, &spawn, b"", Some(&forbidden))
+    }
+    fn run_spawn(
+        &mut self,
+        scenario: &fixtures::Scenario,
+        spawn: &k::Spawn,
+        input: &[u8],
+        forbidden: Option<&[u8]>,
+    ) -> Answer {
         let inherited = Inherited {
             roots: vec![(b"worker".as_slice().into(), descriptor(self.machine.reopen_root(0)))],
             appends: Vec::new(),
@@ -170,7 +186,7 @@ impl Disk {
         };
         let mut held: BTreeSet<_> = inherited.pipes.iter().map(|(_, fd)| *fd).collect();
         held.insert(inherited.signal);
-        let mut host = temper_fake_git_hosted::git(&spawn, &inherited, scenario.transport.clone());
+        let mut host = temper_fake_git_hosted::git(spawn, &inherited, scenario.transport.clone());
         let mut answer = Answer { exit: 0, stdout: Vec::new(), stderr: Vec::new() };
         let mut input = input;
         let now = scenario.transport.forge.borrow().now;
@@ -184,6 +200,12 @@ impl Disk {
             }
             let submit = host.submissions().pop().expect("a live host progresses");
             let mut kind = submit.kind;
+            if let (Some(prefix), Op::Open { path, .. }) = (forbidden, &kind) {
+                assert!(
+                    path.as_ref() != prefix && !path.starts_with(&[prefix, b"/"].concat()),
+                    "worker git must not open the run's metadata: {path:?}"
+                );
+            }
             let result = match &mut kind {
                 Op::PipeRead { fd, buf } => {
                     assert!(held.contains(fd));
@@ -367,6 +389,28 @@ fn hosted_git_stages_files_and_commits_the_requested_parents_without_moving_head
     assert_eq!(disk.read(&scenario.at, b".git/temper-head"), 1_u64.to_le_bytes());
     assert_eq!(disk.read(&scenario.at, b".git/MERGE_HEAD"), 2_u64.to_le_bytes());
     assert_eq!(disk.read(&scenario.at, b".git/objects/3"), b"");
+}
+
+#[test]
+fn hosted_git_keeps_named_metadata_apart_from_the_work_tree() {
+    let mut scenario = fixtures::scenario();
+    let metadata = b"gitdirs/1/app";
+    let run = [scenario.at.as_slice(), b"/.git"].concat();
+    for (name, bytes) in scenario.checkout.tree(&run) {
+        scenario.checkout.write(&[metadata.as_slice(), b"/", &name].concat(), &bytes);
+    }
+    scenario.checkout.write(&[run.as_slice(), b"/temper-head"].concat(), &99_u64.to_le_bytes());
+    scenario.checkout.write(&[run.as_slice(), b"/temper-index/conflict.txt"].concat(), b"run index\n");
+    let mut disk = Disk::new(&scenario);
+    assert_eq!(disk.named(&scenario, &Command::Format, metadata).stdout, b"sha1\n");
+    let checked = disk.named(&scenario, &Command::CheckOut { commit: commit(scenario.topic) }, metadata);
+    assert_eq!(checked.exit, 0, "{:?}", checked.stderr);
+    assert_eq!(disk.read(metadata, b"temper-head"), scenario.topic.to_le_bytes());
+    assert_eq!(disk.read(&run, b"temper-head"), 99_u64.to_le_bytes(), "run head is never read or moved");
+    assert_eq!(disk.named(&scenario, &Command::Add, metadata).exit, 0);
+    assert_eq!(disk.read(metadata, b"temper-index/conflict.txt"), b"topic\n");
+    assert_eq!(disk.read(&scenario.at, b"conflict.txt"), b"topic\n");
+    assert_eq!(disk.read(&run, b"temper-index/conflict.txt"), b"run index\n");
 }
 
 #[test]
@@ -658,17 +702,22 @@ fn a_clone_keeps_its_given_origin_url() {
     let clone = temper_worker_protocol_git::invocation::Command::Clone {
         directory: b"fresh".as_slice().into(),
         format: invocation::Format::Sha1,
+        bare: false,
     };
     let mut spawn = fixtures::spawn_of(&clone);
     spawn.dir = b"workspaces/1".as_slice().into();
     let cloned = temper_fake_git_hosted::check(&spawn).expect("clone invocation");
     let _cloned = temper_fake_git_hosted::answer(&cloned, &mut scenario.checkout, &mut scenario.transport);
-    let mut remote = fixtures::spawn_of(&Command::Remote { remote: scenario.remote.clone().into() });
+    let mut remote = fixtures::spawn_of(&Command::Remote {
+        remote: scenario.remote.clone().into(),
+        format: invocation::Format::Sha1,
+    });
     remote.dir = b"workspaces/1/fresh".as_slice().into();
     let remote = temper_fake_git_hosted::check(&remote).expect("remote add invocation");
     let _answer = temper_fake_git_hosted::answer(&remote, &mut scenario.checkout, &mut scenario.transport);
-    let command =
-        temper_worker_protocol_git::invocation::Command::Origin { directory: b"workspaces/1/fresh".as_slice().into() };
+    let command = temper_worker_protocol_git::invocation::Command::Origin {
+        directory: b"workspaces/1/fresh/.git".as_slice().into(),
+    };
     let checked = temper_fake_git_hosted::check(&fixtures::spawn_of(&command)).expect("local origin query");
     let answer = temper_fake_git_hosted::answer(&checked, &mut scenario.checkout, &mut scenario.transport);
     assert_eq!(answer.stdout, [scenario.remote.as_slice(), b"\n"].concat());

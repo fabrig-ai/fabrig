@@ -112,16 +112,22 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   for Linux alone, `cfg(target_os = "linux")` on its test, module or
   binary, with its reason beside it, and listed here. A test that
   compiles and fails on macOS and would take real work to port joins the
-  list; none is dropped silently.
+  list; none is dropped silently. A test that reaches a kit's or a
+  fixture's Linux-only item is Linux's too: it takes the item's gate and
+  is listed beside it, so that each test binary builds on macOS. The
+  members that reach rustls, temper-box among them, are past the Darwin
+  check, so the runner's build is the first to see a test there that
+  reaches a Linux-only item ungated.
 
   | Test | Its reason |
   |---|---|
   | `crates/temper-box-shell/src/tests.rs`: `id_login_agrees_with_the_effective_users_passwd_entry` | Linux supplies the effective user's passwd entry to compare with macOS's command lookup |
   | `bin/temper-box/tests/process.rs`: `a_story_box_and_its_steps_die_when_the_test_process_is_killed` | a parent-death signal is Linux's |
   | `bin/temper-box/tests/suite/box_lifetime.rs`: `a_killed_box_takes_its_steps_with_it` | a parent-death signal is Linux's |
-  | `bin/temper-box/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `bin/temper-box/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box | `parent::Guard`'s retained identities and its observation are Linux's |
+  | `bin/temper-box/tests/suite/startup.rs`: `parent_guard_observes_its_recorded_process_after_reaping` and `observing_parent_descendants_leaves_cleanup_with_their_world`; `bin/temper-box/tests/suite/box_listeners.rs`: `stop`'s check that no process outlived the box; `bin/temper-box/tests/suite/box_lifetime.rs`: `a_hangup_stops_a_box_and_leaves_nothing_running`'s check that nothing outlived the box; `bin/temper-box/tests/process.rs`: `a_killed_serve_keeps_its_port_and_prints_a_fresh_link` | `parent::Guard`'s retained identities and its observation are Linux's |
+  | `bin/temper-box/tests/fake_backends/deployment.rs`: `a_stopped_deployment_restored_at_its_place_uses_new_files`; `bin/temper-box/tests/fake_backends/newer_build.rs`: `a_stopped_fake_box_starts_with_new_files_at_the_same_paths`; `testing/temper-process-guard/tests/parent.rs`, the whole binary | an executable's observation reads `parent::Guard`'s retained Linux process identities |
   | `bin/temper-box/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
-  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs` | the capture witness uses Linux's abstract Unix sockets |
+  | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs`; `bin/temper-box/tests/suite/support_tests.rs`: `the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory` and `elsewhere_settings_follow_the_connected_project`, which reach that module | the capture witness uses Linux's abstract Unix sockets |
 
 ## 4. The parts
 

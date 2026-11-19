@@ -18,6 +18,20 @@ fn web_mark_is_refused_at_its_recipe_line() {
     }
 }
 
+#[test]
+fn tui_journey_lines_are_refused_at_their_recipe_line() {
+    let mut files = Files::new();
+    for source in ["tui mark", "tui approve"] {
+        for prefix in ["", "tui see \"Ready\"\n", "check\n"] {
+            put(&mut files, "a", "recipe", format!("recipe 1\n{prefix}{source}\nweb see \"Hi\"\n").as_bytes());
+            let error = read(&files, "a").expect_err("TUI journey line in a recipe");
+            assert_eq!(error.name, "a");
+            assert_eq!(error.line, Some(if prefix.is_empty() { 2 } else { 3 }));
+            assert_eq!(error.why, format!("{source} is a journey's line"));
+        }
+    }
+}
+
 type Files = BTreeMap<String, BTreeMap<OsString, Vec<u8>>>;
 fn put(files: &mut Files, name: &str, file: &str, bytes: &[u8]) {
     files.entry(name.into()).or_default().insert(file.into(), bytes.into());

@@ -10,6 +10,18 @@ fn mark_parses_prints_and_takes_no_fields() {
 }
 
 #[test]
+fn tui_journey_lines_parse_print_are_kept_and_take_no_fields() {
+    for (source, record) in [("tui mark", Tui::Mark), ("tui approve", Tui::Approve)] {
+        let line = Line::parse(source.as_bytes()).expect("TUI journey line");
+        assert_eq!(line.record(), &Record::Tui(record));
+        assert_eq!(line.print(), source.as_bytes());
+        assert!(line.kept());
+        let why = Line::parse(format!("{source} extra").as_bytes()).expect_err("no fields");
+        assert!(why.contains("extra field") && why.contains("extra"), "{why}");
+    }
+}
+
+#[test]
 fn requests_parse_print_are_kept_and_name_extra_fields() {
     let line = Line::parse(b"web requests").expect("requests line");
     assert_eq!(line.record(), &Record::Web(Web::Requests));

@@ -190,11 +190,9 @@ fn mutated_and_short_frames_never_panic() {
 }
 
 fn test_connector(bytes: &[u8]) {
-    use jig_test_store::v2;
+    use jig_test_store::v2::{self, Record};
     if let Ok(row) = v2::Row::decode(&v2::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(row.encode(&v2::CEILINGS).expect("decoded row").as_ref(), bytes);
     }
 }
 #[test]

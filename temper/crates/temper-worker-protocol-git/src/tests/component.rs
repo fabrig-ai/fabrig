@@ -92,6 +92,7 @@ fn a_fetch_runs_two_invocations_and_ends_fetched() {
     component.end(pipes[1]);
     component.exited(child, 0);
     component.closed(child, &pipes);
+    super::view::empty(&mut component);
     assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
     assert!(component.below.out.io.is_empty());
     component.shutdown();
@@ -271,7 +272,7 @@ fn an_operation_received_past_its_deadline_fails_without_output() {
 }
 
 #[test]
-fn a_cancel_after_the_last_exit_ends_with_the_operation_s_outcome() {
+fn a_cancel_after_the_last_git_exit_still_preempts_its_view() {
     let mut component = fixtures::Started::new();
     component.down(fixtures::fetch(fixtures::OWNER, fixtures::DEADLINE));
     let (child, pipes) = component.spawned();
@@ -285,9 +286,18 @@ fn a_cancel_after_the_last_exit_ends_with_the_operation_s_outcome() {
     component.end(pipes[1]);
     component.exited(child, 0);
     component.down(Request::CancelIo { owner: fixtures::OWNER });
-    assert!(component.signals().is_empty());
+    assert!(component.signals().is_empty(), "the child is already closing");
     component.closed(child, &pipes);
-    assert_eq!(component.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
+    assert_eq!(
+        component.done(),
+        Some((
+            fixtures::OWNER,
+            git::Done::FailedWithOutput {
+                fault: git::Fault::Cancelled,
+                diagnostic: git::PushDiagnostic::empty().named(b"update-ref")
+            }
+        ))
+    );
 }
 #[test]
 fn a_cancel_between_invocations_starts_no_further_one() {
@@ -340,61 +350,47 @@ fn stdout_past_its_cap_is_read_dropped_and_ends_broken() {
 }
 #[test]
 fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
-    for merging in [false, true] {
-        let mut component = fixtures::Started::new();
-        let op = if merging {
-            fixtures::commit_op(Some(fixtures::COMMIT))
-        } else {
-            git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None }
-        };
-        component.down(Request::Io {
-            owner: fixtures::OWNER,
-            op,
-            deadline: fixtures::DEADLINE,
-            identity: Some(fixtures::identity()),
-        });
-        if !merging {
-            let (child, pipes) = component.spawned();
-            component.end(pipes[0]);
-            component.end(pipes[1]);
-            component.exited(child, 1);
-            component.closed(child, &pipes);
-        }
-        let (child, pipes) = component.spawned();
-        let cap = fixtures::limits().stdout_bytes;
-        let mut stdout = skein_lib::List::with_capacity(cap.checked_add(6).expect("room for the last path"));
-        for byte in b"one\0two\0three\0four\0" {
-            stdout.push(*byte).expect("named paths fit");
-        }
-        while stdout.len() <= cap {
-            for byte in b"later\0" {
-                stdout.push(*byte).expect("room through the first path past the cap");
-            }
-        }
-        component.stdout(pipes[0], stdout.as_slice());
-        assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
-        component.end(pipes[0]);
-        component.end(pipes[1]);
-        component.exited(child, 0);
-        component.closed(child, &pipes);
-        let done = if merging {
-            git::Done::FailedWithOutput {
-                fault: git::Fault::Broken,
-                diagnostic: git::PushDiagnostic::empty().named(b"diff-files"),
-            }
-        } else {
-            git::Done::Conflicted {
-                files: Box::new([
-                    Box::from(b"one".as_slice()),
-                    Box::from(b"two".as_slice()),
-                    Box::from(b"three".as_slice()),
-                    Box::from(b"four".as_slice()),
-                ]),
-                cut: true,
-            }
-        };
-        assert_eq!(component.done(), Some((fixtures::OWNER, done)), "merging commit: {merging}");
+    let mut component = fixtures::Started::new();
+    let op = git::Op::Merge { at: fixtures::at(), theirs: fixtures::COMMIT, identity: 1, account: None };
+    component.down(Request::Io {
+        owner: fixtures::OWNER,
+        op,
+        deadline: fixtures::DEADLINE,
+        identity: Some(fixtures::identity()),
+    });
+    let (child, pipes) = component.spawned();
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 1);
+    component.closed(child, &pipes);
+    let (child, pipes) = component.spawned();
+    let cap = fixtures::limits().stdout_bytes;
+    let mut stdout = skein_lib::List::with_capacity(cap.checked_add(6).expect("room for the last path"));
+    for byte in b"one\0two\0three\0four\0" {
+        stdout.push(*byte).expect("named paths fit");
     }
+    while stdout.len() <= cap {
+        for byte in b"later\0" {
+            stdout.push(*byte).expect("room through the first path past the cap");
+        }
+    }
+    component.stdout(pipes[0], stdout.as_slice());
+    assert!(!component.below.out.io.is_empty(), "reading continues past the cap");
+    component.end(pipes[0]);
+    component.end(pipes[1]);
+    component.exited(child, 0);
+    component.closed(child, &pipes);
+    let done = git::Done::Conflicted {
+        files: Box::new([
+            Box::from(b"one".as_slice()),
+            Box::from(b"two".as_slice()),
+            Box::from(b"three".as_slice()),
+            Box::from(b"four".as_slice()),
+        ]),
+        cut: true,
+    };
+    super::view::empty(&mut component);
+    assert_eq!(component.done(), Some((fixtures::OWNER, done)));
 }
 
 #[test]
@@ -448,7 +444,7 @@ fn an_abort_during_commit_tree_spawn_settles_without_a_done() {
     assert_eq!(component.below.out.io.len(), 4, "abort child and all three pipes");
     component.closed(child, &pipes);
     assert_eq!(component.done(), None);
-    for _ in 0_u8..4 {
+    for _ in 0_u8..5 {
         component.file_operation();
         component.complete_ok();
     }
@@ -489,7 +485,7 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
     let mut component = fixtures::Started::new();
     component.down(Request::Io {
         owner: fixtures::OWNER,
-        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE) },
+        op: git::Op::Look { at: fixtures::at(), remote: Box::from(fixtures::REMOTE), store: skein_lib::Token::new(9) },
         deadline: fixtures::DEADLINE,
         identity: None,
     });
@@ -498,7 +494,7 @@ fn a_look_spawns_at_the_worker_root_without_an_identity() {
     assert_eq!(
         spawn.args,
         crate::invocation::arguments(&crate::invocation::Command::Origin {
-            directory: Box::from(&b"workspaces/7/app"[..])
+            directory: Box::from(&b"gitdirs/7/app"[..])
         })
     );
     assert_eq!(component.done(), None);
@@ -515,7 +511,7 @@ fn a_point_spawns_one_local_update_ref_without_an_identity() {
             identity: None,
         });
         let Some(skein_io::Request::Spawn { spawn, .. }) = component.below.out.io.pop() else { panic!("point spawn") };
-        assert_eq!(&*spawn.dir, b"workspaces/7/app");
+        assert_eq!(&*spawn.dir, b"");
         let mut expected = skein_lib::List::uncapped();
         for setting in crate::invocation::SETTINGS {
             expected.push(Box::from(b"-c".as_slice())).expect("uncapped args");
@@ -525,7 +521,13 @@ fn a_point_spawns_one_local_update_ref_without_an_identity() {
             git::Into::Fetched => b"refs/temper/fetched".as_slice(),
             git::Into::Landing => b"refs/temper/landing".as_slice(),
         };
-        for word in [b"update-ref".as_slice(), reference, b"abababababababababababababababababababab"] {
+        for word in [
+            b"--git-dir=gitdirs/7/app".as_slice(),
+            b"--work-tree=workspaces/7/app",
+            b"update-ref",
+            reference,
+            b"abababababababababababababababababababab",
+        ] {
             expected.push(Box::from(word)).expect("uncapped args");
         }
         assert_eq!(spawn.args.as_ref(), expected.as_slice());
@@ -564,6 +566,7 @@ fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
             component.closed(child, &pipes);
             git::Done::Conflicted { files: Box::new([b"baseline".as_slice().into()]), cut: false }
         };
+        super::view::empty(&mut component);
         assert_eq!(component.done(), Some((fixtures::OWNER, expected)));
     }
 }

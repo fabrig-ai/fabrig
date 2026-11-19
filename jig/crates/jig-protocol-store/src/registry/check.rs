@@ -4,7 +4,7 @@ use crate::{OpenRefusal, Store, Unplanned};
 use alloc::boxed::Box;
 use skein_codec::{
     layout::{Plan, Underived, Why, Workspace},
-    schema::{Schema, Span},
+    schema::Span,
 };
 use skein_lib::List;
 
@@ -73,10 +73,10 @@ fn derive(
     binary: &mut texts::Binary,
     layouts: &Layouts,
     row: &Row,
-    new: &Schema,
+    digest: super::Digest,
     ty: &crate::ValueType,
-    new_held: &[&Schema],
-) -> Result<Plan, Unplanned> {
+    held: &List<super::Digest>,
+) -> Result<Option<Plan>, Unplanned> {
     let text = layouts.texts.get(&row.value.text).ok_or(Unplanned::Text)?;
     if row.stored && !text.stored {
         return Err(Unplanned::Text);
@@ -85,15 +85,29 @@ fn derive(
     let old_held = texts::schemas(layouts, &row.value.held, row.stored).ok_or(Unplanned::Text)?;
     let variant = row.value.variant.as_deref();
     let old_root = old.root(&row.value.root, variant).ok_or(Unplanned::Text)?;
+    let new = layouts.texts.get(&digest).ok_or(Unplanned::Text)?.schema.as_ref().ok_or(Unplanned::Text)?;
     let new_root = new.root(ty.root.as_bytes(), super::variant(ty.variant)).ok_or(Unplanned::Text)?;
+    let new_held = texts::schemas(layouts, held, false).ok_or(Unplanned::Text)?;
     // Check that the kept text and the row agree, rather than trusting its id.
     let fingerprint =
         binary.layout(layouts, row.value.text, &row.value.root, variant, &row.value.held).ok_or(Unplanned::Text)?;
     if fingerprint != row.value.layout {
         return Err(Unplanned::Text);
     }
-    match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held) {
-        Ok(plan) => Ok(plan),
+    // The id or fingerprint alone cannot prove identical conversion inputs.
+    // Digest checks have validated the stored bytes, including every held text.
+    if row.value.text == digest
+        && row.value.root.as_ref() == ty.root.as_bytes()
+        && variant == super::variant(ty.variant)
+        && &row.value.held == held
+        && binary.shallow(layouts, digest, new_root.decl, held)
+    {
+        return Ok(None);
+    }
+    #[cfg(test)]
+    super::counting::plan();
+    match Plan::derive(old, old_root, old_held.as_slice(), new, new_root, new_held.as_slice()) {
+        Ok(plan) => Ok(Some(plan)),
         Err(why) => Err(Unplanned::Underived(why)),
     }
 }
@@ -199,17 +213,27 @@ pub(super) fn plans(
             let digest = binary.text(&key.0).expect("binary text");
             let held = binary.held(layouts, digest).ok_or(OpenRefusal::Failed)?;
             let readable = texts::row(layouts, key);
-            let new =
-                layouts.texts.get(&digest).ok_or(OpenRefusal::Failed)?.schema.as_ref().ok_or(OpenRefusal::Failed)?;
-            let held = texts::schemas(layouts, &held, false).ok_or(OpenRefusal::Failed)?;
+
             let row = layouts.rows.get(key).expect("held row");
             let plan = if readable.is_some() {
-                derive(binary, layouts, row, new, declaration, held.as_slice())
+                derive(binary, layouts, row, digest, declaration, &held)
             } else {
                 Err(Unplanned::Text)
             };
             match plan {
-                Ok(plan) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
+                Ok(None) => {
+                    if key.2 != binary_id {
+                        layouts
+                            .types
+                            .get_mut(index)
+                            .expect("found type")
+                            .keeping
+                            .push(key.2)
+                            .expect("uncapped keeping ids");
+                    }
+                    continue;
+                }
+                Ok(Some(plan)) if key.2 == binary_id || plan.keeps() || work.fit(&plan) => {
                     let ty = layouts.types.get_mut(index).expect("found type");
                     // A binary id is reheaded before any plan is consulted, but
                     // its row still needs the text and fingerprint checks above.

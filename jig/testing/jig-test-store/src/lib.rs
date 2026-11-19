@@ -10,6 +10,7 @@ pub const SCHEMA: &str = include_str!("../schema/test-connector-v2.schema");
 
 use alloc::boxed::Box;
 use jig_test_connector as connector;
+use v2::Record as _;
 pub mod keys;
 pub mod records;
 pub mod route;

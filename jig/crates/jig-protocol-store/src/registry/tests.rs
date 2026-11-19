@@ -6,6 +6,7 @@ use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Sto
 use alloc::boxed::Box;
 use jig_test_layouts::layouts::{BUFFER_CURRENT, BUFFER_KEPT, CURRENT, FIRST, KEPT};
 use skein_codec::Record as _;
+mod shortcut;
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",
