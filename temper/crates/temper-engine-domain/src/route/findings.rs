@@ -127,6 +127,29 @@ pub fn file_finding(
         Err(why) => forge::FileFindingAnswer::Refused(why),
     }
 }
+/// Trusted landing-tier filing, with the follow's standing area (domain/red-findings.md, 2 and 9).
+pub fn file_verdict(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    task: u64,
+    filing: forge::VerdictFiling,
+) -> forge::FileFindingAnswer {
+    let result = domain.forge.prepare_verdict_filing(&env.limits.forge, env.wall, Filer::Task(task), &filing);
+    let result = match result {
+        Ok(mut write) => {
+            if let Some(follow) = filing.follow {
+                write.row.area = follow_area(domain, filing.project, follow);
+            }
+            Ok(write)
+        }
+        Err(why) => Err(why),
+    };
+    match commit_prepared(domain, env, decision, result, false) {
+        Ok(number) => forge::FileFindingAnswer::Filed { number },
+        Err(why) => forge::FileFindingAnswer::Refused(why),
+    }
+}
 pub fn hand_finding(
     domain: &mut Domain,
     env: &Env<Limits>,

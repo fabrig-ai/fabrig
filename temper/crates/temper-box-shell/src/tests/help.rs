@@ -1064,6 +1064,9 @@ fn tier_help_explains_report_formats_and_preserving_configuration() {
         "`\"wait\": \"landed\"`",
         "a change ends at its landing and its tiers judge it later",
         "`change show TASK --until landed` for such a change",
+        "finding blamed on the landing and goal behind it",
+        "failures no uncleared red finding of the tier holds",
+        "at most 64 failing tests, each id at most 512 bytes",
     ] {
         assert!(text.contains(instruction), "missing {instruction}: {text}");
     }

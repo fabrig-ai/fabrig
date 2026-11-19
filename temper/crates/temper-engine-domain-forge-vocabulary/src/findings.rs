@@ -8,6 +8,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Queue, Wall};
 
 mod words;
+pub use temper_client_protocol_wire::goals::id as goal_id;
 pub use words::{cut_words, news_words, ownership_words};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -168,6 +169,18 @@ pub struct FileFinding {
     pub area: Option<Box<[u8]>>,
     pub title: Box<[u8]>,
     pub body: Box<[u8]>,
+}
+/// A judged landing tier's filing (temper/docs/design/domain/red-findings.md, 2 and 9).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct VerdictFiling {
+    pub project: u32,
+    pub kind: FindingKind,
+    pub severity: Severity,
+    pub title: Box<[u8]>,
+    pub body: Box<[u8]>,
+    pub signature: FindingSignature,
+    pub blame: Option<FindingBlame>,
+    pub follow: Option<u32>,
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct HandFinding {

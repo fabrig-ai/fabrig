@@ -161,6 +161,37 @@ impl Domain {
             erase,
         })
     }
+    /// A landing tier supplies its signature and blame (domain/red-findings.md, 9).
+    pub fn prepare_verdict_filing(
+        &self,
+        limits: &Limits,
+        wall: Wall,
+        filer: Filer,
+        filing: &VerdictFiling,
+    ) -> Result<FindingWrite, FindingRefusal> {
+        if !filing.signature.fits() {
+            return Err(FindingRefusal::Words(b"signature".as_slice().into()));
+        }
+        let mut write = self.prepare_file_finding(
+            limits,
+            wall,
+            filer,
+            FileFinding {
+                project: filing.project,
+                kind: filing.kind,
+                severity: filing.severity,
+                area: None,
+                title: filing.title.clone(),
+                body: filing.body.clone(),
+            },
+        )?;
+        write.row.signature = Some(filing.signature.clone());
+        write.row.blame.clone_from(&filing.blame);
+        if filing.kind == FindingKind::Flake {
+            write.row.seen = Some(1);
+        }
+        Ok(write)
+    }
     /// A delivery check counts only an equal, non-dropped flake of this project (findings.md, 4).
     #[expect(clippy::too_many_arguments, reason = "the check report supplies its filing identity and words")]
     pub fn prepare_check_flake(

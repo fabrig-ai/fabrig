@@ -2765,6 +2765,11 @@ pub enum Request {
         follow: Option<u32>,
         finding: crate::FileFinding,
     },
+    /// File a landing tier's verdict in the decision keeping it (domain/red-findings.md, 9).
+    FileVerdict {
+        task: u64,
+        filing: crate::findings::VerdictFiling,
+    },
     TierDecision {
         task: u64,
         decision: TierDecision,

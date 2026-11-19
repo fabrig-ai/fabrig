@@ -39,6 +39,7 @@ pub mod public_v1 {
     include!("generated/public.rs");
 }
 
+pub mod goals;
 pub mod source;
 
 mod public;

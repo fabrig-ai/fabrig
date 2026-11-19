@@ -289,16 +289,30 @@ fn judged(world: &mut World, commit: Commit, area: Option<&[u8]>, holder: Holder
     assert_eq!(finding.area.as_deref(), area);
     assert_eq!(finding.kind, forge_top::FindingKind::Red);
     assert_eq!(finding.severity, forge_top::Severity::High);
-    assert_eq!(finding.title.as_ref(), b"Red after landing on main: tier fuzz");
     assert_eq!(engine::finding_holder(&world.root, PROJECT, finding.area.as_deref()), holder);
     let body = String::from_utf8_lossy(&finding.body);
-    assert!(
-        body.starts_with(&format!(
-            "Red after landing: tier fuzz run 2 blames landing {} on main: 1 failing.\nsuite.alpha\n",
-            String::from_utf8_lossy(&forge_top::commit_text(&commit))
-        )),
-        "{body}"
-    );
+    if let Some(blame) = &finding.blame {
+        let short = &forge_top::commit_text(&commit)[..12];
+        assert_eq!(
+            finding.title.as_ref(),
+            format!("1 test fails in fuzz since {} landed", String::from_utf8_lossy(short)).as_bytes()
+        );
+        assert_eq!(blame.strength, forge_top::BlameStrength::Owned);
+        assert_eq!(blame.landings[0].commit, commit);
+        assert!(
+            body.starts_with(&format!("fuzz run 2 on main: landing {}.", String::from_utf8_lossy(short))),
+            "{body}"
+        );
+    } else {
+        assert_eq!(finding.title.as_ref(), b"Red after landing on main: tier fuzz");
+        assert!(
+            body.starts_with(&format!(
+                "Red after landing: tier fuzz run 2 blames landing {} on main: 1 failing.\nsuite.alpha\n",
+                String::from_utf8_lossy(&forge_top::commit_text(&commit))
+            )),
+            "{body}"
+        );
+    }
     assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
     for _ in 0..LANDING_TICKS {
         world.tick();
@@ -314,6 +328,7 @@ fn a_follow_ended_at_landing_files_its_later_red_in_its_owners_area_from_the_log
     until(&mut world, "follow ended at landing", |world| matches!(task(world, change).phase, tasks::Phase::Ended(_)));
     assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Verification { repository: TARGET, commit })));
     judged(&mut world, commit, Some(b"port"), Holder::Task(role.task));
+    assert!(findings(&world)[0].blame.is_some(), "landed files the blamed verdict");
     assert_eq!(news(&world, role.task).len(), 1);
     assert_eq!(news(&world, triager).len(), 0);
     world.close();

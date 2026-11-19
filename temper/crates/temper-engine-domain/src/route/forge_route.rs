@@ -4982,6 +4982,10 @@ pub(crate) fn outputs(
                 // A full findings table never holds the tier's judgement.
                 let _answer = super::findings::file_finding(domain, env, decision, forge::Filer::Task(task), finding);
             }
+            forge::Request::FileVerdict { task, filing } => {
+                // A full findings table never holds the tier's judgement.
+                let _answer = super::findings::file_verdict(domain, env, decision, task, filing);
+            }
             forge::Request::News { task, subscription, news, class, .. } => {
                 let class = match class {
                     forge::Class::Wakes => tasks::NewsClass::Wakes,

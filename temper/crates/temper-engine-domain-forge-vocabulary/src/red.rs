@@ -50,7 +50,7 @@ pub fn red_news_words(red: &RedNews, limit: u32) -> Box<[u8]> {
     {
         return out.into_boxed();
     }
-    red_logs(&mut out, &red.logs);
+    job_log_words(&mut out, &red.logs);
     out.into_boxed()
 }
 
@@ -165,7 +165,8 @@ fn red_line(out: &mut List<u8>, parts: &[&[u8]]) -> bool {
     true
 }
 
-fn red_logs(out: &mut List<u8>, logs: &[JobLog]) {
+/// Append failed jobs' log ends, sharing the remaining room (domain/after-landing.md, 7).
+pub fn job_log_words(out: &mut List<u8>, logs: &[JobLog]) {
     let room = usize::try_from(out.room()).expect("message room fits usize");
     let share = room.checked_div(logs.len()).unwrap_or(0);
     for log in logs {

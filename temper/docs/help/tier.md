@@ -159,9 +159,11 @@ A tier is a slow check of a branch after changes land on it: each run covers eve
 
 For the configuration members that need a restart, read `temper help configuration`.
 
-- A repository has at most two tiers in the small profile. A run names
-  at most 16 failing tests, each id at most 256 bytes; past them its
+- A repository has at most two tiers in the small profile. A stock run names
+  at most 64 failing tests, each id at most 512 bytes; past them its
   failures are many, blamed by landing alone.
 - A tier follows one branch: following two takes two tiers.
-- Under `"wait": "landed"`, main's red reaches no goal; it is filed
-  once as a project finding. Goal-branch tiers still tell their goals.
+- Under `"wait": "landed"`, main's red reaches no goal; it is a project
+  finding blamed on the landing and goal behind it, filed once for
+  failures no uncleared red finding of the tier holds. Goal-branch tiers
+  still tell their goals.

@@ -7,6 +7,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain_forge_landing as landing;
 use temper_engine_domain_forge_tiers as p;
 pub use temper_engine_domain_forge_vocabulary::tiers::*;
+mod filing;
 mod goals;
 pub(crate) mod hold;
 pub(crate) mod parts;
@@ -940,13 +941,25 @@ fn finish(d: &mut Domain, env: &Env<Limits>, row: &mut TierRow, message_bytes: u
             return;
         }
     } else {
-        let newly_red = red::landings(d, row, &verdict);
-        if !newly_red.is_empty() {
-            let Some(logs) = red::logs(d, env, row, out) else {
+        let project = d.repositories.get(&row.repository).expect("adopted tier").project;
+        let ends_landed = match d.after_landing(project) {
+            Some(after) => after.wait == temper_engine_domain_forge_change::Wait::Landed,
+            None => false,
+        };
+        if ends_landed {
+            if !filing::finish(d, env, row, &verdict, out) {
                 wait(row.task.expect("tier task"), out);
                 return;
-            };
-            red::landed(d, row, &newly_red, &logs, message_bytes, out);
+            }
+        } else {
+            let newly_red = red::landings(d, row, &verdict);
+            if !newly_red.is_empty() {
+                let Some(logs) = red::logs(d, env, row, out) else {
+                    wait(row.task.expect("tier task"), out);
+                    return;
+                };
+                red::landed(d, row, &newly_red, &logs, message_bytes, out);
+            }
         }
         let run = row.record.run.as_ref().expect("judged range");
         crate::verification::judged(d, row.repository, &row.tier, &verdict, &run.landings, out);

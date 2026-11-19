@@ -85,7 +85,7 @@ pub use findings::{
     AreaRow, BlameStrength, BlamedGoal, BlamedLanding, CheckFlake, FileFinding, FileFindingAnswer, Filer, Finding,
     FindingAnswer, FindingBlame, FindingCleared, FindingDone, FindingKind, FindingRefusal, FindingReply, FindingRow,
     FindingSignature, FindingState, FindingWrite, Findings, HandFinding, HandFindingAnswer, Holder, Severity, Triage,
-    TriageFinding, TriageFindingAnswer, findings_subject, owner,
+    TriageFinding, TriageFindingAnswer, VerdictFiling, findings_subject, owner,
 };
 pub use follows::{
     FollowAct, FollowCommit, FollowEntry, FollowLag, FollowParity, FollowQuestion, FollowRefusal, FollowRow,

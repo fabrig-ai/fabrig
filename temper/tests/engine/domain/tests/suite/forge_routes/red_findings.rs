@@ -102,12 +102,34 @@ fn external_red(world: &mut World) -> skein_forge::api::Commit {
     commit
 }
 
+fn failed_status_link(world: &World, commit: skein_forge::api::Commit) -> &[u8] {
+    world
+        .writes
+        .iter()
+        .find_map(|write| match write {
+            skein_forge::api::Write::Status { commit: tip, check: skein_forge::api::Check::Failed, link, .. }
+                if *tip == commit =>
+            {
+                Some(link.as_ref())
+            }
+            _ => None,
+        })
+        .expect("judged status link")
+}
+
 #[test]
 fn a_landing_ended_before_verification_posts_red_from_the_log_and_files_once_without_goal_news() {
     let (mut world, triager) = world_with_wait(temper_engine_domain_forge_change::Wait::Landed);
-    let ask = tier_runs::goal(&world);
-    let goal = assigned_chat(&mut world, 93, ask);
-    let number = tiers::produce(&mut world, &goal, 94, b"failures", b"suite.alpha\n");
+    tiers::sign_in(&mut world);
+    let milestone = milestones::milestone(&mut world, b"Red findings");
+    let tasks::Party::Person(person) = task(&world, milestone).requester else { panic!("milestone maker") };
+    let goal = milestones::goal_with_words(
+        &mut world,
+        milestone,
+        false,
+        b"R2 Reds blamed\n\nDraft: temper/docs/design/draft/after-landing-repairs.md",
+    );
+    let number = tiers::produce(&mut world, &goal, 94, b"failures", b"a::one\na::two\n");
     until(&mut world, LANDING_TICKS, "change ended at landing", |world| {
         matches!(task(world, number).phase, tasks::Phase::Ended(_))
     });
@@ -131,12 +153,59 @@ fn a_landing_ended_before_verification_posts_red_from_the_log_and_files_once_wit
     let rows = findings(&world);
     let [finding] = rows.as_slice() else { panic!("one project red: {rows:?}") };
     assert_eq!((finding.project, finding.kind, finding.area.as_deref()), (1, forge_top::FindingKind::Red, None));
-    let body = String::from_utf8_lossy(&finding.body);
-    assert!(body.contains(std::str::from_utf8(&forge_top::commit_text(&commit)).unwrap()), "{body}");
+    assert_eq!(finding.severity, forge_top::Severity::High);
+    assert_eq!(finding.title.as_ref(), b"2 tests fail in slow since R2 landed");
+    assert_eq!(
+        finding.blame,
+        Some(forge_top::FindingBlame {
+            strength: forge_top::BlameStrength::Owned,
+            landings: Box::new([forge_top::BlamedLanding {
+                commit,
+                goals: Box::new([forge_top::BlamedGoal {
+                    goal: goal.task,
+                    milestone: Some(milestone),
+                    person: Some(person)
+                }]),
+            }]),
+        })
+    );
+    let runs = tier_runs::runs(&world);
+    let logs = tier_runs::job_logs(&world, runs.last().expect("rerun"));
+    let first = std::str::from_utf8(logs[0].end.as_ref().unwrap())
+        .unwrap()
+        .lines()
+        .rfind(|line| !line.trim().is_empty())
+        .unwrap();
+    assert_eq!(
+        finding.signature,
+        Some(forge_top::FindingSignature {
+            repository: forge_world::REPO,
+            source: b"slow".as_slice().into(),
+            ids: Box::new([b"a::one".as_slice().into(), b"a::two".as_slice().into()]),
+            first: first.as_bytes().into(),
+            many: false,
+        })
+    );
+    let link = failed_status_link(&world, commit);
+    let short = &forge_top::commit_text(&commit)[..12];
+    let short = std::str::from_utf8(short).unwrap();
+    let pull = tier_runs::change(&world, number).pull.unwrap();
+    let mut expected = format!(
+        "slow run 2 on main: landing {short}.\nRun: {}\nArtifact: report\nOwned by landing {short}.\nLanding {short}:\nGoal {}: R2 Reds blamed.\nPull request #{pull}.\nDraft: temper/docs/design/draft/after-landing-repairs.md.\nPerson {person}.\nFailing:\na::one\na::two",
+        String::from_utf8_lossy(link),
+        goal.task,
+    );
+    for log in logs {
+        expected.push_str("\nEnd of job ");
+        expected.push_str(&String::from_utf8_lossy(&log.name));
+        expected.push_str("'s log:\n");
+        expected.push_str(&String::from_utf8_lossy(log.end.as_ref().unwrap()));
+    }
+    assert_eq!(String::from_utf8_lossy(&finding.body), expected);
     assert_eq!(news(&world, triager).len(), 1);
     assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Status { commit: tip, check: skein_forge::api::Check::Failed, .. } if *tip == commit)));
     let pull = tier_runs::change(&world, number).pull.unwrap();
-    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(b"Red: slow run 2 blames this landing for suite.alpha."))));
+    assert!(world.writes.iter().any(|write| matches!(write, skein_forge::api::Write::Post { number, body, .. } if *number == pull && body.starts_with(b"Red: slow run 2 blames this landing for a::one, a::two."))));
     // The next tip inherits this red; the project's finding is kept just once.
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"unrelated", 1).unwrap();
     until(&mut world, RUN_TICKS * 3, "inherited red posted", |world| {

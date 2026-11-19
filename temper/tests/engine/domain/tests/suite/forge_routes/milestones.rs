@@ -31,7 +31,7 @@ fn created(outcome: &people::Outcome) -> u64 {
     assert_eq!(first, last);
     *first
 }
-fn milestone(world: &mut World, words: &[u8]) -> u64 {
+pub(super) fn milestone(world: &mut World, words: &[u8]) -> u64 {
     let people::Ask::Create { project, mut batch } = world.chat(1, words) else { panic!("creation") };
     let member = &mut batch[0];
     member.executor =
@@ -58,7 +58,7 @@ fn no_issue(world: &World, task: u64) {
 fn goal(world: &mut World, milestone: u64, own_branch: bool) -> engine::Assignment {
     goal_with_words(world, milestone, own_branch, b"Make a small fix on my branch")
 }
-fn goal_with_words(world: &mut World, milestone: u64, own_branch: bool, words: &[u8]) -> engine::Assignment {
+pub(super) fn goal_with_words(world: &mut World, milestone: u64, own_branch: bool, words: &[u8]) -> engine::Assignment {
     let people::Ask::Create { project, mut batch } = goal_branch::goal_request(world, true) else { panic!("goal") };
     if !own_branch {
         batch[0].symbols = Box::new([]);
