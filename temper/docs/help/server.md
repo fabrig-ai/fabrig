@@ -125,8 +125,8 @@ engine, which connects kept forges:
 temper-engine serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `prepare` fetches pinned binaries, printing `fetched BINARY DONE of
-TOTAL bytes`, nothing if present, and exits 0. `run` prints Forgejo's
+Expect: `prepare` exits 0, fetching missing pinned binaries with `fetched
+BINARY DONE of TOTAL bytes`, nothing if present. `run` prints Forgejo's
 output; `serve` prints its sign-in link,
 `https://temper.example.com/jig/v1/sign-in/link?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
@@ -134,11 +134,10 @@ With `application.sign_in.forges` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
-If not: refused start names member, file, address or restore:
+If not: start refusal names member, file, address or restore:
 `temper-engine serve: restore KIND: REASON` or
 `temper-engine serve: restart refused during PHASE: REASON`.
-The reason names store cause, record family and key if available.
-Keep `DATA` as is; report it.
+Reason: store cause, record family/key if available. Keep `DATA` unchanged; report it.
 
 ## 4. The TLS proxy
 
@@ -195,9 +194,8 @@ If not: 502: engine down or listening elsewhere; read its journal.
   `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
   `application.environment`: optional list, not a map; unique names:
   `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
-  Absent: the worker's own `HOME` and `PATH`. A list gives exactly
-  its entries, with the worker's own `HOME` and `PATH` added where it omits
-  them; no other process variables.
+  Absent: worker's own `HOME` and `PATH`. A list gives its entries plus
+  worker's `HOME`/`PATH` where omitted; no other process variables.
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
