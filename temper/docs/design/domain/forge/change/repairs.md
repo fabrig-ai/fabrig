@@ -104,7 +104,10 @@
   `Failed tests: more than N` past the report's bound; then `Failed job:
   NAME: read_ci what=job commit=PREFIX run=RUN job=JOB attempt=ATTEMPT` for each
   failed job the receipt keeps (`../../landing.md`, 6.2). KEY is `test
-  CLASS NAME` for a JUnit case, or a `lines` report's line as written;
+  CLASS NAME` for a JUnit case, or a `lines` report's line as written,
+  and a KEY or a job's NAME is made text as it is written (each byte
+  outside UTF-8 a `?`, skein's `runtime/lib.md`, 6), so a report's bytes
+  never make the repair's words refused;
   PROFILE `fuzzy` where the name (the case's, or the line's last word)
   starts with the report's `fuzzy` prefix, else `focused`. A gate that
   names no report, or whose run's report could not be read, gives
@@ -245,8 +248,10 @@
   branch afresh: a head that moved is the merge's, and the change goes
   on from it as from a resolution's push; a head that did not move
   means the command left conflicts, and the change makes a resolution
-  of the same base, its words carrying the job's result, cut to the
-  resolution's words' room and marked. A job that fails for good holds
+  of the same base, its words carrying the job's result, made text first
+  (each byte outside UTF-8 a `?`, skein's `runtime/lib.md`, 6, since the
+  job's result is the merge command's bytes and a task's words are
+  text), cut to the resolution's words' room and marked. A job that fails for good holds
   the change as a resolution that fails does. Each of its failures, a
   try that will be spent again included, is a line on the worker that met
   it and on the engine, naming the job, its kind and why (`../../worker/jobs.md`
@@ -338,6 +343,25 @@
   `absent after`. A named file takes its lines' room alone, so the files
   after it are carried as they fit. The charter's fit
   (`../../agent/room.md`, 2) can still cut the section's end, with its own line.
+  **A file that is not text is named by its blob ids,** in every pull
+  section, a repair's and a review's as well as a resolution's, and
+  never carried, whole or in part: a file one of whose sides is not
+  UTF-8, or holds a NUL byte, as git takes a binary file. It reads
+  `File: PATH`, then `[not carried, not text: blob ID before, blob ID
+  after; read it from the repository]`, a side the file lacks reading
+  `absent before` or `absent after`. ID is git's object id of that side's
+  bytes as the forge gave them, hashed over `blob `, the length in
+  decimal, a NUL byte, then the bytes, in lowercase hex: SHA-1's 40
+  digits where the section's pinned head is a SHA-1 id (its last 12 of
+  32 bytes zero, as the engine reads a commit), SHA-256's 64 otherwise
+  (skein's `runtime/lib.md`, 6.2 and 6.3). The agent reads it with `git
+  cat-file -p ID`, or, resolving, as the merge in progress holds it.
+  This check comes before the room's, so a file not text is named so
+  whatever its size, and its line takes its room alone as a file named
+  for room does. A brief is text, and smith refuses an assignment whose
+  section is not (`Section.body not UTF-8`), so one such file carried
+  would hold its task for good; the assignment's own check for text,
+  behind this one, is `../../agent/room.md`, 2.
   Its pinned comparison, of the head and the base it conflicts with, is by
   names (skein's `forge/README.md`, 3.2 and 3.3), so a conflict however far its
   branches have gone apart is compared: `What landed in the base: N

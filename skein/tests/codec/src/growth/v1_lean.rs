@@ -31,8 +31,16 @@ impl Limits {
     }
 }
 
+const LIMIT_PATHS: &[Path] = &[
+    paths::GROWTH_ITEMS,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.growth_items > CEILINGS.growth_items { return Err(Problem { path: paths::GROWTH_ITEMS, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 

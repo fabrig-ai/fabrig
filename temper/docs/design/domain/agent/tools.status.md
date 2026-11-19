@@ -1,6 +1,7 @@
 # tools: status
 
-2026-11-18. Where the tree's code lags or departs from [tools.md](tools.md).
+2026-11-19. Where the tree's code lags or departs from [tools.md](tools.md).
+
 
 
 - **Not yet:** the `finding` tool: its declaration to the charters naming the delegate family, its decoding, its acts dispatched to the forge, and its answers [in flight: change 750].

@@ -48,12 +48,20 @@ impl Limits {
     }
 }
 
+const LIMIT_PATHS: &[Path] = &[
+    paths::WORDS_WORDS,
+    paths::NESTED_WORDS,
+    paths::NESTED_WORDS,
+    paths::NESTED_MAYBE,
+    paths::NESTED_RECORDS,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.words_words > CEILINGS.words_words { return Err(Problem { path: paths::WORDS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_words > CEILINGS.nested_words { return Err(Problem { path: paths::NESTED_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_words_item_some > CEILINGS.nested_words_item_some { return Err(Problem { path: paths::NESTED_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_maybe_some > CEILINGS.nested_maybe_some { return Err(Problem { path: paths::NESTED_MAYBE, reason: skein_codec::Reason::Bound }); }
-    if limits.nested_records > CEILINGS.nested_records { return Err(Problem { path: paths::NESTED_RECORDS, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 

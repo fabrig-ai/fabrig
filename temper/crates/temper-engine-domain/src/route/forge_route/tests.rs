@@ -2,11 +2,13 @@ use super::{commit_text, landing_words};
 use alloc::boxed::Box;
 
 mod call_room;
+mod due_ready;
 mod flake;
 mod limit_holds;
 mod reds;
 mod room;
 mod settling;
+mod settling_due;
 mod taking;
 
 const SHA1: [u8; 32] = [

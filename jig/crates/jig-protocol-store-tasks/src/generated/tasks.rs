@@ -429,108 +429,115 @@ impl Limits {
     }
 }
 
-    #[expect(clippy::too_many_lines, reason = "one operation per schema field or limit")]
+const LIMIT_PATHS: &[Path] = &[
+    paths::BYTES_PARAMETER_VALUE,
+    paths::JOB_SPEC_BYTES,
+    paths::JOB_RESULT_BYTES,
+    paths::SPEC_WORDS,
+    paths::SPEC_PARAMETERS,
+    paths::SPEC_INPUTS,
+    paths::PART_SEGMENT_BYTES,
+    paths::PART_PATH_SEGMENTS,
+    paths::FIELD_RULE_NAME,
+    paths::VERDICT_FIELDS,
+    paths::APPROVAL_STATE,
+    paths::CHOICES_CHOICES,
+    paths::CHANGE_CONTRACT_CHOICES,
+    paths::LLM_LATER_SUBAGENTS,
+    paths::LLM_CHOICE_SUBAGENTS,
+    paths::AUTHORITY_SEGMENT_BYTES,
+    paths::PATTERN_SEGMENTS,
+    paths::DELEGATION_KINDS,
+    paths::AUTHORITY_GRANTS,
+    paths::AUTHORITY_NOTE_RESOURCES,
+    paths::SEGMENT_BYTES,
+    paths::NAME_PATH,
+    paths::MEMBER_DEPENDENCIES,
+    paths::MEMBER_HOLDINGS,
+    paths::RECURRING_TEMPLATE_BATCH,
+    paths::RESULT_FIELD_NAME,
+    paths::RESULT_FIELD_VALUE,
+    paths::APPROVED_STATE,
+    paths::APPROVED_WORDS,
+    paths::REPORT_RESULT_WORDS,
+    paths::VERDICT_RESULT_FIELDS,
+    paths::VERDICT_RESULT_WORDS,
+    paths::CHANGE_RESULT_TITLE,
+    paths::CHANGE_RESULT_WORDS,
+    paths::FAILURE_RESULT_REASON,
+    paths::CANCELLED_REASON,
+    paths::CIRCLE_TASKS,
+    paths::HOLD_ACCOUNT_WORDS,
+    paths::HOLD_PREPARATION_WORDS,
+    paths::REJECTED_PROPOSAL_REASON,
+    paths::AMENDMENT_INSTRUCTIONS,
+    paths::AMENDMENT_DEPENDENCIES,
+    paths::AMENDMENT_REASON,
+    paths::PROPOSED_BATCH_MEMBERS,
+    paths::PROPOSED_SETTINGS_ITEMS,
+    paths::PROPOSED_SETTINGS_PROJECTS,
+    paths::PROPOSAL_REASON,
+    paths::SETTINGS_INSTRUCTIONS,
+    paths::SETTINGS_DEPENDENCIES,
+    paths::HISTORY_REASON,
+    paths::REJECTED_PERSON_PROPOSAL_REASON,
+    paths::PERSON_PROPOSAL_REASON,
+    paths::GRACE_REASON,
+    paths::FAILED_RETRY_REASON,
+    paths::REFUSED_RETRY_REASON,
+    paths::APPROVAL_MESSAGE_STATE,
+    paths::VERDICT_MESSAGE_FIELDS,
+    paths::WORD_WORDS,
+    paths::ACTIVITY_WORDS_WORDS,
+    paths::KEPT_LINE_PENDING,
+    paths::NOW_WRITTEN_LINE_LINE,
+    paths::STOOD_LINE_WORDS,
+    paths::REJECTED_ESCALATION_REASON,
+    paths::RECURRING_STATE_LAST_BATCH,
+    paths::SAVED_RESOURCE_PATH,
+    paths::TASK_HISTORY_QUESTION_LINES,
+    paths::TASK_HISTORY_PROPOSAL_ROWS,
+    paths::TASK_HISTORY_INSTRUCTIONS,
+    paths::TASK_HISTORY_REFUSED,
+    paths::TASK_RUN_REPLIES,
+    paths::TASK_DEFINITION_DEPENDENCIES,
+    paths::TASK_DEFINITION_WAITING_ON,
+    paths::TASK_DEFINITION_ADDED,
+    paths::TASK_INTERESTS_HOLDINGS,
+    paths::TASK_INTERESTS_DELEGATES,
+    paths::TASK_INTERESTS_RESULT_FOLLOWUPS,
+    paths::TASK_INTERESTS_REFERENCES,
+    paths::TASK_INTERESTS_SUBSCRIPTIONS,
+    paths::TASK_INTERESTS_INBOX,
+    paths::TASK_INTERESTS_SAVED,
+    paths::BEFORE_TALK_STARTED_FROM,
+    paths::HOT_HISTORY_QUESTION_LINES,
+    paths::HOT_HISTORY_PROPOSAL_ROWS,
+    paths::HOT_HISTORY_REFUSED,
+    paths::HOT_DEFINITION_DEPENDENCIES,
+    paths::HOT_DEFINITION_WAITING_ON,
+    paths::HOT_DEFINITION_ADDED,
+    paths::LIVE_HOT_STARTED_FROM,
+    paths::LIVE_COLD_INSTRUCTIONS,
+    paths::PLACED_HOLD_REASON,
+    paths::PLACED_HOLD_EXEMPT,
+    paths::SUMMARY_RESULT_WORDS,
+    paths::TASK_SUMMARY_TITLE,
+    paths::TASK_SUMMARY_REASON,
+    paths::MODEL_NAME_VALUE,
+    paths::ROW_MODELS,
+    paths::TASK_PROBLEM_BLOCKED_BY,
+    paths::RESULT_FOLLOWUPS_DELEGATES_VALUE,
+    paths::END_FAILED_WITH_REASON_REASON,
+    paths::END_REFUSED_WITH_REASON_REASON,
+];
+
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.bytes_parameter_value > CEILINGS.bytes_parameter_value { return Err(Problem { path: paths::BYTES_PARAMETER_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.job_spec_bytes > CEILINGS.job_spec_bytes { return Err(Problem { path: paths::JOB_SPEC_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.job_result_bytes > CEILINGS.job_result_bytes { return Err(Problem { path: paths::JOB_RESULT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.spec_words > CEILINGS.spec_words { return Err(Problem { path: paths::SPEC_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.spec_parameters > CEILINGS.spec_parameters { return Err(Problem { path: paths::SPEC_PARAMETERS, reason: skein_codec::Reason::Bound }); }
-    if limits.spec_inputs > CEILINGS.spec_inputs { return Err(Problem { path: paths::SPEC_INPUTS, reason: skein_codec::Reason::Bound }); }
-    if limits.part_segment_bytes > CEILINGS.part_segment_bytes { return Err(Problem { path: paths::PART_SEGMENT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.part_path_segments > CEILINGS.part_path_segments { return Err(Problem { path: paths::PART_PATH_SEGMENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.field_rule_name > CEILINGS.field_rule_name { return Err(Problem { path: paths::FIELD_RULE_NAME, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_fields > CEILINGS.verdict_fields { return Err(Problem { path: paths::VERDICT_FIELDS, reason: skein_codec::Reason::Bound }); }
-    if limits.approval_state > CEILINGS.approval_state { return Err(Problem { path: paths::APPROVAL_STATE, reason: skein_codec::Reason::Bound }); }
-    if limits.choices_choices > CEILINGS.choices_choices { return Err(Problem { path: paths::CHOICES_CHOICES, reason: skein_codec::Reason::Bound }); }
-    if limits.change_contract_choices > CEILINGS.change_contract_choices { return Err(Problem { path: paths::CHANGE_CONTRACT_CHOICES, reason: skein_codec::Reason::Bound }); }
-    if limits.llm_later_subagents > CEILINGS.llm_later_subagents { return Err(Problem { path: paths::LLM_LATER_SUBAGENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.llm_choice_subagents > CEILINGS.llm_choice_subagents { return Err(Problem { path: paths::LLM_CHOICE_SUBAGENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.authority_segment_bytes > CEILINGS.authority_segment_bytes { return Err(Problem { path: paths::AUTHORITY_SEGMENT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.pattern_segments > CEILINGS.pattern_segments { return Err(Problem { path: paths::PATTERN_SEGMENTS, reason: skein_codec::Reason::Bound }); }
-    if limits.delegation_kinds > CEILINGS.delegation_kinds { return Err(Problem { path: paths::DELEGATION_KINDS, reason: skein_codec::Reason::Bound }); }
-    if limits.authority_grants > CEILINGS.authority_grants { return Err(Problem { path: paths::AUTHORITY_GRANTS, reason: skein_codec::Reason::Bound }); }
-    if limits.authority_note_resources > CEILINGS.authority_note_resources { return Err(Problem { path: paths::AUTHORITY_NOTE_RESOURCES, reason: skein_codec::Reason::Bound }); }
-    if limits.segment_bytes > CEILINGS.segment_bytes { return Err(Problem { path: paths::SEGMENT_BYTES, reason: skein_codec::Reason::Bound }); }
-    if limits.name_path > CEILINGS.name_path { return Err(Problem { path: paths::NAME_PATH, reason: skein_codec::Reason::Bound }); }
-    if limits.member_dependencies > CEILINGS.member_dependencies { return Err(Problem { path: paths::MEMBER_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.member_holdings > CEILINGS.member_holdings { return Err(Problem { path: paths::MEMBER_HOLDINGS, reason: skein_codec::Reason::Bound }); }
-    if limits.recurring_template_batch > CEILINGS.recurring_template_batch { return Err(Problem { path: paths::RECURRING_TEMPLATE_BATCH, reason: skein_codec::Reason::Bound }); }
-    if limits.result_field_name > CEILINGS.result_field_name { return Err(Problem { path: paths::RESULT_FIELD_NAME, reason: skein_codec::Reason::Bound }); }
-    if limits.result_field_value > CEILINGS.result_field_value { return Err(Problem { path: paths::RESULT_FIELD_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.approved_state > CEILINGS.approved_state { return Err(Problem { path: paths::APPROVED_STATE, reason: skein_codec::Reason::Bound }); }
-    if limits.approved_words_some > CEILINGS.approved_words_some { return Err(Problem { path: paths::APPROVED_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.report_result_words > CEILINGS.report_result_words { return Err(Problem { path: paths::REPORT_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_result_fields > CEILINGS.verdict_result_fields { return Err(Problem { path: paths::VERDICT_RESULT_FIELDS, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_result_words > CEILINGS.verdict_result_words { return Err(Problem { path: paths::VERDICT_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.change_result_title > CEILINGS.change_result_title { return Err(Problem { path: paths::CHANGE_RESULT_TITLE, reason: skein_codec::Reason::Bound }); }
-    if limits.change_result_words > CEILINGS.change_result_words { return Err(Problem { path: paths::CHANGE_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.failure_result_reason > CEILINGS.failure_result_reason { return Err(Problem { path: paths::FAILURE_RESULT_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.cancelled_reason > CEILINGS.cancelled_reason { return Err(Problem { path: paths::CANCELLED_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.circle_tasks > CEILINGS.circle_tasks { return Err(Problem { path: paths::CIRCLE_TASKS, reason: skein_codec::Reason::Bound }); }
-    if limits.hold_account_words > CEILINGS.hold_account_words { return Err(Problem { path: paths::HOLD_ACCOUNT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.hold_preparation_words > CEILINGS.hold_preparation_words { return Err(Problem { path: paths::HOLD_PREPARATION_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.rejected_proposal_reason > CEILINGS.rejected_proposal_reason { return Err(Problem { path: paths::REJECTED_PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.amendment_instructions_some > CEILINGS.amendment_instructions_some { return Err(Problem { path: paths::AMENDMENT_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.amendment_dependencies_some > CEILINGS.amendment_dependencies_some { return Err(Problem { path: paths::AMENDMENT_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.amendment_reason > CEILINGS.amendment_reason { return Err(Problem { path: paths::AMENDMENT_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.proposed_batch_members > CEILINGS.proposed_batch_members { return Err(Problem { path: paths::PROPOSED_BATCH_MEMBERS, reason: skein_codec::Reason::Bound }); }
-    if limits.proposed_settings_items > CEILINGS.proposed_settings_items { return Err(Problem { path: paths::PROPOSED_SETTINGS_ITEMS, reason: skein_codec::Reason::Bound }); }
-    if limits.proposed_settings_projects > CEILINGS.proposed_settings_projects { return Err(Problem { path: paths::PROPOSED_SETTINGS_PROJECTS, reason: skein_codec::Reason::Bound }); }
-    if limits.proposal_reason > CEILINGS.proposal_reason { return Err(Problem { path: paths::PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.settings_instructions_some > CEILINGS.settings_instructions_some { return Err(Problem { path: paths::SETTINGS_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.settings_dependencies > CEILINGS.settings_dependencies { return Err(Problem { path: paths::SETTINGS_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.history_reason > CEILINGS.history_reason { return Err(Problem { path: paths::HISTORY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.rejected_person_proposal_reason > CEILINGS.rejected_person_proposal_reason { return Err(Problem { path: paths::REJECTED_PERSON_PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.person_proposal_reason > CEILINGS.person_proposal_reason { return Err(Problem { path: paths::PERSON_PROPOSAL_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.grace_reason > CEILINGS.grace_reason { return Err(Problem { path: paths::GRACE_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.failed_retry_reason_some > CEILINGS.failed_retry_reason_some { return Err(Problem { path: paths::FAILED_RETRY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.refused_retry_reason_some > CEILINGS.refused_retry_reason_some { return Err(Problem { path: paths::REFUSED_RETRY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.approval_message_state > CEILINGS.approval_message_state { return Err(Problem { path: paths::APPROVAL_MESSAGE_STATE, reason: skein_codec::Reason::Bound }); }
-    if limits.verdict_message_fields > CEILINGS.verdict_message_fields { return Err(Problem { path: paths::VERDICT_MESSAGE_FIELDS, reason: skein_codec::Reason::Bound }); }
-    if limits.word_words > CEILINGS.word_words { return Err(Problem { path: paths::WORD_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.activity_words_words > CEILINGS.activity_words_words { return Err(Problem { path: paths::ACTIVITY_WORDS_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.kept_line_pending > CEILINGS.kept_line_pending { return Err(Problem { path: paths::KEPT_LINE_PENDING, reason: skein_codec::Reason::Bound }); }
-    if limits.now_written_line_line > CEILINGS.now_written_line_line { return Err(Problem { path: paths::NOW_WRITTEN_LINE_LINE, reason: skein_codec::Reason::Bound }); }
-    if limits.stood_line_words > CEILINGS.stood_line_words { return Err(Problem { path: paths::STOOD_LINE_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.rejected_escalation_reason > CEILINGS.rejected_escalation_reason { return Err(Problem { path: paths::REJECTED_ESCALATION_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.recurring_state_last_batch > CEILINGS.recurring_state_last_batch { return Err(Problem { path: paths::RECURRING_STATE_LAST_BATCH, reason: skein_codec::Reason::Bound }); }
-    if limits.saved_resource_path > CEILINGS.saved_resource_path { return Err(Problem { path: paths::SAVED_RESOURCE_PATH, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_question_lines > CEILINGS.task_history_question_lines { return Err(Problem { path: paths::TASK_HISTORY_QUESTION_LINES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_proposal_rows > CEILINGS.task_history_proposal_rows { return Err(Problem { path: paths::TASK_HISTORY_PROPOSAL_ROWS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_instructions_some > CEILINGS.task_history_instructions_some { return Err(Problem { path: paths::TASK_HISTORY_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_history_refused > CEILINGS.task_history_refused { return Err(Problem { path: paths::TASK_HISTORY_REFUSED, reason: skein_codec::Reason::Bound }); }
-    if limits.task_run_replies > CEILINGS.task_run_replies { return Err(Problem { path: paths::TASK_RUN_REPLIES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_definition_dependencies > CEILINGS.task_definition_dependencies { return Err(Problem { path: paths::TASK_DEFINITION_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_definition_waiting_on > CEILINGS.task_definition_waiting_on { return Err(Problem { path: paths::TASK_DEFINITION_WAITING_ON, reason: skein_codec::Reason::Bound }); }
-    if limits.task_definition_added > CEILINGS.task_definition_added { return Err(Problem { path: paths::TASK_DEFINITION_ADDED, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_holdings > CEILINGS.task_interests_holdings { return Err(Problem { path: paths::TASK_INTERESTS_HOLDINGS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_delegates > CEILINGS.task_interests_delegates { return Err(Problem { path: paths::TASK_INTERESTS_DELEGATES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_result_followups > CEILINGS.task_interests_result_followups { return Err(Problem { path: paths::TASK_INTERESTS_RESULT_FOLLOWUPS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_references > CEILINGS.task_interests_references { return Err(Problem { path: paths::TASK_INTERESTS_REFERENCES, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_subscriptions > CEILINGS.task_interests_subscriptions { return Err(Problem { path: paths::TASK_INTERESTS_SUBSCRIPTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_inbox > CEILINGS.task_interests_inbox { return Err(Problem { path: paths::TASK_INTERESTS_INBOX, reason: skein_codec::Reason::Bound }); }
-    if limits.task_interests_saved > CEILINGS.task_interests_saved { return Err(Problem { path: paths::TASK_INTERESTS_SAVED, reason: skein_codec::Reason::Bound }); }
-    if limits.before_talk_started_from > CEILINGS.before_talk_started_from { return Err(Problem { path: paths::BEFORE_TALK_STARTED_FROM, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_history_question_lines > CEILINGS.hot_history_question_lines { return Err(Problem { path: paths::HOT_HISTORY_QUESTION_LINES, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_history_proposal_rows > CEILINGS.hot_history_proposal_rows { return Err(Problem { path: paths::HOT_HISTORY_PROPOSAL_ROWS, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_history_refused > CEILINGS.hot_history_refused { return Err(Problem { path: paths::HOT_HISTORY_REFUSED, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_definition_dependencies > CEILINGS.hot_definition_dependencies { return Err(Problem { path: paths::HOT_DEFINITION_DEPENDENCIES, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_definition_waiting_on > CEILINGS.hot_definition_waiting_on { return Err(Problem { path: paths::HOT_DEFINITION_WAITING_ON, reason: skein_codec::Reason::Bound }); }
-    if limits.hot_definition_added > CEILINGS.hot_definition_added { return Err(Problem { path: paths::HOT_DEFINITION_ADDED, reason: skein_codec::Reason::Bound }); }
-    if limits.live_hot_started_from > CEILINGS.live_hot_started_from { return Err(Problem { path: paths::LIVE_HOT_STARTED_FROM, reason: skein_codec::Reason::Bound }); }
-    if limits.live_cold_instructions_some > CEILINGS.live_cold_instructions_some { return Err(Problem { path: paths::LIVE_COLD_INSTRUCTIONS, reason: skein_codec::Reason::Bound }); }
-    if limits.placed_hold_reason > CEILINGS.placed_hold_reason { return Err(Problem { path: paths::PLACED_HOLD_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.placed_hold_exempt > CEILINGS.placed_hold_exempt { return Err(Problem { path: paths::PLACED_HOLD_EXEMPT, reason: skein_codec::Reason::Bound }); }
-    if limits.summary_result_words > CEILINGS.summary_result_words { return Err(Problem { path: paths::SUMMARY_RESULT_WORDS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_summary_title > CEILINGS.task_summary_title { return Err(Problem { path: paths::TASK_SUMMARY_TITLE, reason: skein_codec::Reason::Bound }); }
-    if limits.task_summary_reason > CEILINGS.task_summary_reason { return Err(Problem { path: paths::TASK_SUMMARY_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.model_name_value > CEILINGS.model_name_value { return Err(Problem { path: paths::MODEL_NAME_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.row_models > CEILINGS.row_models { return Err(Problem { path: paths::ROW_MODELS, reason: skein_codec::Reason::Bound }); }
-    if limits.task_problem_blocked_by_some > CEILINGS.task_problem_blocked_by_some { return Err(Problem { path: paths::TASK_PROBLEM_BLOCKED_BY, reason: skein_codec::Reason::Bound }); }
-    if limits.result_followups_delegates_value > CEILINGS.result_followups_delegates_value { return Err(Problem { path: paths::RESULT_FOLLOWUPS_DELEGATES_VALUE, reason: skein_codec::Reason::Bound }); }
-    if limits.end_failed_with_reason_reason > CEILINGS.end_failed_with_reason_reason { return Err(Problem { path: paths::END_FAILED_WITH_REASON_REASON, reason: skein_codec::Reason::Bound }); }
-    if limits.end_refused_with_reason_reason > CEILINGS.end_refused_with_reason_reason { return Err(Problem { path: paths::END_REFUSED_WITH_REASON_REASON, reason: skein_codec::Reason::Bound }); }
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
+        }
+    }
     Ok(())
 }
 
@@ -4537,32 +4544,33 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1101, 1102, 1103, 1071, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117, 1118, 1089, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129, 1130, 1131, 1132, 1133, 1080, 1087, 1090, 1134, 1092, 1094, 1096, 537, 537, 1135, 1098, 1136, 1100] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1101, 1102, 1103, 1071, 1104, 1105, 1106, 1107, 1108, 1109, 1110, 1111, 1112, 1113, 1114, 1115, 1116, 1117, 1118, 1089, 1119, 1120, 1121, 1122, 1123, 1124, 1125, 1126, 1127, 1128, 1129, 1130, 1131, 1132, 1133, 1080, 1087, 1090, 1134, 1092, 1094, 1096, 537, 537, 1135, 1098, 1136, 1100, 1137] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1138 },
+    skein_codec::bounds::Node::Option { item: 1139 },
     skein_codec::bounds::Node::List { limit: 96, item: 1, size: size_of::<Number>() },
-    skein_codec::bounds::Node::Option { item: 1140 },
+    skein_codec::bounds::Node::Option { item: 1141 },
     skein_codec::bounds::Node::Option { item: 1069 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1139, 1137, 1141, 1142] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1140, 1138, 1142, 1143] },
     skein_codec::bounds::Node::Bytes { limit: 97 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1144] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1145] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[412] },
-    skein_codec::bounds::Node::Boxed { item: 1146, size: size_of::<ResultFollowupsProposal>() },
-    skein_codec::bounds::Node::Enum { variants: &[1145, 1147] },
+    skein_codec::bounds::Node::Boxed { item: 1147, size: size_of::<ResultFollowupsProposal>() },
+    skein_codec::bounds::Node::Enum { variants: &[1146, 1148] },
     skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1150] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1149] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[267, 1148] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[14] },
     skein_codec::bounds::Node::Bytes { limit: 98 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 1153] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[14, 1154] },
     skein_codec::bounds::Node::Bytes { limit: 99 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1155] },
-    skein_codec::bounds::Node::Boxed { item: 1151, size: size_of::<EndFinishedWithFollowups>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1156] },
+    skein_codec::bounds::Node::Boxed { item: 1152, size: size_of::<EndFinishedWithFollowups>() },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1150, 1157, 1158, 1152, 1159, 1160, 286, 1154, 1156] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1161] },
+    skein_codec::bounds::Node::Enum { variants: &[1151, 1158, 1159, 1153, 1160, 1161, 286, 1155, 1157] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[1162] },
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[331] },
     skein_codec::bounds::Node::Record { prefix: 2, fields: &[424] },
 ];
@@ -4887,20 +4895,20 @@ const DECLARATIONS: &[u32] = &[
     1096,
     1098,
     1100,
-    1137,
-    1143,
-    1145,
+    1138,
+    1144,
     1146,
-    1148,
-    1150,
+    1147,
+    1149,
     1151,
     1152,
-    1154,
-    1156,
-    1161,
+    1153,
+    1155,
+    1157,
     1162,
     1163,
     1164,
+    1165,
 ];
 
 const CEILING_VALUES: &[u32] = &[
@@ -17508,6 +17516,7 @@ pub enum Refusal {
     TalkOpen(TalkOpen),
     NoTalk,
     Concluded(RefusalConcluded),
+    Unreported,
 }
 
 // Record: Refusal.
@@ -17516,11 +17525,11 @@ impl Record for Refusal {
     const TAIL: Path = paths::REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1137)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1138)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1137)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1138)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17573,6 +17582,7 @@ impl Record for Refusal {
             Self::TalkOpen(value) => { field::put(out, &[45], paths::REFUSAL_TAG)?; value.write(limits, out) },
             Self::NoTalk => field::put(out, &[46], paths::REFUSAL_TAG),
             Self::Concluded(value) => { field::put(out, &[47], paths::REFUSAL_TAG)?; value.write(limits, out) },
+            Self::Unreported => field::put(out, &[48], paths::REFUSAL_TAG),
         }
     }
 
@@ -17627,7 +17637,8 @@ impl Record for Refusal {
             45 => Ok(Self::TalkOpen(TalkOpen::read(limits, reader)?)),
             46 => Ok(Self::NoTalk),
             47 => Ok(Self::Concluded(RefusalConcluded::read(limits, reader)?)),
-            48..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
+            48 => Ok(Self::Unreported),
+            49..=u8::MAX => Err(Problem { path: paths::REFUSAL_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -17647,11 +17658,11 @@ impl Record for TaskProblem {
     const TAIL: Path = paths::TASK_PROBLEM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1143)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1144)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1143)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1144)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17686,11 +17697,11 @@ impl Record for ResultFollowupsDelegates {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_DELEGATES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1145)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1145)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17717,11 +17728,11 @@ impl Record for ResultFollowupsProposal {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_PROPOSAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1147)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1146)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1147)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17749,11 +17760,11 @@ impl Record for ResultFollowups {
     const TAIL: Path = paths::RESULT_FOLLOWUPS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1148)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1149)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1148)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1149)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17786,11 +17797,11 @@ impl Record for EndFinished {
     const TAIL: Path = paths::END_FINISHED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1150)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1150)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17820,11 +17831,11 @@ impl Record for EndFinishedWithFollowups {
     const TAIL: Path = paths::END_FINISHED_WITH_FOLLOWUPS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1151)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17853,11 +17864,11 @@ impl Record for EndFailed {
     const TAIL: Path = paths::END_FAILED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1153)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1152)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1153)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17885,11 +17896,11 @@ impl Record for EndFailedWithReason {
     const TAIL: Path = paths::END_FAILED_WITH_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1154)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1155)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1154)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1155)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17918,11 +17929,11 @@ impl Record for EndRefusedWithReason {
     const TAIL: Path = paths::END_REFUSED_WITH_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1156)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1157)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1156)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1157)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -17957,11 +17968,11 @@ impl Record for End {
     const TAIL: Path = paths::END_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1161)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1161)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18007,11 +18018,11 @@ impl Record for EndRecord {
     const TAIL: Path = paths::END_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1162)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18040,11 +18051,11 @@ impl Record for PhaseRecord {
     const TAIL: Path = paths::PHASE_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1163)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -18073,11 +18084,11 @@ impl Record for ChangeRecord {
     const TAIL: Path = paths::CHANGE_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1164)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1165)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {

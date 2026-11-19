@@ -177,7 +177,7 @@ const FORGE: forge::Limits = forge::Limits {
     // One adoption per concurrent forge request.
     adoptions: 2,
     makings: 32,
-    // Product capacity: keyed adoption answers retained for the request retention.
+    // Bounds kept answers to keyed requests; the oldest answered makes room for a new one.
     applications: 32,
     // protocol/sign-in.md, 5: room for 64 durable member bindings.
     bindings: 64,

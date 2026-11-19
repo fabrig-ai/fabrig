@@ -349,6 +349,7 @@ pub struct Domain {
     scripted_workspaces: Option<Queue<core::Event>>,
     scripted_parts: Option<Queue<(u16, core::PartsAsk)>>,
     scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
+    scripted_holdings: Option<Queue<core::Event>>,
     brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
     hub_link: jig_domain_hub_link::Link,
     core: core::Core,
@@ -371,6 +372,16 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Retain holdings reports and answers so a world can delay, lose or interleave
+    /// connector traffic (jig/docs/design/domain/tasks/holds.md, 2).
+    pub fn script_holdings(&mut self) {
+        self.scripted_holdings = Some(Queue::uncapped());
+    }
+
+    pub fn pop_holdings(&mut self) -> Option<core::Event> {
+        self.scripted_holdings.as_mut()?.pop()
+    }
+
     /// Hold the test connector's per-answer part asks until the world answers.
     pub fn script_parts(&mut self) {
         self.scripted_parts = Some(Queue::uncapped());
@@ -530,6 +541,7 @@ impl Domain {
             scripted_workspaces: None,
             scripted_parts: None,
             scripted_brief_failure: None,
+            scripted_holdings: None,
             brief_failures: Queue::uncapped(),
             hub_link: jig_domain_hub_link::Link::new(
                 jig_domain_hub_link::Limits {

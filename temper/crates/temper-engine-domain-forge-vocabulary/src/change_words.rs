@@ -335,11 +335,12 @@ pub fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], 
     let mut out = List::with_capacity(u32::try_from(room).ok()?);
     append(&mut out, opening);
     if let Some(result) = result {
+        let result = skein_lib::bytes::utf8_replaced(result);
         let prefix = b"\n\nThe merge job settled what the project's merge command knows and left the rest:\n";
         let remaining = usize::try_from(out.room()).ok()?;
         if prefix.len().checked_add(result.len().min(3))? <= remaining {
             append(&mut out, prefix);
-            let result = forge::text::fit(result, usize::try_from(out.room()).ok()?, b"...");
+            let result = forge::text::fit(&result, usize::try_from(out.room()).ok()?, b"...");
             append(&mut out, &result);
         }
     }
@@ -607,7 +608,7 @@ fn repair_failure_lines(
     for job in &failure.jobs {
         let line = skein_lib::bytes::concat(&[
             b"\nFailed job: ",
-            &job.name,
+            &skein_lib::bytes::utf8_replaced(&job.name),
             b": read_ci what=job commit=",
             &prefix,
             b" run=",
@@ -664,7 +665,13 @@ fn report_lines(report: &forge::ReceiptReport) -> List<Box<[u8]>> {
             for test in tests {
                 let profile = if test.fuzzy { b"fuzzy".as_slice() } else { b"focused".as_slice() };
                 lines
-                    .push(skein_lib::bytes::concat(&[b"\nFailed test: ", &test.key, b" (", profile, b")"]))
+                    .push(skein_lib::bytes::concat(&[
+                        b"\nFailed test: ",
+                        &skein_lib::bytes::utf8_replaced(&test.key),
+                        b" (",
+                        profile,
+                        b")",
+                    ]))
                     .expect("receipt tests bounded");
             }
         }

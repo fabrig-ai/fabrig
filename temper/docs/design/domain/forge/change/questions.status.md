@@ -99,6 +99,6 @@
   words at a step take a change's repair and resolution beside its producing
   task, where the request names the producing task alone, because all three run
   under the one charter and each would pay the same turn
-  (`temper-engine-domain/src/route/forge_route/relay.rs`, `asking_delegate`).
+  (`temper-engine-domain-forge-vocabulary/src/relay_route.rs`, `asking_delegate`).
 
 - **Not yet:** 2: an `approvals` row's size, the forge's part's, narrowed by the root's [in flight: change 534].

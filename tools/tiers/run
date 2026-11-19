@@ -39,22 +39,45 @@ def hold(prefix, name, cwd, env, *, output=None):
             try:
                 child_env = env.copy()
                 child_env.pop('TIERS_HOLD', None)
+                started = time.monotonic()
                 process = subprocess.Popen(prefix, cwd=cwd, env=child_env,
                                            stdin=subprocess.PIPE, stdout=subprocess.PIPE)
-                deadline = time.monotonic() + HOLD_READY_S
-                while True:
-                    remaining = deadline - time.monotonic()
-                    if remaining <= 0:
-                        raise TimeoutError('no first line within 60 seconds')
-                    readable, _, _ = select.select([process.stdout], [], [], min(remaining, 0.1))
-                    if readable:
-                        data = os.read(process.stdout.fileno(), 4096)
-                        if not data:
-                            raise OSError('stdout ended before the first line')
-                        if b'\n' in data:
-                            break
-                    elif process.poll() is not None:
-                        raise OSError(f'exit {process.returncode} before the first line')
+                deadline = started + HOLD_READY_S
+                pending = b''
+                waiting = False
+                expected_line = 'first line'
+                try:
+                    while True:
+                        if b'\n' in pending:
+                            line, pending = pending.split(b'\n', 1)
+                            if not line.startswith(b'waiting'):
+                                break
+                            deadline = time.monotonic() + HOLD_READY_S
+                            if not waiting:
+                                waiting = True
+                                expected_line = 'held line'
+                                print(f'{name}: hold: {line.decode(errors="replace")}',
+                                      file=output if output is not None else sys.stderr, flush=True)
+                                print('smith-check: waiting', file=sys.stderr, flush=True)
+                            continue
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            raise TimeoutError(f'no {expected_line} within 60 seconds')
+                        readable, _, _ = select.select([process.stdout], [], [], min(remaining, 0.1))
+                        if readable:
+                            data = os.read(process.stdout.fileno(), 4096)
+                            if not data:
+                                raise OSError(f'stdout ended before the {expected_line}')
+                            pending += data
+                        elif process.poll() is not None:
+                            raise OSError(f'exit {process.returncode} before the {expected_line}')
+                finally:
+                    if waiting:
+                        print('smith-check: admitted', file=sys.stderr, flush=True)
+                if waiting:
+                    elapsed = int(time.monotonic() - started)
+                    print(f'{name}: hold: held after {elapsed} s',
+                          file=output if output is not None else sys.stderr, flush=True)
             except (OSError, ValueError) as error:
                 print(f'{name}: hold: {error}; going on unheld',
                       file=output if output is not None else sys.stderr, flush=True)

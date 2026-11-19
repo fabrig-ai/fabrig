@@ -88,14 +88,15 @@ enum Token<'a> {
 
 /// A byte scan, not a Rust parse. Only path and include strings are decoded.
 fn tokens(source: &str) -> Vec<Token<'_>> {
-    tokens_at(source).into_iter().map(|(_, token)| token).collect()
+    located_tokens(source).into_iter().map(|(_, token)| token).collect()
 }
 
-fn tokens_at(source: &str) -> Vec<(usize, Token<'_>)> {
+fn located_tokens(source: &str) -> Vec<(usize, Token<'_>)> {
     let bytes = source.as_bytes();
     let mut result = Vec::new();
     let mut at = 0;
     while at < bytes.len() {
+        let start = at;
         let rest = &bytes[at..];
         if rest[0].is_ascii_whitespace() {
             at += 1;
@@ -116,17 +117,17 @@ fn tokens_at(source: &str) -> Vec<(usize, Token<'_>)> {
                 }
             }
         } else if let Some((length, string)) = literal(rest) {
-            result.push((at, if string { Token::String(&source[at..at + length]) } else { Token::Literal }));
+            result.push((start, if string { Token::String(&source[at..at + length]) } else { Token::Literal }));
             at += length;
         } else if rest[0].is_ascii_alphabetic() || rest[0] == b'_' || rest[0] >= 128 {
             let length = rest
                 .iter()
                 .position(|byte| !byte.is_ascii_alphanumeric() && *byte != b'_' && *byte < 128)
                 .unwrap_or(rest.len());
-            result.push((at, Token::Word(&source[at..at + length])));
+            result.push((start, Token::Word(&source[at..at + length])));
             at += length;
         } else {
-            result.push((at, Token::Symbol(rest[0])));
+            result.push((start, Token::Symbol(rest[0])));
             at += 1;
         }
     }
@@ -136,7 +137,7 @@ fn tokens_at(source: &str) -> Vec<(usize, Token<'_>)> {
 /// Literal `include_str!` inputs and their byte offsets, excluding comments and string contents.
 #[must_use]
 pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
-    let tokens = tokens_at(source);
+    let tokens = located_tokens(source);
     tokens
         .windows(5)
         .filter_map(|tokens| match tokens {
@@ -150,6 +151,62 @@ pub fn schema_includes(source: &str) -> Vec<(&str, usize)> {
             _ => None,
         })
         .collect()
+}
+
+/// Lines implementing the codec traits, including inside macro bodies.
+/// Comments and literals are not code; generic bounds are not implementations.
+#[must_use]
+pub fn codec_implementation_lines(source: &str) -> Vec<usize> {
+    if !source.contains("impl") || (!source.contains("Record") && !source.contains("Field")) {
+        return Vec::new();
+    }
+    let tokens = located_tokens(source);
+    let mut lines = Vec::new();
+    for (at, (offset, token)) in tokens.iter().enumerate() {
+        if *token != Token::Word("impl") {
+            continue;
+        }
+        let mut header = tokens[at + 1..].iter().map(|(_, token)| *token).peekable();
+        skip_generics(&mut header);
+        let mut name = None;
+        loop {
+            match header.peek() {
+                Some(Token::Word(_)) => name = header.next(),
+                Some(Token::Symbol(b':')) => {
+                    header.next();
+                    continue;
+                }
+                Some(Token::String(_) | Token::Literal | Token::Symbol(_)) | None => break,
+            }
+            if header.peek() != Some(&Token::Symbol(b':')) {
+                break;
+            }
+        }
+        skip_generics(&mut header);
+        if matches!(name, Some(Token::Word("Record" | "Field"))) && header.next() == Some(Token::Word("for")) {
+            lines.push(source[..*offset].bytes().filter(|byte| *byte == b'\n').count() + 1);
+        }
+    }
+    lines
+}
+
+fn skip_generics<'a>(tokens: &mut std::iter::Peekable<impl Iterator<Item = Token<'a>>>) {
+    if tokens.peek() != Some(&Token::Symbol(b'<')) {
+        return;
+    }
+    let mut depth = 0;
+    let mut previous = None;
+    for token in tokens.by_ref() {
+        match token {
+            Token::Symbol(b'<') => depth += 1,
+            Token::Symbol(b'>') if previous != Some(Token::Symbol(b'-')) => depth -= 1,
+            Token::Word(_) | Token::String(_) | Token::Literal | Token::Symbol(_) => (),
+        }
+        if depth == 0 {
+            break;
+        }
+        previous = Some(token);
+    }
 }
 
 /// Returns the entire literal's length, distinguishing strings from byte/C strings

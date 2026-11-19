@@ -211,8 +211,12 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   keeps the outcome under that token, durably, for the retention, and
   gives it again when the request is sent again, as the core asks a
   connector for any value it does not own (`../../../domain/model.md`,
-  section 5; `../../../domain/connectors.md`, 5.5). The one exception: a
-  connector whose own table of kept outcomes is full refuses the
+  section 5; `../../../domain/connectors.md`, 5.5). A connector whose
+  own table of kept outcomes is full may make room, dropping the
+  outcome whose retention ends first, never a request still pending:
+  that key, sent again, is answered unknown, as one past its retention
+  is. The one exception to an answer: a connector that keeps its table
+  full instead refuses the
   admitted request at once, by the decision the people child reserved
   for it (`../../../domain/people/acts.md`, 1): a `Limit` of kind
   `ApplicationAnswers` naming the connector and its bound. The people

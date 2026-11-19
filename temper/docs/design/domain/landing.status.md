@@ -4,7 +4,6 @@
 
 
 
-
 `landing-settings.md`, section 1.1 has no known gap in what a branch's path reads: the
 project's `by`, and each repository's gates and tiers with the branch
 each follows, as the forge holds them (`forge/change/branch-path.md`).
