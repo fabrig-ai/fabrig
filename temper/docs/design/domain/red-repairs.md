@@ -254,8 +254,9 @@ BODY
   section 4), with its tests still failing on its repair and why kept as
   a hand-off's is, its hander none: `repair goal G ended and TIER run M
   still fails K of its tests` (`goal G ended…` for a goal `repair`
-  didn't make). Its holder hears it as a hand-off (`areas.md`, section
-  5), the news's third line `Back: WHY`.
+  didn't make; `TIER's last run` where the tier's record keeps no run
+  number, one from before it kept one). Its holder hears it as a
+  hand-off (`areas.md`, section 5), the news's third line `Back: WHY`.
 - **Cancelled:** a cancelled goal's findings go back at once, the same
   way, with why `repair goal G was cancelled` (`goal G was cancelled`),
   and their repair marks the cancel.
@@ -343,8 +344,13 @@ BODY
     `RepairAct { more: Box<[u32]>, words: Box<[u8]> }` (the findings
     past `TriageFinding`'s `number`) and `BlameAct { landing:
     Option<Commit>, why: Box<[u8]> }`; `FindingDone`'s `Repaired(u64)`
-    and `Blamed`. New refusals are `FindingRefusal::Words` in 4.2's and
-    section 3's words.
+    and `Blamed`, and `TriageFindingAnswer`'s `Repaired(u64)`, the goal
+    a repair made, beside `Triaged`. New refusals are
+    `FindingRefusal::Words` in 4.2's and section 3's words. The stored
+    finding reply (`FindingResult`) appends `repaired` and `blamed`.
+- **The tier's record** (`temper-engine-domain-forge-tiers`' `Record`)
+  keeps its last judged run's number where it keeps none today, an
+  added field, none in a record from before, for judging's why (5.3).
 - **The finding tool** (`agent/tools.md`): its `act` gains `repair`
   and `blame`, and its members `numbers` (an array of 1 to 16 finding
   numbers, for `repair`), `words` (for `repair`) and `commit` (40 or 64
