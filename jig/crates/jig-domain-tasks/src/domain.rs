@@ -678,6 +678,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Cancel { reply_to, by, operation } => {
             crate::control::cancel(domain, env, reply_to, by, operation, out);
         }
+        Event::Fail { reply_to, by, operation } => {
+            crate::control::fail(domain, env, reply_to, by, operation, out);
+        }
         Event::Release { reply_to, by, operation } => {
             crate::control::release(domain, env, reply_to, by, operation, out);
         }

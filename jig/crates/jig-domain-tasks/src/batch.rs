@@ -250,6 +250,14 @@ fn check_members(
         {
             return Err(problem(number, Refusal::Contract));
         }
+        match new.flags.ended_by {
+            crate::EndedBy::Closer(closer) => {
+                if !new.authority.delegation.kinds.contains(&crate::AuthorityExecutor::Procedure(closer.code)) {
+                    return Err(problem(number, Refusal::Executor));
+                }
+            }
+            crate::EndedBy::Result | crate::EndedBy::Requester | crate::EndedBy::Standing => {}
+        }
         if crate::gathering::executor(new.executor) && !crate::gathering::shape(new) {
             return Err(problem(number, Refusal::Contract));
         }

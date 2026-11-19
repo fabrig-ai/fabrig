@@ -11,7 +11,7 @@ const CLOSER: u64 = 2;
 const ENDED: u64 = 3;
 const LIVE: u64 = 4;
 
-fn start(h: &mut Harness, number: u64, budget: u64) {
+pub(super) fn start(h: &mut Harness, number: u64, budget: u64) {
     let row = h.domain.task(number).expect("fixture task");
     if row.phase == Phase::Active(Active::Idle) {
         let message = row.last_message.checked_add(1).expect("fixture message");
@@ -65,7 +65,7 @@ fn start(h: &mut Harness, number: u64, budget: u64) {
     }
 }
 
-fn answer(h: &mut Harness, number: u64, spent: u64, end: End) {
+pub(super) fn answer(h: &mut Harness, number: u64, spent: u64, end: End) {
     let attempt = h.domain.task(number).expect("running task").attempt;
     h.send(Event::Activation {
         reply_to: to(),
@@ -90,7 +90,7 @@ fn wait(h: &mut Harness) {
     assert_eq!(h.domain.task(CLOSER).expect("waiting closer").phase, Phase::Active(Active::Idle));
 }
 
-fn fixture() -> Harness {
+pub(super) fn fixture() -> Harness {
     let mut h = Harness::new();
     let mut new = task(TASK, &[]);
     new.flags.ended_by = EndedBy::Closer(Closer { connector: 1, code: 6 });
