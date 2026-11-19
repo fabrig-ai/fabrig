@@ -272,7 +272,12 @@ them (8).
   a sign-in: its task waits for its account, saying why (../accounts.md,
   3.5 and 4.3). Such a terminal, or a checked placement losing its room,
   returns the task to due without a retry counter or polling timer, retaining
-  its account and committed conversation. Stale asynchronous preparation also
+  its account and committed conversation. But an account's terminal read
+  once its source is usable again, its limit's reset zero or already past,
+  is a refusal: the task claims again after the pause a refusal takes,
+  spending no try, its retry notice saying why, so that a source that
+  keeps ending runs never has one start assigned again without backoff
+  (the user, 2026-11-19). Stale asynchronous preparation also
   returns to due without a timer. A preparation is stale when its task left
   preparing or its newest word changed: the newest of its inbox and of the
   proposals and escalations waiting on it, which never enter that inbox.

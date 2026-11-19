@@ -45,6 +45,7 @@ commit's listing among them, stays `Broken`
 the checkout world's fake follows it for a merge
 (`temper/tests/worker/checkout/src/translate.rs`, `perform_within`).
 
+- **Not yet:** 4.13: no `Pack`: `git::Op` has none, and nothing repacks a store or a repository [in flight: change 9623].
 - **Not yet:** 9: no transcript holds `Pack`'s `count-objects` or `repack` (4.13): its step tests script git 2.47.3's output as 4.13 gives it, and the fake git answers both with no capture to check it against. What 4.13 says of them rests on one run by hand, git 2.47.3, 2026-11-19.
 - **Not yet:** 4.3: `refs/temper/landing` is written by a landing branch's fetch alone; no pin fetch writes the head a writable item naming no landing branch replaces.
 - **Not yet:** 4.10: `Rewrite`, the lease-guarded move of a prepare job's candidate: neither `temper-worker-domain-checkout`'s `git::Op` nor `temper-worker-protocol-git` has it. 4.5: no test runs real git on a dirty workspace: `temper/tests/worker/checkout/tests/fakes/reuse.rs` proves the worker's operations and, on the fake git, the two commands' state, where the fake's checkout replaces the whole tree whether or not `clean` ran, and `temper/crates/temper-git-transcripts-tool/src/cases.rs`, `locals`, records `checkout --force --detach` over no staged file or merge in progress. What 4.5 says of those rests on one run by hand, git 2.47.3, 2026-11-05 (section 10).
