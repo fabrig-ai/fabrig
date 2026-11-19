@@ -2,8 +2,6 @@
 
 2026-11-18. Where the tree's code lags or departs from [engine.md](engine.md).
 
-- **Not yet:** `landing`, *The tiers' project settings*: no `wait`
-  [in flight: change 8587].
 
 
 - **Not yet:** `landing`, a landing rule's `sets`: `LandingRule` has
