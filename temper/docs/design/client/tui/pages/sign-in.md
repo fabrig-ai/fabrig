@@ -171,12 +171,22 @@ and with no browser to open:
   address stands on a line of its own, so that a long name is cut at
   its end and the words around it stay whole. No tunnel's line: a
   deployment by name is reached from any browser.
-- **Enter is the screen's one key,** with no field: the screen's one
-  node, the lines' region, asks for the focus as the screen opens and
-  makes `SignIn` on Enter (`../README.md`, 3, the events' table). Once
-  the approval has ended or was not asked (`may_ask_again`), it asks
-  again; while an ask is in flight or a code waits, it does nothing.
-  Every other key does nothing but Ctrl+C, which closes.
+- **An "Ask again" button,** with no field: once the approval has
+  ended or was not asked (`may_ask_again`), a button of its own stands
+  under the lines, labelled "Ask again", with the focus while it
+  stands; Enter or Space presses it, making `SignIn`
+  (`../README.md`, 3, the events' table), which asks again. While an
+  ask is in flight or a typed code's ask waits, there is no button and
+  no key does anything. Every other key does nothing but Ctrl+C, which
+  closes. The first line stays a heading, so that a screen reader
+  doesn't read the screen's name as a button, and the outcome lines'
+  "Press Enter to ask again." stays true. A button, not a region acting
+  on Enter alone as the draft has it: skein's UI vocabulary has no
+  region that acts on a key (`skein/docs/design/ui/README.md`, 4.1),
+  and a button presses on Space too (`skein/docs/design/ui/screen.md`,
+  the keys' table; `tui-remote.status.md`, *Design departs*). The
+  one-click ask (`../../../draft/tui-remote.md`, 5.1) later puts "Type
+  a code instead" in the same place while its ask waits.
 - **The outcomes** are loopback's, each in place of the lines after the
   first (`../../README.md`, 4.1, *Each outcome's line*), but for not
   asked: refused, which at a name says "PLACE doesn't sign terminals in
@@ -189,8 +199,10 @@ and with no browser to open:
   state*).
 - **Its tests:** the host's: an `https://` start asks at once and opens
   `https://NAME/terminal`, no code in it; no opener opens nothing;
-  Enter asks again once the approval ended, and does nothing while it
-  waits; an expiry opens the screen and asks again; refused's line. The
-  view's rows for each line, a 253-byte name with a port of its own
-  among them; golden frames at 80 by 24, dark and light, of the screen
+  the button's press asks again once the approval ended, and no key
+  does anything while a code waits; an expiry opens the screen and
+  asks again; refused's line. The view's rows for each line, the
+  button with the focus once the approval ended and none while a code
+  waits, a 253-byte name with a port of its own among them; golden
+  frames at 80 by 24, dark and light, of the screen
   with a tab opened and with none.

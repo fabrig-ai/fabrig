@@ -14,7 +14,7 @@
   before it*: `at/HOST/PORT`, the theme carried and the move [in
   flight: change 8884].
 - **Not yet:** 3, the events' `SignIn` row: at a name, the sign-in
-  screen's one key [in flight: change 8885].
+  screen's "Ask again" button [in flight: change 8885].
 - **Not yet:** 2: no `recording-TIME`; a recording is `recording` [in
   flight: change 3611].
 - **Not yet:** 3: the events table's `Act { act }` row: a close done
