@@ -65,6 +65,12 @@ pub(crate) fn prepare(engine: &mut Engine, rehearsal: bool) {
     engine.upgrade = Some(State::new(rehearsal, engine.workers.judgement()));
 }
 
+/// A rehearsal whose copy its shell opened counts from before that opening.
+pub(crate) fn prepare_opened(engine: &mut Engine, began: Time) {
+    prepare(engine, true);
+    engine.upgrade.as_mut().expect("prepared rehearsal").began = Some(began);
+}
+
 /// Shut down every unstarted owner except the store, for a stopped-deployment tool.
 pub(crate) fn prepare_stopped(engine: &mut Engine) {
     assert!(!engine.store.opened, "upgrade chosen before the store opens");

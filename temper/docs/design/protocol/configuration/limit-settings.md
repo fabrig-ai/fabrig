@@ -236,9 +236,19 @@ this document says how settings lie over it.
   to start at the stock`. The owner then changes the setting, the
   operator removes the file and restarts. A line naming no limit, or a
   figure the start's checks refuse, refuses the start, naming its line.
-- **Stopped tools** `upgrade --check`, `checkpoint` and `restore` take
-  `limits-held` as a start does, through the same pure resolution without
-  opening the deployment store during preparation.
+- **Stopped tools** `checkpoint`, `restore`, `upgrade --back` and
+  `upgrade --workers` take `limits-held` as a start does, through the
+  same pure resolution without opening the deployment store during
+  preparation.
+- **`upgrade --check` sizes its engine as a start does,** from its
+  copy: once its configuration is checked, it opens the copy at the
+  stock's figures, reads the copy's two kinds, or takes `limits-held`'s
+  figures in their place, resolves and checks them, and builds its
+  engine with them before it restores (steps 1 to 4 above, over the
+  copy). So it refuses what a start over the copy would refuse, in a
+  start's words, and passes what a start would pass. A copy that
+  doesn't open is reported by an engine at the stock's figures, or
+  `limits-held`'s.
 - **A box** resolves its engine from the two kinds. Its worker takes its
   limits from its engine (`../../draft/config.md`, 6.3), so temper's kind
   sets the names a worker reads (checkout, git, the peer's). Its document's
