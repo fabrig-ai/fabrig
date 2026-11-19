@@ -130,6 +130,10 @@ application root            routes between the core and every connector
   the name it resolves to and the hold it takes, and which tasks may name
   it (tracked ones only, say); it refuses a batch naming a symbol it does
   not offer that task, naming the symbol (tasks/holds.md, 2).
+  The connector is asked for a member's holdings with its number and its
+  tree's root: a member of a batch made beneath a task, by a person or by
+  a delegating task, has that task's root, and a member made as a root its
+  own number.
 
 ### 3.2 Roles
 

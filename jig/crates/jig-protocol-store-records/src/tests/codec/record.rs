@@ -36,6 +36,23 @@ fn a_task_records_label_flags_and_last_activity_read_back() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
+#[test]
+fn a_task_record_keeps_one_subscription_past_the_ordinary_bound() {
+    let mut record = current_record();
+    let mut subscriptions = skein_lib::List::with_capacity(fixtures::TASKS_LIMITS.subscriptions + 1);
+    for number in 0..=fixtures::TASKS_LIMITS.subscriptions {
+        subscriptions
+            .push(domain::Subscription {
+                number: u64::from(number) + 1,
+                kind: domain::SubscriptionKind::Topic { connector: 1, topic: u64::from(number) },
+            })
+            .expect("ordinary bound and one more");
+    }
+    record.subscriptions = subscriptions.into_boxed();
+    let row = live_record(record);
+    assert_eq!(saved_tasks(&row), Ok(row));
+}
+
 fn a_live_task_record_reads_back_whole() {
     for (reasons, offered) in [
         (domain::Reasons::QUESTION.union(domain::Reasons::TIMER), domain::Reasons::WORDS),
@@ -326,7 +343,7 @@ fn a_task_record_past_its_inbox_count_is_refused() {
             &tasks_limits(),
             &fixtures::configured_model_names(&[b"first", b"second", b"third"])
         ),
-        Err(bound_problem(wire::Path::TaskInterestsInbox))
+        Err(bound_problem(wire::paths::TASK_INTERESTS_INBOX))
     );
 }
 #[test]
@@ -346,7 +363,7 @@ fn a_task_record_inbox_decoded_above_its_count_is_refused() {
     .expect("within wider count");
     assert_eq!(
         tasks::decode(&bytes, &limits, &fixtures::configured_model_names(&[b"first", b"second", b"third"])),
-        Err(bound_problem(wire::Path::TaskInterestsInbox))
+        Err(bound_problem(wire::paths::TASK_INTERESTS_INBOX))
     );
 }
 #[test]
@@ -383,7 +400,7 @@ fn an_activity_words_line_past_its_own_word_bound_is_refused() {
     });
     assert_eq!(
         tasks::encode(&row, &tasks_limits(), &fixtures::configured_model_names(&[b"first", b"second", b"third"])),
-        Err(bound_problem(wire::Path::ActivityWordsWords))
+        Err(bound_problem(wire::paths::ACTIVITY_WORDS_WORDS))
     );
 }
 fn a_person_wait_without_a_stall_notice_reads_back() {
@@ -490,11 +507,11 @@ fn kept_lines_and_met_notices_read_back_and_pending_is_bounded() {
     }
     let pending = task_numbers(limits.kept_line_pending + 1);
     let row = activity(domain::Line::Kept { attempt: 3, pending, question: None });
-    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::KeptLinePending)));
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::paths::KEPT_LINE_PENDING)));
     let mut wider = limits;
     wider.kept_line_pending += 1;
     let bytes = tasks::encode(&row, &wider, &[]).unwrap();
-    assert_eq!(tasks::decode(&bytes, &limits, &[]), Err(bound_problem(wire::Path::KeptLinePending)));
+    assert_eq!(tasks::decode(&bytes, &limits, &[]), Err(bound_problem(wire::paths::KEPT_LINE_PENDING)));
 }
 
 #[test]
@@ -518,7 +535,7 @@ fn circle_and_added_records_refuse_one_past_their_bounds() {
     }
     record.added = added.into_boxed();
     let row = live_record(record);
-    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::HotDefinitionAdded)));
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::paths::HOT_DEFINITION_ADDED)));
     let mut record = current_record();
     record.phase = domain::Phase::Held {
         was: domain::Was::Waiting,
@@ -529,11 +546,11 @@ fn circle_and_added_records_refuse_one_past_their_bounds() {
         }))),
     };
     let row = live_record(record);
-    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::CircleTasks)));
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::paths::CIRCLE_TASKS)));
     let mut wider = limits;
     wider.circle_tasks += 1;
     let bytes = tasks::encode(&row, &wider, &[]).unwrap();
-    assert_eq!(tasks::decode(&bytes, &limits, &[]), Err(bound_problem(wire::Path::CircleTasks)));
+    assert_eq!(tasks::decode(&bytes, &limits, &[]), Err(bound_problem(wire::paths::CIRCLE_TASKS)));
 }
 
 fn task_numbers(count: u32) -> Box<[u64]> {
@@ -564,8 +581,8 @@ fn run_reason_bits_refuse_unknown_kinds() {
     // Bit 14 is the first bit outside the fourteen stored reasons.
     const UNKNOWN: domain::Reasons = domain::Reasons(1 << 14);
     for (reasons, offered, path) in [
-        (UNKNOWN, domain::Reasons::ALL, wire::Path::TaskRunReasons),
-        (domain::Reasons::FIRST, UNKNOWN, wire::Path::TaskRunOffered),
+        (UNKNOWN, domain::Reasons::ALL, wire::paths::TASK_RUN_REASONS),
+        (domain::Reasons::FIRST, UNKNOWN, wire::paths::TASK_RUN_OFFERED),
     ] {
         let mut record = current_record();
         record.reasons = reasons;
@@ -639,11 +656,11 @@ fn standing_sessions_and_activity_round_trip_at_the_words_bound() {
     let limits = tasks_limits();
     let words = Box::from([b'w'; 513]);
     let row = activity(domain::Line::Stood { attempt: 3, words });
-    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::StoodLineWords)));
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::paths::STOOD_LINE_WORDS)));
     let row = activity(domain::Line::Stood { attempt: 3, words: Box::from([b'w'; 512]) });
     let bytes = tasks::encode(&row, &limits, &[]).unwrap();
     let narrower = wire::Limits { stood_line_words: domain::STOOD_WORDS - 1, ..limits };
-    assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::Path::StoodLineWords)));
+    assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::paths::STOOD_LINE_WORDS)));
 }
 
 #[test]
@@ -653,9 +670,9 @@ fn now_written_round_trips_and_enforces_the_line_bound() {
     let limits = tasks_limits();
     let bytes = tasks::encode(&row, &limits, &[]).unwrap();
     let narrower = wire::Limits { now_written_line_line: domain::NOW_LINE - 1, ..limits };
-    assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::Path::NowWrittenLineLine)));
+    assert_eq!(tasks::decode(&bytes, &narrower, &[]), Err(bound_problem(wire::paths::NOW_WRITTEN_LINE_LINE)));
     let row = activity(domain::Line::NowWritten { attempt: 7, line: Box::from([b'n'; 513]) });
-    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::Path::NowWrittenLineLine)));
+    assert_eq!(tasks::encode(&row, &limits, &[]), Err(bound_problem(wire::paths::NOW_WRITTEN_LINE_LINE)));
 }
 
 #[test]
@@ -670,8 +687,8 @@ fn rejection_deciders_keep_their_stored_kind() {
         let wire::Escalation::Rejected(record) = &stored else {
             panic!("stored rejection");
         };
-        assert_eq!(record.by(), 31);
-        assert_eq!(record.by_kind(), &kind);
+        assert_eq!(record.by, 31);
+        assert_eq!(record.by_kind, kind);
         assert_eq!(tasks::state::read_escalation(stored), Ok(rejection.clone()));
         let mut record = current_record();
         record.escalation = rejection;

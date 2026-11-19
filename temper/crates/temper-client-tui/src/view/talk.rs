@@ -20,7 +20,7 @@ use temper_client_view_words::words::{TimeForm, Word as Shared};
 pub(crate) struct Head {
     pub project: Box<[u8]>,
     pub name: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: crate::Origin,
     pub line: Box<[u8]>,
     pub now: Option<Box<[u8]>>,
     pub columns: u16,
@@ -87,7 +87,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words) -> Option<Head> {
         }
         None => None,
     };
-    Some(Head { project, name, address: copy_of(tui.address()), line, now, columns: tui.columns() })
+    Some(Head { project, name, address: tui.address().clone(), line, now, columns: tui.columns() })
 }
 pub(crate) fn session(talk: &Talking, words: &Words, wall: Wall) -> Option<Box<[u8]>> {
     let open = talk.open()?;
@@ -111,7 +111,7 @@ pub(crate) fn draw(b: &mut Builder, head: &Head, words: &Words) {
     text(b, Role::Text, &words.say(Word::Separator, &[]), Some(look::FAINT));
     text(b, Role::Text, &words.say(Word::TalkingWith, &[]), Some(look::HINT));
     text(b, Role::Text, &head.name, Some(look::NAME));
-    text(b, Role::Text, &head.address, Some(look::ADDRESS));
+    text(b, Role::Text, &crate::place(&head.address, false), Some(look::ADDRESS));
     b.close();
     let room = if head.columns == 0 { usize::MAX } else { usize::from(head.columns).saturating_sub(4) };
     let (line, end) = launchpad::cut(&concat(&[&head.name, &head.line]), room, words);

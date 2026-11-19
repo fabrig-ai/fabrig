@@ -313,7 +313,7 @@ fn front_commands(words: &crate::words::Words) {
             "in front",
             true,
             "/",
-            &["/change", "/ask", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/log", "/quit"][..],
+            &["/change", "/ask", "/new", "/chats", "/open", "/web", "/tell", "/theme", "/help", "/log", "/quit"][..],
         ),
         ("log prefix", true, "/l", &["/log"][..]),
         ("q prefix", false, "/q", &["/quit"][..]),
@@ -337,6 +337,7 @@ fn front_commands(words: &crate::words::Words) {
         let mut tui = crate::Tui::new(f::ADDRESS);
         if front {
             tui.step(crate::Told::Front { set_up: false, box_log: Box::default() });
+            tui.step(crate::Told::Stage { stage: crate::BoxStage::Running });
         }
         let part = crate::view::foot::read(&root, &tui, words, f::NOW);
         let items = match &part.list {
@@ -403,6 +404,7 @@ fn own_commands(words: &crate::words::Words) {
             &["/pause", "/close", "/new", "/chats", "/open", "/tell", "/theme", "/help", "/quit"][..],
         ),
         ("no project", false, false, "/", false, false, false, &["/theme", "/help", "/quit"][..]),
+        ("welcome", false, false, "/", false, false, true, &["/web", "/theme", "/help", "/log", "/quit"][..]),
         (
             "front",
             true,
@@ -412,8 +414,8 @@ fn own_commands(words: &crate::words::Words) {
             true,
             true,
             &[
-                "/draft", "/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/tell", "/theme", "/help",
-                "/log", "/quit",
+                "/draft", "/change", "/ask", "/new", "/chats", "/brief", "/needs", "/open", "/web", "/tell", "/theme",
+                "/help", "/log", "/quit",
             ][..],
         ),
     ] {
@@ -435,6 +437,7 @@ fn own_commands(words: &crate::words::Words) {
         let mut tui = Tui::new(f::ADDRESS);
         if front {
             tui.step(Told::Front { set_up: false, box_log: Box::default() });
+            tui.step(Told::Stage { stage: crate::BoxStage::Running });
         }
         if !project {
             tui.step(Told::CommandWords { value: prefix.as_bytes().into() });
@@ -454,6 +457,7 @@ fn own_commands(words: &crate::words::Words) {
                 (Own::Brief, "The brief, whole"),
                 (Own::Needs, "Walk what needs you"),
                 (Own::Open, "Open this on the web"),
+                (Own::Web, "Open temper in your browser"),
                 (Own::Tell, "Tell temper what's off"),
                 (Own::Theme, "Auto, light or dark"),
             ] {

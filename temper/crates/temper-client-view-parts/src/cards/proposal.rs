@@ -48,7 +48,7 @@ pub(super) fn reason(b: &mut Builder, page: &c::ReadValue) {
     }
 }
 /// The place is the caller's: it sets the title's level and whether a kicker says the kind.
-fn title(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Words, place: super::Place) {
+fn headings(b: &mut Builder, tasks: &skein_lib::List<c::ProposedTask>, words: &Words, place: super::Place) {
     let level = place.level();
     if place.kicker() {
         b.open(Role::Paragraph);
@@ -100,7 +100,7 @@ fn why(b: &mut Builder, page: &c::ReadValue) {
 }
 pub(super) fn facts(b: &mut Builder, page: &c::ReadValue, words: &Words, rows: u32, place: super::Place) {
     if let Some(tasks) = batch(page) {
-        title(b, tasks, words, place);
+        headings(b, tasks, words, place);
         batch_facts(b, page, tasks, words, rows);
         return;
     }
@@ -1194,19 +1194,26 @@ pub(crate) fn terminal(
 
 /// A proposal's terminal heading (temper/docs/design/client/pages/README.md).
 pub(crate) fn line(card: &temper_client_domain::pages::inbox::Card, _words: &Words) -> Option<Box<[u8]>> {
+    let title = title(card)?;
+    if let Some(tasks) = batch(card.page.as_ref().expect("proposal title has a page"))
+        && !tasks.is_empty()
+    {
+        return Some(crate::common::chat::row_title(&title));
+    }
+    Some(title)
+}
+
+/// A chat card's whole title (temper/docs/design/client/tui/pages/chat.md, 1, a card).
+pub(crate) fn title(card: &temper_client_domain::pages::inbox::Card) -> Option<Box<[u8]>> {
     let page = card.page.as_ref()?;
-    let c::ReadValue::Proposal(_) = page else { return None };
-    let title = if let Some(tasks) = batch(page)
+    let c::ReadValue::Proposal(proposal) = page else { return None };
+    let written = if let Some(tasks) = batch(page)
         && let Some(task) = tasks.as_slice().first()
     {
-        let written = task.spec.specification.words.bytes();
-        let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
-        return Some(crate::common::chat::row_title(written.get(..end).expect("proposal first line")));
-    } else if let c::ReadValue::Proposal(proposal) = page {
-        proposal.reason.bytes()
+        task.spec.specification.words.bytes()
     } else {
-        b""
+        proposal.reason.bytes()
     };
-    let end = skein_lib::bytes::find(title, b"\n").unwrap_or(title.len());
-    Some(title.get(..end).expect("proposal first line").into())
+    let end = skein_lib::bytes::find(written, b"\n").unwrap_or(written.len());
+    Some(written.get(..end).expect("proposal first line").into())
 }

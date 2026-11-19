@@ -41,6 +41,7 @@ const GOAL_SPAN_MS: u64 = 1_200_000; // after-landing.md, 2: g's 20-minute span.
 
 #[derive(Clone, Copy)]
 pub struct Tier {
+    pub wait: temper_engine_domain_forge_change::Wait,
     pub silent: bool,
     pub bound_ms: u64,
     pub goals: bool,
@@ -48,7 +49,12 @@ pub struct Tier {
 
 impl Default for Tier {
     fn default() -> Self {
-        Self { silent: false, bound_ms: 7_200_000, goals: false }
+        Self {
+            wait: temper_engine_domain_forge_change::Wait::Cleared,
+            silent: false,
+            bound_ms: 7_200_000,
+            goals: false,
+        }
     }
 }
 
@@ -122,7 +128,14 @@ fn configured(turn: bool, tier: Tier, limits: StoryLimits) -> World {
         1000,
         Gate::default(),
         None,
-        StoryLimits { turn, tier: Some(tier), tasks: Some(12), spec_bytes: Some(4096), ..limits },
+        StoryLimits {
+            turn,
+            tier: Some(tier),
+            tasks: Some(12),
+            slots: limits.kinds.then_some(3),
+            spec_bytes: Some(4096),
+            ..limits
+        },
     )
 }
 
@@ -141,7 +154,12 @@ pub fn goal_world() -> World {
 /// Red findings exercise project triager settings through the root's settings entrance.
 #[must_use]
 pub fn findings_world() -> World {
-    news_world_with(Tier::default(), true)
+    findings_world_with(Tier::default())
+}
+
+#[must_use]
+pub fn findings_world_with(tier: Tier) -> World {
+    news_world_with(tier, true)
 }
 
 fn news_world_with(options: Tier, kinds: bool) -> World {

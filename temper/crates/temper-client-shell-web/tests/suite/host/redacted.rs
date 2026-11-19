@@ -285,26 +285,52 @@ fn a_reshaped_value_is_stale_never_kept() {
     }
 }
 #[test]
-fn a_committed_journey_redacted_replays() {
-    let setup = include_bytes!("../../../../../docs/design/client/web/journeys/welcome-set-up/recording");
-    let recording = setup.as_slice();
-    {
-        let (records, originals, _) =
-            temper_client_shell_web::journey::redact_lines(lines(recording).expect("committed lines"), &[])
-                .expect("committed recording redacts");
-        assert!(scan::lines(&records, &originals).expect("decoded committed streams").is_none());
-        let mut replay = Replay::from_lines(records).expect("committed replay");
-        let mut marks = 0;
-        loop {
-            match replay.next() {
-                Ok(Some(mark)) => {
-                    assert!(scan::page(&mark.page.html(), &originals).is_none(), "clean committed page");
-                    marks += 1;
-                }
-                Ok(None) => break,
-                Err(stale) => panic!("committed journey stale at line {}", stale.line),
-            }
-        }
-        assert!(marks > 1, "committed journey reaches its end");
+fn a_sign_in_walks_streams_read_and_write_unchanged() {
+    let recording = walk::walked();
+    let mut records = lines(&recording).expect("sign-in lines");
+    let streams = Streams::read(&records).expect("sign-in streams");
+    assert!(!streams.events().is_empty(), "host walk carries stream records");
+    streams.write(&mut records);
+    assert!(written(&records) == recording, "stream and line round trip is byte-identical");
+}
+
+#[test]
+fn a_sign_in_walk_and_its_pages_pass_the_last_scan() {
+    let recording = redacted(&walk::walked()).recording;
+    let originals = temper_client_shell_web::journey::originals(&[], &[]);
+    let mut recordings = 0;
+    let mut pages = 0;
+    let records = lines(&recording).expect("sign-in lines");
+    assert!(scan::lines(&records, &originals).expect("decoded sign-in streams").is_none(), "clean recording");
+    recordings += 1;
+    let mut replay = Replay::new(&recording).expect("sign-in replay");
+    while let Some(mark) = replay.next().expect("sign-in walk holds") {
+        assert!(scan::page(&mark.page.html(), &originals).is_none(), "clean printed page");
+        pages += 1;
     }
+    assert!(recordings > 0 && pages > 0, "recording and pages scanned");
+}
+
+#[test]
+fn a_sign_in_walk_redacted_replays() {
+    let recording = walk::walked();
+    let (records, originals, _) =
+        temper_client_shell_web::journey::redact_lines(lines(&recording).expect("sign-in lines"), &[])
+            .expect("sign-in recording redacts");
+    assert!(scan::lines(&records, &originals).expect("decoded sign-in streams").is_none());
+    let mut replay = Replay::from_lines(records).expect("sign-in replay");
+    let mut marks = 0;
+    let mut ended = false;
+    loop {
+        match replay.next() {
+            Ok(Some(mark)) => {
+                assert!(scan::page(&mark.page.html(), &originals).is_none(), "clean sign-in page");
+                marks += 1;
+                ended = mark.end;
+            }
+            Ok(None) => break,
+            Err(stale) => panic!("sign-in walk stale at line {}", stale.line),
+        }
+    }
+    assert!(marks > 1 && ended, "several sign-in marks replayed to the end");
 }

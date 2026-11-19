@@ -357,7 +357,13 @@ fn status_keys_use_families_thirty_six_and_thirty_seven_in_order() {
         expected_facts.tag(36).u64(u64::from(project));
         let mut expected_looked = skein_kv::KeyWriter::new(u32::MAX);
         expected_looked.tag(37).u64(party).u64(u64::from(project));
-        for (key, expected) in [(facts.clone(), expected_facts), (looked.clone(), expected_looked)] {
+        let mut expected_person = skein_kv::KeyWriter::new(u32::MAX);
+        expected_person.tag(50).u64(party).u64(u64::from(project));
+        for (key, expected) in [
+            (facts.clone(), expected_facts),
+            (looked.clone(), expected_looked),
+            (Key::PersonBrief { party, project }, expected_person),
+        ] {
             let bytes = keys::encode(&key, u32::MAX).unwrap();
             assert_eq!(bytes, expected.finish().unwrap());
             assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
@@ -379,11 +385,11 @@ fn status_keys_use_families_thirty_six_and_thirty_seven_in_order() {
 
 #[test]
 fn status_keys_refuse_project_width_truncation_and_trailing_bytes() {
-    for family in [36, 37] {
+    for family in [36, 37, 50] {
         for (project, trailing) in [(4_294_967_296, false), (0, true)] {
             let mut writer = skein_kv::KeyWriter::new(u32::MAX);
             writer.tag(family);
-            if family == 37 {
+            if family == 37 || family == 50 {
                 writer.u64(7);
             }
             writer.u64(project);

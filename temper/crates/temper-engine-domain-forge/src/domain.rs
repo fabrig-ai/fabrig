@@ -223,6 +223,7 @@ pub struct Domain {
     pub(crate) making_acts: Set<crate::MakingKey>,
     pub(crate) repository_makings: Map<crate::MakingKey, crate::RepositoryMaking>,
     pub(crate) milestones: Map<u64, crate::MilestoneRow>,
+    pub(crate) person_briefs: Map<(u64, u32), crate::PersonBrief>,
     pub(crate) project_facts: Map<u32, crate::ProjectFacts>,
     pub(crate) history_reads: crate::history::read::State,
     pub(crate) history_sweep: crate::history::sweep::State,
@@ -924,6 +925,7 @@ impl Domain {
             repository_makings: Map::with_capacity(l.makings),
             making_acts: Set::with_capacity(l.makings),
             milestones: Map::uncapped(),
+            person_briefs: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             project_facts: Map::with_capacity(l.judge_projects),
             history_reads: crate::history::read::State::new(l.judge_projects),
             history_sweep: crate::history::sweep::State::new(l.history_events),
@@ -1643,8 +1645,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::TierWords { task, words } => crate::tiers::words::projected(d, task, &words, out),
-        Event::StatusTask { project, task } => crate::status::task(d, project, Some(task), out),
-        Event::StatusRefused { project } => crate::status::task(d, project, None, out),
+        Event::StatusTask { project, party, task } => crate::status::task(d, env.wall, party, project, Some(task), out),
+        Event::StatusRefused { project, party } => crate::status::task(d, env.wall, party, project, None, out),
         Event::StatusHeard { task, report } => crate::status::heard(d, env.wall, task, report, out),
         Event::Follow { row } => crate::follows::register(d, row, out),
         Event::TierTask { repository, tier, number, task } => {
@@ -2406,6 +2408,19 @@ pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client
     outage::refresh(d, env, out);
 }
 
+#[cfg(test)]
+pub(crate) fn scripted_outcome(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    entry: u64,
+    task: u64,
+    outcome: skein_forge_client::Outcome,
+    out: &mut Queue<Request>,
+) {
+    d.client_out.push(skein_forge_client::Request::Outcome { entry, task, outcome });
+    drain(d, env, out);
+}
+
 #[expect(
     clippy::too_many_lines,
     reason = "one client-output cohort updates connector state before routing its outcomes"
@@ -2467,15 +2482,27 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     }
                     continue;
                 }
-                if outage::outcome(d, env, entry, outcome, out) {
+                // The landing settles every merge outcome by readback (landing.md, 8).
+                // Its terminal entry is retired before the route sees this output.
+                let mut landing_merge = false;
+                if let Some(row) = d.landing.rows.get(&task) {
+                    for item in &row.entries {
+                        landing_merge |= item.entry == entry && item.operation == crate::Operation::Merge;
+                    }
+                }
+                if !landing_merge && outage::outcome(d, env, entry, outcome, out) {
                     continue;
                 }
                 if outcome == skein_forge_client::Outcome::Held && goal_branch::remake_held(d, env, entry, out) {
                     continue;
                 }
-                let account = match settled_account(d, entry, outcome) {
-                    Some(account) => Some(account.words),
-                    None => None,
+                let account = if landing_merge {
+                    None
+                } else {
+                    match settled_account(d, entry, outcome) {
+                        Some(account) => Some(account.words),
+                        None => None,
+                    }
                 };
                 let mut projection = false;
                 for (_, row) in &d.issues {
@@ -2489,7 +2516,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 let retain = crate::landing::outcome(d, env, entry, outcome, out);
                 match outcome {
                     skein_forge_client::Outcome::Uncertain | skein_forge_client::Outcome::Queued => {}
-                    skein_forge_client::Outcome::Held => {
+                    skein_forge_client::Outcome::Held if !landing_merge => {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
@@ -2508,6 +2535,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                     skein_forge_client::Outcome::Made { .. }
                     | skein_forge_client::Outcome::Failed(_)
                     | skein_forge_client::Outcome::Raced { .. }
+                    | skein_forge_client::Outcome::Held
                     | skein_forge_client::Outcome::Withdrawn => {
                         if !retain {
                             d.entries.remove(&entry);
@@ -6212,12 +6240,13 @@ fn change_facts(
     pending: &PendingStep,
     base_tip: skein_forge::api::Commit,
 ) -> change::Facts {
-    let verification_bound = match d.repositories.get(&row.repository) {
-        Some(repository) => match d.after_landing(repository.project) {
-            Some(after) => after.bound,
-            None => Duration::from_secs(7200),
-        },
-        None => Duration::from_secs(7200),
+    let after = match d.repositories.get(&row.repository) {
+        Some(repository) => d.after_landing(repository.project),
+        None => None,
+    };
+    let (verification_bound, wait) = match after {
+        Some(after) => (after.bound, after.wait),
+        None => (Duration::from_secs(7200), change::Wait::Cleared),
     };
     let pull = match &pending.pull {
         Some(pull) if pull.merged.is_some() => change::Pull::Merged { commit: pull.merged.expect("checked merged") },
@@ -6286,6 +6315,7 @@ fn change_facts(
         pending: pending.pending.clone(),
         verification: d.change_verification(row.task),
         verification_bound,
+        wait,
         ask: crate::landing::ask_for(d, row),
         branch: pending.branch,
         titled: !row.title.is_empty() || row.pull.is_some(),
@@ -9431,6 +9461,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Setting(row) => {
             d.setting_rows.insert(row.key, row.edit).expect("restored setting within limits");
         }
+        Stored::PersonBrief(row) => {
+            d.person_briefs.insert((row.party, row.project), row).expect("restored person brief room checked");
+        }
         Stored::ProjectFacts(row) => {
             d.project_facts.insert(row.project, row).expect("restored project facts room checked");
         }
@@ -9547,6 +9580,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     }
     d.rebuild_settings();
     d.restore_landing_settings();
+    crate::landing_log::restored(d, out);
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
@@ -10268,6 +10302,7 @@ impl Domain {
             | RecordKind::Making
             | RecordKind::Milestone
             | RecordKind::HistoryProject
+            | RecordKind::PersonBrief
             | RecordKind::ProjectFacts
             | RecordKind::Device
             | RecordKind::LandedDraft

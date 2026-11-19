@@ -141,6 +141,16 @@ pub(crate) fn begin_creation(
         crate::routing::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
+    let root = match &kind {
+        CreationKind::Batch { beneath: Some(task), .. } => {
+            let Some(root) = core.tasks.root(*task) else {
+                pool_refused(&mut routed.work, request, people::Refusal::Unknown);
+                return;
+            };
+            Some(root)
+        }
+        CreationKind::Batch { beneath: None, .. } | CreationKind::Propose { .. } => None,
+    };
     let remaining = u32::try_from(core.connectors.len()).expect("configured connector count fits u32");
     assert!(remaining > 0, "task creation has a numbered connector");
     let first = members.first().expect("nonempty creation").clone();
@@ -149,6 +159,7 @@ pub(crate) fn begin_creation(
         request,
         route: Creation {
             kind,
+            root,
             members,
             symbols,
             at: 0,
@@ -159,7 +170,7 @@ pub(crate) fn begin_creation(
             refused: None,
         },
     });
-    creation_holdings(core, &mut routed.out, request, &first, &first_symbols);
+    creation_holdings(core, &mut routed.out, request, root.unwrap_or(first.number), &first, &first_symbols);
 }
 
 pub(crate) fn created_holdings(
@@ -202,8 +213,9 @@ pub(crate) fn created_holdings(
         creating.remaining = connectors;
         creating.answered.clear();
         let member = member.clone();
+        let root = creating.root.unwrap_or(member.number);
         let symbols = creating.symbols.get(creating.at).expect("one symbol list per member").clone();
-        creation_holdings(core, &mut routed.out, request, &member, &symbols);
+        creation_holdings(core, &mut routed.out, request, root, &member, &symbols);
         return;
     }
     let (request, creating) = core.take_creation(request).expect("completed creation flight");
@@ -503,6 +515,7 @@ fn creation_holdings(
     core: &Core,
     out: &mut Queue<Request>,
     request: Token,
+    root: u64,
     new: &tasks::New,
     symbols: &[people::Symbol],
 ) {
@@ -518,7 +531,7 @@ fn creation_holdings(
             ask: Ask::TaskHoldings {
                 request,
                 project: new.project,
-                root: new.number,
+                root,
                 number: new.number,
                 executor: new.executor,
                 spec: new.spec.clone(),

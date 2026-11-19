@@ -393,6 +393,40 @@ fn numbered_history(world: &mut World, goal: &engine::Assignment, branch: &[u8])
 }
 
 #[test]
+fn a_closer_and_its_goal_end_at_the_landing_without_a_tier_verdict() {
+    use temper_engine_domain_world::tier_runs;
+    let options = tier_runs::Tier { wait: change::Wait::Landed, ..tier_runs::Tier::default() };
+    let (mut world, goal, branch) = goal_world_in(true, true, Some(options), false);
+    add_change(&mut world, &goal, &branch, 93, b"source", b"implemented");
+    let event = world.protocol.answer(CHANNEL, goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal made its closer", |world| {
+        live_task(world, goal.task).closer.is_some()
+    });
+    let closer = live_task(&world, goal.task).closer.unwrap();
+    let job = close_job(&mut world);
+    let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
+    finish_close(&mut world, close, &branch, &job);
+    wait_ended(&mut world, close);
+    let tip = branch_tip(&mut world, &branch);
+    status(&mut world, tip, raw::Check::Passed);
+    let landing = wait_landing(&mut world, closer);
+    tier_runs::until(&mut world, tier_runs::LANDING_TICKS, "goal ends at its landing", |world| {
+        ended(world, goal.task).is_some()
+    });
+    let change::State::Landed { merge, .. } = row(&world, landing).change.state else {
+        panic!("landed, not verifying")
+    };
+    assert!(tiers::result(&world, landing).contains("Ended at landing; after landing judges it later."));
+    assert!(closer_row(&world, closer).unwrap().done);
+    assert_eq!(result_words(&world, closer), result_words(&world, goal.task));
+    let report = String::from_utf8_lossy(result_words(&world, goal.task));
+    assert!(report.contains(std::str::from_utf8(&forge_top::commit_text(&merge)).unwrap()), "{report}");
+    assert_eq!(tier_runs::tier(&world).record.sequence, 0, "no tier verdict before goal completion");
+    assert!(!tiers::result(&world, close).contains("Ended at landing;"), "no tier follows the close change's base");
+}
+
+#[test]
 fn a_closer_closes_lands_and_reports() {
     let (mut world, goal, branch) =
         goal_world_in(true, true, Some(temper_engine_domain_world::tier_runs::Tier::default()), false);

@@ -265,7 +265,7 @@ pub static NAMES: [Name; 250] = [
     Name {
         name: "tasks.charters",
         unit: Unit::Count,
-        line: "Bounds retained configured agent-charter numbers.",
+        line: "Bounds how many agent charters are configured.",
         value: |limits| u64::from(limits.core.tasks.charters),
     },
     Name {

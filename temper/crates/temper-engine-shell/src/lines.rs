@@ -335,6 +335,33 @@ fn restore_kind(kind: temper_engine_service::RestoreRangeKind) -> &'static str {
 fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
     use jig_domain_core::start::Failure;
     match failure {
+        Failure::Numbers { settings } => {
+            use jig_domain_core::settings::{NUMBERS, STOCK_NUMBERS, Setting};
+            use std::fmt::Write as _;
+            let own = STOCK_NUMBERS.checked_add(1).expect("own numbers follow stock");
+            let mut line = format!(
+                "settings out of their numbers (the stock's 1 to {STOCK_NUMBERS}, a deployment's own {own} to {NUMBERS}): "
+            );
+            for (at, numbered) in settings.iter().enumerate() {
+                if at != 0 {
+                    line.push_str(", ");
+                }
+                let source = if numbered.changed { "changed" } else { "default" };
+                let (kind, number) = match numbered.setting {
+                    Setting::Charter(n) => ("charter", n),
+                    Setting::Template(n) => ("template", n),
+                    Setting::Policy(n) => ("policy", n),
+                    Setting::Model(n) => ("model", n),
+                    Setting::Worker(_)
+                    | Setting::Provider(_)
+                    | Setting::Rules
+                    | Setting::Application { .. }
+                    | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal"),
+                };
+                write!(line, "{source} {kind} {number}").expect("format numbered setting");
+            }
+            line
+        }
         Failure::Settings { failure, changed } => {
             let source = if *changed { "changed" } else { "default" };
             format!("{source} setting {:?}: {:?}", failure.setting, failure.fault)

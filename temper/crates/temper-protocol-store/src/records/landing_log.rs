@@ -18,6 +18,8 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
                             pull: change.pull,
                             title: change.title.clone(),
                             signed: encode_signed(&change.signed),
+                            goal: change.goal,
+                            milestone: change.milestone,
                         },
                     )
                     .expect(FITS),
@@ -33,6 +35,7 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
                         branch: landing.branch.clone(),
                         at: landing.at.as_nanos(),
                         changes,
+                        tiers: encode_tiers(&landing.tiers),
                     },
                 )
                 .expect(FITS),
@@ -50,14 +53,22 @@ pub(super) fn decode(row: w::LandingLog) -> d::LandingLog {
     let w::LandingLogParts { repository, landings } = row.into_parts();
     let mut decoded = List::with_capacity(landings.len());
     for landing in landings.into_boxed() {
-        let w::LoggedLandingParts { commit, branch, at, changes } = landing.into_parts();
+        let w::LoggedLandingParts { commit, branch, at, changes, tiers } = landing.into_parts();
         let mut members = List::with_capacity(changes.len());
         for change in changes.into_boxed() {
-            let w::LoggedChangeParts { task, pull, title, signed } = change.into_parts();
-            members.push(d::LoggedChange { task, pull, title, signed: decode_signed(signed) }).expect(FITS);
+            let w::LoggedChangeParts { task, pull, title, signed, goal, milestone } = change.into_parts();
+            members
+                .push(d::LoggedChange { goal, milestone, task, pull, title, signed: decode_signed(signed) })
+                .expect(FITS);
         }
         decoded
-            .push(d::LoggedLanding { commit, branch, at: Wall::from_nanos(at), changes: members.into_boxed() })
+            .push(d::LoggedLanding {
+                tiers: decode_tiers(tiers),
+                commit,
+                branch,
+                at: Wall::from_nanos(at),
+                changes: members.into_boxed(),
+            })
             .expect(FITS);
     }
     d::LandingLog { repository: names::decode_repository(repository), landings: decoded.into_boxed() }
@@ -84,6 +95,41 @@ pub(super) fn decode_signed(signed: List<w::SignOff>) -> Box<[d::SignOff]> {
     for sign in signed.into_boxed() {
         let w::SignOffParts { person, head, at } = sign.into_parts();
         result.push(d::SignOff { person, head, at: Wall::from_nanos(at) }).expect(FITS);
+    }
+    result.into_boxed()
+}
+
+fn encode_tiers(tiers: &[d::LoggedTier]) -> List<w::LoggedTier> {
+    let mut result = List::with_capacity(u32::try_from(tiers.len()).expect(FITS));
+    for tier in tiers {
+        let verdict = match &tier.verdict {
+            d::LoggedVerdict::Verifying => w::LoggedVerdict::Verifying,
+            d::LoggedVerdict::Cleared { run } => w::LoggedVerdict::Cleared(
+                w::LoggedCleared::new(&w::CEILINGS, w::LoggedClearedParts { run: *run }).expect(FITS),
+            ),
+            d::LoggedVerdict::Red { run, failing } => w::LoggedVerdict::Red(
+                w::LoggedRed::new(&w::CEILINGS, w::LoggedRedParts { run: *run, failing: *failing }).expect(FITS),
+            ),
+        };
+        result
+            .push(
+                w::LoggedTier::new(&w::CEILINGS, w::LoggedTierParts { tier: tier.tier.clone(), verdict }).expect(FITS),
+            )
+            .expect(FITS);
+    }
+    result
+}
+
+fn decode_tiers(tiers: List<w::LoggedTier>) -> Box<[d::LoggedTier]> {
+    let mut result = List::with_capacity(tiers.len());
+    for tier in tiers.into_boxed() {
+        let w::LoggedTierParts { tier, verdict } = tier.into_parts();
+        let verdict = match verdict {
+            w::LoggedVerdict::Verifying => d::LoggedVerdict::Verifying,
+            w::LoggedVerdict::Cleared(row) => d::LoggedVerdict::Cleared { run: row.run() },
+            w::LoggedVerdict::Red(row) => d::LoggedVerdict::Red { run: row.run(), failing: *row.failing() },
+        };
+        result.push(d::LoggedTier { tier, verdict }).expect(FITS);
     }
     result.into_boxed()
 }

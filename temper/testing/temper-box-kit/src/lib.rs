@@ -43,6 +43,7 @@ pub mod patience;
 pub mod person;
 pub mod playground;
 pub mod program_login;
+pub mod provider_setup;
 pub mod relay;
 pub mod restart;
 pub mod sign_in;

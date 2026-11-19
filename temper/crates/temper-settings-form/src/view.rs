@@ -2,6 +2,10 @@
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
 pub const AUTHORITY_MODELS: u32 = 64;
+/// Mirrors jig-domain-people's settings numbers without a client-domain dependency.
+pub const NUMBERS: u32 = 64;
+/// The stock's last number; higher numbers through `NUMBERS` are a deployment's own.
+pub const STOCK_NUMBERS: u32 = 32;
 pub const AUTHORITY_MODEL_BYTES: u32 = 4_096;
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum AuthorityModels {
@@ -416,6 +420,7 @@ pub enum SettingEdit {
 pub enum SettingFault {
     Linked,
     Accounts,
+    Range,
     Judged,
     Shape,
     Count,

@@ -58,7 +58,7 @@ fn area(name: &[u8], owner: s::AreaOwner) -> s::Area {
 fn world(person: bool, has_area: bool) -> (World, engine::Assignment, u64) {
     world_with_bound(person, has_area, 7_200_000)
 }
-fn configured(verification_bound_ms: u64) -> World {
+fn configured(verification_bound_ms: u64, wait: temper_engine_domain_forge_change::Wait) -> World {
     let mut world = World::configured_limits(
         true,
         true,
@@ -97,6 +97,7 @@ fn configured(verification_bound_ms: u64) -> World {
                     }]),
                     tier_retries: 2,
                     verification_bound_ms,
+                    wait,
                     landing_attempts: engine::LANDING_ATTEMPTS,
                 },
             )),
@@ -123,7 +124,16 @@ fn configured(verification_bound_ms: u64) -> World {
     world
 }
 fn world_with_bound(person: bool, has_area: bool, verification_bound_ms: u64) -> (World, engine::Assignment, u64) {
-    let mut world = configured(verification_bound_ms);
+    world_with_wait(person, has_area, verification_bound_ms, temper_engine_domain_forge_change::Wait::Cleared)
+}
+
+fn world_with_wait(
+    person: bool,
+    has_area: bool,
+    verification_bound_ms: u64,
+    wait: temper_engine_domain_forge_change::Wait,
+) -> (World, engine::Assignment, u64) {
+    let mut world = configured(verification_bound_ms, wait);
     world.sign_in();
     world.send(engine::Event::Party(engine::PartyInput::Period {
         project: PROJECT,
@@ -283,6 +293,19 @@ fn judged(world: &mut World, commit: Commit, area: Option<&[u8]>, holder: Holder
     assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
     world.advance_ticks(LANDING_TICKS);
     assert_eq!(findings(world).len(), 1, "once per landing");
+}
+
+#[test]
+fn a_follow_ended_at_landing_files_its_later_red_in_its_owners_area_from_the_log() {
+    let (mut world, role, triager) =
+        world_with_wait(false, true, 7_200_000, temper_engine_domain_forge_change::Wait::Landed);
+    let (change, commit) = land(&mut world);
+    until(&mut world, "follow ended at landing", |world| matches!(task(world, change).phase, tasks::Phase::Ended(_)));
+    assert!(!world.store.rows.contains_key(&Key::Forge(forge_top::Key::Verification { repository: TARGET, commit })));
+    judged(&mut world, commit, Some(b"port"), Holder::Task(role.task));
+    assert_eq!(news(&world, role.task).len(), 1);
+    assert_eq!(news(&world, triager).len(), 0);
+    world.close();
 }
 
 #[test]

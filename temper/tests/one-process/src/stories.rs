@@ -51,6 +51,8 @@ pub(crate) fn client_limits() -> temper_client_shell_terminal::limits::Limits {
         limits.io.output = limits.io.receive;
         limits.connections.http.read = limits.io.receive;
         limits.connections.http.send = limits.io.receive;
+        limits.connections.tls.read = limits.io.receive;
+        limits.connections.tls.send = limits.io.receive;
     }
     limits
 }

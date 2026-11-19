@@ -130,6 +130,20 @@ fn a_landed_change_says_its_merge_commit() {
     assert_eq!(facts.steps, Some(4));
 }
 #[test]
+fn a_change_ended_at_landing_is_landed_with_its_merge() {
+    let mut task = f::change();
+    let ending = b"\nEnded at landing; after landing judges it later.\npull request #1\n";
+    let mut words = skein_lib::Writer::new(MERGE.len().checked_add(ending.len()).unwrap());
+    words.put(MERGE).unwrap();
+    words.put(ending).unwrap();
+    task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Done(f::change_value(&words.finish())))));
+    let facts = delegation::facts(&task);
+    assert_eq!(facts.state, State::Landed);
+    assert_eq!(facts.said, Some(Said::Merge(b"abcdef0")));
+    assert_eq!(facts.steps, Some(4));
+}
+
+#[test]
 fn a_failed_change_says_its_reason() {
     let mut task = f::change();
     task.result = Some(c::TaskResult::Ending(Box::new(c::ChipEnding::Failed(f::document_text(b"CI failed")))));

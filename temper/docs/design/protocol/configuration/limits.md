@@ -60,8 +60,19 @@
     dev's 379 rounded, its store raised for it: the tier rows hold 1,537
     landings, since a failing test's id is within 1,024 bytes (below).
   - **A failing test's id:** `forge.tiers.test_id_bytes` is 512, twice
-    the longest id today (about 221 bytes, a fuzzy case's), within the
-    store's 1,024 (below).
+    the longest id today (about 221 bytes, a fuzzy case's), the most a
+    finding's signature holds of an id (`../../domain/findings.md`,
+    section 4), within the store's 1,024 (below).
+  - **A tier's failing tests:** `forge.tiers.failing_tests` is 64, the
+    most ids a finding's signature holds (`../../domain/findings.md`,
+    section 4), so that a run's failures are named by test as far as a
+    red finding can take them whole
+    (`../../draft/after-landing-repairs.md`, section 4): dev's main tier
+    failed 28 to 48 tests a run on 2026-11-17 and 18. It bounds each
+    list of failing tests it bounds in the stock, a tier's record's
+    failures and flakes, a gate's selection and a receipt's among them
+    (`../../domain/after-landing.md`, sections 4 and 10). `small`'s
+    figure, a test's, stays 16.
   - **Times:** a time is dev's where that is above `standard`'s: the
     brief's gathering 300 s and the checkout's local timeout 60 s, for
     example.
@@ -146,6 +157,18 @@
   first past it (`../../domain/landing-history.md`, 4.5 and 6). Each
   applies to every project; the events are demand-loaded and take no
   forge memory.
+- **A repository's landing log:** `forge.landings_kept`, the landings
+  every tier following their branch has judged, 16 in both profiles;
+  and `forge.landings_pending`, those some tier has still to judge, 64
+  in both, at least 1, so that a project whose changes end at landing
+  (`../../domain/after-landing.md`, section 6) keeps a slow tier's
+  backlog of landings with their members until it is judged, past which
+  the oldest is judged with no member to comment on (section 10 there).
+  Their sum is at most the store's 256 a log holds, and with
+  `forge.landing_members` and `forge.changes` it bounds a tier's posted
+  comments, `(forge.landings_kept + forge.landings_pending) *
+  forge.landing_members + forge.changes` within the store's 8,192, both
+  checked at start (below).
 - **Overrides by dotted name:** the path of the field in its owner's
   `Limits` type, a duration's last segment with `_ms`. A name temper does
   not know, or a value outside its type, refuses the start, naming it.
@@ -383,12 +406,23 @@
   - the facts': `forge.judge_projects` at most 1024, an eighth of the bound on
     a party's facts on the client's wire
     (`../../client/forge/records.md`);
-  - the store's failing tests' ids: `forge.tiers.test_id_bytes` at most
-    the least of the store schema's ceilings on a failing test's id and
-    a flake's (`../store.md`, 4), 1,024, checked before the store's
-    sizing, which would otherwise refuse it naming a schema field:
-    `application.limits.overrides.forge.tiers.test_id_bytes: 1025, past
-    its bound of 1024, the most the store holds of a failing test's id`;
+  - a tier's failing tests, within a finding's signature, so that a
+    tier's ids always fit a finding whole (`../../domain/findings.md`,
+    section 4; `../../draft/after-landing-repairs.md`, section 4):
+    `forge.tiers.failing_tests` at most 64, the most ids a signature
+    holds, and `forge.tiers.test_id_bytes` at most 512, the most bytes
+    it holds of an id. Each names its field and its bound:
+    `application.limits.overrides.forge.tiers.failing_tests: 65, past
+    its bound of 64, the most a finding's signature holds of a tier's
+    failing tests` and
+    `application.limits.overrides.forge.tiers.test_id_bytes: 513, past
+    its bound of 512, the most a finding's signature holds of a test's
+    id`. Both bounds are the signature's own, which the finding's
+    check of a signature reads too. The signature's 512 is within the
+    store schema's ceilings on a failing test's id and a flake's
+    (`../store.md`, 4), 1,024, which a focused test pins, so this check
+    stands for the store's too, run before the store's sizing, which
+    would otherwise refuse a longer id naming a schema field;
   - the store's tier rows': `forge.changes` at most the most they hold,
     `(c - 1) / 2` for `c` the least of the store schema's ceilings on a
     tier row's five lists of landings (`../store.md`, 4), 768 at their
@@ -401,6 +435,15 @@
     refuses the start as the store's sizing names it (`engine.limits.store:
     the store's map value, N bytes, past its bound of M bytes`), the
     store limit to raise with it;
+  - the landing log's: `forge.landings_kept + forge.landings_pending`
+    at most the store schema's ceiling on a log's landings, 256, and a
+    tier's posted comments, `(forge.landings_kept +
+    forge.landings_pending) * forge.landing_members + forge.changes`,
+    at most its ceiling on them, 8,192 (`../store.md`, 4), each checked
+    before the store's sizing and naming `forge.landings_pending`:
+    `application.limits.overrides.forge.landings_pending: 241, past its
+    bound of 240, the most the store's landing log holds beside
+    forge.landings_kept 16 (within 256)`;
   - the webhooks' listener's: each of its limits above 0;
     `hook_secret_bytes` at least 32; `hook_head_bytes` at most the
     HTTP server's largest read within io's intake; `hooks` within the

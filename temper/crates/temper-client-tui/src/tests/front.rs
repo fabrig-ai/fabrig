@@ -23,6 +23,59 @@ pub(super) fn working(task: u64, title: &[u8], activity: u64) -> c::TaskLine {
 }
 
 #[test]
+fn web_is_offered_only_on_a_running_fronts_pages() {
+    use crate::{BoxEnd, BoxStage, Own};
+    let home = launchpad::home_read(Some(true), &[], true, None);
+    let welcome = f::live(Some(f::me(&[]))).0;
+    let chat = launchpad::question_root();
+    let talk = super::chat::talk_root("open");
+    let signed_out = f::signed_out();
+    let connecting = f::live(None).0;
+    for (name, root, command, expected) in [
+        ("launchpad", &home, None, true),
+        ("welcome", &welcome, None, true),
+        ("chat", &chat, None, true),
+        ("talk", &talk, None, true),
+        ("place over home", &home, Some(Own::Change), true),
+        ("place over chat", &chat, Some(Own::Tell), true),
+        ("place over talk", &talk, Some(Own::Tell), true),
+        ("sign in", &signed_out, None, false),
+    ] {
+        let mut tui = front();
+        tui.step(Told::Place { command });
+        let commands = crate::offered_own(root, &tui);
+        assert_eq!(commands.contains(&Own::Web), expected, "{name}");
+        for (at, command) in commands.iter().enumerate() {
+            if *command == Own::Open {
+                assert_eq!(commands.get(at + 1), Some(&Own::Web), "{name}: after Open");
+            }
+        }
+    }
+    assert_eq!(crate::offered_own(&welcome, &front()).first(), Some(&Own::Web));
+    let mut starting = front();
+    starting.step(Told::Front { set_up: true, box_log: Box::default() });
+    assert!(!crate::offered_own(&connecting, &starting).contains(&Own::Web), "starting screen");
+    let mut ordinary = Tui::new(f::ADDRESS);
+    ordinary.step(Told::Stage { stage: BoxStage::Running });
+    assert!(!crate::offered_own(&home, &ordinary).contains(&Own::Web), "out of front");
+    for stage in [
+        BoxStage::Finding,
+        BoxStage::Fetching { done: 1, total: None },
+        BoxStage::Starting,
+        BoxStage::Stopping,
+        BoxStage::Ended { end: BoxEnd::Exited { code: 0 } },
+        BoxStage::Failed { why: b"failed".as_slice().into() },
+    ] {
+        let mut tui = front();
+        tui.step(Told::Stage { stage: stage.clone() });
+        assert!(!crate::offered_own(&home, &tui).contains(&Own::Web), "{stage:?}");
+    }
+    let mut gave_up = front();
+    gave_up.step(Told::BoxLine { line: BoxLine::GaveUp { step: b"serve".as_slice().into() } });
+    assert!(!crate::offered_own(&home, &gave_up).contains(&Own::Web));
+}
+
+#[test]
 #[expect(clippy::disallowed_macros, reason = "the golden table embeds hand-written frames")]
 fn the_front_views_are_their_goldens() {
     let rows = [
@@ -222,6 +275,64 @@ fn log_follows_end() {
     let printed = frame.print();
     assert!(skein_lib::bytes::find(&printed, b"newest").is_some(), "the log follows its newest line");
     assert!(skein_lib::bytes::find(&printed, b"oldest").is_none(), "older rows can be read back");
+}
+
+#[test]
+#[expect(clippy::disallowed_macros, reason = "the web note golden embeds its generated frame")]
+fn the_web_note_wraps_the_latest_link_at_its_own_column() {
+    let root = launchpad::home_read(None, &[], false, None);
+    let mut tui = front();
+    tui.step(Told::BoxLine {
+        line: BoxLine::Link { url: skein_lib::Secret::new(b"http://127.0.0.1:8367/old-link".as_slice().into()) },
+    });
+    tui.step(Told::LinkNotOpened);
+    let link =
+        b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice();
+    tui.step(Told::BoxLine { line: BoxLine::Link { url: skein_lib::Secret::new(link.into()) } });
+    let mut view = f::view();
+    f::build(&mut view, &tui, &root);
+    let head = f::find(view.tree(), Role::Paragraph, b"Open this link in a browser that reaches temper:");
+    assert!(head.styles.as_slice().contains(&look::NOTE));
+    f::find(view.tree(), Role::Paragraph, link);
+    for hint in [
+        b"It signs you in as this temper's owner, once, within 2 hours.".as_slice(),
+        b"Opened after that, temper makes a fresh one: /web again opens the fresh one.",
+        b"From another machine, tunnel port 8367 to this one first.",
+    ] {
+        assert!(f::find(view.tree(), Role::Paragraph, hint).styles.as_slice().contains(&look::HINT));
+    }
+    super::limits::fits(view.tree(), &crate::limits(&f::limits(), &skein_ui::Limits::EMPTY, 512).unwrap());
+    goldens::check(&[goldens::Golden {
+        name: "front-web-note-80x24-dark",
+        tree: view.tree(),
+        scheme: Scheme::Dark,
+        background: Some(crate::theme::palette(Scheme::Dark)[0].1),
+        size: FULL,
+        focus: skein_ui_screen::Focus::default(),
+        want: include_bytes!("golden/front-web-note-80x24-dark.txt"),
+    }]);
+    let root = launchpad::home_read(Some(true), &[], false, None);
+    tui.step(Told::Brief);
+    tui.step(Told::BoxLine {
+        line: BoxLine::Link { url: skein_lib::Secret::new(b"http://127.0.0.1:9367/fresh".as_slice().into()) },
+    });
+    f::build(&mut view, &tui, &root);
+    f::find(view.tree(), Role::Paragraph, b"From another machine, tunnel port 9367 to this one first.");
+    let part = view::launchpad::read(&root, &tui, &f::words(), f::NOW);
+    assert!(!part.brief.is_empty(), "fixture has the brief's note");
+    for line in &part.brief {
+        let mut before_web = false;
+        for node in view.tree().nodes() {
+            if node.role == Role::Paragraph {
+                let text = f::text(view.tree(), node);
+                if text.as_ref() == b"Open this link in a browser that reaches temper:" {
+                    assert!(before_web, "the brief's note precedes the web note");
+                    break;
+                }
+                before_web |= text == line.words;
+            }
+        }
+    }
 }
 
 fn front() -> Tui {

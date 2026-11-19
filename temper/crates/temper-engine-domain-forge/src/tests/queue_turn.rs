@@ -102,6 +102,30 @@ fn follower_facts(d: &Domain) -> change::Facts {
 }
 
 #[test]
+fn change_facts_take_the_projects_held_wait_or_cleared_without_landing() {
+    use change::Wait;
+    let mut d = changes_setup(first(), SINCE);
+    assert!(d.after_landing(5).is_none());
+    assert_eq!(follower_facts(&d).wait, Wait::Cleared);
+    let value = crate::settings::ProjectLanding { wait: Wait::Landed, ..crate::settings::ProjectLanding::default() };
+    d.give_settings_defaults(Box::new([crate::settings::Stock {
+        kind: 4,
+        scope: 5,
+        number: 1,
+        value: crate::settings::SizedValue {
+            size: crate::settings::landing_record(&value).measure(),
+            value: crate::settings::Value::Landing(value),
+        },
+    }]));
+    d.restore_landing_settings();
+    assert_eq!(d.after_landing(5).unwrap().wait, Wait::Landed);
+    assert_eq!(follower_facts(&d).wait, Wait::Landed);
+    d.repositories.get_mut(&fixtures::opening_row().repository).unwrap().project = 6;
+    assert!(d.after_landing(6).is_none());
+    assert_eq!(follower_facts(&d).wait, Wait::Cleared);
+}
+
+#[test]
 fn a_drift_hold_carries_the_branch_read_that_decided_it() {
     let mut d = changes_setup(change::State::Opening { requested: true }, SINCE);
     let mut read = pending(OWNER);
@@ -247,6 +271,7 @@ enum Leave {
     AddedGate,
 }
 
+#[expect(clippy::too_many_lines, reason = "each queue exit supplies its own step facts")]
 fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
     let mut p = pending(OWNER);
     let mut out = Queue::uncapped();
@@ -328,6 +353,7 @@ fn leave(d: &mut Domain, how: Leave) -> Queue<Request> {
                     Box::new([]),
                     temper_engine_domain_forge_landing::Project::DEFAULT,
                     crate::AfterLanding {
+                        wait: temper_engine_domain_forge_change::Wait::Cleared,
                         verdict: temper_engine_domain_forge_tiers::Settings {
                             retries: 2,
                             suspects: temper_engine_domain_forge_tiers::Suspects::Bisect

@@ -55,6 +55,18 @@ fn a_get_of_the_printed_links_route_serves_temper_with_no_referrer() {
     assert_eq!(service.engine.as_ref().expect("engine").clients.early.len(), 0, "nothing reached the root");
 }
 #[test]
+fn a_get_of_the_printed_links_page_serves_temper_with_no_referrer() {
+    let mut service = fixtures::started();
+    let mut call = fixtures::request(
+        &mut service,
+        b"GET /sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n",
+    );
+    let (status, headers) = fixtures::answered(&mut service, &mut call);
+    assert_eq!(status, 200);
+    assert_eq!(fixtures::header(&headers, b"referrer-policy"), Some(b"no-referrer".as_slice()));
+    assert_eq!(service.engine.as_ref().expect("engine").clients.early.len(), 0, "nothing reached the root");
+}
+#[test]
 fn a_host_off_the_list_is_answered_421_with_nothing_done() {
     refused(b"POST /jig/v1/read HTTP/1.1\r\nHost: evil.test:7100\r\nContent-Type: application/octet-stream\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", 421);
 }
@@ -181,7 +193,7 @@ fn closing_waits_for_the_component_before_ending_its_call() {
     assert_eq!(server.next_deadline(), Some(STALL_AT));
 }
 
-const ANSWERED: [(bool, &[u8]); 8] = [
+const ANSWERED: [(bool, &[u8]); 9] = [
     (true, b"GET /chats/7 HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
     (true, b"GET /bundle/0123456789abcdef/boot.js HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
     (true, b"GET /robots.txt HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
@@ -189,6 +201,7 @@ const ANSWERED: [(bool, &[u8]); 8] = [
     (true, b"GET /bundle/fedcba9876543210/boot.js HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
     (true, b"DELETE /chats/7 HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
     (false, b"GET /jig/v1/sign-in/link?secret=AAAA HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
+    (false, b"GET /sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA HTTP/1.1\r\nHost: 127.0.0.1:7100\r\n\r\n"),
     (false, b"POST /jig/v1/read HTTP/1.1\r\nHost: evil.test:7100\r\nContent-Type: application/octet-stream\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"),
 ];
 #[test]

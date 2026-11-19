@@ -374,6 +374,12 @@ impl Cluster {
             private_directory(target.parent().expect("file parent"));
             let bytes = self.render(&fs::read_to_string(&source).expect("cluster template"));
             super::write_private(&target, bytes.as_bytes());
+            if file["path"] == "data/providers.setting" {
+                temper_agent_fixtures::providers::remember(
+                    target.parent().expect("provider data directory"),
+                    &temper_agent_fixtures::providers::parse(bytes.as_bytes()),
+                );
+            }
         }
         let settings = self.experiment.join("settings.json");
         if process == "engine" && settings.exists() {

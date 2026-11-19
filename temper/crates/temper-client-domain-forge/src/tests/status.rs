@@ -31,6 +31,7 @@ pub(super) fn document(landed: u64, seen: u64, brief: Option<u64>) -> w::Project
             queued: 2,
             red: true,
             branch: b"main".as_slice().into(),
+            unpaid: false,
         },
     )
     .unwrap()

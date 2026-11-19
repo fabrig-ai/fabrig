@@ -2,6 +2,8 @@
 
 2026-11-18. Where the tree's code lags or departs from [branches.md](branches.md).
 
+- **Not yet:** 2, *Land*: under `wait: landed` the land step's change still lives to cleared, so the goal waits for its landing's verification [in flight: change 8593].
+
 
 
 `change/repairs.md` has no known implementation gap in a resolution's files:

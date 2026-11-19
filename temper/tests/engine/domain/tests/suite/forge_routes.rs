@@ -85,6 +85,7 @@ mod paths;
 #[path = "forge_routes/delegates.rs"]
 mod delegates;
 
+mod branch_reads;
 #[path = "forge_routes/change_tool.rs"]
 mod change_tool;
 mod read_contracts;

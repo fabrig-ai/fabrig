@@ -173,6 +173,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         (br#"{"kind":"project-areas","project":3}"#, br#"{"areas":[{"name":"tests","words":"vsr's C tests","owner":{"role":0}}]}"#, c::Setting::Application { kind: 14, scope: 3, number: 1 }),
         (br#"{"kind":"project-triager","project":3}"#, br#"{"owner":{"charter":14}}"#, c::Setting::Application { kind: 15, scope: 3, number: 1 }),
         (br#"{"kind":"project-landing","project":1}"#, b"{}", c::Setting::Application { kind: 4, scope: 1, number: 1 }),
+        (br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"landed"}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
         (br#"{"kind":"project-landing","project":1}"#, br#"{"by":"turn","batch":4}"#, c::Setting::Application { kind: 4, scope: 1, number: 1 }),
         (br#"{"kind":"project-gates","project":1}"#, br#"{"repositories":[{"forge":1,"repository":7,"gates":[{"name":"gate","workflow":"gate.yml","blocking":true,"report":{"artifact":"report","format":"lines","fuzzy":"fuzzy_"}}],"tiers":[{"name":"slow","workflow":"slow.yml","artifact":"report","format":"junit","branch":"goal"}]}]}"#, c::Setting::Application { kind: 5, scope: 1, number: 1 }),
         (TEMPLATE_GOAL, GOAL, c::Setting::Application { kind: 11, scope: 0, number: 4 }),
@@ -181,6 +182,16 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         let item = items.get(0).expect("one item");
         assert_eq!(item.setting, expected);
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set value") };
+        if item.setting == (c::Setting::Application { kind: 4, scope: 1, number: 1 }) {
+            use temper_client_protocol_wire::v1 as w;
+            let c::SettingValue::Application(bytes) = &set.value else { panic!("landing bytes") };
+            let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
+            assert_eq!(*landing.wait(), if json == br#"{"wait":"landed"}"# {
+                w::SettingsLandingWait::Landed
+            } else {
+                w::SettingsLandingWait::Cleared
+            });
+        }
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -192,6 +203,15 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
         assert_eq!(shown(&document), joined(&[br#"{"setting":"#, setting, br#","revision":1,"value":"#, json, b"}"]));
     }
 }
+#[test]
+fn landing_wait_refuses_another_word_at_wait() {
+    let bytes = kind_file(br#"{"kind":"project-landing","project":1}"#, br#"{"wait":"soon"}"#);
+    assert_eq!(
+        file::decode(&bytes, &Limits::standard()).expect_err("unknown wait").as_ref(),
+        b"settings file item 1: wait: cleared or landed required"
+    );
+}
+
 #[test]
 fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() {
     use temper_client_protocol_wire::v1 as w;

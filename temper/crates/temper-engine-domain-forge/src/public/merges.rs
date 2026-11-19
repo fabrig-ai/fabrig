@@ -11,7 +11,9 @@ type MergeKey = (Reverse<Wall>, Repository, Commit);
 impl Domain {
     /// The project's public queue merges, newest first.
     pub(super) fn queue_merges(&self, ask: &PublicAsk<'_>, limits: &Limits) -> Option<Map<MergeKey, &LoggedLanding>> {
-        let mut recent = Map::with_capacity(limits.repositories.checked_mul(limits.landings_kept)?);
+        let mut recent = Map::with_capacity(
+            limits.repositories.checked_mul(limits.landings_kept.checked_add(limits.landings_pending)?)?,
+        );
         for (repository, log) in &self.landing_logs {
             if self.repositories.get(repository)?.project != ask.project {
                 continue;

@@ -8,7 +8,7 @@
 
 ✦ Hello from the local fake model.
 
-✦ T3 · REPORT · Choose the CSV export delimiter. · Running
+✦ Choose the CSV export delimiter. · Running
 
 
 

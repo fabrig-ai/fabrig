@@ -66,6 +66,7 @@ fn turn_commit(task: u64, turn: u32, bytes: &[u8]) -> Box<[root::Write]> {
             task,
             attempt: 1,
             conversation: 1,
+            endpoint: None,
             credentials: Box::new([]),
             window: Some(core::CurrentWindow { attempt: 1, turn: 1, closed: false }),
             crossed: false,

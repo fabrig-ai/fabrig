@@ -165,6 +165,13 @@ pub(crate) enum FlightRender {
     TaskRead,
     ProjectRead,
     ForgeRead(Box<skein_forge::api::Read>),
+    /// The branch phase of a file read (domain/agent/tools.md, The engine's shape).
+    BranchFile {
+        repository: skein_forge::api::Repository,
+        branch: Box<[u8]>,
+        path: Box<[u8]>,
+        max_bytes: u32,
+    },
     Settings {
         see: Option<Box<super::see::SeeFlight>>,
         from: u32,
@@ -182,6 +189,9 @@ impl FlightRender {
     fn read(&self) -> Option<Box<skein_forge::api::Read>> {
         match self {
             Self::ForgeRead(read) => Some(read.clone()),
+            Self::BranchFile { branch, .. } => {
+                Some(Box::new(skein_forge::api::Read::Branch { branch: branch.clone() }))
+            }
             Self::Plain
             | Self::TaskRead
             | Self::ProjectRead
@@ -199,6 +209,7 @@ impl FlightRender {
             Self::TaskRead | Self::ProjectRead | Self::Settings { .. } => true,
             Self::Plain
             | Self::ForgeRead(_)
+            | Self::BranchFile { .. }
             | Self::Amended(_)
             | Self::Change(_)
             | Self::PersonRoles(_)
@@ -584,6 +595,7 @@ pub(crate) fn render(domain: &mut Domain, limits: &Limits, decision: &mut Decisi
         | FlightRender::TaskRead
         | FlightRender::ProjectRead
         | FlightRender::ForgeRead(_)
+        | FlightRender::BranchFile { .. }
         | FlightRender::Settings { .. }
         | FlightRender::PersonRoles(_) => answer,
     };
@@ -655,6 +667,7 @@ pub(crate) fn rendered(domain: &mut Domain, to: ReplyTo, answer: SettledAnswer) 
             FlightRender::Plain
             | FlightRender::TaskRead
             | FlightRender::ProjectRead
+            | FlightRender::BranchFile { .. }
             | FlightRender::Settings { .. }
             | FlightRender::Amended(_)
             | FlightRender::Change(_)
@@ -832,7 +845,21 @@ pub(crate) fn read(domain: &mut Domain, to: ReplyTo, answer: CallAnswer) {
         super::see::forge::answered(domain, to, answer);
         return;
     }
-    let key = domain.call_renders.get(&right).expect("a read answers its decoded flight").key.expect("decoded read");
+    let flight = domain.call_renders.get_mut(&right).expect("a read answers its decoded flight");
+    let key = flight.key.expect("decoded read");
+    if let FlightRender::BranchFile { repository, branch, path, max_bytes } = &flight.render {
+        if let CallAnswer::ForgeRead(result) = &answer
+            && let Ok(skein_forge::api::Answer::Commit(head)) = result.as_ref()
+        {
+            let repository = *repository;
+            let read = skein_forge::api::Read::File { head: *head, path: path.clone(), max_bytes: *max_bytes };
+            flight.render = FlightRender::ForgeRead(Box::new(read.clone()));
+            let limits = domain.limits;
+            Domain::read_forge_call(domain, &limits, to, key, repository, read);
+            return;
+        }
+        flight.render = FlightRender::ForgeRead(Box::new(skein_forge::api::Read::Branch { branch: branch.clone() }));
+    }
     if let CallAnswer::ReadRepositoryRefused { .. } = &answer {
         super::diagnostics::read(domain, key, "forge-route", "repository name unresolved", None, Box::new([]));
     }
@@ -873,8 +900,7 @@ pub(crate) fn settings(domain: &mut Domain, to: ReplyTo, answer: Box<jig_domain_
         )) = *asked
         && (revision == 0 || revision == newest)
         && match kind {
-            11 => scope == 0 && number > 0 && number <= domain.limits.templates,
-            9 => scope == 0 && number > 0 && number <= domain.limits.tasks.charters,
+            9 | 11 => scope == 0 && number > 0 && number <= jig_domain_people::NUMBERS,
             2 | 6 | 7 | 8 | 10 | 12 => domain.core.people.project_members(scope).is_some(),
             _ => false,
         }

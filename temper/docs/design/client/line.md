@@ -11,7 +11,9 @@
   shell's (`README.md`, section 4).
 - **LINK_OR_ADDRESS** is one of:
   - the link `temper-box serve` printed,
-    `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`: the client
+    `http://HOST:PORT/jig/v1/sign-in/link?secret=SECRET`, or the same
+    link at its page, `http://HOST:PORT/sign-in?secret=SECRET`
+    (`README.md`, section 4): the client
     signs in by it first, offering the credential DIRECTORY holds, if
     any, beside it, so that a person still signed in keeps their sign-in
     (`README.md`, section 4);

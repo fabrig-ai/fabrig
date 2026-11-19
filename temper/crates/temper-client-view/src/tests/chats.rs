@@ -514,6 +514,7 @@ fn no_welcome_and_no_project_says_so() {
     ] {
         fixtures::root_event(&mut root, Event::Went { place: Place::Address(address) });
         for words in [fixtures::words(), fixtures::browser_words()] {
+            let shell = words.shell;
             let mut view = fixtures::view_of(words);
             fixtures::build(&mut view, &root);
             let tree = view.tree();
@@ -538,10 +539,17 @@ fn no_welcome_and_no_project_says_so() {
                     assert!(index < form_end.expect("create in the form"));
                 }
             }
-            assert_eq!(
-                fixtures::styles(tree, Role::Button).as_ref(),
-                [Box::from([]), Box::from([crate::look::OUTSIDE_PRIMARY])]
-            );
+            if shell == crate::words::Shell::Browser {
+                assert_eq!(
+                    fixtures::styles(tree, Role::Button).as_ref(),
+                    [Box::from([]), Box::from([crate::look::NIGHT_SWITCH]), Box::from([crate::look::OUTSIDE_PRIMARY])]
+                );
+            } else {
+                assert_eq!(
+                    fixtures::styles(tree, Role::Button).as_ref(),
+                    [Box::from([]), Box::from([crate::look::OUTSIDE_PRIMARY])]
+                );
+            }
             assert!(fixtures::find(tree, Role::Region, b"LLM account").is_none());
             assert_eq!(
                 crate::act(&mut view, field, skein_ui::Act::Input { value: b"First".as_slice().into() }),
