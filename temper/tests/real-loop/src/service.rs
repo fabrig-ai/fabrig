@@ -146,15 +146,6 @@ impl ServiceHost {
         if let Some(fixture) = github {
             crate::github::write(&path, address, clients.expect("fixed clients"), fixture).expect("GitHub documents");
         }
-        if fixture.is_none() && github.is_none() {
-            let mut value: serde_json::Value =
-                serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
-                    .expect("deployment JSON");
-            value["world_settings"] =
-                serde_json::from_slice(&std::fs::read(path.join("world-settings.json")).expect("world settings"))
-                    .expect("world settings JSON");
-            fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
-        }
         if let Some(shape) = &cluster {
             shape.write(path.parent().expect("cluster scratch"), fixture.is_none() && github.is_none());
         }

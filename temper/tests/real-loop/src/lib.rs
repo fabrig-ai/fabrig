@@ -25,6 +25,7 @@ pub mod calls;
 mod cancel_kills;
 pub mod ending;
 mod patience;
+pub use patience::{Frozen, Judge as FrozenJudge};
 pub mod service;
 pub mod world;
 pub use skein_io::kernel::Exit;
