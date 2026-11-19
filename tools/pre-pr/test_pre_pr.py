@@ -2256,6 +2256,46 @@ raise SystemExit({code})
         self.assertEqual(result, 1, log)
         self.assertIn('old-forms skein old', log)
 
+    def check_base_target(self):
+        with tempfile.TemporaryDirectory(prefix='pre-pr-count-env-') as directory:
+            records = Path(directory) / 'counts.jsonl'
+            script = self.root / 'skein/scripts/old_forms.py'
+            self.write('skein/scripts/old_forms.py', f"""import json
+import os
+from pathlib import Path
+with Path({str(records)!r}).open('a') as output:
+    output.write(json.dumps([str(Path.cwd()), os.environ.get('CARGO_TARGET_DIR')]) + '\\n')
+""" + script.read_text())
+            self.write('skein/count.txt', '2')
+            self.pin()
+            self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+            git_dir = Path(self.command('git', 'rev-parse', '--absolute-git-dir').strip())
+            target = git_dir / 'temper-pre-pr/target'
+            expected = [[str(self.root / 'skein'), self.env.get('CARGO_TARGET_DIR')],
+                        [str(git_dir / 'temper-pre-pr/base/skein'), str(target)]]
+            result, log, _, _ = self.deliver()
+            self.assertEqual(result, 0, log)
+            self.assertIn('inherited: old-forms skein old', log)
+            self.assertEqual([json.loads(line) for line in records.read_text().splitlines()], expected)
+            self.assertTrue(target.is_dir())
+            kept = target / 'kept'
+            kept.write_text('base artifact\n')
+
+            self.write('skein/count.txt', '3')
+            result, log, _, _ = self.deliver()
+            self.assertEqual(result, 1, log)
+            self.assertIn('old-forms skein old', log)
+            self.assertEqual([json.loads(line) for line in records.read_text().splitlines()], expected * 2)
+            self.assertEqual(kept.read_text(), 'base artifact\n')
+
+    def test_base_target_overrides_head_target(self):
+        self.env['CARGO_TARGET_DIR'] = str(self.root / 'target-head')
+        self.check_base_target()
+
+    def test_base_target_when_head_target_unset(self):
+        self.assertNotIn('CARGO_TARGET_DIR', self.env)
+        self.check_base_target()
+
     def test_test_inputs_select_code(self):
         for path in ('api/fixtures/value.golden', 'api/docs/input.txt', 'shared/fixtures/value.bin'):
             with self.subTest(path=path):

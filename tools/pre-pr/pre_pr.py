@@ -794,8 +794,10 @@ def judge_base(base_id, git_dir, count_errors, root, env):
     """Compare exceeded counts alone in the kept detached worktree (section 5)."""
     base_env = env.copy()
     base_env.pop('GIT_INDEX_FILE', None)
+    target = (git_dir / 'temper-pre-pr/target').resolve()
+    target.mkdir(parents=True, exist_ok=True)
+    base_env['CARGO_TARGET_DIR'] = str(target)
     worktree = git_dir / 'temper-pre-pr/base'
-    worktree.parent.mkdir(parents=True, exist_ok=True)
     if (worktree / '.git').exists():
         commands = [(['checkout', '--detach', '--force', base_id], worktree),
                     (['clean', '-ffdxq'], worktree)]
