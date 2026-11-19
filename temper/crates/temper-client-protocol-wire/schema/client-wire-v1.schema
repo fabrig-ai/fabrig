@@ -479,8 +479,9 @@ enum QuestionsRoute { none, up }
 record ProjectQuestions { route: QuestionsRoute }
 # Landing settings, taken at the next start (domain/landing-settings.md, 1.1).
 enum SettingsLandingWay { queue, turn }
+enum SettingsLandingWait { cleared, landed }
 enum SettingsCombine { merge, squash }
-record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 }
+record ProjectLanding { by: SettingsLandingWay batch: u16 combine_main: SettingsCombine combine_other: SettingsCombine merge_job: option bytes 4096 close_job: option bytes 4096 landing_attempts: u8 check_timeout_ms: option u64 gate_retries: u8 gate_timeout_ms: u64 tier_retries: u8 verification_bound_ms: u64 wait: SettingsLandingWait }
 enum SettingsReportFormat { junit, lines }
 record SettingsGateReport { artifact: bytes 32 format: SettingsReportFormat fuzzy: option bytes 64 }
 record SettingsGate { name: bytes 32 workflow: bytes 255 ignored: list 1114240 bytes 1024 blocking: bool base: bool report: option SettingsGateReport }

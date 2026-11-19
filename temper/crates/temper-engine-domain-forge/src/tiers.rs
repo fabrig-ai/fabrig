@@ -1882,7 +1882,19 @@ fn posted_words(tier: &[u8], verdict: &p::Verdict, landings: &[crate::TierPosted
 }
 
 fn landing_change(d: &Domain, repository: Repository, commit: Commit) -> Option<u64> {
-    d.verifications.get(&(repository, commit))?.changes.first().copied()
+    if let Some(verification) = d.verifications.get(&(repository, commit)) {
+        return verification.changes.first().copied();
+    }
+    let log = d.landing_log(repository)?;
+    for landing in &log.landings {
+        if landing.commit == commit {
+            return match landing.changes.first() {
+                Some(member) => Some(member.task),
+                None => None,
+            };
+        }
+    }
+    None
 }
 
 // One complete attribution per line lets the task shell fit its report without cutting an ID.

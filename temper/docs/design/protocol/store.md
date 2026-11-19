@@ -134,13 +134,17 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   goal branch it follows with its last run's tip, failures and start;
   29 `Verification`, keyed by repository and landing
   commit, a landing's tier verdicts, the failures blamed on it and what
-  repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, one row, a ring of its last
-  `landings_kept` landings, each its commit, branch and time, its changes,
-  each with its task, pull request and title (at most 256 bytes) and its
-  sign-offs, `signed`, at most 8, as the `Change` row keeps them, its
-  trailers and its verdicts, erased with its repository; 31 `Finding`, 32
+  repaired it, the run and the landing; 30 `LandingLog`, keyed by repository, one row, its
+  landings oldest first, up to `landings_pending` that a tier following
+  their branch has still to judge and the last `landings_kept` judged
+  (`../domain/after-landing.md`, section 10), each its commit, branch and time, its changes,
   each with its task, pull request and title (at most 256 bytes), its
-  trailers and its verdicts, erased with its repository; 31 `Finding`,
+  goal and that goal's milestone (`goal` and `milestone`, none when
+  read from before) and its sign-offs, `signed`, at most 8, as the
+  `Change` row keeps them, its trailers, and an entry per tier following
+  its branch with that tier's verdict (`tiers`, at most 32, none when
+  read from before: verifying where the tier's record still holds it),
+  erased with its repository; 31 `Finding`,
   keyed `Finding { project, number }`, a finding's record
   (`../domain/findings.md`, section 2): its kind, severity, area, state,
   title, body, filer, when, the last hand-off's why and hander, its goal,
@@ -151,6 +155,8 @@ forge's limits (`temper_engine_domain_forge::Limits`, configuration/limits.md
   `Mark` and 33 `QaPass`. A
   receipt of a tier's keeps its failing tests (`../domain/after-landing.md`,
   section 2), and the `Change` family's `Landed` state means verifying,
+  or, for a change ended there (no tier following its branch, or its
+  project's `wait: landed`), landed,
   `Red`, `Cleared` and `Uncleared` joining it after its last state
   (`../domain/after-landing.md`, section 6); its row keeps the red
   landing it repairs (`repairs`, `../domain/after-landing.md`, section

@@ -81,6 +81,65 @@ fn world() -> World {
     world
 }
 #[test]
+fn a_milestones_dependent_goal_starts_when_the_first_ends_at_its_landing() {
+    use temper_engine_domain_world::tier_runs::{self, LANDING_TICKS, Tier, task, tier, until};
+    let mut world = World::configured_limits(
+        true,
+        true,
+        false,
+        STEPS,
+        Gate::default(),
+        None,
+        StoryLimits {
+            tier: Some(Tier { wait: temper_engine_domain_forge_change::Wait::Landed, ..Tier::default() }),
+            slots: Some(4),
+            tasks: Some(32),
+            tree_tasks: Some(64),
+            task_delegates: Some(16),
+            authority_batch: Some(8),
+            tasks_batch: Some(8),
+            result_bytes: Some(1024),
+            ..StoryLimits::default()
+        },
+    )
+    .with_goal_closer();
+    world.env.limits.tasks.project_goals = 3; // The milestone and its two goals coexist.
+    let client = world.env.limits.forge.client;
+    let mut world = world.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 4, Box::new([])));
+    let milestone = milestone(&mut world, b"Two goals");
+    let people::Ask::Create { project, mut batch } = goal_branch::goal_request(&world, true) else { panic!("goal") };
+    batch[0].symbols = Box::new([]);
+    batch[0].flags.ended_by = people::EndedBy::Closer(people::Closer { connector: 0, code: 6 });
+    batch[0].authority.delegation.depth = 2;
+    batch[0].authority.delegation.tasks = 16;
+    batch[0].budget = people::Budget::AsAllowed { cap: Some(200) };
+    let first =
+        created(&ask(&mut world, 181, people::Ask::Delegate { project, task: milestone, batch: batch.clone() }));
+    batch[0].dependencies = Box::new([people::Dependency::Existing(first)]);
+    batch[0].words = b"Wait for the first goal".as_slice().into();
+    let second = created(&ask(&mut world, 182, people::Ask::Delegate { project, task: milestone, batch }));
+    assert_eq!(task(&world, first).requester, tasks::Party::Task(milestone));
+    assert_eq!(task(&world, second).requester, tasks::Party::Task(milestone));
+    assert_eq!(task(&world, second).dependencies.as_ref(), &[first]);
+    assert!(!world.assigned.iter().any(|run| run.task == second));
+    let goal = world.assigned.iter().find(|run| run.task == first).unwrap().clone();
+    let change = tiers::produce(&mut world, &goal, 93, b"file", b"first goal's work");
+    let event =
+        world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    until(&mut world, LANDING_TICKS, "dependent starts at the first goal's landing", |world| {
+        world.assigned.iter().any(|run| run.task == second)
+    });
+    assert!(matches!(task(&world, first).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    assert!(matches!(task(&world, change).phase, tasks::Phase::Ended(tasks::Ending::Done(_))));
+    assert!(tiers::result(&world, change).contains("Ended at landing; after landing judges it later."));
+    assert_eq!(tier(&world).record.sequence, 0, "no tier judgement releases the dependent");
+    assert_eq!(tier_runs::red_news(&world, second).len(), 0);
+}
+
+#[test]
 fn a_milestones_first_projection_keeps_its_project_and_utf8_name_without_an_issue() {
     for (words, name) in [
         (b"Store shape\n\nIts words".to_vec(), b"Store shape".to_vec()),

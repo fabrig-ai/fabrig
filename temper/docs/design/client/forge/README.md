@@ -204,11 +204,13 @@ What the first milestone needs of the forge's parts (`../../README.md`,
 section 2, steps 6 and 7):
 
 - **Its result,** a connector's result (jig's
-  `client/domain/objects.md`, section 8), given at cleared
+  `client/domain/objects.md`, section 8), given at cleared, or at
+  landed where its project's kind 4 says `wait: landed`
   (`../../domain/after-landing.md`, section 6): landed, with its pull
   request's number and title, its merge commit (through GitHub's merge
   queue, the commit its group landed), and the address of each on the
-  forge, and cleared, or uncleared past the verification bound; or ended otherwise, with what became of its pull request
+  forge, and cleared, uncleared past the verification bound, or ended at
+  landing with after landing to judge it later; or ended otherwise, with what became of its pull request
   and its branch. It shows on the change's page, in the chat that
   delegated it, as its delegate's result, and in the update of the
   person who asked for it.

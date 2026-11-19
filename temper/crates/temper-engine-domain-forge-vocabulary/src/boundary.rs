@@ -1485,6 +1485,7 @@ pub enum Follows {
 /// A project's verification settings (temper/docs/design/domain/after-landing.md, 11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct AfterLanding {
+    pub wait: temper_engine_domain_forge_change::Wait,
     pub verdict: temper_engine_domain_forge_tiers::Settings,
     pub bound: skein_lib::Duration,
 }
@@ -3277,6 +3278,18 @@ pub struct LoggedLanding {
     pub branch: Box<[u8]>,
     pub at: skein_lib::Wall,
     pub changes: Box<[LoggedChange]>,
+    pub tiers: Box<[LoggedTier]>,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LoggedTier {
+    pub tier: Box<[u8]>,
+    pub verdict: LoggedVerdict,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LoggedVerdict {
+    Verifying,
+    Cleared { run: u64 },
+    Red { run: u64, failing: Option<u32> },
 }
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LoggedChange {
@@ -3284,6 +3297,8 @@ pub struct LoggedChange {
     pub task: u64,
     pub pull: Option<u64>,
     pub title: Box<[u8]>,
+    pub goal: Option<u64>,
+    pub milestone: Option<u64>,
 }
 
 /// The landing transitions reported to its member's goal (domain/landing.md, 4.2).

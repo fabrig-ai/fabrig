@@ -1159,3 +1159,37 @@ fn the_engine_declares_prepare_only_with_its_tasks_child_room() {
         assert_eq!(limits::jobs(&jig).contains(&bound), admitted);
     }
 }
+
+#[test]
+fn pending_landings_past_the_store_ceiling_refuse_both_startup_routes() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.landings_pending":241}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    for problems in [
+        fixtures::named(&document, &directories).unwrap_err(),
+        crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .unwrap_err(),
+    ] {
+        assert_eq!(crate::startup::lines(&problems).as_ref(), b"application.limits.overrides.forge.landings_pending: 241, past its bound of 240, the most the store's landing log holds beside forge.landings_kept 16 (within 256)\n");
+    }
+}
+
+#[test]
+fn pending_landings_and_members_share_the_store_comment_ceiling() {
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.limits",
+        br#"{"profile":"standard","overrides":{"forge.landings_pending":112,"forge.landing_members":64}}"#,
+    );
+    let directories = jig_protocol_config::Directories::working();
+    for problems in [
+        fixtures::named(&document, &directories).unwrap_err(),
+        crate::startup::store_limits(&document, &directories, Some(&fixtures::startup_agent().declaration()))
+            .unwrap_err(),
+    ] {
+        assert_eq!(crate::startup::lines(&problems).as_ref(), b"application.limits.overrides.forge.landings_pending: 112, past its bound of 100, the most the store's tier comments hold ((forge.landings_kept + forge.landings_pending) * forge.landing_members + forge.changes within 8192)\n");
+    }
+}

@@ -119,6 +119,7 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
 }
+#[expect(clippy::too_many_lines, reason = "resolved overrides are checked together before store sizing")]
 fn configured_limits(
     document: &Document,
     at: u32,
@@ -223,6 +224,7 @@ fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
             }),
         );
     }
+<<<<<<< HEAD
     let bound = temper_engine_domain_forge::FindingSignature::IDS;
     if limits.forge.tiers.failing_tests > bound {
         problems.push(
@@ -231,6 +233,38 @@ fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
         );
     }
     let bound = temper_engine_domain_forge::FindingSignature::ID_BYTES;
+=======
+    let ceiling = temper_protocol_store::v25::CEILINGS.landing_log_landings;
+    let bound = ceiling.saturating_sub(limits.forge.landings_kept);
+    if limits.forge.landings_pending > bound {
+        problems.push(
+            super::checks::own(b"forge.landings_pending"),
+            What::Half(crate::startup::EngineWhat::LandingPending {
+                count: limits.forge.landings_pending,
+                bound,
+                kept: limits.forge.landings_kept,
+                ceiling,
+            }),
+        );
+    }
+    let ceiling = temper_protocol_store::v25::CEILINGS.tier_posting_comments;
+    let bound = ceiling
+        .saturating_sub(limits.forge.changes)
+        .checked_div(limits.forge.landing_members)
+        .unwrap_or(0)
+        .saturating_sub(limits.forge.landings_kept);
+    if limits.forge.landings_pending > bound {
+        problems.push(
+            super::checks::own(b"forge.landings_pending"),
+            What::Half(crate::startup::EngineWhat::LandingComments {
+                count: limits.forge.landings_pending,
+                bound,
+                ceiling,
+            }),
+        );
+    }
+    let bound = temper_protocol_store::test_id_ceiling();
+>>>>>>> refs/manual/8773
     if limits.forge.tiers.test_id_bytes > bound {
         problems.push(
             super::checks::own(b"forge.tiers.test_id_bytes"),

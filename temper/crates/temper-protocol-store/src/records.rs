@@ -388,7 +388,7 @@ fn tier_limits(forge: &d::Limits) -> Option<w::Limits> {
         tier_record_flakes: forge.tiers.failing_tests,
         tier_flake_test: forge.tiers.test_id_bytes,
         tier_tests_tests: forge.tiers.failing_tests,
-        landing_log_landings: forge.landings_kept,
+        landing_log_landings: forge.landings_kept.checked_add(forge.landings_pending)?,
         logged_landing_changes: forge.landing_members,
         logged_landing_branch: forge.name_bytes,
         verification_changes: forge.changes,

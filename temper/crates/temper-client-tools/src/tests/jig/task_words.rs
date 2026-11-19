@@ -1031,6 +1031,34 @@ fn task_show_preserves_the_clearing_verdict_before_spending_its_budget_on_the_pu
 }
 
 #[test]
+fn task_show_keeps_the_ended_at_landing_line_whole_before_an_optional_pull_address() {
+    const ENDED: &str = "Ended at landing; after landing judges it later.";
+    for leading in [false, true] {
+        let original = cleared_words();
+        let at = skein_lib::bytes::find(&original, CLEARING.as_bytes()).unwrap();
+        let original = original.get(..at).unwrap();
+        let mut words = skein_lib::Writer::new(original.len().checked_add(ENDED.len() + 1).unwrap());
+        if leading {
+            let at = skein_lib::bytes::find(original, b"\n").unwrap().checked_add(1).unwrap();
+            for part in [original.get(..at).unwrap(), ENDED.as_bytes(), b"\n", original.get(at..).unwrap()] {
+                words.put(part).unwrap();
+            }
+        } else {
+            for part in [original, ENDED.as_bytes(), b"\n"] {
+                words.put(part).unwrap();
+            }
+        }
+        let words = words.finish();
+        let (mut root, call) = f::read_call(&["task", "show", "2"]);
+        root.limits.tools.text = 550;
+        root.serve(call, cleared_read(f::document_text(&words)));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 0);
+        assert!(f::has(&printed, ENDED.as_bytes()), "{printed:?}");
+    }
+}
+
+#[test]
 fn task_result_document_cut_and_ctl_json_budget_are_independent() {
     let words = cleared_words();
     let (core, mut limits, mut row) = f::source_task(b"Make a change");

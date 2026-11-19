@@ -58,6 +58,7 @@ pub const LIMITS: top::Limits = top::Limits {
     landings: 8,
     landing_members: 3,
     landings_kept: 16,
+    landings_pending: 64,
     changes_rows: 32,
     changes_landed: 8,
     gates: 2,
@@ -310,6 +311,7 @@ impl World {
             gates.clone(),
             self.landing_policy,
             top::AfterLanding {
+                wait: temper_engine_domain_forge_change::Wait::Cleared,
                 verdict: temper_engine_domain_forge_tiers::Settings {
                     retries: 2,
                     suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
@@ -1339,6 +1341,7 @@ impl World {
                 gates.clone(),
                 self.landing_policy,
                 top::AfterLanding {
+                    wait: temper_engine_domain_forge_change::Wait::Cleared,
                     verdict: temper_engine_domain_forge_tiers::Settings {
                         retries: 2,
                         suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
