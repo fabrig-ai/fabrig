@@ -1,5 +1,5 @@
 //! The complete event/action session policy, without io (client/drive.md, 2–6).
-use crate::line::{Line, Record, Web};
+use crate::line::{Line, Record, Tui, Web};
 use skein_browser::boundary::Trouble;
 use skein_fake_person::{Doing, Find};
 use skein_lib::{Duration, Time};
@@ -416,6 +416,8 @@ impl Machine {
         }
         let refused = match record {
             Record::Web(Web::Mark) => Some("web mark is a journey's line"),
+            Record::Tui(Tui::Mark) => Some("tui mark is a journey's line"),
+            Record::Tui(Tui::Approve) => Some("tui approve is a journey's line"),
             _ => self.place.refuse_line(record, self.plan.options.ctl),
         };
         if let Some(why) = refused {
