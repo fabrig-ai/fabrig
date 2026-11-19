@@ -91,7 +91,10 @@ does, in this order:
   the reason. Forming is judged for that train again at the first
   judgement at least the deployment's queue window (`forge.queue_window_ms`,
   `../protocol/configuration/limits.md`) after the refusal; other trains
-  form as ever. The train's next forming made forgets it, and a restart
+  form as ever. The domain's next deadline includes the earliest such
+  expiry still waiting, so a judgement comes then though no member wakes
+  it (a ready change keeps no timer of its own). The train's next
+  forming made forgets it, and a restart
   forgets every one, judging forming for every train (`landing.md`,
   section 15). So a refusal neither stops its train for good nor forms
   it again in its own decision.
