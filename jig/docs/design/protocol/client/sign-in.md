@@ -391,7 +391,7 @@
     the grant on its way, but it could read that client's credential
     already.
   - *Its records,* in `jig-client-protocol-wire`'s schema, from jig's
-    client wire 36 (the others unchanged): a source is an IPv6
+    client wire 37 (the others unchanged): a source is an IPv6
     address's 16 bytes, an IPv4 address as IPv4-mapped
     (`::ffff:a.b.c.d`, RFC 4291, 2.5.5.2), and none where the source is
     unknown; `reader` is the reading exchange's source.
