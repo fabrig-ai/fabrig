@@ -4801,6 +4801,7 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-io",
+ "skein-json",
  "skein-lib",
  "smith-channel",
  "smith-charter",

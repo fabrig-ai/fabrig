@@ -259,6 +259,71 @@ impl Drop for Live {
     }
 }
 
+/// This probe invokes only the program's local command, never a model turn.
+#[test]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the live probe bounds blocking stdout and its lifetime with Live's deadline and parent-death launch"
+)]
+fn a_live_usage_command_answers_without_spending() {
+    use std::io::Read;
+
+    let root = std::env::var_os("SMITH_LIVE").filter(|value| !value.is_empty()).expect("$SMITH_LIVE unset");
+    let root = smith_bench::guard::write_path(std::path::Path::new(&root)).expect("guarded $SMITH_LIVE");
+    let configuration = std::env::var_os("SMITH_LIVE_CLAUDE")
+        .filter(|value| !value.is_empty())
+        .map_or_else(|| root.join("programs/claude"), std::path::PathBuf::from);
+    let configuration = guarded_configuration(&configuration);
+    let probe = Probe::new();
+    let mut command = Command::new("claude");
+    command
+        .env_clear()
+        .env("PATH", std::env::var_os("PATH").expect("PATH for claude"))
+        .env("HOME", probe.home.path())
+        .env("CLAUDE_CONFIG_DIR", &configuration)
+        .env("ANTHROPIC_CONFIG_DIR", configuration.join("anthropic"))
+        .current_dir(probe.home.path())
+        .args(["-p", "/usage", "--output-format", "json", "--setting-sources", "user", "--tools", ""])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null());
+    let mut child =
+        skein_shell::spawn_dying_with_parent(&mut command, skein_io::kernel::Signal::Kill).expect("claude executable");
+    let stdout = child.stdout.take().expect("usage stdout");
+    let (sender, messages) = mpsc::channel();
+    std::thread::spawn(move || {
+        let mut bytes = Vec::new();
+        stdout
+            .take(u64::from(smith_protocol_program::USAGE_BYTES).saturating_add(1))
+            .read_to_end(&mut bytes)
+            .expect("usage output");
+        assert!(
+            bytes.len() <= usize::try_from(smith_protocol_program::USAGE_BYTES).expect("usage bound"),
+            "bounded usage answer"
+        );
+        let result = serde_json::from_slice(&bytes).expect("one JSON usage result");
+        let _ = sender.send(result);
+    });
+    let mut live = Live { child, probe, messages, configuration };
+    let result = live.message();
+    assert_eq!(result["type"], "result");
+    assert_eq!(result["is_error"], false, "the local command must not report an error");
+    if let Some(cost) = result.get("total_cost_usd") {
+        assert_eq!(cost.as_f64(), Some(0.0), "a usage read must spend nothing");
+    }
+    if let Some(usage) = result.get("usage") {
+        for (name, value) in usage.as_object().expect("usage counts") {
+            if name.ends_with("_tokens") {
+                assert_eq!(value.as_u64(), Some(0), "a usage read must name no tokens");
+            }
+        }
+    }
+    let text = result["result"].as_str().expect("usage words");
+    assert!(text.lines().any(|line| line.starts_with("Current session")), "the local command names the session window");
+    assert!(text.lines().any(|line| line.contains("% used")), "the local command words a share as percent used");
+    assert!(live.child.wait().expect("usage exit").success(), "the local command exits successfully");
+}
+
 #[test]
 fn a_live_summary_session_offers_no_tools() {
     const INIT_RECORDS: usize = 1000;

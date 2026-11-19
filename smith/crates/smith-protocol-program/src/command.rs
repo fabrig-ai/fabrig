@@ -75,6 +75,18 @@ impl Command {
         Self::spawn(io_owner, launch, None, STATUS_BYTES, deadline, detail_bytes, below)
     }
 
+    /// Spawn without stdin, capturing a caller-bounded answer (protocol/programs.md, 5.11).
+    pub fn with_output(
+        io_owner: Token,
+        launch: Launch,
+        output_bytes: u32,
+        deadline: Time,
+        detail_bytes: u32,
+        below: &mut Queue<io::Request>,
+    ) -> Self {
+        Self::spawn(io_owner, launch, None, output_bytes, deadline, detail_bytes, below)
+    }
+
     /// Spawn with one secret ask on stdin and a caller-bounded stdout capture (smith/docs/design/protocol/host.md, 2).
     pub fn with_input(
         io_owner: Token,
