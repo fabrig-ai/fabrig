@@ -227,6 +227,54 @@ class MacosTests(unittest.TestCase):
             ["cargo", "build", "-p", "smith-fake-claude", "--bin", "fake-claude"],
             ["cargo", "nextest", "run", "--no-run", "--profile", "default", "-p", "smith", "-p", "smith-world"]])
 
+    def test_part_builds_obey_nextest_no_run_rules(self):
+        # nextest 0.9.148 (the workflow's NEXTEST_VERSION) refuses these with --no-run.
+        no_run_conflicts = ("--no-fail-fast",)
+
+        def check_nextest(argv):
+            self.assertEqual(argv[:3], ["cargo", "nextest", "run"])
+            self.assertIn("--no-run", argv)
+            for flag in no_run_conflicts:
+                self.assertNotIn(flag, argv)
+
+        example = ["cargo", "nextest", "run", "-p", "temper-box",
+                   "--profile", "process-temper", "--no-run"]
+        check_nextest(example)
+        for flag in no_run_conflicts:
+            with self.assertRaises(AssertionError):
+                check_nextest([*example, flag])
+
+        tiers = HELPER.resolve().parents[1] / "tiers"
+        fake = runpy.run_path(str(tiers / "test_run.py"))["FAKE"]
+        pairs = [pair for pair in self.table if pair != "test-binaries"]
+        self.file(".config/nextest.toml", ''.join(f'[profile.{pair}]\n' for pair in pairs))
+        self.file("tools/tiers/packages.toml", ''.join(
+            f'{pair} = {json.dumps(self.table[pair])}\n' for pair in pairs) +
+            '[binaries]\n' + ''.join(f'{pair} = []\n' for pair in pairs))
+        self.file("tools/tiers/bundles.toml", (tiers / "bundles.toml").read_text())
+        for name in ("bin/cargo", "artifacts/debug/skein-ui-bundle", "temper/scripts/bundle.sh"):
+            self.file(name, fake).chmod(0o700)
+        calls_path = self.root / "calls.jsonl"
+        env = dict(PATH=f"{self.root / 'bin'}:{Path(sys.executable).parent}:{os.defpath}",
+                   ARTIFACTS=str(self.root / "artifacts"), CALLS=str(calls_path),
+                   TEMPER_INTERNAL_BUNDLE="none")
+        for part in ("process", "browser", "live"):
+            commands = [command for command in M["build_commands"](part, self.table, None)
+                        if command[0] == "tools/tiers/run"]
+            self.assertTrue(commands, part)
+            for command in commands:
+                with self.subTest(part=part, command=command):
+                    calls_path.unlink(missing_ok=True)
+                    result = subprocess.run([sys.executable, "-I", "-B", str(tiers / "run"), *command[1:]],
+                                            cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                            text=True, capture_output=True, timeout=15)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    calls = [json.loads(line) for line in calls_path.read_text().splitlines()]
+                    nextest = [[call['name'], *call['args']] for call in calls
+                               if call['name'] == "cargo" and call['args'][:2] == ["nextest", "run"]]
+                    self.assertEqual(len(nextest), 1)
+                    check_nextest(nextest[0])
+
     def test_run_selection_skips_build_only_and_intersects_live_story(self):
         with mock.patch.dict(os.environ, GIVEN="true"):
             self.assertEqual(M["run_arguments"]("process", ["build.process"], self.table), [])
