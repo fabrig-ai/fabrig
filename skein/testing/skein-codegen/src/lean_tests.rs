@@ -1,4 +1,4 @@
-//! Lean surface and helper fixture drift (data/codec/contracts.md, 1).
+//! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
 
 use crate::{Form, generate, generate_as, parse};
 
