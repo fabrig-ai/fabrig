@@ -5,45 +5,40 @@ use crate::pages::team::hand::{self, Act};
 use jig_client::{Answered, Down, Outcome, Readout};
 use skein_lib::{Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 const REVISION: u32 = 4;
 fn party(number: u64) -> w::AreaOwner {
-    w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number }).unwrap())
+    w::AreaOwner::Party(w::AreaParty { number })
 }
 fn task(number: u64) -> w::AreaOwner {
-    w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap())
+    w::AreaOwner::Task(w::AreaTask { number })
 }
 fn charter(number: u32) -> w::AreaOwner {
-    w::AreaOwner::Charter(w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number }).unwrap())
+    w::AreaOwner::Charter(w::AreaCharter { number })
 }
 fn owner_role() -> w::AreaOwner {
-    w::AreaOwner::Role(w::AreaRole::new(&w::CEILINGS, w::AreaRoleParts { number: 0 }).unwrap())
+    w::AreaOwner::Role(w::AreaRole { number: 0 })
 }
 fn holder() -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).unwrap())
+    w::Holder::Task(w::HolderTask { number: 52 })
 }
 fn record(rows: &[(&[u8], w::AreaOwner)]) -> w::ProjectAreas {
     let mut areas = List::with_capacity(u32::try_from(rows.len()).unwrap());
     for (name, owner) in rows {
         areas
-            .push(
-                w::Area::new(
-                    &w::CEILINGS,
-                    w::AreaParts {
-                        name: (*name).into(),
-                        words: if *name == b"tests" {
-                            b"Tests, fuzzing and the tiers".as_slice().into()
-                        } else {
-                            b"The core".as_slice().into()
-                        },
-                        owner: owner.clone(),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::Area {
+                name: (*name).into(),
+                words: if *name == b"tests" {
+                    b"Tests, fuzzing and the tiers".as_slice().into()
+                } else {
+                    b"The core".as_slice().into()
+                },
+                owner: owner.clone(),
+            })
             .unwrap();
     }
-    w::ProjectAreas::new(&w::CEILINGS, w::ProjectAreasParts { areas }).unwrap()
+    w::ProjectAreas { areas }
 }
 fn fixture(owner: bool, rows: &[(&[u8], w::AreaOwner)]) -> Reads {
     let mut f = reads_fixture();
@@ -74,24 +69,18 @@ fn fixture(owner: bool, rows: &[(&[u8], w::AreaOwner)]) -> Reads {
     document.requester = c::Requester::Person(YOU);
     delivered(&mut f, handle, watch, c::Delivery::Task(Box::new(document)));
     let mut areas = List::with_capacity(u32::try_from(rows.len()).unwrap());
-    for row in record(rows).areas() {
-        let held = match row.owner() {
-            w::AreaOwner::Task(task) => {
-                w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: task.number() }).unwrap())
-            }
-            w::AreaOwner::Party(party) => w::Holder::Party(
-                w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: party.number() }).unwrap(),
-            ),
-            w::AreaOwner::Role(role) => {
-                w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: role.number() }).unwrap())
-            }
+    for row in &record(rows).areas {
+        let held = match &row.owner {
+            w::AreaOwner::Task(task) => w::Holder::Task(w::HolderTask { number: task.number }),
+            w::AreaOwner::Party(party) => w::Holder::Party(w::HolderParty { number: party.number }),
+            w::AreaOwner::Role(role) => w::Holder::Role(w::HolderRole { number: role.number }),
             w::AreaOwner::Charter(_) => holder(),
         };
         areas
             .push(team::Area {
-                name: row.name().into(),
-                words: row.words().into(),
-                owner: row.owner().clone(),
+                name: row.name.clone(),
+                words: row.words.clone(),
+                owner: row.owner.clone(),
                 holder: Some(held),
             })
             .unwrap();
@@ -158,8 +147,11 @@ fn reading(out: &Queue<crate::Request>, revision: u32) -> Token {
 fn deliver_record(f: &mut Reads, read: Token, revision: u32, value: Option<w::ProjectAreas>) -> Queue<crate::Request> {
     let value = match value {
         Some(record) => {
-            let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-            record.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(
+                usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                    .unwrap(),
+            );
+            record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
             Some(c::SettingValue::Application(writer.finish()))
         }
         None => None,

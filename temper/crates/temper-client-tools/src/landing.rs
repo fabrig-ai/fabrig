@@ -21,6 +21,7 @@ use jig_client::{Client, Event, Handle, Latest, Readable, Readout, State, Told, 
 use skein_json::writer::Encoder;
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const READ: Tool = Tool {
@@ -166,21 +167,17 @@ fn open(watch: &mut Watching, limits: &Limits, out: &mut Queue<Out>) {
 pub(crate) fn subject(task: Option<u64>, project: u32, ended: bool, limits: &Limits) -> Watchable {
     let limits = forge::wire_limits(&limits.domain.forge).expect("checked limits");
     let watch = match task {
-        Some(task) => {
-            w::Watch::Landing(w::LandingSubject::new(&limits, w::LandingSubjectParts { task }).expect("subject"))
-        }
-        None => w::Watch::Landings(
-            w::LandingsSubject::new(&limits, w::LandingsSubjectParts { project, ended }).expect("subject"),
-        ),
+        Some(task) => w::Watch::Landing(w::LandingSubject { task }),
+        None => w::Watch::Landings(w::LandingsSubject { project, ended }),
     };
-    let watching = w::Watching::new(&limits, w::WatchingParts { watch }).expect("watch");
+    let watching = w::Watching { watch };
     Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::watching(&watching),
+            bytes: watching.encode(&limits).expect("watch"),
         },
     }
 }
@@ -204,6 +201,7 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
     match watch.task {
         Some(task) => missing(task, watch.called.json),
         None => print_list(
+<<<<<<< HEAD
             &w::LandingsPanel::new(
                 &w::CEILINGS,
                 w::LandingsPanelParts {
@@ -215,6 +213,13 @@ fn gone(watch: &Watching, limits: &Limits) -> jig::Printed {
                 },
             )
             .expect("empty list"),
+=======
+            &w::LandingsPanel {
+                project: watch.project.expect("resolved project"),
+                turn: None,
+                landings: skein_lib::List::with_capacity(0),
+            },
+>>>>>>> refs/hand6/10247
             watch.called.json,
             limits,
         ),
@@ -307,7 +312,7 @@ fn read_document(watch: &Watching, latest: Option<&Latest>, env: &Env<Limits>) -
             match watch.task {
                 Some(task) => read_landing(watch, task, &record.bytes, &limits, &env.limits),
                 None => match wire::decode_landings_panel(&record.bytes, &limits) {
-                    Some(panel) if Some(panel.project()) == watch.project => {
+                    Some(panel) if Some(panel.project) == watch.project => {
                         print_list(&panel, watch.called.json, &env.limits)
                     }
                     _ => render::failure(b"unexpected landings document", watch.called.json, 1),
@@ -319,11 +324,11 @@ fn read_document(watch: &Watching, latest: Option<&Latest>, env: &Env<Limits>) -
 }
 fn read_landing(watch: &Watching, task: u64, bytes: &[u8], limits: &w::Limits, root: &Limits) -> jig::Printed {
     if let Some(panel) = wire::decode_landing_panel(bytes, limits) {
-        if panel.task() == task && Some(panel.project()) == watch.project {
+        if panel.task == task && Some(panel.project) == watch.project {
             return print(&panel, watch.called.json, root);
         }
     } else if let Some(panel) = wire::decode_change_panel(bytes, limits)
-        && panel.task() == task
+        && panel.task == task
     {
         return missing(task, watch.called.json);
     }
@@ -352,27 +357,27 @@ fn hex(bytes: &[u8; 32]) -> [u8; 64] {
     digits
 }
 fn receipt_text(receipt: &w::Receipted, out: &mut Text) {
-    out.number(receipt.run());
+    out.number(receipt.run);
     out.put(b" \xc2\xb7 ");
-    out.put(receipt.address());
+    out.put(&receipt.address);
 }
 fn gate_text(gate: &w::GateProof, out: &mut Text) {
     out.put(b"  gate ");
-    out.put(gate.name());
-    out.put(if gate.blocking() { b", blocking: " } else { b", advisory: " });
-    if let Some(key) = gate.key() {
+    out.put(&gate.name);
+    out.put(if gate.blocking { b", blocking: " } else { b", advisory: " });
+    if let Some(key) = &gate.key {
         out.put(b"key ");
         out.put(hex(key).get(..16).expect("key prefix"));
         out.put(b", ");
     }
-    match gate.proof() {
+    match &gate.proof {
         w::Proof::Unkeyed => out.put(b"no key yet"),
         w::Proof::Keyed => out.put(b"keyed"),
         w::Proof::Dispatched(dispatched) => {
             out.put(b"dispatched (try ");
-            out.number(u64::from(dispatched.attempt()));
+            out.number(u64::from(dispatched.attempt));
             out.put(b")");
-            if let Some(run) = dispatched.run() {
+            if let Some(run) = &dispatched.run {
                 out.put(b", run ");
                 out.number(*run);
             }
@@ -387,96 +392,100 @@ fn gate_text(gate: &w::GateProof, out: &mut Text) {
             receipt_text(receipt, out);
         }
     }
-    if gate.faults() > 0 {
+    if gate.faults > 0 {
         out.put(b", ");
-        out.number(u64::from(gate.faults()));
+        out.number(u64::from(gate.faults));
         out.put(b" runner faults");
     }
     out.put(b"\n");
 }
 fn text(panel: &w::LandingPanel, out: &mut Text) {
     out.put(b"landing ");
-    out.number(panel.task());
+    out.number(panel.task);
     out.put(b" \xc2\xb7 project ");
-    out.number(u64::from(panel.project()));
+    out.number(u64::from(panel.project));
     out.put(b" \xc2\xb7 ");
-    out.put(phase(panel.phase()));
+    out.put(phase(&panel.phase));
     out.put(b"\n");
+<<<<<<< HEAD
     if panel.round().is_none() && details::live(panel.phase()) {
         waits::text(panel.waits().as_ref(), out);
     }
     if let Some(train) = panel.train() {
+=======
+    if let Some(train) = &panel.train {
+>>>>>>> refs/hand6/10247
         details::train_text(train, out);
         out.put(b"\n");
     }
-    if let Some(round) = panel.round() {
+    if let Some(round) = &panel.round {
         details::round_text(round, out);
         if details::live(panel.phase()) {
             waits::text(panel.waits().as_ref(), out);
         }
     }
-    for member in panel.members() {
+    for member in &panel.members {
         out.put(b"member: change ");
-        out.number(member.change());
+        out.number(member.change);
         out.put(b" \xc2\xb7 ");
-        out.put(member.owner());
+        out.put(&member.owner);
         out.put(b"/");
-        out.put(member.name());
+        out.put(&member.name);
         out.put(b" on forge ");
-        out.number(u64::from(member.forge()));
+        out.number(u64::from(member.forge));
         out.put(b" \xc2\xb7 ");
-        out.put(member.branch());
+        out.put(&member.branch);
         out.put(b" into ");
-        out.put(member.landing());
+        out.put(&member.landing);
         out.put(b"\n");
-        if let Some(pull) = member.pull() {
+        if let Some(pull) = &member.pull {
             out.put(b"  pull request #");
-            out.number(pull.number());
+            out.number(pull.number);
             out.put(b" \xc2\xb7 ");
-            out.put(pull.address());
+            out.put(&pull.address);
             out.put(b"\n");
         }
-        if let Some(landed) = member.landed() {
+        if let Some(landed) = &member.landed {
             out.put(b"  landed: ");
-            out.put(member.landing());
+            out.put(&member.landing);
             out.put(b" at ");
             out.put(&hex(landed));
             out.put(b"\n");
         }
-        if let (Some(candidate), Some(base)) = (member.candidate(), member.base()) {
+        if let (Some(candidate), Some(base)) = (&member.candidate, &member.base) {
             out.put(b"  candidate ");
             out.put(&hex(candidate));
             out.put(b" on ");
-            out.put(member.landing());
+            out.put(&member.landing);
             out.put(b" ");
             out.put(&hex(base));
         } else {
             out.put(b"  candidate: not prepared");
         }
         out.put(b"\n");
-        details::member_text(member, panel.round().as_ref(), out);
-        for gate in member.gates() {
+        details::member_text(member, panel.round.as_ref(), out);
+        for gate in &member.gates {
             gate_text(gate, out);
         }
     }
-    if let Some(w::LandingHold::Faults(faults)) = panel.hold()
-        && let Some(member) = panel.members().get(u32::from(faults.member()))
-        && let Some(gate) = member.gates().get(u32::from(faults.gate()))
+    if let Some(w::LandingHold::Faults(faults)) = &panel.hold
+        && let Some(member) = panel.members.get(u32::from(faults.member))
+        && let Some(gate) = member.gates.get(u32::from(faults.gate))
     {
         out.put(b"held: gate ");
-        out.put(gate.name());
+        out.put(&gate.name);
         out.put(b" of ");
-        out.put(member.owner());
+        out.put(&member.owner);
         out.put(b"/");
-        out.put(member.name());
+        out.put(&member.name);
         out.put(b" failed on its runner past its retries\n");
     }
-    if let Some(hold) = panel.hold() {
+    if let Some(hold) = &panel.hold {
         details::hold_text(hold, out);
     }
-    match panel.turn() {
+    match &panel.turn {
         None => out.put(b"turn: free\n"),
-        Some(turn) if *turn == panel.task() => out.put(b"turn: this landing's\n"),
+        Some(turn) if *turn == panel.task => out.put(b"turn: this landing's\n"),
         Some(turn) => {
             out.put(b"turn: landing ");
             out.number(*turn);
@@ -484,16 +493,16 @@ fn text(panel: &w::LandingPanel, out: &mut Text) {
         }
     }
     out.put(b"preparations: ");
-    out.number(u64::from(panel.preparation()));
+    out.number(u64::from(panel.preparation));
     out.put(b" \xc2\xb7 stale rounds: ");
-    out.number(u64::from(panel.stale_proofs()));
+    out.number(u64::from(panel.stale_proofs));
     out.put(b"\n");
 }
 fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
     out.put(b"landings of project ");
-    out.number(u64::from(panel.project()));
+    out.number(u64::from(panel.project));
     out.put(b" \xc2\xb7 turn: ");
-    match panel.turn() {
+    match &panel.turn {
         Some(turn) => {
             out.put(b"landing ");
             out.number(*turn);
@@ -505,32 +514,33 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
         None => out.put(b"free"),
     }
     out.put(b"\n");
-    if panel.landings().is_empty() {
+    if panel.landings.is_empty() {
         out.put(b"no landings\n");
     }
     // The wire is bounded to 64 rows; order without allocating another panel.
     let mut previous = None;
-    for _ in 0..panel.landings().len() {
+    for _ in 0..panel.landings.len() {
         let mut next: Option<&w::LandingLine> = None;
-        for line in panel.landings() {
-            let rank = (details::live(line.phase()), line.task());
+        for line in &panel.landings {
+            let rank = (details::live(&line.phase), line.task);
             if let Some(previous) = previous
                 && rank >= previous
             {
                 continue;
             }
             if let Some(old) = next
-                && rank <= (details::live(old.phase()), old.task())
+                && rank <= (details::live(&old.phase), old.task)
             {
                 continue;
             }
             next = Some(line);
         }
         let Some(line) = next else { break };
-        previous = Some((details::live(line.phase()), line.task()));
+        previous = Some((details::live(&line.phase), line.task));
         out.put(b"landing ");
-        out.number(line.task());
+        out.number(line.task);
         out.put(b" \xc2\xb7 ");
+<<<<<<< HEAD
         out.put(phase(line.phase()));
         if details::live(line.phase()) {
             if let Some(step) = line.step() {
@@ -546,25 +556,28 @@ fn list_text(panel: &w::LandingsPanel, out: &mut Text) {
                 None => out.put(b"unknown"),
             }
         }
+=======
+        out.put(phase(&line.phase));
+>>>>>>> refs/hand6/10247
         out.put(b" \xc2\xb7 change ");
-        for (i, change) in line.changes().iter().enumerate() {
+        for (i, change) in line.changes.iter().enumerate() {
             if i > 0 {
                 out.put(b", ");
             }
             out.number(*change);
         }
         out.put(b" \xc2\xb7 ");
-        for (i, repository) in line.repositories().iter().enumerate() {
+        for (i, repository) in line.repositories.iter().enumerate() {
             if i > 0 {
                 out.put(b", ");
             }
             out.put(repository);
         }
-        if let Some(train) = line.train() {
+        if let Some(train) = &line.train {
             out.put(b" \xc2\xb7 ");
             details::train_text(train, out);
         }
-        for landed in line.landed() {
+        for landed in &line.landed {
             out.put(b" \xc2\xb7 landed at ");
             out.put(hex(landed).get(..12).expect("commit prefix"));
         }
@@ -591,11 +604,11 @@ fn receipt_json(key: &[u8], value: &w::Receipted, out: &mut Encoder) {
     out.key(key);
     out.object_start();
     out.key(b"run");
-    out.unsigned(value.run());
+    out.unsigned(value.run);
     out.key(b"number");
-    out.unsigned(value.number());
+    out.unsigned(value.number);
     out.key(b"address");
-    out.string(value.address());
+    out.string(&value.address);
     out.object_end();
     out.object_end();
 }
@@ -609,9 +622,9 @@ fn proof_json(proof: &w::Proof, out: &mut Encoder) {
             out.key(b"dispatched");
             out.object_start();
             out.key(b"attempt");
-            out.unsigned(u64::from(value.attempt()));
+            out.unsigned(u64::from(value.attempt));
             out.key(b"run");
-            optional_number(value.run().as_ref(), out);
+            optional_number(value.run.as_ref(), out);
             out.object_end();
             out.object_end();
         }
@@ -622,10 +635,11 @@ fn proof_json(proof: &w::Proof, out: &mut Encoder) {
 fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
     out.object_start();
     out.key(b"task");
-    out.unsigned(panel.task());
+    out.unsigned(panel.task);
     out.key(b"project");
-    out.unsigned(u64::from(panel.project()));
+    out.unsigned(u64::from(panel.project));
     out.key(b"phase");
+<<<<<<< HEAD
     phase_json(panel.phase(), out);
     out.key(b"waits");
     waits::json(
@@ -633,60 +647,63 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
         details::live(panel.phase()),
         out,
     );
+=======
+    phase_json(&panel.phase, out);
+>>>>>>> refs/hand6/10247
     out.key(b"hold");
-    match panel.hold() {
+    match &panel.hold {
         Some(value) => details::hold_json(value, out),
         None => out.null(),
     }
     out.key(b"members");
     out.array_start();
-    for member in panel.members() {
+    for member in &panel.members {
         out.object_start();
         out.key(b"change");
-        out.unsigned(member.change());
+        out.unsigned(member.change);
         out.key(b"forge");
-        out.unsigned(u64::from(member.forge()));
+        out.unsigned(u64::from(member.forge));
         for (key, value) in [
-            (b"owner".as_slice(), member.owner()),
-            (b"name", member.name()),
-            (b"branch", member.branch()),
-            (b"landing", member.landing()),
+            (b"owner".as_slice(), &member.owner),
+            (b"name", &member.name),
+            (b"branch", &member.branch),
+            (b"landing", &member.landing),
         ] {
             out.key(key);
             out.string(value);
         }
         out.key(b"pull");
-        match member.pull() {
+        match &member.pull {
             Some(pull) => {
                 out.object_start();
                 out.key(b"number");
-                out.unsigned(pull.number());
+                out.unsigned(pull.number);
                 out.key(b"address");
-                out.string(pull.address());
+                out.string(&pull.address);
                 out.object_end();
             }
             None => out.null(),
         }
         for (key, value) in
-            [(b"base".as_slice(), member.base()), (b"candidate", member.candidate()), (b"landed", member.landed())]
+            [(b"base".as_slice(), &member.base), (b"candidate", &member.candidate), (b"landed", &member.landed)]
         {
             out.key(key);
             optional_hex(value.as_ref(), out);
         }
         out.key(b"gates");
         out.array_start();
-        for gate in member.gates() {
+        for gate in &member.gates {
             out.object_start();
             out.key(b"name");
-            out.string(gate.name());
+            out.string(&gate.name);
             out.key(b"blocking");
-            out.boolean(gate.blocking());
+            out.boolean(gate.blocking);
             out.key(b"key");
-            optional_hex(gate.key().as_ref(), out);
+            optional_hex(gate.key.as_ref(), out);
             out.key(b"proof");
-            proof_json(gate.proof(), out);
+            proof_json(&gate.proof, out);
             out.key(b"faults");
-            out.unsigned(u64::from(gate.faults()));
+            out.unsigned(u64::from(gate.faults));
             out.object_end();
         }
         out.array_end();
@@ -695,15 +712,15 @@ fn encode(panel: &w::LandingPanel, out: &mut Encoder) {
     }
     out.array_end();
     out.key(b"preparation");
-    out.unsigned(u64::from(panel.preparation()));
+    out.unsigned(u64::from(panel.preparation));
     out.key(b"stale_proofs");
-    out.unsigned(u64::from(panel.stale_proofs()));
+    out.unsigned(u64::from(panel.stale_proofs));
     out.key(b"turn");
-    optional_number(panel.turn().as_ref(), out);
+    optional_number(panel.turn.as_ref(), out);
     out.key(b"train");
-    details::train_json(panel.train().as_ref(), out);
+    details::train_json(panel.train.as_ref(), out);
     out.key(b"round");
-    details::round_json(panel.round().as_ref(), out);
+    details::round_json(panel.round.as_ref(), out);
     out.object_end();
 }
 fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
@@ -713,34 +730,35 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
     out.key(b"turn_since");
     optional_number(panel.turn_since().as_ref(), out);
     out.key(b"project");
-    out.unsigned(u64::from(panel.project()));
+    out.unsigned(u64::from(panel.project));
     out.key(b"turn");
-    optional_number(panel.turn().as_ref(), out);
+    optional_number(panel.turn.as_ref(), out);
     out.key(b"landings");
     out.array_start();
     let mut previous = None;
-    for _ in 0..panel.landings().len() {
+    for _ in 0..panel.landings.len() {
         let mut next: Option<&w::LandingLine> = None;
-        for line in panel.landings() {
-            let rank = (details::live(line.phase()), line.task());
+        for line in &panel.landings {
+            let rank = (details::live(&line.phase), line.task);
             if let Some(previous) = previous
                 && rank >= previous
             {
                 continue;
             }
             if let Some(old) = next
-                && rank <= (details::live(old.phase()), old.task())
+                && rank <= (details::live(&old.phase), old.task)
             {
                 continue;
             }
             next = Some(line);
         }
         let Some(line) = next else { break };
-        previous = Some((details::live(line.phase()), line.task()));
+        previous = Some((details::live(&line.phase), line.task));
         out.object_start();
         out.key(b"task");
-        out.unsigned(line.task());
+        out.unsigned(line.task);
         out.key(b"phase");
+<<<<<<< HEAD
         phase_json(line.phase(), out);
         out.key(b"step");
         match line.step() {
@@ -749,26 +767,29 @@ fn encode_list(panel: &w::LandingsPanel, out: &mut Encoder) {
         }
         out.key(b"last_event");
         optional_number(line.last_event().as_ref(), out);
+=======
+        phase_json(&line.phase, out);
+>>>>>>> refs/hand6/10247
         out.key(b"changes");
         out.array_start();
-        for change in line.changes() {
+        for change in &line.changes {
             out.unsigned(*change);
         }
         out.array_end();
         out.key(b"repositories");
         out.array_start();
-        for repository in line.repositories() {
+        for repository in &line.repositories {
             out.string(repository);
         }
         out.array_end();
         out.key(b"landed");
         out.array_start();
-        for landed in line.landed() {
+        for landed in &line.landed {
             out.string(&hex(landed));
         }
         out.array_end();
         out.key(b"train");
-        details::train_json(line.train().as_ref(), out);
+        details::train_json(line.train.as_ref(), out);
         out.object_end();
     }
     out.array_end();

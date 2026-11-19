@@ -753,7 +753,7 @@ impl Composition {
                     && family == wire::FORGE
                     && version == wire::CLIENT_VERSION
                     && wire::decode_reading(&record, &w::CEILINGS)
-                        .is_some_and(|reading| *reading.read() == w::Read::Playground) =>
+                        .is_some_and(|reading| reading.read == w::Read::Playground) =>
             {
                 self.event(Event::Application(clients::FromApplication::Read {
                     reply,
@@ -1068,8 +1068,8 @@ fn list<const N: usize, T>(values: [T; N]) -> skein_lib::List<T> {
 fn family_subject(record: &jig_client::Family, scope: c::Scope) -> jig_client_test_domain::family::Subject {
     use jig_client_test_domain::family::{Kind, Scope, Subject};
     let task = temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-        .and_then(|watching| match watching.into_parts().watch {
-            temper_client_protocol_wire::v1::Watch::Change(change) => Some(change.task()),
+        .and_then(|watching| match watching.watch {
+            temper_client_protocol_wire::v1::Watch::Change(change) => Some(change.task),
             temper_client_protocol_wire::v1::Watch::Forges
             | temper_client_protocol_wire::v1::Watch::Findings(_)
             | temper_client_protocol_wire::v1::Watch::Drafts(_)

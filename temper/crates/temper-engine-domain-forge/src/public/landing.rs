@@ -2,6 +2,7 @@
 use super::{Names, phase, policy, w};
 use crate::{Check, Domain, ReceiptKey};
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 impl Domain {
     pub(super) fn make_landing(&self, row: &policy::Landing, names: &mut Names) -> Option<w::PublicLanding> {
         let l = &w::CEILINGS;
@@ -13,61 +14,42 @@ impl Domain {
                 let gate = self.landing.gates(row.project, change.repository).get(index)?;
                 let proof = self.public_proof(row, member_index, index, saved.proof)?;
                 gates
-                    .push(
-                        w::PublicGateProof::new(
-                            l,
-                            w::PublicGateProofParts {
-                                number: u64::try_from(index).ok()?,
-                                kind: w::PublicGateKind::Check,
-                                blocks: gate.blocking,
-                                proof,
-                                faults: saved.faults,
-                            },
-                        )
-                        .ok()?,
-                    )
+                    .push(w::PublicGateProof {
+                        number: u64::try_from(index).ok()?,
+                        kind: w::PublicGateKind::Check,
+                        blocks: gate.blocking,
+                        proof,
+                        faults: saved.faults,
+                    })
                     .ok()?;
             }
             members
-                .push(
-                    w::PublicMember::new(
-                        l,
-                        w::PublicMemberParts {
-                            task: names.name(member.change)?,
-                            head: member.head,
-                            left: match member.left {
-                                Some(value) => Some(left(value)?),
-                                None => None,
-                            },
-                            judgement: match self.prefix_judgement(row, member) {
-                                Some(value) => Some(make_judgement(value)?),
-                                None => None,
-                            },
-                            base: member.base,
-                            candidate: member.candidate,
-                            landed: member.landed,
-                            gates,
-                        },
-                    )
-                    .ok()?,
-                )
+                .push(w::PublicMember {
+                    task: names.name(member.change)?,
+                    head: member.head,
+                    left: match member.left {
+                        Some(value) => Some(left(value)),
+                        None => None,
+                    },
+                    judgement: match self.prefix_judgement(row, member) {
+                        Some(value) => Some(make_judgement(value)?),
+                        None => None,
+                    },
+                    base: member.base,
+                    candidate: member.candidate,
+                    landed: member.landed,
+                    gates,
+                })
                 .ok()?;
         }
-        w::PublicLanding::new(
-            l,
-            w::PublicLandingParts {
+        {
+            let value = w::PublicLanding {
                 search: match &row.round.search {
-                    Some(search) => Some(
-                        w::PublicSearch::new(
-                            l,
-                            w::PublicSearchParts {
-                                green: search_bound(row, search.green)?,
-                                red: search_bound(row, search.red)?,
-                                probe: crate::views::landing_probe(self, row),
-                            },
-                        )
-                        .ok()?,
-                    ),
+                    Some(search) => Some(w::PublicSearch {
+                        green: search_bound(row, search.green)?,
+                        red: search_bound(row, search.red)?,
+                        probe: crate::views::landing_probe(self, row),
+                    }),
                     None => None,
                 },
                 phase: phase(&row.phase),
@@ -97,9 +79,10 @@ impl Domain {
                     None => None,
                 },
                 step: Some(step(crate::views::landing_step(self, row))),
-            },
-        )
-        .ok()
+            };
+            value.measure(l).ok()?;
+            Some(value)
+        }
     }
     fn public_proof(
         &self,
@@ -152,22 +135,18 @@ fn step(value: crate::LandingStep) -> w::PublicLandingStep {
         S::Telling => w::PublicLandingStep::Telling,
     }
 }
-fn left(value: policy::Leave) -> Option<w::PublicLeave> {
-    Some(match value {
+fn left(value: policy::Leave) -> w::PublicLeave {
+    match value {
         policy::Leave::Conflict | policy::Leave::EarlierConflict => w::PublicLeave::Conflict,
         policy::Leave::Unit { .. } | policy::Leave::Dependency { .. } | policy::Leave::Held => w::PublicLeave::Held,
         policy::Leave::HeadMoved { .. } => w::PublicLeave::HeadMoved,
         policy::Leave::Cancelled => w::PublicLeave::Cancelled,
-        policy::Leave::Refused { gate } => {
-            w::PublicLeave::Refused(w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate }).ok()?)
+        policy::Leave::Refused { gate } => w::PublicLeave::Refused(w::PublicGateNumber { gate }),
+        policy::Leave::Failed { gate, .. } => w::PublicLeave::Failed(w::PublicGateNumber { gate: u64::from(gate) }),
+        policy::Leave::Blamed { gate, red, green, .. } => {
+            w::PublicLeave::Blamed(w::PublicBlamed { gate: u64::from(gate), red, green })
         }
-        policy::Leave::Failed { gate, .. } => w::PublicLeave::Failed(
-            w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(gate) }).ok()?,
-        ),
-        policy::Leave::Blamed { gate, red, green, .. } => w::PublicLeave::Blamed(
-            w::PublicBlamed::new(&w::CEILINGS, w::PublicBlamedParts { gate: u64::from(gate), red, green }).ok()?,
-        ),
-    })
+    }
 }
 
 fn search_bound(row: &policy::Landing, member: u16) -> Option<w::PublicSearchBound> {
@@ -183,7 +162,11 @@ fn search_bound(row: &policy::Landing, member: u16) -> Option<w::PublicSearchBou
             return None;
         }
     };
-    w::PublicSearchBound::new(&w::CEILINGS, w::PublicSearchBoundParts { member, prefix }).ok()
+    {
+        let value = w::PublicSearchBound { member, prefix };
+        value.measure(&w::CEILINGS).ok()?;
+        Some(value)
+    }
 }
 
 fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {
@@ -191,33 +174,26 @@ fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {
     let mut gates = List::with_capacity(l.public_judgement_gates);
     for gate in value.gates {
         gates
-            .push(
-                w::PublicGate::new(
-                    l,
-                    w::PublicGateParts {
-                        number: gate.number,
-                        kind: match gate.kind {
-                            temper_engine_domain_forge_change::GateKind::Agent => w::PublicGateKind::Review,
-                            temper_engine_domain_forge_change::GateKind::Person => w::PublicGateKind::Approval,
-                            temper_engine_domain_forge_change::GateKind::Check
-                            | temper_engine_domain_forge_change::GateKind::Follow => w::PublicGateKind::Check,
-                        },
-                        blocks: gate.blocking,
-                        verdict: match gate.verdict {
-                            temper_engine_domain_forge_change::Status::Unknown => w::PublicVerdict::None,
-                            temper_engine_domain_forge_change::Status::Pending => w::PublicVerdict::Pending,
-                            temper_engine_domain_forge_change::Status::Passed => w::PublicVerdict::Approved,
-                            temper_engine_domain_forge_change::Status::Failed => w::PublicVerdict::Changes,
-                        },
-                    },
-                )
-                .ok()?,
-            )
+            .push(w::PublicGate {
+                number: gate.number,
+                kind: match gate.kind {
+                    temper_engine_domain_forge_change::GateKind::Agent => w::PublicGateKind::Review,
+                    temper_engine_domain_forge_change::GateKind::Person => w::PublicGateKind::Approval,
+                    temper_engine_domain_forge_change::GateKind::Check
+                    | temper_engine_domain_forge_change::GateKind::Follow => w::PublicGateKind::Check,
+                },
+                blocks: gate.blocking,
+                verdict: match gate.verdict {
+                    temper_engine_domain_forge_change::Status::Unknown => w::PublicVerdict::None,
+                    temper_engine_domain_forge_change::Status::Pending => w::PublicVerdict::Pending,
+                    temper_engine_domain_forge_change::Status::Passed => w::PublicVerdict::Approved,
+                    temper_engine_domain_forge_change::Status::Failed => w::PublicVerdict::Changes,
+                },
+            })
             .ok()?;
     }
-    w::PublicJudgement::new(
-        l,
-        w::PublicJudgementParts {
+    {
+        let value = w::PublicJudgement {
             prefix: value.prefix,
             verdict: match value.verdict {
                 temper_engine_domain_forge_change::Status::Unknown => w::PublicCi::Unknown,
@@ -226,7 +202,8 @@ fn make_judgement(value: crate::PrefixJudgement) -> Option<w::PublicJudgement> {
                 temper_engine_domain_forge_change::Status::Failed => w::PublicCi::Failed,
             },
             gates,
-        },
-    )
-    .ok()
+        };
+        value.measure(l).ok()?;
+        Some(value)
+    }
 }

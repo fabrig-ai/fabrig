@@ -143,7 +143,7 @@ fn opening(
         b.style(look::WAYS_PANEL);
         crate::common::ways::drawing(b, &tab.path, ways.open(), w, bindings, project);
         if let Some(open) = ways.open()
-            && let Some(stop) = tab.path.stops().get(open)
+            && let Some(stop) = tab.path.stops.get(open)
         {
             crate::common::ways::card(b, stop, w, bindings, project);
         }

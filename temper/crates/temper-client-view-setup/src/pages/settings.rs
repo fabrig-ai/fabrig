@@ -358,7 +358,7 @@ fn repository_section(
     for row in &rows {
         for making in &row.makings {
             has_makings |= match &making.into {
-                Some(into) => into.project() == project,
+                Some(into) => into.project == project,
                 None => false,
             };
         }
@@ -410,7 +410,7 @@ fn repository_section(
         for row in &rows {
             for making in &row.makings {
                 if match &making.into {
-                    Some(into) => into.project() == project,
+                    Some(into) => into.project == project,
                     None => false,
                 } {
                     making_row(b, root, w, forge, row, making);
@@ -458,11 +458,11 @@ fn making_row(
     let dismissal = root.forge().making_dismissal(row.number, &making.org, &making.name);
     if let Some(failed) = failed {
         b.open(Role::Paragraph);
-        crate::forge::words::text(w, b, Word::ForgeSaid, &[Hole::Name(forge::words::lossy(failed.words()))]);
+        crate::forge::words::text(w, b, Word::ForgeSaid, &[Hole::Name(forge::words::lossy(&failed.words))]);
         let forge = row.number;
         let org = making.org.clone();
         let name = making.name.clone();
-        let (word, act) = if *failed.reason() == wire::MakeFailure::Taken {
+        let (word, act) = if failed.reason == wire::MakeFailure::Taken {
             (Word::AdoptIt, Act::AdoptAgain { forge, org, name })
         } else {
             match &making.from {

@@ -93,7 +93,6 @@ fn answer(root: &mut d::Domain, read: Token, value: c::ReadValue, out: &mut Queu
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    clippy::too_many_lines,
     reason = "the fixture answers its independent needs reads and findings and decisions watches together"
 )]
 fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
@@ -155,39 +154,25 @@ fn settle(root: &mut d::Domain, out: &mut Queue<d::Request>) -> u32 {
                     },
             } => {
                 let Some(watching) = wire::decode_watching(&record.bytes, &w::CEILINGS) else { continue };
-                let bytes = match watching.watch() {
-                    w::Watch::Decided(subject) => wire::decisions(
-                        &w::Decisions::new(
-                            &w::CEILINGS,
-                            w::DecisionsParts {
-                                project: subject.project(),
-                                rows: List::with_capacity(0),
-                                asked: List::with_capacity(0),
-                                cut: false,
-                            },
-                        )
-                        .unwrap(),
-                    ),
-                    w::Watch::Findings(subject) => wire::findings(
-                        &w::Findings::new(
-                            &w::CEILINGS,
-                            w::FindingsParts {
-                                project: subject.project(),
-                                rows: List::from_boxed(if subject.project() == f::PROJECT && !subject.mine() {
-                                    f::groups::bugs()
-                                } else {
-                                    Box::default()
-                                }),
-                                areas: List::with_capacity(0),
-                                triager: None,
-                                holder: w::Holder::Party(
-                                    w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 1 }).unwrap(),
-                                ),
-                                cut: false,
-                            },
-                        )
-                        .unwrap(),
-                    ),
+                let bytes = match &watching.watch {
+                    w::Watch::Decided(subject) => wire::decisions(&w::Decisions {
+                        project: subject.project,
+                        rows: List::with_capacity(0),
+                        asked: List::with_capacity(0),
+                        cut: false,
+                    }),
+                    w::Watch::Findings(subject) => wire::findings(&w::Findings {
+                        project: subject.project,
+                        rows: List::from_boxed(if subject.project == f::PROJECT && !subject.mine {
+                            f::groups::bugs()
+                        } else {
+                            Box::default()
+                        }),
+                        areas: List::with_capacity(0),
+                        triager: None,
+                        holder: w::Holder::Party(w::HolderParty { number: 1 }),
+                        cut: false,
+                    }),
                     _ => continue,
                 };
                 event(

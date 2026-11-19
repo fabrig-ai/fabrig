@@ -5,6 +5,7 @@
 
 use super::lifecycle_tests::{accepted, app};
 use super::*;
+use temper_client_protocol_wire::v1::Record;
 
 fn reached(service: &mut crate::Service) -> domain::ReachableAnswer {
     for _ in 0_u32..service.engine.as_ref().unwrap().events.len() {
@@ -114,15 +115,8 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::Reachable(
-                w::Reachable::new(&w::CEILINGS, w::ReachableParts { forge: 1, installation: None, page: 1 }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let request =
+        w::Requesting { request: w::Request::Reachable(w::Reachable { forge: 1, installation: None, page: 1 }) };
     let family = j::FamilyRequest::new(
         limits,
         j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },
@@ -165,7 +159,7 @@ fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> te
         j::Final::decode(&engine.clients.env.limits.wire, &mut skein_lib::Reader::new(answer.record()))
     );
     let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(answer.record())).unwrap();
-    answer.into_parts().outcome
+    answer.outcome
 }
 #[test]
 fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_restart() {

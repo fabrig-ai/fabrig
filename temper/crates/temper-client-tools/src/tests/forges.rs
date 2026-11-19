@@ -9,6 +9,7 @@ use temper_client_domain_forge::forge::{
     self,
     forges::{Connection as C, Kind, Mode, Offer, Row, Step},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
@@ -37,40 +38,33 @@ fn record(connection: w::Connection) -> client::Family {
     record_first(connection, None)
 }
 fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) -> client::Family {
-    let limits = forge::wire_limits(&f::limits_root().domain.forge).unwrap();
     let mut forges = List::with_capacity(1);
     forges
-        .push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 3,
-                    kind: w::Kind::Forgejo,
-                    mode: w::Mode::Owned,
-                    connection,
-                    offer: w::Offer::Offered,
-                    first,
-                    installations: List::with_capacity(0),
-                    ended: None,
-                    app: None,
-                    web: Some(b"https://web.example/shop".as_slice().into()),
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 3,
+            kind: w::Kind::Forgejo,
+            mode: w::Mode::Owned,
+            connection,
+            offer: w::Offer::Offered,
+            first,
+            installations: List::with_capacity(0),
+            ended: None,
+            app: None,
+            web: Some(b"https://web.example/shop".as_slice().into()),
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
     client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
+        bytes: wire::forges(&w::Forges { forges, linked: false }),
     }
 }
 fn deliver(root: &mut f::Harness, record: client::Family) {
@@ -234,14 +228,9 @@ fn the_read_closes_after_its_first_document_and_refuses_invalid_bytes() {
 fn a_wait_follows_each_setup_step_and_releases_the_watch_and_timer() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["forge", "list", "--until", "settled"]);
-    let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
+
     for step in [None, Some(w::SetUpStep::Prepare), Some(w::SetUpStep::Run)] {
-        deliver(
-            &mut root,
-            record(w::Connection::SettingUp(
-                w::SettingUp::new(&limits, w::SettingUpParts { step, fetched: None }).unwrap(),
-            )),
-        );
+        deliver(&mut root, record(w::Connection::SettingUp(w::SettingUp { step, fetched: None })));
         assert!(root.answer(call).is_none());
     }
     deliver(&mut root, record(w::Connection::Connecting));
@@ -306,21 +295,21 @@ fn setup_answers_print_their_words_json_and_status() {
         (w::Outcome::Unknown, b"unknown\n", 2),
         (
             w::Outcome::SetUpRefused(
-                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
+                w::SetUpRefused { why: w::SetUpRefusal::Busy },
             ),
             b"refused: busy\n",
             2,
         ),
         (
             w::Outcome::SetUpRefused(
-                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
+                w::SetUpRefused { why: w::SetUpRefusal::NotOffered },
             ),
             b"refused: not offered\nOne owned forge is offered; read forge list, then project make NAME --key KEY; repository make --project PROJECT --forge FORGE ORG/NAME --until adopted --key KEY\n",
             2,
         ),
         (
             w::Outcome::SetUpRefused(
-                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox }).unwrap(),
+                w::SetUpRefused { why: w::SetUpRefusal::NotUnderTheBox },
             ),
             b"refused: not under the box\nStart temper with `temper box` to set one up here.\n",
             2,
@@ -332,13 +321,13 @@ fn setup_answers_print_their_words_json_and_status() {
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
             let w::Request::SetUp(request) =
-                wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request
+                wire::decode_requesting(&record.bytes, &limits).unwrap().request
             else {
                 panic!("set up");
             };
             assert_eq!(
-                request.forge(),
-                &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap())
+                &request.forge,
+                &w::Making::Kept(w::Kept { forge: 3 })
             );
             root.adoption_answer(call, outcome.clone());
             if status == 0 {
@@ -352,7 +341,7 @@ fn setup_answers_print_their_words_json_and_status() {
             if json {
                 assert!(bytes.starts_with(b"{"));
                 if let w::Outcome::SetUpRefused(ref refusal) = outcome
-                    && *refusal.why() == w::SetUpRefusal::NotUnderTheBox
+                    && refusal.why == w::SetUpRefusal::NotUnderTheBox
                 {
                     assert_eq!(bytes.as_ref(), b"{\"refused\":{\"why\":\"not_under_the_box\"},\"next\":\"Start temper with `temper box` to set one up here.\"}");
                 }
@@ -450,6 +439,7 @@ fn concat(parts: &[&[u8]]) -> Box<[u8]> {
 }
 
 fn first_record(state: w::FirstState) -> w::FirstRepository {
+<<<<<<< HEAD
     w::FirstRepository::new(
         &w::CEILINGS,
         w::FirstRepositoryParts {
@@ -462,9 +452,18 @@ fn first_record(state: w::FirstState) -> w::FirstRepository {
         },
     )
     .unwrap()
+=======
+    w::FirstRepository {
+        playground: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state,
+        label: b"docker".as_slice().into(),
+    }
+>>>>>>> refs/hand6/10247
 }
 fn made() -> w::FirstState {
-    w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap())
+    w::FirstState::Made(w::Made { id: 42 })
 }
 #[test]
 fn setup_carries_repository_fields_with_each_project_argument() {
@@ -487,12 +486,13 @@ fn setup_carries_repository_fields_with_each_project_argument() {
         }
         let call = root.submit(words.as_slice());
         let client::Ask::Family { record, .. } = root.adoption_bytes(call) else { panic!("family") };
-        let w::Request::SetUp(value) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-        else {
+        let w::Request::SetUp(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request else {
             panic!("setup")
         };
-        assert_eq!((empty_setup(value.first()).org(), empty_setup(value.first()).repository()), (org, repository));
+        assert_eq!(
+            (empty_setup(&value.first).org.as_ref(), empty_setup(&value.first).repository.as_ref()),
+            (org, repository)
+        );
     }
 }
 
@@ -512,12 +512,7 @@ fn setup_refuses_an_empty_local_project_before_sending() {
 fn invalid_setup_refusals_exit_two_with_a_local_project() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["forge", "setup", "3", "--project", "Next"]);
-    root.adoption_answer(
-        call,
-        w::Outcome::SetUpRefused(
-            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::Invalid }).unwrap(),
-        ),
-    );
+    root.adoption_answer(call, w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Invalid }));
     let printed = root.answer(call).unwrap();
     assert_eq!(printed.status, 2);
     assert!(
@@ -544,10 +539,7 @@ fn made_sends_the_home_adoption_with_its_stable_key_and_prints_its_answer() {
         deliver(
             &mut root,
             record_first(
-                w::Connection::Connected(
-                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                        .unwrap(),
-                ),
+                w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
                 Some(first_record(made())),
             ),
         );
@@ -585,13 +577,7 @@ fn setup_failure_names_the_creation_or_box_step_and_exits_one() {
     let mut cases = List::with_capacity(5);
     cases
         .push((
-            w::Connection::SetUpFailed(
-                w::SetUpFailed::new(
-                    &w::CEILINGS,
-                    w::SetUpFailedParts { why: b"preparing".as_slice().into(), at: None },
-                )
-                .unwrap(),
-            ),
+            w::Connection::SetUpFailed(w::SetUpFailed { why: b"preparing".as_slice().into(), at: None }),
             None,
             b"Set up failed: preparing".as_slice(),
         ))
@@ -605,9 +591,7 @@ fn setup_failure_names_the_creation_or_box_step_and_exits_one() {
         cases
             .push((
                 w::Connection::Connecting,
-                Some(first_record(w::FirstState::Failed(
-                    w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step }).unwrap(),
-                ))),
+                Some(first_record(w::FirstState::Failed(w::CreateFailed { step }))),
                 words,
             ))
             .unwrap();
@@ -631,13 +615,7 @@ fn made_wait_requires_the_named_forges_first_repository_to_be_made() {
     for first in [None, Some(first_record(w::FirstState::Making))] {
         deliver(
             &mut root,
-            record_first(
-                w::Connection::Connected(
-                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                        .unwrap(),
-                ),
-                first,
-            ),
+            record_first(w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }), first),
         );
         assert!(root.answer(call).is_none(), "connected alone is insufficient");
     }
@@ -706,50 +684,33 @@ fn demo_start_answers_print_their_words_json_and_status() {
     for (outcome, expected, json_expected, status) in [
         (w::Outcome::Running, "running\n", r#"{"running":{}}"#, 0),
         (
-            w::Outcome::StartRefused(
-                w::StartRefused::new(l, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap(),
-            ),
+            w::Outcome::StartRefused(w::StartRefused { why: w::StartRefusal::NotOffered }),
             "refused: not offered\n",
             r#"{"start_refused":{"why":"not_offered"}}"#,
             2,
         ),
         (
-            w::Outcome::StartFailed(
-                w::StartFailed::new(
-                    l,
-                    w::StartFailedParts {
-                        why: w::StartFailure::Group(
-                            w::GroupFailed::new(l, w::GroupFailedParts { why: b"fetch failed".as_slice().into() })
-                                .unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed {
+                why: w::StartFailure::Group(w::GroupFailed { why: b"fetch failed".as_slice().into() }),
+            }),
             "the fakes did not start (fetch failed)\n",
             r#"{"start_failed":{"why":{"group":{"why":"fetch failed"}}}}"#,
             1,
         ),
         (
-            w::Outcome::StartFailed(
-                w::StartFailed::new(l, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }),
             "the account refused\n",
             r#"{"start_failed":{"why":"account"}}"#,
             1,
         ),
         (
-            w::Outcome::StartFailed(
-                w::StartFailed::new(l, w::StartFailedParts { why: w::StartFailure::Adoption }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Adoption }),
             "the adoption refused\n",
             r#"{"start_failed":{"why":"adoption"}}"#,
             1,
         ),
         (
-            w::Outcome::StartFailed(
-                w::StartFailed::new(l, w::StartFailedParts { why: w::StartFailure::NotConnected }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::NotConnected }),
             "the forge not connected in time\n",
             r#"{"start_failed":{"why":"not_connected"}}"#,
             1,
@@ -760,7 +721,7 @@ fn demo_start_answers_print_their_words_json_and_status() {
             let call = root.submit_prepared(f::call(&["playground", "start", "--key", "playground"]), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            assert_eq!(wire::decode_requesting(&record.bytes, l).unwrap().request(), &w::Request::StartPlayground);
+            assert_eq!(&wire::decode_requesting(&record.bytes, l).unwrap().request, &w::Request::StartPlayground);
             root.adoption_answer(call, outcome.clone());
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, status);
@@ -816,65 +777,47 @@ fn forges_json_names_installations_and_the_last_connect_end() {
 fn settled_wait_with_installations(count: u32) {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["forge", "list", "--until", "settled", "--json"]);
-    let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
+
     let mut installations = List::with_capacity(count);
     for id in 1..=count {
         installations
-            .push(
-                w::Installation::new(
-                    &limits,
-                    w::InstallationParts {
-                        id: u64::from(id),
-                        account: Some(
-                            w::Account::new(&limits, w::AccountParts { id: 111, login: b"acme".as_slice().into() })
-                                .unwrap(),
-                        ),
-                        suspended: false,
-                        stray: false,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::Installation {
+                id: u64::from(id),
+                account: Some(w::Account { id: 111, login: b"acme".as_slice().into() }),
+                suspended: false,
+                stray: false,
+            })
             .unwrap();
     }
     let mut forges = List::with_capacity(1);
     forges
-        .push(
-            w::ForgeRow::new(
-                &limits,
-                w::ForgeRowParts {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 3,
-                    kind: w::Kind::Github,
-                    mode: w::Mode::Connected,
-                    connection: w::Connection::Connected(
-                        w::Connected::new(&limits, w::ConnectedParts { id: 42, login: b"app".as_slice().into() })
-                            .unwrap(),
-                    ),
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations,
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 3,
+            kind: w::Kind::Github,
+            mode: w::Mode::Connected,
+            connection: w::Connection::Connected(w::Connected { id: 42, login: b"app".as_slice().into() }),
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations,
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
     deliver(
         &mut root,
         client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
+            bytes: wire::forges(&w::Forges { forges, linked: false }),
         },
     );
     let printed = root.answer(call).expect("settled wait completes");
@@ -982,61 +925,40 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         let mut installations = List::with_capacity(forge::forges::INSTALLATIONS);
         for id in 1..=forge::forges::INSTALLATIONS {
             installations
-                .push(
-                    w::Installation::new(
-                        &bounds,
-                        w::InstallationParts {
-                            id: u64::from(id),
-                            account: Some(
-                                w::Account::new(&bounds, w::AccountParts { id: u64::from(id), login: login.clone() })
-                                    .unwrap(),
-                            ),
-                            suspended: true,
-                            stray: true,
-                        },
-                    )
-                    .unwrap(),
-                )
+                .push(w::Installation {
+                    id: u64::from(id),
+                    account: Some(w::Account { id: u64::from(id), login: login.clone() }),
+                    suspended: true,
+                    stray: true,
+                })
                 .unwrap();
         }
         let mut rows = List::with_capacity(1);
-        rows.push(
-            w::ForgeRow::new(
-                &bounds,
-                w::ForgeRowParts {
-                    starts_with: w::StartsWith::Repository,
-                    makings: List::with_capacity(0),
-                    host: b"git.example:3000".as_slice().into(),
-                    number: 3,
-                    kind: w::Kind::Github,
-                    mode: w::Mode::Connected,
-                    connection: w::Connection::Connected(
-                        w::Connected::new(
-                            &bounds,
-                            w::ConnectedParts { id: 42, login: b"my-app[bot]".as_slice().into() },
-                        )
-                        .unwrap(),
-                    ),
-                    offer: w::Offer::NotOffered,
-                    first: None,
-                    installations,
-                    ended: None,
-                    app: None,
-                    web: None,
-                    repositories: List::with_capacity(0),
-                    owned: None,
-                    admin: false,
-                    read_only: false,
-                    ended_stop: None,
-                },
-            )
-            .unwrap(),
-        )
+        rows.push(w::ForgeRow {
+            starts_with: w::StartsWith::Repository,
+            makings: List::with_capacity(0),
+            host: b"git.example:3000".as_slice().into(),
+            number: 3,
+            kind: w::Kind::Github,
+            mode: w::Mode::Connected,
+            connection: w::Connection::Connected(w::Connected { id: 42, login: b"my-app[bot]".as_slice().into() }),
+            offer: w::Offer::NotOffered,
+            first: None,
+            installations,
+            ended: None,
+            app: None,
+            web: None,
+            repositories: List::with_capacity(0),
+            owned: None,
+            admin: false,
+            read_only: false,
+            ended_stop: None,
+        })
         .unwrap();
         let record = client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&bounds, w::ForgesParts { forges: rows, linked: false }).unwrap()),
+            bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
         };
         let mut domain_limits = limits.domain.forge;
         domain_limits.field_bytes = bounds.account_login;
@@ -1092,13 +1014,7 @@ fn setup_makes_the_default_or_named_project_then_adopts_the_answered_number() {
                 deliver(
                     &mut root,
                     record_first(
-                        w::Connection::Connected(
-                            w::Connected::new(
-                                &w::CEILINGS,
-                                w::ConnectedParts { id: 1, login: b"temper".as_slice().into() },
-                            )
-                            .unwrap(),
-                        ),
+                        w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
                         Some(first_record(made())),
                     ),
                 );
@@ -1195,10 +1111,7 @@ fn a_refusal_names_the_tool_called() {
     deliver(
         &mut root,
         record_first(
-            w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                    .unwrap(),
-            ),
+            w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
             Some(first_record(made())),
         ),
     );
@@ -1232,14 +1145,12 @@ fn playground_setup_sends_its_copy_and_default_or_explicit_project() {
         }
         let call = root.submit(words.as_slice());
         let client::Ask::Family { record, .. } = root.adoption_bytes(call) else { panic!("family") };
-        let w::Request::SetUp(value) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-        else {
+        let w::Request::SetUp(value) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request else {
             panic!("setup")
         };
-        assert!(empty_setup(value.first()).playground());
+        assert!(empty_setup(&value.first).playground);
         assert_eq!(
-            (empty_setup(value.first()).org(), empty_setup(value.first()).repository()),
+            (empty_setup(&value.first).org.as_ref(), empty_setup(&value.first).repository.as_ref()),
             (b"playground".as_slice(), b"widget".as_slice())
         );
     }
@@ -1280,23 +1191,21 @@ fn forge_setup_without_a_number_sends_a_new_owned_forge() {
         let call = root.submit(words);
         let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
         assert_eq!(*scope, c::Scope::Deployment);
-        let w::Request::SetUp(request) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-        else {
+        let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request else {
             panic!("setup")
         };
-        let w::Making::New(new) = request.forge() else { panic!("new forge") };
-        assert_eq!(new.forge(), &w::ForgeAsk::Owned);
-        assert_eq!(empty_setup(request.first()).playground(), words.contains(&"--playground"));
+        let w::Making::New(new) = &request.forge else { panic!("new forge") };
+        assert_eq!(&new.forge, &w::ForgeAsk::Owned);
+        assert_eq!(empty_setup(&request.first).playground, words.contains(&"--playground"));
         if words.contains(&"--org") {
-            assert_eq!(empty_setup(request.first()).org(), b"team");
-            assert_eq!(empty_setup(request.first()).repository(), b"widget");
-        } else if empty_setup(request.first()).playground() {
-            assert_eq!(empty_setup(request.first()).org(), b"playground");
-            assert_eq!(empty_setup(request.first()).repository(), b"widget");
+            assert_eq!(empty_setup(&request.first).org.as_ref(), b"team");
+            assert_eq!(empty_setup(&request.first).repository.as_ref(), b"widget");
+        } else if empty_setup(&request.first).playground {
+            assert_eq!(empty_setup(&request.first).org.as_ref(), b"playground");
+            assert_eq!(empty_setup(&request.first).repository.as_ref(), b"widget");
         } else {
-            assert_eq!(empty_setup(request.first()).org(), b"work");
-            assert_eq!(empty_setup(request.first()).repository(), b"hello");
+            assert_eq!(empty_setup(&request.first).org.as_ref(), b"work");
+            assert_eq!(empty_setup(&request.first).repository.as_ref(), b"hello");
         }
     }
 }
@@ -1308,18 +1217,13 @@ fn forge_remove_prints_removed_and_its_refusal() {
         &[
             (w::Outcome::Removed, b"removed\n", br#"{"removed":{}}"#, 0),
             (
-                w::Outcome::RemoveRefused(
-                    w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: w::ForgeRefusal::NoSuchForge })
-                        .unwrap(),
-                ),
+                w::Outcome::RemoveRefused(w::RemoveRefused { why: w::ForgeRefusal::NoSuchForge }),
                 b"refused: no such forge\n",
                 br#"{"remove_refused":{"why":"no_such_forge"}}"#,
                 2,
             ),
             (
-                w::Outcome::RemoveRefused(
-                    w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: w::ForgeRefusal::Busy }).unwrap(),
-                ),
+                w::Outcome::RemoveRefused(w::RemoveRefused { why: w::ForgeRefusal::Busy }),
                 b"refused: busy\n",
                 br#"{"remove_refused":{"why":"busy"}}"#,
                 2,
@@ -1334,9 +1238,7 @@ fn playground_end_prints_reset_and_not_offered() {
         &[
             (w::Outcome::Reset, b"reset\n", br#"{"reset":{}}"#, 0),
             (
-                w::Outcome::EndRefused(
-                    w::EndRefused::new(&w::CEILINGS, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).unwrap(),
-                ),
+                w::Outcome::EndRefused(w::EndRefused { why: w::EndRefusal::NotOffered }),
                 b"refused: not offered\n",
                 br#"{"end_refused":{"why":"not_offered"}}"#,
                 2,
@@ -1351,11 +1253,11 @@ fn lifecycle_answers(words: &[&str], answers: &[(w::Outcome, &[u8], &[u8], u8)])
             let call = root.submit_prepared(f::call(words), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            match wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() {
+            match &wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request {
                 w::Request::EndPlayground => assert_eq!(words, &["playground", "end"]),
                 w::Request::RemoveForge(value) => {
                     assert_eq!(words, &["forge", "remove", "3"]);
-                    assert_eq!(value.forge(), 3);
+                    assert_eq!(value.forge, 3);
                 }
                 other @ (w::Request::Adopt(_)
                 | w::Request::SetUp(_)
@@ -1434,10 +1336,7 @@ fn new_owned_forge_setup_adopts_on_the_number_in_the_forges_read() {
     deliver(
         &mut root,
         record_first(
-            w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                    .unwrap(),
-            ),
+            w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
             Some(first_record(made())),
         ),
     );
@@ -1496,18 +1395,17 @@ fn sixteen_forges_with_sixteen_copy_addresses_fit_the_client_document() {
     for _ in 0..wire::FIRST_COPIES {
         addresses.push(skein_lib::bytes::zeroed(wire::source::ADDRESS_BYTES)).unwrap();
     }
-    let copies = w::CopyAddresses::new(&bounds, w::CopyAddressesParts { addresses }).unwrap();
+    let copies = w::CopyAddresses { addresses };
     let one = record(w::Connection::NotSetUp);
-    let template =
-        wire::decode_forges(&one.bytes, &bounds).unwrap().into_parts().forges.into_boxed()[0].clone().into_parts();
+    let template = wire::decode_forges(&one.bytes, &bounds).unwrap().forges.into_boxed()[0].clone();
     let mut rows = List::with_capacity(wire::FORGES);
     for number in 1..=wire::FORGES {
         let mut row = template.clone();
         row.number = u16::try_from(number).unwrap();
         row.starts_with = w::StartsWith::Copies(copies.clone());
-        rows.push(w::ForgeRow::new(&bounds, row).unwrap()).unwrap();
+        rows.push(row).unwrap();
     }
-    let forges = w::Forges::new(&bounds, w::ForgesParts { forges: rows, linked: false }).unwrap();
+    let forges = w::Forges { forges: rows, linked: false };
     let encoded = wire::forges(&forges);
     assert!(w::Forges::decoded_bound(&bounds).is_some());
     let request = w::Requesting::encoded_bound(&bounds).unwrap();
@@ -1527,10 +1425,7 @@ fn setup_ends_on_its_adoption_without_the_protection_line() {
         deliver(
             &mut root,
             record_first(
-                w::Connection::Connected(
-                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                        .unwrap(),
-                ),
+                w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
                 Some(first_record(made())),
             ),
         );
@@ -1562,29 +1457,20 @@ pub(super) fn setup_for_projects() -> f::Harness {
 pub(super) fn adopted_project_repository(root: &mut f::Harness, project: u32) {
     let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
     let record = record(w::Connection::Connecting);
-    let mut parts = wire::decode_forges(&record.bytes, &limits).unwrap().into_parts();
-    let mut row = parts.forges.swap_remove(0).unwrap().into_parts();
+    let mut parts = wire::decode_forges(&record.bytes, &limits).unwrap();
+    let mut row = parts.forges.swap_remove(0).unwrap();
     row.makings = List::with_capacity(1);
     row.makings
-        .push(
-            w::RepositoryMaking::new(
-                &limits,
-                w::RepositoryMakingParts {
-                    org: b"work".as_slice().into(),
-                    name: b"second".as_slice().into(),
-                    from: w::MakeFrom::Empty,
-                    into: Some(w::MakeInto::new(&limits, w::MakeIntoParts { project, home: true }).unwrap()),
-                    state: w::MakingState::Adopting(
-                        w::MakingMade::new(&limits, w::MakingMadeParts { id: 8, branch: b"main".as_slice().into() })
-                            .unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::RepositoryMaking {
+            org: b"work".as_slice().into(),
+            name: b"second".as_slice().into(),
+            from: w::MakeFrom::Empty,
+            into: Some(w::MakeInto { project, home: true }),
+            state: w::MakingState::Adopting(w::MakingMade { id: 8, branch: b"main".as_slice().into() }),
+        })
         .unwrap();
-    parts.forges.push(w::ForgeRow::new(&limits, row).unwrap()).unwrap();
-    deliver(root, client::Family { bytes: wire::forges(&w::Forges::new(&limits, parts).unwrap()), ..record.clone() });
+    parts.forges.push(row).unwrap();
+    deliver(root, client::Family { bytes: wire::forges(&parts), ..record.clone() });
     deliver(root, record);
 }
 
@@ -1593,10 +1479,7 @@ pub(super) fn project_forge(root: &mut f::Harness) {
     deliver(
         root,
         record_first(
-            w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() })
-                    .unwrap(),
-            ),
+            w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() }),
             Some(first_record(made())),
         ),
     );

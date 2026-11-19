@@ -9,57 +9,43 @@ use skein_lib::{Duration, List};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub(super) fn panel(step: w::Step) -> w::ChangePanel {
-    let used = w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 3 }).unwrap();
-    w::ChangePanel::new(
-        &w::CEILINGS,
-        w::ChangePanelParts {
-            wait: None,
-            source: None,
-            way: w::Way::Queue,
-            in_landing: None,
-            task: 2,
-            forge: 3,
-            owner: b"qa".as_slice().into(),
-            name: b"pilot-20261026".as_slice().into(),
-            branch: b"temper/2-readme".as_slice().into(),
-            landing: b"main".as_slice().into(),
-            head: Some([17; 32]),
-            pull: Some(
-                w::Pull::new(
-                    &w::CEILINGS,
-                    w::PullParts {
-                        number: 1,
-                        address: b"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1".as_slice().into(),
-                    },
-                )
-                .unwrap(),
-            ),
-            step,
-            hold: None,
-            runs: None,
-            ci_required: true,
-            ci: w::Ci::Pending,
-            approvals: List::with_capacity(0),
-            unmapped_reviews: List::with_capacity(0),
-            gates: List::with_capacity(0),
-            repairs: used.clone(),
-            resolutions: used,
-            updates: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 5 }).unwrap(),
-            questions: w::Questions::new(
-                &w::CEILINGS,
-                w::QuestionsParts {
-                    route: w::Route::None,
-                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
-                    open: List::with_capacity(0),
-                },
-            )
-            .expect("no questions"),
+    let used = w::Used { used: 0, limit: 3 };
+    w::ChangePanel {
+        wait: None,
+        source: None,
+        way: w::Way::Queue,
+        in_landing: None,
+        task: 2,
+        forge: 3,
+        owner: b"qa".as_slice().into(),
+        name: b"pilot-20261026".as_slice().into(),
+        branch: b"temper/2-readme".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        head: Some([17; 32]),
+        pull: Some(w::Pull {
+            number: 1,
+            address: b"http://127.0.0.1:3000/qa/pilot-20261026/pulls/1".as_slice().into(),
+        }),
+        step,
+        hold: None,
+        runs: None,
+        ci_required: true,
+        ci: w::Ci::Pending,
+        approvals: List::with_capacity(0),
+        unmapped_reviews: List::with_capacity(0),
+        gates: List::with_capacity(0),
+        repairs: used.clone(),
+        resolutions: used,
+        updates: w::Used { used: 0, limit: 5 },
+        questions: w::Questions {
+            route: w::Route::None,
+            taken: w::Used { used: 0, limit: 4 },
+            open: List::with_capacity(0),
         },
-    )
-    .unwrap()
+    }
 }
 fn landed() -> w::Step {
-    w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [34; 32] }).unwrap())
+    w::Step::Landed(w::Landed { merge: [34; 32] })
 }
 fn deliver(root: &mut f::Harness, panel: w::ChangePanel) {
     let mut own_read = None;
@@ -143,11 +129,11 @@ fn no_change_result() -> c::ReadResult {
     })))
 }
 fn no_change_panel(step: w::Step) -> w::ChangePanel {
-    let mut parts = panel(step).into_parts();
+    let mut parts = panel(step);
     parts.head = None;
     parts.pull = None;
     parts.ci = w::Ci::Unknown;
-    w::ChangePanel::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 #[test]
 fn until_landed_is_met_for_a_change_ended_at_landing() {
@@ -295,31 +281,15 @@ fn landed_and_held_repair_panels_keep_whole_facts() {
         assert_eq!(answer.status, 0);
         contains(&answer.stdout, b"2222222222222222222222222222222222222222");
         assert!(skein_lib::bytes::find(&answer.stdout, b"next:").is_none());
-        let mut parts = panel(w::Step::Repairing(
-            w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason: w::Reason::Ci }).unwrap(),
-        ))
-        .into_parts();
+        let mut parts = panel(w::Step::Repairing(w::Repairing { reason: w::Reason::Ci }));
         parts.hold = Some(w::Hold::Stalled);
         parts.runs = Some(7);
         parts.gates = List::with_capacity(1);
         parts
             .gates
-            .push(
-                w::Gate::new(
-                    &w::CEILINGS,
-                    w::GateParts { number: 1, kind: w::GateKind::Review, blocks: true, verdict: w::Verdict::Pending },
-                )
-                .unwrap(),
-            )
+            .push(w::Gate { number: 1, kind: w::GateKind::Review, blocks: true, verdict: w::Verdict::Pending })
             .unwrap();
-        let answer = change::print(
-            Some(&w::ChangePanel::new(&w::CEILINGS, parts).unwrap()),
-            json,
-            None,
-            b"",
-            &limits,
-            &change::Holds::new(),
-        );
+        let answer = change::print(Some(&parts), json, None, b"", &limits, &change::Holds::new());
         if json {
             contains(&answer.stdout, br#""repair":"ci","hold":"stalled","runs":7"#);
             contains(&answer.stdout, br#""gates":[{"number":1,"kind":"review","blocks":true,"verdict":"pending"}]"#);
@@ -349,9 +319,9 @@ fn waits_test_each_delivery_including_the_first() {
     ] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(&["change", "show", "2", "--project", "1", "--until", condition, "--json"]);
-        let mut parts = panel(w::Step::Checking).into_parts();
+        let mut parts = panel(w::Step::Checking);
         parts.ci = ci;
-        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        deliver(&mut root, parts);
         let answer = root.answer(call).unwrap();
         assert_eq!(answer.status, 0);
         contains(&answer.stdout, br#""met":true"#);
@@ -460,9 +430,9 @@ fn since_and_condition_both_must_hold_and_timeout_keeps_last_digest() {
 fn a_held_wait_and_a_wait_without_a_condition_use_the_panel_facts() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "held"]);
-    let mut parts = panel(w::Step::Checking).into_parts();
+    let mut parts = panel(w::Step::Checking);
     parts.hold = Some(w::Hold::Stalled);
-    deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+    deliver(&mut root, parts);
     assert_eq!(root.answer(call).unwrap().status, 0);
     let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "changed"]);
     deliver(&mut root, panel(w::Step::Checking));
@@ -562,10 +532,10 @@ fn a_panels_held_reviewer_says_held_with_its_reason() {
             &["change", "show", "2", "--project", "1"][..]
         };
         let call = root.submit(argv);
-        let mut parts = panel(w::Step::Gating).into_parts();
+        let mut parts = panel(w::Step::Gating);
         parts.runs = Some(8);
         root.serving = Some(call);
-        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        deliver(&mut root, parts);
         root.serving = None;
         assert!(root.answer(call).is_none(), "read the reviewer's state before naming it");
         root.serve(call, f::task_result(f::held_task(f::goal(8, c::WaitsOn::Nothing), c::HoldCategory::Budget)));
@@ -580,10 +550,10 @@ fn a_panels_held_reviewer_says_held_with_its_reason() {
 fn a_landing_wait_observes_a_reviewer_held_after_its_first_read() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "landed", "--timeout", "1s"]);
-    let mut parts = panel(w::Step::Gating).into_parts();
+    let mut parts = panel(w::Step::Gating);
     parts.runs = Some(8);
     root.serving = Some(call);
-    deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+    deliver(&mut root, parts);
     root.serving = None;
     root.serve(call, f::task_result(f::goal(8, c::WaitsOn::Nothing)));
     root.deliver_subject(
@@ -600,10 +570,10 @@ fn a_landing_wait_observes_a_reviewer_held_after_its_first_read() {
 fn a_refused_reviewer_watch_ends_the_landing_wait() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "landed", "--timeout", "1s"]);
-    let mut parts = panel(w::Step::Gating).into_parts();
+    let mut parts = panel(w::Step::Gating);
     parts.runs = Some(8);
     root.serving = Some(call);
-    deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+    deliver(&mut root, parts);
     root.serving = None;
     root.serve(call, f::task_result(f::goal(8, c::WaitsOn::Nothing)));
     root.end(call, &client::Watchable::Jig(c::Subject::Task { task: 8 }), c::WatchEnd::NotAllowed);
@@ -615,11 +585,9 @@ fn a_refused_reviewer_watch_ends_the_landing_wait() {
 #[test]
 fn an_authority_hold_prints_its_precise_cause_in_text_and_json() {
     let reason = b"its 6 tasks are made; released without more tasks; cancel: task cancel 2 REASON; or ask afresh; bare release holds again";
-    let mut value = panel(w::Step::Gating).into_parts();
-    value.hold = Some(w::Hold::Authority(
-        w::AuthorityHold::new(&w::CEILINGS, w::AuthorityHoldParts { reason: reason.as_slice().into() }).unwrap(),
-    ));
-    let panel = w::ChangePanel::new(&w::CEILINGS, value).unwrap();
+    let mut value = panel(w::Step::Gating);
+    value.hold = Some(w::Hold::Authority(w::AuthorityHold { reason: reason.as_slice().into() }));
+    let panel = value;
     for json in [false, true] {
         let printed = change::print(Some(&panel), json, None, b"", &f::limits_root(), &change::Holds::new());
         assert_eq!(printed.status, 0);
@@ -701,10 +669,10 @@ fn a_change_task_hold_is_shown_beside_its_held_reviewer() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_prepared(f::call(&["change", "show", "2"]), json, None);
         root.serve(call, f::task_result(f::held_task(task(false, false), c::HoldCategory::Deadline)));
-        let mut parts = panel(w::Step::Gating).into_parts();
+        let mut parts = panel(w::Step::Gating);
         parts.runs = Some(8);
         root.serving = Some(call);
-        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        deliver(&mut root, parts);
         root.serving = None;
         root.serve(call, f::task_result(f::held_task(f::goal(8, c::WaitsOn::Nothing), c::HoldCategory::Budget)));
         let answer = root.answer(call).unwrap();
@@ -739,10 +707,10 @@ fn a_change_task_hold_changes_the_digest_without_a_forge_panel_change() {
 fn a_panel_ending_during_a_delegate_read_still_reads_the_change_task() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "landed"]);
-    let mut parts = panel(w::Step::Gating).into_parts();
+    let mut parts = panel(w::Step::Gating);
     parts.runs = Some(8);
     root.serving = Some(call);
-    deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+    deliver(&mut root, parts);
     root.serving = None;
     end_panel(&mut root, call, c::WatchEnd::SubjectEnded);
     // The delegate's old terminal may arrive before the change's final task read.
@@ -754,14 +722,14 @@ fn a_panel_ending_during_a_delegate_read_still_reads_the_change_task() {
 
 #[test]
 fn ready_and_preparing_text_names_the_way_and_landing() {
-    let member = w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap();
+    let member = w::InLanding { landing: Some(61) };
     for (name, step) in
         [("change_ready", w::Step::Ready(member.clone())), ("change_preparing", w::Step::Preparing(member))]
     {
-        let mut parts = panel(step).into_parts();
+        let mut parts = panel(step);
         parts.way = w::Way::Turn;
         parts.in_landing = Some(61);
-        let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+        let panel = parts;
         let answer = change::print(Some(&panel), false, None, b"", &f::limits_root(), &change::Holds::new());
         assert_eq!(answer.status, 0);
         f::check_golden(name, &answer.stdout);
@@ -776,24 +744,22 @@ fn a_queue_change_prints_no_way_line() {
 }
 #[test]
 fn a_turn_change_waiting_for_room_prints_its_way_alone() {
-    let mut parts =
-        panel(w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: None }).unwrap()))
-            .into_parts();
+    let mut parts = panel(w::Step::Ready(w::InLanding { landing: None }));
     parts.way = w::Way::Turn;
-    let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     let answer = change::print(Some(&panel), false, None, b"", &f::limits_root(), &change::Holds::new());
     contains(&answer.stdout, b"step: ready\nway: turn\nhead ");
 }
 #[test]
 fn ready_and_preparing_wait_for_landed() {
-    let member = w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap();
+    let member = w::InLanding { landing: Some(61) };
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(&["change", "show", "2", "--project", "1", "--until", "landed"]);
     for step in [w::Step::Ready(member.clone()), w::Step::Preparing(member)] {
-        let mut parts = panel(step).into_parts();
+        let mut parts = panel(step);
         parts.way = w::Way::Turn;
         parts.in_landing = Some(61);
-        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        deliver(&mut root, parts);
         assert!(root.answer(call).is_none());
     }
     deliver(&mut root, panel(landed()));
@@ -804,10 +770,10 @@ const REVIEWER: u64 = 8;
 // QA's 12 s condition timeout is shorter than the link's 30 s deadline.
 const RESTART_TIMEOUT: Duration = Duration::from_secs(12);
 fn reviewing(root: &mut f::Harness, call: u32) {
-    let mut parts = panel(w::Step::Gating).into_parts();
+    let mut parts = panel(w::Step::Gating);
     parts.runs = Some(REVIEWER);
     root.serving = Some(call);
-    deliver(root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+    deliver(root, parts);
     root.serving = None;
 }
 fn reviewing_call(argv: &[&str]) -> (f::Harness, u32) {
@@ -875,23 +841,13 @@ fn a_landing_repair_is_read_with_its_delegate_in_text_and_json() {
         let call = root.submit(argv);
         assert_eq!(root.reads[&call].1, c::Read::Task { task: 2 });
         serve(&mut root, call, false, false);
-        let step = w::Step::Repairing(
-            w::Repairing::new(
-                &w::CEILINGS,
-                w::RepairingParts {
-                    reason: w::Reason::Landing(
-                        w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-        );
-        let mut parts = panel(step).into_parts();
+        let step = w::Step::Repairing(w::Repairing { reason: w::Reason::Landing(w::GateReason { gate: 0 }) });
+        let mut parts = panel(step);
         parts.way = w::Way::Turn;
         parts.in_landing = Some(13);
         parts.runs = Some(15);
         root.serving = Some(call);
-        deliver_panel(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        deliver_panel(&mut root, parts);
         root.serving = None;
         assert_eq!(root.reads[&call].1, c::Read::Task { task: 15 });
         root.serve(call, f::task_result(f::goal(15, c::WaitsOn::Nothing)));
@@ -932,11 +888,9 @@ fn after_step(which: u8) -> w::Step {
     };
     tiers.push(Box::from(line)).unwrap();
     match which {
-        0 => w::Step::Verifying(w::Verifying::new(&w::CEILINGS, w::VerifyingParts { merge: [34; 32], tiers }).unwrap()),
-        1 => w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [34; 32], tiers }).unwrap()),
-        _ => w::Step::Cleared(
-            w::Cleared::new(&w::CEILINGS, w::ClearedParts { merge: [34; 32], tiers, uncleared: which == 3 }).unwrap(),
-        ),
+        0 => w::Step::Verifying(w::Verifying { merge: [34; 32], tiers }),
+        1 => w::Step::Red(w::Red { merge: [34; 32], tiers }),
+        _ => w::Step::Cleared(w::Cleared { merge: [34; 32], tiers, uncleared: which == 3 }),
     }
 }
 #[test]
@@ -981,31 +935,20 @@ fn landed_is_met_by_every_later_step_and_cleared_waits_through_red() {
     }
 }
 
-fn question_parts() -> w::ChangePanelParts {
-    let mut parts = panel(w::Step::Checking).into_parts();
+fn question_parts() -> w::ChangePanel {
+    let mut parts = panel(w::Step::Checking);
     let mut open = List::with_capacity(2);
     for (asker, number, line, stands) in
         [(7, 1, b"Which branch?".as_slice(), w::Stands::Asked), (8, 2, b"Which check?".as_slice(), w::Stands::Taken)]
     {
-        open.push(
-            w::Question::new(&w::CEILINGS, w::QuestionParts { asker, number, line: Box::from(line), stands }).unwrap(),
-        )
-        .unwrap();
+        open.push(w::Question { asker, number, line: Box::from(line), stands }).unwrap();
     }
-    parts.questions = w::Questions::new(
-        &w::CEILINGS,
-        w::QuestionsParts {
-            route: w::Route::Up,
-            taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
-            open,
-        },
-    )
-    .unwrap();
+    parts.questions = w::Questions { route: w::Route::Up, taken: w::Used { used: 2, limit: 4 }, open };
     parts
 }
 #[test]
 fn change_show_prints_its_questions() {
-    let value = w::ChangePanel::new(&w::CEILINGS, question_parts()).unwrap();
+    let value = question_parts();
     let text = change::print(Some(&value), false, None, b"", &f::limits_root(), &change::Holds::new());
     assert_eq!(text.status, 0);
     f::check_golden("change_questions", &text.stdout);
@@ -1019,19 +962,12 @@ fn change_show_names_asked_and_held_questions() {
         (w::Stands::Held, b"answered, held \xc2\xb7 Which branch?\n", br#""stands":"held""#),
     ] {
         let mut parts = question_parts();
-        let mut questions = parts.questions.into_parts();
+        let mut questions = parts.questions;
         let mut open = List::with_capacity(1);
-        open.push(
-            w::Question::new(
-                &w::CEILINGS,
-                w::QuestionParts { asker: 7, number: 1, line: Box::from(b"Which branch?".as_slice()), stands },
-            )
-            .unwrap(),
-        )
-        .unwrap();
+        open.push(w::Question { asker: 7, number: 1, line: Box::from(b"Which branch?".as_slice()), stands }).unwrap();
         questions.open = open;
-        parts.questions = w::Questions::new(&w::CEILINGS, questions).unwrap();
-        let value = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+        parts.questions = questions;
+        let value = parts;
         let answer = change::print(Some(&value), false, None, b"", &f::limits_root(), &change::Holds::new());
         contains(&answer.stdout, text);
         let answer = change::print(Some(&value), true, None, b"", &f::limits_root(), &change::Holds::new());
@@ -1050,7 +986,7 @@ fn ordinary_and_json_red_reads_keep_long_ids_and_many() {
     for line in [long.as_ref(), b"slow run 3 \xc2\xb7 suspected of many tests"] {
         let mut tiers = List::with_capacity(1);
         tiers.push(Box::from(line)).unwrap();
-        let step = w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [34; 32], tiers }).unwrap());
+        let step = w::Step::Red(w::Red { merge: [34; 32], tiers });
         let value = panel(step);
         for json in [false, true] {
             let printed = change::print(Some(&value), json, None, b"", &f::limits_root(), &change::Holds::new());
@@ -1084,42 +1020,27 @@ fn resource_holds_keep_full_names_and_recovery_in_both_ctl_forms() {
     }
 }
 
-pub(super) fn approval_parts() -> w::ChangePanelParts {
-    let mut parts = panel(w::Step::Queued(
-        w::Queued::new(&w::CEILINGS, w::QueuedParts { place: 1, ahead: List::with_capacity(0) }).unwrap(),
-    ))
-    .into_parts();
+pub(super) fn approval_parts() -> w::ChangePanel {
+    let mut parts = panel(w::Step::Queued(w::Queued { place: 1, ahead: List::with_capacity(0) }));
     parts.approvals = List::with_capacity(1);
     parts
         .approvals
-        .push(
-            w::Approval::new(
-                &w::CEILINGS,
-                w::ApprovalParts {
-                    scope: 1,
-                    number: 2,
-                    role: 0,
-                    freshness: w::RuleFreshness::Clean,
-                    required: 1,
-                    read: w::ReviewRead::Complete,
-                    counted: List::with_capacity(0),
-                    remaining: Some(1),
-                    refused: false,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::Approval {
+            scope: 1,
+            number: 2,
+            role: 0,
+            freshness: w::RuleFreshness::Clean,
+            required: 1,
+            read: w::ReviewRead::Complete,
+            counted: List::with_capacity(0),
+            remaining: Some(1),
+            refused: false,
+        })
         .unwrap();
     parts.unmapped_reviews = List::with_capacity(1);
     parts
         .unmapped_reviews
-        .push(
-            w::UnmappedReview::new(
-                &w::CEILINGS,
-                w::UnmappedReviewParts { account: 99, head: [17; 32], verdict: w::Verdict::Approved },
-            )
-            .unwrap(),
-        )
+        .push(w::UnmappedReview { account: 99, head: [17; 32], verdict: w::Verdict::Approved })
         .unwrap();
     parts
 }
@@ -1134,7 +1055,7 @@ fn approval_wait_text_and_json_send_the_person_to_the_pull_request() {
             root.submit(&["change", "show", "2", "--project", "1"])
         };
         let parts = if satisfied { satisfied_approval_parts() } else { approval_parts() };
-        deliver(&mut root, w::ChangePanel::new(&w::CEILINGS, parts).unwrap());
+        deliver(&mut root, parts);
         let answer = root.answer(call).expect("panel response");
         assert_eq!(answer.status, 0);
         if satisfied {
@@ -1165,24 +1086,21 @@ fn approval_wait_text_and_json_send_the_person_to_the_pull_request() {
     }
 }
 
-fn satisfied_approval_parts() -> w::ChangePanelParts {
+fn satisfied_approval_parts() -> w::ChangePanel {
     let mut parts = approval_parts();
-    let mut approval = parts.approvals.get(0).unwrap().clone().into_parts();
+    let mut approval = parts.approvals.get(0).unwrap().clone();
     approval.remaining = Some(0);
     approval.counted = List::with_capacity(1);
-    approval
-        .counted
-        .push(w::CountedReview::new(&w::CEILINGS, w::CountedReviewParts { person: 7, head: [34; 32] }).unwrap())
-        .unwrap();
-    *parts.approvals.get_mut(0).unwrap() = w::Approval::new(&w::CEILINGS, approval).unwrap();
+    approval.counted.push(w::CountedReview { person: 7, head: [34; 32] }).unwrap();
+    *parts.approvals.get_mut(0).unwrap() = approval;
     parts
 }
 
 #[test]
 fn no_ci_rule_prints_not_required_and_preserves_the_observation_in_json() {
-    let mut parts = panel(landed()).into_parts();
+    let mut parts = panel(landed());
     parts.ci_required = false;
-    let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+    let panel = parts;
     let limits = f::limits_root();
     let text = change::print(Some(&panel), false, None, b"", &limits, &change::Holds::new());
     contains(&text.stdout, b"CI not required");
@@ -1212,15 +1130,9 @@ fn opened_panels_print_the_source_and_the_head_taking_kept() {
                 (Some(named_head), "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"),
                 (Some([0xcd; 32]), "cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd"),
             ] {
-                let mut parts = panel(step.clone()).into_parts();
-                parts.source = Some(
-                    w::PanelSource::new(
-                        &w::CEILINGS,
-                        w::PanelSourceParts { branch: b"docs/x".as_slice().into(), at, kept },
-                    )
-                    .unwrap(),
-                );
-                let panel = w::ChangePanel::new(&w::CEILINGS, parts).unwrap();
+                let mut parts = panel(step.clone());
+                parts.source = Some(w::PanelSource { branch: b"docs/x".as_slice().into(), at, kept });
+                let panel = parts;
                 let mut root = f::signed_in(f::PARTY);
                 let call = root.submit(&["change", "show", "2", "--project", "1"]);
                 deliver(&mut root, panel.clone());

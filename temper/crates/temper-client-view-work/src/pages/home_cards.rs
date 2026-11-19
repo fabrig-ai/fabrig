@@ -331,7 +331,7 @@ fn more(
         match need {
             findings::Need::Row(_) => {}
             findings::Need::Finding(card) => {
-                super::findings::severity(b, w, card.row.severity().clone());
+                super::findings::severity(b, w, card.row.severity.clone());
                 b.text(Run::Plain, &super::findings::short(card, w, times, true));
             }
             findings::Need::Existing(need) => {

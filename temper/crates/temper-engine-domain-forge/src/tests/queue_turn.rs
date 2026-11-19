@@ -2,6 +2,7 @@
 use super::*;
 use crate::tests::{adopted, domain, env, fixtures};
 use skein_lib::Wall;
+use temper_client_protocol_wire::v1::Record;
 
 const OWNER: u64 = fixtures::CHANGE;
 const SECOND: u64 = OWNER + 1;
@@ -115,7 +116,9 @@ fn change_facts_take_the_projects_held_wait_or_cleared_without_landing() {
         scope: 5,
         number: 1,
         value: crate::settings::SizedValue {
-            size: crate::settings::landing_record(&value).measure(),
+            size: crate::settings::landing_record(&value)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
             value: crate::settings::Value::Landing(value),
         },
     }]));

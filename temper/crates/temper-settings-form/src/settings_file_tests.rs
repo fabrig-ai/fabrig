@@ -3,6 +3,7 @@ use crate::{Limits, file, values, view as c};
 use alloc::boxed::Box;
 use skein_json::writer::{Encoder, Limits as JsonLimits};
 use skein_lib::{Duration, Writer};
+use temper_client_protocol_wire::v1::Record;
 
 // C7's coordinator paces news at 30 minutes, in the settings file's nanoseconds.
 const COORDINATOR: &[u8] = br#", "wake":{"words":"immediate","notices":"immediate","news":{"paced":1800000000000},"results":"each","questions":true,"answers":true,"timers":true}"#;
@@ -186,7 +187,7 @@ fn temper_kinds_round_trip_from_file_to_shown_json() {
             use temper_client_protocol_wire::v1 as w;
             let c::SettingValue::Application(bytes) = &set.value else { panic!("landing bytes") };
             let landing = w::ProjectLanding::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-            assert_eq!(*landing.wait(), if json == br#"{"wait":"landed"}"# {
+            assert_eq!(landing.wait, if json == br#"{"wait":"landed"}"# {
                 w::SettingsLandingWait::Landed
             } else {
                 w::SettingsLandingWait::Cleared
@@ -221,7 +222,7 @@ fn welcome_is_an_unnumbered_deployment_setting_with_a_boolean_value_and_reset() 
     assert_eq!(item.setting, c::Setting::Application { kind: 20, scope: 0, number: 1 });
     let c::SettingEdit::Set(set) = &item.edit else { panic!("set welcome") };
     let c::SettingValue::Application(bytes) = &set.value else { panic!("welcome bytes") };
-    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown());
+    assert!(w::Welcome::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().shown);
     let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
         overlay: None,
         setting: item.setting,
@@ -262,7 +263,7 @@ fn landing_sets_default_empty_and_round_trip_in_number_order_given() {
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set rule") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("rule bytes") };
         let rule = w::LandingRule::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("rule record");
-        assert_eq!(rule.sets().as_slice(), expected);
+        assert_eq!(rule.sets.as_slice(), expected);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -740,8 +741,11 @@ fn project_values_refuse_missing_unknown_and_wrong_members() {
             sets: Box::default(),
         };
         let record = temper_protocol_reaches::classes_record(&classes).expect("shaped record");
-        let mut bytes = Writer::new(usize::try_from(record.measure()).expect("record length"));
-        record.encode(&mut bytes).expect("measured record");
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+                .expect("record length"),
+        );
+        record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("measured record");
         let mut out = Encoder::measure(&JsonLimits { depth: 32, length: 4096 });
         assert!(!crate::kinds::render(8, &bytes.finish(), &mut out));
     }
@@ -936,14 +940,14 @@ fn follows_use_the_binding_json_form_and_default_optional_members() {
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-        assert_eq!(record.source().repository().forge(), 1);
-        assert_eq!(record.source().repository().repository(), 12);
-        assert_eq!(record.target().repository().repository(), 13);
-        assert_eq!(record.start(), &w::FollowStart::Owner);
-        assert_eq!(record.source().paths().is_empty(), optional);
-        assert_eq!(record.source().branch().is_empty(), optional);
-        assert_eq!(record.producer().is_none(), optional);
-        assert_eq!((record.target().branch()).len(), 0);
+        assert_eq!(record.source.repository.forge, 1);
+        assert_eq!(record.source.repository.repository, 12);
+        assert_eq!(record.target.repository.repository, 13);
+        assert_eq!(&record.start, &w::FollowStart::Owner);
+        assert_eq!(record.source.paths.is_empty(), optional);
+        assert_eq!(record.source.branch.is_empty(), optional);
+        assert_eq!(record.producer.is_none(), optional);
+        assert_eq!(record.target.branch.len(), 0);
         let document = c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,
@@ -972,21 +976,15 @@ fn follow_owners_accept_one_person_or_task_and_render_the_same_variant() {
     let prefix = br#"{"source":{"forge":1,"repository":12},"target":{"forge":1,"repository":13},"owner":"#;
     let suffix = br#", "check":{"workflow":"tests.yml","artifact":"results","format":"lines"}}"#;
     for (owner, expected) in [
-        (
-            br#"{"task":52}"#.as_slice(),
-            w::FollowOwner::Task(w::FollowOwnerTask::new(&w::CEILINGS, w::FollowOwnerTaskParts { task: 52 }).unwrap()),
-        ),
-        (
-            br#"{"person":4}"#.as_slice(),
-            w::FollowOwner::Person(w::FollowPerson::new(&w::CEILINGS, w::FollowPersonParts { person: 4 }).unwrap()),
-        ),
+        (br#"{"task":52}"#.as_slice(), w::FollowOwner::Task(w::FollowOwnerTask { task: 52 })),
+        (br#"{"person":4}"#.as_slice(), w::FollowOwner::Person(w::FollowPerson { person: 4 })),
     ] {
         let items = file::decode(&kind_file(selector, &joined(&[prefix, owner, suffix])), &Limits::standard()).unwrap();
         let item = items.get(0).unwrap();
         let c::SettingEdit::Set(set) = &item.edit else { panic!("set") };
         let c::SettingValue::Application(bytes) = &set.value else { panic!("follow bytes") };
         let record = w::Follow::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap();
-        assert_eq!(record.owner(), &expected);
+        assert_eq!(&record.owner, &expected);
         let text = shown(&c::ReadValue::Setting(Box::new(c::SettingDocument {
             overlay: None,
             setting: item.setting,

@@ -4,6 +4,7 @@ pub use super::{Playground, PlaygroundState};
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Queue, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 #[derive(Debug)]
 pub(super) struct State {
@@ -162,8 +163,7 @@ pub(crate) fn read(side: &mut Side, out: &mut Queue<Request>) {
     side.serial = side.serial.checked_add(1).expect("forge handles fit");
     let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
     side.playground.pending = Some(handle);
-    let record = w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground })
-        .expect("fieldless playground read");
+    let record = w::Reading { read: w::Read::Playground };
     out.push(Request::Client {
         asked: jig_client::Event::Read {
             handle,
@@ -173,7 +173,7 @@ pub(crate) fn read(side: &mut Side, out: &mut Queue<Request>) {
                 record: jig_client::Family {
                     family: wire::FORGE,
                     version: wire::CLIENT_VERSION,
-                    bytes: wire::reading(&record),
+                    bytes: record.encode(&w::CEILINGS).expect("fieldless playground read"),
                 },
             },
         },
@@ -219,14 +219,13 @@ pub enum EndAnswer {
 }
 #[must_use]
 pub fn end_ask(limits: &Limits) -> Option<jig_client::Ask> {
-    let record =
-        w::Requesting::new(&wire_limits(limits)?, w::RequestingParts { request: w::Request::EndPlayground }).ok()?;
+    let record = w::Requesting { request: w::Request::EndPlayground };
     Some(jig_client::Ask::Family {
         scope: c::Scope::Deployment,
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::requesting(&record),
+            bytes: record.encode(&wire_limits(limits)?).ok()?,
         },
     })
 }
@@ -253,9 +252,9 @@ fn end_answer(outcome: &jig_client::Outcome, limits: Limits) -> Option<EndAnswer
     if !reader.is_empty() {
         return None;
     }
-    match answer.into_parts().outcome {
+    match answer.outcome {
         w::Outcome::Reset => Some(EndAnswer::Reset),
-        w::Outcome::EndRefused(why) => match why.into_parts().why {
+        w::Outcome::EndRefused(why) => match why.why {
             w::EndRefusal::NotOffered => Some(EndAnswer::NotOffered),
         },
         w::Outcome::MakeKept
@@ -318,13 +317,13 @@ pub enum StartAnswer {
 #[must_use]
 pub fn ask(limits: &Limits) -> Option<jig_client::Ask> {
     let limits = wire_limits(limits)?;
-    let record = w::Requesting::new(&limits, w::RequestingParts { request: w::Request::StartPlayground }).ok()?;
+    let record = w::Requesting { request: w::Request::StartPlayground };
     Some(jig_client::Ask::Family {
         scope: c::Scope::Deployment,
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::requesting(&record),
+            bytes: record.encode(&limits).ok()?,
         },
     })
 }
@@ -346,14 +345,14 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
     if !reader.is_empty() {
         return None;
     }
-    Some(match value.into_parts().outcome {
+    Some(match value.outcome {
         w::Outcome::Running => StartAnswer::Running,
         w::Outcome::Unknown => StartAnswer::Unknown,
-        w::Outcome::StartRefused(value) => match value.into_parts().why {
+        w::Outcome::StartRefused(value) => match value.why {
             w::StartRefusal::NotOffered => StartAnswer::NotOffered,
         },
-        w::Outcome::StartFailed(value) => StartAnswer::Failed(match value.into_parts().why {
-            w::StartFailure::Group(value) => StartFailure::Group(value.into_parts().why),
+        w::Outcome::StartFailed(value) => StartAnswer::Failed(match value.why {
+            w::StartFailure::Group(value) => StartFailure::Group(value.why),
             w::StartFailure::Account => StartFailure::Account,
             w::StartFailure::Adoption => StartFailure::Adoption,
             w::StartFailure::NotConnected => StartFailure::NotConnected,

@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{End, EngineEnd};
 use skein_lib::{Time, Token, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 #[test]
 fn the_worker_dials_workers_and_its_hello_reaches_the_engine() {
@@ -338,7 +339,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     );
 
     let w::Outcome::SetUpRefused(refused) = box_setup(&mut stand, &bearer, OTHER, 3) else { panic!("busy answer") };
-    assert_eq!(*refused.why(), w::SetUpRefusal::NotOffered);
+    assert_eq!(refused.why, w::SetUpRefusal::NotOffered);
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
     assert_eq!(
@@ -471,6 +472,7 @@ fn box_setup(
     use temper_client_protocol_wire::{self as wire, v1 as w};
     let engine = stand.service.engine.as_mut().unwrap();
     let limits = engine.client_wire();
+<<<<<<< HEAD
     let request = w::Requesting::new(
         &w::CEILINGS,
         w::RequestingParts {
@@ -498,6 +500,18 @@ fn box_setup(
         },
     )
     .unwrap();
+=======
+    let request = w::Requesting {
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
+>>>>>>> refs/hand6/10247
     let family = j::FamilyRequest::new(
         limits,
         j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },
@@ -539,7 +553,7 @@ fn box_setup(
     let mut reader = Reader::new(answer.record());
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
-    answer.into_parts().outcome
+    answer.outcome
 }
 
 #[test]

@@ -8,6 +8,7 @@ mod tool;
 use super::*;
 use forge_top::{FollowRow, FollowState, settings as s};
 use jig_domain_core::settings as cs;
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 const SOURCE: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 3 };
 const TARGET: skein_forge::api::Repository = skein_forge::api::Repository { forge: 1, repository: 4 };
 const TICKS: u32 = 200;
@@ -289,7 +290,10 @@ fn change_setting(world: &mut World, value: Option<s::Follow>, key: u8) {
             scope: 2,
             number: 1,
             value: s::SizedValue {
-                size: s::follow_record(&value).expect("valid follow setting").measure(),
+                size: s::follow_record(&value)
+                    .expect("valid follow setting")
+                    .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                    .expect("within ceilings"),
                 value: s::Value::Follow(value),
             },
         })

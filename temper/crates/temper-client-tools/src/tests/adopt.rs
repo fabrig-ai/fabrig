@@ -1,6 +1,7 @@
 use super::fixtures;
 use jig_client::{self as client, contract as c};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 #[test]
 fn adopt_prints_adopted_in_the_forges_words() {
     let (mut root, call) = fixtures::adopt_root(&[]);
@@ -19,9 +20,9 @@ fn adopt_json_preserves_the_adopted_record() {
 #[test]
 fn an_adopted_outcome_without_landing_omits_its_sentence() {
     let w::Outcome::Adopted(adopted) = fixtures::adopted_with_unknown_protection() else { panic!("adopted") };
-    let mut parts = adopted.into_parts();
+    let mut parts = adopted;
     parts.landing = Box::new([]);
-    let outcome = w::Outcome::Adopted(w::Adopted::new(&w::CEILINGS, parts).expect("adopted"));
+    let outcome = w::Outcome::Adopted(parts);
     let (mut root, call) = fixtures::adopt_root(&[]);
     root.adoption_answer(call, outcome);
     let printed = root.answer(call).expect("answered");
@@ -343,6 +344,7 @@ fn a_saved_setup_request_is_not_restored_as_an_adoption() {
     let mut records = fixtures::restored_adoption(fixtures::PARTY);
     let held = records.get_mut(fixtures::EMPTY).expect("one saved request");
     let client::Ask::Family { record, .. } = &mut held.request.request else { panic!("family request") };
+<<<<<<< HEAD
     let request = w::Requesting::new(
         &w::CEILINGS,
         w::RequestingParts {
@@ -371,6 +373,19 @@ fn a_saved_setup_request_is_not_restored_as_an_adoption() {
     )
     .expect("setup request");
     record.bytes = temper_client_protocol_wire::requesting(&request);
+=======
+    let request = w::Requesting {
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge: 3 }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
+    record.bytes = request.encode(&w::CEILINGS).expect("setup request");
+>>>>>>> refs/hand6/10247
     let mut root = fixtures::started(records);
     root.deliver(c::Delivery::Me(Box::new(fixtures::me(fixtures::PARTY))));
     root.adopt_outcome(fixtures::RESTORED_PREFIX, client::Outcome::Unknown);
@@ -412,41 +427,29 @@ fn a_retry_keeps_the_adoptions_nondefault_options_and_quotes_arguments() {
 
 #[test]
 fn a_read_only_adoption_says_so() {
-    let limits =
-        temper_client_domain_forge::forge::wire_limits(&fixtures::limits_root().domain.forge).expect("forge limits");
     for role in [w::Role::Owned, w::Role::Context] {
         let (mut root, call) = fixtures::adopt_root(&[]);
-        let outcome = w::Outcome::Adopted(
-            w::Adopted::new(
-                &limits,
-                w::AdoptedParts {
-                    landing: b"main".as_slice().into(),
-                    forge: 1,
-                    repository: 7,
-                    owner: b"o".as_slice().into(),
-                    name: b"n".as_slice().into(),
-                    role: role.clone(),
-                    home: false,
-                    kinds: w::Kinds::new(
-                        &limits,
-                        w::KindsParts {
-                            read: true,
-                            push: false,
-                            open: false,
-                            land: false,
-                            review: false,
-                            status: false,
-                            comment: false,
-                            issue: false,
-                            branch: false,
-                        },
-                    )
-                    .expect("kinds"),
-                    protection: w::Protection::Unknown,
-                },
-            )
-            .expect("adopted"),
-        );
+        let outcome = w::Outcome::Adopted(w::Adopted {
+            landing: b"main".as_slice().into(),
+            forge: 1,
+            repository: 7,
+            owner: b"o".as_slice().into(),
+            name: b"n".as_slice().into(),
+            role: role.clone(),
+            home: false,
+            kinds: w::Kinds {
+                read: true,
+                push: false,
+                open: false,
+                land: false,
+                review: false,
+                status: false,
+                comment: false,
+                issue: false,
+                branch: false,
+            },
+            protection: w::Protection::Unknown,
+        });
         root.adoption_answer(call, outcome);
         let printed = root.answer(call).expect("answered");
         assert_eq!(printed.status, 0);

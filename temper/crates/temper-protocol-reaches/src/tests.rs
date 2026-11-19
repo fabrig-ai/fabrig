@@ -4,6 +4,7 @@
 #![expect(clippy::disallowed_macros, reason = "ordinary table fixtures use bounded vectors")]
 use super::*;
 use alloc::{vec, vec::Vec};
+use temper_client_protocol_wire::v1::Record;
 
 fn item(subject: Subject, words: &[u8], class: Class) -> Item {
     Item { subject, words: words.into(), class }
@@ -131,8 +132,9 @@ fn stocks_and_away_follow_the_way() {
         assert_eq!(classes.check(), Ok(()));
         let record = classes_record(&classes).unwrap();
         assert_eq!(classes_from(&record), classes);
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut writer).unwrap();
+        let mut writer =
+            skein_lib::Writer::new(usize::try_from(record.measure(&v1::CEILINGS).expect("within ceilings")).unwrap());
+        record.write(&v1::CEILINGS, &mut writer).unwrap();
         assert_eq!(
             v1::ProjectClasses::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&writer.finish())).unwrap(),
             record
