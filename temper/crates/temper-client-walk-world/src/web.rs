@@ -1,7 +1,7 @@
 //! The web client's native page (temper/docs/design/playground.md, 6 and 9).
 
 use crate::{
-    Clients, facts,
+    Clients, Native, facts,
     tui::{self, Held, Terminal},
 };
 use jig_client_shell_web::{adapter, sign_in};
@@ -79,8 +79,15 @@ impl Page {
         let seed = start.seed;
         let wall = start.wall;
         let inbox = Inbox::new();
+        let mut world = story::world_with::<Clients, _>(start, skein_sim_world::Bare);
+        world.host(skein_sim_world::HostedProgram {
+            program: crate::box_peer::PROGRAM.into(),
+            make: crate::box_peer::BoxPeer::program,
+            instances: 1,
+            operations: 16,
+        });
         let mut memory = Memory::new(
-            story::slices_with::<Clients>(start, story::SLICE_STEPS, Time::ZERO),
+            skein_playground::slices::Slices::new(world, story::reach(), story::SLICE_STEPS, Time::ZERO),
             bridge::Start { story: name.into(), seed, start: wall },
             LOG_BYTES,
             Rc::clone(&inbox),
@@ -153,6 +160,12 @@ impl Page {
         page.give(host::Report::Start, false);
         page.turn()?;
         Ok(page)
+    }
+
+    /// The world's time at the last drawing.
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.world().now()
     }
 
     /// The HTML of the last drawn page.
@@ -251,12 +264,14 @@ impl Page {
         }
         let (now, wall) = self.memory.clocks(self.browser);
         let world = self.memory.slices_mut().world_mut();
-        let at = world.spawn(|| Process::Other(tui::Connection::new()));
+        let at = world.spawn(|| Process::Other(Native::Terminal(Box::new(tui::Connection::new()))));
         let seed = facts::tui_seed(self.tui_starts);
         self.tui_starts = self.tui_starts.wrapping_add(1);
         let mut terminal = Terminal::new(at, std::mem::take(&mut self.held), seed, now, wall);
         let (_, _, processes) = world.parts();
-        let Process::Other(connection) = &mut processes[at] else { unreachable!("terminal connection") };
+        let Process::Other(Native::Terminal(connection)) = &mut processes[at] else {
+            unreachable!("terminal connection")
+        };
         self.pending_input |= terminal.start(connection)?;
         self.terminal = Some(terminal);
         self.turn()
@@ -310,7 +325,9 @@ impl Page {
     pub fn tui_stop(&mut self) {
         if let Some(terminal) = self.terminal.take() {
             let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
-            let Process::Other(connection) = &mut processes[terminal.at] else { unreachable!("terminal connection") };
+            let Process::Other(Native::Terminal(connection)) = &mut processes[terminal.at] else {
+                unreachable!("terminal connection")
+            };
             connection.close();
             self.held = terminal.held();
             self.pending_input = true;
@@ -325,7 +342,9 @@ impl Page {
     fn give_tui(&mut self, report: TuiReport) -> Result<(), Failed> {
         let terminal = self.terminal.as_mut().expect("started terminal");
         let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
-        let Process::Other(connection) = &mut processes[terminal.at] else { unreachable!("terminal connection") };
+        let Process::Other(Native::Terminal(connection)) = &mut processes[terminal.at] else {
+            unreachable!("terminal connection")
+        };
         self.pending_input |= terminal.report(report, connection)?;
         Ok(())
     }
@@ -462,7 +481,9 @@ impl Page {
         if let Some(terminal) = &mut self.terminal {
             terminal.host.clocks(now, wall);
             let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
-            let Process::Other(connection) = &mut processes[terminal.at] else { unreachable!("terminal connection") };
+            let Process::Other(Native::Terminal(connection)) = &mut processes[terminal.at] else {
+                unreachable!("terminal connection")
+            };
             let events = connection.take();
             for event in events {
                 self.give_tui(TuiReport::Heard(event))?;
