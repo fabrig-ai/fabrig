@@ -20,6 +20,10 @@ RECORDINGS = {
 CODECS = 'tools/merge/codecs.txt'
 CODEC_GENERATORS = ('skein/testing/skein-codegen/', 'skein/crates/skein-codec/')
 MARKER = re.compile(rb'^(?:<{7}|={7}|>{7}|\|{7})(?:[ \r\n]|$)', re.MULTILINE)
+JOURNEY_WRITTEN = re.compile(
+    r'temper/docs/design/client/(?:web|tui)/journeys/'
+    r'(?:[^/]+/(?:recording|[0-9]{2,}\.(?:html|txt))'
+    r'|skein-ui\.css|journey\.js|theme\.css|tui-journey\.js)')
 
 
 def git(repository, *args, stderr=None):
@@ -35,6 +39,16 @@ def unmerged(repository):
             mode, blob, stage = metadata.split()
             paths.setdefault(os.fsdecode(path), {})[int(stage)] = (mode, blob)
     return paths
+
+
+def settle_journey(repository, path, base):
+    # Read the commit, not stage 3: a rename can put that stage at another path.
+    entry = git(repository, '--literal-pathspecs', 'ls-tree', '-z', base, '--', path)
+    if entry:
+        git(repository, '--literal-pathspecs', 'checkout', base, '--', path)
+    else:
+        git(repository, '--literal-pathspecs', 'rm', '-f', '--', path)
+    return True
 
 
 def baseline(data):
@@ -278,7 +292,11 @@ def main():
     codecs = codec_list(repository, conflicts)
     for path, stages in sorted(conflicts.items()):
         try:
-            if path in BASELINES and settle(repository, path, stages):
+            if (path not in BASELINES and path not in RECORDINGS and path not in codecs
+                    and JOURNEY_WRITTEN.fullmatch(path)
+                    and settle_journey(repository, path, request['base'])):
+                settled.append(path)
+            elif path in BASELINES and settle(repository, path, stages):
                 settled.append(path)
             elif path in RECORDINGS and regenerate(repository, path, stages, conflicts):
                 settled.append(path)
