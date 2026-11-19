@@ -2529,6 +2529,7 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
+    assert_eq!(v25::CEILINGS.logged_red_tests, forge::LOGGED_TESTS);
     let limits = fixtures::LIMITS;
     assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_925);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
@@ -2558,8 +2559,23 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     for verdict in [
         forge::LoggedVerdict::Verifying,
         forge::LoggedVerdict::Cleared { run: u64::MAX },
-        forge::LoggedVerdict::Red { run: 7, failing: Some(u32::MAX) },
-        forge::LoggedVerdict::Red { run: 9, failing: None },
+        forge::LoggedVerdict::Red {
+            run: 7,
+            failing: Some(u32::MAX),
+            tests: Box::new([b"suite::a".as_slice().into(), b"suite::b".as_slice().into()]),
+            many: None,
+        },
+        forge::LoggedVerdict::Red { run: 9, failing: None, tests: Box::new([]), many: None },
+        forge::LoggedVerdict::Red {
+            run: 10,
+            failing: None,
+            tests: Box::new([]),
+            many: Some(temper_engine_domain_forge_tiers::ManyTests {
+                tests: Box::new([b"suite::t00".as_slice().into()]),
+                more: 21,
+                cut: true,
+            }),
+        },
     ] {
         let mut row = landing_log(1, 1, 1);
         if let forge::Stored::LandingLog(row) = &mut row {
@@ -2569,6 +2585,25 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         }
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+    let mut row = landing_log(1, 1, 1);
+    if let forge::Stored::LandingLog(row) = &mut row {
+        let mut tiers = skein_lib::List::with_capacity(limits.tiers.tiers.checked_add(1).unwrap());
+        for at in 0..=limits.tiers.tiers {
+            tiers
+                .push(forge::LoggedTier {
+                    tier: skein_lib::Decimal::of(u64::from(at)).as_bytes().into(),
+                    verdict: forge::LoggedVerdict::Red {
+                        run: 7,
+                        failing: Some(1),
+                        tests: Box::new([b"suite::a".as_slice().into()]),
+                        many: None,
+                    },
+                })
+                .unwrap();
+        }
+        row.landings[0].tiers = tiers.into_boxed();
+    }
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]

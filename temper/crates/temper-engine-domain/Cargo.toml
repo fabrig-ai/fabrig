@@ -21,6 +21,7 @@ skein-forge.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 skein-push.workspace = true
+smith-domain-run.workspace = true
 jig-domain-core.workspace = true
 jig-domain-people.workspace = true
 jig-domain-tasks.workspace = true
@@ -43,7 +44,6 @@ temper-engine-domain-forge-issues.workspace = true
 
 [dev-dependencies]
 jig-protocol-config-fixtures.workspace = true
-smith-domain-run.workspace = true
 temper-protocol-brief.workspace = true
 jig-protocol-worker-wire.workspace = true
 temper-client-view.workspace = true

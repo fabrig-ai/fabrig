@@ -1,6 +1,6 @@
 //! Channel kind and body checks (protocol/channel.md, sections 2-4).
 
-use crate::support::goldens::assert_measured;
+use crate::support::goldens::Goldens;
 
 use skein_channel::Direction;
 use skein_lib::Reader;
@@ -8,19 +8,20 @@ use smith_channel::{Answer, CEILINGS, Start, V11, schema};
 
 #[test]
 fn channel_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", smith_channel::wire::VERSION, "list_ask", |bytes| {
+    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
+    goldens.assert_measured("list_ask", |bytes| {
         smith_channel::ListAsk::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list ask decodes").measure()
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "list_row", |bytes| {
+    goldens.assert_measured("list_row", |bytes| {
         smith_channel::ListRow::decode(&CEILINGS, &mut Reader::new(bytes)).expect("list row decodes").measure()
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "start", |bytes| {
+    goldens.assert_measured("start", |bytes| {
         Start::decode(&CEILINGS, &mut Reader::new(bytes)).expect("start decodes").measure()
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "drain", |bytes| {
+    goldens.assert_measured("drain", |bytes| {
         smith_channel::Drain::decode(&CEILINGS, &mut Reader::new(bytes)).expect("drain decodes").measure()
     });
-    assert_measured("channel", smith_channel::wire::VERSION, "answer", |bytes| {
+    goldens.assert_measured("answer", |bytes| {
         Answer::decode(&CEILINGS, &mut Reader::new(bytes)).expect("answer decodes").measure()
     });
 }
@@ -53,7 +54,8 @@ fn every_required_kind_has_its_direction_and_bound_in_the_schema() {
 
 #[test]
 fn message_refusal_goldens_keep_each_typed_reason() {
-    assert_measured("channel", smith_channel::wire::VERSION, "message_refused", |bytes| {
+    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
+    goldens.assert_measured("message_refused", |bytes| {
         smith_channel::MessageRefused::decode(&CEILINGS, &mut Reader::new(bytes)).expect("refusal decodes").measure()
     });
 }
@@ -92,7 +94,8 @@ fn channel_turn_goldens_keep_the_declared_window_flag() {
 
 #[test]
 fn live_goldens_decode_at_their_measured_length() {
-    assert_measured("channel", smith_channel::wire::VERSION, "live", |bytes| {
+    let goldens = Goldens::new("channel", smith_channel::wire::VERSION);
+    goldens.assert_measured("live", |bytes| {
         smith_channel::Live::decode(&CEILINGS, &mut Reader::new(bytes)).expect("live decodes").measure()
     });
 }

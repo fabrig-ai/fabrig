@@ -108,6 +108,7 @@ fn configured(verification_bound_ms: u64, wait: temper_engine_domain_forge_chang
             person_executor: true,
             spec_bytes: Some(4096),
             applications: Some(24),
+            message_bytes: Some(1024),
             inbox_messages: Some(16),
             inbox_bytes: Some(4096),
             tasks_batch: Some(8),
@@ -119,16 +120,6 @@ fn configured(verification_bound_ms: u64, wait: temper_engine_domain_forge_chang
             ..StoryLimits::default()
         },
     );
-    // Keep the automatic red's full header and test id within the existing message bound.
-    world.env.limits.tasks.message_bytes = 1024;
-    let mut limits = temper_engine_domain_world::store::widest();
-    limits.tasks = world.env.limits.tasks;
-    limits.authority = world.env.limits.authority;
-    let mut store = temper_engine_domain_world::store::Store::with_limits(&limits);
-    store.seed(world.store.rows.values().cloned().collect(), Box::new([]));
-    world.store = store;
-    let client = world.env.limits.forge.client;
-    world = world.with_forge_client(client);
     world.fake = fake::Domain::new(&world.fake_env.limits, 71);
     world
 }
@@ -274,7 +265,7 @@ fn land(world: &mut World) -> (u64, Commit) {
     );
     world.send(event);
     until(world, "port landed", |world| {
-        matches!(questions::row(world, change).change.state, temper_engine_domain_forge_change::State::Landed { .. })
+        matches!(tier_runs::change_state(world, change), temper_engine_domain_forge_change::State::Landed { .. })
     });
     assert_eq!(questions::row(world, change).goal, None);
     assert_eq!(questions::row(world, change).follows.as_ref().expect("landed follow member").follow, 1);
@@ -300,9 +291,7 @@ fn judged(world: &mut World, commit: Commit, area: Option<&[u8]>, holder: Holder
         "{body}"
     );
     assert_eq!(world.assigned.len(), runs, "filing starts no agent's run");
-    for _ in 0..LANDING_TICKS {
-        world.tick();
-    }
+    world.advance_ticks(LANDING_TICKS);
     assert_eq!(findings(world).len(), 1, "once per landing");
 }
 

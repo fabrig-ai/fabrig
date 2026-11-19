@@ -650,6 +650,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         b"browser",
         &verdict,
         &[temper_engine_domain_forge_tiers::Landing { commit: fixtures::HEAD, key: [7; 32] }],
+        None,
         &mut out,
     );
     assert!(queue_marked(&out));
@@ -663,7 +664,7 @@ fn changes_marks_a_verifications_save_and_erasure() {
         landings: Box::new([]),
         flakes: Box::new([]),
     };
-    verification::judged(&mut d, REPO, b"browser", &verdict, &[], &mut out);
+    verification::judged(&mut d, REPO, b"browser", &verdict, &[], None, &mut out);
     assert!(queue_marked(&out));
     assert!(changes(&d).queues.is_empty());
     let mut out = Queue::uncapped();

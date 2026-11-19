@@ -298,7 +298,9 @@ fn answer_parts(world: &mut World, run: &engine::Assignment, turns: u64, end: ta
     answer.read = read.map(Token::new);
     answer.turns = 1;
     world.send(event);
-    advance(world);
+    // The following scene consumes the answer's durable result or next run.
+    // Drain those immediate consequences, not an unrelated timer horizon.
+    world.oracle_settle();
 }
 
 fn report(world: &mut World, run: &engine::Assignment, turns: u64, words: &[u8]) {
@@ -322,16 +324,18 @@ fn next_child(world: &World, parent: u64, after: u64) -> u64 {
     world
         .store
         .rows
-        .values()
-        .filter_map(|stored| match stored {
+        .range((
+            std::ops::Bound::Excluded(Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(after)))),
+            std::ops::Bound::Included(Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(u64::MAX)))),
+        ))
+        .find_map(|(_, stored)| match stored {
             Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))
-                if row.requester == tasks::Party::Task(parent) && row.number > after =>
+                if row.requester == tasks::Party::Task(parent) =>
             {
                 Some(row.number)
             }
             _ => None,
         })
-        .min()
         .unwrap_or_else(|| {
             panic!(
                 "task {parent} has no next child after {after}; phase={:?}; numbers={:?}",
@@ -369,11 +373,10 @@ fn pushed(world: &mut World, run: &engine::Assignment, turns: u64, head: u64) {
 }
 
 fn landed(world: &World, task: u64) -> bool {
-    world.store.rows.values().any(|stored| {
-        matches!(stored,
-        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-            if row.task == task && matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. })))
-    })
+    world
+        .store
+        .change_hot(task)
+        .is_some_and(|row| matches!(row.change.state, temper_engine_domain_forge_change::State::Landed { .. }))
 }
 
 fn land_change(world: &mut World, work: &engine::Assignment) -> (u64, [u64; 3]) {

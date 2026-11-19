@@ -313,6 +313,14 @@ fn paging_counts_only_consumed_rows_and_refuses_an_unfittable_first_row() {
 }
 
 #[test]
+fn the_wide_text_parses_and_keeps_many_names_at_1024() {
+    let wide = layouts::wide();
+    skein_codec::schema::parse(wide.as_bytes()).expect("the wide text fits the codec envelope");
+    assert!(wide.contains("record ShownTest { test_id: bytes 1024 }"));
+    assert!(wide.contains("record FailingTest { test_id: bytes 4096 }"));
+}
+
+#[test]
 fn the_binary_text_has_each_wide_substitution_once() {
     let wide = layouts::wide();
     assert_ne!(wide, layouts::BINARY);

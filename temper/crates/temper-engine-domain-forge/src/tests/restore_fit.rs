@@ -1102,6 +1102,7 @@ fn setting_rule_fields_fit_at_the_bound_and_refuse_one_more_before_insertion() {
 
 fn tier_row(number: u32) -> TierRow {
     TierRow {
+        many: None,
         posting: None,
         hold: None,
         observations: Box::new([]),
