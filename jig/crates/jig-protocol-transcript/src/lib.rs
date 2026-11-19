@@ -20,7 +20,7 @@ use alloc::boxed::Box;
 pub use jig_client_domain::contract::{Block, Call, Speaker, Turn, TurnLimits};
 use jig_client_domain::contract::{Message, ModelEffort, Text, Usage};
 use skein_lib::{Decimal, List, Reader, length::len_u64};
-use smith_transcript::v7 as smith;
+use smith_transcript::{Record, v7 as smith};
 
 mod brief;
 mod summary;
@@ -107,10 +107,10 @@ fn classify(problem: smith::Problem) -> Undecodable {
 
 fn translate(limits: TurnLimits, source: &smith::Turn, inspect_system: bool) -> Turn {
     let mut budget = Budget { left: limits.text, cut: false };
-    let supplied = inspect_system && source.system().is_some();
-    let system_fits = supplied && source.messages().len() < limits.messages;
+    let supplied = inspect_system && source.system.is_some();
+    let system_fits = supplied && source.messages.len() < limits.messages;
     let mut messages =
-        List::with_capacity(limits.messages.min(source.messages().len().saturating_add(u32::from(system_fits))));
+        List::with_capacity(limits.messages.min(source.messages.len().saturating_add(u32::from(system_fits))));
     if system_fits {
         supplied_message(limits, &mut messages, &mut budget);
     } else if supplied {
@@ -120,25 +120,25 @@ fn translate(limits: TurnLimits, source: &smith::Turn, inspect_system: bool) -> 
     append_messages(limits, source, &mut messages, &mut budget);
     // Names are already priced. Each later pass walks only the retained window.
     for price in [Price::Texts, Price::Outcomes, Price::Inputs, Price::Summaries] {
-        for (original, message) in source.messages().iter().zip(messages.iter_mut().skip(offset)) {
-            for (original, block) in original.blocks().iter().zip(message.blocks.iter_mut()) {
+        for (original, message) in source.messages.iter().zip(messages.iter_mut().skip(offset)) {
+            for (original, block) in original.blocks.iter().zip(message.blocks.iter_mut()) {
                 fill_block(source, original, block, price, limits.outcome, &mut budget);
             }
         }
     }
     fill_supplied(source, &mut messages, &mut budget);
-    let usage = source.usage();
+    let usage = &source.usage;
     Turn {
         messages,
         // The contract's counts are plain: one the provider did not report shows
         // as zero, as smith reported it before its counts became optional.
         used: Usage {
-            input: usage.input().unwrap_or(0),
-            output: usage.output().unwrap_or(0),
-            cached: usage.cache_read().unwrap_or(0),
-            cache_written: usage.cache_write().unwrap_or(0),
+            input: usage.input.unwrap_or(0),
+            output: usage.output.unwrap_or(0),
+            cached: usage.cache_read.unwrap_or(0),
+            cache_written: usage.cache_write.unwrap_or(0),
         },
-        spent: source.spent(),
+        spent: source.spent,
         read_through: None,
         llm: llm(source),
         cut: budget.cut,
@@ -148,12 +148,12 @@ fn translate(limits: TurnLimits, source: &smith::Turn, inspect_system: bool) -> 
 /// The turn's model and effort, outside the text budget as its usage is (client/domain/client/conversations.md).
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn llm(source: &smith::Turn) -> Option<ModelEffort> {
-    if source.model().is_empty() {
+    if source.model.as_ref().is_empty() {
         return None;
     }
-    let model = Text::new(Box::from(source.model()), smith::CEILINGS.turn_model)
+    let model = Text::new(Box::from(source.model.as_ref()), smith::CEILINGS.turn_model)
         .expect("decoded model fits its transcript bound");
-    let effort = match source.effort() {
+    let effort = match &source.effort {
         Some(effort) => Some(
             Text::new(Box::from(effort.as_ref()), smith::CEILINGS.turn_effort_some)
                 .expect("decoded effort fits its transcript bound"),
@@ -171,10 +171,12 @@ fn empty_text() -> Text {
 fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budget) -> Block {
     match block {
         smith::Block::Text(_) | smith::Block::Refusal(_) => Block::Text(empty_text()),
-        smith::Block::Opaque(opaque) => Block::Opaque { dialect: empty_text(), size: len_u64(opaque.bytes().len()) },
+        smith::Block::Opaque(opaque) => {
+            Block::Opaque { dialect: empty_text(), size: len_u64(opaque.bytes.as_ref().len()) }
+        }
         smith::Block::Call(call) => Block::Call(Call {
-            number: call_number(source, call.id()),
-            tool: budget.text(call.name()),
+            number: call_number(source, call.id.as_ref()),
+            tool: budget.text(call.name.as_ref()),
             input: empty_text(),
             outcome: None,
             failed: false,
@@ -182,7 +184,7 @@ fn translate_block(source: &smith::Turn, block: &smith::Block, budget: &mut Budg
             parts: List::with_capacity(0),
         }),
         smith::Block::Result(result) => {
-            Block::Result { call: call_number(source, result.id()), summary: empty_text(), failed: false }
+            Block::Result { call: call_number(source, result.id.as_ref()), summary: empty_text(), failed: false }
         }
     }
 }
@@ -208,7 +210,7 @@ fn fill_block(
             if price == Price::Texts {
                 match original {
                     smith::Block::Text(original) | smith::Block::Refusal(original) => {
-                        *text = budget.text(original.text());
+                        *text = budget.text(original.text.as_ref());
                     }
                     smith::Block::Opaque(_) | smith::Block::Call(_) | smith::Block::Result(_) => {
                         unreachable!("retained blocks follow the source")
@@ -220,7 +222,7 @@ fn fill_block(
             if price == Price::Texts {
                 match original {
                     smith::Block::Opaque(original) => {
-                        *dialect = budget.text(Decimal::of(u64::from(original.dialect())).as_bytes());
+                        *dialect = budget.text(Decimal::of(u64::from(original.dialect)).as_bytes());
                     }
                     smith::Block::Text(_)
                     | smith::Block::Refusal(_)
@@ -234,12 +236,12 @@ fn fill_block(
         Block::Call(call) => match original {
             smith::Block::Call(original) => match price {
                 Price::Outcomes => {
-                    if let Some(answer) = call_outcome(source, original.id(), outcome, budget) {
+                    if let Some(answer) = call_outcome(source, original.id.as_ref(), outcome, budget) {
                         call.outcome = Some(answer.text);
                         call.failed = answer.failed;
                     }
                 }
-                Price::Inputs => call.input = budget.text(original.input()),
+                Price::Inputs => call.input = budget.text(original.input.as_ref()),
                 Price::Texts | Price::Summaries => {}
             },
             smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Opaque(_) | smith::Block::Result(_) => {
@@ -250,7 +252,7 @@ fn fill_block(
             if price == Price::Summaries {
                 match original {
                     smith::Block::Result(original) => {
-                        let answer = result_text(original.returned(), None, budget);
+                        let answer = result_text(&original.returned, None, budget);
                         *summary = answer.text;
                         *failed = answer.failed;
                     }
@@ -267,12 +269,12 @@ fn fill_block(
 }
 
 fn call_outcome(source: &smith::Turn, id: &[u8], bound: u32, budget: &mut Budget) -> Option<ResultText> {
-    for message in source.messages() {
-        for candidate in message.blocks() {
+    for message in &source.messages {
+        for candidate in &message.blocks {
             match candidate {
                 smith::Block::Result(result) => {
-                    if result.id() == id {
-                        return Some(result_text(result.returned(), Some(bound), budget));
+                    if result.id.as_ref() == id {
+                        return Some(result_text(&result.returned, Some(bound), budget));
                     }
                 }
                 smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Call(_) | smith::Block::Opaque(_) => {}
@@ -284,12 +286,12 @@ fn call_outcome(source: &smith::Turn, id: &[u8], bound: u32, budget: &mut Budget
 
 fn call_number(source: &smith::Turn, id: &[u8]) -> u64 {
     let mut position = 0_u64;
-    for message in source.messages() {
-        for block in message.blocks() {
+    for message in &source.messages {
+        for block in &message.blocks {
             position = position.checked_add(1).expect("schema ceilings bound blocks");
             let candidate = match block {
-                smith::Block::Call(call) => Some(call.id()),
-                smith::Block::Result(result) => Some(result.id()),
+                smith::Block::Call(call) => Some(call.id.as_ref()),
+                smith::Block::Result(result) => Some(result.id.as_ref()),
                 smith::Block::Text(_) | smith::Block::Refusal(_) | smith::Block::Opaque(_) => None,
             };
             if candidate == Some(id) {
@@ -342,7 +344,7 @@ struct ResultText {
 fn result_text(returned: &smith::Returned, outcome: Option<u32>, budget: &mut Budget) -> ResultText {
     match returned {
         smith::Returned::Said(said) => {
-            ResultText { text: returned_text(said.text(), outcome, budget), failed: said.error() }
+            ResultText { text: returned_text(said.text.as_ref(), outcome, budget), failed: said.error }
         }
         smith::Returned::Outcome(_)
         | smith::Returned::Invalid(_)
@@ -394,17 +396,17 @@ fn supplied_message(limits: TurnLimits, messages: &mut List<Message>, budget: &m
 }
 
 fn append_messages(limits: TurnLimits, source: &smith::Turn, messages: &mut List<Message>, budget: &mut Budget) {
-    for message in source.messages() {
+    for message in &source.messages {
         if messages.len() == messages.capacity() {
             budget.cut = true;
             break;
         }
-        let speaker = match message.role() {
+        let speaker = match &message.role {
             smith::Role::User => Speaker::Person,
             smith::Role::Assistant => Speaker::Assistant,
         };
-        let mut blocks = List::with_capacity(limits.blocks.min(message.blocks().len()));
-        for block in message.blocks() {
+        let mut blocks = List::with_capacity(limits.blocks.min(message.blocks.len()));
+        for block in &message.blocks {
             if blocks.len() == blocks.capacity() {
                 budget.cut = true;
                 break;
@@ -417,7 +419,7 @@ fn append_messages(limits: TurnLimits, source: &smith::Turn, messages: &mut List
 }
 
 fn fill_supplied(source: &smith::Turn, messages: &mut List<Message>, budget: &mut Budget) {
-    if let Some(system) = source.system()
+    if let Some(system) = (&source.system)
         && let Some(message) = messages.get_mut(0)
         && message.speaker == Speaker::System
     {

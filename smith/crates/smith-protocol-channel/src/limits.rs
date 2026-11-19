@@ -1,5 +1,7 @@
 //! Agent-side opening limits (protocol/channel.md, sections 2 and 7).
 
+use smith_transcript::Record;
+
 /// Codec, framing and queue allowances fixed before the channel opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {

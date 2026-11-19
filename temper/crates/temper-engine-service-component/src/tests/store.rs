@@ -1,5 +1,6 @@
 use super::fixtures;
 use crate::store::{self, Store};
+use jig_protocol_store::core_v6::Record as _;
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::Time;
 use temper_engine_domain as engine;
@@ -316,11 +317,11 @@ fn every_service_start_keeps_the_shells_wires() {
         protocol::component_v3::Wires::decode(&protocol::component_v3::CEILINGS, &mut Reader::new(&bytes)).unwrap();
     let spoken = crate::wires();
     assert!(spoken.len() <= 16, "the store's wire count bound");
-    assert_eq!(wires.wires().len(), spoken.len());
-    for (kept, expected) in wires.wires().iter().zip(&spoken) {
+    assert_eq!(wires.wires.len(), spoken.len());
+    for (kept, expected) in wires.wires.iter().zip(&spoken) {
         assert!(expected.name.len() <= 32, "the store's wire name bound");
-        assert_eq!(kept.name(), expected.name.as_bytes());
-        assert_eq!(kept.version(), u32::from(expected.highest()));
+        assert_eq!(kept.name.as_ref(), expected.name.as_bytes());
+        assert_eq!(kept.version, u32::from(expected.highest()));
     }
 }
 

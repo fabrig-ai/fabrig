@@ -10,7 +10,7 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Reader, Writer};
 use smith_domain_session::{llm, record};
 use smith_domain_tools as tools;
-use smith_transcript as wire;
+use smith_transcript::{self as wire, Record};
 
 use crate::Endpoints;
 
@@ -55,12 +55,12 @@ pub fn decode_transcript(
         };
         let source = saved_turn(body, place, limits)?;
         match &first_endpoint {
-            Some(first) if first.as_ref() != source.endpoint() => return Err(record::Refusal::Malformed),
+            Some(first) if first.as_ref() != source.endpoint.as_ref() => return Err(record::Refusal::Malformed),
             Some(_) => {}
-            None => first_endpoint = Some(Box::from(source.endpoint())),
+            None => first_endpoint = Some(Box::from(source.endpoint.as_ref())),
         }
-        let endpoint = saved_endpoint(endpoints, source.endpoint());
-        let dialect = source.dialect();
+        let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
+        let dialect = source.dialect;
         let turn = translate_turn(source, endpoint, dialect, limits, search_hits)?;
         if turns.is_empty() {
             match turn.kind {
@@ -119,8 +119,8 @@ pub fn decode_turn(
         return Err(record::Refusal::Malformed);
     }
     let source = saved_turn(bytes, Some(number), limits)?;
-    let endpoint = saved_endpoint(endpoints, source.endpoint());
-    let dialect = source.dialect();
+    let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
+    let dialect = source.dialect;
     translate_turn(source, endpoint, dialect, limits, u32::MAX)
 }
 
@@ -136,11 +136,11 @@ fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v7::Limits) -> R
     let Ok(source) = wire::Turn::decode(limits, &mut Reader::new(bytes)) else {
         return Err(record::Refusal::Malformed);
     };
-    if source.place() == 0 {
+    if source.place == 0 {
         return Err(record::Refusal::Malformed);
     }
     match number {
-        Some(number) if source.place() != number => return Err(record::Refusal::Malformed),
+        Some(number) if source.place != number => return Err(record::Refusal::Malformed),
         Some(_) | None => {}
     }
     Ok(source)
@@ -159,19 +159,19 @@ fn translate_turn(
         version: record::VERSION,
         kind,
         endpoint,
-        model: Box::from(source.model()),
-        effort: source.effort().clone(),
+        model: Box::from(source.model.as_ref()),
+        effort: source.effort.clone(),
         dialect,
-        sequence: source.place(),
+        sequence: source.place,
         usage: llm::Usage {
-            input_tokens: *source.usage().input(),
-            output_tokens: *source.usage().output(),
-            cache_read_tokens: *source.usage().cache_read(),
-            cache_write_tokens: *source.usage().cache_write(),
-            reasoning_tokens: *source.usage().reasoning(),
+            input_tokens: source.usage.input,
+            output_tokens: source.usage.output,
+            cache_read_tokens: source.usage.cache_read,
+            cache_write_tokens: source.usage.cache_write,
+            reasoning_tokens: source.usage.reasoning,
         },
-        spent: source.spent(),
-        jobs: source.jobs(),
+        spent: source.spent,
+        jobs: source.jobs,
         messages: messages.into_boxed(),
     })
 }
@@ -184,27 +184,27 @@ fn decode_block(
 ) -> Result<llm::Block, record::Refusal> {
     let value = match source {
         wire::Block::Text(text) => {
-            llm::Block::Text { text: Box::from(text.text()), replay: replay(text.replay().as_ref(), dialect)? }
+            llm::Block::Text { text: Box::from(text.text.as_ref()), replay: replay(text.replay.as_ref(), dialect)? }
         }
         wire::Block::Refusal(text) => {
-            llm::Block::Refusal { text: Box::from(text.text()), replay: replay(text.replay().as_ref(), dialect)? }
+            llm::Block::Refusal { text: Box::from(text.text.as_ref()), replay: replay(text.replay.as_ref(), dialect)? }
         }
         wire::Block::Call(call) => llm::Block::ToolCall(llm::ToolCall {
-            id: Box::from(call.id()),
-            name: Box::from(call.name()),
-            input: Box::from(call.input()),
+            id: Box::from(call.id.as_ref()),
+            name: Box::from(call.name.as_ref()),
+            input: Box::from(call.input.as_ref()),
             call: llm::Decoded::Historical,
-            replay: replay(call.replay().as_ref(), dialect)?,
+            replay: replay(call.replay.as_ref(), dialect)?,
         }),
         wire::Block::Result(result) => llm::Block::ToolResult {
-            id: Box::from(result.id()),
-            result: returned(result.returned(), limits, search_hits)?,
+            id: Box::from(result.id.as_ref()),
+            result: returned(&result.returned, limits, search_hits)?,
         },
         wire::Block::Opaque(opaque) => {
-            if opaque.dialect() != dialect {
+            if opaque.dialect != dialect {
                 return Err(record::Refusal::Malformed);
             }
-            llm::Block::Opaque { bytes: Box::from(opaque.bytes()) }
+            llm::Block::Opaque { bytes: Box::from(opaque.bytes.as_ref()) }
         }
     };
     Ok(value)
@@ -213,10 +213,10 @@ fn decode_block(
 fn replay(source: Option<&wire::Replay>, dialect: u32) -> Result<Option<llm::Replay>, record::Refusal> {
     match source {
         Some(value) => {
-            if value.dialect() != dialect {
+            if value.dialect != dialect {
                 return Err(record::Refusal::Malformed);
             }
-            Ok(Some(llm::Replay { bytes: Box::from(value.bytes()) }))
+            Ok(Some(llm::Replay { bytes: Box::from(value.bytes.as_ref()) }))
         }
         None => Ok(None),
     }
@@ -228,14 +228,12 @@ fn returned(
     search_hits: u32,
 ) -> Result<llm::Returned, record::Refusal> {
     let value = match source {
-        wire::Returned::Outcome(value) => {
-            llm::Returned::Owned { outcome: outcome(value.value(), limits, search_hits)? }
-        }
+        wire::Returned::Outcome(value) => llm::Returned::Owned { outcome: outcome(&value.value, limits, search_hits)? },
         wire::Returned::Said(value) => {
-            llm::Returned::Text { text: Box::from(value.text()), error: value.error(), replay: None }
+            llm::Returned::Text { text: Box::from(value.text.as_ref()), error: value.error, replay: None }
         }
-        wire::Returned::Invalid(value) => llm::Returned::Invalid { problem: problem(value.problem()) },
-        wire::Returned::NotRun(value) => llm::Returned::NotRun { why: not_run(value.why()) },
+        wire::Returned::Invalid(value) => llm::Returned::Invalid { problem: problem(&value.problem) },
+        wire::Returned::NotRun(value) => llm::Returned::NotRun { why: not_run(&value.why) },
         wire::Returned::Withdrawn => llm::Returned::Withdrawn,
     };
     Ok(value)
@@ -244,13 +242,13 @@ fn returned(
 fn not_run(source: &wire::NotRunWhy) -> llm::NotRun {
     match source {
         wire::NotRunWhy::Stopped => llm::NotRun::Stopped,
-        wire::NotRunWhy::AfterFailedWrite(value) => llm::NotRun::AfterFailedWrite { call: value.call() },
+        wire::NotRunWhy::AfterFailedWrite(value) => llm::NotRun::AfterFailedWrite { call: value.call },
         wire::NotRunWhy::OutsideChoice(value) => {
-            let choice = match value.only() {
+            let choice = match &value.only {
                 Some(allowed) => {
-                    let mut names = List::with_capacity(allowed.names().len());
-                    for name in allowed.names() {
-                        names.push(Box::from(name.name())).expect("bounded allowed calls");
+                    let mut names = List::with_capacity(allowed.names.len());
+                    for name in &allowed.names {
+                        names.push(Box::from(name.name.as_ref())).expect("bounded allowed calls");
                     }
                     Some(names.into_boxed())
                 }
@@ -266,16 +264,14 @@ fn problem(source: &wire::CallProblem) -> llm::Problem {
         wire::CallProblem::UnknownTool => llm::Problem::UnknownTool,
         wire::CallProblem::Nesting => llm::Problem::Nesting,
         wire::CallProblem::NotAnObject => llm::Problem::NotAnObject,
-        wire::CallProblem::Missing(field) => llm::Problem::Missing { field: Box::from(field.field()) },
-        wire::CallProblem::WrongType(field) => llm::Problem::WrongType { field: Box::from(field.field()) },
-        wire::CallProblem::BadValue(field) => llm::Problem::BadValue { field: Box::from(field.field()) },
-        wire::CallProblem::JobsFull(problem) => llm::Problem::JobsFull { jobs: problem.jobs() },
-        wire::CallProblem::UnknownJob(problem) => llm::Problem::UnknownJob { job: problem.job() },
+        wire::CallProblem::Missing(field) => llm::Problem::Missing { field: Box::from(field.field.as_ref()) },
+        wire::CallProblem::WrongType(field) => llm::Problem::WrongType { field: Box::from(field.field.as_ref()) },
+        wire::CallProblem::BadValue(field) => llm::Problem::BadValue { field: Box::from(field.field.as_ref()) },
+        wire::CallProblem::JobsFull(problem) => llm::Problem::JobsFull { jobs: problem.jobs },
+        wire::CallProblem::UnknownJob(problem) => llm::Problem::UnknownJob { job: problem.job },
         wire::CallProblem::TooLarge => llm::Problem::TooLarge,
-        wire::CallProblem::Oversize(problem) => {
-            llm::Problem::Oversize { bytes: problem.bytes(), bound: problem.bound() }
-        }
-        wire::CallProblem::CutOff(problem) => llm::Problem::CutOff { bytes: problem.bytes() },
+        wire::CallProblem::Oversize(problem) => llm::Problem::Oversize { bytes: problem.bytes, bound: problem.bound },
+        wire::CallProblem::CutOff(problem) => llm::Problem::CutOff { bytes: problem.bytes },
     }
 }
 
@@ -288,43 +284,43 @@ fn outcome(
         wire::Outcome::Read(read) => read_outcome(read)?,
         wire::Outcome::Listed(listed) => listed_outcome(listed)?,
         wire::Outcome::Found(found) => {
-            let hits = found_piece(found.hits(), limits, search_hits)?;
-            tools::Outcome::Found { hits, more: found.more(), timed_out: found.timed_out() }
+            let hits = found_piece(found.hits.as_ref(), limits, search_hits)?;
+            tools::Outcome::Found { hits, more: found.more, timed_out: found.timed_out }
         }
         wire::Outcome::Removed => tools::Outcome::Removed,
         wire::Outcome::NotEmpty => tools::Outcome::NotEmpty,
-        wire::Outcome::Written(written) => tools::Outcome::Written { created: written.created() },
-        wire::Outcome::Edited(edited) => tools::Outcome::Edited { replaced: edited.replaced() },
+        wire::Outcome::Written(written) => tools::Outcome::Written { created: written.created },
+        wire::Outcome::Edited(edited) => tools::Outcome::Edited { replaced: edited.replaced },
         wire::Outcome::Exited(command) => tools::Outcome::Exited {
-            exit: exit(command.exit()),
-            head: Box::from(command.head()),
-            tail: Box::from(command.last()),
-            dropped: command.dropped(),
-            timeout: timeout_clamp(command.timeout())?,
-            output: byte_clamp(command.output())?,
+            exit: exit(&command.exit),
+            head: Box::from(command.head.as_ref()),
+            tail: Box::from(command.last.as_ref()),
+            dropped: command.dropped,
+            timeout: timeout_clamp(&command.timeout)?,
+            output: byte_clamp(&command.output)?,
         },
         wire::Outcome::NotGranted => tools::Outcome::NotGranted,
-        wire::Outcome::Outside(failure) => tools::Outcome::Outside { path: resolved(failure.path())? },
-        wire::Outcome::ReadOnly(failure) => tools::Outcome::ReadOnly { path: resolved(failure.path())? },
+        wire::Outcome::Outside(failure) => tools::Outcome::Outside { path: resolved(&failure.path)? },
+        wire::Outcome::ReadOnly(failure) => tools::Outcome::ReadOnly { path: resolved(&failure.path)? },
         wire::Outcome::TooLong => tools::Outcome::TooLong,
-        wire::Outcome::NotFound(failure) => tools::Outcome::NotFound { path: resolved(failure.path())? },
+        wire::Outcome::NotFound(failure) => tools::Outcome::NotFound { path: resolved(&failure.path)? },
         wire::Outcome::NotFile => tools::Outcome::NotFile,
         wire::Outcome::Linked => tools::Outcome::Linked,
         wire::Outcome::Protected => tools::Outcome::Protected,
-        wire::Outcome::NotDirectory(failure) => tools::Outcome::NotDirectory { path: resolved(failure.path())? },
+        wire::Outcome::NotDirectory(failure) => tools::Outcome::NotDirectory { path: resolved(&failure.path)? },
         wire::Outcome::TooLarge(size) => {
-            tools::Outcome::TooLarge { what: size_part(size.what()), size: size.size(), bound: size.bound() }
+            tools::Outcome::TooLarge { what: size_part(&size.what), size: size.size, bound: size.bound }
         }
         wire::Outcome::NotRead => tools::Outcome::NotRead,
         wire::Outcome::Stale => tools::Outcome::Stale,
         wire::Outcome::EditFailed(failed) => {
-            if failed.edit() == 0 {
+            if failed.edit == 0 {
                 return Err(record::Refusal::Malformed);
             }
-            tools::Outcome::EditFailed { edit: failed.edit(), why: mismatch(failed.why())? }
+            tools::Outcome::EditFailed { edit: failed.edit, why: mismatch(&failed.why)? }
         }
         wire::Outcome::Failed(failed) => {
-            let fault = match failed.fault() {
+            let fault = match &failed.fault {
                 wire::Fault::Denied => tools::Fault::Denied,
                 wire::Fault::NoSpace => tools::Fault::NoSpace,
                 wire::Fault::Other => tools::Fault::Other,
@@ -336,32 +332,32 @@ fn outcome(
         wire::Outcome::Busy => tools::Outcome::Busy,
         wire::Outcome::NulByte => tools::Outcome::NulByte,
         wire::Outcome::Running(command) => {
-            job_number(command.job())?;
+            job_number(command.job)?;
             tools::Outcome::Running {
-                job: tools::JobNumber(command.job()),
-                head: Box::from(command.head()),
-                tail: Box::from(command.last()),
-                dropped: command.dropped(),
-                timeout: timeout_clamp(command.timeout())?,
-                output: byte_clamp(command.output())?,
-                after: timeout_clamp(command.after())?,
+                job: tools::JobNumber(command.job),
+                head: Box::from(command.head.as_ref()),
+                tail: Box::from(command.last.as_ref()),
+                dropped: command.dropped,
+                timeout: timeout_clamp(&command.timeout)?,
+                output: byte_clamp(&command.output)?,
+                after: timeout_clamp(&command.after)?,
             }
         }
         wire::Outcome::Job(read) => {
-            job_number(read.job())?;
-            let end = match read.end() {
+            job_number(read.job)?;
+            let end = match &read.end {
                 wire::JobEnd::Running => tools::JobEnd::Running,
-                wire::JobEnd::Ended(ended) => tools::JobEnd::Ended(exit(ended.exit())),
+                wire::JobEnd::Ended(ended) => tools::JobEnd::Ended(exit(&ended.exit)),
                 wire::JobEnd::Stopped => tools::JobEnd::Stopped,
                 wire::JobEnd::Cancelled => tools::JobEnd::Cancelled,
             };
             tools::Outcome::Job {
-                job: tools::JobNumber(read.job()),
-                head: Box::from(read.head()),
-                tail: Box::from(read.last()),
-                dropped: read.dropped(),
-                output: byte_clamp(read.output())?,
-                wait: timeout_clamp(read.wait())?,
+                job: tools::JobNumber(read.job),
+                head: Box::from(read.head.as_ref()),
+                tail: Box::from(read.last.as_ref()),
+                dropped: read.dropped,
+                output: byte_clamp(&read.output)?,
+                wait: timeout_clamp(&read.wait)?,
                 end,
             }
         }
@@ -373,17 +369,17 @@ fn outcome(
 fn resolved(source: &wire::Resolved) -> Result<tools::Resolved, record::Refusal> {
     let value = match source {
         wire::Resolved::Working(working) => {
-            normalized(working.path())?;
-            tools::Resolved::Working { path: Box::from(working.path()) }
+            normalized(working.path.as_ref())?;
+            tools::Resolved::Working { path: Box::from(working.path.as_ref()) }
         }
         wire::Resolved::Other(other) => {
-            normalized(other.path())?;
-            let directory = tools::Name::new(Box::from(other.directory())).ok_or(record::Refusal::Malformed)?;
-            tools::Resolved::Other { directory, path: Box::from(other.path()) }
+            normalized(other.path.as_ref())?;
+            let directory = tools::Name::new(Box::from(other.directory.as_ref())).ok_or(record::Refusal::Malformed)?;
+            tools::Resolved::Other { directory, path: Box::from(other.path.as_ref()) }
         }
         wire::Resolved::Outside(outside) => {
-            normalized(outside.path())?;
-            tools::Resolved::Outside { path: Box::from(outside.path()) }
+            normalized(outside.path.as_ref())?;
+            tools::Resolved::Outside { path: Box::from(outside.path.as_ref()) }
         }
     };
     Ok(value)
@@ -419,13 +415,13 @@ fn mismatch(source: &wire::Mismatch) -> Result<tools::Mismatch, record::Refusal>
         wire::Mismatch::NoMatch => tools::Mismatch::NoMatch,
         wire::Mismatch::Unchanged => tools::Mismatch::Unchanged,
         wire::Mismatch::Ambiguous(ambiguous) => {
-            let mut lines = List::with_capacity(ambiguous.lines().len());
-            for line in ambiguous.lines() {
-                if lines.push(line.number()).is_err() {
+            let mut lines = List::with_capacity(ambiguous.lines.len());
+            for line in &ambiguous.lines {
+                if lines.push(line.number).is_err() {
                     return Err(record::Refusal::TooLarge);
                 }
             }
-            tools::Mismatch::Ambiguous { count: ambiguous.count(), lines: lines.into_boxed() }
+            tools::Mismatch::Ambiguous { count: ambiguous.count, lines: lines.into_boxed() }
         }
     };
     Ok(why)
@@ -435,10 +431,10 @@ fn byte_clamp(source: &wire::BytesClamp) -> Result<tools::BytesClamp, record::Re
     match source {
         wire::BytesClamp::Within => Ok(tools::BytesClamp::Within),
         wire::BytesClamp::Clamped(clamp) => {
-            if clamp.ceiling() == 0 || clamp.asked() <= clamp.ceiling() {
+            if clamp.ceiling == 0 || clamp.asked <= clamp.ceiling {
                 return Err(record::Refusal::Malformed);
             }
-            Ok(tools::BytesClamp::Clamped { asked: clamp.asked(), ceiling: clamp.ceiling() })
+            Ok(tools::BytesClamp::Clamped { asked: clamp.asked, ceiling: clamp.ceiling })
         }
     }
 }
@@ -485,36 +481,40 @@ fn found_piece(
         let length = hit_length(tail)?;
         let body = tail.get(..usize::try_from(length).expect("hit length")).ok_or(record::Refusal::Malformed)?;
         let hit = wire::Hit::decode(limits, &mut Reader::new(body)).or(Err(record::Refusal::Malformed))?;
-        hits.push(tools::Hit { path: Box::from(hit.path()), line: hit.line(), text: Box::from(hit.text()) })
-            .or(Err(record::Refusal::TooLarge))?;
+        hits.push(tools::Hit {
+            path: Box::from(hit.path.as_ref()),
+            line: hit.line,
+            text: Box::from(hit.text.as_ref()),
+        })
+        .or(Err(record::Refusal::TooLarge))?;
         offset = offset.checked_add(length).ok_or(record::Refusal::Malformed)?;
     }
     Ok(hits.into_boxed())
 }
 
 fn read_outcome(read: &wire::Read) -> Result<tools::Outcome, record::Refusal> {
-    if read.first() == 0 {
+    if read.first == 0 {
         return Err(record::Refusal::Malformed);
     }
-    let next = match read.next() {
+    let next = match &read.next {
         wire::Next::Line(line) => {
-            if line.number() == 0 {
+            if line.number == 0 {
                 return Err(record::Refusal::Malformed);
             }
-            tools::Next::Line(line.number())
+            tools::Next::Line(line.number)
         }
         wire::Next::End => tools::Next::End,
     };
-    let cut = match read.cut() {
+    let cut = match &read.cut {
         wire::ReadCut::Whole => tools::Cut::Whole,
         wire::ReadCut::Line => tools::Cut::Line,
     };
-    let window = byte_clamp(read.window())?;
+    let window = byte_clamp(&read.window)?;
     Ok(tools::Outcome::Read {
-        content: Box::from(read.content()),
-        first: read.first(),
-        lines: read.lines(),
-        total: read.total(),
+        content: Box::from(read.content.as_ref()),
+        first: read.first,
+        lines: read.lines,
+        total: read.total,
         next,
         cut,
         window,
@@ -536,8 +536,8 @@ fn size_part(what: &wire::SizePart) -> tools::SizePart {
 
 fn exit(source: &wire::Exit) -> tools::Exit {
     match source {
-        wire::Exit::Code(code) => tools::Exit::Code { code: code.code() },
-        wire::Exit::Signal(signal) => tools::Exit::Signal { signal: signal.signal() },
+        wire::Exit::Code(code) => tools::Exit::Code { code: code.code },
+        wire::Exit::Signal(signal) => tools::Exit::Signal { signal: signal.signal },
         wire::Exit::TimedOut => tools::Exit::TimedOut,
     }
 }
@@ -546,12 +546,12 @@ fn timeout_clamp(source: &wire::TimeoutClamp) -> Result<tools::TimeoutClamp, rec
     match source {
         wire::TimeoutClamp::Within => Ok(tools::TimeoutClamp::Within),
         wire::TimeoutClamp::Clamped(clamp) => {
-            if clamp.ceiling_ns() == 0 || clamp.asked_ns() <= clamp.ceiling_ns() {
+            if clamp.ceiling_ns == 0 || clamp.asked_ns <= clamp.ceiling_ns {
                 return Err(record::Refusal::Malformed);
             }
             Ok(tools::TimeoutClamp::Clamped {
-                asked: Duration::from_nanos(clamp.asked_ns()),
-                ceiling: Duration::from_nanos(clamp.ceiling_ns()),
+                asked: Duration::from_nanos(clamp.asked_ns),
+                ceiling: Duration::from_nanos(clamp.ceiling_ns),
             })
         }
     }
@@ -565,14 +565,14 @@ fn job_number(number: u32) -> Result<(), record::Refusal> {
 }
 
 fn listed_outcome(listed: &wire::Listed) -> Result<tools::Outcome, record::Refusal> {
-    let mut entries = List::with_capacity(listed.entries().len());
-    for entry in listed.entries() {
-        normalized(entry.name())?;
-        if entry.name().is_empty() {
+    let mut entries = List::with_capacity(listed.entries.len());
+    for entry in &listed.entries {
+        normalized(entry.name.as_ref())?;
+        if entry.name.as_ref().is_empty() {
             return Err(record::Refusal::Malformed);
         }
-        let name = Box::from(entry.name());
-        let kind = match entry.kind() {
+        let name = Box::from(entry.name.as_ref());
+        let kind = match &entry.kind {
             wire::Kind::File => tools::Kind::File,
             wire::Kind::Directory => tools::Kind::Directory,
             wire::Kind::Link => tools::Kind::Link,
@@ -582,7 +582,7 @@ fn listed_outcome(listed: &wire::Listed) -> Result<tools::Outcome, record::Refus
             return Err(record::Refusal::TooLarge);
         }
     }
-    Ok(tools::Outcome::Listed { entries: entries.into_boxed(), more: listed.more() })
+    Ok(tools::Outcome::Listed { entries: entries.into_boxed(), more: listed.more })
 }
 
 #[cfg(test)]
@@ -591,15 +591,9 @@ mod edit_tests {
 
     #[test]
     fn an_edit_failure_index_counts_from_one_at_transcript_admission() {
-        let zero = wire::Outcome::EditFailed(
-            wire::EditFailed::new(&wire::CEILINGS, wire::EditFailedParts { edit: 0, why: wire::Mismatch::NoMatch })
-                .expect("codec-shaped value"),
-        );
+        let zero = wire::Outcome::EditFailed(wire::EditFailed { edit: 0, why: wire::Mismatch::NoMatch });
         assert_eq!(outcome(&zero, &wire::CEILINGS, 256), Err(record::Refusal::Malformed));
-        let two = wire::Outcome::EditFailed(
-            wire::EditFailed::new(&wire::CEILINGS, wire::EditFailedParts { edit: 2, why: wire::Mismatch::NoMatch })
-                .expect("bounded value"),
-        );
+        let two = wire::Outcome::EditFailed(wire::EditFailed { edit: 2, why: wire::Mismatch::NoMatch });
         assert_eq!(
             outcome(&two, &wire::CEILINGS, 256),
             Ok(tools::Outcome::EditFailed { edit: 2, why: tools::Mismatch::NoMatch })
@@ -625,33 +619,31 @@ mod found_tests {
 }
 
 fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
-    let opening = match source.opening() {
+    let opening = match &source.opening {
         Some(value) => {
-            let affinity = llm::Affinity { key: *value.affinity().key(), thread: value.affinity().thread() };
-            let backend = match value.backend() {
+            let affinity = llm::Affinity { key: value.affinity.key, thread: value.affinity.thread };
+            let backend = match &value.backend {
                 wire::Backend::Direct => record::Backend::Direct,
-                wire::Backend::Program(program) => record::Backend::Program { name: Box::from(program.name()) },
+                wire::Backend::Program(program) => record::Backend::Program { name: Box::from(program.name.as_ref()) },
             };
-            Some((affinity, *value.account(), backend))
+            Some((affinity, value.account, backend))
         }
         None => None,
     };
-    Ok(match source.kind() {
+    Ok(match &source.kind {
         wire::TurnKind::Ordinary => match opening {
-            Some((affinity, account, backend)) if source.place() == 1 => {
-                record::Kind::First(Box::new(record::Opener {
-                    system: source.system().clone(),
-                    affinity,
-                    account,
-                    backend,
-                }))
-            }
-            None if source.place() > 1 && source.system().is_none() => record::Kind::Ordinary,
+            Some((affinity, account, backend)) if source.place == 1 => record::Kind::First(Box::new(record::Opener {
+                system: source.system.clone(),
+                affinity,
+                account,
+                backend,
+            })),
+            None if source.place > 1 && source.system.is_none() => record::Kind::Ordinary,
             Some(_) | None => return Err(record::Refusal::Malformed),
         },
         wire::TurnKind::Window => match opening {
             Some((affinity, account, backend)) => record::Kind::Window(Box::new(record::Opener {
-                system: source.system().clone(),
+                system: source.system.clone(),
                 affinity,
                 account,
                 backend,
@@ -667,14 +659,14 @@ fn decode_messages(
     limits: &wire::v7::Limits,
     search_hits: u32,
 ) -> Result<List<llm::Message>, record::Refusal> {
-    let mut messages = List::with_capacity(source.messages().len());
-    for message in source.messages() {
-        let role = match message.role() {
+    let mut messages = List::with_capacity(source.messages.len());
+    for message in &source.messages {
+        let role = match &message.role {
             wire::Role::User => llm::Role::User,
             wire::Role::Assistant => llm::Role::Assistant,
         };
-        let mut content = List::with_capacity(message.blocks().len());
-        for block in message.blocks() {
+        let mut content = List::with_capacity(message.blocks.len());
+        for block in &message.blocks {
             let value = decode_block(block, dialect, limits, search_hits)?;
             if content.push(value).is_err() {
                 return Err(record::Refusal::TooLarge);

@@ -2,6 +2,7 @@
 use skein_lib::{Duration, Reader};
 use smith_agent_process_world::program_world::{self, HostMessage, Run, When};
 use smith_fake_claude::{Seen, Step, Story, Turn};
+use smith_transcript::Record;
 
 use crate::opening;
 
@@ -76,11 +77,11 @@ fn texts(run: &Run) -> Vec<String> {
             let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(envelope.body()))
                 .expect("transcript turn");
             let mut text = String::new();
-            for message in turn.messages() {
-                if message.role() == &smith_transcript::Role::Assistant {
-                    for block in message.blocks() {
+            for message in &turn.messages {
+                if message.role == smith_transcript::Role::Assistant {
+                    for block in &message.blocks {
                         if let smith_transcript::Block::Text(part) = block {
-                            text.push_str(std::str::from_utf8(part.text()).expect("assistant text"));
+                            text.push_str(std::str::from_utf8(part.text.as_ref()).expect("assistant text"));
                         }
                     }
                 }

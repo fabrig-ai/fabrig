@@ -4,6 +4,7 @@
 //! decoded from the host's channel.
 //! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing.md, 2–5).
 use crate::fake;
+use smith_transcript::Record;
 
 mod coding;
 mod peer;
@@ -1452,14 +1453,14 @@ impl World {
                 &mut skein_lib::Reader::new(envelope.body()),
             )
             .expect("validated transcript");
-            for message in turn.messages() {
-                if *message.role() == smith_transcript::Role::Assistant {
-                    for block in message.blocks() {
+            for message in &turn.messages {
+                if message.role == smith_transcript::Role::Assistant {
+                    for block in &message.blocks {
                         if let smith_transcript::Block::Text(text) = block {
                             count += 1;
-                            bytes += text.text().len();
+                            bytes += text.text.as_ref().len();
                             let metadata = skein_llm::Replay::from_bytes(
-                                text.replay().as_ref().expect("text replay").bytes(),
+                                text.replay.as_ref().expect("text replay").bytes.as_ref(),
                                 &crate::limits().llm.translation.client.native().document(),
                             )
                             .expect("provider metadata");

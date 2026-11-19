@@ -59,7 +59,7 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         assert!(driver.root.ready(), "{label}: durable mark releases the script");
         assert_eq!(driver.store.header().id, walking::config(91).core.deployment, "{label}: deployment retained");
         let wires = driver.take_store().into_wires();
-        let kept: Vec<_> = wires.wires().iter().map(|wire| (wire.name(), wire.version())).collect();
+        let kept: Vec<_> = wires.wires.iter().map(|wire| (wire.name.as_ref(), wire.version)).collect();
         let expected: Vec<_> = temper_engine_service_vocabulary::store::WIRES
             .iter()
             .map(|wire| (wire.name.as_bytes(), wire.version))

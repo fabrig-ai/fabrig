@@ -6382,6 +6382,8 @@ dependencies = [
  "jig-client-protocol-http",
  "jig-client-shell-native",
  "jig-client-shell-web",
+ "jig-protocol-config",
+ "skein-fake-machine",
  "skein-fake-person",
  "skein-io",
  "skein-lib",
@@ -6399,7 +6401,9 @@ dependencies = [
  "temper-client-view",
  "temper-client-walk-lines",
  "temper-fake",
+ "temper-forge-setup",
  "temper-playground",
+ "temper-service",
 ]
 
 [[package]]

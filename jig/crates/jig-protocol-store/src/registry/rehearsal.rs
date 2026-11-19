@@ -29,12 +29,12 @@ impl Decoder {
         let id = head(&bytes).ok_or(0_u16)?;
         let key = (Box::from(family), number, id);
         if let Some(row) = self.layouts.rows.get(&key) {
-            let digest = *row.value.text();
+            let digest = row.value.text;
             texts::parse(&mut self.layouts, digest).ok_or(id)?;
             let row = self.layouts.rows.get(&key).ok_or(id)?;
             let text = self.layouts.texts.get(&digest).ok_or(id)?;
             let schema = text.schema.as_ref().ok_or(id)?;
-            let root = schema.root(row.value.root(), row.value.variant().as_deref()).ok_or(id)?;
+            let root = schema.root(&row.value.root, row.value.variant.as_deref()).ok_or(id)?;
             // Generic decoders, like generated ones, read the family's version,
             // not the layout id. Only this owned copy's head is changed.
             rehead(&mut bytes, schema.version());

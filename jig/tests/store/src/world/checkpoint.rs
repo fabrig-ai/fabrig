@@ -1,5 +1,6 @@
 //! Mixed transcript files, written through kv and io before jig opens the deployment.
 use super::{Restored, World, root};
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{Write, codec, keys, transcripts};
 use skein_fake_machine::Item;
 use skein_io::file;
@@ -51,16 +52,12 @@ impl World {
                 .encode()
                 .expect("format"),
         }];
-        let floor = jig_protocol_store::component_v3::Floor::new(
-            &jig_protocol_store::component_v3::CEILINGS,
-            jig_protocol_store::component_v3::FloorParts { number: jig_protocol_store::FLOOR, build: Box::default() },
-        )
-        .expect("fixture floor");
-        let mut writer = skein_lib::Writer::new(usize::try_from(floor.measure()).expect("floor size"));
-        floor.encode(&mut writer).expect("floor bytes");
+        let floor =
+            jig_protocol_store::component_v3::Floor { number: jig_protocol_store::FLOOR, build: Box::default() };
+        let bytes = floor.encode(&jig_protocol_store::component_v3::CEILINGS).expect("floor bytes");
         ops.push(skein_kv::Op::Put {
             key: keys::encode_own(&keys::Own::Floor, limits.store.key).expect("floor key"),
-            value: writer.finish(),
+            value: bytes,
         });
         for row in &rows {
             ops.push(skein_kv::Op::Put {

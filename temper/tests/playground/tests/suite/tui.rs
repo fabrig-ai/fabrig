@@ -4,7 +4,7 @@ use skein_lib::Duration;
 use skein_ui::{Act, Role};
 use skein_ui_screen_terminal::Key;
 use temper_client_walk_world::{
-    facts,
+    Native, facts,
     web::{Failed, Page},
 };
 use temper_playground::programs::Process;
@@ -46,13 +46,20 @@ fn type_words(page: &mut Page, words: &str) {
 fn started_terminal_asks_to_browse_the_service() {
     let mut page = start();
     assert!(page.tui().is_none());
-    assert!(!page.world().processes().iter().any(|process| matches!(process, Process::Other(_))));
+    assert!(!page.world().processes().iter().any(|process| matches!(process, Process::Other(Native::Terminal(_)))));
     awaiting(&mut page);
     assert!(text(&mut page).contains("Sign in this terminal to 127.0.0.1:10001"));
     assert!(
         page.tui().expect("started").browsed().expect("browsed").starts_with(b"http://127.0.0.1:10001/terminal?code=")
     );
-    assert_eq!(page.world().processes().iter().filter(|process| matches!(process, Process::Other(_))).count(), 1);
+    assert_eq!(
+        page.world()
+            .processes()
+            .iter()
+            .filter(|process| matches!(process, Process::Other(Native::Terminal(_))))
+            .count(),
+        1
+    );
 }
 
 #[test]
@@ -153,7 +160,11 @@ fn a_chat_reply_reaches_the_terminal_over_its_native_stream() {
     assert_eq!(result, Ok(()), "{}", text(&mut page));
     assert!(
         page.world().processes().iter().any(|process| {
-            if let Process::Other(connection) = process { connection.opened_streams() > 0 } else { false }
+            if let Process::Other(Native::Terminal(connection)) = process {
+                connection.opened_streams() > 0
+            } else {
+                false
+            }
         }),
         "the terminal carried OpenStream over the native transport"
     );

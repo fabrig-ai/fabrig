@@ -2,7 +2,7 @@
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, unpinned, values};
+use skein_codegen::{form_of, generate_as, unpinned, values};
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
@@ -75,7 +75,9 @@ fn local_store_schema_matches_generated_code_and_pinned_constructs() {
 fn check_records(root: &Path, file: &str, family: &str, source: &'static str) {
     let missing = unpinned(source).expect("valid family schema");
     assert!(missing.is_empty(), "{family} uses unpinned constructs: {missing:?}");
-    let output = generate(&values(source).schema);
+    let schema = &values(source).schema;
+    let form = form_of(&root.join("schema"), &schema.family).expect("owner's lean mark");
+    let output = generate_as(schema, form);
     check_artifact(&root.join(format!("src/generated/{file}.rs")), output.records.as_bytes());
 }
 

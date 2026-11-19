@@ -476,6 +476,21 @@ class MacosTests(unittest.TestCase):
                             self.assertEqual(M["main"](), M["FAULT"])
                 self.assertFalse(envfile.exists())
 
+    def test_workflow_keeps_line_tables_unsplit_in_top_level_environment(self):
+        workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
+        env = workflow.split("\nenv:\n", 1)[1].split("\njobs:\n", 1)[0]
+        for name, value in (
+            ("CARGO_PROFILE_DEV_DEBUG", "line-tables-only"),
+            ("CARGO_PROFILE_TEST_DEBUG", "line-tables-only"),
+            ("CARGO_PROFILE_DEV_SPLIT_DEBUGINFO", '"off"'),
+            ("CARGO_PROFILE_TEST_SPLIT_DEBUGINFO", '"off"'),
+        ):
+            with self.subTest(setting=name):
+                self.assertEqual(
+                    [line for line in env.splitlines() if line.startswith(f"  {name}:")],
+                    [f"  {name}: {value}"],
+                )
+
     def test_workflow_checks_wasm_compiler_only_in_browser_before_build(self):
         workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
         jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow)

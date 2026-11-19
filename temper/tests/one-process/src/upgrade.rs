@@ -3,6 +3,7 @@ pub mod check;
 mod maps;
 pub mod rehearsal;
 pub mod story;
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptMap, Owner, OwnerSets, codec, keys};
 use std::{collections::BTreeSet, path::Path};
 
@@ -143,7 +144,7 @@ pub fn golden_ranges(directory: &Path) {
                             &mut skein_lib::Reader::new(value),
                         )
                         .expect("floor at its own key");
-                        assert_eq!(floor.number(), 1);
+                        assert_eq!(floor.number, 1);
                     }
                     "wires" => {
                         jig_protocol_store::component_v3::Wires::decode(
@@ -243,15 +244,15 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
     let (new_key, new) = layout(after);
     let schema = skein_codec::schema::parse(family.current.as_bytes()).expect("production text");
     let root = schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).expect("receipt root");
-    assert_eq!(*new.layout(), schema.layout(root, &[]).expect("receipt fingerprint").digest());
-    assert_ne!(old.layout(), new.layout(), "second build registers a new layout");
+    assert_eq!(new.layout, schema.layout(root, &[]).expect("receipt fingerprint").digest());
+    assert_ne!(old.layout, new.layout, "second build registers a new layout");
     assert!(!after.store.contains_key(&old_key), "unused earlier layout retired");
     assert!(!before.store.contains_key(&new_key), "production layout not yet registered");
-    let text_key = keys::encode_own(&keys::Own::Text(*new.text()), 1024).expect("text key");
+    let text_key = keys::encode_own(&keys::Own::Text(new.text), 1024).expect("text key");
     let text =
         wire::Text::decode(&wire::CEILINGS, &mut Reader::new(after.store.get(text_key.as_ref()).expect("new text")))
             .expect("registry text");
-    assert_eq!(text.text(), family.current.as_bytes());
+    assert_eq!(text.text.as_ref(), family.current.as_bytes());
     assert!(!before.store.contains_key(text_key.as_ref()), "second build brings production text");
     let mut changed = BTreeSet::from([old_key, new_key, text_key.into_vec()]);
     for name in JOBS {
@@ -263,7 +264,7 @@ fn registry_upgrade(before: &maps::Maps, after: &maps::Maps) -> BTreeSet<Vec<u8>
             &mut Reader::new(after.store.get(job_key.as_ref()).expect("job done row")),
         )
         .expect("done job");
-        assert!(job.ended() > 0, "job end committed");
+        assert!(job.ended > 0, "job end committed");
         changed.insert(job_key.into_vec());
     }
     changed

@@ -6,15 +6,15 @@ use skein_lib::Wall;
 use skein_sim_world::{Host, Printed, StateDigests, Stream};
 use temper_playground::{programs::Process, stories::Story};
 
-/// The composition without a harness.
-pub type Playground = skein_sim_world::World<Process<()>, temper_playground::machine::Machine>;
+/// The journey world's composition and box peer.
+pub use temper_client_walk_world::Playground;
 
 // The composition's own startup tests use this step bound.
 const STARTUP_STEPS: u64 = 10_000;
 
 /// A story waiting for its visitor, with its standard output read as whole lines.
 pub struct Started {
-    pub world: Playground,
+    pub world: skein_sim_world::World<Process<()>, temper_playground::machine::Machine>,
     pub printed: Vec<Printed>,
 }
 
