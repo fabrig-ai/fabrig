@@ -176,8 +176,9 @@ impl Component {
                     to_domain.push(ToDomain::Probed { owner, executable: false });
                 }
             }
-            FromDomain::Check { owner, program, deadline, tail } => {
+            FromDomain::Check { owner, program, bound, cap, tail } => {
                 self.vacant(owner);
+                let deadline = env.now.saturating_add(bound).min(cap);
                 if env.now >= deadline {
                     to_domain.push(ToDomain::Checked {
                         owner,
@@ -188,7 +189,16 @@ impl Component {
                 let admissible = crate::files::check(&self.roots, &env.limits, program.root, &program.path, false);
                 match admissible {
                     Ok(()) => {
-                        match crate::process::check(owner, program, &self.environment, tail, deadline, &env.limits) {
+                        match crate::process::check(
+                            env.now,
+                            owner,
+                            program,
+                            &self.environment,
+                            tail,
+                            bound,
+                            cap,
+                            &env.limits,
+                        ) {
                             Some((process, request)) => self.start_process(owner, process, request, below, to_domain),
                             None => failed_check(owner, to_domain),
                         }
@@ -465,7 +475,7 @@ impl Component {
         let owner = *self.routes.get(&pipe).expect("pipe event has a live route");
         let process = self.processes.get_mut(&owner).expect("pipe route has admitted process");
         match event {
-            io::Event::Stream { up, .. } => crate::process::stream(process, pipe, up, below),
+            io::Event::Stream { up, .. } => crate::process::stream(process, now, pipe, up, below),
             io::Event::Closed { .. } => {
                 process.pipe_closed(pipe);
                 self.routes.remove(&pipe).expect("closed pipe has a live route");

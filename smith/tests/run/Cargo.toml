@@ -19,6 +19,9 @@ skein-world.workspace = true
 
 [dev-dependencies]
 smith-machine-world.workspace = true
+smith-protocol-machine.workspace = true
+smith-protocol-machine-fixtures.workspace = true
+skein-io.workspace = true
 smith-agent-world.workspace = true
 smith-domain.workspace = true
 smith-tools-world.workspace = true
