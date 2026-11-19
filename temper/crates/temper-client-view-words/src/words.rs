@@ -80,6 +80,8 @@ pub enum Word {
     MsRunning,
     MsMoreOne,
     MsMoreMany,
+    MsRedsOne,
+    MsRedsMany,
     MsMetaCount,
     MsEndedAt,
     MsNoGoalsWhole,
@@ -2270,7 +2272,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2829;
+const PHRASES: u32 = 2831;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2297,10 +2299,10 @@ const PHRASES: u32 = 2829;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5253;
+const SEGMENTS: u32 = 5261;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 65985;
-const ALL: [Word; 2096] = [
+const ENGLISH_BYTES: u32 = 66039;
+const ALL: [Word; 2098] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2336,6 +2338,8 @@ const ALL: [Word; 2096] = [
     Word::MsRunning,
     Word::MsMoreOne,
     Word::MsMoreMany,
+    Word::MsRedsOne,
+    Word::MsRedsMany,
     Word::MsMetaCount,
     Word::MsEndedAt,
     Word::MsNoGoalsWhole,
@@ -5277,6 +5281,8 @@ impl Word {
             Self::MsRunning => 9749,
             Self::MsMoreOne => 9750,
             Self::MsMoreMany => 9751,
+            Self::MsRedsOne => 9878,
+            Self::MsRedsMany => 9879,
             Self::MsMetaCount => 9800,
             Self::MsEndedAt => 9805,
             Self::MsNoGoalsWhole => 9806,
@@ -7519,6 +7525,8 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::MsRunning => (&[b"", b" ", b": ", b""], &[Name, Name, Name]),
         Word::MsMoreOne => (&[b"", b", and one more running."], &[Name]),
         Word::MsMoreMany => (&[b"", b", and ", b" more running."], &[Name, Number]),
+        Word::MsRedsOne => (&[b"", b"; 1 red after landing owed."], &[Name]),
+        Word::MsRedsMany => (&[b"", b"; ", b" reds after landing owed."], &[Name, Number]),
         Word::GoalCount => (&[b"", b" / ", b""], &[Number, Number]),
         Word::GoalNeedsFunds => (&[b"needs funds"], &[]),
         Word::GoalNeedsYou => (&[b"needs you"], &[]),

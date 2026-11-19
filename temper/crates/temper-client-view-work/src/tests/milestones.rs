@@ -14,7 +14,7 @@ use jig_client::contract as c;
 use skein_lib::{List, Wall};
 use skein_ui::{Builder, Role};
 use temper_client_domain::pages::{
-    milestones::{self as pure, Count, Headline, Mark, State},
+    milestones::{self as pure, Count, Headline, HeadlineCase, Mark, State},
     report::Report,
 };
 use temper_client_protocol_wire::v1 as w;
@@ -128,6 +128,12 @@ fn the_milestone_headline_words_the_held_case_in_both_shells() {
             word(&words, headline, &goals, Some(&report())).as_ref(),
             b"7 of 8 goals done. S7: 5 of its 7 changes landed; the other 2 are building."
         );
+        for (reds, suffix) in [(1, "1 red"), (2, "2 reds")] {
+            assert_eq!(
+                word(&words, Headline { reds, ..headline }, &goals, Some(&report())).as_ref(),
+                format!("7 of 8 goals done; {suffix} after landing owed. S7: 5 of its 7 changes landed; the other 2 are building.").as_bytes()
+            );
+        }
         goals[7] = line(8, b"S8 another");
         let headline = pure::headline(&milestone, &goals, Some(&totals(7, 0, 1)), false);
         assert_eq!(
@@ -137,7 +143,10 @@ fn the_milestone_headline_words_the_held_case_in_both_shells() {
         assert_eq!(
             word(
                 &words,
-                Headline::Running { count: Count { done: 7, total: 8 }, goal: 7, more: 2 },
+                Headline {
+                    case: HeadlineCase::Running { count: Count { done: 7, total: 8 }, goal: 7, more: 2 },
+                    reds: 0
+                },
                 &goals,
                 Some(&report())
             )
@@ -145,37 +154,51 @@ fn the_milestone_headline_words_the_held_case_in_both_shells() {
             b"7 of 8 goals done. S7: 5 of its 7 changes landed; the other 2 are building, and 2 more running."
         );
         assert_eq!(
-            word(&words, Headline::Running { count: Count { done: 7, total: 8 }, goal: 7, more: 0 }, &goals, None)
-                .as_ref(),
+            word(
+                &words,
+                Headline {
+                    case: HeadlineCase::Running { count: Count { done: 7, total: 8 }, goal: 7, more: 0 },
+                    reds: 0
+                },
+                &goals,
+                None
+            )
+            .as_ref(),
             b"7 of 8 goals done. S7: Six of nine tasks done."
         );
         let mut failed = done(5, b"S5 tests");
         failed.chip.details.details.ending = Some(c::ChipEnding::Failed(f::goal::text(b"failed")));
         for (headline, expected) in [
             (
-                Headline::Ended { count: Count { done: 7, total: 8 }, failed: 1, first: Some(5) },
+                HeadlineCase::Ended { count: Count { done: 7, total: 8 }, failed: 1, first: Some(5) },
                 "7 of 8 goals done; S5 failed.",
             ),
             (
-                Headline::Ended { count: Count { done: 7, total: 8 }, failed: 1, first: None },
+                HeadlineCase::Ended { count: Count { done: 7, total: 8 }, failed: 1, first: None },
                 "7 of 8 goals done; 1 failed.",
             ),
             (
-                Headline::Ended { count: Count { done: 7, total: 9 }, failed: 2, first: Some(5) },
+                HeadlineCase::Ended { count: Count { done: 7, total: 9 }, failed: 2, first: Some(5) },
                 "7 of 9 goals done; 2 failed.",
             ),
-            (Headline::Complete(Count { done: 8, total: 8 }), "All 8 goals done."),
-            (Headline::Complete(Count { done: 1, total: 1 }), "All 1 goal done."),
-            (Headline::Complete(Count { done: 0, total: 0 }), "Complete, with no goals."),
-            (Headline::Open(Count { done: 6, total: 6 }), "6 goals done so far; more may join."),
-            (Headline::Open(Count { done: 1, total: 1 }), "1 goal done so far; more may join."),
-            (Headline::Open(Count { done: 0, total: 0 }), "No goals yet."),
-            (Headline::Closed(Count { done: 3, total: 8 }), "Closed by you; 3 of 8 goals done."),
-            (Headline::Closed(Count { done: 0, total: 8 }), "Closed by you; None of 8 goals done."),
-            (Headline::Count(Count { done: 0, total: 15 }), "None of 15 goals done."),
-            (Headline::Count(Count { done: 1, total: 1 }), "1 of 1 goal done."),
+            (HeadlineCase::Complete(Count { done: 5, total: 5 }), "All 5 goals done."),
+            (HeadlineCase::Complete(Count { done: 1, total: 1 }), "All 1 goal done."),
+            (HeadlineCase::Complete(Count { done: 0, total: 0 }), "Complete, with no goals."),
+            (HeadlineCase::Open(Count { done: 3, total: 3 }), "3 goals done so far; more may join."),
+            (HeadlineCase::Open(Count { done: 1, total: 1 }), "1 goal done so far; more may join."),
+            (HeadlineCase::Open(Count { done: 0, total: 0 }), "No goals yet."),
+            (HeadlineCase::Closed(Count { done: 3, total: 8 }), "Closed by you; 3 of 8 goals done."),
+            (HeadlineCase::Closed(Count { done: 0, total: 8 }), "Closed by you; None of 8 goals done."),
+            (HeadlineCase::Count(Count { done: 0, total: 15 }), "None of 15 goals done."),
+            (HeadlineCase::Count(Count { done: 1, total: 1 }), "1 of 1 goal done."),
         ] {
-            assert_eq!(word(&words, headline, core::slice::from_ref(&failed), None).as_ref(), expected.as_bytes());
+            for (reds, suffix) in [(0, ""), (1, "; 1 red after landing owed"), (2, "; 2 reds after landing owed")] {
+                let expected = format!("{}{suffix}.", expected.strip_suffix('.').unwrap());
+                assert_eq!(
+                    word(&words, Headline { case: headline, reds }, core::slice::from_ref(&failed), None).as_ref(),
+                    expected.as_bytes()
+                );
+            }
         }
         goals[7] = done(8, b"S8 done");
         // Done is not complete before totals have answered.
@@ -183,7 +206,10 @@ fn the_milestone_headline_words_the_held_case_in_both_shells() {
         milestone.chip.details.phase = c::ChipPhase::Ended;
         milestone.chip.details.details.ending =
             Some(c::ChipEnding::Done(c::ResultValue::Report(f::goal::text(b"done"))));
-        assert_eq!(pure::headline(&milestone, &goals, None, false), Headline::Count(Count { done: 7, total: 8 }));
+        assert_eq!(
+            pure::headline(&milestone, &goals, None, false),
+            Headline { case: HeadlineCase::Count(Count { done: 7, total: 8 }), reds: 0 }
+        );
         milestone = line(99, b"Store shape");
     }
 }
@@ -204,7 +230,14 @@ fn a_milestone_row_links_its_top_strip_and_headline_in_both_shells() {
         goals.push((goal, None));
     }
     let mut listed = line(99, b"Store shape");
-    listed.parts = List::from_boxed(Box::new([f::milestones::part(None, totals(7, 0, 1), &goals, 0)]));
+    let mut owed = totals(7, 0, 1).into_parts();
+    owed.reds = 2;
+    listed.parts = List::from_boxed(Box::new([f::milestones::part(
+        None,
+        w::MilestoneTotals::new(&w::CEILINGS, owed).unwrap(),
+        &goals,
+        0,
+    )]));
     let limits = f::domain_limits();
     let link = jig_client_protocol_link::Limits::new(limits.client.domain, limits.client.exchanges).unwrap();
     let milestone = pure::Milestone::from_line(&listed, &link);
@@ -232,7 +265,11 @@ fn a_milestone_row_links_its_top_strip_and_headline_in_both_shells() {
                 Some(Action::Pages(Act::Go { address: Address::Task { task: 99 } }))
             );
             let text = f::text(&tree);
-            let headline = if ended { "All 8 goals done." } else { "7 of 8 goals done. S7: Six of nine tasks done." };
+            let headline = if ended {
+                "All 8 goals done; 2 reds after landing owed."
+            } else {
+                "7 of 8 goals done; 2 reds after landing owed. S7: Six of nine tasks done."
+            };
             assert!(skein_lib::bytes::find(&text, headline.as_bytes()).is_some());
             if words.shell == crate::words::Shell::Browser {
                 assert!(

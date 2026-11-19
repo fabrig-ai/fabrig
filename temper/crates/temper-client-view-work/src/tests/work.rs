@@ -969,6 +969,10 @@ fn send_panel(page: &mut Fixture, queued: &[w::ChangesQueued], landed: &[w::Chan
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one fixture checks the grouped live card and its ended headline in both shells"
+)]
 fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
     let mut page = Fixture::new(None, false);
     page.populate(false);
@@ -998,7 +1002,15 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
     assert_eq!(styled(&unread, look::WORK_HEADLINE).len(), 1);
     assert!(styled(&unread, look::WORK_HEADLINE)[0].text.is_empty(), "ended milestone list still unread");
     send_panel(&mut page, &[queued_change(21)], &[]);
-    page.serve_milestone(&own, &[waiting, running], &[failed, closed, done], true, Some(&milestone_totals(1, 1, 2)));
+    let mut owed = milestone_totals(1, 1, 2).into_parts();
+    owed.reds = 2;
+    page.serve_milestone(
+        &own,
+        &[waiting, running],
+        &[failed, closed, done],
+        true,
+        Some(&w::MilestoneTotals::new(&w::CEILINGS, owed).unwrap()),
+    );
     let facts = temper_client_domain::pages::work::facts(&page.root, f::PROJECT).unwrap();
     assert_eq!(facts.milestones.len(), 1);
     assert_eq!(facts.goals.len(), 5, "includes the drawn milestone's ended goals");
@@ -1017,7 +1029,7 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
             "A milestone opens to its goals, and a goal to its tasks and changes;",
             "4 goals · whole",
             "212 spent of 400",
-            "1 of 4 goals done.",
+            "1 of 4 goals done; 2 reds after landing owed.",
             "running · 5 / 7",
             "Move the reader",
             "waits on C4",
@@ -1060,6 +1072,35 @@ fn milestones_hold_their_goals_changes_and_folds_in_both_shells() {
             }
         }
         assert_eq!(links.as_slice(), &[M, 3, 21, 5, 4, 6, 7]);
+    }
+    // The renderer also words an ended card; placement only keeps live cards in flight.
+    let mut own = own;
+    own.chip.phase = c::Phase::Ended;
+    own.chip.details.phase = c::ChipPhase::Ended;
+    own.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(text(b"done"))));
+    let mut totals = milestone_totals(1, 0, 0).into_parts();
+    totals.reds = 2;
+    let totals = w::MilestoneTotals::new(&w::CEILINGS, totals).unwrap();
+    assert_eq!(
+        temper_client_domain::pages::milestones::state(&own, &[], Some(&totals), false),
+        temper_client_domain::pages::milestones::State::Complete
+    );
+    own.parts = list(&[f::milestones::part(Some(NOW), totals, &[], 0)]);
+    page.live(watch, &[own]);
+    for words in [f::browser_words(), f::words()] {
+        let mut b = Builder::new(&f::tree_limits());
+        let mut bindings = Bindings::new(f::tree_limits().bindings);
+        work::card_view(
+            &mut b,
+            &page.root,
+            &words,
+            &mut bindings,
+            &mut Times::new(NOW),
+            f::PROJECT,
+            &Card { item: Item::Milestone(M), changes: List::uncapped(), goals: List::uncapped() },
+        );
+        let tree = b.finish();
+        assert!(has(&tree, "All 1 goal done; 2 reds after landing owed."));
     }
 }
 

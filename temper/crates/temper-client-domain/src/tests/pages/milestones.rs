@@ -11,7 +11,7 @@ use crate::{
     Address, GoalsFilter, WorkFilter,
     pages::{
         Request,
-        milestones::{self, Count, Headline, Mark, MilestoneRead, Milestones, Segment, State},
+        milestones::{self, Count, Headline, HeadlineCase, Mark, MilestoneRead, Milestones, Segment, State},
     },
 };
 use jig_client::{Down, Readable, Readout, Told, Up, Watchable, contract as c};
@@ -884,9 +884,22 @@ fn milestone_words_count_state_strip_and_headline_use_the_first_matching_rule() 
     assert_eq!(milestones::state(&milestone, &goals, Some(&counts), true), State::Ended);
     assert_eq!(
         milestones::headline(&milestone, &goals, Some(&counts), true),
-        Headline::Ended { count: Count { done: 7, total: 10 }, failed: 1, first: Some(5) }
+        Headline {
+            case: HeadlineCase::Ended { count: Count { done: 7, total: 10 }, failed: 1, first: Some(5) },
+            reds: 0
+        }
     );
-    let all = totals(8, 0, 0);
+    assert_eq!(
+        milestones::headline(&milestone, &goals, None, true),
+        Headline { case: HeadlineCase::Count(Count { done: 2, total: 5 }), reds: 0 }
+    );
+    let mut all = totals(8, 0, 0).into_parts();
+    all.reds = 2;
+    let all = w::MilestoneTotals::new(&w::CEILINGS, all).unwrap();
+    assert_eq!(
+        milestones::headline(&milestone, &goals, Some(&all), false),
+        Headline { case: HeadlineCase::Complete(Count { done: 8, total: 8 }), reds: 2 }
+    );
     assert_eq!(milestones::state(&milestone, &goals, Some(&all), false), State::Complete);
     milestone = closed(M);
     assert_eq!(milestones::state(&milestone, &goals, Some(&all), true), State::Closed);

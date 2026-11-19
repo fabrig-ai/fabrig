@@ -57,13 +57,13 @@ pub(super) fn card(
     };
     if milestone.totals.is_some() {
         let headline = milestones::headline(line, milestone.goals.as_slice(), milestone.totals.as_ref(), needs);
-        let report = match headline {
-            milestones::Headline::Running { goal, .. } => milestone.headline(goal),
-            milestones::Headline::Count(_)
-            | milestones::Headline::Complete(_)
-            | milestones::Headline::Open(_)
-            | milestones::Headline::Closed(_)
-            | milestones::Headline::Ended { .. } => None,
+        let report = match headline.case {
+            milestones::HeadlineCase::Running { goal, .. } => milestone.headline(goal),
+            milestones::HeadlineCase::Count(_)
+            | milestones::HeadlineCase::Complete(_)
+            | milestones::HeadlineCase::Open(_)
+            | milestones::HeadlineCase::Closed(_)
+            | milestones::HeadlineCase::Ended { .. } => None,
         };
         text(
             b,

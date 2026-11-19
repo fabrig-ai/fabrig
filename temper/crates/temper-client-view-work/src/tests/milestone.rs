@@ -89,7 +89,7 @@ fn page(rows: &[c::TaskLine], active: bool, more: bool) -> c::ReadValue {
         ended: if active { c::EndedGroup::None } else { c::EndedGroup::Rows { rows, after: None, cut: more } },
     }))
 }
-fn totals() -> Readout {
+fn totals(reds: u32) -> Readout {
     let totals = w::MilestoneTotals::new(
         &w::CEILINGS,
         w::MilestoneTotalsParts {
@@ -101,7 +101,7 @@ fn totals() -> Readout {
             ended: None,
             last_landing: None,
             spent: 212,
-            reds: 0,
+            reds,
         },
     )
     .unwrap();
@@ -117,6 +117,7 @@ struct Harness {
     cards: Vec<(c::ObjectKey, c::ReadValue)>,
     more: bool,
     totals: bool,
+    reds: u32,
     out: Queue<Request>,
 }
 impl Harness {
@@ -136,7 +137,8 @@ impl Harness {
             None,
             Some(&[]),
         );
-        let mut h = Self { root, task, rows, cards: Vec::new(), more: false, totals: true, out: Queue::uncapped() };
+        let mut h =
+            Self { root, task, rows, cards: Vec::new(), more: false, totals: true, reds: 0, out: Queue::uncapped() };
         h.up(Up::Watched {
             watch: watch.unwrap(),
             event: c::WatchEvent::Delivered(c::Delivery::Task(Box::new(h.task.clone()))),
@@ -250,7 +252,7 @@ impl Harness {
                         Some(Up::ReadDone {
                             read,
                             result: if self.totals {
-                                totals()
+                                totals(self.reds)
                             } else {
                                 Readout::Jig(c::ReadResult::None(c::ReadNone::Unknown))
                             },
@@ -348,6 +350,18 @@ fn the_meta_says_title_state_count_spend_and_since() {
         assert!(!contains(&tree, b"Written by"));
         assert!(!contains(&tree, b"A report body"));
         assert!(!tree.nodes().iter().any(|n| n.styles.as_slice().contains(&look::GOAL_COMPOSER)));
+    }
+    let mut task = document();
+    f::task::phase(&mut task, c::ChipPhase::Ended);
+    task.chip.details.details.ending = Some(c::ChipEnding::Done(c::ResultValue::Report(f::goal::text(b"Done."))));
+    let mut h = Harness::new(task, goals());
+    h.reds = 2;
+    h.settle();
+    for words in [f::browser_words(), f::words()] {
+        let (tree, _) = draw(&h.root, &words);
+        let heading = tree.nodes().iter().position(|n| n.role == (Role::Heading { level: 1 })).unwrap();
+        assert_eq!(f::node_text(&tree, heading).as_ref(), b"All 8 goals done; 2 reds after landing owed.");
+        assert!(contains(&tree, b"complete"));
     }
     let mut h = Harness::new(document(), goals());
     let tree = draw(&h.root, &f::words()).0;
