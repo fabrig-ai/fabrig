@@ -24,21 +24,18 @@ fn wall(source: Option<Wall>) -> Option<u64> {
 }
 
 pub(super) fn attempt(row: &domain::AttemptRow, limits: &wire::Limits) -> Result<wire::AttemptRow, wire::Problem> {
-    wire::AttemptRow::new(
-        limits,
-        wire::AttemptRowParts {
-            task: row.task,
-            attempt: row.attempt,
-            claimed: wall(row.claimed),
-            started: wall(row.started),
-            ended: wall(row.ended),
-            end: end(row.end, limits)?,
-            phases: row.phases,
-        },
-    )
+    Ok(wire::AttemptRow {
+        task: row.task,
+        attempt: row.attempt,
+        claimed: wall(row.claimed),
+        started: wall(row.started),
+        ended: wall(row.ended),
+        end: end(row.end, limits)?,
+        phases: row.phases,
+    })
 }
 pub(super) fn read_attempt(row: wire::AttemptRow) -> Result<domain::AttemptRow, wire::Problem> {
-    let wire::AttemptRowParts { task, attempt, claimed, started, ended, end, phases } = row.into_parts();
+    let wire::AttemptRow { task, attempt, claimed, started, ended, end, phases } = row;
     Ok(domain::AttemptRow {
         task,
         attempt,
@@ -54,23 +51,20 @@ pub(super) fn open(
     limits: &wire::Limits,
 ) -> Result<Option<wire::OpenAttempt>, wire::Problem> {
     match row {
-        Some(row) => Ok(Some(wire::OpenAttempt::new(
-            limits,
-            wire::OpenAttemptParts {
-                attempt: row.attempt,
-                claimed: wall(row.claimed),
-                started: wall(row.started),
-                from: row.from,
-                end: end(row.end, limits)?,
-            },
-        )?)),
+        Some(row) => Ok(Some(wire::OpenAttempt {
+            attempt: row.attempt,
+            claimed: wall(row.claimed),
+            started: wall(row.started),
+            from: row.from,
+            end: end(row.end, limits)?,
+        })),
         None => Ok(None),
     }
 }
 pub(super) fn read_open(row: Option<wire::OpenAttempt>) -> Result<Option<domain::OpenAttempt>, wire::Problem> {
     match row {
         Some(row) => {
-            let wire::OpenAttemptParts { attempt, claimed, started, from, end } = row.into_parts();
+            let wire::OpenAttempt { attempt, claimed, started, from, end } = row;
             Ok(Some(domain::OpenAttempt {
                 attempt,
                 claimed: value::read_wall(claimed),
@@ -83,26 +77,20 @@ pub(super) fn read_open(row: Option<wire::OpenAttempt>) -> Result<Option<domain:
     }
 }
 pub(super) fn hold(row: &domain::HoldRow, limits: &wire::Limits) -> Result<wire::HoldRow, wire::Problem> {
-    wire::HoldRow::new(
-        limits,
-        wire::HoldRowParts {
-            task: row.task,
-            position: row.position,
-            at: row.at.as_nanos(),
-            held: wire::Held::new(
-                limits,
-                wire::HeldParts {
-                    was: phase::was(&row.held.was, limits)?,
-                    why: phase::hold(&row.held.why, limits)?,
-                    source: phase::optional_source(row.held.source.as_deref(), limits)?,
-                },
-            )?,
+    Ok(wire::HoldRow {
+        task: row.task,
+        position: row.position,
+        at: row.at.as_nanos(),
+        held: wire::Held {
+            was: phase::was(&row.held.was, limits)?,
+            why: phase::hold(&row.held.why, limits)?,
+            source: phase::optional_source(row.held.source.as_deref(), limits)?,
         },
-    )
+    })
 }
 pub(super) fn read_hold(row: wire::HoldRow, limits: &wire::Limits) -> Result<domain::HoldRow, wire::Problem> {
-    let wire::HoldRowParts { task, position, at, held } = row.into_parts();
-    let wire::HeldParts { was, why, source } = held.into_parts();
+    let wire::HoldRow { task, position, at, held } = row;
+    let wire::Held { was, why, source } = held;
     Ok(domain::HoldRow {
         task,
         position,

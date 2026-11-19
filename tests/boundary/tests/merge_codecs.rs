@@ -39,6 +39,7 @@ fn the_merge_list_reproduces_every_generated_codec() {
         listed.insert(module.to_owned());
         let schemas: Vec<_> = paths.collect();
         let first = schemas.first().expect("each module lists at least one schema text");
+        let schema_path = root.join(first);
         let stem = Path::new(first).file_stem().expect("schema stem").to_str().expect("UTF-8 stem");
         let (stem, _) = stem.rsplit_once("-v").expect("schema version suffix");
         assert_eq!(
@@ -51,7 +52,9 @@ fn the_merge_list_reproduces_every_generated_codec() {
             source.push_str(&fs::read_to_string(root.join(schema)).unwrap_or_else(|why| panic!("{schema}: {why}")));
         }
         let schema = skein_codegen::parse(&source).unwrap_or_else(|why| panic!("{module}: {why:?}"));
-        let generated = skein_codegen::generate(&schema);
+        let form = skein_codegen::form_of(schema_path.parent().expect("schema directory"), &schema.family)
+            .expect("family form readable");
+        let generated = skein_codegen::generate_as(&schema, form);
         let committed = fs::read_to_string(root.join(module)).unwrap_or_else(|why| panic!("{module}: {why}"));
         assert!(generated.records == committed, "{module}: listed schema texts do not reproduce committed module");
     }
