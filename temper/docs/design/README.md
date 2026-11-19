@@ -205,6 +205,8 @@ forge, temper adds:
   them on,
   `client/journey-writer.md` the one writer of main's journey files,
   run after each landing,
+  `client/journey-walks.md` a journey's walk, printed in one process
+  with no box, browser or recording,
   `client/web/look-requests.md` the look requests' round trip,
   `client/box-binary.md` how `temper box` finds or downloads
   `temper-box`, `client/view-crates.md` the view's crates and how it
