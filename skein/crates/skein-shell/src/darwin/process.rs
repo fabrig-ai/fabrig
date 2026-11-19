@@ -188,6 +188,9 @@ fn child_actions(
 }
 
 pub(crate) fn spawn(command: &mut Spawn) -> Result<Done, Error> {
+    if command.reach.is_some() {
+        return Err(Error::Reach(skein_io::kernel::Unenforced::Unsupported));
+    }
     spawn_prepared(command, None).map_err(map_error)
 }
 

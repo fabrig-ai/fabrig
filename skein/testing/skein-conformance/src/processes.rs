@@ -173,6 +173,7 @@ pub(crate) fn spawned(complete: skein_io::kernel::Complete) -> (Fd, Vec<Fd>) {
 
 pub(crate) fn command(executable: &[u8], root: Fd, args: &[&[u8]], pipes: &[Pipe]) -> Spawn {
     Spawn {
+        reach: None,
         program: Box::from(executable),
         args: args.iter().map(|arg| Box::from(*arg)).collect(),
         env: Box::new([]),

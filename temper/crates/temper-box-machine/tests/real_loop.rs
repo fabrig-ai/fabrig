@@ -457,7 +457,15 @@ impl Referee<Proc> for Judge {
 }
 
 fn startup(root: Fd, pipes: Box<[Pipe]>) -> Spawn {
-    Spawn { program: PROGRAM.into(), args: Box::new([]), env: Box::new([]), root, dir: Box::new([]), pipes }
+    Spawn {
+        reach: None,
+        program: PROGRAM.into(),
+        args: Box::new([]),
+        env: Box::new([]),
+        root,
+        dir: Box::new([]),
+        pipes,
+    }
 }
 fn close_placeholders(pipes: &HostedPipes) {
     for fd in [pipes.pidfd, pipes.signal, pipes.signal_writer] {

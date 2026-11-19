@@ -677,6 +677,7 @@ impl Calls {
             op: child.token(SPAWN),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program,
                     args: args.into_boxed_slice(),
                     env: Box::new([]),

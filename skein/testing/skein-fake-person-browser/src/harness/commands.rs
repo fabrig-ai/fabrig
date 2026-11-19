@@ -80,6 +80,7 @@ impl Process {
             })
             .collect();
         let spawn = Spawn {
+            reach: None,
             program: command.program.as_os_str().as_bytes().into(),
             args: command.args.iter().map(|arg| substitute(arg.as_bytes(), Some(address), peers)).collect(),
             env,

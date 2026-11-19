@@ -627,9 +627,12 @@ fn glob_argument(glob: &[u8]) -> Option<Box<[u8]>> {
 fn listing_failure(error: io::Error) -> tools::Done {
     match error {
         io::Error::TimedOut => tools::Done::TimedOut,
-        io::Error::Refused | io::Error::Unreachable | io::Error::Reset | io::Error::Busy | io::Error::Other => {
-            tools::Done::Failed { fault: tools::Fault::Other }
-        }
+        io::Error::Refused
+        | io::Error::Unreachable
+        | io::Error::Reset
+        | io::Error::Busy
+        | io::Error::Reach(_)
+        | io::Error::Other => tools::Done::Failed { fault: tools::Fault::Other },
     }
 }
 

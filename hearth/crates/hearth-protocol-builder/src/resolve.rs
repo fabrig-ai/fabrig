@@ -217,6 +217,7 @@ impl Resolve {
             file::Event::Stored { .. } => below.push(Asked::Io(io::Request::Spawn {
                 owner: OWNER,
                 spawn: Spawn {
+                    reach: None,
                     program: bytes::copy_of(vector::PROGRAM),
                     args: self.invocation.args.clone(),
                     env: self.invocation.env.clone(),
