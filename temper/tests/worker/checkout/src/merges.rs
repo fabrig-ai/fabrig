@@ -557,9 +557,21 @@ fn settle_past_the_bound(world: &mut World, at: &[u8], conflicts: &[Conflicts], 
     for file in world.expected.keys() {
         assert_eq!(world.disk.content(&[at, b"/", file].concat()), Some(marked.as_bytes()));
     }
+    let last = world.expected.last_key_value().expect("paths past the bound").0.clone();
     for (file, content) in &world.expected {
-        world.disk.write(&[at, b"/", file].concat(), content);
+        if *file != last {
+            world.disk.write(&[at, b"/", file].concat(), content);
+        }
     }
+    assert_eq!(
+        world.push(false, false).as_ref(),
+        &[Landing::Conflicted { files: Box::new([last.clone().into_boxed_slice()]) }],
+        "delivery scans the path beyond the prepare's named prefix"
+    );
+    assert!(world.forge.moves().is_empty(), "a last-page marker never pushes");
+    let unmerged = world.disk.tree(&[at, b"/.git/temper-conflicts"].concat());
+    assert_eq!(unmerged.into_values().collect::<Vec<_>>(), world.expected.keys().cloned().collect::<Vec<_>>());
+    world.disk.write(&[at, b"/", &last].concat(), &world.expected[&last]);
 }
 
 /// Read the fake's checkout and merge metadata before the run edits anything.

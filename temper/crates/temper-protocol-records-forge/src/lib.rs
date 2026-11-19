@@ -8,6 +8,7 @@ use skein_forge_connection::{Access, settings::Kind};
 use skein_forge_setup::item;
 use skein_lib::{Map, Secret, Writer};
 use temper_protocol_records::{CARRIED, FAMILY_FORGE, Item, Unreadable, decode, decoded_origin, parse, v1};
+use v1::Record;
 const FORGES: u32 = 65536;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -18,10 +19,7 @@ pub struct Origin {
 impl Origin {
     #[must_use]
     pub fn encode(&self) -> Box<[u8]> {
-        let value = generated_origin(self).expect("configured origin within schema ceiling");
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("origin length"));
-        value.encode(&mut out).expect("measured origin");
-        out.finish()
+        generated_origin(self).encode(&v1::CEILINGS).expect("configured origin within schema ceiling")
     }
     pub fn decode(bytes: &[u8]) -> Result<Self, Unreadable> {
         origin_from_record(decoded_origin(bytes)?)
@@ -251,22 +249,22 @@ pub fn access(
     Ok(Start { access: Access { credential, user, webhook_secret }, accepted, slug })
 }
 
-fn generated_origin(value: &Origin) -> Result<v1::Origin, Unreadable> {
+fn generated_origin(value: &Origin) -> v1::Origin {
     let kind = match value.kind {
         Kind::Forgejo => v1::Kind::Forgejo,
         Kind::GitHub => v1::Kind::Github,
     };
-    v1::Origin::new(&v1::CEILINGS, v1::OriginParts { kind, api: Box::from(value.api.as_bytes()) }).or(Err(Unreadable))
+    v1::Origin { kind, api: Box::from(value.api.as_bytes()) }
 }
 #[expect(clippy::disallowed_methods, reason = "the generated text decoder validates UTF-8")]
 fn origin_from_record(value: v1::Origin) -> Result<Origin, Unreadable> {
-    let parts = value.into_parts();
-    if parts.api.is_empty() {
+    let v1::Origin { kind, api } = value;
+    if api.is_empty() {
         return Err(Unreadable);
     }
-    let kind = match parts.kind {
+    let kind = match kind {
         v1::Kind::Forgejo => Kind::Forgejo,
         v1::Kind::Github => Kind::GitHub,
     };
-    Ok(Origin { kind, api: Box::from(core::str::from_utf8(&parts.api).or(Err(Unreadable))?) })
+    Ok(Origin { kind, api: Box::from(core::str::from_utf8(&api).or(Err(Unreadable))?) })
 }

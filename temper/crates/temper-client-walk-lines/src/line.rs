@@ -34,6 +34,8 @@ pub enum Tui {
     See(Box<[u8]>),
     Stop,
     Look,
+    Mark,
+    Approve,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Forge {
@@ -288,6 +290,8 @@ fn tui(fields: &mut Fields) -> Result<Tui, String> {
         b"key" => Tui::Key(key(fields)?),
         b"see" => Tui::See(bytes(fields, "text")?),
         b"stop" => Tui::Stop,
+        b"mark" => Tui::Mark,
+        b"approve" => Tui::Approve,
         b"look" => Tui::Look,
         other => return Err(format!("unknown tui record {:?}", String::from_utf8_lossy(other))),
     })

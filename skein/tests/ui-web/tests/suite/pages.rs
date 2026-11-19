@@ -1,5 +1,6 @@
 //! The example's patches mapped by the real host page part.
-use skein_lib::{List, Queue, Time, Wall, Writer};
+use records::Record;
+use skein_lib::{List, Queue, Time, Wall};
 use skein_ui::{Owner, Role, Style, View, look::Names};
 use skein_ui_example_view::{Duties, Place, Report, State, limits, places, records};
 use skein_ui_web::{Look, mapping::Primary, page::Page};
@@ -12,32 +13,19 @@ fn no_drawing(_: skein_ui::DrawingKind, _: &[u8], _: u16, _: u16, _: &mut skein_
 fn state() -> State {
     let mut notes = List::with_capacity(64);
     notes
-        .push(
-            records::Note::new(
-                &records::CEILINGS,
-                records::NoteParts {
-                    number: 7,
-                    title: b"Groceries".as_slice().into(),
-                    body: b"A note".as_slice().into(),
-                    due: b"2026-10-15".as_slice().into(),
-                    minutes: 30,
-                    label: records::Label::Task,
-                },
-            )
-            .expect("fixture note fits the record ceilings"),
-        )
+        .push(records::Note {
+            number: 7,
+            title: b"Groceries".as_slice().into(),
+            body: b"A note".as_slice().into(),
+            due: b"2026-10-15".as_slice().into(),
+            minutes: 30,
+            label: records::Label::Task,
+        })
         .expect("room for the fixture note");
-    let notes = records::Notes::new(&records::CEILINGS, records::NotesParts { notes })
-        .expect("fixture notes fit the record ceilings");
-    let mut writer = Writer::new(usize::try_from(notes.measure()).expect("encoded notes size fits usize"));
-    notes.encode(&mut writer).expect("writer holds the measured notes");
+    let notes = records::Notes { notes };
+    let body = notes.encode(&records::CEILINGS).expect("fixture notes fit the record ceilings");
     let mut state = State::start(1, b"/", &[], 0, b"en");
-    state.step(
-        Report::Answered { exchange: 0, status: 200, body: writer.finish() },
-        Time::ZERO,
-        Wall::EPOCH,
-        &mut duties(),
-    );
+    state.step(Report::Answered { exchange: 0, status: 200, body }, Time::ZERO, Wall::EPOCH, &mut duties());
     state
 }
 fn duties() -> Duties {

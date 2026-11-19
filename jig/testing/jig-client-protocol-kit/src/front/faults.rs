@@ -25,13 +25,15 @@ impl Protocol {
         match fault {
             FrontFault::Busy => self.engine.driver.scripted_party(crate::stories::pressure(), now, fixtures::wall(now)),
             FrontFault::NotReady => {
-                self.engine.driver.pause_restore(jig_test_profile::config(self.engine.seed), now, fixtures::wall(now));
+                let engine = &mut *self.engine;
+                engine.driver.pause_restore(jig_test_profile::config(engine.seed), now, fixtures::wall(now));
                 self.release = Some(now.saturating_add(Duration::from_millis(100)));
             }
             FrontFault::Restart { offline } => {
                 self.net.cut_all();
                 self.advance(now, fixtures::wall(now));
-                self.engine.driver.restart(jig_test_profile::config(self.engine.seed), now, fixtures::wall(now));
+                let engine = &mut *self.engine;
+                engine.driver.restart(jig_test_profile::config(engine.seed), now, fixtures::wall(now));
                 self.restart = Some(now.saturating_add(*offline));
                 self.net.offline(self.restart.expect("recovery deadline"));
                 self.reset_component();
@@ -58,9 +60,9 @@ impl Protocol {
                 jig_protocol_engine_clients::Served { family: Some(1), first: 2, last: 2 },
             ]);
         }
-        self.engine.component =
-            jig_protocol_engine_clients::Component::new(settings, &self.engine.env, &mut self.engine.out)
-                .expect("bounded replacement");
+        let engine = &mut *self.engine;
+        engine.component = jig_protocol_engine_clients::Component::new(settings, &engine.env, &mut engine.out)
+            .expect("bounded replacement");
     }
     pub(super) fn release_faults(&mut self, now: Time, wall: Wall) {
         if self.release.is_some_and(|until| until <= now) {
@@ -94,10 +96,8 @@ impl Protocol {
         self.answers.get(&client).copied().unwrap_or(0)
     }
     pub fn check_isolation(&mut self, unread: ClientId, other: ClientId, before: u64) {
-        self.engine
-            .rules
-            .isolation(self.net.unread(unread), self.answers(other) > before)
-            .expect("a slow stream holds no other exchange");
+        let answered = self.answers(other) > before;
+        self.engine.rules.isolation(self.net.unread(unread), answered).expect("a slow stream holds no other exchange");
     }
     #[must_use]
     pub fn requests_made(&self) -> usize {

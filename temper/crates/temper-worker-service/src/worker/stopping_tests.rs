@@ -17,6 +17,7 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         "object-format",
         "init",
         "remote-add",
+        "init",
         "fetch-branch",
         "update-ref",
         "fetch-missing-branch",
@@ -32,11 +33,9 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
     }
     // The scripted clone leaves a git directory for the check-file operations.
     stand.below.tree.insert(b"workspaces/0/app/.git".to_vec(), temper_worker_protocol_git_world::io::Node::Directory);
-    for stdout in [b"0000000000000000000000000000000000000001\n".as_slice(), b".git/temper\n"] {
-        let mut query = Invocation::captured("object-format");
-        query.transcript.stdout = stdout.into();
-        stand.below.script.invocations.push_back(query);
-    }
+    let mut query = Invocation::captured("object-format");
+    query.transcript.stdout = b"0000000000000000000000000000000000000001\n".as_slice().into();
+    stand.below.script.invocations.push_back(query);
     stand.worker.link(fixtures::NOW, fixtures::repository_assignment());
     let root::Event::Assign { assignment, items: Ok(mut items) } = stand.worker.engine.pop().unwrap() else {
         panic!("decoded repository")
@@ -179,7 +178,7 @@ fn save_push(stand: &mut fixtures::WorkerStand, peer: &AgentPeer, link: &mut Lin
         for _ in 0..stand.worker.io().len() {
             let request = stand.worker.io().pop().unwrap();
             if let io::Request::Spawn { owner, spawn } = request {
-                if spawn.args.get(26).is_some_and(|arg| arg.as_ref() == b"push") {
+                if spawn.args.contains(&Box::from(b"push".as_slice())) {
                     return (owner, spawn);
                 }
                 stand.worker.io().push(io::Request::Spawn { owner, spawn });

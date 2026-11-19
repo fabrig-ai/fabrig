@@ -1,8 +1,8 @@
 //! The application's own wire, at the engine's protocol boundary (client/domain/client/README.md, 8).
-use crate::v2 as w;
+use crate::v2::{self as w, Record};
 use alloc::boxed::Box;
 use jig_test_connector as d;
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 mod documents;
 mod facts;
 pub mod family;
@@ -38,11 +38,8 @@ pub fn limits(limits: &d::Limits) -> Option<w::Limits> {
 /// Encode only a connector request; no digest is reconstructed from its fields.
 #[must_use]
 pub fn request_record(project: u32, value: &d::ApplicationRequest) -> Box<[u8]> {
-    let record = w::Request::new(&w::CEILINGS, w::RequestParts { project, value: encode_application_request(value) })
-        .expect("admitted request fits schema");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Request { project, value: encode_application_request(value) };
+    record.encode(&w::CEILINGS).expect("admitted request fits schema")
 }
 /// Decode before constructing the root's input; its supplied digest stays untouched.
 pub fn request(bytes: &[u8], bound: &d::Limits) -> Result<DecodedRequest, Undecodable> {
@@ -52,16 +49,13 @@ pub fn request(bytes: &[u8], bound: &d::Limits) -> Result<DecodedRequest, Undeco
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    let w::RequestParts { project, value } = record.into_parts();
+    let w::Request { project, value } = record;
     Ok(DecodedRequest { project, value: decode_application_request(value)? })
 }
 #[must_use]
 pub fn outcome(value: &d::ApplicationOutcome) -> Box<[u8]> {
-    let record = w::Outcome::new(&w::CEILINGS, w::OutcomeParts { value: parts::encode_application_outcome(value) })
-        .expect("admitted outcome fits schema");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Outcome { value: parts::encode_application_outcome(value) };
+    record.encode(&w::CEILINGS).expect("admitted outcome fits schema")
 }
 pub fn outcome_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ApplicationOutcome, Undecodable> {
     let bounds = limits(bound).ok_or(Undecodable)?;
@@ -70,15 +64,12 @@ pub fn outcome_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ApplicationOu
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(parts::decode_application_outcome(record.into_parts().value, bound))
+    Ok(parts::decode_application_outcome(record.value, bound))
 }
 #[must_use]
 pub fn subject(value: &d::ClientSubject) -> Box<[u8]> {
-    let record = w::Subject::new(&w::CEILINGS, w::SubjectParts { value: parts::encode_client_subject(value) })
-        .expect("admitted subject fits schema");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Subject { value: parts::encode_client_subject(value) };
+    record.encode(&w::CEILINGS).expect("admitted subject fits schema")
 }
 pub fn subject_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientSubject, Undecodable> {
     let bounds = limits(bound).ok_or(Undecodable)?;
@@ -87,15 +78,12 @@ pub fn subject_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientSubject
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    parts::decode_client_subject(record.into_parts().value)
+    parts::decode_client_subject(record.value)
 }
 #[must_use]
 pub fn read(value: &d::ClientSubject) -> Box<[u8]> {
-    let record = w::Read::new(&w::CEILINGS, w::ReadParts { value: parts::encode_client_subject(value) })
-        .expect("admitted read fits schema");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Read { value: parts::encode_client_subject(value) };
+    record.encode(&w::CEILINGS).expect("admitted read fits schema")
 }
 pub fn read_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientSubject, Undecodable> {
     let bounds = limits(bound).ok_or(Undecodable)?;
@@ -104,15 +92,12 @@ pub fn read_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientSubject, U
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    parts::decode_client_subject(record.into_parts().value)
+    parts::decode_client_subject(record.value)
 }
 #[must_use]
 pub fn document(value: &d::ClientDocument) -> Box<[u8]> {
-    let record = w::Document::new(&w::CEILINGS, w::DocumentParts { value: documents::encode_client_document(value) })
-        .expect("admitted document fits schema");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Document { value: documents::encode_client_document(value) };
+    record.encode(&w::CEILINGS).expect("admitted document fits schema")
 }
 pub fn document_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientDocument, Undecodable> {
     let bounds = limits(bound).ok_or(Undecodable)?;
@@ -121,24 +106,19 @@ pub fn document_value(bytes: &[u8], bound: &d::Limits) -> Result<d::ClientDocume
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    documents::decode_client_document(record.into_parts().value, bound)
+    documents::decode_client_document(record.value, bound)
 }
 
 /// A family's read terminal retains its exact absence reason in its own record.
 #[must_use]
 pub fn read_answer(answer: &Result<d::ClientDocument, d::DocumentMissing>) -> Box<[u8]> {
     let value = match answer {
-        Ok(value) => w::ReadResult::Value(Box::new(
-            w::ReadValue::new(&w::CEILINGS, w::ReadValueParts { value: documents::encode_client_document(value) })
-                .expect("admitted document fits schema"),
-        )),
+        Ok(value) => w::ReadResult::Value(Box::new(w::ReadValue { value: documents::encode_client_document(value) })),
         Err(d::DocumentMissing::Unknown) => w::ReadResult::Unknown,
         Err(d::DocumentMissing::NotAllowed) => w::ReadResult::NotAllowed,
     };
-    let record = w::ReadAnswer::new(&w::CEILINGS, w::ReadAnswerParts { value }).expect("bounded read answer");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::ReadAnswer { value };
+    record.encode(&w::CEILINGS).expect("bounded read answer")
 }
 pub fn read_answer_value(
     bytes: &[u8],
@@ -150,8 +130,8 @@ pub fn read_answer_value(
     if reader.remaining() != 0 {
         return Err(Undecodable);
     }
-    Ok(match record.into_parts().value {
-        w::ReadResult::Value(value) => Ok(documents::decode_client_document(value.into_parts().value, bound)?),
+    Ok(match record.value {
+        w::ReadResult::Value(value) => Ok(documents::decode_client_document(value.value, bound)?),
         w::ReadResult::Unknown => Err(d::DocumentMissing::Unknown),
         w::ReadResult::NotAllowed => Err(d::DocumentMissing::NotAllowed),
     })

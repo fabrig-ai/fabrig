@@ -5,28 +5,23 @@
 mod tests {
     use skein_codec_tests::{scalars, v1};
     use skein_lib::{Reader, Rng, Writer};
+    use v1::Record;
 
     fn check_field(bytes: &[u8]) {
         if let Ok(value) = v1::Field::decode(&v1::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            assert_eq!(value.encode(&v1::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 
     fn check_report(bytes: &[u8]) {
         if let Ok(value) = v1::Report::decode(&v1::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            assert_eq!(value.encode(&v1::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 
     fn check_marker(bytes: &[u8]) {
         if let Ok(value) = v1::Marker::decode(&v1::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            assert_eq!(value.encode(&v1::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 

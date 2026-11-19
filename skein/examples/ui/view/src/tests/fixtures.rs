@@ -1,10 +1,10 @@
 //! Notes shared by the view tests.
 use crate::{
     Duties, Report, State,
-    records::{self, Label, Note, NoteParts, Notes, NotesParts},
+    records::{self, Label, Note, Notes, Record},
 };
 use alloc::boxed::Box;
-use skein_lib::{List, Queue, Time, Wall, Writer};
+use skein_lib::{List, Queue, Time, Wall};
 pub const GROCERIES: &[u8] = b"Groceries";
 pub const DENTIST: &[u8] = b"Dentist";
 pub const ADD_RECORD: &[u8] = b"\0\0\0\0\0\0\0\x01\0\0\0\x01A\0\0\0\0\0\0\0\0\0\0\0\0\0";
@@ -23,23 +23,17 @@ pub fn notes() -> Notes {
     let mut notes = List::with_capacity(64);
     for (number, title) in [(7, GROCERIES), (9, DENTIST)] {
         notes
-            .push(
-                Note::new(
-                    &records::CEILINGS,
-                    NoteParts {
-                        number,
-                        title: Box::from(title),
-                        body: Box::from(&b"A note"[..]),
-                        due: Box::from(&b"2026-10-15"[..]),
-                        minutes: 30,
-                        label: Label::Task,
-                    },
-                )
-                .expect("fixture fits"),
-            )
+            .push(Note {
+                number,
+                title: Box::from(title),
+                body: Box::from(&b"A note"[..]),
+                due: Box::from(&b"2026-10-15"[..]),
+                minutes: 30,
+                label: Label::Task,
+            })
             .expect("two notes fit");
     }
-    Notes::new(&records::CEILINGS, NotesParts { notes }).expect("two notes fit")
+    Notes { notes }
 }
 pub fn duties() -> Duties {
     Duties {
@@ -52,11 +46,10 @@ pub fn duties() -> Duties {
 }
 pub fn state() -> State {
     let notes = notes();
-    let mut writer = Writer::new(usize::try_from(notes.measure()).expect("record fits"));
-    notes.encode(&mut writer).expect("fixture encodes");
+    let body = notes.encode(&records::CEILINGS).expect("fixture encodes");
     let mut state = State::start(1, b"/", &[], 0, b"en");
     state.step(
-        Report::Answered { exchange: 0, status: 200, body: writer.finish() },
+        Report::Answered { exchange: 0, status: 200, body },
         Time::from_nanos(0),
         Wall::from_nanos(0),
         &mut duties(),
