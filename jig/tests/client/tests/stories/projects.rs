@@ -230,6 +230,7 @@ fn a_remove_project_kept_across_a_restart_is_answered_once() {
     assert!(!frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
     assert_eq!(world.front().engine.commits().iter().filter(|commit| commit.key.is_some()).count(), 1);
 }
+<<<<<<< HEAD
 
 // The deleted read crosses the real core, store and client wire, not scripted truth.
 #[test]
@@ -329,3 +330,5 @@ fn exchange(
     }
     panic!("public exchange did not settle");
 }
+=======
+>>>>>>> refs/manual3/g6710

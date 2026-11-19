@@ -329,6 +329,7 @@ impl Store {
         store
     }
 
+<<<<<<< HEAD
     /// Copy an in-memory store's durable map, census and payload logs, with no
     /// pending operations or read cache. Later writes belong to the copy alone.
     /// Directory-backed stores cannot be copied through this test fixture face.
@@ -348,6 +349,23 @@ impl Store {
         copy.rule.clone_from(&self.rule);
         copy.logs = self.logs.clone();
         Some(copy)
+=======
+    /// Copy an in-memory store's committed storage, without its pending work.
+    /// Directory stores must instead be reopened over a copy of their files.
+    #[must_use]
+    pub fn fork_memory(&self, limits: &Limits) -> Option<Store> {
+        match self.state {
+            State::Memory => {
+                let mut store = Store::memory(limits);
+                store.last = self.last;
+                store.map = self.map.clone();
+                store.rule.clone_from(&self.rule);
+                store.logs = self.logs.clone();
+                Some(store)
+            }
+            State::Closed | State::Open { .. } => None,
+        }
+>>>>>>> refs/manual3/g6710
     }
 
     /// Enable the census before opening, or before the first in-memory commit

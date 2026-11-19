@@ -532,8 +532,19 @@ fn waiting_workers(engine: &mut crate::Engine) {
     let config = f::config();
     assert!(engine.events.is_empty());
     engine.workers = Some(
+<<<<<<< HEAD
         crate::workers::Workers::new(&config, f::seeds().deployment, &crate::limits::small(&config.limits).workers)
             .expect("workers fixture"),
+=======
+        crate::workers::Workers::new(
+            &config,
+            &f::files(&f::engine_document()),
+            f::seeds().deployment,
+            &crate::limits::for_profile(jig_protocol_config::Profile::Small, &config.limits).workers,
+            None,
+        )
+        .expect("workers fixture"),
+>>>>>>> refs/manual3/g6710
     );
 }
 

@@ -23,6 +23,11 @@ impl Files {
         let root = machine.lay(&[]);
         Files { machine, root, handles: BTreeMap::from([(Token::new(root.raw()), root)]) }
     }
+    pub(super) fn fork(&self) -> Self {
+        let mut machine = self.machine.fork();
+        let root = machine.reopen_root(0);
+        Self { machine, root, handles: BTreeMap::from([(Token::new(root.raw()), root)]) }
+    }
     #[must_use]
     pub fn root(&mut self) -> Root {
         Root { token: Token::new(self.root.raw()), fd: fd(self.root) }

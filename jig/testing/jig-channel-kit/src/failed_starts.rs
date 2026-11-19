@@ -86,6 +86,7 @@ pub(crate) fn advance(host: &mut ServiceHost) -> Result<(), String> {
         }
     }
     host.failed_starts.ended += 1;
+<<<<<<< HEAD
     host.service = jig_test_service::startup_with_workers(
         &fixtures::engine_document(),
         &fixtures::files(false),
@@ -96,6 +97,11 @@ pub(crate) fn advance(host: &mut ServiceHost) -> Result<(), String> {
         fixtures::workers(),
     )
     .map_err(|why| format!("next engine start: {why:?}"))?;
+=======
+    host.service = crate::processes::engine_prepared()
+        .startup(&fixtures::files(false), None, &fixtures::seeds(), None, None)
+        .map_err(|why| format!("next engine start: {why:?}"))?;
+>>>>>>> refs/manual3/g6710
     let root = host.failed_starts.roots.pop().ok_or("independent root for next start")?;
     host.service.adopt_store(root, 1000).map_err(|why| format!("next start store: {why:?}"))?;
     host.files.root(root);

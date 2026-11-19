@@ -1,4 +1,4 @@
-//! Finite story configuration, reconstructed unchanged on every cold start.
+//! Finite story configuration, cloned unchanged into every cold domain.
 use jig_domain_host as host;
 use jig_ops_domain::{Config, Limits};
 use jig_ops_domain_infrastructure as infrastructure;
@@ -344,6 +344,10 @@ pub fn task_authority(spend: u64) -> tasks::Authority {
 pub fn chat(words: &[u8]) -> jig_domain_people::Ask {
     const CONFIG_SEED: u64 = 0;
     let (config, limits) = root(CONFIG_SEED);
+    chat_from(&config, &limits, words)
+}
+
+pub(super) fn chat_from(config: &Config, limits: &Limits, words: &[u8]) -> jig_domain_people::Ask {
     let members = jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks);
     jig_test_profile::fixtures::create_chat(&members, 1, 0, words.into())
 }

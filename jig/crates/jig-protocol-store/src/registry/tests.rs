@@ -4,7 +4,12 @@ use super::{Layouts, Text, counting, texts};
 use crate::tests::fixtures::{self, disk::Disk};
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Store, ValueType};
 use alloc::boxed::Box;
+<<<<<<< HEAD
 use jig_test_layouts::layouts::{BUFFER_CURRENT, BUFFER_KEPT, CURRENT, FIRST, KEPT};
+=======
+use jig_test_layouts::layouts::{CURRENT, FIRST, KEPT};
+mod shortcut;
+>>>>>>> refs/manual3/g6710
 
 const FAMILY: KeptFamily = KeptFamily {
     name: "fixture-layouts",

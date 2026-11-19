@@ -151,7 +151,7 @@ fn window_page_case(seed: u64, bodies: &[&[u8]], resume: bool, tail: Option<&[u8
     assert_eq!(assignment.run.policy.resume, resume);
     let expected: Vec<Box<[u8]>> = if resume { bodies.iter().map(|body| Box::from(*body)).collect() } else { vec![] };
     assert_eq!(assignment.transcript.as_ref(), expected);
-    assert_eq!(closed_proofs::tail(&world), tail);
+    assert_eq!(run_helpers::tail(&world), tail);
 }
 
 fn a_window_turn_charging_exactly_the_room_resumes_whole() {
@@ -247,6 +247,7 @@ fn a_window_past_the_resume_limit_starts_fresh_with_its_tail() {
     assert_eq!(tail.as_ref(), [b'c'; 100]);
 }
 
+<<<<<<< HEAD
 use crate::closed_proofs;
 
 #[test]
@@ -353,6 +354,9 @@ fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
     // The store deliberately keeps the closed transcript unreadable.
     world.broken();
 }
+=======
+use crate::run_helpers;
+>>>>>>> refs/manual3/g6710
 
 fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh() {
     let mut world = World::new(Setup { seed: 106, ..Setup::default() });
@@ -1005,7 +1009,7 @@ fn unusable_history_closes_its_committed_window_before_the_retry() {
         let fresh = world.assigned.as_ref().expect("fresh attempt");
         assert!(fresh.transcript.is_empty());
         assert_eq!(fresh.conversation, fresh.attempt);
-        assert_eq!(closed_proofs::tail(&world), Some(b"saved tail".as_slice()));
+        assert_eq!(run_helpers::tail(&world), Some(b"saved tail".as_slice()));
         assert_eq!(world.domain.core().tasks.task(world.task()).expect("live chat").tries.transient, 1);
     }
 }

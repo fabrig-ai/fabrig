@@ -1,14 +1,11 @@
 use jig_core_world::world::Setup;
 use jig_core_world::world::World;
 use jig_domain_core as core;
-use jig_domain_link::{Hello, Hosting};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
 use jig_test_domain as root;
 use jig_test_patches_smith as fixture;
-use skein_lib::{Duration, Token};
 
-pub const SEED: u64 = 118;
 const TURN: KeptFamily = KeptFamily {
     retired: &[],
     current: fixture::patches::kept::fixture_turn::TEXTS[0],
@@ -92,25 +89,6 @@ pub fn restart(world: &mut World) {
     hello(world);
     world.grant_account(1);
 }
-pub fn hello(world: &mut World) {
-    hello_hosting(world, Box::new([]));
-}
-
-pub fn hello_hosting(world: &mut World, hosting: Box<[Hosting]>) {
-    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
-        worker: 0,
-        channel: Token::new(7),
-        hello: Hello {
-            jobs: Box::default(),
-            bounds: jig_test_profile::fixtures::bounds(),
-            stop_bound: Duration::from_millis(100),
-            slots: 1,
-            workstreams: Box::new([]),
-            hosting,
-        },
-    })));
-}
-
 pub fn proof(world: &World) -> &core::RunProof {
     let task = world.assigned.as_ref().expect("chat assignment").task;
     let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(task)));
@@ -119,6 +97,7 @@ pub fn proof(world: &World) -> &core::RunProof {
     };
     proof
 }
+<<<<<<< HEAD
 pub fn endpoint(world: &mut World, task: u64, endpoint: Option<u32>) {
     let mut proof = world.domain.core().proofs.get(&task).expect("saved run proof").clone();
     proof.endpoint = endpoint;
@@ -135,6 +114,8 @@ pub fn tail(world: &World) -> Option<&[u8]> {
         }
     })
 }
+=======
+>>>>>>> refs/manual3/g6710
 pub fn tries(world: &World) -> tasks::Tries {
     let task = proof(world).task;
     let key = root::Key::Core(core::Key::Tasks(tasks::Key::Live(task)));
@@ -167,3 +148,5 @@ pub fn fresh(world: &World) {
     assert!(!proof(world).crossed, "every new claim writes its own uncrossed proof");
     assert!(matches!(activity(world).last(), Some(tasks::Line::RunBegan { resumed: false, .. })));
 }
+
+pub use crate::run_helpers::{SEED, hello, hello_hosting, tail};

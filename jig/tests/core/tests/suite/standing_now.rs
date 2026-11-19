@@ -1,5 +1,5 @@
 //! The standing task's own scope and required Now (domain/tasks/standing.md, 6).
-use crate::{closed_proofs, settings_support as support};
+use crate::{run_helpers, settings_support as support};
 use jig_core_world::{
     client_peer::ClientPeer,
     fixtures,
@@ -43,8 +43,13 @@ fn start_with_spend(ending: people::EndedBy, resume: bool, kept: Vec<notes::Entr
     let signed = support::sign_in(&mut world);
     world.sign_in = Some(signed);
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
+<<<<<<< HEAD
     closed_proofs::hello(&mut world);
     let task = create(&mut world, signed, 101, ending, spend);
+=======
+    run_helpers::hello(&mut world);
+    let task = create(&mut world, signed, 101, ending);
+>>>>>>> refs/manual3/g6710
     (world, signed, task)
 }
 

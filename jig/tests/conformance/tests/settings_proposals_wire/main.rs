@@ -1,4 +1,8 @@
 //! Settings proposal admission on the client's wire (`client/domain/contract/requests.md`, 2).
+
+mod client_settings;
+mod client_settings_proposals;
+
 use jig_core_kit::world::Setup;
 use skein_world::domain::heap;
 

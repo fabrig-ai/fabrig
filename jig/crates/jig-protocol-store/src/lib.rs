@@ -132,6 +132,7 @@ pub struct Store {
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     owner_sets: OwnerSets,
+    prepared_schemas: &'static [skein_codec::schema::Schema],
     build_name: &'static str,
     /// Includes the first commit's job row while that commit waits for its sync.
     wires: &'static [Wire],
@@ -285,6 +286,7 @@ impl Store {
             transcripts: transcripts::State::new(limits),
             installation: [0; 16],
             owner_sets: OwnerSets::NONE,
+            prepared_schemas: &[],
             build_name: "",
             wires: &[],
             mark: Mark::Waiting,
@@ -349,6 +351,13 @@ impl Store {
         self.owner_sets = sets;
     }
 
+    /// Optional parsed binary texts for admission (protocol/store/opening.md, 3).
+    /// Only an exact text match is used; other texts are parsed by this open.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.directory.checked = None;
+        self.prepared_schemas = schemas;
+    }
+
     /// Supplies the application's census names with its owner sets (protocol/store/README.md, 6.3).
     pub fn keyspaces(&mut self, names: Keyspaces) {
         for (index, &(tag, name)) in names.families.iter().enumerate() {
@@ -405,9 +414,14 @@ impl Store {
         }
     }
 
+<<<<<<< HEAD
     /// Independent durable memory maps and payload logs for a domain world's
     /// fork. The caller opens a fresh component over the result.
     /// Directory-backed stores have no in-memory fork.
+=======
+    /// Copy the committed storage of an in-memory component for a cold open.
+    /// Directory-backed components copy their filesystem instead.
+>>>>>>> refs/manual3/g6710
     #[must_use]
     pub fn fork_memory(&self) -> Option<Stores> {
         Some(Stores {
@@ -416,11 +430,14 @@ impl Store {
         })
     }
 
+<<<<<<< HEAD
     #[must_use]
     pub fn work_pending(&self) -> bool {
         directory::ready(self)
     }
 
+=======
+>>>>>>> refs/manual3/g6710
     #[must_use]
     pub fn into_stores(self) -> Stores {
         self.stores
