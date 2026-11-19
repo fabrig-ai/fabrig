@@ -60,4 +60,17 @@ mod tests {
         assert_eq!(check(fixture, &current), Ok(()));
         assert_eq!(file(&current).bytes.as_ref(), fixture);
     }
+
+    #[test]
+    fn marker_operations_reuse_the_supplied_layouts() {
+        let current = wire::Layouts::new(&wire::CEILINGS, wire::LayoutsParts { store: [1; 32], transcript: [2; 32] })
+            .expect("fixed layouts fit");
+        let marker = file(&current);
+        let written = wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(&marker.bytes))
+            .expect("written layouts")
+            .into_parts();
+        assert_eq!(written.store, [1; 32]);
+        assert_eq!(written.transcript, [2; 32]);
+        assert_eq!(check(&marker.bytes, &current), Ok(()));
+    }
 }

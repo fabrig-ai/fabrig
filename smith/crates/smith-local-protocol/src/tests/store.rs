@@ -465,7 +465,11 @@ fn check_empty(store: &mut Store, out: &mut Queue<Action>) {
         panic!("no-replace marker");
     };
     assert_eq!(path.as_ref(), b"format");
-    store.from_io(file::Event::Stored { owner: OWNER, digest: digest(&crate::format::file(&crate::format::layouts()).bytes) }, Time::ZERO, out);
+    store.from_io(
+        file::Event::Stored { owner: OWNER, digest: digest(&crate::format::file(&crate::format::layouts()).bytes) },
+        Time::ZERO,
+        out,
+    );
     let Some(Action::Domain(local::Event::Loaded { state: None, .. })) = out.pop() else {
         panic!("expected Store terminal");
     };
