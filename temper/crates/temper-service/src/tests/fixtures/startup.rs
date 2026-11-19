@@ -173,7 +173,7 @@ pub fn named(
 }
 pub fn startup_agent() -> settings::Agent {
     // Match init's maximum run spend, including Fable's cache-write reserve.
-    let init = super::super::stock::engine(&super::super::stock::generated());
+    let init = super::super::stock::initial_engine();
     startup_agent_with_spend(init.rules.maximum_run_spend)
 }
 
@@ -367,6 +367,12 @@ pub fn worker_alone_document() -> Box<[u8]> {
     serde_json::to_vec(&input).unwrap().into_boxed_slice()
 }
 
+pub fn start_defaults() -> crate::stock::Given {
+    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+    defaults.providers = temper_worker_service_fixtures::providers();
+    crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() }
+}
+
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]
 pub fn start(
     document: &[u8],
@@ -378,8 +384,6 @@ pub fn start(
     runtime: crate::WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
-    defaults.providers = temper_worker_service_fixtures::providers();
     crate::startup::startup_with(
         document,
         directories,
@@ -389,6 +393,6 @@ pub fn start(
         accounts,
         runtime,
         forges,
-        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
+        &start_defaults(),
     )
 }

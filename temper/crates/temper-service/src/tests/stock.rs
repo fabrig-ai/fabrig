@@ -92,6 +92,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         (b"core.settings.alternatives", 2, Setting::Charter(11), "the stock's charter 11 needs 2 alternatives"),
         (b"core.settings.permissions", 3, Setting::Policy(1), "the stock's policy 1 needs 3 permissions"),
     ];
+    let floors = crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes);
     // Every positive scalar bound reached by jig's whole-set check is at its
     // floor together. This catches a stock value acquiring another unmet bound.
     let mut minimum = engine.limits;
@@ -99,15 +100,10 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         config::overrides::apply(&mut minimum, name, needed).unwrap();
     }
     assert_eq!(settings::check(&current, &core.settings, &core.connectors, &minimum.core), Ok(()));
-    assert_eq!(
-        crate::stock::floors(
-            &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
-            &minimum
-        ),
-        Ok(())
-    );
+    assert_eq!(crate::stock::floors(&floors, &minimum), Ok(()));
+    let mut at = engine.clone();
     for &(name, needed, setting, words) in rows {
-        let mut at = engine.clone();
+        at.limits = engine.limits;
         config::overrides::apply(&mut at.limits, name, needed).unwrap();
         let mut problems = crate::startup::Problems::empty();
         crate::startup::checks::stock(&at, &mut problems);
@@ -118,11 +114,7 @@ fn each_floor_refuses_one_below_the_stocks_need() {
         }
         config::overrides::apply(&mut at.limits, name, needed - 1).unwrap();
         assert!(settings::check(&current, &core.settings, &core.connectors, &at.limits.core).is_err(), "{name:?}");
-        let found = crate::stock::floors(
-            &crate::stock::with_models(engine.llm.models.clone(), engine.limits.core.tasks.result_bytes),
-            &at.limits,
-        )
-        .unwrap_err();
+        let found = crate::stock::floors(&floors, &at.limits).unwrap_err();
         assert_eq!(found, crate::stock::Floor { limit: name, configured: needed - 1, needed, setting });
         crate::startup::checks::stock(&at, &mut problems);
         let words = if name == b"core.run_bytes" {
@@ -351,6 +343,17 @@ fn a_model_added_by_rest_is_checked_against_the_agents_bounds() {
 }
 
 pub(super) fn generated() -> Box<[u8]> {
+    static DOCUMENT: std::sync::OnceLock<Box<[u8]>> = std::sync::OnceLock::new();
+    DOCUMENT.get_or_init(generate).clone()
+}
+
+/// The immutable init engine shared by fixtures that read its stock facts.
+pub(super) fn initial_engine() -> &'static config::Engine {
+    static ENGINE: std::sync::OnceLock<config::Engine> = std::sync::OnceLock::new();
+    ENGINE.get_or_init(|| engine(&generated()))
+}
+
+fn generate() -> Box<[u8]> {
     use core::num::NonZeroU16;
     let answer = temper_init::files(
         &temper_init::Facts {

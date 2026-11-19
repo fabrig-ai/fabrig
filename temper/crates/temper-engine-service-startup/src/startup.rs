@@ -320,6 +320,30 @@ pub fn engine_with_sources(
     given: &crate::stock::Given,
     sources: temper_service_core::derived::Sources,
 ) -> Result<config::Engine, config::Problems> {
+    let (engine, _) = engine_and_stock(document, at, directories, given, sources, false)?;
+    Ok(engine)
+}
+
+/// Parse the engine and retain its stock floor before handing the same defaults to jig.
+/// The caller publishes the floor at its stock check's place in diagnostic order.
+pub fn engine_with_stock(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+) -> Result<(config::Engine, Option<crate::stock::Floor>), config::Problems> {
+    engine_and_stock(document, at, directories, given, sources, true)
+}
+
+fn engine_and_stock(
+    document: &skein_json::Document,
+    at: u32,
+    directories: &config::Directories,
+    given: &crate::stock::Given,
+    sources: temper_service_core::derived::Sources,
+    check_stock: bool,
+) -> Result<(config::Engine, Option<crate::stock::Floor>), config::Problems> {
     let mut base = temper_service_core::derived::stock();
     if let Err(found) = temper_service_core::derived::engine(&mut base, sources) {
         let mut problems = config::Problems::empty();
@@ -351,15 +375,24 @@ pub fn engine_with_sources(
     if !fleet_override(document, at) {
         engine.limits.core.fleet.grace = worker_fleet_grace(&engine.limits);
     }
+    let stock_floor = if check_stock {
+        match given.source() {
+            crate::stock::Given::Running { .. } => unreachable!("unwrapped source"),
+            crate::stock::Given::Stock => crate::stock::floors(&defaults, &engine.limits).err(),
+            crate::stock::Given::Own { .. } => None,
+        }
+    } else {
+        None
+    };
     // Check the workers' bound before jig's bounded provider handoff.
     if engine.llm.endpoints.len() > skein_lib::usize_of(config::llm::ENDPOINTS) {
         engine.fixed_llm_providers = fixed;
         config::pass(&mut engine, defaults)?;
-        return Ok(engine);
+        return Ok((engine, stock_floor));
     }
     config::pass_providers(&mut engine, defaults, &running, fixed)?;
     resolve_provider_trust(&mut engine.llm, directories)?;
-    Ok(engine)
+    Ok((engine, stock_floor))
 }
 fn resolve_provider_trust(llm: &mut config::Llm, directories: &config::Directories) -> Result<(), config::Problems> {
     for (index, endpoint) in llm.endpoints.iter_mut().enumerate() {

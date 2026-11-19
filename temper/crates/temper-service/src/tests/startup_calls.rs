@@ -7,8 +7,11 @@ use core::fmt::Write;
 use fixtures::{check, checked_start, startup};
 
 fn document(engine: Option<u32>) -> Box<[u8]> {
-    let input = fixtures::document();
-    let remaining = core::str::from_utf8(&input).unwrap();
+    with_call_answer(&fixtures::document(), engine)
+}
+
+fn with_call_answer(input: &[u8], engine: Option<u32>) -> Box<[u8]> {
+    let remaining = core::str::from_utf8(input).unwrap();
     let (before, after) = remaining.split_once(",\"core.call_answer_bytes\":2048").unwrap();
     let mut text = String::from(before);
     if let Some(bytes) = engine {
@@ -21,20 +24,26 @@ fn document(engine: Option<u32>) -> Box<[u8]> {
 #[test]
 fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
     let directories = config::Directories::working();
+    let initial = fixtures::document();
+    let given = fixtures::given(&initial, &directories);
+    let files = fixtures::files();
+    let seeds = fixtures::seeds();
+    let mut agent = fixtures::startup_agent();
     for (engine, payload, expected_engine) in
         [(None, 4096, 135_168), (Some(4096), 4096, 4096), (Some(32_768), 32_768, 32_768)]
     {
         let expected_worker = expected_engine;
-        let input = document(engine);
-        let mut agent = fixtures::startup_agent();
+        let input = with_call_answer(&initial, engine);
         agent.tool_payload = payload;
-        let checked = checked_start(
+        let checked = checked_start_with(
             &input,
             &directories,
-            &fixtures::files(),
+            &files,
             Some(&agent),
-            &fixtures::seeds(),
+            &seeds,
             fixtures::forge_runtime(),
+            None,
+            &given,
             None,
         )
         .unwrap();
@@ -46,15 +55,16 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         let wire =
             crate::worker_settings::link_limits(&worker.jig, &payload, fixtures::worker_limits().peer.forges).unwrap();
         assert_eq!((wire.sizes.call_input, wire.sizes.answer), (expected_worker, expected_worker));
-        let service = startup(
-            &input,
-            &directories,
-            &fixtures::files(),
-            &agent,
-            &fixtures::seeds(),
+        let service = from_checked(
+            checked,
+            &files,
+            Some(&agent),
+            &seeds,
             None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
+            Some(fixtures::worker_runtime()),
+            None,
+            None,
+            Box::default(),
         )
         .unwrap();
         let engine = service.engine.as_ref().unwrap();
@@ -63,17 +73,6 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
         let opening = store_limits(&input, &directories, Some(&agent.declaration())).unwrap();
         assert_eq!(opening.store, engine.opening_limits());
         assert_eq!(opening.store.core.call_answer_bytes, expected_engine);
-        check(
-            &input,
-            &directories,
-            &fixtures::files(),
-            &agent,
-            &fixtures::seeds(),
-            None,
-            fixtures::forge_runtime(),
-            None,
-        )
-        .unwrap();
     }
 }
 

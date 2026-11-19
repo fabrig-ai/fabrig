@@ -1020,6 +1020,11 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
 #[test]
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
+    let given = fixtures::start_defaults();
+    let agent = fixtures::startup_agent();
+    let directories = config::Directories::working();
+    let files = fixtures::files();
+    let seeds = fixtures::seeds();
     for (member, value, causes) in [
         (b"tasks.tasks".as_slice(), 129, &["tasks.exemptions", "768", "tasks.tasks"][..]),
         (b"tasks.tasks", 769, &["tasks.tasks", "769", "people.inbox_tasks", "1538"][..]),
@@ -1046,15 +1051,16 @@ fn capacity_overrides_name_the_failed_dependency() {
             fixtures::named(&document, &config::Directories::working()).expect("independent init override is admitted");
             continue;
         }
-        let found = fixtures::start(
+        let found = crate::startup::startup_with(
             &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
+            &directories,
+            &files,
+            &agent,
+            &seeds,
             None,
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
+            &given,
         )
         .err()
         .expect("capacity dependency refuses before file or runtime access");
