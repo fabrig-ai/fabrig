@@ -366,7 +366,7 @@ fn act(root: &mut Domain, action: Act, out: &mut Queue<Request>) {
 }
 
 pub(super) fn press(root: &mut Domain, name: &str, settings: Token, out: &mut Queue<Request>) {
-    if matches!(name, "ask-ways-approve" | "ask-ways-card-person" | "ask-ways-refused") {
+    if matches!(name, "ask-ways-approve" | "ask-ways-approve-menu" | "ask-ways-card-person" | "ask-ways-refused") {
         act(root, Act::WayTab { project: PROJECT, tab: 0 }, out);
     } else if name == "ask-ways-draft" {
         act(root, Act::WayTab { project: PROJECT, tab: 2 }, out);

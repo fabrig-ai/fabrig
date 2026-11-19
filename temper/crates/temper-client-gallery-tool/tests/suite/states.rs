@@ -123,7 +123,7 @@ enum Part {
     Plan { live: u32, title: &'static str },
 }
 const ASK_KEEP: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Keep it"] };
-const ASK_USE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Use this", "Back"] };
+const ASK_USE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &["Use this"] };
 const ASK_ALONE: Part = Part::Buttons { style: temper_client_view::look::WAY_ACTS, names: &[] };
 const REMEMBERED_THREE: &[&str] = &[
     "Keep answers concise and start with the result.",
@@ -4037,6 +4037,11 @@ static HOLDS: [Holds; samples::N] = [
     },
     Holds { name: "ask-ways-menu", heading: "Ask temper", parts: &[ASK_KEEP, Part::StockWays { current: Some(1) }] },
     Holds {
+        name: "ask-ways-approve-menu",
+        heading: "Ask temper",
+        parts: &[ASK_USE, Part::Named { role: Role::Group, name: "You approve" }, Part::StockWays { current: Some(1) }],
+    },
+    Holds {
         name: "ask-ways-approve",
         heading: "Ask temper",
         parts: &[
@@ -5642,16 +5647,33 @@ fn each_state_holds_what_its_name_says() {
                 Part::StockWays { current } => {
                     let menu = descendants(tree, Role::Menu, "Stock ways", sample.name);
                     let items: Vec<_> = menu.iter().filter(|node| node.role == Role::MenuItem).collect();
-                    assert_eq!(items.len(), 3, "{}: stock ways alone", sample.name);
-                    for (index, (item, name)) in
-                        items.into_iter().zip(["You approve", "Agents review", "Draft first"]).enumerate()
-                    {
-                        assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{}: read order", sample.name);
+                    let ways = root.pages().stock_ways().expect("ways shown");
+                    let shown = usize::try_from(ways.shown().expect("shown way")).unwrap();
+                    let mut names =
+                        vec!["You approve".to_string(), "Agents review".to_string(), "Draft first".to_string()];
+                    if current.is_none() {
+                        let project = root.pages().me(root.client()).unwrap().projects.get(0).unwrap();
+                        names.insert(0, format!("{}'s own", String::from_utf8_lossy(project.name.bytes())));
+                    }
+                    assert_eq!(items.len(), names.len(), "{}: own first, then stock", sample.name);
+                    assert!(!tree.nodes().iter().any(|n| n.name.as_deref() == Some(b"Back")));
+                    let button = menu[0].button.as_ref().expect("shown way button");
+                    let name = if shown == 3 { &names[0] } else { &names[shown + usize::from(current.is_none())] };
+                    assert_eq!(button.words.as_ref(), name.as_bytes());
+                    assert_eq!(button.name.as_ref(), format!("Way shown: {name}").as_bytes());
+                    for (position, (item, name)) in items.iter().zip(&names).enumerate() {
+                        let index =
+                            if current.is_none() { if position == 0 { 3 } else { position - 1 } } else { position };
+                        assert_eq!(item.name.as_deref(), Some(name.as_bytes()), "{}", sample.name);
                         assert_eq!(
                             item.states.as_slice().contains(&skein_ui::State::Selected),
-                            *current == Some(index),
-                            "{}: running way ticked",
+                            shown == index,
+                            "{}: shown way ticked",
                             sample.name
+                        );
+                        assert_eq!(
+                            item.description.as_deref(),
+                            if *current == Some(index) || index == 3 { Some(b"current".as_slice()) } else { None }
                         );
                     }
                     assert!(!tree.nodes().iter().any(|node| node.role == Role::Tabs), "{}: no tabs", sample.name);
@@ -5677,10 +5699,35 @@ fn each_state_holds_what_its_name_says() {
                                 .any(|n| n.styles.as_slice().contains(&temper_client_view::look::WAY_ASK))
                         );
                     }
-                    if matches!(sample.name, "ask-ways-menu" | "ask-ways-yours-menu" | "how-menu") {
+                    if matches!(
+                        sample.name,
+                        "ask-ways-menu" | "ask-ways-approve-menu" | "ask-ways-yours-menu" | "how-menu"
+                    ) {
                         assert_eq!(sample.open_menu(), Some(b"Stock ways".as_slice()));
                         let html = page(&sample, &skein_ui_bundle::Digest(*b"0123456789abcdef"));
-                        assert!(html.contains("aria-expanded=\"true\">Stock ways"), "{}: menu open", sample.name);
+                        assert!(html.contains(&format!("aria-expanded=\"true\">{name}")), "{}: menu open", sample.name);
+                        assert!(html.contains(&format!("aria-label=\"Way shown: {name}\"")));
+                        for item in &items {
+                            let start = html.find(&format!("<div data-node=\"{}\"", item.id.0)).unwrap();
+                            let printed = html[start..].split_once("</div>").unwrap().0;
+                            let (attributes, body) = printed.split_once('>').unwrap();
+                            assert_eq!(
+                                attributes.contains("aria-selected=\"true\""),
+                                item.states.as_slice().contains(&skein_ui::State::Selected)
+                            );
+                            if item.description.is_some() {
+                                assert_eq!(
+                                    body,
+                                    format!(
+                                        "<span>{}</span><span id=\"skein-ui-description-{}\">current</span>",
+                                        String::from_utf8_lossy(item.name.as_deref().unwrap()),
+                                        item.id.0
+                                    ),
+                                    "{}: name then description span",
+                                    sample.name
+                                );
+                            }
+                        }
                         assert!(
                             !html.contains(&format!("id=\"skein-ui-menu-{}\" hidden", menu[0].id.0)),
                             "{}: menu visible",

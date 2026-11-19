@@ -208,7 +208,9 @@ pub enum Word {
     ReachUnder,
 
     WaysLede,
-    WayBack,
+    WayShown,
+    WayCurrent,
+    WayOwnName,
     WayStock,
     WayOwn,
     WayAskMark,
@@ -2277,7 +2279,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2836;
+const PHRASES: u32 = 2838;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2304,10 +2306,10 @@ const PHRASES: u32 = 2836;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5268;
+const SEGMENTS: u32 = 5274;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66686;
-const ALL: [Word; 2103] = [
+const ENGLISH_BYTES: u32 = 66706;
+const ALL: [Word; 2105] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2468,7 +2470,9 @@ const ALL: [Word; 2103] = [
     Word::ReachPathSet,
     Word::ReachUnder,
     Word::WaysLede,
-    Word::WayBack,
+    Word::WayShown,
+    Word::WayCurrent,
+    Word::WayOwnName,
     Word::WayStock,
     Word::WayOwn,
     Word::WayAskMark,
@@ -4560,7 +4564,9 @@ impl Word {
             Self::Pause => 3532,
             Self::Resume => 3533,
             Self::WaysLede => 4302,
-            Self::WayBack => 9720,
+            Self::WayShown => 9878,
+            Self::WayCurrent => 9879,
+            Self::WayOwnName => 9880,
             Self::WayStock => 9721,
             Self::WayOwn => 9722,
             Self::WayAskMark => 9723,
@@ -7284,7 +7290,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::Pause => (&[b"Pause"], &[]),
         Word::Resume => (&[b"Resume"], &[]),
         Word::WaysLede => (&[b"How a change is produced and lands in ", b"."], &[Name]),
-        Word::WayBack => (&[b"Back"], &[]),
+        Word::WayShown => (&[b"Way shown: ", b""], &[Name]),
+        Word::WayCurrent => (&[b"current"], &[]),
+        Word::WayOwnName => (&[b"", b"'s own"], &[Name]),
         Word::WayStock => (match shell { Shell::Browser => &[b"Stock ways"], Shell::Terminal => &[b"Stock ways:"] }, &[]),
         Word::WayOwn => (&[b"", b" runs settings of its own."], &[Name]),
         Word::WayAskMark => (match shell { Shell::Browser => &[b"\xe2\x9c\xa6"], Shell::Terminal => &[b"\xe2\x9c\xa6 "] }, &[]),
