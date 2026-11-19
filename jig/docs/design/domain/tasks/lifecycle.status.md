@@ -1,7 +1,8 @@
 # lifecycle: status
 
-2026-11-18. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+2026-11-19. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
+- **Not yet:** 2, *Words left unrecorded wake it once*: no `words_woken`, and a park leaving words unrecorded wakes nothing [in flight: change 9235].
 
 
 - **Not yet:** 2 and 9: a standing task: no `NothingAwaited` notice, a finish parked, its `standing` ending (`standing.md`, section 2).

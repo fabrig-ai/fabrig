@@ -1,7 +1,8 @@
 # briefs: status
 
-2026-11-16. Where the tree's code lags or departs from [briefs.md](briefs.md).
+2026-11-19. Where the tree's code lags or departs from [briefs.md](briefs.md).
 
+- **Not yet:** 1.3: the waiting section shows no unrecorded words [in flight: change 9237].
 
 - **Not yet:** 1 and 2: a standing task's Now, its own scope, no contract and no transcript tail on a session's first run (`../tasks/standing.md`, sections 2 and 6).
 - **Not yet:** 1.2: the waiting section's open questions, with their askers, numbers, words and answer form; nothing plans `Core::Waiting` yet [in flight: change 838].
