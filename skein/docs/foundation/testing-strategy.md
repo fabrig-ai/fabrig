@@ -689,7 +689,7 @@ move up is a raise (`tools/tiers/budgets.md`, 10).
 
 **Each test is held to its reference at the gate,** its layer's per-test
 guide (section 8); for now a test past it is a warning there, and the
-gate fails on layer budgets alone (the user, 11-19). A new test, one main's ledger lacks, is run alone after
+gate's budgets warn until its runs show few warnings (the user, 11-19). A new test, one main's ledger lacks, is run alone after
 the suite, in a process of its own, and stays within its reference, or is
 red. An existing test stays within the larger of its reference and half
 again its own CPU at main: its wall in the shared run flags it, past twice
