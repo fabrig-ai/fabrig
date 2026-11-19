@@ -2,7 +2,7 @@
 use super::super::values;
 use jig_protocol_store::tasks_v13::Record;
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};
-use skein_lib::{Reader, Rng, Writer, length::len_u64};
+use skein_lib::{Reader, Rng, length::len_u64};
 
 fn notes(bytes: &[u8]) {
     if let Ok(scope) = notes_v1::Scope::decode(&notes_v1::CEILINGS, &mut Reader::new(bytes)) {
@@ -102,14 +102,10 @@ fn mutated_tasks_fixed_rule_values_never_panic() {
 
 fn people(bytes: &[u8]) {
     if let Ok(scope) = people_v17::NoteScope::decode(&people_v17::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(skein_lib::length::usize_of(scope.measure()));
-        scope.encode(&mut writer).expect("measured scope");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(scope.encode(&people_v17::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
     }
     if let Ok(row) = people_v17::Row::decode(&people_v17::CEILINGS, &mut Reader::new(bytes)) {
-        let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
-        row.encode(&mut writer).expect("measured room");
-        assert_eq!(writer.finish().as_ref(), bytes);
+        assert_eq!(row.encode(&people_v17::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
     }
 }
 

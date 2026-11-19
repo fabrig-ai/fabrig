@@ -37,65 +37,51 @@ pub(super) fn decode_failure_class(value: wire::FailureClass) -> domain::Failure
         wire::FailureClass::Infrastructure => domain::FailureClass::Infrastructure,
     }
 }
-pub(super) fn encode_hold_reason(
-    value: &domain::HoldReason,
-    limits: &wire::Limits,
-) -> Result<wire::HoldReason, wire::Problem> {
-    Ok(match value {
-        domain::HoldReason::Exceeded(value) => wire::HoldReason::Exceeded(wire::Exceeded::new(
-            limits,
-            wire::ExceededParts {
-                bound: match value.bound {
-                    domain::Bound::Reasoning => wire::Bound::Reasoning,
-                    domain::Bound::Metadata => wire::Bound::Metadata,
-                    domain::Bound::Items => wire::Bound::Items,
-                    domain::Bound::Answer => wire::Bound::Answer,
-                    domain::Bound::Tools => wire::Bound::Tools,
-                    domain::Bound::HistoryItems => wire::Bound::HistoryItems,
-                    domain::Bound::History => wire::Bound::History,
-                    domain::Bound::Window => wire::Bound::Window,
-                    domain::Bound::Output => wire::Bound::Output,
-                },
-                value: value.value,
+pub(super) fn encode_hold_reason(value: &domain::HoldReason, _limits: &wire::Limits) -> wire::HoldReason {
+    match value {
+        domain::HoldReason::Exceeded(value) => wire::HoldReason::Exceeded(wire::Exceeded {
+            bound: match value.bound {
+                domain::Bound::Reasoning => wire::Bound::Reasoning,
+                domain::Bound::Metadata => wire::Bound::Metadata,
+                domain::Bound::Items => wire::Bound::Items,
+                domain::Bound::Answer => wire::Bound::Answer,
+                domain::Bound::Tools => wire::Bound::Tools,
+                domain::Bound::HistoryItems => wire::Bound::HistoryItems,
+                domain::Bound::History => wire::Bound::History,
+                domain::Bound::Window => wire::Bound::Window,
+                domain::Bound::Output => wire::Bound::Output,
             },
-        )?),
-        domain::HoldReason::Failures { class } => wire::HoldReason::Failures(wire::HoldReasonFailures::new(
-            limits,
-            wire::HoldReasonFailuresParts { class: encode_failure_class(*class) },
-        )?),
-        domain::HoldReason::Stalled => wire::HoldReason::Stalled,
-        domain::HoldReason::Dependency { task } => wire::HoldReason::Dependency(wire::HoldReasonDependency::new(
-            limits,
-            wire::HoldReasonDependencyParts { task: *task },
-        )?),
-        domain::HoldReason::Stopped => wire::HoldReason::Stopped,
-        domain::HoldReason::Placed { hold } => {
-            wire::HoldReason::Placed(wire::HoldReasonPlaced::new(limits, wire::HoldReasonPlacedParts { hold: *hold })?)
+            value: value.value,
+        }),
+        domain::HoldReason::Failures { class } => {
+            wire::HoldReason::Failures(wire::HoldReasonFailures { class: encode_failure_class(*class) })
         }
+        domain::HoldReason::Stalled => wire::HoldReason::Stalled,
+        domain::HoldReason::Dependency { task } => {
+            wire::HoldReason::Dependency(wire::HoldReasonDependency { task: *task })
+        }
+        domain::HoldReason::Stopped => wire::HoldReason::Stopped,
+        domain::HoldReason::Placed { hold } => wire::HoldReason::Placed(wire::HoldReasonPlaced { hold: *hold }),
         domain::HoldReason::Drift => wire::HoldReason::Drift,
         domain::HoldReason::Effects => wire::HoldReason::Effects,
         domain::HoldReason::EffectFailed => wire::HoldReason::EffectFailed,
-        domain::HoldReason::Uncertain { entry } => wire::HoldReason::Uncertain(wire::HoldReasonUncertain::new(
-            limits,
-            wire::HoldReasonUncertainParts { entry: *entry },
-        )?),
+        domain::HoldReason::Uncertain { entry } => {
+            wire::HoldReason::Uncertain(wire::HoldReasonUncertain { entry: *entry })
+        }
         domain::HoldReason::Budget => wire::HoldReason::Budget,
         domain::HoldReason::Deadline => wire::HoldReason::Deadline,
         domain::HoldReason::HoldsWaited => wire::HoldReason::HoldsWaited,
         domain::HoldReason::ResourceUnavailable => wire::HoldReason::ResourceUnavailable,
         domain::HoldReason::ResourceAccess => wire::HoldReason::ResourceAccess,
-        domain::HoldReason::PoolLost { pool } => wire::HoldReason::PoolLost(wire::HoldReasonPoolLost::new(
-            limits,
-            wire::HoldReasonPoolLostParts { pool: *pool },
-        )?),
+        domain::HoldReason::PoolLost { pool } => wire::HoldReason::PoolLost(wire::HoldReasonPoolLost { pool: *pool }),
         domain::HoldReason::Procedure => wire::HoldReason::Procedure,
         domain::HoldReason::Circle => wire::HoldReason::Circle,
-    })
+    }
 }
 pub(super) fn decode_hold_reason(value: wire::HoldReason) -> domain::HoldReason {
     match value {
         wire::HoldReason::Exceeded(value) => domain::HoldReason::Exceeded(domain::Exceeded {
-            bound: match value.bound() {
+            bound: match value.bound {
                 wire::Bound::Reasoning => domain::Bound::Reasoning,
                 wire::Bound::Metadata => domain::Bound::Metadata,
                 wire::Bound::Items => domain::Bound::Items,
@@ -106,27 +92,27 @@ pub(super) fn decode_hold_reason(value: wire::HoldReason) -> domain::HoldReason 
                 wire::Bound::Window => domain::Bound::Window,
                 wire::Bound::Output => domain::Bound::Output,
             },
-            value: value.value(),
+            value: value.value,
         }),
         wire::HoldReason::Failures(value) => {
-            let wire::HoldReasonFailuresParts { class } = value.into_parts();
+            let wire::HoldReasonFailures { class } = value;
             domain::HoldReason::Failures { class: decode_failure_class(class) }
         }
         wire::HoldReason::Stalled => domain::HoldReason::Stalled,
         wire::HoldReason::Dependency(value) => {
-            let wire::HoldReasonDependencyParts { task } = value.into_parts();
+            let wire::HoldReasonDependency { task } = value;
             domain::HoldReason::Dependency { task }
         }
         wire::HoldReason::Stopped => domain::HoldReason::Stopped,
         wire::HoldReason::Placed(value) => {
-            let wire::HoldReasonPlacedParts { hold } = value.into_parts();
+            let wire::HoldReasonPlaced { hold } = value;
             domain::HoldReason::Placed { hold }
         }
         wire::HoldReason::Drift => domain::HoldReason::Drift,
         wire::HoldReason::Effects => domain::HoldReason::Effects,
         wire::HoldReason::EffectFailed => domain::HoldReason::EffectFailed,
         wire::HoldReason::Uncertain(value) => {
-            let wire::HoldReasonUncertainParts { entry } = value.into_parts();
+            let wire::HoldReasonUncertain { entry } = value;
             domain::HoldReason::Uncertain { entry }
         }
         wire::HoldReason::Budget => domain::HoldReason::Budget,
@@ -135,154 +121,120 @@ pub(super) fn decode_hold_reason(value: wire::HoldReason) -> domain::HoldReason 
         wire::HoldReason::ResourceUnavailable => domain::HoldReason::ResourceUnavailable,
         wire::HoldReason::ResourceAccess => domain::HoldReason::ResourceAccess,
         wire::HoldReason::PoolLost(value) => {
-            let wire::HoldReasonPoolLostParts { pool } = value.into_parts();
+            let wire::HoldReasonPoolLost { pool } = value;
             domain::HoldReason::PoolLost { pool }
         }
         wire::HoldReason::Procedure => domain::HoldReason::Procedure,
         wire::HoldReason::Circle => domain::HoldReason::Circle,
     }
 }
-pub(super) fn encode_moved(value: &domain::Moved, limits: &wire::Limits) -> Result<wire::Moved, wire::Problem> {
-    Ok(match value {
-        domain::Moved::Hold { revision, reason } => wire::Moved::Hold(wire::MovedHold::new(
-            limits,
-            wire::MovedHoldParts { revision: *revision, reason: encode_hold_reason(reason, limits)? },
-        )?),
-        domain::Moved::Spec { revision } => {
-            wire::Moved::Spec(wire::MovedSpec::new(limits, wire::MovedSpecParts { revision: *revision })?)
+pub(super) fn encode_moved(value: &domain::Moved, limits: &wire::Limits) -> wire::Moved {
+    match value {
+        domain::Moved::Hold { revision, reason } => {
+            wire::Moved::Hold(wire::MovedHold { revision: *revision, reason: encode_hold_reason(reason, limits) })
         }
-        domain::Moved::Person { revision } => {
-            wire::Moved::Person(wire::MovedPerson::new(limits, wire::MovedPersonParts { revision: *revision })?)
+        domain::Moved::Spec { revision } => wire::Moved::Spec(wire::MovedSpec { revision: *revision }),
+        domain::Moved::Person { revision } => wire::Moved::Person(wire::MovedPerson { revision: *revision }),
+        domain::Moved::PlacedHold { revision } => {
+            wire::Moved::PlacedHold(wire::MovedPlacedHold { revision: *revision })
         }
-        domain::Moved::PlacedHold { revision } => wire::Moved::PlacedHold(wire::MovedPlacedHold::new(
-            limits,
-            wire::MovedPlacedHoldParts { revision: *revision },
-        )?),
-        domain::Moved::Note { revision } => {
-            wire::Moved::Note(wire::MovedNote::new(limits, wire::MovedNoteParts { revision: *revision })?)
-        }
-    })
+        domain::Moved::Note { revision } => wire::Moved::Note(wire::MovedNote { revision: *revision }),
+    }
 }
 pub(super) fn decode_moved(value: wire::Moved) -> domain::Moved {
     match value {
         wire::Moved::Hold(value) => {
-            let wire::MovedHoldParts { revision, reason } = value.into_parts();
+            let wire::MovedHold { revision, reason } = value;
             domain::Moved::Hold { revision, reason: decode_hold_reason(reason) }
         }
         wire::Moved::Spec(value) => {
-            let wire::MovedSpecParts { revision } = value.into_parts();
+            let wire::MovedSpec { revision } = value;
             domain::Moved::Spec { revision }
         }
         wire::Moved::Person(value) => {
-            let wire::MovedPersonParts { revision } = value.into_parts();
+            let wire::MovedPerson { revision } = value;
             domain::Moved::Person { revision }
         }
-        wire::Moved::PlacedHold(value) => domain::Moved::PlacedHold { revision: value.revision() },
+        wire::Moved::PlacedHold(value) => domain::Moved::PlacedHold { revision: value.revision },
         wire::Moved::Note(value) => {
-            let wire::MovedNoteParts { revision } = value.into_parts();
+            let wire::MovedNote { revision } = value;
             domain::Moved::Note { revision }
         }
     }
 }
-pub(super) fn encode_party(value: &domain::Party, limits: &wire::Limits) -> Result<wire::Party, wire::Problem> {
-    Ok(match value {
-        domain::Party::Person(value) => {
-            wire::Party::Person(wire::PartyPerson::new(limits, wire::PartyPersonParts { value: *value })?)
-        }
-        domain::Party::Task(value) => {
-            wire::Party::Task(wire::PartyTask::new(limits, wire::PartyTaskParts { value: *value })?)
-        }
-        domain::Party::Deployment { project } => wire::Party::Deployment(wire::PartyDeployment::new(
-            limits,
-            wire::PartyDeploymentParts { project: *project },
-        )?),
-    })
+pub(super) fn encode_party(value: &domain::Party, _limits: &wire::Limits) -> wire::Party {
+    match value {
+        domain::Party::Person(value) => wire::Party::Person(wire::PartyPerson { value: *value }),
+        domain::Party::Task(value) => wire::Party::Task(wire::PartyTask { value: *value }),
+        domain::Party::Deployment { project } => wire::Party::Deployment(wire::PartyDeployment { project: *project }),
+    }
 }
 pub(super) fn decode_party(value: wire::Party) -> domain::Party {
     match value {
         wire::Party::Person(value) => {
-            let wire::PartyPersonParts { value } = value.into_parts();
+            let wire::PartyPerson { value } = value;
             domain::Party::Person(value)
         }
         wire::Party::Task(value) => {
-            let wire::PartyTaskParts { value } = value.into_parts();
+            let wire::PartyTask { value } = value;
             domain::Party::Task(value)
         }
         wire::Party::Deployment(value) => {
-            let wire::PartyDeploymentParts { project } = value.into_parts();
+            let wire::PartyDeployment { project } = value;
             domain::Party::Deployment { project }
         }
     }
 }
-pub(super) fn encode_ending(value: &domain::Ending, limits: &wire::Limits) -> Result<wire::Ending, wire::Problem> {
-    Ok(match value {
+pub(super) fn encode_ending(value: &domain::Ending, limits: &wire::Limits) -> wire::Ending {
+    match value {
         domain::Ending::Done => wire::Ending::Done,
         domain::Ending::Failed => wire::Ending::Failed,
-        domain::Ending::Cancelled { by, at } => wire::Ending::Cancelled(wire::EndingCancelled::new(
-            limits,
-            wire::EndingCancelledParts { by: encode_party(by, limits)?, at: at.as_nanos() },
-        )?),
-        domain::Ending::Decided { by, at } => wire::Ending::Decided(wire::EndingDecided::new(
-            limits,
-            wire::EndingDecidedParts { by: *by, at: at.as_nanos() },
-        )?),
+        domain::Ending::Cancelled { by, at } => {
+            wire::Ending::Cancelled(wire::EndingCancelled { by: encode_party(by, limits), at: at.as_nanos() })
+        }
+        domain::Ending::Decided { by, at } => wire::Ending::Decided(wire::EndingDecided { by: *by, at: at.as_nanos() }),
         domain::Ending::Deleted => wire::Ending::Deleted,
-    })
+    }
 }
 pub(super) fn decode_ending(value: wire::Ending) -> domain::Ending {
     match value {
         wire::Ending::Done => domain::Ending::Done,
         wire::Ending::Failed => domain::Ending::Failed,
         wire::Ending::Cancelled(value) => {
-            let wire::EndingCancelledParts { by, at } = value.into_parts();
+            let wire::EndingCancelled { by, at } = value;
             domain::Ending::Cancelled { by: decode_party(by), at: Wall::from_nanos(at) }
         }
         wire::Ending::Decided(value) => {
-            let wire::EndingDecidedParts { by, at } = value.into_parts();
+            let wire::EndingDecided { by, at } = value;
             domain::Ending::Decided { by, at: Wall::from_nanos(at) }
         }
         wire::Ending::Deleted => domain::Ending::Deleted,
     }
 }
-pub(super) fn encode_lack(value: &domain::Lack, limits: &wire::Limits) -> Result<wire::Lack, wire::Problem> {
-    Ok(match value {
-        domain::Lack::HoldOwner { hold, owner } => wire::Lack::HoldOwner(wire::LackHoldOwner::new(
-            limits,
-            wire::LackHoldOwnerParts { hold: *hold, owner: encode_hold_owner(owner, limits)? },
-        )?),
-        domain::Lack::Ceiling { holder, dimension, value, asked } => wire::Lack::Ceiling(wire::LackCeiling::new(
-            limits,
-            wire::LackCeilingParts {
-                holder: encode_ceiling_holder(*holder, limits)?,
-                dimension: encode_ceiling_dimension(*dimension),
-                value: *value,
-                asked: *asked,
-            },
-        )?),
+pub(super) fn encode_lack(value: &domain::Lack, limits: &wire::Limits) -> wire::Lack {
+    match value {
+        domain::Lack::HoldOwner { hold, owner } => {
+            wire::Lack::HoldOwner(wire::LackHoldOwner { hold: *hold, owner: encode_hold_owner(owner, limits) })
+        }
+        domain::Lack::Ceiling { holder, dimension, value, asked } => wire::Lack::Ceiling(wire::LackCeiling {
+            holder: encode_ceiling_holder(*holder, limits),
+            dimension: encode_ceiling_dimension(*dimension),
+            value: *value,
+            asked: *asked,
+        }),
         domain::Lack::Approver => wire::Lack::Approver,
-        domain::Lack::Budget { needs, left } => {
-            wire::Lack::Budget(wire::LackBudget::new(limits, wire::LackBudgetParts { needs: *needs, left: *left })?)
-        }
-        domain::Lack::Grant { kind } => {
-            wire::Lack::Grant(wire::LackGrant::new(limits, wire::LackGrantParts { kind: *kind })?)
-        }
+        domain::Lack::Budget { needs, left } => wire::Lack::Budget(wire::LackBudget { needs: *needs, left: *left }),
+        domain::Lack::Grant { kind } => wire::Lack::Grant(wire::LackGrant { kind: *kind }),
         domain::Lack::Funding => wire::Lack::Funding,
-        domain::Lack::TaskKind { executor } => wire::Lack::TaskKind(wire::LackTaskKind::new(
-            limits,
-            wire::LackTaskKindParts {
-                executor: match executor {
-                    Some(executor) => Some(super::super::batch::parts::encode_executor(*executor, limits)?),
-                    None => None,
-                },
+        domain::Lack::TaskKind { executor } => wire::Lack::TaskKind(wire::LackTaskKind {
+            executor: match executor {
+                Some(executor) => Some(super::super::batch::parts::encode_executor(*executor, limits)),
+                None => None,
             },
-        )?),
-        domain::Lack::Depth { most } => {
-            wire::Lack::Depth(wire::LackDepth::new(limits, wire::LackDepthParts { most: *most })?)
-        }
+        }),
+        domain::Lack::Depth { most } => wire::Lack::Depth(wire::LackDepth { most: *most }),
         domain::Lack::Deadline => wire::Lack::Deadline,
-        domain::Lack::Tasks { left } => {
-            wire::Lack::Tasks(wire::LackTasks::new(limits, wire::LackTasksParts { left: *left })?)
-        }
+        domain::Lack::Tasks { left } => wire::Lack::Tasks(wire::LackTasks { left: *left }),
         domain::Lack::Tool => wire::Lack::Tool,
         domain::Lack::Scope => wire::Lack::Scope,
         domain::Lack::Models => wire::Lack::Models,
@@ -290,61 +242,56 @@ pub(super) fn encode_lack(value: &domain::Lack, limits: &wire::Limits) -> Result
         domain::Lack::ResourceAccess => wire::Lack::ResourceAccess,
         domain::Lack::ResourceUnavailable => wire::Lack::ResourceUnavailable,
         domain::Lack::Shape => wire::Lack::Shape,
-        domain::Lack::Again { required } => {
-            wire::Lack::Again(wire::LackAgain::new(limits, wire::LackAgainParts { required: *required })?)
-        }
+        domain::Lack::Again { required } => wire::Lack::Again(wire::LackAgain { required: *required }),
         domain::Lack::Account => wire::Lack::Account,
         domain::Lack::Writer => wire::Lack::Writer,
-        domain::Lack::Required { connector, kind } => wire::Lack::Required(wire::LackRequired::new(
-            limits,
-            wire::LackRequiredParts { connector: *connector, kind: *kind },
-        )?),
-        domain::Lack::Failed { connector, kind } => wire::Lack::Failed(wire::LackFailed::new(
-            limits,
-            wire::LackFailedParts { connector: *connector, kind: *kind },
-        )?),
-        domain::Lack::Unguarded { connector, kind } => wire::Lack::Unguarded(wire::LackUnguarded::new(
-            limits,
-            wire::LackUnguardedParts { connector: *connector, kind: *kind },
-        )?),
-    })
+        domain::Lack::Required { connector, kind } => {
+            wire::Lack::Required(wire::LackRequired { connector: *connector, kind: *kind })
+        }
+        domain::Lack::Failed { connector, kind } => {
+            wire::Lack::Failed(wire::LackFailed { connector: *connector, kind: *kind })
+        }
+        domain::Lack::Unguarded { connector, kind } => {
+            wire::Lack::Unguarded(wire::LackUnguarded { connector: *connector, kind: *kind })
+        }
+    }
 }
 pub(super) fn decode_lack(value: wire::Lack) -> domain::Lack {
     match value {
         wire::Lack::HoldOwner(value) => {
-            let wire::LackHoldOwnerParts { hold, owner } = value.into_parts();
+            let wire::LackHoldOwner { hold, owner } = value;
             domain::Lack::HoldOwner { hold, owner: decode_hold_owner(owner) }
         }
         wire::Lack::Ceiling(row) => domain::Lack::Ceiling {
-            holder: decode_ceiling_holder(row.holder()),
-            dimension: decode_ceiling_dimension(row.dimension()),
-            value: *row.value(),
-            asked: *row.asked(),
+            holder: decode_ceiling_holder(&row.holder),
+            dimension: decode_ceiling_dimension(&row.dimension),
+            value: row.value,
+            asked: row.asked,
         },
         wire::Lack::Approver => domain::Lack::Approver,
         wire::Lack::Budget(value) => {
-            let wire::LackBudgetParts { needs, left } = value.into_parts();
+            let wire::LackBudget { needs, left } = value;
             domain::Lack::Budget { needs, left }
         }
         wire::Lack::Grant(value) => {
-            let wire::LackGrantParts { kind } = value.into_parts();
+            let wire::LackGrant { kind } = value;
             domain::Lack::Grant { kind }
         }
         wire::Lack::Funding => domain::Lack::Funding,
         wire::Lack::TaskKind(value) => {
             let mut executor = None;
-            if let Some(value) = value.into_parts().executor {
+            if let Some(value) = value.executor {
                 executor = Some(super::super::batch::parts::decode_executor(value));
             }
             domain::Lack::TaskKind { executor }
         }
         wire::Lack::Depth(value) => {
-            let wire::LackDepthParts { most } = value.into_parts();
+            let wire::LackDepth { most } = value;
             domain::Lack::Depth { most }
         }
         wire::Lack::Deadline => domain::Lack::Deadline,
         wire::Lack::Tasks(value) => {
-            let wire::LackTasksParts { left } = value.into_parts();
+            let wire::LackTasks { left } = value;
             domain::Lack::Tasks { left }
         }
         wire::Lack::Tool => domain::Lack::Tool,
@@ -355,21 +302,21 @@ pub(super) fn decode_lack(value: wire::Lack) -> domain::Lack {
         wire::Lack::ResourceUnavailable => domain::Lack::ResourceUnavailable,
         wire::Lack::Shape => domain::Lack::Shape,
         wire::Lack::Again(value) => {
-            let wire::LackAgainParts { required } = value.into_parts();
+            let wire::LackAgain { required } = value;
             domain::Lack::Again { required }
         }
         wire::Lack::Account => domain::Lack::Account,
         wire::Lack::Writer => domain::Lack::Writer,
         wire::Lack::Required(value) => {
-            let wire::LackRequiredParts { connector, kind } = value.into_parts();
+            let wire::LackRequired { connector, kind } = value;
             domain::Lack::Required { connector, kind }
         }
         wire::Lack::Failed(value) => {
-            let wire::LackFailedParts { connector, kind } = value.into_parts();
+            let wire::LackFailed { connector, kind } = value;
             domain::Lack::Failed { connector, kind }
         }
         wire::Lack::Unguarded(value) => {
-            let wire::LackUnguardedParts { connector, kind } = value.into_parts();
+            let wire::LackUnguarded { connector, kind } = value;
             domain::Lack::Unguarded { connector, kind }
         }
     }
@@ -481,138 +428,90 @@ pub(super) fn decode_limit_kind(value: wire::LimitKind) -> domain::LimitKind {
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation preserves every stored refusal variant")]
 pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> Result<wire::Refusal, wire::Problem> {
     Ok(match value {
-        domain::Refusal::Forgotten { oldest } => wire::Refusal::Forgotten(wire::RefusalForgotten::new(
-            limits,
-            wire::RefusalForgottenParts { oldest: *oldest },
-        )?),
-        domain::Refusal::Judged { at, setting, why } => wire::Refusal::Judged(wire::RefusalJudged::new(
-            limits,
-            wire::RefusalJudgedParts { at: *at, setting: encode_setting(*setting, limits)?, why: why.clone() },
-        )?),
-        domain::Refusal::Stale { newest } => {
-            wire::Refusal::Stale(wire::RefusalStale::new(limits, wire::RefusalStaleParts { newest: *newest })?)
-        }
-        domain::Refusal::Full { revision, tasks, more } => wire::Refusal::Full(wire::RefusalFull::new(
-            limits,
-            wire::RefusalFullParts {
-                revision: *revision,
-                tasks: names(tasks, limits.refusal_full_tasks, wire::Path::RefusalFullTasks)?,
-                more: *more,
-            },
-        )?),
-        domain::Refusal::NotWellFormed { at, why } => wire::Refusal::NotWellFormed(wire::RefusalNotWellFormed::new(
-            limits,
-            wire::RefusalNotWellFormedParts {
-                at: *at,
-                why: match why {
-                    domain::Malformed::Settings { setting, fault, detail } => {
-                        encode_malformed_settings(*setting, *fault, *detail, limits)?
-                    }
-                    domain::Malformed::SettingsUnchanged => wire::Malformed::SettingsUnchanged,
-                    domain::Malformed::Running => wire::Malformed::Running,
-                    domain::Malformed::ProposedAsAllowed => wire::Malformed::ProposedAsAllowed,
-                    domain::Malformed::Cycle => wire::Malformed::Cycle,
-                    domain::Malformed::Name(rule) => wire::Malformed::Name(wire::MalformedName::new(
-                        limits,
-                        wire::MalformedNameParts { rule: encode_name_rule(*rule) },
-                    )?),
-                    domain::Malformed::AsAllowedTwice => wire::Malformed::AsAllowedTwice,
-                    domain::Malformed::Conversation => wire::Malformed::Conversation,
+        domain::Refusal::Forgotten { oldest } => wire::Refusal::Forgotten(wire::RefusalForgotten { oldest: *oldest }),
+        domain::Refusal::Judged { at, setting, why } => wire::Refusal::Judged(wire::RefusalJudged {
+            at: *at,
+            setting: encode_setting(*setting, limits),
+            why: why.clone(),
+        }),
+        domain::Refusal::Stale { newest } => wire::Refusal::Stale(wire::RefusalStale { newest: *newest }),
+        domain::Refusal::Full { revision, tasks, more } => wire::Refusal::Full(wire::RefusalFull {
+            revision: *revision,
+            tasks: names(tasks, limits.refusal_full_tasks, wire::paths::REFUSAL_FULL_TASKS)?,
+            more: *more,
+        }),
+        domain::Refusal::NotWellFormed { at, why } => wire::Refusal::NotWellFormed(wire::RefusalNotWellFormed {
+            at: *at,
+            why: match why {
+                domain::Malformed::Settings { setting, fault, detail } => {
+                    encode_malformed_settings(*setting, *fault, *detail, limits)
+                }
+                domain::Malformed::SettingsUnchanged => wire::Malformed::SettingsUnchanged,
+                domain::Malformed::Running => wire::Malformed::Running,
+                domain::Malformed::ProposedAsAllowed => wire::Malformed::ProposedAsAllowed,
+                domain::Malformed::Cycle => wire::Malformed::Cycle,
+                domain::Malformed::Name(rule) => {
+                    wire::Malformed::Name(wire::MalformedName { rule: encode_name_rule(*rule) })
+                }
+                domain::Malformed::AsAllowedTwice => wire::Malformed::AsAllowedTwice,
+                domain::Malformed::Conversation => wire::Malformed::Conversation,
 
-                    domain::Malformed::EndedBy => wire::Malformed::EndedBy,
-                },
+                domain::Malformed::EndedBy => wire::Malformed::EndedBy,
             },
-        )?),
-        domain::Refusal::Role { held } => wire::Refusal::Role(wire::RefusalRole::new(
-            limits,
-            wire::RefusalRoleParts {
-                held: match held {
-                    Some(value) => Some(super::super::encode_role(*value, limits)?),
-                    None => None,
-                },
+        }),
+        domain::Refusal::Role { held } => wire::Refusal::Role(wire::RefusalRole {
+            held: match held {
+                Some(value) => Some(super::super::encode_role(*value, limits)),
+                None => None,
             },
-        )?),
-        domain::Refusal::Authority { lacking, proposable } => wire::Refusal::Authority(wire::RefusalAuthority::new(
-            limits,
-            wire::RefusalAuthorityParts {
-                lacking: encode_lack(lacking, limits)?,
-                proposable: match proposable {
-                    None => None,
-                    Some(domain::Accepter::Nobody) => Some(wire::Accepter::Nobody),
-                    Some(domain::Accepter::Role(role)) => Some(wire::Accepter::Role(wire::AccepterRole::new(
-                        limits,
-                        wire::AccepterRoleParts { role: *role },
-                    )?)),
-                },
+        }),
+        domain::Refusal::Authority { lacking, proposable } => wire::Refusal::Authority(wire::RefusalAuthority {
+            lacking: encode_lack(lacking, limits),
+            proposable: match proposable {
+                None => None,
+                Some(domain::Accepter::Nobody) => Some(wire::Accepter::Nobody),
+                Some(domain::Accepter::Role(role)) => Some(wire::Accepter::Role(wire::AccepterRole { role: *role })),
             },
-        )?),
-        domain::Refusal::Limit { which } => wire::Refusal::Limit(wire::RefusalLimit::new(
-            limits,
-            wire::RefusalLimitParts { which: encode_limit_kind(*which) },
-        )?),
-        domain::Refusal::Moved { now } => wire::Refusal::Moved(wire::RefusalMoved::new(
-            limits,
-            wire::RefusalMovedParts { now: encode_moved(now, limits)? },
-        )?),
-        domain::Refusal::Ended { how } => wire::Refusal::Ended(wire::RefusalEnded::new(
-            limits,
-            wire::RefusalEndedParts { how: encode_ending(how, limits)? },
-        )?),
-        domain::Refusal::Taken { by } => {
-            wire::Refusal::Taken(wire::RefusalTaken::new(limits, wire::RefusalTakenParts { by: *by })?)
+        }),
+        domain::Refusal::Limit { which } => {
+            wire::Refusal::Limit(wire::RefusalLimit { which: encode_limit_kind(*which) })
         }
-        domain::Refusal::LiveTasks { tasks, more } => wire::Refusal::LiveTasks(wire::RefusalLiveTasks::new(
-            limits,
-            wire::RefusalLiveTasksParts {
-                tasks: names(tasks, limits.refusal_live_tasks_tasks, wire::Path::RefusalLiveTasksTasks)?,
-                more: *more,
+        domain::Refusal::Moved { now } => wire::Refusal::Moved(wire::RefusalMoved { now: encode_moved(now, limits) }),
+        domain::Refusal::Ended { how } => wire::Refusal::Ended(wire::RefusalEnded { how: encode_ending(how, limits) }),
+        domain::Refusal::Taken { by } => wire::Refusal::Taken(wire::RefusalTaken { by: *by }),
+        domain::Refusal::LiveTasks { tasks, more } => wire::Refusal::LiveTasks(wire::RefusalLiveTasks {
+            tasks: names(tasks, limits.refusal_live_tasks_tasks, wire::paths::REFUSAL_LIVE_TASKS_TASKS)?,
+            more: *more,
+        }),
+        domain::Refusal::Circle { tasks, cut } => wire::Refusal::Circle(wire::RefusalCircle {
+            tasks: names(tasks, limits.refusal_circle_tasks, wire::paths::REFUSAL_CIRCLE_TASKS)?,
+            cut: *cut,
+        }),
+        domain::Refusal::Kept { pending } => wire::Refusal::Kept(wire::RefusalKept {
+            pending: names(pending, limits.refusal_kept_pending, wire::paths::REFUSAL_KEPT_PENDING)?,
+        }),
+        domain::Refusal::Concluded { at } => wire::Refusal::Concluded(wire::RefusalConcluded { at: at.as_nanos() }),
+        domain::Refusal::Dependency { dependency, how } => wire::Refusal::Dependency(wire::RefusalDependency {
+            dependency: *dependency,
+            how: match how {
+                domain::DependencyStatus::Done => wire::DependencyStatus::Done,
+                domain::DependencyStatus::Failed => wire::DependencyStatus::Failed,
+                domain::DependencyStatus::Cancelled => wire::DependencyStatus::Cancelled,
             },
-        )?),
-        domain::Refusal::Circle { tasks, cut } => wire::Refusal::Circle(wire::RefusalCircle::new(
-            limits,
-            wire::RefusalCircleParts {
-                tasks: names(tasks, limits.refusal_circle_tasks, wire::Path::RefusalCircleTasks)?,
-                cut: *cut,
-            },
-        )?),
-        domain::Refusal::Kept { pending } => wire::Refusal::Kept(wire::RefusalKept::new(
-            limits,
-            wire::RefusalKeptParts {
-                pending: names(pending, limits.refusal_kept_pending, wire::Path::RefusalKeptPending)?,
-            },
-        )?),
-        domain::Refusal::Concluded { at } => wire::Refusal::Concluded(wire::RefusalConcluded::new(
-            limits,
-            wire::RefusalConcludedParts { at: at.as_nanos() },
-        )?),
-        domain::Refusal::Dependency { dependency, how } => wire::Refusal::Dependency(wire::RefusalDependency::new(
-            limits,
-            wire::RefusalDependencyParts {
-                dependency: *dependency,
-                how: match how {
-                    domain::DependencyStatus::Done => wire::DependencyStatus::Done,
-                    domain::DependencyStatus::Failed => wire::DependencyStatus::Failed,
-                    domain::DependencyStatus::Cancelled => wire::DependencyStatus::Cancelled,
-                },
-            },
-        )?),
+        }),
         domain::Refusal::NotWaiting => wire::Refusal::NotWaiting,
         domain::Refusal::NoFurther => wire::Refusal::NoFurther,
-        domain::Refusal::SignInRedirect { why } => wire::Refusal::SignInRedirect(wire::RefusalSignInRedirect::new(
-            limits,
-            wire::RefusalSignInRedirectParts {
-                why: match why {
-                    domain::SignInRedirectWhy::NotWaiting => wire::SignInRedirectWhy::NotWaiting,
-                    domain::SignInRedirectWhy::Address => wire::SignInRedirectWhy::Address,
-                    domain::SignInRedirectWhy::State => wire::SignInRedirectWhy::State,
-                    domain::SignInRedirectWhy::TooMany => wire::SignInRedirectWhy::TooMany,
-                },
+        domain::Refusal::SignInRedirect { why } => wire::Refusal::SignInRedirect(wire::RefusalSignInRedirect {
+            why: match why {
+                domain::SignInRedirectWhy::NotWaiting => wire::SignInRedirectWhy::NotWaiting,
+                domain::SignInRedirectWhy::Address => wire::SignInRedirectWhy::Address,
+                domain::SignInRedirectWhy::State => wire::SignInRedirectWhy::State,
+                domain::SignInRedirectWhy::TooMany => wire::SignInRedirectWhy::TooMany,
             },
-        )?),
-        domain::Refusal::AccountMove { why } => wire::Refusal::AccountMove(wire::RefusalAccountMove::new(
-            limits,
-            wire::RefusalAccountMoveParts { why: encode_account_move_why(*why) },
-        )?),
+        }),
+        domain::Refusal::AccountMove { why } => {
+            wire::Refusal::AccountMove(wire::RefusalAccountMove { why: encode_account_move_why(*why) })
+        }
         domain::Refusal::NoTerminal => wire::Refusal::NoTerminal,
         domain::Refusal::LoginUnderWay => wire::Refusal::LoginUnderWay,
         domain::Refusal::NotLending => wire::Refusal::NotLending,
@@ -623,31 +522,29 @@ pub(crate) fn encode_refusal(value: &domain::Refusal, limits: &wire::Limits) -> 
         domain::Refusal::ProgramNameReserved => wire::Refusal::ProgramNameReserved,
         domain::Refusal::KeyConflict => wire::Refusal::KeyConflict,
         domain::Refusal::NoEscalationHolder => wire::Refusal::NoEscalationHolder,
-        domain::Refusal::Account { account, why } => wire::Refusal::Account(wire::RefusalAccount::new(
-            limits,
-            wire::RefusalAccountParts { account: *account, why: encode_account_why(*why) },
-        )?),
-        domain::Refusal::Llm { model, why } => wire::Refusal::Llm(wire::RefusalLlm::new(
-            limits,
-            wire::RefusalLlmParts { model: *model, why: super::super::llm::encode_why(*why) },
-        )?),
+        domain::Refusal::Account { account, why } => {
+            wire::Refusal::Account(wire::RefusalAccount { account: *account, why: encode_account_why(*why) })
+        }
+        domain::Refusal::Llm { model, why } => {
+            wire::Refusal::Llm(wire::RefusalLlm { model: *model, why: super::super::llm::encode_why(*why) })
+        }
     })
 }
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation preserves every stored refusal variant")]
 pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
     match value {
         wire::Refusal::Judged(value) => {
-            let wire::RefusalJudgedParts { at, setting, why } = value.into_parts();
+            let wire::RefusalJudged { at, setting, why } = value;
             domain::Refusal::Judged { at, setting: decode_setting(&setting), why }
         }
-        wire::Refusal::Forgotten(value) => domain::Refusal::Forgotten { oldest: value.oldest() },
-        wire::Refusal::Stale(value) => domain::Refusal::Stale { newest: value.newest() },
+        wire::Refusal::Forgotten(value) => domain::Refusal::Forgotten { oldest: value.oldest },
+        wire::Refusal::Stale(value) => domain::Refusal::Stale { newest: value.newest },
         wire::Refusal::Full(value) => {
-            let v = value.into_parts();
+            let v = value;
             domain::Refusal::Full { revision: v.revision, tasks: v.tasks.into_boxed(), more: v.more }
         }
         wire::Refusal::NotWellFormed(value) => {
-            let wire::RefusalNotWellFormedParts { at, why } = value.into_parts();
+            let wire::RefusalNotWellFormed { at, why } = value;
             domain::Refusal::NotWellFormed {
                 at,
                 why: match why {
@@ -656,7 +553,7 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
                     wire::Malformed::Running => domain::Malformed::Running,
                     wire::Malformed::ProposedAsAllowed => domain::Malformed::ProposedAsAllowed,
                     wire::Malformed::Cycle => domain::Malformed::Cycle,
-                    wire::Malformed::Name(value) => domain::Malformed::Name(decode_name_rule(value.rule().clone())),
+                    wire::Malformed::Name(value) => domain::Malformed::Name(decode_name_rule(value.rule)),
                     wire::Malformed::AsAllowedTwice => domain::Malformed::AsAllowedTwice,
                     wire::Malformed::Conversation => domain::Malformed::Conversation,
 
@@ -665,7 +562,7 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
             }
         }
         wire::Refusal::Role(value) => {
-            let wire::RefusalRoleParts { held } = value.into_parts();
+            let wire::RefusalRole { held } = value;
             domain::Refusal::Role {
                 held: match held {
                     Some(value) => {
@@ -677,44 +574,44 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
             }
         }
         wire::Refusal::Authority(value) => {
-            let wire::RefusalAuthorityParts { lacking, proposable } = value.into_parts();
+            let wire::RefusalAuthority { lacking, proposable } = value;
             domain::Refusal::Authority {
                 lacking: decode_lack(lacking),
                 proposable: match proposable {
                     None => None,
                     Some(wire::Accepter::Nobody) => Some(domain::Accepter::Nobody),
-                    Some(wire::Accepter::Role(role)) => Some(domain::Accepter::Role(role.into_parts().role)),
+                    Some(wire::Accepter::Role(role)) => Some(domain::Accepter::Role(role.role)),
                 },
             }
         }
         wire::Refusal::Limit(value) => {
-            let wire::RefusalLimitParts { which } = value.into_parts();
+            let wire::RefusalLimit { which } = value;
             domain::Refusal::Limit { which: decode_limit_kind(which) }
         }
         wire::Refusal::Moved(value) => {
-            let wire::RefusalMovedParts { now } = value.into_parts();
+            let wire::RefusalMoved { now } = value;
             domain::Refusal::Moved { now: decode_moved(now) }
         }
         wire::Refusal::Ended(value) => {
-            let wire::RefusalEndedParts { how } = value.into_parts();
+            let wire::RefusalEnded { how } = value;
             domain::Refusal::Ended { how: decode_ending(how) }
         }
         wire::Refusal::Taken(value) => {
-            let wire::RefusalTakenParts { by } = value.into_parts();
+            let wire::RefusalTaken { by } = value;
             domain::Refusal::Taken { by }
         }
         wire::Refusal::LiveTasks(value) => {
-            let wire::RefusalLiveTasksParts { tasks, more } = value.into_parts();
+            let wire::RefusalLiveTasks { tasks, more } = value;
             domain::Refusal::LiveTasks { tasks: tasks.into_boxed(), more }
         }
         wire::Refusal::Circle(value) => {
-            let wire::RefusalCircleParts { tasks, cut } = value.into_parts();
+            let wire::RefusalCircle { tasks, cut } = value;
             domain::Refusal::Circle { tasks: tasks.into_boxed(), cut }
         }
-        wire::Refusal::Kept(value) => domain::Refusal::Kept { pending: value.into_parts().pending.into_boxed() },
-        wire::Refusal::Concluded(value) => domain::Refusal::Concluded { at: Wall::from_nanos(value.at()) },
+        wire::Refusal::Kept(value) => domain::Refusal::Kept { pending: value.pending.into_boxed() },
+        wire::Refusal::Concluded(value) => domain::Refusal::Concluded { at: Wall::from_nanos(value.at) },
         wire::Refusal::Dependency(value) => {
-            let wire::RefusalDependencyParts { dependency, how } = value.into_parts();
+            let wire::RefusalDependency { dependency, how } = value;
             domain::Refusal::Dependency {
                 dependency,
                 how: match how {
@@ -727,11 +624,9 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         wire::Refusal::NotWaiting => domain::Refusal::NotWaiting,
         wire::Refusal::NoFurther => domain::Refusal::NoFurther,
         wire::Refusal::SignInRedirect(row) => {
-            domain::Refusal::SignInRedirect { why: decode_sign_in_redirect_why(row.why()) }
+            domain::Refusal::SignInRedirect { why: decode_sign_in_redirect_why(&row.why) }
         }
-        wire::Refusal::AccountMove(value) => {
-            domain::Refusal::AccountMove { why: decode_account_move_why(value.into_parts().why) }
-        }
+        wire::Refusal::AccountMove(value) => domain::Refusal::AccountMove { why: decode_account_move_why(value.why) },
         wire::Refusal::NoTerminal => domain::Refusal::NoTerminal,
         wire::Refusal::LoginUnderWay => domain::Refusal::LoginUnderWay,
         wire::Refusal::NotLending => domain::Refusal::NotLending,
@@ -743,11 +638,11 @@ pub(crate) fn decode_refusal(value: wire::Refusal) -> domain::Refusal {
         wire::Refusal::KeyConflict => domain::Refusal::KeyConflict,
         wire::Refusal::NoEscalationHolder => domain::Refusal::NoEscalationHolder,
         wire::Refusal::Account(value) => {
-            let wire::RefusalAccountParts { account, why } = value.into_parts();
+            let wire::RefusalAccount { account, why } = value;
             domain::Refusal::Account { account, why: decode_account_why(why) }
         }
         wire::Refusal::Llm(value) => {
-            let wire::RefusalLlmParts { model, why } = value.into_parts();
+            let wire::RefusalLlm { model, why } = value;
             domain::Refusal::Llm { model, why: super::super::llm::decode_why(why) }
         }
     }
@@ -853,36 +748,23 @@ const fn decode_account_move_why(value: wire::AccountMoveWhy) -> domain::Account
     }
 }
 
-pub(super) fn encode_setting(value: domain::Setting, limits: &wire::Limits) -> Result<wire::Setting, wire::Problem> {
-    Ok(match value {
-        domain::Setting::ProjectPolicy { project } => wire::Setting::ProjectPolicy(wire::ProjectPolicySetting::new(
-            limits,
-            wire::ProjectPolicySettingParts { project },
-        )?),
-        domain::Setting::Charter(number) => {
-            wire::Setting::Charter(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
+pub(super) fn encode_setting(value: domain::Setting, _limits: &wire::Limits) -> wire::Setting {
+    match value {
+        domain::Setting::ProjectPolicy { project } => {
+            wire::Setting::ProjectPolicy(wire::ProjectPolicySetting { project })
         }
-        domain::Setting::Template(number) => {
-            wire::Setting::Template(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
-        }
-        domain::Setting::Policy(number) => {
-            wire::Setting::Policy(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
-        }
-        domain::Setting::Model(number) => {
-            wire::Setting::Model(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
-        }
-        domain::Setting::Worker(number) => {
-            wire::Setting::Worker(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
-        }
-        domain::Setting::Provider(number) => {
-            wire::Setting::Provider(wire::SettingNumber::new(limits, wire::SettingNumberParts { number })?)
-        }
+        domain::Setting::Charter(number) => wire::Setting::Charter(wire::SettingNumber { number }),
+        domain::Setting::Template(number) => wire::Setting::Template(wire::SettingNumber { number }),
+        domain::Setting::Policy(number) => wire::Setting::Policy(wire::SettingNumber { number }),
+        domain::Setting::Model(number) => wire::Setting::Model(wire::SettingNumber { number }),
+        domain::Setting::Worker(number) => wire::Setting::Worker(wire::SettingNumber { number }),
+        domain::Setting::Provider(number) => wire::Setting::Provider(wire::SettingNumber { number }),
         domain::Setting::Rules => wire::Setting::Rules,
         domain::Setting::Limits => wire::Setting::Limits,
-        domain::Setting::Application { kind, scope, number } => wire::Setting::Application(
-            wire::ApplicationSetting::new(limits, wire::ApplicationSettingParts { kind, scope, number })?,
-        ),
-    })
+        domain::Setting::Application { kind, scope, number } => {
+            wire::Setting::Application(wire::ApplicationSetting { kind, scope, number })
+        }
+    }
 }
 fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
     match value {
@@ -902,17 +784,17 @@ fn encode_setting_fault(value: domain::SettingFault) -> wire::SettingFault {
 
 pub(super) fn decode_setting(value: &wire::Setting) -> domain::Setting {
     match value {
-        wire::Setting::Charter(value) => domain::Setting::Charter(value.number()),
-        wire::Setting::Template(value) => domain::Setting::Template(value.number()),
-        wire::Setting::Policy(value) => domain::Setting::Policy(value.number()),
-        wire::Setting::ProjectPolicy(value) => domain::Setting::ProjectPolicy { project: value.project() },
-        wire::Setting::Model(value) => domain::Setting::Model(value.number()),
-        wire::Setting::Worker(value) => domain::Setting::Worker(value.number()),
-        wire::Setting::Provider(value) => domain::Setting::Provider(value.number()),
+        wire::Setting::Charter(value) => domain::Setting::Charter(value.number),
+        wire::Setting::Template(value) => domain::Setting::Template(value.number),
+        wire::Setting::Policy(value) => domain::Setting::Policy(value.number),
+        wire::Setting::ProjectPolicy(value) => domain::Setting::ProjectPolicy { project: value.project },
+        wire::Setting::Model(value) => domain::Setting::Model(value.number),
+        wire::Setting::Worker(value) => domain::Setting::Worker(value.number),
+        wire::Setting::Provider(value) => domain::Setting::Provider(value.number),
         wire::Setting::Rules => domain::Setting::Rules,
         wire::Setting::Limits => domain::Setting::Limits,
         wire::Setting::Application(value) => {
-            domain::Setting::Application { kind: value.kind(), scope: value.scope(), number: value.number() }
+            domain::Setting::Application { kind: value.kind, scope: value.scope, number: value.number }
         }
     }
 }
@@ -941,43 +823,31 @@ const fn decode_sign_in_redirect_why(value: &wire::SignInRedirectWhy) -> domain:
     }
 }
 
-pub(super) fn encode_hold_owner(
-    value: &domain::HoldOwner,
-    limits: &wire::Limits,
-) -> Result<wire::HoldOwner, wire::Problem> {
-    Ok(match value {
-        domain::HoldOwner::Party { person } => {
-            wire::HoldOwner::Party(wire::HoldOwnerParty::new(limits, wire::HoldOwnerPartyParts { person: *person })?)
-        }
-        domain::HoldOwner::Task { task } => {
-            wire::HoldOwner::Task(wire::HoldOwnerTask::new(limits, wire::HoldOwnerTaskParts { task: *task })?)
-        }
-    })
+pub(super) fn encode_hold_owner(value: &domain::HoldOwner, _limits: &wire::Limits) -> wire::HoldOwner {
+    match value {
+        domain::HoldOwner::Party { person } => wire::HoldOwner::Party(wire::HoldOwnerParty { person: *person }),
+        domain::HoldOwner::Task { task } => wire::HoldOwner::Task(wire::HoldOwnerTask { task: *task }),
+    }
 }
 pub(super) fn decode_hold_owner(value: wire::HoldOwner) -> domain::HoldOwner {
     match value {
-        wire::HoldOwner::Party(value) => domain::HoldOwner::Party { person: value.person() },
-        wire::HoldOwner::Task(value) => domain::HoldOwner::Task { task: value.task() },
+        wire::HoldOwner::Party(value) => domain::HoldOwner::Party { person: value.person },
+        wire::HoldOwner::Task(value) => domain::HoldOwner::Task { task: value.task },
     }
 }
 
-fn encode_ceiling_holder(
-    value: domain::CeilingHolder,
-    limits: &wire::Limits,
-) -> Result<wire::CeilingHolder, wire::Problem> {
-    Ok(match value {
+fn encode_ceiling_holder(value: domain::CeilingHolder, _limits: &wire::Limits) -> wire::CeilingHolder {
+    match value {
         domain::CeilingHolder::Rules => wire::CeilingHolder::Rules,
         domain::CeilingHolder::Policy => wire::CeilingHolder::Policy,
-        domain::CeilingHolder::Role(role) => {
-            wire::CeilingHolder::Role(wire::CeilingRole::new(limits, wire::CeilingRoleParts { role })?)
-        }
-    })
+        domain::CeilingHolder::Role(role) => wire::CeilingHolder::Role(wire::CeilingRole { role }),
+    }
 }
 fn decode_ceiling_holder(value: &wire::CeilingHolder) -> domain::CeilingHolder {
     match value {
         wire::CeilingHolder::Rules => domain::CeilingHolder::Rules,
         wire::CeilingHolder::Policy => domain::CeilingHolder::Policy,
-        wire::CeilingHolder::Role(row) => domain::CeilingHolder::Role(row.role()),
+        wire::CeilingHolder::Role(row) => domain::CeilingHolder::Role(row.role),
     }
 }
 fn encode_ceiling_dimension(value: domain::CeilingDimension) -> wire::CeilingDimension {
@@ -1008,38 +878,32 @@ fn decode_ceiling_dimension(value: &wire::CeilingDimension) -> domain::CeilingDi
 }
 
 /// Translate the document refusal facts without checking the settings again.
-fn encode_setting_detail(
-    value: domain::SettingDetail,
-    limits: &wire::Limits,
-) -> Result<wire::SettingDetail, wire::Problem> {
-    wire::SettingDetail::new(
-        limits,
-        wire::SettingDetailParts {
-            member: match value.member {
-                domain::SettingMember::Documents => wire::SettingMember::Documents,
-                domain::SettingMember::NameSegments => wire::SettingMember::NameSegments,
-                domain::SettingMember::NameSegmentBytes => wire::SettingMember::NameSegmentBytes,
-                domain::SettingMember::Path => wire::SettingMember::Path,
-                domain::SettingMember::Heading => wire::SettingMember::Heading,
-                domain::SettingMember::Connector => wire::SettingMember::Connector,
-                domain::SettingMember::StoredPolicy => wire::SettingMember::StoredPolicy,
-            },
-            rule: match value.rule {
-                domain::SettingRule::Maximum => wire::SettingRule::Maximum,
-                domain::SettingRule::Minimum => wire::SettingRule::Minimum,
-                domain::SettingRule::Registered => wire::SettingRule::Registered,
-            },
-            document: value.document,
-            segment: value.segment,
-            supplied: value.supplied,
-            bound: value.bound,
+fn encode_setting_detail(value: domain::SettingDetail, _limits: &wire::Limits) -> wire::SettingDetail {
+    wire::SettingDetail {
+        member: match value.member {
+            domain::SettingMember::Documents => wire::SettingMember::Documents,
+            domain::SettingMember::NameSegments => wire::SettingMember::NameSegments,
+            domain::SettingMember::NameSegmentBytes => wire::SettingMember::NameSegmentBytes,
+            domain::SettingMember::Path => wire::SettingMember::Path,
+            domain::SettingMember::Heading => wire::SettingMember::Heading,
+            domain::SettingMember::Connector => wire::SettingMember::Connector,
+            domain::SettingMember::StoredPolicy => wire::SettingMember::StoredPolicy,
         },
-    )
+        rule: match value.rule {
+            domain::SettingRule::Maximum => wire::SettingRule::Maximum,
+            domain::SettingRule::Minimum => wire::SettingRule::Minimum,
+            domain::SettingRule::Registered => wire::SettingRule::Registered,
+        },
+        document: value.document,
+        segment: value.segment,
+        supplied: value.supplied,
+        bound: value.bound,
+    }
 }
 /// Translate the document refusal facts without checking the settings again.
 fn decode_setting_detail(value: &wire::SettingDetail) -> domain::SettingDetail {
     domain::SettingDetail {
-        member: match value.member() {
+        member: match value.member {
             wire::SettingMember::Documents => domain::SettingMember::Documents,
             wire::SettingMember::NameSegments => domain::SettingMember::NameSegments,
             wire::SettingMember::NameSegmentBytes => domain::SettingMember::NameSegmentBytes,
@@ -1048,15 +912,15 @@ fn decode_setting_detail(value: &wire::SettingDetail) -> domain::SettingDetail {
             wire::SettingMember::Connector => domain::SettingMember::Connector,
             wire::SettingMember::StoredPolicy => domain::SettingMember::StoredPolicy,
         },
-        rule: match value.rule() {
+        rule: match value.rule {
             wire::SettingRule::Maximum => domain::SettingRule::Maximum,
             wire::SettingRule::Minimum => domain::SettingRule::Minimum,
             wire::SettingRule::Registered => domain::SettingRule::Registered,
         },
-        document: value.document(),
-        segment: value.segment(),
-        supplied: value.supplied(),
-        bound: value.bound(),
+        document: value.document,
+        segment: value.segment,
+        supplied: value.supplied,
+        bound: value.bound,
     }
 }
 
@@ -1065,25 +929,22 @@ fn encode_malformed_settings(
     fault: domain::SettingFault,
     detail: Option<domain::SettingDetail>,
     limits: &wire::Limits,
-) -> Result<wire::Malformed, wire::Problem> {
-    Ok(wire::Malformed::Settings(wire::MalformedSettings::new(
-        limits,
-        wire::MalformedSettingsParts {
-            setting: encode_setting(setting, limits)?,
-            fault: encode_setting_fault(fault),
-            detail: match detail {
-                Some(value) => Some(encode_setting_detail(value, limits)?),
-                None => None,
-            },
+) -> wire::Malformed {
+    wire::Malformed::Settings(wire::MalformedSettings {
+        setting: encode_setting(setting, limits),
+        fault: encode_setting_fault(fault),
+        detail: match detail {
+            Some(value) => Some(encode_setting_detail(value, limits)),
+            None => None,
         },
-    )?))
+    })
 }
 fn decode_malformed_settings(value: wire::MalformedSettings) -> domain::Malformed {
     domain::Malformed::Settings {
-        setting: decode_setting(value.setting()),
-        fault: decode_setting_fault(value.fault()),
-        detail: match value.detail() {
-            Some(value) => Some(decode_setting_detail(value)),
+        setting: decode_setting(&value.setting),
+        fault: decode_setting_fault(&value.fault),
+        detail: match value.detail {
+            Some(value) => Some(decode_setting_detail(&value)),
             None => None,
         },
     }

@@ -1310,9 +1310,9 @@ fn binding_schema_refuses_fields_one_past_their_bounds() {
 fn embedded_people_refusals_changed_at_store_nine() {
     // The people v12 generated Unknown golden was [9]; v13 inserts NameTaken
     // before every existing refusal. All 38 existing Refusal goldens change.
-    let mut after = skein_lib::Writer::new(1);
-    jig_protocol_store::people_v17::Refusal::Unknown.encode(&mut after).unwrap();
-    assert_eq!(after.finish().as_ref(), &[10]);
+    let after =
+        jig_protocol_store::people_v17::Refusal::Unknown.encode(&jig_protocol_store::people_v17::CEILINGS).unwrap();
+    assert_eq!(after.as_ref(), &[10]);
     assert_eq!(crate::STORE_VERSION, 25);
 }
 

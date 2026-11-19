@@ -1,10 +1,11 @@
 //! Byte-summed collections, framed without multiplying nested lists (skein/docs/design/data/codec/README.md, 3).
 use super::{
-    Box, List, Reader, Writer, count, decode_executor, decode_grant, decode_parameter, decode_permission_role,
+    Box, List, Reader, count, decode_executor, decode_grant, decode_parameter, decode_permission_role,
     decode_requirement, decode_resource_scope, domain, encode_executor, encode_grant, encode_parameter,
     encode_permission_role, encode_requirement, encode_resource_scope, problem, wire,
 };
 use skein_lib::length::len_u64;
+use wire::Record;
 
 pub(super) const EMPTY: wire::Limits = wire::Limits {
     member_words: 0,
@@ -92,10 +93,9 @@ pub(super) fn encode_segments(
     let mut used = 0;
     for value in values {
         spend(&mut used, owned(size_of::<Box<[u8]>>(), value.len()), sum)?;
-        let value = wire::Segment::new(limits, wire::SegmentParts { bytes: value.clone() })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = wire::Segment { bytes: value.clone() };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -113,7 +113,7 @@ pub(super) fn decode_segments(
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Segment::decode(limits, &mut Reader::new(&bytes))?;
-        let value = value.into_parts().bytes;
+        let value = value.bytes;
         spend(&mut used, owned(size_of::<Box<[u8]>>(), value.len()), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -130,10 +130,9 @@ pub(super) fn encode_delegation_kinds(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::Executor>()).ok(), sum)?;
-        let value = encode_executor(*value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = encode_executor(*value, limits);
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -169,9 +168,8 @@ pub(super) fn encode_authority_note_resources(
     for value in values {
         spend(&mut used, scope_bytes(value), sum)?;
         let value = encode_resource_scope(value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -207,9 +205,8 @@ pub(super) fn encode_grant_piece(
     for value in values {
         spend(&mut used, grant_bytes(value), sum)?;
         let value = encode_grant(value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -245,9 +242,8 @@ pub(super) fn encode_requirement_piece(
     for value in values {
         spend(&mut used, requirement_bytes(value), sum)?;
         let value = encode_requirement(value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -282,10 +278,9 @@ pub(super) fn encode_spec_parameters(
     let mut used = 0;
     for value in values {
         spend(&mut used, parameter_bytes(value), sum)?;
-        let value = encode_parameter(value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = encode_parameter(value, limits);
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -320,10 +315,9 @@ pub(super) fn encode_numbers(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<u64>()).ok(), sum)?;
-        let value = wire::Number64::new(limits, wire::Number64Parts { value: *value })?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = wire::Number64 { value: *value };
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -337,7 +331,7 @@ pub(super) fn decode_numbers(bytes: Box<[u8]>, limits: &wire::Limits, sum: u32) 
     let mut used = 0;
     while let Some(bytes) = split(&mut reader)? {
         let value = wire::Number64::decode(limits, &mut Reader::new(&bytes))?;
-        let value = value.into_parts().value;
+        let value = value.value;
         spend(&mut used, u64::try_from(size_of::<u64>()).ok(), sum)?;
         values.push(value).expect("piece contains at most one item per length");
     }
@@ -354,10 +348,9 @@ pub(super) fn encode_permissions(
     let mut used = 0;
     for value in values {
         spend(&mut used, u64::try_from(size_of::<domain::PermissionRole>()).ok(), sum)?;
-        let value = encode_permission_role(*value, limits)?;
-        let mut item = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut item).expect("measured item");
-        items.push(item.finish()).expect("same item count");
+        let value = encode_permission_role(*value, limits);
+        let item = value.encode(limits)?;
+        items.push(item).expect("same item count");
     }
     match crate::codec::pieces::join(items, bound) {
         Ok(bytes) => Ok(bytes),
@@ -385,7 +378,7 @@ pub(super) fn decode_permissions(
 pub(in crate::codec) fn split(reader: &mut Reader<'_>) -> Result<Option<Box<[u8]>>, wire::Problem> {
     match skein_codec::piece::split(reader) {
         Ok(value) => Ok(value),
-        Err(reason) => Err(wire::Problem { path: wire::Path::RowValue, reason }),
+        Err(reason) => Err(wire::Problem { path: wire::paths::ROW_VALUE, reason }),
     }
 }
 
@@ -413,6 +406,7 @@ pub(super) fn permission_sum(limits: &wire::Limits) -> u32 {
 #[cfg(test)]
 mod tests {
     use super::{EMPTY, GRANT_FRAMING, PERMISSION_FRAMING, wire};
+    use wire::Record;
 
     #[test]
     fn fixed_piece_framing_matches_the_generated_bounds() {

@@ -510,9 +510,7 @@ fn a_members_absent_wake_round_trips_without_a_default() {
     member.wake = None;
     let ask = people::Ask::Create { project: 1, batch: Box::new([member]) };
     let value = codec::people::encode_ask(&ask, &limits).expect("bounded batch");
-    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured batch");
-    let bytes = writer.finish();
+    let bytes = value.encode(&limits).expect("bounded value");
     let value = crate::people_v17::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("stored batch");
     assert_eq!(codec::people::decode_ask(value, &limits), Ok(ask));
 }

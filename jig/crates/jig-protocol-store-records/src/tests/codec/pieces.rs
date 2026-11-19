@@ -41,9 +41,7 @@ fn the_pattern_piece_admits_512_segments_and_refuses_513() {
         let encoded = people::policy::encode_pattern(&value, &limits);
         if passes {
             let encoded = encoded.expect(label);
-            let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
-            encoded.encode(&mut out).expect("measured pattern");
-            let bytes = out.finish();
+            let bytes = encoded.encode(&limits).expect("bounded value");
             let decoded = people_v17::Pattern::decode(&limits, &mut Reader::new(&bytes)).expect("encoded pattern");
             assert_eq!(people::policy::decode_pattern(decoded, &limits), Ok(value), "{label}");
         } else {
@@ -58,18 +56,16 @@ fn a_whole_amendment_admits_its_full_sum_and_refuses_one_byte_past_it() {
     let value = amendment();
     assert_eq!(person::amendment_bytes(&value), Some(8192));
     let encoded = people::policy::encode_amendment(&value, &limits).expect("whole sum fits");
-    let mut out = Writer::new(skein_lib::length::usize_of(encoded.measure()));
-    encoded.encode(&mut out).expect("measured amendment");
-    let bytes = out.finish();
+    let bytes = encoded.encode(&limits).expect("bounded value");
     let decoded = people_v17::Amendment::decode(&limits, &mut Reader::new(&bytes)).expect("whole amendment");
     assert_eq!(people::policy::decode_amendment(decoded, &limits), Ok(value.clone()));
     let mut past = value;
     past.reason = Box::new([1]);
     assert_eq!(person::amendment_bytes(&past), Some(8193));
     assert_eq!(people::policy::encode_amendment(&past, &limits), Err(people_problem()), "encoded past_sum");
-    let mut parts = encoded.into_parts();
+    let mut parts = encoded;
     parts.reason = Box::new([1]);
-    let forged = people_v17::Amendment::new(&limits, parts).expect("each scalar still fits");
+    let forged = parts;
     assert_eq!(people::policy::decode_amendment(forged, &limits), Err(people_problem()), "decoded past_sum");
 }
 
@@ -137,7 +133,7 @@ fn the_encoded_piece_bound_holds_a_verdict_at_the_domain_sum_exactly() {
 }
 
 fn people_problem() -> people_v17::Problem {
-    people_v17::Problem { path: people_v17::Path::RowValue, reason: skein_codec::Reason::Bound }
+    people_v17::Problem { path: people_v17::paths::ROW_VALUE, reason: skein_codec::Reason::Bound }
 }
 
 #[test]

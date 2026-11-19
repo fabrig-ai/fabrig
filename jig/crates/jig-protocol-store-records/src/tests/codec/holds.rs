@@ -147,23 +147,22 @@ enum PeopleItems {
 }
 
 fn segments(bytes: &[u8], limits: &people::Limits) -> Box<[Box<[u8]>]> {
-    pieces(bytes, limits, |limits, reader| people::Segment::decode(limits, reader).unwrap().into_parts().bytes)
+    pieces(bytes, limits, |limits, reader| people::Segment::decode(limits, reader).unwrap().bytes)
 }
 
 fn pattern(value: people::Pattern, limits: &people::Limits) -> p::Pattern {
-    let value = value.into_parts();
     p::Pattern {
         segments: segments(&value.segments, limits),
         last: match value.last {
-            people::Last::Exact(value) => p::Last::Exact(value.into_parts().value),
-            people::Last::Open(value) => p::Last::Open(value.into_parts().value),
+            people::Last::Exact(value) => p::Last::Exact(value.value),
+            people::Last::Open(value) => p::Last::Open(value.value),
         },
     }
 }
 
 fn rules(bytes: &[u8], limits: &people::Limits) -> Box<[p::FieldRule]> {
     pieces(bytes, limits, |limits, reader| {
-        let value = people::FieldRule::decode(limits, reader).unwrap().into_parts();
+        let value = people::FieldRule::decode(limits, reader).unwrap();
         p::FieldRule { name: value.name, max: value.max }
     })
 }
@@ -175,24 +174,24 @@ impl PeopleItems {
             Self::Executors(_) => {
                 Self::Executors(pieces(bytes, limits, |limits, reader| {
                     match people::Executor::decode(limits, reader).unwrap() {
-                        people::Executor::Charter(value) => p::Executor::Charter(value.into_parts().value),
-                        people::Executor::Procedure(value) => p::Executor::Procedure(value.into_parts().value),
-                        people::Executor::Job(value) => p::Executor::Job(value.into_parts().kind),
-                        people::Executor::Role(value) => p::Executor::Role(value.into_parts().value),
+                        people::Executor::Charter(value) => p::Executor::Charter(value.value),
+                        people::Executor::Procedure(value) => p::Executor::Procedure(value.value),
+                        people::Executor::Job(value) => p::Executor::Job(value.kind),
+                        people::Executor::Role(value) => p::Executor::Role(value.value),
                     }
                 }))
             }
             Self::Grants(_) => Self::Grants(pieces(bytes, limits, |limits, reader| {
-                let value = people::Grant::decode(limits, reader).unwrap().into_parts();
+                let value = people::Grant::decode(limits, reader).unwrap();
                 p::Grant { connector: value.connector, kind: value.kind, pattern: pattern(value.pattern, limits) }
             })),
             Self::Scopes(_) => Self::Scopes(pieces(bytes, limits, |limits, reader| {
-                let value = people::ResourceScope::decode(limits, reader).unwrap().into_parts();
+                let value = people::ResourceScope::decode(limits, reader).unwrap();
                 p::ResourceScope { connector: value.connector, pattern: pattern(value.pattern, limits) }
             })),
             Self::Requirements(_) => Self::Requirements(pieces(bytes, limits, |limits, reader| {
-                let value = people::Requirement::decode(limits, reader).unwrap().into_parts();
-                let judge = value.judge.into_parts();
+                let value = people::Requirement::decode(limits, reader).unwrap();
+                let judge = value.judge;
                 p::Requirement {
                     connector: value.connector,
                     kind: value.kind,
@@ -204,48 +203,39 @@ impl PeopleItems {
                     },
                     guard: match value.guard {
                         people::Guard::Guarded => p::Guard::Guarded,
-                        people::Guard::Observed(value) => p::Guard::Observed {
-                            freshness: skein_lib::Duration::from_nanos(value.into_parts().freshness),
-                        },
+                        people::Guard::Observed(value) => {
+                            p::Guard::Observed { freshness: skein_lib::Duration::from_nanos(value.freshness) }
+                        }
                     },
                     must_be_guarded: value.must_be_guarded,
                 }
             })),
             Self::Permissions(_) => Self::Permissions(pieces(bytes, limits, |limits, reader| {
-                let value = people::PermissionRole::decode(limits, reader).unwrap().into_parts();
+                let value = people::PermissionRole::decode(limits, reader).unwrap();
                 p::PermissionRole { connector: value.connector, permission: value.permission, role: value.role }
             })),
             Self::Parameters(_) => Self::Parameters(pieces(bytes, limits, |limits, reader| {
                 match people::Parameter::decode(limits, reader).unwrap() {
-                    people::Parameter::Number(value) => {
-                        let value = value.into_parts();
-                        p::Parameter::Number { name: value.name, value: value.value }
-                    }
-                    people::Parameter::Bytes(value) => {
-                        let value = value.into_parts();
-                        p::Parameter::Bytes { name: value.name, value: value.value }
-                    }
-                    people::Parameter::Resource(value) => {
-                        let value = value.into_parts();
-                        p::Parameter::Resource {
-                            name: value.name,
-                            connector: value.connector,
-                            resource: value.resource,
-                        }
-                    }
+                    people::Parameter::Number(value) => p::Parameter::Number { name: value.name, value: value.value },
+                    people::Parameter::Bytes(value) => p::Parameter::Bytes { name: value.name, value: value.value },
+                    people::Parameter::Resource(value) => p::Parameter::Resource {
+                        name: value.name,
+                        connector: value.connector,
+                        resource: value.resource,
+                    },
                 }
             })),
             Self::Numbers(_) => Self::Numbers(pieces(bytes, limits, |limits, reader| {
-                people::Number64::decode(limits, reader).unwrap().value()
+                people::Number64::decode(limits, reader).unwrap().value
             })),
             Self::Dependencies(_) => Self::Dependencies(pieces(bytes, limits, |limits, reader| {
                 match people::Dependency::decode(limits, reader).unwrap() {
-                    people::Dependency::Batch(value) => p::Dependency::Batch(value.into_parts().at),
-                    people::Dependency::Existing(value) => p::Dependency::Existing(value.into_parts().task),
+                    people::Dependency::Batch(value) => p::Dependency::Batch(value.at),
+                    people::Dependency::Existing(value) => p::Dependency::Existing(value.task),
                 }
             })),
             Self::Verdicts(_) => Self::Verdicts(pieces(bytes, limits, |limits, reader| {
-                let value = people::Verdict::decode(limits, reader).unwrap().into_parts();
+                let value = people::Verdict::decode(limits, reader).unwrap();
                 p::Verdict {
                     code: value.code,
                     words: value.words,
@@ -270,12 +260,10 @@ fn people_ask(ask: &p::Ask, limits: &people::Limits) -> people::Ask {
     let p::Stored::Answer { key, models, outcome, at, .. } = row else { panic!("answer fixture") };
     let row = p::Stored::Answer { key, models, outcome, at, ask: Box::new(ask.clone()) };
     let bytes = codec::people::encode(&row, limits, &[]).unwrap();
-    let people::Value::Answer(value) =
-        people::Row::decode(limits, &mut Reader::new(&bytes)).unwrap().into_parts().value
-    else {
+    let people::Value::Answer(value) = people::Row::decode(limits, &mut Reader::new(&bytes)).unwrap().value else {
         panic!("answer fixture")
     };
-    value.into_parts().ask
+    value.ask
 }
 
 fn member_rows(limits: &people::Limits) -> [PeopleRow; 10] {
@@ -285,11 +273,11 @@ fn member_rows(limits: &people::Limits) -> [PeopleRow; 10] {
     else {
         panic!("create fixture")
     };
-    let encoded = value.into_parts().batch.into_boxed().into_iter().next().unwrap().into_parts();
-    let authority = encoded.authority.into_parts();
+    let encoded = value.batch.into_boxed().into_iter().next().unwrap();
+    let authority = encoded.authority;
     let people::Contract::Verdict(contract) = encoded.contract else { panic!("verdict fixture") };
     let p::Contract::Verdict { choices } = &member.contract else { panic!("verdict fixture") };
-    let choices_bytes = contract.into_parts().choices;
+    let choices_bytes = contract.choices;
     let mut choices_reader = Reader::new(&choices_bytes);
     let verdict_piece = skein_codec::piece::split(&mut choices_reader).unwrap().unwrap();
     let verdict = people::Verdict::decode(limits, &mut Reader::new(&verdict_piece)).unwrap();
@@ -298,12 +286,12 @@ fn member_rows(limits: &people::Limits) -> [PeopleRow; 10] {
     [
         PeopleRow {
             path: "Pattern.segments",
-            bytes: grant.pattern().segments().into(),
+            bytes: grant.pattern.segments,
             expected: PeopleItems::Segments(member.authority.grants[0].pattern.segments.clone()),
         },
         PeopleRow {
             path: "Delegation.kinds",
-            bytes: authority.delegation.into_parts().kinds,
+            bytes: authority.delegation.kinds,
             expected: PeopleItems::Executors(member.authority.delegation.kinds.clone()),
         },
         PeopleRow {
@@ -318,7 +306,7 @@ fn member_rows(limits: &people::Limits) -> [PeopleRow; 10] {
         },
         PeopleRow {
             path: "Verdict.fields",
-            bytes: verdict.into_parts().fields,
+            bytes: verdict.fields,
             expected: PeopleItems::Rules(choices[0].fields.clone()),
         },
         PeopleRow {
@@ -353,9 +341,9 @@ fn amendment_rows(limits: &people::Limits) -> [PeopleRow; 3] {
     ) else {
         panic!("amend fixture")
     };
-    let amendment_bytes = value.into_parts().amendment.into_parts();
+    let amendment_bytes = value.amendment;
     let spec = amendment.spec.as_ref().unwrap();
-    let spec_bytes = amendment_bytes.spec.unwrap().into_parts();
+    let spec_bytes = amendment_bytes.spec.unwrap();
     [
         PeopleRow {
             path: "Spec.parameters",
@@ -378,22 +366,22 @@ fn amendment_rows(limits: &people::Limits) -> [PeopleRow; 3] {
 fn note_rows(limits: &people::Limits) -> [PeopleRow; 3] {
     let note = fixtures::holds::edit_note();
     let people::Ask::EditNote(note_bytes) = people_ask(&note, limits) else { panic!("note fixture") };
-    let people::NoteChange::Correct(note_bytes) = note_bytes.into_parts().change else { panic!("correction fixture") };
+    let people::NoteChange::Correct(note_bytes) = note_bytes.change else { panic!("correction fixture") };
     let p::Ask::EditNote { change, .. } = note else { panic!("note fixture") };
     let p::NoteChange::Correct { references, .. } = *change else { panic!("correction fixture") };
     let adoption = fixtures::holds::adopt();
     let people::Ask::Adopt(adoption_bytes) = people_ask(&adoption, limits) else { panic!("adoption fixture") };
-    let adoption_bytes = adoption_bytes.into_parts().adoption.into_parts();
+    let adoption_bytes = adoption_bytes.adoption;
     let p::Ask::Adopt { adoption, .. } = adoption else { panic!("adoption fixture") };
     [
         PeopleRow {
             path: "NoteChangeCorrect.references",
-            bytes: note_bytes.into_parts().references,
+            bytes: note_bytes.references,
             expected: PeopleItems::Numbers(references),
         },
         PeopleRow {
             path: "ResourceName.path",
-            bytes: adoption_bytes.resource.into_parts().path,
+            bytes: adoption_bytes.resource.path,
             expected: PeopleItems::Segments(adoption.resource.path),
         },
         PeopleRow {
@@ -409,14 +397,13 @@ fn policy_rows(limits: &people::Limits) -> [PeopleRow; 4] {
     let grants = policy.ceiling.grants.clone();
     let policy_row = p::Stored::Policy { project: 3, name: "Tally".into(), value: policy.clone() };
     let bytes = codec::people::encode(&policy_row, limits, &[]).unwrap();
-    let people::Value::Policy(policy_bytes) =
-        people::Row::decode(limits, &mut Reader::new(&bytes)).unwrap().into_parts().value
+    let people::Value::Policy(policy_bytes) = people::Row::decode(limits, &mut Reader::new(&bytes)).unwrap().value
     else {
         panic!("policy fixture")
     };
     let permissions_row = PeopleRow {
         path: "PolicyValue.permissions",
-        bytes: policy_bytes.value().permissions().into(),
+        bytes: policy_bytes.value.permissions,
         expected: PeopleItems::Permissions(policy.permissions.clone()),
     };
     let [requirements, projections, permissions] = [
@@ -441,14 +428,10 @@ fn policy_rows(limits: &people::Limits) -> [PeopleRow; 4] {
     ]
     .map(|(ask, expected)| {
         let people::Ask::ChangePolicy(value) = people_ask(&ask, limits) else { panic!("policy change fixture") };
-        let (path, bytes) = match value.into_parts().change {
-            people::PolicyChange::Requirements(value) => {
-                ("PolicyChangeRequirements.requirements", value.into_parts().requirements)
-            }
-            people::PolicyChange::Projections(value) => ("PolicyChangeProjections.grants", value.into_parts().grants),
-            people::PolicyChange::Permissions(value) => {
-                ("PolicyChangePermissions.mappings", value.into_parts().mappings)
-            }
+        let (path, bytes) = match value.change {
+            people::PolicyChange::Requirements(value) => ("PolicyChangeRequirements.requirements", value.requirements),
+            people::PolicyChange::Projections(value) => ("PolicyChangeProjections.grants", value.grants),
+            people::PolicyChange::Permissions(value) => ("PolicyChangePermissions.mappings", value.mappings),
             people::PolicyChange::RoleSpend(_)
             | people::PolicyChange::ProjectSpend(_)
             | people::PolicyChange::Role(_)
