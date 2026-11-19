@@ -50,5 +50,13 @@ judged by the same role (`jig/crates/jig-domain-authority/src/check.rs`,
   design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
   3; this is a design gap, not an absent implementation.
 - **Not yet:** 6.3: a task's goal made by its application, `RepairSeed::goal` and `SeededGoal` [in flight: change 10349].
+- **Design departs:** 6.3, decided 2026-11-19 for red repairs: the tasks
+  child doesn't check a seeded goal's `authority` within the task's, since
+  it judges no root-authorized authority (`jig/crates/jig-domain-tasks/src/batch.rs`)
+  and a delegate's inclusion, with its connectors', is the core's. The
+  application narrows the task's own, as temper's `goal` tool does
+  (`temper/crates/temper-engine-domain/src/route/goal.rs`); `RepairSeed::goal`
+  checks its money, room and depth, and `Make` its closer's kind and `llm`
+  [in flight: change 10349].
 
 
