@@ -1,4 +1,5 @@
 //! Wire 21 settings proposals keep their fixed-rule records and tags.
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Writer};
 #[test]
@@ -9,8 +10,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_propose_settings_smallest");
     }
     {
@@ -18,8 +19,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_propose_settings_full");
     }
     {
@@ -27,8 +28,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::OriginRevision::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_origin_revision_smallest");
     }
     {
@@ -36,8 +37,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::OriginRevision::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_origin_revision_full");
     }
     {
@@ -45,8 +46,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewItem::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_review_item_smallest");
     }
     {
@@ -54,8 +55,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewItem::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_review_item_full");
     }
     {
@@ -63,8 +64,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingsReview::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_settings_review_smallest");
     }
     {
@@ -72,8 +73,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingsReview::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_settings_review_full");
     }
     {
@@ -81,8 +82,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_proposal_action_settings_smallest");
     }
     {
@@ -90,8 +91,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_proposal_action_settings_full");
     }
     {
@@ -99,8 +100,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_retained_action_settings_smallest");
     }
     {
@@ -108,8 +109,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_retained_action_settings_full");
     }
     {
@@ -117,8 +118,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_setting_origin_default_smallest");
     }
     {
@@ -126,8 +127,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_setting_origin_default_full");
     }
     {
@@ -135,8 +136,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_setting_origin_change_smallest");
     }
     {
@@ -144,8 +145,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_setting_origin_change_full");
     }
     {
@@ -153,8 +154,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_setting_origin_not_offered_smallest");
     }
     {
@@ -162,8 +163,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_setting_origin_not_offered_full");
     }
     {
@@ -171,8 +172,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_review_value_value_smallest");
     }
     {
@@ -180,8 +181,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_review_value_value_full");
     }
     {
@@ -189,8 +190,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_review_value_too_large_smallest");
     }
     {
@@ -198,8 +199,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_review_value_too_large_full");
     }
     {
@@ -207,8 +208,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_review_value_none_smallest");
     }
     {
@@ -216,8 +217,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_review_value_none_full");
     }
     {
@@ -225,8 +226,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_propose_action_settings_smallest");
     }
     {
@@ -234,8 +235,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_propose_action_settings_full");
     }
     {
@@ -243,8 +244,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_proposal_action_settings_smallest");
     }
     {
@@ -252,8 +253,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_proposal_action_settings_full");
     }
     {
@@ -261,8 +262,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_retained_action_settings_smallest");
     }
     {
@@ -270,8 +271,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_retained_action_settings_full");
     }
     {
@@ -279,8 +280,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::MessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_message_proposal_kind_settings_smallest");
     }
     {
@@ -288,8 +289,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::MessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_message_proposal_kind_settings_full");
     }
     {
@@ -297,8 +298,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::Malformed::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_malformed_running_smallest");
     }
     {
@@ -306,8 +307,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::Malformed::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "enum_malformed_running_full");
     }
     {
@@ -315,8 +316,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::DecideProposal::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_decide_proposal_smallest");
     }
     {
@@ -324,8 +325,8 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::DecideProposal::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut out).expect("measured");
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes, "record_decide_proposal_full");
     }
 }
@@ -334,24 +335,24 @@ fn settings_proposal_records_and_arms_round_trip() {
 fn original_proposal_recipient_round_trips_and_old_short_bodies_are_rejected() {
     for to in [0, 7, 91, u32::MAX] {
         let value =
-            w::OutcomeProposed::new(&w::CEILINGS, w::OutcomeProposedParts { proposal: 31, to }).expect("scalar role");
-        assert_eq!(value.measure(), 12);
+            w::OutcomeProposed { proposal: 31, to };
+        assert_eq!(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"), 12);
         let mut out = Writer::new(12);
-        value.encode(&mut out).expect("exact room");
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("exact room");
         let bytes = out.finish();
         let mut reader = Reader::new(&bytes);
         let read = w::OutcomeProposed::decode(&w::CEILINGS, &mut reader).expect("complete new record");
-        assert_eq!((read.proposal(), read.to()), (31, to));
+        assert_eq!((read.proposal, read.to), (31, to));
         assert!(reader.is_empty());
         for length in 8..12 {
             let mut reader = Reader::new(&bytes[..length]);
             let found = w::OutcomeProposed::decode(&w::CEILINGS, &mut reader).expect_err("old/truncated to");
-            assert_eq!(found.path, w::Path::OutcomeProposedTo);
+            assert_eq!(found.path, w::paths::OUTCOME_PROPOSED_TO);
         }
         let mut extra = bytes.into_vec();
         extra.push(0);
         let mut reader = Reader::new(&extra);
         let found = w::OutcomeProposed::decode(&w::CEILINGS, &mut reader).expect_err("trailing byte");
-        assert_eq!(found.path, w::Path::OutcomeProposedTail);
+        assert_eq!(found.path, w::paths::OUTCOME_PROPOSED_TAIL);
     }
 }

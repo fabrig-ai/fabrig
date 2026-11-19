@@ -1,13 +1,11 @@
 //! Largest public answers under index limits (client/domain/contract/README.md, section 10).
 use crate::public_v1 as w;
 use alloc::boxed::Box;
-use skein_lib::{List, Overflow, Writer};
+use skein_lib::List;
 
-pub fn encoded<T>(value: &T, bound: u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut writer = Writer::new(skein_lib::length::usize_of(bound));
-    encode(value, &mut writer).expect("answer reservation holds");
-    let bytes = writer.finish();
-    assert_eq!(bytes.len(), skein_lib::length::usize_of(bound), "answer bound is exact");
+pub fn encoded<T: w::Record<Limits = w::Limits>>(value: &T, bound: u32) -> Box<[u8]> {
+    let bytes = value.encode(&w::CEILINGS).expect("answer fits its ceiling");
+    assert!(bytes.len() <= skein_lib::length::usize_of(bound), "answer fits its bound");
     bytes
 }
 

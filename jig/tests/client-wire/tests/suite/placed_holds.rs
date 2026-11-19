@@ -1,4 +1,5 @@
 //! Present placement fields round trip at their smallest and full constructor values.
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use skein_lib::{Reader, Writer};
 
@@ -8,23 +9,21 @@ fn task_holds_with_a_placed_line_round_trip_their_smallest_and_full_fields() {
         let number = if full { u64::MAX } else { 0 };
         let owner = if full {
             w::HoldOwner::Task(
-                w::HoldOwnerTask::new(&w::CEILINGS, w::HoldOwnerTaskParts { task: number }).expect("task owner"),
+                w::HoldOwnerTask { task: number },
             )
         } else {
             w::HoldOwner::Party(
-                w::HoldOwnerParty::new(&w::CEILINGS, w::HoldOwnerPartyParts { person: number }).expect("party owner"),
+                w::HoldOwnerParty { person: number },
             )
         };
         let scope = if full {
             w::HoldScope::Project
         } else {
             w::HoldScope::Subtree(
-                w::HoldScopeSubtree::new(&w::CEILINGS, w::HoldScopeSubtreeParts { task: number }).expect("subtree"),
+                w::HoldScopeSubtree { task: number },
             )
         };
-        let placed = w::PlacedLine::new(
-            &w::CEILINGS,
-            w::PlacedLineParts {
+        let placed = w::PlacedLine {
                 number,
                 owner,
                 scope,
@@ -38,26 +37,19 @@ fn task_holds_with_a_placed_line_round_trip_their_smallest_and_full_fields() {
                 revision: number,
                 lifted: full,
                 may_lift: full,
-            },
-        )
-        .expect("placement");
-        let hold = w::ChipHold::new(
-            &w::CEILINGS,
-            w::ChipHoldParts {
+            };
+        let hold = w::ChipHold {
                 words: None,
                 circle: None,
                 account: None,
                 source: None,
                 reason: w::HoldCategory::Placed(
-                    w::HoldCategoryPlaced::new(&w::CEILINGS, w::HoldCategoryPlacedParts { hold: number })
-                        .expect("placed category"),
+                    w::HoldCategoryPlaced { hold: number },
                 ),
                 revision: number,
                 before: w::PriorPhase::Waiting,
                 escalation: None,
-                tries: w::FailureTries::new(
-                    &w::CEILINGS,
-                    w::FailureTriesParts {
+                tries: w::FailureTries {
                         transient: 0,
                         permanent: 0,
                         run: 0,
@@ -66,23 +58,19 @@ fn task_holds_with_a_placed_line_round_trip_their_smallest_and_full_fields() {
                         invalid: 0,
                         infrastructure: 0,
                     },
-                )
-                .expect("tries"),
                 hold_wait_since: None,
                 placed: Some(placed),
-            },
-        )
-        .expect("held");
+            };
         let value = hold;
-        let mut out = Writer::new(value.measure() as usize);
-        value.encode(&mut out).expect("task hold bytes");
+        let mut out = Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("task hold bytes");
         let bytes = out.finish();
         let mut input = Reader::new(&bytes);
         let decoded = w::ChipHold::decode(&w::CEILINGS, &mut input).expect("placed hold");
         assert!(input.is_empty());
         assert_eq!(decoded, value);
-        let mut out = Writer::new(skein_lib::length::usize_of(decoded.measure()));
-        decoded.encode(&mut out).expect("measured placed hold");
+        let mut out = Writer::new(skein_lib::length::usize_of(decoded.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        decoded.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("measured placed hold");
         assert_eq!(out.finish(), bytes);
     }
 }

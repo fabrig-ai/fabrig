@@ -3,6 +3,7 @@
     reason = "the task requires real elapsed measurements; protocol deadlines use only the injected world clock"
 )]
 //! The application's page and endpoint routes around the real clients' component (protocol/client/openid.md).
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -280,9 +281,9 @@ impl World {
     }
     fn begin_query(&mut self, query: &[u8]) {
         let record =
-            w::Authorize::new(&w::CEILINGS, w::AuthorizeParts { query: query.into() }).expect("bounded authorization");
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-        record.encode(&mut bytes).expect("measured authorization");
+            w::Authorize { query: query.into() };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured authorization");
         let exchange = Token::new(self.next);
         self.next += 1;
         self.send(Event::Transport(FromTransport::Exchange {
@@ -305,7 +306,7 @@ impl World {
         let w::AuthorizeAnswer::Go(go) = self.authorize_client(client, REDIRECT) else {
             panic!("authorization granted");
         };
-        let location = std::str::from_utf8(go.location()).expect("redirect UTF-8");
+        let location = std::str::from_utf8(go.location.as_ref()).expect("redirect UTF-8");
         assert!(location.ends_with("&state=back"));
         let code = location.split("code=").nth(1).expect("code parameter").split('&').next().expect("code");
         assert_eq!(code.len(), 43);
@@ -393,7 +394,7 @@ fn refused(answer: w::AuthorizeAnswer, why: &w::AuthorizeWhy) {
     let w::AuthorizeAnswer::Refused(found) = answer else {
         panic!("authorization refused");
     };
-    assert_eq!(found.why(), why);
+    assert_eq!((&found.why), why);
 }
 #[test]
 fn provider_codes_tokens_and_claims_follow_one_signed_in_person() {
@@ -405,7 +406,7 @@ fn provider_codes_tokens_and_claims_follow_one_signed_in_person() {
     let w::AuthorizeAnswer::Go(back) = world.query(format!("client_id=app&redirect_uri={REDIRECT}").as_bytes()) else {
         panic!("issuer error sent back");
     };
-    assert!(back.location().windows(b"error=invalid_request".len()).any(|part| part == b"error=invalid_request"));
+    assert!(back.location.as_ref().windows(b"error=invalid_request".len()).any(|part| part == b"error=invalid_request"));
     assert_eq!(world.authorize(REDIRECT), w::AuthorizeAnswer::SignedOut);
     world.sign_in();
     let code = world.code();

@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Component, Event, LINK_SECRET_BYTES, MintRefusal, Settings, Unusable};
@@ -24,8 +25,8 @@ fn a_given_secret_signs_in_as_the_first_link_and_no_link_is_said() {
     let mut peer = Peer::started(&given_settings());
     peer.advance_time(before_link_expiry());
     let answer = finish_given_sign_in(&mut peer, &given_link());
-    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
-    assert_eq!(answer.expires(), fixtures::expires().as_nanos());
+    assert_eq!(answer.party, fixtures::FIRST_PERSON);
+    assert_eq!(answer.expires, fixtures::expires().as_nanos());
     assert_eq!(peer.link_count(), 0);
     assert_eq!(peer.local_link_count(), 1);
     let local = peer.local_link();
@@ -41,7 +42,7 @@ fn a_given_local_secret_signs_in_as_the_first_local_link_and_no_local_link_is_sa
     assert_eq!(peer.local_link_count(), 0);
     assert_eq!(peer.link_count(), 0);
     let answer = finish_given_sign_in(&mut peer, &local);
-    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+    assert_eq!(answer.party, fixtures::FIRST_PERSON);
     assert_eq!(peer.local_link_count(), 1);
     let next = peer.local_link();
     assert!(next != local && next != printed, "the next local link differs from both given links");
@@ -105,7 +106,7 @@ fn a_given_secret_answered_not_ready_is_not_spent() {
         let to = pending_reply(&mut peer);
         peer.answer_request(to, reply);
         let answer = finish_given_sign_in(&mut peer, &link);
-        assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+        assert_eq!(answer.party, fixtures::FIRST_PERSON);
         assert_eq!(peer.link_count(), 0);
     }
 }
@@ -170,8 +171,8 @@ fn complete_sign_in(peer: &mut Peer) -> w::SignedIn {
 fn the_printed_link_signs_the_first_owner_in() {
     let mut peer = peer();
     let answer = complete_sign_in(&mut peer);
-    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
-    assert_eq!(answer.expires(), fixtures::expires().as_nanos());
+    assert_eq!(answer.party, fixtures::FIRST_PERSON);
+    assert_eq!(answer.expires, fixtures::expires().as_nanos());
 }
 #[test]
 fn a_spent_link_is_used_and_a_fresh_one_printed() {
@@ -192,7 +193,7 @@ fn a_link_answered_not_ready_is_not_spent() {
     peer.answer_request(reply_to, jig_domain_people::Reply::Again(jig_domain_people::Again::NotReady));
     assert_eq!(peer.answered(exchange), Some(b"\x02".as_slice()), "not_ready wire record");
     let answer = complete_sign_in(&mut peer);
-    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+    assert_eq!(answer.party, fixtures::FIRST_PERSON);
     assert_eq!(peer.printed_link(), link, "no replacement link");
 }
 #[test]
@@ -203,10 +204,10 @@ fn the_token_leaves_only_after_its_digest_is_kept() {
     assert_eq!(peer.digest_kept(), Some(fixtures::FIRST_SIGN_IN));
     peer.answer_kept(fixtures::FIRST_SIGN_IN);
     let answer = peer.sign_in_answer(exchange);
-    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
+    assert_eq!(answer.party, fixtures::FIRST_PERSON);
     assert_eq!(
         u64::from_be_bytes(
-            answer.token().as_ref().expect("native token").expose()[..8].try_into().expect("sign-in number")
+            answer.token.as_ref().expect("native token").expose()[..8].try_into().expect("sign-in number")
         ),
         fixtures::FIRST_SIGN_IN
     );
@@ -235,7 +236,7 @@ fn two_tokens_drawn_in_turn_differ() {
     let spent = peer.printed_link();
     peer.post_link(&spent);
     let second = complete_sign_in(&mut peer);
-    assert_ne!(first.token(), second.token());
+    assert_ne!((&first.token), (&second.token));
 }
 #[test]
 fn a_sign_in_refused_above_the_fill_mark_is_answered_refused() {
@@ -322,7 +323,7 @@ fn fresh_link(peer: &mut Peer) -> Box<[u8]> {
 fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
     let mut peer = peer();
     let first = complete_sign_in(&mut peer);
-    let bearer = bearer(first.token().as_ref().expect("credential").expose());
+    let bearer = bearer(first.token.as_ref().expect("credential").expose());
     let link = fresh_link(&mut peer);
     let count = peer.link_signed_in_count();
     assert_eq!(count, 1);
@@ -341,8 +342,8 @@ fn a_live_credential_keeps_the_sign_in_without_minting_and_spends_the_link() {
         },
     );
     let answer = peer.sign_in_answer(exchange);
-    assert_eq!(answer.token(), &None);
-    assert_eq!((answer.party(), answer.expires()), (first.party(), first.expires()));
+    assert_eq!((&answer.token), &None);
+    assert_eq!((answer.party, answer.expires), (first.party, first.expires));
     assert_eq!(peer.digest_kept(), None);
     assert!(peer.has_digest(fixtures::FIRST_SIGN_IN));
     assert_eq!(peer.link_signed_in_count(), count + 1, "a kept printed sign-in is said once");
@@ -372,8 +373,8 @@ fn a_held_credential_answered_with_another_sign_in_draws_a_token() {
     assert_eq!(peer.answered(exchange), None, "waits for digest durability");
     peer.answer_kept(NEW_SIGN_IN);
     let answer = peer.sign_in_answer(exchange);
-    assert_eq!(answer.party(), fixtures::FIRST_PERSON);
-    let token = answer.token().as_ref().expect("fresh token").expose();
+    assert_eq!(answer.party, fixtures::FIRST_PERSON);
+    let token = answer.token.as_ref().expect("fresh token").expose();
     assert_eq!(token.len(), TOKEN_BYTES);
     assert_eq!(u64::from_be_bytes(token[..8].try_into().expect("sign-in number")), NEW_SIGN_IN);
 }
@@ -384,7 +385,7 @@ fn a_links_unaccepted_credential_always_signs_in_afresh() {
     for case in ["wrong digest", "expired", "ended while checking", "service", "unknown", "malformed", "none"] {
         let mut peer = peer();
         let first = complete_sign_in(&mut peer);
-        let original = first.token().as_ref().expect("40-byte credential").expose();
+        let original = first.token.as_ref().expect("40-byte credential").expose();
         let mut token = original.to_vec();
         match case {
             "wrong digest" => token[39] ^= 1,
@@ -419,9 +420,9 @@ fn a_links_unaccepted_credential_always_signs_in_afresh() {
         assert_eq!(peer.answered(exchange), None, "{case}: waits for durability");
         peer.answer_kept(42);
         let answer = peer.sign_in_answer(exchange);
-        assert_eq!(answer.party(), fixtures::FIRST_PERSON, "{case}");
-        assert_eq!(answer.token().as_ref().expect("fresh token").len(), 40, "{case}");
-        assert_ne!(answer.token(), first.token(), "{case}");
+        assert_eq!(answer.party, fixtures::FIRST_PERSON, "{case}");
+        assert_eq!(answer.token.as_ref().expect("fresh token").len(), 40, "{case}");
+        assert_ne!((&answer.token), (&first.token), "{case}");
     }
 }
 
@@ -430,7 +431,7 @@ fn a_links_pending_credential_check_survives_stop_and_drain_as_an_admitted_sign_
     for drain in [false, true] {
         let mut peer = peer();
         let first = complete_sign_in(&mut peer);
-        let bearer = bearer(first.token().as_ref().expect("credential").expose());
+        let bearer = bearer(first.token.as_ref().expect("credential").expose());
         let link = fresh_link(&mut peer);
         peer.hold_gets();
         let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
@@ -452,7 +453,7 @@ fn a_links_pending_credential_check_survives_stop_and_drain_as_an_admitted_sign_
                 expires: fixtures::expires(),
             },
         );
-        assert_eq!(peer.sign_in_answer(exchange).token(), &None);
+        assert_eq!((&peer.sign_in_answer(exchange).token), &None);
         assert_eq!(peer.digest_kept(), None);
         assert_eq!(peer.closed(), usize::from(drain));
     }
@@ -462,7 +463,7 @@ fn a_links_pending_credential_check_survives_stop_and_drain_as_an_admitted_sign_
 fn aborting_a_links_pending_credential_check_releases_no_sign_in_or_token() {
     let mut peer = peer();
     let first = complete_sign_in(&mut peer);
-    let bearer = bearer(first.token().as_ref().expect("credential").expose());
+    let bearer = bearer(first.token.as_ref().expect("credential").expose());
     let link = fresh_link(&mut peer);
     peer.hold_gets();
     let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
@@ -479,7 +480,7 @@ fn a_lost_links_credential_check_spends_the_link_like_a_lost_core_answer() {
     for local in [false, true] {
         let mut peer = peer();
         let first = complete_sign_in(&mut peer);
-        let bearer = bearer(first.token().as_ref().expect("credential").expose());
+        let bearer = bearer(first.token.as_ref().expect("credential").expose());
         let link = if local { peer.local_link() } else { fresh_link(&mut peer) };
         peer.hold_gets();
         let exchange = peer.post(b"/jig/v1/sign-in/link", peer.link_body(&link), Some(&bearer));
@@ -545,11 +546,7 @@ fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
             jig_domain_people::Reply::Again(jig_domain_people::Again::NotReady) => w::SignInAnswer::NotReady,
             jig_domain_people::Reply::Again(jig_domain_people::Again::Busy) => w::SignInAnswer::Busy,
             jig_domain_people::Reply::Full { sign_ins, earliest } => w::SignInAnswer::Full(
-                w::SignInsFull::new(
-                    &w::CEILINGS,
-                    w::SignInsFullParts { sign_ins, earliest: earliest.as_nanos(), link_until: 299_000_000_000 },
-                )
-                .expect("full answer within wire bounds"),
+                w::SignInsFull { sign_ins, earliest: earliest.as_nanos(), link_until: 299_000_000_000 },
             ),
             jig_domain_people::Reply::Again(jig_domain_people::Again::Full { .. })
             | jig_domain_people::Reply::SignedIn { .. }
@@ -568,7 +565,7 @@ fn busy_and_full_return_the_same_printed_link_and_it_can_sign_in() {
         let exchange = peer.post_link(&link);
         peer.answer_signed_in(fixtures::FIRST_SIGN_IN, fixtures::FIRST_PERSON);
         peer.answer_kept(fixtures::FIRST_SIGN_IN);
-        assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
+        assert_eq!(peer.sign_in_answer(exchange).party, fixtures::FIRST_PERSON);
         assert!(local || peer.printed_link() == link, "printed link is unchanged");
     }
 }
@@ -600,10 +597,9 @@ fn a_reserved_link_answers_its_secret_busy_and_another_unknown_without_drawing()
         let crossed = peer.post_link(&link);
         assert_eq!(decoded(&peer, crossed), w::SignInAnswer::Busy);
         let other =
-            w::LinkSignIn::new(&w::CEILINGS, w::LinkSignInParts { secret: skein_lib::Secret::new(Box::new([0; 32])) })
-                .expect("real-length link secret");
-        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure()));
-        other.encode(&mut bytes).expect("measured link record");
+            w::LinkSignIn { secret: skein_lib::Secret::new(Box::new([0; 32])) };
+        let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(other.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+        other.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured link record");
         let wrong = peer.post(b"/jig/v1/sign-in/link", bytes.finish(), None);
         assert_eq!(decoded(&peer, wrong), w::SignInAnswer::LinkUnknown);
         assert!(if local { peer.local_link() == link } else { peer.printed_link() == link }, "reserved link unchanged");
@@ -613,7 +609,7 @@ fn a_reserved_link_answers_its_secret_busy_and_another_unknown_without_drawing()
         let exchange = peer.post_link(&link);
         peer.answer_signed_in(fixtures::FIRST_SIGN_IN, fixtures::FIRST_PERSON);
         peer.answer_kept(fixtures::FIRST_SIGN_IN);
-        assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
+        assert_eq!(peer.sign_in_answer(exchange).party, fixtures::FIRST_PERSON);
     }
 }
 
@@ -778,7 +774,7 @@ fn the_printed_and_the_local_link_each_sign_in_once_and_leave_the_other() {
             );
             assert_eq!(peer.link_signed_in_count(), 1);
             peer.answer_kept(fixtures::FIRST_SIGN_IN + 1);
-            assert_eq!(peer.sign_in_answer(exchange).party(), fixtures::FIRST_PERSON);
+            assert_eq!(peer.sign_in_answer(exchange).party, fixtures::FIRST_PERSON);
         } else {
             let (first, second) = if case == "printed first" { (&printed, &local) } else { (&local, &printed) };
             let local_count = peer.local_link_count();

@@ -219,22 +219,16 @@ fn generated_census(rng: &mut Rng, rows: u32) -> StoreCensus {
         for h in 0..head_count {
             heads
                 .push(
-                    CensusHead::new(
-                        &CEILINGS,
-                        CensusHeadParts {
+                    CensusHead {
                             head: if h == 0 { None } else { Some(u16::try_from(h).expect("head")) },
                             rows: rng.next_u64(),
                         },
-                    )
-                    .expect("bounded head"),
                 )
                 .expect("head capacity");
         }
         keyspaces
             .push(
-                CensusKeyspace::new(
-                    &CEILINGS,
-                    CensusKeyspaceParts {
+                CensusKeyspace {
                         prefix: prefix.into_boxed_slice(),
                         name,
                         rows: rng.next_u64(),
@@ -245,36 +239,33 @@ fn generated_census(rng: &mut Rng, rows: u32) -> StoreCensus {
                         erases: rng.next_u64(),
                         written: rng.next_u64(),
                     },
-                )
-                .expect("bounded keyspace"),
             )
             .expect("row capacity");
     }
-    StoreCensus::new(&CEILINGS, StoreCensusParts { commit: rng.next_u64(), since: rng.next_u64(), keyspaces })
-        .expect("bounded report")
+    StoreCensus { commit: rng.next_u64(), since: rng.next_u64(), keyspaces }
 }
 
 #[test]
 fn generated_deployment_censuses_round_trip_through_all_row_counts_and_full_fields() {
     let mut rng = Rng::new(0xc11e_ce22);
-    let mut empty = jig_client_test_records::deployment_rows_record().into_parts();
+    let mut empty = jig_client_test_records::deployment_rows_record();
     empty.census = None;
-    let empty = Deployment::new(&CEILINGS, empty).expect("absent report");
-    let mut writer = Writer::new(usize::try_from(empty.measure()).expect("measure"));
-    empty.encode(&mut writer).expect("measured room");
+    let empty = empty;
+    let mut writer = Writer::new(usize::try_from(empty.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("measure"));
+    empty.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
     let bytes = writer.finish();
     assert_eq!(Deployment::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(empty.clone()));
     for rows in 0..=129 {
         let census = generated_census(&mut rng, rows);
-        let mut writer = Writer::new(usize::try_from(census.measure()).expect("measure"));
-        census.encode(&mut writer).expect("measured room");
+        let mut writer = Writer::new(usize::try_from(census.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("measure"));
+        census.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
         let bytes = writer.finish();
         assert_eq!(StoreCensus::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(census.clone()));
-        let mut parts = empty.clone().into_parts();
+        let mut parts = empty.clone();
         parts.census = Some(census);
-        let deployment = Deployment::new(&CEILINGS, parts).expect("present report");
-        let mut writer = Writer::new(usize::try_from(deployment.measure()).expect("measure"));
-        deployment.encode(&mut writer).expect("measured room");
+        let deployment = parts;
+        let mut writer = Writer::new(usize::try_from(deployment.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).expect("measure"));
+        deployment.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured room");
         let bytes = writer.finish();
         assert_eq!(Deployment::decode(&CEILINGS, &mut Reader::new(&bytes)), Ok(deployment));
     }

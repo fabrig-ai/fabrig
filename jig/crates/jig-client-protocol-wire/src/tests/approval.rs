@@ -1,4 +1,5 @@
 //! Approval codes and secret prints (jig/docs/design/protocol/client/sign-in.md).
+use crate::Record as _;
 use crate::{ApprovalAsked, ApprovalCode, ApprovalSignIn, CEILINGS};
 use alloc::fmt::format;
 use skein_lib::{Reader, Writer};
@@ -92,14 +93,14 @@ fn debug_of_an_approval_shows_the_secrets_length_never_its_bytes() {
         assert!(debug.contains(length), "{debug}");
         assert!(pretty.replace([' ', '\n', ','], "").contains(&length.replace(' ', "")), "{pretty}");
     }
-    let encoded = super::fixtures::encoded(&asked, ApprovalAsked::measure, ApprovalAsked::encode);
+    let encoded = super::fixtures::encoded(&asked);
     assert_eq!(encoded, asked_bytes);
     let decoded = ApprovalAsked::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip ask");
-    assert_eq!(decoded.secret().expose(), ASKED_CANARY.as_bytes());
+    assert_eq!(decoded.secret.expose(), ASKED_CANARY.as_bytes());
     assert_eq!(decoded, asked);
-    let encoded = super::fixtures::encoded(&take, ApprovalSignIn::measure, ApprovalSignIn::encode);
+    let encoded = super::fixtures::encoded(&take);
     assert_eq!(encoded, take_bytes);
     let decoded = ApprovalSignIn::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip take");
-    assert_eq!(decoded.secret().expose(), TAKE_CANARY.as_bytes());
+    assert_eq!(decoded.secret.expose(), TAKE_CANARY.as_bytes());
     assert_eq!(decoded, take);
 }

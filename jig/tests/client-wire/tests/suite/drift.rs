@@ -1,4 +1,5 @@
 //! The client records' drift and pinned constructs (skein's data/codec/README.md, 6).
+use jig_client_protocol_wire::Record as _;
 #[path = "../../../codec-families.rs"]
 mod families;
 
@@ -52,8 +53,8 @@ fn the_hello_alone_keeps_version_27_bytes() {
         assert_eq!(golden, expected);
         let value = w::StreamEvent::decode(&w::CEILINGS, &mut Reader::new(expected)).expect("version 27 hello");
         assert!(matches!(value, w::StreamEvent::Hello(_)));
-        let mut writer = Writer::new(value.measure().try_into().expect("short hello"));
-        value.encode(&mut writer).expect("hello fits");
+        let mut writer = Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").try_into().expect("short hello"));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("hello fits");
         assert_eq!(writer.finish().as_ref(), expected);
     }
 }

@@ -1,4 +1,5 @@
 //! The public linked client, native client wire, real core and applied store.
+use jig_client_protocol_wire::Record as _;
 use jig_client::{self as client, contract as c};
 use jig_client_protocol_wire as w;
 use jig_core_kit::fixtures;
@@ -13,8 +14,8 @@ use jig_test_domain as root;
 use skein_lib::{List, Queue, Secret, Time, Wall, Writer};
 
 fn encoded(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut out = Writer::new(value.measure() as usize);
-    value.encode(&mut out).expect("stream record");
+    let mut out = Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).expect("stream record");
     out.finish()
 }
 
@@ -55,7 +56,7 @@ impl Party {
         let exchange = peer.post_link(&printed);
         peer.answer_signed_in(sign_in, person);
         peer.answer_kept(sign_in);
-        let token = peer.sign_in_answer(exchange).into_parts().token.expect("credential");
+        let token = peer.sign_in_answer(exchange).token.expect("credential");
         let mut bearer = Writer::new(61);
         bearer.put(b"Bearer ").expect("prefix");
         skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, token.expose(), &mut bearer).expect("bearer");
@@ -78,23 +79,15 @@ impl Party {
         };
         party.step(client::Event::Start { kept: List::with_capacity(0) });
         party.step(client::Event::SignIn { with: client::With::Held(Secret::new(token.expose().into())) });
-        let hello = w::Hello::new(
-            &w::CEILINGS,
-            w::HelloParts {
+        let hello = w::Hello {
                 stream: [7; 16],
-                served: jig_client_kit::test::list([w::Served::new(
-                    &w::CEILINGS,
-                    w::ServedParts {
+                served: jig_client_kit::test::list([w::Served {
                         owner: w::Owner::Jig,
                         first: jig_client_protocol_wire::VERSION,
                         last: jig_client_protocol_wire::VERSION,
-                    },
-                )
-                .expect("served")]),
+                    }]),
                 heartbeat: skein_lib::Duration::from_secs(5),
-            },
-        )
-        .expect("hello");
+            };
         world.sign_in = Some(sign_in);
         reads::ask(world, 90, core::reads::Read::Frame);
         let core::reads::Answer::Document(document) = reads::latest(world) else { panic!("real Me") };
@@ -102,14 +95,10 @@ impl Party {
         let me = jig_protocol_engine_clients::translate::owner::frame(frame, &settings.models, &w::CEILINGS)
             .expect("Me codec");
         let value = w::DeliveryValue::Me(me);
-        let mut bytes = Writer::new(value.measure() as usize);
-        value.encode(&mut bytes).expect("Me delivery");
-        let document = w::Owned::new(
-            &w::CEILINGS,
-            w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-        )
-        .expect("owned");
-        let opened = w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: document }).expect("opened");
+        let mut bytes = Writer::new(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture") as usize);
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("Me delivery");
+        let document = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
+        let opened = w::Opened { hello, me: document };
         party.step(client::Event::Streamed {
             message: client::Streamed::Record(encoded(&w::StreamEvent::Opened(opened))),
         });

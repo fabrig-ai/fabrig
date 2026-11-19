@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_domain_people as people;
@@ -9,9 +10,9 @@ use skein_lib::{
 };
 
 fn ask_body() -> Box<[u8]> {
-    let record = w::LinkAsk::new(&w::CEILINGS, w::LinkAskParts {}).expect("empty ask");
+    let record = w::LinkAsk {};
     let mut bytes = Writer::new(0);
-    record.encode(&mut bytes).expect("empty record");
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("empty record");
     bytes.finish()
 }
 fn ask(peer: &mut Peer, bearer: Option<&[u8]>) -> Token {
@@ -37,7 +38,7 @@ fn finish_ask(peer: &mut Peer, exchange: Token, sign_in: u64) -> w::LinkAsked {
     let to = whose(peer, sign_in);
     peer.answer_request(to, signer());
     let w::LinkAskAnswer::Asked(link) = ask_answer(peer, exchange) else { panic!("link asked") };
-    assert_eq!(link.secret().expose().len(), 32);
+    assert_eq!(link.secret.expose().len(), 32);
     link
 }
 fn asked(peer: &mut Peer, bearer: &[u8], sign_in: u64) -> w::LinkAsked {
@@ -45,9 +46,9 @@ fn asked(peer: &mut Peer, bearer: &[u8], sign_in: u64) -> w::LinkAsked {
     finish_ask(peer, exchange, sign_in)
 }
 fn link_body(link: &w::LinkAsked) -> Box<[u8]> {
-    let record = w::LinkSignIn::new(&w::CEILINGS, w::LinkSignInParts { secret: link.secret().clone() }).expect("link");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut bytes).expect("measured link");
+    let record = w::LinkSignIn { secret: link.secret.clone() };
+    let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured link");
     bytes.finish()
 }
 fn post_link(peer: &mut Peer, link: &w::LinkAsked) -> Token {
@@ -101,7 +102,7 @@ fn an_asked_link_signs_in_the_askers_party_once_with_a_browser_cookie() {
     assert!(peer.take_core().is_none());
     peer.answer_get();
     let link = finish_ask(&mut peer, exchange, fixtures::FIRST_SIGN_IN);
-    assert_eq!(link.expires(), fixtures::limits().link_span.as_nanos());
+    assert_eq!(link.expires, fixtures::limits().link_span.as_nanos());
     let count = peer.link_signed_in_count();
     let headers = [
         (b"host".as_slice(), fixtures::HOST.as_bytes()),
@@ -119,8 +120,8 @@ fn an_asked_link_signs_in_the_askers_party_once_with_a_browser_cookie() {
     assert!(peer.answered(exchange).is_none(), "credential waits for durability");
     peer.answer_kept(94);
     let answer = peer.sign_in_answer(exchange);
-    assert_eq!(answer.party(), 93);
-    assert!(answer.token().is_none(), "browser gets its token by cookie");
+    assert_eq!(answer.party, 93);
+    assert!(answer.token.is_none(), "browser gets its token by cookie");
     let cookie = peer
         .response_headers(exchange)
         .iter()
@@ -141,7 +142,7 @@ fn an_asked_links_expiry_is_capped_and_fires_at_the_saved_expiry() {
     let cap = Wall::from_nanos(Duration::from_secs(10).as_nanos());
     let bearer = fixtures::signed_in_until(&mut peer, cap);
     let link = asked(&mut peer, &bearer, fixtures::FIRST_SIGN_IN);
-    assert_eq!(link.expires(), cap.as_nanos());
+    assert_eq!(link.expires, cap.as_nanos());
     assert_eq!(peer.next_deadline(), Some(Time::from_nanos(cap.as_nanos())));
     peer.advance_time(Duration::from_secs(10));
     assert_eq!(
@@ -173,7 +174,7 @@ fn asking_again_replaces_the_same_sign_ins_live_link() {
     let bearer = fixtures::signed_in(&mut peer);
     let first = asked(&mut peer, &bearer, fixtures::FIRST_SIGN_IN);
     let second = asked(&mut peer, &bearer, fixtures::FIRST_SIGN_IN);
-    assert_ne!(first.secret(), second.secret());
+    assert_ne!((&first.secret), (&second.secret));
     let first = post_link(&mut peer, &first);
     assert_eq!(sign_in_answer(&peer, first), w::SignInAnswer::LinkExpired);
     let (_, to) = reserve(&mut peer, &second, fixtures::FIRST_SIGN_IN);
@@ -283,15 +284,11 @@ fn retry_answers_return_an_asked_link_with_its_drawn_expiry() {
             people::Reply::Again(people::Again::NotReady) => w::SignInAnswer::NotReady,
             people::Reply::Again(people::Again::Busy) => w::SignInAnswer::Busy,
             people::Reply::Full { sign_ins, earliest } => w::SignInAnswer::Full(
-                w::SignInsFull::new(
-                    &w::CEILINGS,
-                    w::SignInsFullParts {
+                w::SignInsFull {
                         sign_ins: *sign_ins,
                         earliest: earliest.as_nanos(),
-                        link_until: link.expires(),
+                        link_until: link.expires,
                     },
-                )
-                .expect("full answer"),
             ),
             _ => unreachable!("retry fixtures"),
         };

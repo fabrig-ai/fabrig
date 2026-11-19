@@ -1,16 +1,13 @@
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as wire;
 use jig_client_protocol_world::referee::{Broken, Rules};
 use skein_lib::{Reader, Token, Writer};
 
 #[test]
 fn a_record_altered_on_the_wire_is_caught() {
-    let value = wire::LinkSignIn::new(
-        &wire::CEILINGS,
-        wire::LinkSignInParts { secret: skein_lib::Secret::new(Box::new([7; 32])) },
-    )
-    .expect("fixture record");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured record");
+    let value = wire::LinkSignIn { secret: skein_lib::Secret::new(Box::new([7; 32])) };
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured record");
     let source = writer.finish();
     let mut actual = source.clone();
     *actual.last_mut().expect("nonempty record") = 8;

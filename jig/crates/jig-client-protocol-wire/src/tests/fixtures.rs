@@ -7,7 +7,7 @@ use crate::*;
 use alloc::boxed::Box;
 pub use delivery_values::delivery_values;
 pub use read_values::read_values;
-use skein_lib::{List, Overflow, Writer};
+use skein_lib::{List, Writer};
 pub use stream::*;
 pub use task_values::task;
 
@@ -40,7 +40,6 @@ pub fn message() -> Message {
 }
 
 pub fn refused_moved() -> Refused {
-    let limits = limits();
     let how = EndingTaskFields { value: 2 };
     let reason = HoldReasonDependencyFields { task: 31, how: 1 };
     let words = DocumentText { bytes: Box::from(b"failed".as_slice()), cut: true };
@@ -59,7 +58,7 @@ pub fn refused_moved() -> Refused {
         ChipEndingRow { parent: Some(1), value: ChipEndingFields::Failed(failed) },
     ))
     .expect("three rows");
-    let rows = piece_items(&rows, Fact::measure, Fact::encode);
+    let rows = piece_items(&rows);
     let reason = HoldReason { rows };
     let reason = CurrentHoldDocument { value: reason };
     let what =
@@ -69,18 +68,15 @@ pub fn refused_moved() -> Refused {
     Refused { at: None, refusal: Refusal::Moved(moved) }
 }
 
-pub fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
-    encode(value, &mut writer).expect("measured room");
-    writer.finish()
+pub fn encoded<T: Record<Limits = Limits>>(value: &T) -> Box<[u8]> {
+    value.encode(&CEILINGS).expect("bounded fixture")
 }
 
 pub fn message_bytes() -> Box<[u8]> {
-    encoded(&message(), Message::measure, Message::encode)
+    encoded(&message())
 }
 
 pub fn owned() -> Owned {
-    let limits = limits();
     let family = Family { number: u16::MAX };
     Owned { owner: Owner::Family(family), version: u32::MAX, record: message_bytes() }
 }
@@ -92,18 +88,17 @@ pub fn read_none(none: ReadNone) -> ReadAnswerNone {
 pub fn encoded_batch_members(members: &List<Member>) -> Box<[u8]> {
     let mut length = 4_u32;
     for member in members {
-        length = length.checked_add(member.measure()).expect("small batch");
+        length = length.checked_add(member.measure(&CEILINGS).expect("bounded fixture")).expect("small batch");
     }
     let mut writer = Writer::new(skein_lib::length::usize_of(length));
     writer.put(&members.len().to_be_bytes()).expect("room for member count");
     for member in members {
-        member.encode(&mut writer).expect("room for member");
+        member.write(&CEILINGS, &mut writer).expect("room for member");
     }
     writer.finish()
 }
 
 pub fn funding_rows(count: u32) -> List<FundingRecord> {
-    let limits = limits();
     let period =
         PeriodTimes { began: u64::MAX, next: None };
     let numbers = Numbers { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 };
@@ -124,26 +119,21 @@ pub fn funding_rows(count: u32) -> List<FundingRecord> {
     rows
 }
 
-pub fn piece_items<T>(
-    rows: &List<T>,
-    measure: fn(&T) -> u32,
-    encode: fn(&T, &mut Writer) -> Result<(), Overflow>,
-) -> Box<[u8]> {
+pub fn piece_items<T: Record<Limits = Limits>>(rows: &List<T>) -> Box<[u8]> {
     let mut length = 0_u32;
     for row in rows {
-        length = length.checked_add(measure(row)).expect("small fixture row");
+        length = length.checked_add(row.measure(&CEILINGS).expect("bounded row")).expect("small fixture row");
         length = length.checked_add(4).expect("small fixture piece");
     }
     let mut out = Writer::new(skein_lib::length::usize_of(length));
     for row in rows {
-        let bytes = encoded(row, measure, encode);
+        let bytes = encoded(row);
         skein_codec::piece::write(&mut out, &bytes).expect("measured piece room");
     }
     out.finish()
 }
 
 pub fn activity_line(turn: Box<[u8]>) -> DecodedActivityLine {
-    let limits = limits();
     let name = TurnName { attempt: u64::MAX, number: u32::MAX };
     let source = ActivityLine {
             task: u64::MAX,
@@ -173,13 +163,13 @@ pub fn activity_rows(count: u32, width: u32) -> List<DecodedActivityLine> {
     rows
 }
 
-pub fn activity_page(limits: &Limits, rows: Box<[u8]>) -> ActivityPage {
+pub fn activity_page(_limits: &Limits, rows: Box<[u8]>) -> ActivityPage {
     ActivityPage { cut: true, rows, before: None, after: None }
 }
 
 pub fn encoded_activity_page(limits: &Limits, rows: &List<DecodedActivityLine>) -> Box<[u8]> {
-    let rows = piece_items(rows, DecodedActivityLine::measure, DecodedActivityLine::encode);
-    encoded(&activity_page(limits, rows), ActivityPage::measure, ActivityPage::encode)
+    let rows = piece_items(rows);
+    encoded(&activity_page(limits, rows))
 }
 
 fn next_activity_row(
@@ -201,7 +191,7 @@ pub fn decode_activity_page(
     row_limit: u32,
 ) -> Result<List<DecodedActivityLine>, Problem> {
     let page = ActivityPage::decode(limits, &mut skein_lib::Reader::new(bytes))?;
-    let mut reader = skein_lib::Reader::new(page.rows());
+    let mut reader = skein_lib::Reader::new(page.rows.as_ref());
     let mut rows = List::with_capacity(row_limit);
     while let Some(row) = next_activity_row(limits, &mut reader)? {
         if rows.push(row).is_err() {
@@ -213,7 +203,7 @@ pub fn decode_activity_page(
 
 pub fn malformed_activity_pieces() -> [Box<[u8]>; 3] {
     let rows = activity_rows(1, 8);
-    let valid = piece_items(&rows, DecodedActivityLine::measure, DecodedActivityLine::encode);
+    let valid = piece_items(&rows);
     let mut out = Writer::new(valid.len().checked_add(1).expect("small trailing fragment"));
     out.put(&valid).expect("room for valid row");
     out.put(&[255]).expect("room for trailing fragment");
@@ -241,11 +231,11 @@ pub fn document_text(limits: &Limits) -> DocumentText {
     DocumentText { bytes: ceiling_text(limits.document_text_bytes), cut: true }
 }
 
-pub fn numbers(limits: &Limits) -> Numbers {
+pub fn numbers(_limits: &Limits) -> Numbers {
     Numbers { budget: u64::MAX, spent: 11, spent_below: 17, reserved: 23 }
 }
 
-pub fn funder_period(limits: &Limits) -> FunderPeriod {
+pub fn funder_period(_limits: &Limits) -> FunderPeriod {
     FunderPeriod { project: u32::MAX, period: u64::MAX }
 }
 
@@ -270,11 +260,11 @@ pub fn pool_ledger(limits: &Limits) -> PoolLedger {
         }
 }
 
-pub fn funder_task(limits: &Limits) -> FunderTask {
+pub fn funder_task(_limits: &Limits) -> FunderTask {
     FunderTask { value: u64::MAX }
 }
 
-pub fn held_role_policy(limits: &Limits) -> HeldRolePolicy {
+pub fn held_role_policy(_limits: &Limits) -> HeldRolePolicy {
     HeldRolePolicy { role: u32::MAX }
 }
 
@@ -302,23 +292,23 @@ pub fn frame_party(limits: &Limits) -> MeParty {
         }
 }
 
-pub fn needs(limits: &Limits) -> Needs {
+pub fn needs(_limits: &Limits) -> Needs {
     Needs { questions: u32::MAX, proposals: u32::MAX, escalations: u32::MAX, person_tasks: u32::MAX }
 }
 
-pub fn count(limits: &Limits) -> Count {
+pub fn count(_limits: &Limits) -> Count {
     Count { value: u32::MAX, limited: true }
 }
 
-pub fn run_state(limits: &Limits) -> RunState {
+pub fn run_state(_limits: &Limits) -> RunState {
     RunState { task: u64::MAX, attempt: Some(u64::MAX), committed_turn: u32::MAX, writing: None, call: None }
 }
 
-pub fn revision(limits: &Limits) -> Revision {
+pub fn revision(_limits: &Limits) -> Revision {
     Revision { value: u64::MAX }
 }
 
-pub fn wake_rule_batch(limits: &Limits) -> WakeRuleBatch {
+pub fn wake_rule_batch(_limits: &Limits) -> WakeRuleBatch {
     WakeRuleBatch { count: u32::MAX, age: skein_lib::Duration::from_nanos(u64::MAX) }
 }
 
@@ -336,15 +326,15 @@ pub fn wake_policy(limits: &Limits) -> WakePolicy {
         }
 }
 
-pub fn chip_executor_agent(limits: &Limits) -> ChipExecutorAgent {
+pub fn chip_executor_agent(_limits: &Limits) -> ChipExecutorAgent {
     ChipExecutorAgent { charter: u32::MAX }
 }
 
-pub fn chip_phase_owner_fields(limits: &Limits) -> ChipPhaseOwnerFields {
+pub fn chip_phase_owner_fields(_limits: &Limits) -> ChipPhaseOwnerFields {
     ChipPhaseOwnerFields { phase: ChipPhase::Ended, details: 2 }
 }
 
-pub fn executor_agent(limits: &Limits) -> ExecutorAgent {
+pub fn executor_agent(_limits: &Limits) -> ExecutorAgent {
     ExecutorAgent { charter: u32::MAX }
 }
 
@@ -382,7 +372,7 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
             redirect_bytes: 4096,
             words_bytes: 8192,
             party: frame_party(limits),
-            projects: piece_items(&repeated(project_role(limits), 2), MeProject::measure, MeProject::encode),
+            projects: piece_items(&repeated(project_role(limits), 2)),
             needs: needs(limits),
             needs_total: u32::MAX,
             updates: count(limits),
@@ -393,14 +383,14 @@ pub fn frame_at_ceilings(limits: &Limits) -> Me {
         }
 }
 
-pub fn chip(limits: &Limits, rows: &List<Fact>) -> Chip {
-    let rows = piece_items(rows, Fact::measure, Fact::encode);
+pub fn chip(_limits: &Limits, rows: &List<Fact>) -> Chip {
+    let rows = piece_items(rows);
     Chip { rows }
 }
 
 pub fn decode_chip_facts(limits: &Limits, bytes: &[u8]) -> List<Fact> {
     let chip = Chip::decode(limits, &mut skein_lib::Reader::new(bytes)).expect("whole generated chip");
-    let mut reader = skein_lib::Reader::new(chip.rows());
+    let mut reader = skein_lib::Reader::new(chip.rows.as_ref());
     let mut rows = List::with_capacity(3);
     while let Some(bytes) = skein_codec::piece::split(&mut reader).expect("exact chip pieces") {
         let fact = Fact::decode(limits, &mut skein_lib::Reader::new(&bytes)).expect("whole generated fact");
@@ -410,7 +400,6 @@ pub fn decode_chip_facts(limits: &Limits, bytes: &[u8]) -> List<Fact> {
 }
 
 pub fn not_served() -> NotServed {
-    let lim = limits();
     let mut served = List::with_capacity(1);
     served
         .push(Served { owner: Owner::Jig, first: 28, last: 28 })

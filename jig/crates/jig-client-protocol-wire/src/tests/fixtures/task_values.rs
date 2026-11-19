@@ -70,15 +70,15 @@ pub fn specification_document(limits: &Limits) -> SpecificationDocument {
     SpecificationDocument { specification: document_specification(limits), cut: true }
 }
 
-pub fn subscriptions(limits: &Limits) -> Subscriptions {
+pub fn subscriptions(_limits: &Limits) -> Subscriptions {
     Subscriptions { entries: List::with_capacity(0) }
 }
 
-pub fn task_contract_document_report(limits: &Limits) -> TaskContractDocumentReport {
+pub fn task_contract_document_report(_limits: &Limits) -> TaskContractDocumentReport {
     TaskContractDocumentReport { words: u32::MAX }
 }
 
-pub fn delegation(limits: &Limits) -> Delegation {
+pub fn delegation(_limits: &Limits) -> Delegation {
     Delegation { kinds: List::with_capacity(0), tasks: u32::MAX, depth: u32::MAX }
 }
 
@@ -99,6 +99,6 @@ pub fn authority_document(limits: &Limits) -> AuthorityDocument {
     AuthorityDocument { cut: false, authority: authority(limits) }
 }
 
-pub fn requester_person(limits: &Limits) -> RequesterPerson {
+pub fn requester_person(_limits: &Limits) -> RequesterPerson {
     RequesterPerson { value: u64::MAX }
 }

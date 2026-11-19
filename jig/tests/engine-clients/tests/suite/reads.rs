@@ -1,19 +1,15 @@
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire as w;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
 fn read() -> Box<[u8]> {
-    let limits = fixtures::limits().wire;
     let read = w::Read::Me;
-    let mut record = Writer::new(skein_lib::length::usize_of(read.measure()));
-    read.encode(&mut record).expect("me read");
-    let value = w::Owned::new(
-        &limits,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
-    )
-    .expect("frame read");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("read envelope");
+    let mut record = Writer::new(skein_lib::length::usize_of(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    read.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("me read");
+    let value = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
+    let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("read envelope");
     bytes.finish()
 }
 #[test]
@@ -28,7 +24,7 @@ fn a_native_read_waits_for_its_released_answer() {
     peer.answer_read(reply, core::reads::Answer::None(core::reads::Why::Gone));
     let limits = fixtures::limits().wire;
     let expected = w::ReadAnswer::None(
-        w::ReadAnswerNone::new(&limits, w::ReadAnswerNoneParts { value: w::ReadNone::Gone }).expect("gone"),
+        w::ReadAnswerNone { value: w::ReadNone::Gone },
     );
     assert_eq!(
         w::ReadAnswer::decode(&limits, &mut Reader::new(peer.answered(socket).expect("read answer"))),
@@ -53,9 +49,9 @@ fn a_batch_streams_a_released_read_while_another_waits_for_durability() {
     let mut members = skein_lib::List::with_capacity(2);
     members.push(w::Member::Read(value.clone())).expect("A");
     members.push(w::Member::Read(value)).expect("B");
-    let batch = w::Batch::new(&limits, w::BatchParts { members }).expect("batch");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(batch.measure()));
-    batch.encode(&mut bytes).expect("batch bytes");
+    let batch = w::Batch { members };
+    let mut bytes = Writer::new(skein_lib::length::usize_of(batch.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
+    batch.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("batch bytes");
     let mut peer = Peer::started(&fixtures::settings());
     let bearer = fixtures::signed_in(&mut peer);
     let socket = peer.post(b"/jig/v1/batch", bytes.finish(), Some(&bearer));
@@ -68,11 +64,11 @@ fn a_batch_streams_a_released_read_while_another_waits_for_durability() {
     assert_eq!(status, Some(200));
     let parts = batch_parts(body);
     assert_eq!(parts.len(), 1);
-    assert_eq!(parts.first().expect("B part").member(), 1);
+    assert_eq!(parts.first().expect("B part").member, 1);
     assert_eq!(peer.answered(socket), None, "the body is open while A waits");
     peer.answer_read(a, core::reads::Answer::None(core::reads::Why::Unknown));
     let parts = batch_parts(peer.answered(socket).expect("Done ends the HTTP body"));
-    assert_eq!(parts.iter().map(w::BatchReply::member).collect::<Vec<_>>(), [1, 0]);
+    assert_eq!(parts.iter().map(|value| value.member).collect::<Vec<_>>(), [1, 0]);
     assert!(peer.take_core().is_none());
 }
 

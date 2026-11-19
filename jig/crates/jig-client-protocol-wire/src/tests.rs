@@ -31,33 +31,33 @@ fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
             version: u32::MAX,
             request: fixtures::bytes(CEILINGS.table_entry_request),
         };
-    assert_eq!(u64::from(table.measure()), widest);
-    let record = fixtures::encoded(&table, TableEntry::measure, TableEntry::encode);
+    assert_eq!(u64::from(table.measure(&CEILINGS).expect("bounded fixture")), widest);
+    let record = fixtures::encoded(&table);
     let kept = Kept { store_version: 1, record };
-    let bytes = fixtures::encoded(&kept, Kept::measure, Kept::encode);
+    let bytes = fixtures::encoded(&kept);
     let decoded = Kept::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("kept round trip");
     assert_eq!(decoded, kept);
-    assert_eq!(TableEntry::decode(&CEILINGS, &mut Reader::new(decoded.record())), Ok(table));
+    assert_eq!(TableEntry::decode(&CEILINGS, &mut Reader::new(decoded.record.as_ref())), Ok(table));
 }
 
 fn a_keyed_request_past_its_bound_is_refused_naming_it() {
     let limits = fixtures::limits();
     let request = fixtures::bytes(limits.keyed_request.checked_add(1).expect("small bound"));
-    let refused = Ok(Keyed { key: [7; 16], owner: Owner::Jig, version: 1, request, value: None });
+    let refused = (Keyed { key: [7; 16], owner: Owner::Jig, version: 1, request, value: None }).encode(&limits);
     assert_eq!(refused, Err(Problem { path: paths::KEYED_REQUEST, reason: skein_codec::Reason::Bound }));
 }
 
 fn an_owned_record_keeps_its_owners_version() {
     let limits = fixtures::limits();
     let owned = fixtures::owned();
-    let bytes = fixtures::encoded(&owned, Owned::measure, Owned::encode);
+    let bytes = fixtures::encoded(&owned);
     assert_eq!(Owned::decode(&limits, &mut Reader::new(&bytes)), Ok(owned));
 }
 
 fn a_refusal_with_its_facts_round_trips_unchanged() {
     let limits = fixtures::limits();
     let refused = fixtures::refused_moved();
-    let bytes = fixtures::encoded(&refused, Refused::measure, Refused::encode);
+    let bytes = fixtures::encoded(&refused);
     assert_eq!(Refused::decode(&limits, &mut Reader::new(&bytes)), Ok(refused));
 }
 
@@ -73,7 +73,7 @@ fn each_answer_kind_round_trips_unchanged() {
         KeyedAnswer::NotReady,
         KeyedAnswer::SignedOut,
     ] {
-        let bytes = fixtures::encoded(&answer, KeyedAnswer::measure, KeyedAnswer::encode);
+        let bytes = fixtures::encoded(&answer);
         assert_eq!(KeyedAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
 }
@@ -91,7 +91,7 @@ fn a_batch_round_trips_its_read_open_and_close() {
         members.push(member).expect("three members");
     }
     let batch = Batch { members };
-    let bytes = fixtures::encoded(&batch, Batch::measure, Batch::encode);
+    let bytes = fixtures::encoded(&batch);
     assert_eq!(Batch::decode(&limits, &mut Reader::new(&bytes)), Ok(batch));
 }
 
@@ -100,16 +100,12 @@ fn batch_replies_preserve_the_member_and_optional_answer() {
     let limits = fixtures::stream_limits();
     for reply in [
         None,
-        Some(fixtures::encoded(
-            &ReadAnswer::Value(fixtures::stream_owned(&limits)),
-            ReadAnswer::measure,
-            ReadAnswer::encode,
-        )),
-        Some(fixtures::encoded(&OpenAnswer::Admitted, OpenAnswer::measure, OpenAnswer::encode)),
-        Some(fixtures::encoded(&CloseAnswer::Closed, CloseAnswer::measure, CloseAnswer::encode)),
+        Some(fixtures::encoded(&ReadAnswer::Value(fixtures::stream_owned(&limits)))),
+        Some(fixtures::encoded(&OpenAnswer::Admitted)),
+        Some(fixtures::encoded(&CloseAnswer::Closed)),
     ] {
         let reply = BatchReply { member: 2, reply };
-        let bytes = fixtures::encoded(&reply, BatchReply::measure, BatchReply::encode);
+        let bytes = fixtures::encoded(&reply);
         assert_eq!(BatchReply::decode(&limits, &mut Reader::new(&bytes)), Ok(reply));
     }
 }
@@ -128,7 +124,7 @@ fn a_batch_accepts_64_members_and_refuses_65() {
         } else {
             let expected = Err(Problem { path: paths::BATCH_MEMBERS, reason: skein_codec::Reason::Bound });
             assert_eq!(decoded, expected);
-            assert_eq!(Ok(Batch { members }), expected);
+            assert_eq!((Batch { members }).encode(&limits).err(), expected.err());
         }
     }
 }
@@ -150,7 +146,7 @@ fn a_bearer_token_past_its_bound_is_refused() {
     let limits = fixtures::limits();
     let token = fixtures::bytes(limits.signed_in_token_some.checked_add(1).expect("small bound"));
     assert_eq!(
-        Ok(SignedIn { token: Some(skein_lib::Secret::new(token)), party: 17, expires: 29 }),
+        (SignedIn { token: Some(skein_lib::Secret::new(token)), party: 17, expires: 29 }).encode(&CEILINGS),
         Err(Problem { path: paths::SIGNED_IN_TOKEN, reason: skein_codec::Reason::Bound })
     );
 }
@@ -159,7 +155,7 @@ fn a_cursor_past_its_bound_is_refused() {
     let limits = fixtures::limits();
     let value = fixtures::bytes(limits.cursor_value.checked_add(1).expect("small bound"));
     assert_eq!(
-        Ok(Cursor { value }),
+        (Cursor { value }).encode(&limits),
         Err(Problem { path: paths::CURSOR_VALUE, reason: skein_codec::Reason::Bound })
     );
 }
@@ -177,7 +173,7 @@ fn each_read_none_round_trips_unchanged() {
         ReadNone::TooLarge(TurnTooLarge { bytes: 8192 }),
     ] {
         let answer = ReadAnswer::None(fixtures::read_none(none));
-        let bytes = fixtures::encoded(&answer, ReadAnswer::measure, ReadAnswer::encode);
+        let bytes = fixtures::encoded(&answer);
         assert_eq!(ReadAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
 }
@@ -185,7 +181,7 @@ fn each_read_none_round_trips_unchanged() {
 fn a_read_value_round_trips_with_its_owner_version() {
     let limits = fixtures::limits();
     let answer = ReadAnswer::Value(fixtures::owned());
-    let bytes = fixtures::encoded(&answer, ReadAnswer::measure, ReadAnswer::encode);
+    let bytes = fixtures::encoded(&answer);
     assert_eq!(ReadAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
 }
 
@@ -194,7 +190,7 @@ fn a_page_one_row_past_its_limit_is_refused() {
     let limits = fixtures::limits();
     let rows = fixtures::funding_rows(limits.spend_page_rows.checked_add(1).expect("small bound"));
     assert_eq!(
-        Ok(SpendPage { rows, before: None, after: None, cut: false }),
+        (SpendPage { rows, before: None, after: None, cut: false }).encode(&CEILINGS),
         Err(Problem { path: paths::SPEND_PAGE_ROWS, reason: skein_codec::Reason::Bound })
     );
 }
@@ -202,7 +198,7 @@ fn a_page_one_row_past_its_limit_is_refused() {
 fn an_activity_line_carries_its_turn_bytes_unchanged() {
     let limits = fixtures::limits();
     let line = fixtures::activity_line(Box::from([0, 255, 1]));
-    let bytes = fixtures::encoded(&line, DecodedActivityLine::measure, DecodedActivityLine::encode);
+    let bytes = fixtures::encoded(&line);
     assert_eq!(DecodedActivityLine::decode(&limits, &mut Reader::new(&bytes)), Ok(line));
 }
 
@@ -211,7 +207,7 @@ fn a_page_whose_rows_do_not_split_to_its_end_is_refused_as_malformed() {
     let limits = fixtures::limits_with_activity_bytes(4096);
     for rows in fixtures::malformed_activity_pieces() {
         let page = fixtures::activity_page(&limits, rows);
-        let bytes = fixtures::encoded(&page, ActivityPage::measure, ActivityPage::encode);
+        let bytes = fixtures::encoded(&page);
         assert_eq!(
             fixtures::decode_activity_page(&limits, &bytes, 8),
             Err(Problem { path: paths::ACTIVITY_PAGE_ROWS, reason: skein_codec::Reason::Malformed })
@@ -232,7 +228,7 @@ fn a_page_of_many_small_rows_and_one_of_a_few_large_rows_fit_one_bound() {
 fn me_at_its_ceilings_round_trips_unchanged() {
     let limits = fixtures::document_limits();
     let frame = fixtures::frame_at_ceilings(&limits);
-    let bytes = fixtures::encoded(&frame, Me::measure, Me::encode);
+    let bytes = fixtures::encoded(&frame);
     assert_eq!(Me::decode(&limits, &mut Reader::new(&bytes)), Ok(frame));
 }
 
@@ -240,7 +236,7 @@ fn me_at_its_ceilings_round_trips_unchanged() {
 fn a_task_one_byte_past_its_text_bound_is_refused() {
     let mut limits = fixtures::document_limits();
     let task = fixtures::task(&limits);
-    let bytes = fixtures::encoded(&task, Task::measure, Task::encode);
+    let bytes = fixtures::encoded(&task);
     limits.document_text_bytes -= 1;
     let expected = Err(Problem { path: paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Bound });
     assert_eq!(Task::decode(&limits, &mut Reader::new(&bytes)), expected);
@@ -250,7 +246,7 @@ fn a_task_one_byte_past_its_text_bound_is_refused() {
 fn a_run_state_without_writing_or_call_round_trips() {
     let limits = fixtures::document_limits();
     let run = fixtures::run_state(&limits);
-    let bytes = fixtures::encoded(&run, RunState::measure, RunState::encode);
+    let bytes = fixtures::encoded(&run);
     assert_eq!(RunState::decode(&limits, &mut Reader::new(&bytes)), Ok(run));
 }
 
@@ -259,7 +255,7 @@ fn a_chip_with_each_phase_round_trips_unchanged() {
     for phase in fixtures::chip_phases(&limits) {
         let rows = fixtures::chip_facts(&limits, phase);
         let chip = fixtures::chip(&limits, &rows);
-        let bytes = fixtures::encoded(&chip, Chip::measure, Chip::encode);
+        let bytes = fixtures::encoded(&chip);
         assert_eq!(fixtures::decode_chip_facts(&limits, &bytes), rows);
     }
 }
@@ -267,14 +263,14 @@ fn a_chip_with_each_phase_round_trips_unchanged() {
 fn a_hello_naming_two_owners_round_trips_unchanged() {
     let limits = fixtures::stream_limits();
     let hello = fixtures::hello(&limits);
-    let bytes = fixtures::encoded(&hello, Hello::measure, Hello::encode);
+    let bytes = fixtures::encoded(&hello);
     assert_eq!(Hello::decode(&limits, &mut Reader::new(&bytes)), Ok(hello));
 }
 
 fn a_stream_event_at_its_ceiling_round_trips_unchanged() {
     let limits = fixtures::stream_limits();
     for event in fixtures::stream_events(&limits) {
-        let bytes = fixtures::encoded(&event, StreamEvent::measure, StreamEvent::encode);
+        let bytes = fixtures::encoded(&event);
         assert_eq!(StreamEvent::decode(&limits, &mut Reader::new(&bytes)), Ok(event));
     }
 }
@@ -283,10 +279,10 @@ fn a_stream_event_at_its_ceiling_round_trips_unchanged() {
 fn an_open_for_a_tree_carries_its_window() {
     let limits = fixtures::stream_limits();
     let open = fixtures::open_tree(&limits);
-    let bytes = fixtures::encoded(&open, Open::measure, Open::encode);
+    let bytes = fixtures::encoded(&open);
     let decoded = Open::decode(&limits, &mut Reader::new(&bytes)).expect("whole open exchange");
     assert_eq!(
-        Subject::decode(&limits, &mut Reader::new(decoded.subject().record())),
+        Subject::decode(&limits, &mut Reader::new(decoded.subject.record.as_ref())),
         Ok(fixtures::tree_subject(&limits))
     );
     assert_eq!(decoded, open);
@@ -304,7 +300,7 @@ fn each_watch_end_but_dropped_round_trips() {
         WatchEnd::Stopping,
     ] {
         let ended = fixtures::ended(&limits, why);
-        let bytes = fixtures::encoded(&ended, WatchEnded::measure, WatchEnded::encode);
+        let bytes = fixtures::encoded(&ended);
         assert_eq!(WatchEnded::decode(&limits, &mut Reader::new(&bytes)), Ok(ended));
     }
 }
@@ -315,9 +311,9 @@ fn an_account_waiting_to_ask_again_carries_the_wall_it_asks_at() {
     for until in [None, Some(0), Some(u64::MAX)] {
         let state = fixtures::waiting_account_state(&limits, until);
         let account = fixtures::account(&limits, state.clone());
-        let bytes = fixtures::encoded(&account, Account::measure, Account::encode);
+        let bytes = fixtures::encoded(&account);
         let decoded = Account::decode(&limits, &mut Reader::new(&bytes)).expect("whole account document");
-        assert_eq!(decoded.state(), &state);
+        assert_eq!((&decoded.state), &state);
         assert_eq!(decoded, account);
     }
 }
@@ -326,11 +322,11 @@ fn an_account_waiting_to_ask_again_carries_the_wall_it_asks_at() {
 fn a_ended_goal_holding_keeps_its_opaque_segments() {
     let limits = fixtures::stream_limits();
     let holding = fixtures::ended_goal_holding(&limits);
-    let bytes = fixtures::encoded(&holding, GoalHolding::measure, GoalHolding::encode);
+    let bytes = fixtures::encoded(&holding);
     assert_eq!(GoalHolding::decode(&limits, &mut Reader::new(&bytes)), Ok(holding));
 }
 
-fn small_store_family(limits: &Limits) -> Family {
+fn small_store_family(_limits: &Limits) -> Family {
     Family { number: u16::MAX }
 }
 
@@ -338,7 +334,7 @@ fn small_store_family(limits: &Limits) -> Family {
 fn a_kept_record_of_another_family_version_is_refused() {
     let limits = fixtures::limits();
     let kept = Kept { store_version: u16::MAX, record: Box::from([255, 0]) };
-    let mut bytes = fixtures::encoded(&kept, Kept::measure, Kept::encode);
+    let mut bytes = fixtures::encoded(&kept);
     bytes[0] = 2;
     bytes[1] = 0;
     assert_eq!(
@@ -360,16 +356,16 @@ fn a_table_entry_never_sent_round_trips_with_no_wall() {
             version: u32::MAX,
             request: Box::from([255, 0]),
         };
-    let bytes = fixtures::encoded(&entry, TableEntry::measure, TableEntry::encode);
+    let bytes = fixtures::encoded(&entry);
     let decoded = TableEntry::decode(&limits, &mut Reader::new(&bytes)).expect("whole table entry");
-    assert_eq!(decoded.first_sent(), &None);
+    assert_eq!((&decoded.first_sent), &None);
     assert_eq!(decoded, entry);
 }
 
 fn each_read_value_variant_round_trips_unchanged() {
     let limits = fixtures::limits();
     for (name, value) in &fixtures::read_values(&limits) {
-        let bytes = fixtures::encoded(value, ReadValue::measure, ReadValue::encode);
+        let bytes = fixtures::encoded(value);
         assert_eq!(ReadValue::decode(&limits, &mut Reader::new(&bytes)), Ok(value.clone()), "{name}");
     }
 }
@@ -377,14 +373,14 @@ fn each_read_value_variant_round_trips_unchanged() {
 fn a_stream_text_event_round_trips_with_its_watch() {
     let limits = fixtures::stream_limits();
     let event = StreamEvent::Text(fixtures::stream_text(&limits, fixtures::raw_live_call(&limits)));
-    let bytes = fixtures::encoded(&event, StreamEvent::measure, StreamEvent::encode);
+    let bytes = fixtures::encoded(&event);
     assert_eq!(StreamEvent::decode(&limits, &mut Reader::new(&bytes)), Ok(event));
 }
 
 fn each_delivery_value_variant_round_trips_unchanged() {
     let limits = fixtures::limits();
     for (name, value) in &fixtures::delivery_values(&limits) {
-        let bytes = fixtures::encoded(value, DeliveryValue::measure, DeliveryValue::encode);
+        let bytes = fixtures::encoded(value);
         assert_eq!(DeliveryValue::decode(&limits, &mut Reader::new(&bytes)), Ok(value.clone()), "{name}");
     }
 }
@@ -405,7 +401,7 @@ fn each_turn_bytes_variant_round_trips_with_the_carried_ceiling() {
         ),
     ];
     for (name, value) in rows {
-        let bytes = fixtures::encoded(&value, TurnBytes::measure, TurnBytes::encode);
+        let bytes = fixtures::encoded(&value);
         assert_eq!(TurnBytes::decode(&limits, &mut Reader::new(&bytes)), Ok(value), "{name}");
     }
 }
@@ -413,14 +409,14 @@ fn each_turn_bytes_variant_round_trips_with_the_carried_ceiling() {
 fn a_sign_in_not_ready_round_trips_unchanged() {
     let limits = fixtures::limits();
     let answer = SignInAnswer::NotReady;
-    let bytes = fixtures::encoded(&answer, SignInAnswer::measure, SignInAnswer::encode);
+    let bytes = fixtures::encoded(&answer);
     assert_eq!(SignInAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer), "sign-in not_ready");
 }
 
 fn a_sign_out_not_ready_round_trips_unchanged() {
     let limits = fixtures::limits();
     let answer = SignOutAnswer::NotReady;
-    let bytes = fixtures::encoded(&answer, SignOutAnswer::measure, SignOutAnswer::encode);
+    let bytes = fixtures::encoded(&answer);
     assert_eq!(SignOutAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer), "sign-out not_ready");
 }
 
@@ -472,10 +468,10 @@ fn table<const N: usize>(cases: [Case; N]) {
 fn version_not_served_is_tag_zero_of_each_answer() {
     let refusal = fixtures::not_served();
     let values = [
-        fixtures::encoded(&KeyedAnswer::NotServed(refusal.clone()), KeyedAnswer::measure, KeyedAnswer::encode),
-        fixtures::encoded(&ReadAnswer::NotServed(refusal.clone()), ReadAnswer::measure, ReadAnswer::encode),
-        fixtures::encoded(&OpenAnswer::NotServed(refusal.clone()), OpenAnswer::measure, OpenAnswer::encode),
-        fixtures::encoded(&WatchEnd::NotServed(refusal), WatchEnd::measure, WatchEnd::encode),
+        fixtures::encoded(&KeyedAnswer::NotServed(refusal.clone())),
+        fixtures::encoded(&ReadAnswer::NotServed(refusal.clone())),
+        fixtures::encoded(&OpenAnswer::NotServed(refusal.clone())),
+        fixtures::encoded(&WatchEnd::NotServed(refusal)),
     ];
     for bytes in values {
         assert_eq!(bytes.first(), Some(&0));
@@ -492,7 +488,7 @@ fn a_family_record_round_trips_with_its_scope_and_window() {
         let after = Some(Cursor { value: Box::from([1, 2, 3]) });
         let window = Window { rows: 3, after };
         let record = FamilyRecord { scope, window, record: Box::from([255, 0]) };
-        let bytes = fixtures::encoded(&record, FamilyRecord::measure, FamilyRecord::encode);
+        let bytes = fixtures::encoded(&record);
         assert_eq!(FamilyRecord::decode(&limits, &mut Reader::new(&bytes)), Ok(record));
     }
 }
@@ -501,7 +497,7 @@ fn a_family_record_round_trips_with_its_scope_and_window() {
 fn each_merged_operation_target_round_trips_unchanged() {
     let limits = fixtures::limits();
     for (name, value) in fixtures::merged_targets() {
-        let bytes = fixtures::encoded(&value, Ask::measure, Ask::encode);
+        let bytes = fixtures::encoded(&value);
         assert_eq!(Ask::decode(&limits, &mut Reader::new(&bytes)), Ok(value), "{name}");
     }
 }
@@ -512,19 +508,19 @@ fn a_compound_s_operations_round_trip_as_pieces() {
     let values = fixtures::compound_operations();
     let mut size = 0_usize;
     for value in &values {
-        size = size.checked_add(usize::try_from(value.measure()).unwrap()).unwrap().checked_add(4).unwrap();
+        size = size.checked_add(usize::try_from(value.measure(&CEILINGS).expect("bounded fixture")).unwrap()).unwrap().checked_add(4).unwrap();
     }
     let mut bytes = Writer::new(size);
     for value in &values {
-        bytes.put(&value.measure().to_be_bytes()).unwrap();
-        value.encode(&mut bytes).unwrap();
+        bytes.put(&value.measure(&CEILINGS).expect("bounded fixture").to_be_bytes()).unwrap();
+        value.write(&CEILINGS, &mut bytes).unwrap();
     }
     let record =
         Compound { project: fixtures::COMPOUND_PROJECT, operations: bytes.finish() };
-    let bytes = fixtures::encoded(&record, Compound::measure, Compound::encode);
+    let bytes = fixtures::encoded(&record);
     let restored = Compound::decode(&limits, &mut Reader::new(&bytes)).unwrap();
     assert_eq!(restored, record);
-    let mut reader = Reader::new(restored.operations());
+    let mut reader = Reader::new(restored.operations.as_ref());
     for expected in values {
         let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
         assert_eq!(Operation::decode(&limits, &mut Reader::new(&bytes)), Ok(expected));
@@ -551,14 +547,14 @@ fn a_keyed_value_at_the_move_bound_round_trips() {
     let limits = CEILINGS;
     let value = skein_lib::Secret::new(skein_lib::bytes::zeroed(MOVED_FILE_BYTES));
     let keyed = Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) };
-    let bytes = fixtures::encoded(&keyed, Keyed::measure, Keyed::encode);
+    let bytes = fixtures::encoded(&keyed);
     assert_eq!(Keyed::decode(&limits, &mut Reader::new(&bytes)), Ok(keyed));
 }
 #[test]
 fn a_keyed_value_one_byte_past_the_move_bound_is_refused() {
     let value = skein_lib::Secret::new(skein_lib::bytes::zeroed(MOVED_FILE_BYTES + 1));
     assert_eq!(
-        Ok(Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) }),
+        (Keyed { key: [7; 16], owner: Owner::Jig, version: VERSION, request: Box::new([]), value: Some(value) }).encode(&CEILINGS),
         Err(Problem { path: paths::KEYED_VALUE, reason: skein_codec::Reason::Bound })
     );
 }
@@ -567,21 +563,21 @@ fn a_keyed_value_one_byte_past_the_move_bound_is_refused() {
 fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
     let limits = CEILINGS;
     let record = Authorize { query: fixtures::bytes(8192) };
-    let bytes = fixtures::encoded(&record, Authorize::measure, Authorize::encode);
+    let bytes = fixtures::encoded(&record);
     assert_eq!(Authorize::decode(&limits, &mut Reader::new(&bytes)), Ok(record));
     assert_eq!(
-        Ok(Authorize { query: fixtures::bytes(8193) }),
+        (Authorize { query: fixtures::bytes(8193) }).encode(&CEILINGS),
         Err(Problem { path: paths::AUTHORIZE_QUERY, reason: skein_codec::Reason::Bound })
     );
     assert_eq!(
-        Ok(AuthorizeGo { location: fixtures::bytes(16385) }),
+        (AuthorizeGo { location: fixtures::bytes(16385) }).encode(&CEILINGS),
         Err(Problem { path: paths::AUTHORIZE_GO_LOCATION, reason: skein_codec::Reason::Bound })
     );
     let go = AuthorizeGo { location: fixtures::bytes(16384) };
     for answer in
         [AuthorizeAnswer::Go(go), AuthorizeAnswer::SignedOut, AuthorizeAnswer::NotReady, AuthorizeAnswer::Busy]
     {
-        let bytes = fixtures::encoded(&answer, AuthorizeAnswer::measure, AuthorizeAnswer::encode);
+        let bytes = fixtures::encoded(&answer);
         assert_eq!(AuthorizeAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
     for why in [
@@ -592,7 +588,7 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
         AuthorizeWhy::NotAPerson,
     ] {
         let answer = AuthorizeAnswer::Refused(AuthorizeRefused { why });
-        let bytes = fixtures::encoded(&answer, AuthorizeAnswer::measure, AuthorizeAnswer::encode);
+        let bytes = fixtures::encoded(&answer);
         assert_eq!(AuthorizeAnswer::decode(&limits, &mut Reader::new(&bytes)), Ok(answer));
     }
 }
@@ -601,8 +597,8 @@ fn authorization_query_and_each_answer_round_trip_at_their_bounds() {
 fn lent_login_names_are_bounded_at_32_bytes() {
     for length in [32, 33] {
         let name = skein_lib::bytes::zeroed(length);
-        let terminal = Ok(TerminalLogin { number: 1, provider: 2, name: name.clone(), cancelled: false });
-        let change = Ok(AccountChangeLoginProgram { provider: 2, name });
+        let terminal = (TerminalLogin { number: 1, provider: 2, name: name.clone(), cancelled: false }).encode(&CEILINGS);
+        let change = (AccountChangeLoginProgram { provider: 2, name }).encode(&CEILINGS);
         assert_eq!(terminal.is_ok(), length == 32);
         assert_eq!(change.is_ok(), length == 32);
     }

@@ -1,4 +1,5 @@
 //! Public wire bounds and closure (jig/docs/design/client/domain/contract/README.md, section 10).
+use crate::Record as _;
 #[path = "public/fixtures.rs"]
 mod fixtures;
 #[path = "public/schema.rs"]
@@ -22,11 +23,11 @@ fn public_bounds_hold_the_largest_answers() {
         let projects = fixtures::projects(&limits, limits.public_projects_projects);
         let board = fixtures::board(&limits, limits.public_board_live, limits.public_board_ended);
         let card = fixtures::card(&limits, limits.public_card_lineage, limits.public_card_delegates);
-        let bytes = fixtures::encoded(&projects, projects_bound, w::PublicProjects::encode);
+        let bytes = fixtures::encoded(&projects, projects_bound);
         assert_eq!(w::PublicProjects::decode(&limits, &mut Reader::new(&bytes)), Ok(projects));
-        let bytes = fixtures::encoded(&board, board_bound, w::PublicBoard::encode);
+        let bytes = fixtures::encoded(&board, board_bound);
         assert_eq!(w::PublicBoard::decode(&limits, &mut Reader::new(&bytes)), Ok(board));
-        let bytes = fixtures::encoded(&card, card_bound, w::PublicCard::encode);
+        let bytes = fixtures::encoded(&card, card_bound);
         assert_eq!(w::PublicCard::decode(&limits, &mut Reader::new(&bytes)), Ok(card));
     }
 }
@@ -44,7 +45,7 @@ fn one_more_entry_is_refused_by_each_public_list_limit() {
     .expect("one more within schema ceilings");
     let projects = fixtures::projects(&more, more.public_projects_projects);
     assert_eq!(
-        Ok(projects).expect_err("extra project"),
+        projects.encode(&limits).expect_err("extra project"),
         w::Problem { path: w::paths::PUBLIC_PROJECTS_PROJECTS, reason: skein_codec::Reason::Bound }
     );
     for (live, ended, path) in [
@@ -54,13 +55,13 @@ fn one_more_entry_is_refused_by_each_public_list_limit() {
         let board_limits = w::Limits { public_goal_tree: limits.public_goal_tree, ..more };
         let board = fixtures::board(&board_limits, live, ended);
         assert_eq!(
-            Ok(board).expect_err("extra goal"),
+            board.encode(&limits).expect_err("extra goal"),
             w::Problem { path, reason: skein_codec::Reason::Bound }
         );
     }
     let goal = fixtures::goal(&more);
     assert_eq!(
-        Ok(goal).expect_err("extra tree line"),
+        goal.encode(&limits).expect_err("extra tree line"),
         w::Problem { path: w::paths::PUBLIC_GOAL_TREE, reason: skein_codec::Reason::Bound }
     );
     for (lineage, delegates, path) in [
@@ -69,7 +70,7 @@ fn one_more_entry_is_refused_by_each_public_list_limit() {
     ] {
         let card = fixtures::card(&more, lineage, delegates);
         assert_eq!(
-            Ok(card).expect_err("extra card entry"),
+            card.encode(&limits).expect_err("extra card entry"),
             w::Problem { path, reason: skein_codec::Reason::Bound }
         );
     }

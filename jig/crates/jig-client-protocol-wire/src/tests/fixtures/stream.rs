@@ -16,11 +16,11 @@ pub fn stream_limits() -> Limits {
     limits
 }
 
-pub fn wire_family(limits: &Limits) -> Owner {
+pub fn wire_family(_limits: &Limits) -> Owner {
     Owner::Family(Family { number: u16::MAX })
 }
 
-pub fn served(limits: &Limits, owner: Owner) -> Served {
+pub fn served(_limits: &Limits, owner: Owner) -> Served {
     Served { owner, first: u32::MAX, last: u32::MAX }
 }
 
@@ -88,7 +88,7 @@ pub fn run_text(limits: &Limits, call: LiveCall) -> RunText {
         }
 }
 
-pub fn ended(limits: &Limits, why: WatchEnd) -> WatchEnded {
+pub fn ended(_limits: &Limits, why: WatchEnd) -> WatchEnded {
     WatchEnded { watch: u64::MAX, why }
 }
 
@@ -103,7 +103,7 @@ pub fn stream_events(limits: &Limits) -> [StreamEvent; 5] {
     ]
 }
 
-pub fn tree_subject(limits: &Limits) -> Subject {
+pub fn tree_subject(_limits: &Limits) -> Subject {
     Subject::Tree(
         SubjectTree { task: u64::MAX, window: u32::MAX },
     )
@@ -111,18 +111,18 @@ pub fn tree_subject(limits: &Limits) -> Subject {
 
 pub fn open_tree(limits: &Limits) -> Open {
     let subject = tree_subject(limits);
-    let record = encoded(&subject, Subject::measure, Subject::encode);
+    let record = encoded(&subject);
     let subject = Owned { owner: Owner::Jig, version: VERSION, record };
     Open { stream: [7; 16], watch: u64::MAX, subject }
 }
 
-pub fn waiting_account_state(limits: &Limits, until: Option<u64>) -> AccountState {
+pub fn waiting_account_state(_limits: &Limits, until: Option<u64>) -> AccountState {
     AccountState::Later(
         AccountStateLater { until },
     )
 }
 
-pub fn account(limits: &Limits, state: AccountState) -> Account {
+pub fn account(_limits: &Limits, state: AccountState) -> Account {
     Account {
             list: None,
             facts: List::with_capacity(0),
@@ -148,7 +148,7 @@ pub fn account(limits: &Limits, state: AccountState) -> Account {
         }
 }
 
-pub fn ended_goal_holding(limits: &Limits) -> GoalHolding {
+pub fn ended_goal_holding(_limits: &Limits) -> GoalHolding {
     let mut path = List::with_capacity(2);
     path.push(Box::from(b"one/two".as_slice())).expect("first literal segment");
     path.push(Box::from([255, 0])).expect("second opaque segment");
