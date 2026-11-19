@@ -12,7 +12,8 @@ pub(crate) fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
 
 pub(crate) fn hello_bytes() -> Box<[u8]> {
     let limits = &w::CEILINGS;
-    let mut served = List::with_capacity(1);
+    let owners = temper_client_shell_tui::limits::tui().native.client.client.domain.owners;
+    let mut served = List::with_capacity(u32::try_from(owners.len() + 1).expect("owner count"));
     served
         .push(
             w::Served::new(
@@ -26,6 +27,18 @@ pub(crate) fn hello_bytes() -> Box<[u8]> {
             .expect("Jig version"),
         )
         .expect("one owner");
+    for owner in owners {
+        let family = w::Family::new(limits, w::FamilyParts { number: owner.family }).expect("family");
+        served
+            .push(
+                w::Served::new(
+                    limits,
+                    w::ServedParts { owner: w::Owner::Family(family), first: owner.version, last: owner.version },
+                )
+                .expect("family version"),
+            )
+            .expect("family owner");
+    }
     let hello = jig_client_test_records::opened(
         w::Hello::new(limits, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
             .expect("hello"),
