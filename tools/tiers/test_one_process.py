@@ -428,6 +428,92 @@ class ReferenceTests(RunnerFixture):
                                max(p['start_s'] + p['wall_s'] for p in results['processes'])
                                - min(p['start_s'] for p in suite))
 
+    def assert_rounds(self, results, count, *, highest=False):
+        row, = results['references']
+        self.assertEqual(len(row['runs']), count)
+        references = [p for p in results['processes'] if p['kind'] == 'reference']
+        empties = [p for p in results['processes'] if p['kind'] == 'empty']
+        self.assertEqual((len(references), len(empties)), (count, count))
+        for run, reference, empty in zip(row['runs'], references, empties):
+            self.assertEqual(set(run), {'outcome', 'process', 'empty_process', 'cpu_s'})
+            self.assertEqual(run['outcome'], 'passed')
+            self.assertEqual(results['processes'][run['process']], reference)
+            self.assertEqual(results['processes'][run['empty_process']], empty)
+            self.assertEqual(run['cpu_s'], round(max(0, reference['user_s'] + reference['system_s']
+                                                    - empty['user_s'] - empty['system_s']), 3))
+        figure = (max if highest else min)(row['runs'], key=lambda run: run['cpu_s'])
+        self.assertEqual({key: row[key] for key in figure}, figure)
+        rounds = [[results['processes'][run[key]] for key in ('process', 'empty_process')] for run in row['runs']]
+        for before, after in zip(rounds, rounds[1:]):
+            self.assertGreaterEqual(min(p['start_s'] for p in after), max(p['start_s'] + p['wall_s'] for p in before))
+        output = (self.directory / 'command-output.txt').read_text()
+        for number in range(count):
+            self.assertIn(f'round {number + 1}, passed, CPU ', output)
+        if count > 1:
+            self.assertIn(f"REFERENCE FIGURE fixture::suite b: {'highest' if highest else 'lowest'}, CPU {row['cpu_s']} s", output)
+        return row
+
+    def test_head_repeats_only_past_first_limit_and_takes_lowest(self):
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        for limit, count in ((0.001, 3), (100, 1)):
+            with self.subTest(limit=limit):
+                self.directory = self.root / str(limit)
+                results = self.invoke({'gate': {'default': {'references': {'checks': limit}}}}, ledger=dict(binaries={}))
+                row = self.assert_rounds(results, count)
+                self.assertEqual(row['run_limit_s'], limit)
+
+    def test_flagged_running_limit_uses_ledger_median_or_reference_or_line(self):
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        for history, reference, line, limit, count in (([100, 10, 20], 0.001, None, 30, 1),
+                ([0], 100, None, 100, 1), ([], 0.001, None, 0.001, 3),
+                ([], 0.001, 100, 100, 1), ([], None, None, None, 1)):
+            with self.subTest(history=history, reference=reference, line=line):
+                self.directory = self.root / f'case-{reference}-{line}-{limit}'
+                profile = {'references': {} if reference is None else {'checks': reference}}
+                if line is not None:
+                    profile['reasons'] = [dict(binary='fixture::suite', test='b', cpu_s=line)]
+                ledger = dict(binaries={'fixture::suite': dict(tests={'b': [0]}, alone={'b': history})})
+                results = self.invoke({'gate': {'default': profile}}, ledger=ledger)
+                row = self.assert_rounds(results, count)
+                self.assertEqual((row['why'], row['run_limit_s']), ('flagged', limit))
+
+    def test_later_rounds_share_bounds_and_leave_unstarted_runs_unobserved(self):
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        execute = self.module['execute_plan']
+        cpu = execute.__globals__['CPU']
+        original = cpu['reference_limit']
+        for hard in (False, True):
+            with self.subTest(hard=hard):
+                self.directory = self.root / str(hard)
+                # Let the first round settle, then spend the remainder of the bound
+                # computing its limit. No later process may start after that bound.
+                def delayed_limit(*args, **kwargs):
+                    time.sleep(0.5)
+                    return original(*args, **kwargs)
+                plan_builder = execute.__globals__['make_plan']
+                def bounded(*args):
+                    plan = plan_builder(*args)
+                    plan['global_timeout'] = None if hard else 0.5
+                    return plan
+                limits = {'gate': {'default': {'references': {'checks': 0.001}}}}
+                if hard:
+                    limits['default'] = {'wall_hard_s': 0.5}
+                with mock.patch.dict(cpu, reference_limit=delayed_limit), mock.patch.dict(
+                        execute.__globals__, make_plan=bounded):
+                    results = self.invoke(limits, ledger=dict(binaries={}))
+                row, = results['references']
+                self.assertEqual(row['runs'][0]['outcome'], 'passed')
+                self.assertGreater(row['runs'][0]['cpu_s'], row['run_limit_s'])
+                self.assertEqual({key: row[key] for key in row['runs'][0]}, row['runs'][0])
+                self.assertEqual(row['runs'][1:], [dict(outcome='unobserved', process=None,
+                                 empty_process=None, cpu_s=None)] * 2)
+                self.assertEqual([p['kind'] for p in results['processes']], ['tests', 'reference', 'empty'])
+                self.assertEqual(results['cancelled'], 'wall-hard' if hard else 'global-timeout')
+                self.assertTrue(self.record['starved'])
+
     def test_reference_failure_is_not_a_suite_failure(self):
         self.binary(names=('a_passes', 'c_reads'), native='again')
         results = self.invoke(ledger=dict(binaries={}))
@@ -435,6 +521,8 @@ class ReferenceTests(RunnerFixture):
         self.assertEqual([(r['test_name'], r['outcome']) for r in results['references']],
                          [('a_passes', 'passed'), ('c_reads', 'failed')])
         self.assertIsNone(results['references'][1]['cpu_s'])
+        self.assertIsNone(results['references'][1]['run_limit_s'])
+        self.assertEqual(len(results['references'][1]['runs']), 1)
         self.assertEqual([p['kind'] for p in results['processes']],
                          ['tests', 'reference', 'empty', 'reference'])
         self.assertIsNone(ET.parse(self.directory / 'junit.xml').find('.//failure'))
@@ -666,6 +754,34 @@ class BaseTests(RunnerFixture):
         return subprocess.run([*command, *extra], cwd=self.root, env=env, stdin=subprocess.DEVNULL,
                               capture_output=True, text=True, timeout=10)
 
+    def test_base_runs_three_rounds_and_takes_highest(self):
+        self.head([self.flagged()])
+        self.binary(names=('b',))
+        self.env['FIXTURE_CASE'] = 'cpu'
+        result = self.invoke_base()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        base = self.root / 'base output'
+        results = json.loads((base / 'results.json').read_text())
+        row, = results['references']
+        self.assertEqual(len(row['runs']), 3)
+        self.assertIsNone(row['run_limit_s'])
+        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'] * 3)
+        for number, run in enumerate(row['runs']):
+            self.assertEqual((run['outcome'], run['process'], run['empty_process']), ('passed', number * 2, number * 2 + 1))
+            reference, empty = (results['processes'][run[key]] for key in ('process', 'empty_process'))
+            self.assertEqual(run['cpu_s'], round(max(0, reference['user_s'] + reference['system_s']
+                                                    - empty['user_s'] - empty['system_s']), 3))
+            if number:
+                before = results['processes'][(number - 1) * 2:number * 2]
+                self.assertGreaterEqual(min(reference['start_s'], empty['start_s']),
+                                        max(p['start_s'] + p['wall_s'] for p in before))
+        figure = max(row['runs'], key=lambda run: run['cpu_s'])
+        self.assertEqual({key: row[key] for key in figure}, figure)
+        output = (base / 'command-output.txt').read_text()
+        for number in range(3):
+            self.assertIn(f'round {number + 1}, passed, CPU ', output)
+        self.assertIn(f"REFERENCE FIGURE fixture::suite b: highest, CPU {row['cpu_s']} s", output)
+
     def test_two_packages_list_only_their_targets(self):
         self.binary('zebra', names=('c',))
         self.listing['rust-suites']['zebra'].update({
@@ -694,7 +810,7 @@ class BaseTests(RunnerFixture):
                                  [*listing_args, '-p', 'zebra', '--lib', '-E', 'all()']])
         prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
         self.assertEqual([call[1:] for call in prefixed[:2]], calls[2:])
-        self.assertEqual(len(prefixed), 3)
+        self.assertEqual(len(prefixed), 5)
         events = [json.loads(line) for line in (self.root / 'hold-events.jsonl').read_text().splitlines()]
         self.assertEqual(events[0][0], 'hold-start')
         self.assertEqual([event[1] for event in events if event[0] == 'cargo'], calls)
@@ -709,7 +825,7 @@ class BaseTests(RunnerFixture):
                           for r in results['references']],
                          [('fixture::suite', 'a', 'base', 'passed'),
                           ('fixture::suite', 'b', 'base', 'passed'), ('zebra', 'c', 'base', 'passed')])
-        self.assertEqual(len(results['processes']), 5)
+        self.assertEqual(len(results['processes']), 15)
         for row in results['references']:
             reference, empty = (results['processes'][row[key]] for key in ('process', 'empty_process'))
             self.assertEqual((reference['binary_id'], reference['kind'], reference['tests']),
@@ -731,7 +847,7 @@ class BaseTests(RunnerFixture):
         results = json.loads((self.root / 'base output/results.json').read_text())
         self.assertEqual([(r['binary_id'], r['outcome']) for r in results['references']],
                          [('fixture', 'passed'), ('fixture::suite', 'passed')])
-        self.assertEqual(len(results['processes']), 4)
+        self.assertEqual(len(results['processes']), 12)
 
     def test_binary_target_uses_bin_flag(self):
         self.metadata['packages'][0]['targets'].append(dict(name='tool', kind=['bin'], test=True))
@@ -800,7 +916,7 @@ class BaseTests(RunnerFixture):
                          {'plan.json', 'run.json', 'results.json', 'command-output.txt'})
         results = json.loads((base / 'results.json').read_text())
         self.assertEqual((results['tests'], results['unobserved']), ([], []))
-        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'])
+        self.assertEqual([p['kind'] for p in results['processes']], ['reference', 'empty'] * 3)
         self.assertEqual(results['processes'][0]['tests'], ['b'])
         row, = results['references']
         self.assertEqual((row['binary_id'], row['test_name'], row['why'], row['outcome']),
@@ -814,7 +930,7 @@ class BaseTests(RunnerFixture):
                                   '--config-file', str(self.config), '-p', 'fixture', '--test', 'suite',
                                   '-E', 'test(=b)']])
         prefixed = [json.loads(line) for line in (self.root / 'prefix-argv.jsonl').read_text().splitlines()]
-        self.assertEqual(len(prefixed), 2)
+        self.assertEqual(len(prefixed), 4)
         self.assertEqual(prefixed[0][1:], calls[1])
         self.assertEqual(prefixed[1][-2:], ['lanes', str(base / 'plan.json')])
         summary = self.module['CPU']['summary'](
@@ -856,9 +972,10 @@ class BaseTests(RunnerFixture):
         for row in results['references']:
             if row['outcome'] == 'missing':
                 self.assertEqual((row['cpu_s'], row['process'], row['empty_process']), (None, None, None))
+                self.assertEqual((row['runs'], row['run_limit_s']), ([], None))
                 self.assertIn(f"{row['binary_id']} {row['test_name']}: base, missing",
                               (base / 'command-output.txt').read_text())
-        self.assertEqual([p['tests'] for p in results['processes']], [['b'], []])
+        self.assertEqual([p['tests'] for p in results['processes']], [['b'], []] * 3)
         calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
         self.assertEqual(calls, [['metadata', '--format-version', '1', '--no-deps'],
                                  ['nextest', 'list', '--message-format', 'json', '--profile', 'default',
@@ -892,8 +1009,9 @@ class BaseTests(RunnerFixture):
                 self.head([self.flagged(name)], profile='candidate')
                 self.binary(names=(name,), native=native)
                 self.env['FIXTURE_CASE'] = scenario
+                bound = '100ms' if scenario == 'hang' else '2s'
                 self.config.write_text('[profile.default]\nglobal-timeout="10s"\n'
-                                       '[profile.candidate]\nglobal-timeout="100ms"\n')
+                                       f'[profile.candidate]\nglobal-timeout="{bound}"\n')
                 base = self.root / f'base-{scenario}'
                 result = self.invoke_base(directory=base)
                 self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
@@ -901,8 +1019,10 @@ class BaseTests(RunnerFixture):
                 row, = results['references']
                 self.assertEqual((row['outcome'], row['cpu_s']), (outcome, None))
                 plan = json.loads((base / 'plan.json').read_text())
-                self.assertEqual((plan['profile'], plan['global_timeout']), ('candidate', 0.1))
+                self.assertEqual((plan['profile'], plan['global_timeout']), ('candidate', 0.1 if scenario == 'hang' else 2))
                 self.assertEqual(results['cancelled'], 'global-timeout' if scenario == 'hang' else None)
+                self.assertEqual([run['outcome'] for run in row['runs']],
+                                 [outcome, 'unobserved', 'unobserved'] if scenario == 'hang' else [outcome] * 3)
 
     def test_invalid_invocations_exit_two(self):
         self.head()

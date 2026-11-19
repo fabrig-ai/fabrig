@@ -7,6 +7,8 @@
 - **Not yet:** 5, *The base's target is its own*, and 9.2: the base's count runs inherit the check's `CARGO_TARGET_DIR`, or none [in flight: change 9655].
 - **Not yet:** 1 and 4, *The hold*, and 9.2: the check takes the hold's first line as held, a `waiting` line included, drops a hold silent for 60 s after one, and writes no `smith-check:` line [in flight: change 9657].
 - **Not yet:** 8, the bound's bullet: smith counts a check's bound from its start, the waits it says it makes included [in flight: change 9658].
+- **Not yet:** 8: a run's new and flagged tests run alone once each, none twice more past its limit (`tools/tiers/references.md`, 4) [in flight: change 8831].
+- **Not yet:** 1, 4 and 9.2: the check runs no check 8: a delivery that changes a journey's recording or page beside any other file, or fills an `overlay.css`, passes [in flight: change 8897].
 
 No other gap in sections 1–9. Section 10's later work remains outside the
 delivery check.
