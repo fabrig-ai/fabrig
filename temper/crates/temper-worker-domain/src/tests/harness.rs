@@ -131,6 +131,7 @@ impl Harness {
             | Request::RedsAsk { .. }
             | Request::RedsAnswer { .. }
             | Request::Source { .. }
+            | Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::SourceFault

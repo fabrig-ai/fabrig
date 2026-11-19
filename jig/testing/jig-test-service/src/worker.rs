@@ -396,6 +396,22 @@ impl Worker {
                     root::Request::Asked { run, attempt, number, answer } => {
                         self.asked.push((run, attempt, number, answer));
                     }
+                    root::Request::ReadUsage { read, source } => {
+                        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+                        self.next = self.next.checked_add(1).expect("source owner sequence");
+                        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+                        let deadline = self.env.now.saturating_add(self.env.limits.hub.source_timeout);
+                        let settled = self.sources.read_usage(
+                            read,
+                            io_owner,
+                            source,
+                            self.directory.expect("worker root"),
+                            deadline,
+                            &mut self.io,
+                            self.source_files.requests(),
+                        );
+                        self.answered(settled);
+                    }
                     root::Request::ReadList { read, endpoint, grant } => {
                         let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
                         self.next = self.next.checked_add(1).expect("source owner sequence");
@@ -611,6 +627,9 @@ impl Worker {
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
             let event = match answer {
+                jig_domain_host::sources::Answer::Usage(outcome) => {
+                    jig_domain_host::Event::UsageRead { read: owner.raw(), outcome }
+                }
                 jig_domain_host::sources::Answer::Read(outcome) => {
                     jig_domain_host::Event::ListRead { read: owner.raw(), outcome }
                 }
@@ -703,6 +722,11 @@ impl Worker {
                 self.values.release_key(*account, *generation);
             }
         }
+    }
+    /// Run slots held while a source command is in progress.
+    #[must_use]
+    pub fn hosted(&self) -> u32 {
+        self.root.hosted()
     }
     /// Credential generations retained below the root, for channel lifetime assertions.
     #[must_use]
@@ -1215,6 +1239,7 @@ mod admission_tests {
                     }
                     root::Request::Process(_) => {}
                     other @ (root::Request::Asked { .. }
+                    | root::Request::ReadUsage { .. }
                     | root::Request::ReadList { .. }
                     | root::Request::CancelRead { .. }
                     | root::Request::Source { .. }

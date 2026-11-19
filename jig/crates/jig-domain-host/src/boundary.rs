@@ -31,6 +31,10 @@ pub enum Event {
     },
     /// The engine link was lost: outstanding reads are refused, not retried.
     LinkLost,
+    UsageRead {
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
+    },
     ListRead {
         read: u64,
         outcome: jig_domain_link::ListOutcome,
@@ -99,6 +103,10 @@ pub enum Request {
         attempt: Token,
         number: u64,
         answer: crate::AskAnswer,
+    },
+    ReadUsage {
+        read: u64,
+        source: crate::SourceName,
     },
     ReadList {
         read: u64,
@@ -670,6 +678,7 @@ impl Event {
                 | crate::LinkDown::Grant { .. } => false,
             },
             Event::LinkLost
+            | Event::UsageRead { .. }
             | Event::ListRead { .. }
             | Event::Job(_)
             | Event::SourceAnswered { .. }

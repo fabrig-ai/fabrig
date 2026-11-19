@@ -851,6 +851,22 @@ impl Worker {
         let settled = self.sources.read(read, io_owner, endpoint, credential, deadline, &mut self.io);
         self.answered(settled);
     }
+    fn read_usage(&mut self, read: u64, source: SourceName) {
+        let io_owner = Token::new(self.prefix.checked_add(self.next).expect("source owner range"));
+        self.next = self.next.checked_add(1).expect("source owner sequence");
+        assert!(self.next < (1_u64 << 48_u32), "worker owner range");
+        let deadline = self.env.now.saturating_add(self.env.limits.host.source_timeout);
+        let settled = self.sources.read_usage(
+            read,
+            io_owner,
+            source,
+            self.directory.expect("worker root"),
+            deadline,
+            &mut self.io,
+            self.source_files.requests(),
+        );
+        self.answered(settled);
+    }
     fn note_unprepared(&mut self, run: Token, attempt: Token, failure: hub::Preparation, detail: &[u8]) {
         let detail = hosted_detail(&self.name, detail, self.env.limits.host.detail_bytes);
         self.notes.push(crate::worker_alone::Note::Unprepared {
@@ -894,6 +910,7 @@ impl Worker {
                 let answer = translate::answer(&bytes, &self.payload);
                 root::step(&mut self.root, &self.env, root::Event::RedsAnswer { owner, check, answer }, &mut self.out);
             }
+            root::Request::ReadUsage { read, source } => self.read_usage(read, source),
             root::Request::ReadList { read, endpoint, grant } => self.read_list(read, endpoint, grant),
             root::Request::CancelRead { read } => {
                 let settled = self.sources.cancel_read(read, &mut self.io);
@@ -1084,6 +1101,7 @@ impl Worker {
     fn answered(&mut self, settled: Option<(Token, jig_domain_host::sources::Answer)>) {
         if let Some((owner, answer)) = settled {
             let event = match answer {
+                hub::sources::Answer::Usage(outcome) => root::Event::UsageRead { read: owner.raw(), outcome },
                 hub::sources::Answer::Read(outcome) => root::Event::ListRead { read: owner.raw(), outcome },
                 answer @ (hub::sources::Answer::Checked { .. } | hub::sources::Answer::SignedOut(_)) => {
                     root::Event::SourceAnswered { owner, answer }

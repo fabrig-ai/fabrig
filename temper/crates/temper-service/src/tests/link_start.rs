@@ -163,6 +163,7 @@ impl Joint {
                     other @ (temper_worker_domain::Event::RedsAsk { .. }
                     | temper_worker_domain::Event::RedsAnswer { .. }
                     | temper_worker_domain::Event::SourceAnswered { .. }
+                    | temper_worker_domain::Event::UsageRead { .. }
                     | temper_worker_domain::Event::ListRead { .. }
                     | temper_worker_domain::Event::AssignJob { .. }
                     | temper_worker_domain::Event::Job { .. }

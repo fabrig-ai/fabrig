@@ -267,6 +267,7 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             crate::asks::lost(domain, out);
             crate::sources::lost(&mut domain.sources, out);
         }
+        Event::UsageRead { read, outcome } => crate::sources::usage_read(&mut domain.sources, env, read, outcome, out),
         Event::ListRead { read, outcome } => crate::sources::list_read(&mut domain.sources, env, read, outcome, out),
         Event::SourceAnswered { owner, answer } => {
             crate::sources::answered(&mut domain.sources, env, owner, answer, out);
@@ -359,14 +360,8 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             LinkDown::Asked { run, attempt, number, answer } => {
                 crate::asks::asked(domain, env, run, attempt, number, answer, out);
             }
-            LinkDown::ReadUsage { read, source: _ } => {
-                out.push(Request::Up(LinkUp::UsageRead {
-                    read,
-                    outcome: jig_domain_link::UsageOutcome::Failed {
-                        reason: jig_domain_link::SourceFailure::Unconfigured,
-                        detail: Box::new([]),
-                    },
-                }));
+            LinkDown::ReadUsage { read, source } => {
+                crate::sources::usage(&mut domain.sources, env, read, source, out);
             }
             LinkDown::ReadList { read, endpoint, grant } => {
                 crate::sources::read(&mut domain.sources, env, read, endpoint, grant, out);

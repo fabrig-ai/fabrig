@@ -87,6 +87,17 @@ impl Engine {
         &mut self.outputs
     }
 
+    /// Inject an engine command on an admitted worker channel, without a fleet placement policy.
+    pub fn send_worker(&mut self, channel: skein_lib::Token, down: jig_domain_host::LinkDown) {
+        self.workers.as_mut().expect("worker listener").send(
+            self.env.now,
+            channel,
+            down,
+            &self.values,
+            &mut self.events,
+        );
+    }
+
     /// A test puts an application credential's later generation here before announcing it.
     pub fn put_application(&mut self, number: u32, generation: u64, value: skein_lib::Secret) {
         self.values.put_application(number, generation, value);

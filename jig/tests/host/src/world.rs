@@ -658,7 +658,8 @@ impl World {
                 self.stats.reports += 1;
                 Taken::Other
             }
-            Event::ListRead { .. }
+            Event::UsageRead { .. }
+            | Event::ListRead { .. }
             | Event::SourceAnswered { .. }
             | Event::Ask { .. }
             | Event::LinkLost
@@ -765,7 +766,11 @@ impl World {
     /// `run`'s attempt `attempt`: a refusal, or a prepare that admits it.
     fn assigned(&mut self, run: Token, attempt: Token, request: &Request) {
         match request {
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(LinkUp::Answer { run: answered, attempt: of, answer }) => {
@@ -856,7 +861,11 @@ impl World {
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(

@@ -294,7 +294,11 @@ impl Parent {
                 self.tally.stops += 1;
                 Vec::new()
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Prepare { owner, workspace } => self.prepare(owner, &workspace),

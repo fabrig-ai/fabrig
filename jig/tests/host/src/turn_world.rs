@@ -631,7 +631,11 @@ impl World {
             Request::Job(_) | Request::DeliverJob { .. } | Request::Up(LinkUp::JobAnswer { .. }) => {
                 unreachable!("jobs are exercised in the host world")
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(

@@ -175,7 +175,8 @@ impl World {
 
     fn take(&mut self, request: Request) {
         match request {
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }

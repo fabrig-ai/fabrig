@@ -103,7 +103,8 @@ impl Measured {
         let mut cancelled = Vec::new();
         while let Some(request) = self.out.pop() {
             asked.push(match request {
-                Request::ReadList { .. }
+                Request::ReadUsage { .. }
+                | Request::ReadList { .. }
                 | Request::CancelRead { .. }
                 | Request::Source { .. }
                 | Request::SourceFault => unreachable!("source scheduling has its own world"),
@@ -508,7 +509,8 @@ fn source_replacement_at_capacity_completes_every_check() {
             match request {
                 Request::Source { owner: next, .. } => owner = next,
                 Request::Up(LinkUp::Logins { logins }) => assert_eq!(logins.len(), names.len()),
-                other @ (Request::ReadList { .. }
+                other @ (Request::ReadUsage { .. }
+                | Request::ReadList { .. }
                 | Request::CancelRead { .. }
                 | Request::SourceFault
                 | Request::Up(_)

@@ -1287,20 +1287,25 @@ fn usage_from_an_active_agent_is_relayed_with_its_attempt() {
     );
 }
 #[test]
-fn a_usage_read_answers_unconfigured_immediately() {
+fn a_usage_read_is_queued_and_its_answer_keeps_the_number() {
     let mut h = Harness::new();
-    let requests = h.step(Event::Down(LinkDown::ReadUsage {
-        read: 7,
-        source: crate::SourceName::new(b"personal").expect("source"),
-    }));
+    h.step(Event::Down(LinkDown::Sources { sources: Box::new([]) }));
+    let source = crate::SourceName::new(b"personal").expect("source");
     assert_eq!(
-        requests.as_ref(),
-        &[Request::Up(LinkUp::UsageRead {
-            read: 7,
-            outcome: jig_domain_link::UsageOutcome::Failed {
-                reason: jig_domain_link::SourceFailure::Unconfigured,
-                detail: Box::new([])
-            }
-        })]
+        h.step(Event::Down(LinkDown::ReadUsage { read: 7, source })).as_ref(),
+        &[Request::ReadUsage { read: 7, source }]
     );
+    assert_eq!(h.step(Event::Down(LinkDown::ReadUsage { read: 8, source })).as_ref(), &[]);
+    assert_eq!(
+        h.step(Event::UsageRead { read: 7, outcome: jig_domain_link::UsageOutcome::Spent }).as_ref(),
+        &[
+            Request::Up(LinkUp::UsageRead { read: 7, outcome: jig_domain_link::UsageOutcome::Spent }),
+            Request::ReadUsage { read: 8, source },
+        ]
+    );
+    assert_eq!(
+        h.step(Event::UsageRead { read: 8, outcome: jig_domain_link::UsageOutcome::NotSignedIn }).as_ref(),
+        &[Request::Up(LinkUp::UsageRead { read: 8, outcome: jig_domain_link::UsageOutcome::NotSignedIn }),]
+    );
+    assert_eq!(h.domain.hosted(), 0);
 }

@@ -174,7 +174,8 @@ impl World {
             Request::AgentStopped { .. } | Request::Unprepared { .. } | Request::Link(host::LinkUp::Draining) => {}
             Request::Abandon => panic!("unexpected stop bound"),
             Request::Stop => self.stops += 1,
-            Request::ReadList { .. }
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
             | Request::CancelRead { .. }
             | Request::Source { .. }
             | Request::ResultsIgnored { .. }

@@ -1394,7 +1394,8 @@ impl World {
                 let answer = temper_worker_service::translate::answer(&bytes, &limits);
                 self.worker_events.push_back(worker::Event::RedsAnswer { owner, check, answer });
             }
-            worker::Request::ReadList { .. }
+            worker::Request::ReadUsage { .. }
+            | worker::Request::ReadList { .. }
             | worker::Request::CancelRead { .. }
             | worker::Request::Source { .. }
             | worker::Request::SourceFault => {

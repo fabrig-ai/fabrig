@@ -304,6 +304,7 @@ fn down(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out: &mu
         host::Request::Asked { run, attempt, number, answer } => {
             out.push(Request::Asked { run, attempt, number, answer });
         }
+        host::Request::ReadUsage { read, source } => out.push(Request::ReadUsage { read, source }),
         host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
         host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Job(job) => hub(domain, env, host::Event::Job(job.refused())),

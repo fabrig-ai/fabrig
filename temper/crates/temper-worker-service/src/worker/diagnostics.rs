@@ -66,6 +66,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
         root::Event::RedsAsk { .. }
         | root::Event::RedsAnswer { .. }
         | root::Event::SourceAnswered { .. }
+        | root::Event::UsageRead { .. }
         | root::Event::ListRead { .. }
         | root::Event::Assign { .. }
         | root::Event::AssignJob { .. }
@@ -88,7 +89,9 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
 fn event_tag(event: &root::Event) -> WorkerEvent {
     match event {
         root::Event::RedsAsk { .. } | root::Event::RedsAnswer { .. } => WorkerEvent::Link(LinkEvent::Asked),
-        root::Event::SourceAnswered { .. } | root::Event::ListRead { .. } => WorkerEvent::SourceAnswered,
+        root::Event::SourceAnswered { .. } | root::Event::UsageRead { .. } | root::Event::ListRead { .. } => {
+            WorkerEvent::SourceAnswered
+        }
         root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {
             hub::LinkDown::Asked { .. } => WorkerEvent::Link(LinkEvent::Asked),

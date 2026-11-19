@@ -204,7 +204,11 @@ impl Engine {
             Request::Up(LinkUp::JobAnswer { run, attempt, answer: _ }) => {
                 vec![Self::host(Event::Down(LinkDown::Acknowledge { run, attempt }), false)]
             }
-            Request::ReadList { .. } | Request::CancelRead { .. } | Request::Source { .. } | Request::SourceFault => {
+            Request::ReadUsage { .. }
+            | Request::ReadList { .. }
+            | Request::CancelRead { .. }
+            | Request::Source { .. }
+            | Request::SourceFault => {
                 unreachable!("source scheduling has its own world")
             }
             Request::Up(
