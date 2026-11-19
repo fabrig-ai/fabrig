@@ -720,7 +720,7 @@ fn draw_into(
         project: b"Hello".as_slice().into(),
         title: chat::cut(&shared::heading(request), view.words()),
         task: Some(TASK),
-        place: f::ADDRESS.into(),
+        place: f::ADDRESS.authority(),
     });
     foot.closed = Some("Claude Opus 5.5 · high".as_bytes().into());
     foot.needs = d::pages::needs::Count { count: 1, cut: false };
@@ -1005,7 +1005,7 @@ fn the_request_rule_names_its_place() {
         (true, "Hello / What can you tell… T2 on box:40691"),
         (false, "Hello / What can you tell… T2 on 127.0.0.1:40691"),
     ] {
-        let mut tui = Tui::new(b"127.0.0.1:40691");
+        let mut tui = Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket")));
         tui.step(Told::Size { columns: 80 });
         if boxed {
             tui.step(Told::Boxed);

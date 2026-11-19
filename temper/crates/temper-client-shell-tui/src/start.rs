@@ -102,7 +102,13 @@ pub(crate) fn fixed_run(start: &FixedStart) -> (u64, Clock) {
 
 #[must_use]
 pub fn kept(bytes: &[u8]) -> Option<SocketAddr> {
-    address(bytes).ok()
+    if bytes.len() > 300 {
+        return None;
+    }
+    match temper_client_tui::Origin::parse(bytes).ok()? {
+        temper_client_tui::Origin::Http(socket) => Some(socket),
+        temper_client_tui::Origin::Https { .. } => None,
+    }
 }
 
 #[must_use]
@@ -133,7 +139,7 @@ pub fn link_path(environment: &[EnvironmentEntry], working: &[u8]) -> Option<Pat
 #[must_use]
 pub fn read_note(directory: &Path, engine: SocketAddr, user: u32) -> Option<Note> {
     let bytes = skein_shell::read_private_file(&directory.join("sign-in"), Note::MOST, user).ok()?;
-    Note::read(bytes.expose(), engine.to_string().as_bytes())
+    Note::read(bytes.expose(), &temper_client_tui::Origin::Http(engine))
 }
 
 #[must_use]
@@ -314,7 +320,7 @@ fn start(
     let directory = directory(environment)?;
     let user = skein_shell::effective_user();
     directories::make_private(&directory, user).map_err(Refused::Directory)?;
-    let saved = skein_shell::read_private_file(&directory.join("address"), 64, user)
+    let saved = skein_shell::read_private_file(&directory.join("address"), 300, user)
         .ok()
         .and_then(|bytes| kept(bytes.expose()));
     let link_file = link_path(environment, working);
@@ -368,7 +374,7 @@ fn start(
             front,
             engine: skein_io::Addr::Ip(engine),
             directory: Box::from(b"tui".as_slice()),
-            address: engine.to_string().into_bytes().into_boxed_slice(),
+            address: temper_client_tui::Origin::Http(engine),
             scheme,
             plain: plain(environment),
             version: version.into(),
@@ -416,10 +422,9 @@ fn start(
         return Ok(1);
     }
     if let Some(signed_in) = run.signed_in() {
-        let mut bytes = b"http://".to_vec();
-        bytes.extend_from_slice(signed_in);
+        let bytes = signed_in.print();
         if self::kept(&bytes) != saved {
-            keep_address(parent, bytes.into_boxed_slice(), user, seed, clock);
+            keep_address(parent, bytes, user, seed, clock);
         }
     }
     Ok(exit_code(&run, exit))

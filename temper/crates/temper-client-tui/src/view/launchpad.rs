@@ -27,7 +27,7 @@ pub(crate) struct Launchpad {
     pub project: Option<Box<[u8]>>,
     pub drafts: bool,
     pub talk: bool,
-    pub address: Box<[u8]>,
+    pub address: crate::Origin,
     pub front: bool,
     pub plain: bool,
     pub version: Box<[u8]>,
@@ -325,7 +325,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             Some(project) => super::talk::available(root, project),
             None => false,
         },
-        address: copy_of(tui.address()),
+        address: tui.address().clone(),
         front: tui.front(),
         plain: tui.plain(),
         version: copy_of(tui.version()),
@@ -356,7 +356,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
             push(
                 &mut part.lines,
                 Role::Paragraph,
-                &words.say(Word::NoProject, &[Hole::Name(copy_of(tui.address()))]),
+                &words.say(Word::NoProject, &[Hole::Name(tui.address().print())]),
                 None,
             );
         }
@@ -364,7 +364,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, wall: Wall) -> Launc
         push(
             &mut part.lines,
             Role::Paragraph,
-            &words.say(Word::Connecting, &[Hole::Name(copy_of(tui.address()))]),
+            &words.say(Word::Connecting, &[Hole::Name(crate::place(tui.address(), false))]),
             None,
         );
     }

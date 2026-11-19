@@ -17,7 +17,7 @@ use temper_client_view_words::words::Word as Shared;
 
 #[derive(Debug)]
 pub(crate) struct Welcome {
-    pub address: Box<[u8]>,
+    pub address: crate::Origin,
     pub plain: bool,
     pub version: Box<[u8]>,
     pub out_of_date: Option<Box<[u8]>>,
@@ -183,7 +183,7 @@ pub(crate) fn read(root: &Domain, tui: &Tui, words: &Words, _wall: Wall) -> Welc
             .expect("four steps");
     }
     Welcome {
-        address: copy_of(tui.address()),
+        address: tui.address().clone(),
         plain: tui.plain(),
         version: copy_of(tui.version()),
         out_of_date: if root.client().link().state == Link::OutOfDate {

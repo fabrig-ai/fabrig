@@ -50,7 +50,7 @@ pub struct Start {
     pub background: Option<Rgb>,
     pub plain: bool,
     pub version: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: tui::Origin,
     pub local: bool,
     pub boxed: bool,
     pub kept: Vec<jig_client::Record>,
@@ -106,7 +106,7 @@ pub struct Duties {
     pub asked: Vec<jig_client::Request>,
     pub keep: Option<Option<Secret>>,
     pub note: Option<tui::Note>,
-    pub address: Option<Box<[u8]>>,
+    pub address: Option<tui::Origin>,
     pub local: bool,
     pub open: Option<Box<[u8]>>,
     pub close: bool,
@@ -331,7 +331,7 @@ impl Host {
             }
         }
         if live && !self.addressed {
-            duties.address = Some(self.state().address().into());
+            duties.address = Some(self.state().address().clone());
             self.addressed = true;
         }
         if live
@@ -498,12 +498,16 @@ impl Host {
             return;
         };
         if self.handed {
-            if link.host.as_ref() != self.state().address() {
+            let Ok(address) = tui::Origin::parse(&skein_lib::bytes::concat(&[b"http://", &link.host])) else {
+                self.end_local();
+                return;
+            };
+            if !same_origin(self.state().address(), &link.host) {
                 self.note = None;
             }
-            self.tell(Told::Address { address: link.host.clone() });
+            self.tell(Told::Address { address });
             self.handed = false;
-        } else if link.host.as_ref() != self.state().address() {
+        } else if !same_origin(self.state().address(), &link.host) {
             self.end_local();
             return;
         }
@@ -622,7 +626,7 @@ impl Host {
             }
             tui::Event::SignIn => match jig_client_protocol_http::printed(&self.mapping, self.state().field()) {
                 Err(_) => self.tell(Told::Refused { refusal: Refusal::NotALink }),
-                Ok(link) if link.host.as_ref() != self.state().address() => {
+                Ok(link) if !same_origin(self.state().address(), &link.host) => {
                     self.tell(Told::Refused { refusal: Refusal::OtherAddress { address: link.host } });
                 }
                 Ok(link) => {
@@ -1468,3 +1472,10 @@ impl Host {
 #[cfg(test)]
 #[path = "tests.rs"]
 pub(crate) mod tests;
+
+fn same_origin(origin: &tui::Origin, authority: &[u8]) -> bool {
+    match origin {
+        tui::Origin::Http(_) => origin.authority().as_ref() == authority,
+        tui::Origin::Https { .. } => false,
+    }
+}

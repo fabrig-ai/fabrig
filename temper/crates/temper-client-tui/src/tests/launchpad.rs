@@ -1693,3 +1693,34 @@ fn needs_and_the_quiet_line_cross_projects_only_on_the_launchpad() {
     let chat = home_projects(Some(false), &[], &[], true, None, Address::Chat { task: CHAT }, LEDE.as_bytes(), true);
     assert_eq!(foot::read(&chat, &Tui::new(f::ADDRESS), &f::words(), NOW).needs.count, 1);
 }
+
+#[test]
+fn named_launchpad_places_and_open_pages_follow_the_origin() {
+    for (port, place, origin) in [
+        (443, b"dev.fabrig.ai".as_slice(), b"https://dev.fabrig.ai".as_slice()),
+        (8443, b"dev.fabrig.ai:8443", b"https://dev.fabrig.ai:8443"),
+    ] {
+        let tui = Tui::new(&super::origin::named(port));
+        let root = home(Some(true), &[]);
+        let view = build(&root, &tui);
+        assert_eq!(f::find(view.tree(), Role::Text, place).styles.as_slice(), &[look::HINT]);
+        let before = f::live(None).0;
+        let view = build(&before, &tui);
+        f::find(view.tree(), Role::Paragraph, &skein_lib::bytes::concat(&[b"Connecting to ", place]));
+        let none = f::live(Some(f::me(&[]))).0;
+        let view = build(&none, &tui);
+        f::find(
+            view.tree(),
+            Role::Paragraph,
+            &skein_lib::bytes::concat(&[
+                b"Setting temper up makes your first project: open ",
+                origin,
+                b" in a browser.",
+            ]),
+        );
+        let chat = surface_root(SurfacePage::Chat);
+        let view = build(&chat, &tui);
+        let url = skein_lib::bytes::concat(&[origin, b"/chats/9"]);
+        assert_eq!(crate::focus(&view), Some(url.as_ref()));
+    }
+}

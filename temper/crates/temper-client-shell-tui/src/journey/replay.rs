@@ -170,7 +170,13 @@ impl Replay {
     }
 
     fn compare(&mut self, line: &Line) -> Result<(), Stale> {
-        if self.lines.get(self.at) != Some(line) {
+        let same = match (self.lines.get(self.at), line) {
+            (Some(Line::Signed(kept)), Line::Signed(current)) => {
+                recorded_origin(kept).is_some_and(|kept| Some(kept) == recorded_origin(current))
+            }
+            _ => self.lines.get(self.at) == Some(line),
+        };
+        if !same {
             return Err(self.stale(text(line)));
         }
         self.at += 1;
@@ -329,6 +335,7 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
     let Some(Line::Address(address)) = lines.get(at) else {
         return Err(error(at));
     };
+    let address = recorded_origin(address).ok_or(Unreadable { line: number(at), why: "not an origin" })?;
     at += 1;
     let local = lines.get(at) == Some(&Line::Local);
     if local {
@@ -385,7 +392,7 @@ pub(super) fn facts(lines: &[Line]) -> Result<(Facts, usize), Unreadable> {
             plain,
             version,
             boxed,
-            address: address.clone(),
+            address,
             local,
             front,
             set_up,
@@ -560,4 +567,14 @@ fn difference(left: &[u8], right: &[u8]) -> u32 {
             (Some(_) | None, Some(_) | None) => return line,
         }
     }
+}
+
+// The text keeps its original bytes; only replay interprets older authorities.
+fn recorded_origin(bytes: &[u8]) -> Option<temper_client_tui::Origin> {
+    let bytes = if bytes.starts_with(b"http://") || bytes.starts_with(b"https://") {
+        bytes.into()
+    } else {
+        skein_lib::bytes::concat(&[b"http://", bytes])
+    };
+    temper_client_tui::Origin::parse(&bytes).ok()
 }

@@ -11,7 +11,7 @@ use skein_lib::{Duration, Env, Queue, Secret, Time, Token, Wall};
 use skein_shell::Host;
 use skein_ui_screen::Size;
 use skein_ui_screen_terminal::{Background, Depth, Key, Terminal};
-use temper_client_tui::{BoxLine, Note, Scheme};
+use temper_client_tui::{BoxLine, Note, Origin, Scheme};
 
 mod front;
 mod lending;
@@ -23,7 +23,7 @@ const OPENER: Token = Token::new(u64::MAX);
 pub struct Settings {
     pub engine: io::Addr,
     pub directory: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: Origin,
     pub scheme: Option<Scheme>,
     pub plain: bool,
     pub version: Box<[u8]>,
@@ -79,7 +79,7 @@ pub struct Run {
     raw: Queue<Submit>,
     told: Queue<io::Event>,
     operations: u32,
-    start: Option<(Option<Scheme>, Box<[u8]>)>,
+    start: Option<(Option<Scheme>, Origin)>,
     loaded: Option<(Option<Secret>, Vec<jig_client::Record>)>,
     plain: bool,
     version: Box<[u8]>,
@@ -94,9 +94,9 @@ pub struct Run {
     local: LocalFile,
     note: Option<Note>,
     notes: Option<FileSave>,
-    address: Box<[u8]>,
+    address: Origin,
     size: Option<Size>,
-    signed_in: Option<Box<[u8]>>,
+    signed_in: Option<Origin>,
     closing: bool,
     refused: bool,
     terminated: bool,
@@ -209,8 +209,8 @@ impl Run {
 
     /// The address the host gave the binary to keep.
     #[must_use]
-    pub fn signed_in(&self) -> Option<&[u8]> {
-        self.signed_in.as_deref()
+    pub fn signed_in(&self) -> Option<&Origin> {
+        self.signed_in.as_ref()
     }
 
     /// Read the filename of `path` beneath its parent descriptor `root`, before
@@ -1268,7 +1268,7 @@ mod tests {
         Settings {
             engine: io::Addr::Ip("127.0.0.1:8367".parse().expect("loopback")),
             directory: b"tui".as_slice().into(),
-            address: b"127.0.0.1:8367".as_slice().into(),
+            address: temper_client_tui::Origin::Http("127.0.0.1:8367".parse().expect("fixture socket")),
             scheme: Some(Scheme::Dark),
             plain: false,
             version: Box::default(),
@@ -1374,7 +1374,7 @@ mod tests {
         run.started(None, Vec::new());
         run.box_child.as_mut().expect("front").reports.push(front::Report::Link {
             engine: io::Addr::Ip("[::1]:9400".parse().expect("handed engine")),
-            address: b"[::1]:9400".as_slice().into(),
+            address: temper_client_tui::Origin::Http("[::1]:9400".parse().expect("fixture socket")),
             link: Secret::new(
                 b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA"
                     .as_slice()

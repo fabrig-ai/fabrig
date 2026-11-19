@@ -64,7 +64,7 @@ pub struct View {
     reply: Box<[Event]>,
     left_off: List<(u64, launchpad::LeftKind)>,
     selected_event: Option<Event>,
-    authority: Box<[u8]>,
+    origin: Option<crate::Origin>,
     page: Option<Box<[u8]>>,
     focus: Option<Box<[u8]>>,
     walkable: bool,
@@ -87,7 +87,7 @@ impl View {
             reply: Box::default(),
             left_off: List::with_capacity(3),
             selected_event: None,
-            authority: Box::default(),
+            origin: None,
             page: None,
             focus: None,
             walkable: false,
@@ -190,14 +190,12 @@ fn approval_line(root: &Domain, words: &Words) -> Option<(Box<[u8]>, Style)> {
     };
     Some((words.say(word, &[]), look::REFUSED))
 }
-fn port(address: &[u8]) -> &[u8] {
-    let mut port = b"".as_slice();
-    for (index, byte) in address.iter().enumerate() {
-        if *byte == b':' {
-            port = address.get(index.saturating_add(1)..).expect("colon is in the address");
-        }
-    }
-    port
+fn port(origin: &crate::Origin) -> Box<[u8]> {
+    let port = match origin {
+        crate::Origin::Http(socket) => socket.port(),
+        crate::Origin::Https { port, .. } => *port,
+    };
+    copy_of(skein_lib::Decimal::of(u64::from(port)).as_bytes())
 }
 fn approval_waiting(
     b: &mut Builder,
@@ -216,7 +214,7 @@ fn approval_waiting(
             text(
                 b,
                 Role::Paragraph,
-                &words.say(Word::ApprovalTunnel, &[Hole::Name(copy_of(port(tui.address())))]),
+                &words.say(Word::ApprovalTunnel, &[Hole::Name(port(tui.address()))]),
                 Some(look::HINT),
             );
         }
@@ -256,7 +254,7 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     if tui.signed_out() {
         text(b, Role::Paragraph, &words.view().say(Shared::SignedOutMain, &[]), Some(look::DOWN));
     }
-    text(b, Role::Paragraph, &words.say(Word::SignIn, &[Hole::Name(copy_of(tui.address()))]), None);
+    text(b, Role::Paragraph, &words.say(Word::SignIn, &[Hole::Name(crate::place(tui.address(), false))]), None);
     let tick = approval(b, tui, root, words, wall);
     text(b, Role::Paragraph, &words.say(Word::Paste, &[]), Some(look::HINT));
     b.open(Role::TextField);
@@ -264,7 +262,7 @@ fn sign_in(b: &mut Builder, tui: &Tui, root: &Domain, words: &Words, wall: Wall)
     b.entry(EntryKind::Secret);
     b.state(State::SubmitsOnEnter);
     b.value(tui.field(), tui.written());
-    b.placeholder(&words.say(Word::LinkShape, &[Hole::Name(copy_of(tui.address()))]));
+    b.placeholder(&words.say(Word::LinkShape, &[Hole::Name(tui.address().authority())]));
     b.bind(Binding { owner: look::OWNER, token: look::LINK });
     b.focus(tui.focus());
     b.close();
@@ -296,7 +294,7 @@ pub fn build(view: &mut View, tui: &Tui, root: &Domain, wall: Wall, out: &mut Qu
     if view.built == Some((root_shown, revision)) && !ticked {
         return;
     }
-    view.authority = copy_of(tui.address());
+    view.origin = Some(tui.address().clone());
     view.page = page_focus(root, tui.address());
     view.focus = view.page.clone();
     view.walkable = has_needs(root);
@@ -400,7 +398,7 @@ pub(crate) fn signed(view: &mut View, signed: &Signed, out: &mut Queue<Patch>) {
                         launchpad::LeftKind::Chat { .. } => Address::Chat { task: line.task },
                         launchpad::LeftKind::Goal => Address::Task { task: line.task },
                     };
-                    let address = page_address(&view.authority, &page);
+                    let address = page_address(view.origin.as_ref().expect("built view has an origin"), &page);
                     view.selected_event = Some(match line.kind {
                         launchpad::LeftKind::Chat { .. } => {
                             Event::Act { act: temper_client_domain::pages::Act::Go { address: page } }
@@ -601,7 +599,7 @@ pub fn arrow(view: &View, arrow: Arrow) -> Option<Event> {
     Some(Event::LeftOff { task: Some(view.left_off.get(picked)?.0) })
 }
 
-fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
+fn page_focus(root: &Domain, origin: &crate::Origin) -> Option<Box<[u8]>> {
     if root.client().link().state == Link::SignedOut {
         return None;
     }
@@ -617,10 +615,10 @@ fn page_focus(root: &Domain, authority: &[u8]) -> Option<Box<[u8]>> {
     } else {
         Address::Home { project: root.pages().project()? }
     };
-    Some(page_address(authority, &page))
+    Some(page_address(origin, &page))
 }
-fn page_address(authority: &[u8], page: &Address) -> Box<[u8]> {
-    skein_lib::bytes::concat(&[b"http://", authority, &temper_client_domain::address::print(page)])
+fn page_address(origin: &crate::Origin, page: &Address) -> Box<[u8]> {
+    crate::origin::page(origin, &temper_client_domain::address::print(page))
 }
 fn has_needs(root: &Domain) -> bool {
     match root.pages().inbox() {

@@ -188,7 +188,7 @@ fn the_trees_fit_their_limits() {
         (Word::OtherNeed, &[][..], "•".as_bytes()),
         (
             Word::NoProject,
-            &[Hole::Name(Box::from(f::ADDRESS))][..],
+            &[Hole::Name(f::ADDRESS.print())][..],
             "Setting temper up makes your first project: open http://127.0.0.1:8367 in a browser.".as_bytes(),
         ),
         (Word::Needing, &[Hole::Number(0)][..], "0 need you".as_bytes()),
@@ -222,7 +222,10 @@ fn the_trees_fit_their_limits() {
     let address = *b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:65535";
     let me = f::me(&[&name]);
     let root = f::live(Some(me)).0;
-    let mut tui = Tui::new(&address);
+    let mut tui = Tui::new(&crate::Origin::Https {
+        name: Box::from(*b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+        port: 65535,
+    });
     tui.step(Told::Kept { written: false });
     let mut view = View::new(&bounds, f::words());
     f::build(&mut view, &tui, &root);
@@ -238,7 +241,10 @@ fn the_trees_fit_their_limits() {
         (None, false),
         (Some(Refusal::OtherAddress { address: Box::from(address) }), true),
     ] {
-        let mut tui = Tui::new(&address);
+        let mut tui = Tui::new(&crate::Origin::Https {
+            name: Box::from(*b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"),
+            port: 65535,
+        });
         tui.step(Told::Link { link: jig_client::Link::Live });
         tui.step(Told::Link { link: jig_client::Link::SignedOut });
         if browser {

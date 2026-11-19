@@ -428,6 +428,9 @@ pub(crate) const ALL: [Word; 207] = [
     Word::LinkPending,
 ];
 
+// HTTPS, a 253-byte name and port, then /terminal.
+pub(crate) const APPROVAL_ADDRESS: u32 = 276;
+
 #[derive(Clone, Copy)]
 enum Slot {
     Address,
@@ -472,11 +475,11 @@ impl Slot {
             Self::LogLine => crate::limits::LOG_LINE.saturating_mul(3),
             Self::End => 40,
             Self::Title => domain.client.domain.text,
-            Self::Address => 64,
+            Self::Address => 267,
             Self::Code => 9,
-            Self::ApprovalAddress => 95,
-            // http://, the bounded authority, /tasks/ and twenty task digits.
-            Self::PageAddress => 98,
+            Self::ApprovalAddress => APPROVAL_ADDRESS,
+            // HTTPS origin and /projects/PROJECT/team?role=TASK, at their integer bounds.
+            Self::PageAddress => 318,
             Self::Port => 5,
             Self::Span | Self::Label => 32,
             Self::Number => 20,
@@ -847,7 +850,7 @@ impl Word {
             Self::NeedsYou => (&[b"Needs you"], &[]),
             Self::Question => (&[b"?"], &[]),
             Self::OtherNeed => (&[b"\xe2\x80\xa2"], &[]),
-            Self::NoProject => (&[b"Setting temper up makes your first project: open http://", b" in a browser."], &[Slot::Address]),
+            Self::NoProject => (&[b"Setting temper up makes your first project: open ", b" in a browser."], &[Slot::Address]),
             Self::Needing => (&[b"", b" need you"], &[Slot::Number]),
             Self::NeedingCut => (&[b"", b"+ need you"], &[Slot::Number]),
             Self::AskTemper => (&[b"Ask temper"], &[]),

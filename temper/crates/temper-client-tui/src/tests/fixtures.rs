@@ -1,7 +1,8 @@
 use jig_client::contract as c;
 use skein_lib::{Duration, Env, List, Queue, RequestLimits, Secret, Time, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Limits, Request, forge};
-pub const ADDRESS: &[u8] = b"127.0.0.1:8367";
+pub const ADDRESS: &crate::Origin =
+    &crate::Origin::Http(core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 8367)));
 pub const NOW: Wall = Wall::EPOCH;
 pub const SEED: u64 = 11;
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]

@@ -12,6 +12,7 @@ mod header;
 mod launchpad;
 mod limits;
 mod note;
+mod origin;
 mod place;
 mod printed;
 mod screens;

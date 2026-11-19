@@ -1,7 +1,7 @@
 //! Whole-tool admission, normalisation and filesystem results (testing/tools.md, 6).
 use fixtures::{
     TuiWorld, absent, assert_normalised, fixture_recording, stale_recording, tree_bytes, tui_approval_recording,
-    tui_approval_reply, tui_recording, tui_written,
+    tui_recording, tui_written,
 };
 use skein_lib::Time;
 use skein_scratch::Scratch;
@@ -252,11 +252,7 @@ fn a_refused_tui_add_writes_nothing_even_over_an_existing_print() {
 
 fn tui_frame_original() -> Vec<u8> {
     use temper_client_shell_tui::host::Report;
-    let mut world =
-        TuiWorld::sized("pri\u{200b}vate-frame-marker&".as_bytes(), skein_ui_screen::Size { rows: 16, columns: 100 });
-    let exchange = world.exchange(false);
-    world.report(Report::Heard(jig_client::Event::Reply { exchange, message: tui_approval_reply() }));
-    world.report(Report::Opened { opened: true });
+    let mut world = TuiWorld::with_box_log("pri\u{200b}vate-frame-marker&".as_bytes());
     world.report(Report::Resize(skein_ui_screen::Size { rows: 0, columns: 0 }));
     world.save().into_vec()
 }

@@ -146,6 +146,10 @@ impl World {
         clippy::fn_params_excessive_bools,
         reason = "the simulated front varies settings and terminal buffer size independently"
     )]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the simulated run assembles independent shell, front and terminal fixtures"
+    )]
     fn front_configured(
         refuse: bool,
         approval: bool,
@@ -210,7 +214,10 @@ impl World {
                 if front { "127.0.0.1:9000" } else { "127.0.0.1:8367" }.parse().expect("loopback"),
             ),
             directory: b"tui".as_slice().into(),
-            address: if front { b"127.0.0.1:9000" } else { b"127.0.0.1:8367" }.as_slice().into(),
+            address: temper_client_tui::Origin::Http(std::net::SocketAddr::from((
+                [127, 0, 0, 1],
+                if front { 9000 } else { 8367 },
+            ))),
             scheme,
             plain: false,
             version: Box::default(),
@@ -1065,7 +1072,7 @@ fn recording_keys_save_whole_and_closing_saves_again() {
             "{mark:?}: the start turn keeps the live clocks"
         );
         assert!(lines.contains(&Line::Screen { size: SIZE, scheme: Some(Scheme::Dark) }), "{mark:?}");
-        assert!(lines.contains(&Line::Address(b"127.0.0.1:8367".as_slice().into())), "{mark:?}");
+        assert!(lines.contains(&Line::Address(b"http://127.0.0.1:8367".as_slice().into())), "{mark:?}");
         assert!(lines.iter().any(|line| matches!(line, Line::Mark(Some(_)))), "{mark:?}");
         assert!(matches!(lines.last(), Some(Line::End(Some(_)))), "{mark:?}");
         assert!(

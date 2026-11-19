@@ -217,3 +217,12 @@ fn the_talks_are_their_goldens() {
         .collect();
     goldens::check(&checks);
 }
+
+#[test]
+fn a_named_talk_head_and_its_page_use_the_origin() {
+    let root = chat::talk_root("open");
+    let tui = Tui::new(&super::origin::named(443));
+    let view = build(&root, &tui);
+    assert_eq!(f::find(view.tree(), Role::Text, b"dev.fabrig.ai").styles.as_slice(), &[crate::look::ADDRESS]);
+    assert_eq!(crate::focus(&view), Some(b"https://dev.fabrig.ai/projects/1/team?role=2".as_slice()));
+}

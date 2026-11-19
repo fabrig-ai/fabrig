@@ -1149,7 +1149,7 @@ fn rule_states() {
             if list {
                 act(&mut root, d::pages::Act::MessageWords { words: b"/".as_slice().into() });
             }
-            let mut tui = Tui::new(b"127.0.0.1:40691");
+            let mut tui = Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket")));
             tui.step(Told::Size { columns });
             tui.step(Told::Boxed);
             let mut part = foot::read(&root, &tui, &words, f::NOW);
@@ -1204,7 +1204,12 @@ fn rule_states() {
         }
     }
     let root = root(true, true, true, false, false);
-    let part = foot::read(&root, &Tui::new(b"127.0.0.1:40691"), &words, f::NOW);
+    let part = foot::read(
+        &root,
+        &Tui::new(&crate::Origin::Http("127.0.0.1:40691".parse().expect("fixture socket"))),
+        &words,
+        f::NOW,
+    );
     assert_eq!(part.rule.unwrap().place.as_ref(), b"127.0.0.1:40691");
 }
 fn question(primary: Option<usize>, empty: bool) -> shared::Question {
@@ -2751,7 +2756,7 @@ fn the_places_before_their_first_words_are_empty_chats() {
         assert_eq!(rule.title.as_ref(), title.as_bytes());
         assert_eq!(rule.project.as_ref(), b"Demo");
         assert_eq!(rule.task, None);
-        assert_eq!(rule.place.as_ref(), f::ADDRESS);
+        assert_eq!(rule.place, f::ADDRESS.authority());
         assert!(!part.launchpad);
         assert!(part.pane.is_none());
         assert!(part.running.is_none());
@@ -2770,4 +2775,26 @@ fn the_places_before_their_first_words_are_empty_chats() {
             want,
         }]);
     }
+}
+
+#[test]
+fn a_named_chats_rule_and_walk_web_page_use_the_origin() {
+    let root = root(true, true, true, false, false);
+    let mut tui = Tui::new(&super::origin::named(443));
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    assert_eq!(part.rule.as_ref().expect("chat rule").place.as_ref(), b"dev.fabrig.ai");
+    let view = draw(part);
+    assert!(has(view.tree(), look::ADDRESS, b"dev.fabrig.ai"));
+    let root = walk_root(true);
+    tui.step(Told::Walk { by_key: true });
+    tui.step(Told::Walked { object: WALK_QUESTION });
+    let part = foot::read(&root, &tui, &f::words(), f::NOW);
+    let list = part.list.expect("web need");
+    assert_eq!(
+        list.items[0].event,
+        TuiEvent::Walk {
+            object: WALK_HELD,
+            step: crate::WalkStep::Open { address: b"https://dev.fabrig.ai/needs?project=1".as_slice().into() },
+        }
+    );
 }

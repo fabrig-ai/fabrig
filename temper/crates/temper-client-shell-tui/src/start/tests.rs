@@ -134,6 +134,10 @@ fn the_kept_address_reads_or_is_none() {
         ("http://127.0.0.1:9000", Some("127.0.0.1:9000".parse().expect("address"))),
         ("", None),
         ("garbage", None),
+        ("https://dev.fabrig.ai", None),
+        ("https://dev.fabrig.ai:8443/", None),
+        ("http://127.0.0.1:9000/", Some("127.0.0.1:9000".parse().expect("address"))),
+        ("http://10.0.0.1:9000", None),
         (LINK, None),
         ("http://127.0.0.1:9000\n", None),
     ] {
@@ -285,11 +289,25 @@ fn the_note_is_private_and_only_for_its_address() {
     let until = Note::Until(skein_lib::Wall::from_nanos(123));
     let mut failures = Vec::new();
     for (row, bytes, mode, owner, address, expected) in [
-        ("own address", Some(until.print(b"127.0.0.1:8367")), 0o600, user, engine, Some(until)),
-        ("other address", Some(until.print(b"127.0.0.1:8367")), 0o600, user, other, None),
-        ("signed out", Some(Note::SignedOut.print(b"127.0.0.1:8367")), 0o600, user, engine, Some(Note::SignedOut)),
-        ("nonprivate", Some(until.print(b"127.0.0.1:8367")), 0o640, user, engine, None),
-        ("foreign", Some(until.print(b"127.0.0.1:8367")), 0o600, user.wrapping_add(1), engine, None),
+        ("own address", Some(until.print(&temper_client_tui::Origin::Http(engine))), 0o600, user, engine, Some(until)),
+        ("other address", Some(until.print(&temper_client_tui::Origin::Http(engine))), 0o600, user, other, None),
+        (
+            "signed out",
+            Some(Note::SignedOut.print(&temper_client_tui::Origin::Http(engine))),
+            0o600,
+            user,
+            engine,
+            Some(Note::SignedOut),
+        ),
+        ("nonprivate", Some(until.print(&temper_client_tui::Origin::Http(engine))), 0o640, user, engine, None),
+        (
+            "foreign",
+            Some(until.print(&temper_client_tui::Origin::Http(engine))),
+            0o600,
+            user.wrapping_add(1),
+            engine,
+            None,
+        ),
         ("garbage", Some(Box::from(b"garbage".as_slice())), 0o600, user, engine, None),
         ("absent", None, 0o600, user, engine, None),
     ] {

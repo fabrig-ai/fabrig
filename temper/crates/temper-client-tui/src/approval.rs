@@ -2,21 +2,16 @@
 use crate::Tui;
 use alloc::boxed::Box;
 use jig_client::{ApprovalCode, Link, NotSignedIn, Taking};
-use skein_lib::Writer;
 use temper_client_domain::{Domain, asked::State};
 
 /// The approval page's address, from the TUI's own address and code.
 #[must_use]
-pub fn approval_address(address: &[u8], code: ApprovalCode) -> Box<[u8]> {
-    let scheme = b"http://";
-    let path = temper_client_domain::address::print_approve(Some(code));
-    let size = scheme.len().checked_add(address.len()).expect("approval authority fits");
-    let size = size.checked_add(path.len()).expect("approval address fits");
-    let mut out = Writer::new(size);
-    out.put(scheme).expect("scheme counted");
-    out.put(address).expect("address counted");
-    out.put(&path).expect("path counted");
-    out.finish()
+pub fn approval_address(origin: &crate::Origin, code: ApprovalCode) -> Box<[u8]> {
+    let code = match origin {
+        crate::Origin::Http(_) => Some(code),
+        crate::Origin::Https { .. } => None,
+    };
+    crate::origin::page(origin, &temper_client_domain::address::print_approve(code))
 }
 
 /// Whether Enter in the empty Link field asks for another approval.

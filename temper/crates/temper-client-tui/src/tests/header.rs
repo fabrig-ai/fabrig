@@ -83,7 +83,7 @@ fn the_header_names_only_the_build_and_place() {
                 assert!(found, "{words}: header token");
             }
         } else {
-            assert_eq!(f::find(tree, Role::Text, f::ADDRESS).styles.as_slice(), &[look::HINT]);
+            assert_eq!(f::find(tree, Role::Text, &f::ADDRESS.authority()).styles.as_slice(), &[look::HINT]);
         }
         if !plain {
             let mut tokens = List::with_capacity(10);

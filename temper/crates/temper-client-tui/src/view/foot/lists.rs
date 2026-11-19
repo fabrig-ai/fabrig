@@ -400,7 +400,7 @@ pub(crate) fn walk(root: &Domain, tui: &Tui, words: &Words) -> Option<Options> {
             shared::NeedAct::Web => {
                 let path =
                     address::print(&Address::Inbox { filter: Filter { project: prompt.project, ..Filter::ALL } });
-                (words.say(Word::OpenOnWeb, &[]), super::notes::join(&[b"http://", tui.address(), &path]))
+                (words.say(Word::OpenOnWeb, &[]), crate::origin::page(tui.address(), &path))
             }
         };
         let mut items = List::with_capacity(2);

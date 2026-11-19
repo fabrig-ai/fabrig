@@ -10,7 +10,7 @@ use skein_lib::{List, Queue, Secret, Set, bytes::copy_of};
     reason = "the TUI holds independent sign-in, credential, front and note facts"
 )]
 pub struct Tui {
-    address: Box<[u8]>,
+    address: crate::Origin,
     field: Box<[u8]>,
     command_words: Box<[u8]>,
     signing: Signing,
@@ -218,7 +218,7 @@ pub enum Told {
     MeRead,
     /// The authority of the first local link handed by the box.
     Address {
-        address: Box<[u8]>,
+        address: crate::Origin,
     },
     Stage {
         stage: BoxStage,
@@ -245,9 +245,9 @@ pub enum Told {
 }
 impl Tui {
     #[must_use]
-    pub fn new(address: &[u8]) -> Tui {
+    pub fn new(address: &crate::Origin) -> Tui {
         Tui {
-            address: copy_of(address),
+            address: address.clone(),
             field: copy_of(b""),
             command_words: Box::default(),
             signing: Signing::Idle,
@@ -302,7 +302,7 @@ impl Tui {
         }
     }
     #[must_use]
-    pub fn address(&self) -> &[u8] {
+    pub fn address(&self) -> &crate::Origin {
         &self.address
     }
     #[must_use]

@@ -8,7 +8,7 @@ use jig_client::{Event, Request};
 use skein_lib::{Secret, Time, Wall};
 use skein_ui_screen::{Rgb, Size};
 use skein_ui_screen_terminal::Key;
-use temper_client_tui::{Note, Scheme};
+use temper_client_tui::{Note, Origin, Scheme};
 
 /// The start's facts, in the file's order.
 #[expect(
@@ -24,7 +24,7 @@ pub struct Facts {
     pub background: Option<Rgb>,
     pub plain: bool,
     pub version: Box<[u8]>,
-    pub address: Box<[u8]>,
+    pub address: Origin,
     pub local: bool,
     pub front: bool,
     pub set_up: bool,
@@ -91,7 +91,7 @@ impl Recorder {
         if !facts.version.is_empty() {
             this.keep(&Line::Version(facts.version.clone()));
         }
-        this.keep(&Line::Address(facts.address.clone()));
+        this.keep(&Line::Address(facts.address.print()));
         if facts.local {
             this.keep(&Line::Local);
         }
@@ -262,7 +262,7 @@ pub(super) fn asked(duties: &Duties) -> Vec<Line> {
         lines.push(Line::Note(note));
     }
     if let Some(address) = &duties.address {
-        lines.push(Line::Signed(address.clone()));
+        lines.push(Line::Signed(address.print()));
     }
     if duties.local {
         lines.push(Line::Read);
