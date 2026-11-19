@@ -343,3 +343,49 @@ by the enclosing shell's 120 s deadline, not by nextest or a test
 budget; its replacement ran alone with a 600 s shell deadline. These
 figures use only the completed individual runs. No project budget,
 nextest setting or test reference was changed.
+
+### The TUI's first walk
+
+2026-11-19, change 10239: `sign-in-approved`'s six-line version-2
+walk prints its approval frame and no-project launchpad in one process,
+on the playground's service. On Linux x86_64, `nproc` = 8,
+CPU model AMD EPYC-Genoa Processor, three warm runs of the
+built, unoptimized `target/debug/temper-client-walk print --out DIR
+sign-in-approved` (Cargo's configured target directory, each DIR fresh)
+took:
+
+| Run | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|
+| 1 | 0.511237 | 0.091863 | 0.603100 |
+| 2 | 0.548186 | 0.140048 | 0.688234 |
+| 3 | 0.514345 | 0.107653 | 0.621998 |
+
+**Median: 0.621998 CPU s.** Measured by differences of Python's
+`resource.getrusage(RUSAGE_CHILDREN)` around each direct binary run,
+user plus system, build and cargo overhead excluded. The preceding
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk -- print
+--out DIR sign-in-approved` warmed the binary. An independently idle
+host was not established. Both printed frames and their HTML were
+checked against the journey's README; no page or recording is changed
+by this change.
+
+Each new test ran alone by exact name with `cargo nextest run`,
+`TEMPER_INTERNAL_BUNDLE=none`, default (focused) profile. These are
+nextest's per-test elapsed seconds, not CPU or build time:
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::tui_links_use_the_marked_event_and_only_see_lines_before_the_first_key` | 0.035 |
+| `temper-client-walk-tool` / suite | `tui_walks_print_frames_and_assets_under_the_tui_root` | 0.805 |
+| same | `tui_prints_twice_have_identical_bytes` | 1.052 |
+| same | `tui_keys_link_the_marked_frame_to_the_next_page` | 0.616 |
+| same | `a_tui_stop_names_its_line_and_leaves_other_journeys_printable` | 1.351 |
+| same | `tui_pages_remove_stale_frames_and_recording_then_write_nothing_when_fresh` | 2.239 |
+| same | `all_prints_visit_both_roots_in_order_and_names_prefer_the_browser` | 1.912 |
+| same | `tui_ancestors_marks_are_skipped_and_stop_restarts_the_terminal` | 0.634 |
+
+All eight passed. The named dependency-boundary test,
+`fabrig-boundary` / `journey_walk` /
+`the_walk_binarys_normal_closure_has_no_browser_or_journeys_tool`,
+also passed alone (0.125 s). No budget, timeout, nextest setting or
+reference was added or raised.

@@ -8,6 +8,7 @@ use std::{
 use temper_client_walk_tool::{Answer, TUI, WEB};
 
 const W: &str = "walk 2\nweb see \"Try the playground\"\nweb mark\nweb press button \"Try the playground\"\nweb see \"New chat\"\nweb mark\n";
+const T: &str = "walk 2\ntui see \"then press Approve.\"\ntui mark\ntui approve\ntui see \"Setting temper up makes your first project\"\ntui mark\n";
 struct Fixture {
     scratch: skein_scratch::Scratch,
 }
@@ -26,6 +27,11 @@ impl Fixture {
         let path = self.root().join(WEB).join(name);
         fs::create_dir_all(&path).expect("journey directory");
         fs::write(path.join("walk"), walk).expect("walk");
+    }
+    fn tui_journey(&self, name: &str, walk: &str) {
+        let path = self.root().join(TUI).join(name);
+        fs::create_dir_all(&path).expect("TUI journey directory");
+        fs::write(path.join("walk"), walk).expect("TUI walk");
     }
     fn run(&self, arguments: &[&str]) -> Answer {
         let arguments = arguments.iter().map(|arg| arg.as_bytes().into()).collect::<Vec<_>>();
@@ -61,6 +67,152 @@ fn times(root: &Path) -> BTreeMap<PathBuf, SystemTime> {
 fn ok(answer: &Answer) {
     assert_eq!(answer.code, 0, "{answer:?}");
     assert!(answer.stderr.is_empty(), "{answer:?}");
+}
+
+#[test]
+fn tui_walks_print_frames_and_assets_under_the_tui_root() {
+    let f = Fixture::new();
+    f.tui_journey("t", T);
+    fs::write(f.root().join(TUI).join("overlay.css"), "pre {font-size: 14px}\n").expect("overlay");
+    let out = f.root().join("out");
+    let answer = f.print(&out, &["t"]);
+    ok(&answer);
+    assert_eq!(answer.stdout, format!("printed t\nprinted into {}\n", out.display()));
+    let pages = bytes(&out.join(TUI).join("t"));
+    assert_eq!(
+        pages.keys().map(|p| p.to_str().expect("name")).collect::<Vec<_>>(),
+        ["01.html", "01.txt", "02.html", "02.txt"]
+    );
+    let first = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(first.contains("<pre class=\"tui tui-dark\""), "{first}");
+    assert!(!first.contains("data-journey-key"), "approval, not a key, reaches the next mark");
+    assert!(String::from_utf8_lossy(&pages[Path::new("01.txt")]).contains("then press Approve."));
+    assert!(
+        String::from_utf8_lossy(&pages[Path::new("02.txt")]).contains("Setting temper up makes your first project")
+    );
+    assert!(!String::from_utf8_lossy(&pages[Path::new("02.html")]).contains("data-journey-key"));
+    for name in ["theme.css", "tui-journey.js", "overlay.css"] {
+        assert!(out.join(TUI).join(name).is_file(), "{name}");
+    }
+    assert_eq!(fs::read(out.join(TUI).join("overlay.css")).expect("copied overlay"), b"pre {font-size: 14px}\n");
+    assert!(!out.join(WEB).exists(), "only the printed root's assets go to scratch");
+}
+
+#[test]
+fn tui_prints_twice_have_identical_bytes() {
+    let f = Fixture::new();
+    f.tui_journey("t", T);
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["t"]));
+    ok(&f.print(&b, &["t"]));
+    let first = bytes(&a);
+    let second = bytes(&b);
+    assert_eq!(first.keys().collect::<Vec<_>>(), second.keys().collect::<Vec<_>>());
+    for (path, bytes) in first {
+        assert!(second[&path].eq(&bytes), "bytes differ at {}", path.display());
+    }
+}
+
+#[test]
+fn tui_keys_link_the_marked_frame_to_the_next_page() {
+    let f = Fixture::new();
+    f.tui_journey("t", "walk 2\ntui approve\ntui see \"Setting temper up makes your first project\"\ntui key paste \"/theme\"\ntui mark\ntui key enter\ntui mark\n");
+    let out = f.root().join("out");
+    ok(&f.print(&out, &["t"]));
+    let first = fs::read_to_string(out.join(TUI).join("t/01.html")).expect("first");
+    assert!(first.contains("data-journey-key=\"enter\" data-journey-next=\"02.html\""), "{first}");
+    let last = fs::read_to_string(out.join(TUI).join("t/02.html")).expect("last");
+    assert!(!last.contains("data-journey-key"));
+    assert!(fs::read_to_string(out.join(TUI).join("t/02.txt")).expect("theme frame").contains("Theme"));
+}
+
+#[test]
+fn a_tui_stop_names_its_line_and_leaves_other_journeys_printable() {
+    let f = Fixture::new();
+    f.tui_journey("t", "walk 2\ntui mark\ntui see \"Never drawn\"\ntui mark\n");
+    let out = f.root().join("out");
+    let directory = out.join(TUI).join("t");
+    fs::create_dir_all(&directory).expect("old pages");
+    fs::write(directory.join("01.txt"), "keep stopped frame").expect("frame");
+    fs::write(directory.join("recording"), "keep stopped recording").expect("recording");
+    let before = bytes(&directory);
+    let before_times = times(&directory);
+    let answer = f.print(&out, &["t", "w"]);
+    assert_eq!(answer.code, 1, "{answer:?}");
+    assert!(answer.stderr.is_empty(), "{answer:?}");
+    assert_eq!(
+        answer.stdout,
+        format!(
+            "stopped t: t line 3: \"Never drawn\" not seen in the TUI within 30 s\nprinted w\nprinted into {}\n",
+            out.display()
+        )
+    );
+    assert_eq!(bytes(&directory), before);
+    assert_eq!(times(&directory), before_times);
+    assert!(out.join(WEB).join("w/02.html").is_file());
+    assert!(!out.join(TUI).join("theme.css").exists());
+}
+
+#[test]
+fn tui_pages_remove_stale_frames_and_recording_then_write_nothing_when_fresh() {
+    let f = Fixture::new();
+    f.tui_journey("t", T);
+    let directory = f.root().join(TUI).join("t");
+    for name in ["03.txt", "03.html", "recording"] {
+        fs::write(directory.join(name), "stale").expect("stale file");
+    }
+    let overlay = f.root().join(TUI).join("overlay.css");
+    fs::write(&overlay, "pre {color: red}\n").expect("overlay");
+    let overlay_time = fs::metadata(&overlay).expect("metadata").modified().expect("mtime");
+    let first = f.run(&["pages"]);
+    ok(&first);
+    assert_eq!(first.stdout, "printed w\nprinted t\n");
+    for name in ["03.txt", "03.html", "recording"] {
+        assert!(!directory.join(name).exists(), "{name} removed");
+    }
+    assert!(directory.join("02.txt").is_file());
+    assert_eq!(fs::read(&overlay).expect("overlay kept"), b"pre {color: red}\n");
+    assert_eq!(fs::metadata(&overlay).expect("metadata").modified().expect("mtime"), overlay_time);
+    let before = bytes(f.root());
+    let before_times = times(f.root());
+    let fresh = f.run(&["pages"]);
+    ok(&fresh);
+    assert_eq!(fresh.stdout, "fresh w\nfresh t\n");
+    assert_eq!(bytes(f.root()), before);
+    assert_eq!(times(f.root()), before_times);
+}
+
+#[test]
+fn all_prints_visit_both_roots_in_order_and_names_prefer_the_browser() {
+    let f = Fixture::new();
+    f.journey("a", "walk 2\nweb mark\n");
+    f.tui_journey("a", "walk 2\ntui see \"Never drawn\"\n");
+    f.tui_journey("z", "walk 2\ntui mark\n");
+    f.tui_journey("t", "walk 2\ntui mark\n");
+    let out = f.root().join("out");
+    let answer = f.print(&out, &[]);
+    ok(&answer);
+    assert_eq!(answer.stdout, format!("printed a\nprinted w\nprinted t\nprinted z\nprinted into {}\n", out.display()));
+    assert!(out.join(WEB).join("a/01.html").is_file());
+    assert!(!out.join(TUI).join("a").exists());
+    assert!(out.join(TUI).join("t/01.txt").is_file());
+    assert!(out.join(TUI).join("z/01.txt").is_file());
+}
+
+#[test]
+fn tui_ancestors_marks_are_skipped_and_stop_restarts_the_terminal() {
+    let f = Fixture::new();
+    f.tui_journey("p", T);
+    f.tui_journey("t", "walk 2\nafter p\ntui stop\ntui see \"Setting temper up makes your first project\"\ntui mark\n");
+    let out = f.root().join("out");
+    ok(&f.print(&out, &["t"]));
+    let pages = bytes(&out.join(TUI).join("t"));
+    assert_eq!(pages.keys().map(|p| p.to_str().expect("name")).collect::<Vec<_>>(), ["01.html", "01.txt"]);
+    assert!(
+        String::from_utf8_lossy(&pages[Path::new("01.txt")]).contains("Setting temper up makes your first project")
+    );
+    assert!(!out.join(TUI).join("p").exists());
 }
 
 #[test]
