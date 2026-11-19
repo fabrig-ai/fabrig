@@ -61,6 +61,23 @@ fn positions_and_refusals_need_no_limits_traits_or_storage() {
     assert_eq!(format!("{problem:?}"), "Problem { path: Path { declaration: 9, part: 2 }, reason: Trailing }");
 }
 
+#[test]
+fn limits_refuse_the_first_excess_at_its_path() {
+    use fixture::{CEILINGS, LIMIT_NAMES, check_limits, paths};
+
+    assert_eq!(LIMIT_NAMES.first(), Some(&"words_words"));
+    assert_eq!(LIMIT_NAMES.last(), Some(&"nested_records"));
+    assert_eq!(check_limits(&CEILINGS), Ok(()));
+
+    let mut limits = CEILINGS;
+    limits.nested_records = CEILINGS.nested_records.checked_add(1).expect("small ceiling");
+    assert_eq!(check_limits(&limits), Err(paths::NESTED_RECORDS.problem(Reason::Bound)));
+    limits.words_words = CEILINGS.words_words.checked_add(1).expect("small ceiling");
+    assert_eq!(check_limits(&limits), Err(paths::WORDS_WORDS.problem(Reason::Bound)));
+    limits.nested_records = CEILINGS.nested_records;
+    assert_eq!(check_limits(&limits), Err(paths::WORDS_WORDS.problem(Reason::Bound)));
+}
+
 const PATH: Path<()> = Path::new(9, 2);
 
 fn written<T, F: Field<(), T>>(shape: &F, value: &T) -> Result<Box<[u8]>, Problem<()>> {
