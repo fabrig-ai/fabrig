@@ -12,15 +12,17 @@
     `ConnectModel`, in its head; then each of the person's accounts as a
     disclosure, folded, named by the account's heading (2, An
     account), its summary its deciding source's state in words and the
-    account's line (2, An account's line). Opened, only what the summary
-    does not say (the request `connect-flows`): no name, models, "Ready" or
-    "Pays for" again. The state's words and acts (2, Each state); its
-    sources in order, each with its kind and state in words; on the
+    account's line (2, An account's line), and under it the account's
+    usage (2, Usage). Opened, only what the summary does not say (the
+    request `connect-flows`): no name, "Ready" or count of what it pays for
+    again. The state's words and acts (2, Each state); its check line and
+    the uses it pays for by name (2, An account's check line; An account's
+    line); its sources in order, each with its kind and state in words; on the
     deployment's accounts
     "Used by" and "Waiting for it", whose facts jig gives the
     deployment's accounts alone for now (a person's own leave them
     out, and its line its use: the user's pick, 10-23); and
-    the account's acts: sign a source out, add a key to the account,
+    the account's acts, on one line (2, Its acts): sign a source out, add a key to the account,
     replace or remove a key, remove the account, resume a source, move
     the account or a source, check a program's login again;
   - *the deployment's accounts,* for an owner, the same way under
@@ -64,10 +66,11 @@
   The frame's lede says "The LLM accounts temper’s agents run on for you. A
   task keeps its account: while the account is limited, the task waits for
   it."; with no project it follows the page's heading. Each folded row
-  shows its name, holder, deciding source’s tag and summary. Opened, its state
-  adds only what the summary does not say: its source order and source acts,
-  the rule and use facts, then its account acts. Its name, models, Ready
-  and Pays for are not repeated in the opened body.
+  shows its name, holder, deciding source’s tag and summary, then its usage
+  where a window is held. Opened, its state adds only what the summary does
+  not say: its check line and its uses by name, its source order and source
+  acts, the rule and use facts, then its account acts. Its name, Ready and
+  its count of uses are not repeated in the opened body.
   "Deployment accounts" appears only when the owner’s document holds accounts.
 - **`ConnectModel`** (the request `connect-flows`) connects one more LLM
   account: the welcome's cards, panels and words, under Settings' path
@@ -310,12 +313,92 @@ The words for each offered source are:
   named by that heading, so a person and a screen reader find an
   account by its name. Each source is its kind in words, "ChatGPT
   sign-in", "API key", "Claude Code login NAME", then its state.
-- **An account's line,** its folded row's summary: its models, what it
-  pays for, then "2 tasks waiting", "used by T4, T9" or "no task uses
-  it now", a waiting task never also a user. What it pays for, its
-  "Pays for": a plan's, "Your own work, and projects where you’re the
-  only member"; a key's or a program's login's with no uses given,
-  "Your own work" (jig's `domain/accounts.md`, 4.2).
+- **An account's line,** its folded row's summary: what it pays for,
+  then, on the deployment's accounts, "2 tasks waiting", "used by T4, T9"
+  or "no task uses it now", a waiting task never also a user. It names no
+  models: a list of them doesn't scale, and the Models tab has them (the
+  look request `accounts-usage`, 2026-11-18). What it pays for, its "Pays
+  for":
+  - *with uses given,* a count by kind, people for the uses naming a
+    party and projects for those naming a project: "Pays for 11 people",
+    "Pays for 1 person", "Pays for 9 people and 2 projects", "Pays for 1
+    project"; "none" for an empty list;
+  - *with none given,* a plan's, "Your own work, and projects where
+    you’re the only member"; a key's or a program's login's, "Your own
+    work" (jig's `domain/accounts.md`, 4.2).
+
+  Opened, under its check line, an account with uses given names them in
+  their order, in a line of its own: "Pays for Ana, Ben, Chen and Kai.",
+  "Pays for Ana.", past the row's bound of uses "Pays for Ana, Ben and 9
+  more.". A person is named as Members names them (`settings.md`, 1,
+  *Members*): their member name, else their login, else "Person N"; a
+  project by its name in `me`, else "Project N". For the names the page
+  reads what Members reads, jig's `Read::Project` for each project `me`
+  lists, in `me`'s order, one at a time, while it is open and an account's
+  uses name a party, and again when `me`'s projects change; a person no
+  read names stays "Person N", and nothing waits for a read.
+- **Usage,** under a folded row's line, folded or opened: the account's
+  usage windows, jig's fact kind 7 (jig's `domain/accounts.md`, 3.7),
+  wherever one is held, on the person's accounts and the deployment's
+  alike (the look request `accounts-usage`). Where none is held, nothing is
+  drawn and nothing is guessed. Nothing writes one yet: Claude Code's
+  windows are `../../draft/usage-windows.md`'s, and temper reads no
+  ChatGPT plan's (*Each state*, below), so a ChatGPT row draws none.
+  - *Which windows:* each whose share used is held and whose reset, where
+    held, is still to come: a window past its reset is the last one's, and
+    is not drawn until the next report. The 5-hour window, labelled
+    `five_hour`, is drawn only while it is limited or would fill before its
+    reset ("we don't show the bar at all if it's not projected to fill",
+    the user); every other always. Shortest first, by length; a window of
+    no length last, by label.
+  - *Its name:* its label, the name its program gives it
+    (`../../draft/usage-windows.md`, 2): `five_hour` "5 h", `seven_day`
+    "Week", any other its label as it is.
+  - *Its line:* its name; a bar of its share used, a meter
+    (skein's `ui/README.md`, 3.1) named by the window's name, its
+    fraction the share of 10,000 basis points and its words "29% used";
+    the share in whole percent, rounded down, "29%"; then its pace,
+    "resets in 4 d 14 h · 2.0%/h · full in 1 d 11 h". The bar fills amber
+    at 80% or more, and red, whole, while the window is limited (its state
+    3, limited); a limited window's pace is "resets in SPAN" alone.
+  - *Its pace:* the rate is the share used over the time since the window
+    opened, its reset less its length, a share an hour: "2.0%/h", with one
+    decimal under 10, "21%/h" from 10. It needs no history; the accounts
+    document's own rate, once it serves one (`../../draft/usage-windows.md`,
+    5), will replace it. Then "full in SPAN", amber, the share left at that
+    rate, where that comes before the reset; otherwise "about 59% at reset",
+    the share the rate reaches by then, in whole percent. With no length
+    held there is no rate, and the pace is "resets in SPAN"; with no reset,
+    the rate alone; with neither, no pace.
+  - *A span* is days and hours from a day, "4 d 14 h", "2 d" with no
+    hours; hours and minutes under a day, "1 h 40 min", "12 h"; "40 min"
+    under an hour; "under 1 min". It is read from the page's clock, and
+    moves a minute at a time.
+  - *Where:* in the browser, in the folded row's head, shown folded
+    (skein's `ui/README.md`, 3.2), a group named "Usage", a line a
+    window of its name, bar, share and pace (`../web/look.md`, *An
+    account's row*); on a phone the pace goes under the bar. In the
+    terminal, a line a window, its words alone: "Week: 29% used · resets in
+    4 d 14 h · 2.0%/h · full in 1 d 11 h".
+- **An account's check line,** opened, under its state and before its
+  sources, where its trial answered (`../../domain/trial.md`, 6.2): one
+  muted line, its way, then how long the answer took. "Signed in through
+  Claude Code · answered in 8 s" for a program's login; "Signed in to
+  ChatGPT · answered in 6 s" for a plan's sign-in, its plan as *The
+  providers' words* has it; "Billed to the key’s organization · answered
+  in 6 s" for a key. The account's name and email are its heading already
+  (the look request `accounts-usage`). A trial under way or stopped keeps
+  the welcome's lines, its steps and its why (`welcome.md`, 1, *The try*).
+- **Its acts,** opened, on one line after its facts: "Add an API key",
+  "Manage usage", its moves, then "Remove account", last; the key field
+  a key act opens, and its outcome, under the line. Every act on the page
+  is quiet, as Settings' other pages draw their secondary acts
+  (`../web/look.md`, *An account's row*). A move is an arrow, "↑" or "↓",
+  named by its act ("Move account down"); a source's moves sit in its
+  source's line the same way. A move with nowhere to go isn't drawn: no
+  up on the first of its list, no down on the last, so the only account
+  and the only source have none; a list cut short keeps down on the last
+  row it shows.
 - **A run's wait,** above any chat's composer, an Ask temper chat's too, and
   on an agent's task's page, says in the person's words why its run can't
   start, from the task's `run_wait`, and offers the act where there is one:
@@ -491,9 +574,11 @@ The words for each offered source are:
   account (jig's `domain/accounts.md`, 4.3). "Use the API key first" is
   offered where the account holds a key after the limited source: it
   moves the key up, so that the account's waiting tasks go on on it,
-  and moves no task. A plan's row shows its limit's state and "Manage
-  usage" alone: its usage is ChatGPT's settings' to show (jig's
-  `domain/providers.md`, 2.6), and temper reads no plan's windows.
+  and moves no task. A ChatGPT plan's row shows its limit's state and
+  "Manage usage" alone: its usage is ChatGPT's settings' to show (jig's
+  `domain/providers.md`, 2.6), and temper reads no ChatGPT plan's
+  windows. A Claude subscription's row draws its windows where they are
+  held (*Usage*, above).
 - **A sign-in:** no words while it waits in a browser, which is at the
   provider (1, `ConnectModel`); in the terminal, "Open this address in
   a browser:" and the address, then the paste (below), as an external
