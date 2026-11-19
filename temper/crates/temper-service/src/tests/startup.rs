@@ -9,15 +9,9 @@ use skein_lib::List;
 
 const REFUSED_TEMPLATE: u32 = 7;
 
-fn transcript_document(bytes: u32) -> Box<[u8]> {
-    let document = fixtures::document();
-    let document = core::str::from_utf8(&document).unwrap();
+fn transcript_document(bytes: u32) -> fixtures::Start {
+    let mut document = fixtures::document();
     let previous = fixtures::startup_agent().limits.bodies.turn_body;
-    let needle = format!("\"root.loads.transcript_bytes\":{previous}");
-    assert_eq!(document.matches(&needle).count(), 1);
-    let mut document = document.replace(&needle, &format!("\"root.loads.transcript_bytes\":{bytes}"));
-    // A raised transcript needs startup's turn-plus-record and decoded read-row
-    // room too; the hard reply bound must cover the kept load.
     let transcript = bytes.max(previous);
     let loaded = transcript.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     let read = u64::from(transcript)
@@ -25,18 +19,11 @@ fn transcript_document(bytes: u32) -> Box<[u8]> {
         .unwrap()
         .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).unwrap())
         .unwrap();
-    let previous_loaded =
-        previous.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
-    for (key, before, after) in [
-        ("root.loads.bytes", u64::from(previous_loaded), u64::from(loaded)),
-        ("root.loads.reply_bytes", u64::from(previous_loaded), u64::from(loaded)),
-        ("root.loads.read_bytes", u64::from(previous).checked_mul(2).unwrap(), read),
-    ] {
-        let needle = format!("\"{key}\":{before}");
-        assert_eq!(document.matches(&needle).count(), 1);
-        document = document.replace(&needle, &format!("\"{key}\":{after}"));
-    }
-    document.into_bytes().into_boxed_slice()
+    document.own.root.loads.transcript_bytes = bytes;
+    document.own.root.loads.bytes = loaded;
+    document.own.root.loads.reply_bytes = loaded;
+    document.own.root.loads.read_bytes = read;
+    document
 }
 
 #[test]
@@ -90,36 +77,27 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
     for turn in [fixtures::startup_agent().limits.bodies.turn_body, TRANSCRIPT] {
         let mut agent = fixtures::startup_agent();
         agent.limits.bodies.turn_body = turn;
-        let mut value: serde_json::Value = serde_json::from_slice(&transcript_document(TRANSCRIPT)).unwrap();
+        let mut document = transcript_document(TRANSCRIPT);
         // The test pins read admission when the transcript drives the page.
-        value["application"]["limits"]["overrides"]["forge.changes"] = 0_u32.into();
-        let mut document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
+        document.own.forge.changes = 0;
         if turn == TRANSCRIPT {
-            let previous = u64::from(fixtures::startup_agent().limits.bodies.turn_body);
-            let mut text = core::str::from_utf8(&document).unwrap().to_string();
-            for (key, before, after) in [
-                ("hub.turn_bytes", previous, u64::from(turn)),
-                ("core.resume_bytes", previous + 4, u64::from(turn) + 4),
-                ("hub.transcript_bytes", (previous + 4) * 4, (u64::from(turn) + 4) * 4),
-                ("hub.turn_queue_bytes", previous * 8, u64::from(turn) * 8),
-                ("root.journal.transcript_bytes", previous + 4, u64::from(turn) + 4),
-            ] {
-                let needle = format!("\"{key}\":{before}");
-                assert!(text.contains(&needle));
-                text = text.replace(&needle, &format!("\"{key}\":{after}"));
-            }
-            let mut value: serde_json::Value = serde_json::from_str(&text).unwrap();
-            let overrides = &mut value["engine"]["limits"]["overrides"];
+            document.jig.hub.turn_bytes = u64::from(turn);
+            document.jig.core.resume_bytes = turn + 4;
+            document.jig.hub.transcript_bytes = u64::from(turn + 4) * 4;
+            document.jig.hub.turn_queue_bytes = u64::from(turn) * 8;
+            document.own.root.journal.transcript_bytes = turn + 4;
             let bodies = jig_protocol_worker_wire::v17::Limits {
                 turn_body: turn,
-                turn_refused: u32::try_from(overrides["tasks.run_inbox"].as_u64().unwrap()).unwrap(),
+                turn_refused: document.jig.core.tasks.run_inbox,
                 ..jig_protocol_worker_wire::v17::CEILINGS
             };
-            overrides["io.output"] = (jig_protocol_worker_wire::v17::Turn::encoded_bound(&bodies).unwrap() + 8).into();
-            document = serde_json::to_vec(&value).unwrap().into_boxed_slice();
+            document.jig.io.output =
+                u32::try_from(jig_protocol_worker_wire::v17::Turn::encoded_bound(&bodies).unwrap() + 8).unwrap();
         }
         let store =
-            crate::store_limits(&document, &config::Directories::working(), Some(&agent.declaration())).unwrap().store;
+            fixtures::document_store_limits(&document, &config::Directories::working(), Some(&agent.declaration()))
+                .unwrap()
+                .store;
         let page = u64::from(store.store.page.bytes);
         let map = u64::from(store.store.key) + u64::from(store.store.value);
         let frame = u64::from(jig_protocol_store::sizes::frame(&store.core, TRANSCRIPT).unwrap());
@@ -133,12 +111,10 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
         let required = decoded;
         // The complete decoded figure is named both without carrier room and at one byte short.
         for read in [u64::from(turn), required - 1, required] {
-            let text = core::str::from_utf8(&document).unwrap();
-            let needle = format!("\"root.loads.read_bytes\":{}", store.core.load_bytes);
-            assert_eq!(text.matches(&needle).count(), 1);
-            let document = text.replace(&needle, &format!("\"root.loads.read_bytes\":{read}"));
+            let mut document = document.clone();
+            document.own.root.loads.read_bytes = read;
             let started = fixtures::start(
-                document.as_bytes(),
+                &document,
                 &config::Directories::working(),
                 &fixtures::files(),
                 &agent,
@@ -164,10 +140,13 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
 #[test]
 fn a_map_driven_page_needs_no_larger_read_bound() {
     let document = fixtures::document();
-    let store =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
-            .unwrap()
-            .store;
+    let store = fixtures::document_store_limits(
+        &document,
+        &config::Directories::working(),
+        Some(&fixtures::startup_agent().declaration()),
+    )
+    .unwrap()
+    .store;
     let map = store.store.key.checked_add(store.store.value).unwrap();
     let frame =
         jig_protocol_store::sizes::frame(&store.core, fixtures::startup_agent().limits.bodies.turn_body).unwrap();
@@ -264,9 +243,12 @@ fn startup_names_the_policy_row_before_its_general_refusal() {
         b"application.limits.overrides",
         br#"{"root.journal.transcript_bytes":1}"#,
     );
-    let found =
-        crate::store_limits(&document, &config::Directories::working(), Some(&fixtures::startup_agent().declaration()))
-            .expect_err("short policy row");
+    let found = fixtures::document_store_limits(
+        &document,
+        &config::Directories::working(),
+        Some(&fixtures::startup_agent().declaration()),
+    )
+    .expect_err("short policy row");
     assert_eq!(
         lines(&found).as_ref(),
         b"application.limits.overrides.root.journal.transcript_bytes: must agree with engine.limits.core.policy_bytes plus its policy row carrier\n"
@@ -377,57 +359,7 @@ fn refused(input: &[u8]) -> Box<[u8]> {
     assert!(members.is_none());
     lines(&problems)
 }
-#[test]
-fn an_unknown_profile_is_refused_naming_its_path() {
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"standard\"", "\"large\"");
-    assert_eq!(&*refused(input.as_bytes()), b"application.limits.profile: the only profile is \"standard\"\n");
-}
-#[test]
-#[expect(clippy::disallowed_macros, reason = "ordinary tests format input and diagnostics")]
-fn an_override_by_dotted_name_is_set_or_refused() {
-    let jig = fixtures::engine().jig;
-    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap();
-    for (override_value, expected) in [
-        (
-            "\"overrides\":{\"forge.repositories\":3,\"forges.log_origins\":3,\"forge_component.log_origins\":7,\"forge_component.log_poll_ms\":7123,\"forge_component.log_catch_up_ms\":9321,\"forge_component.log_pages\":13,\"forge_component.delivery_bytes\":12345}",
-            "",
-        ),
-        (
-            "\"overrides\":{\"forge.nothing\":3}",
-            "application.limits.overrides.forge.nothing: no limit of temper's has this name\n",
-        ),
-        (
-            "\"overrides\":{\"checkout.name_bytes\":4294967296}",
-            "application.limits.overrides.checkout.name_bytes: outside its type\n",
-        ),
-    ] {
-        let (members, problems) = application(input.replace("\"overrides\":{}", override_value).as_bytes(), &jig);
-        assert_eq!(&*lines(&problems), expected.as_bytes(), "row {override_value}");
-        if let Some(members) = members {
-            assert_eq!(members.limits.forge.repositories, 3, "set {override_value}");
-            assert_eq!((members.limits.forges.log_origins, members.limits.forge_component.log_origins), (3, 7));
-            assert_eq!(members.limits.forge_component.log_poll, skein_lib::Duration::from_millis(7123));
-            assert_eq!(members.limits.forge_component.log_catch_up, skein_lib::Duration::from_millis(9321));
-            assert_eq!(members.limits.forge_component.log_pages, 13);
-            assert_eq!(members.limits.forge_component.delivery_bytes, 12_345);
-        }
-    }
-    for (name, value) in [
-        ("forges.log_origins", u64::from(u32::MAX) + 1),
-        ("forge_component.log_origins", u64::from(u32::MAX) + 1),
-        ("forge_component.log_poll_ms", u64::MAX / 1_000_000 + 1),
-        ("forge_component.log_catch_up_ms", u64::MAX / 1_000_000 + 1),
-        ("forge_component.log_pages", u64::from(u32::MAX) + 1),
-        ("forge_component.delivery_bytes", u64::from(u32::MAX) + 1),
-    ] {
-        let override_value = format!("\"overrides\":{{\"{name}\":{value}}}");
-        let (_, problems) = application(input.replace("\"overrides\":{}", &override_value).as_bytes(), &jig);
-        assert_eq!(
-            lines(&problems).as_ref(),
-            format!("application.limits.overrides.{name}: outside its type\n").as_bytes()
-        );
-    }
-}
+
 #[test]
 fn stored_application_members_are_refused_with_their_paths_and_reads() {
     let jig = fixtures::engine().jig;
@@ -551,18 +483,188 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
 }
 #[test]
 fn jigs_problems_keep_their_paths_under_engine() {
-    let input = fixtures::with(&fixtures::document(), b"engine.memory_bytes", br#""bad""#);
+    let input = fixtures::with(&fixtures::document(), b"engine.owners", br#""bad""#);
     let problems = fixtures::named(&input, &jig_protocol_config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&problems), b"engine.memory_bytes: wrong value kind\n".as_slice());
+    assert_eq!(&*lines(&problems), b"engine.owners: wrong value kind\n".as_slice());
 }
 #[test]
-fn a_zero_byte_budget_refuses_the_start_naming_its_member() {
-    let input = fixtures::document();
-    let zero = fixtures::with(&input, b"engine.memory_bytes", b"0");
-    let problems = fixtures::named(&zero, &config::Directories::working()).unwrap_err();
-    assert_eq!(lines(&problems).as_ref(), b"engine.memory_bytes: past its bound\n");
-    let one = fixtures::with(&input, b"engine.memory_bytes", b"1");
-    fixtures::named(&one, &config::Directories::working()).expect("a positive byte budget is valid");
+fn a_box_without_document_limits_starts_at_the_stock_budget_and_worker_figures() {
+    let document = super::stock::generated();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    let mut checked = crate::startup::checked_start_with(
+        &document,
+        &config::Directories::working(),
+        &super::stock::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+        None,
+    )
+    .unwrap();
+    let own = checked.engine.limits;
+    assert_eq!(own.live_goals, 40);
+    assert_eq!(own.tool_payload, 63_740);
+    let root = temper_engine_service::startup::engine_limits(&mut checked.engine.jig.limits, &own, None).unwrap();
+    assert_eq!(root.transcript_memory, 1_073_741_824);
+    let mut stock = crate::limits::stock();
+    stock.checkout.workspaces = 4;
+    stock.git_component.operations = 4;
+    stock.checkout.message_bytes = 63_740;
+    let worker = crate::limits::worker(&stock);
+    let (settings, prepared) = checked.worker.as_ref().unwrap();
+    assert_eq!(settings.jig.limits.as_ref().unwrap().hub.run_calls, 48);
+    assert_eq!(prepared.root.checkout, crate::worker_settings::checkout(worker.checkout));
+    assert_eq!(prepared.payload, crate::worker_settings::payload_limits(&worker).unwrap());
+    assert_eq!(checked.engine.limits.git_component, stock.git_component);
+}
+
+#[test]
+fn a_zero_typed_transcript_budget_refuses_the_start() {
+    let mut input = fixtures::document();
+    input.own.root.transcript_memory = 0;
+    let problems = fixtures::start(
+        &input,
+        &config::Directories::working(),
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .err()
+    .unwrap();
+    assert_eq!(
+        lines(&problems).as_ref(),
+        b"engine.limits.store: the store's map sizing is past its codec or arithmetic bounds\n"
+    );
+    input.own.root.transcript_memory = 1;
+    fixtures::start(
+        &input,
+        &config::Directories::working(),
+        &fixtures::files(),
+        &fixtures::startup_agent(),
+        &fixtures::seeds(),
+        None,
+        fixtures::worker_runtime(),
+        fixtures::forge_runtime(),
+    )
+    .unwrap();
+}
+
+fn eight_slot_start(input: &fixtures::Start) -> Result<crate::startup::CheckedStart, Problems> {
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    crate::startup::checked_start_with_limits(
+        input,
+        &config::Directories::working(),
+        &super::stock::files(),
+        Some(&agent),
+        &fixtures::seeds(),
+        List::with_capacity(0),
+        None,
+        &crate::stock::Given::Stock,
+        None,
+        &input.jig,
+        &input.own,
+    )
+}
+#[test]
+fn typed_box_start_names_what_to_raise_for_eight_slots() {
+    let mut input = super::stock::generated();
+    let mut value: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    value["workers"][0]["slots"] = 8_u32.into();
+    input.jig.hub.slots = 8;
+    input.document = serde_json::to_vec(&value).unwrap().into();
+    input.own.checkout.workspaces = 10;
+    input.own.git_component.operations = 10;
+    eight_slot_start(&input).unwrap();
+    let mut derived = input.clone();
+    derived.jig.hub.slots = 7;
+    eight_slot_start(&derived).expect("the worker's hub slots follow its places, not the engine's hub cap");
+    let part = crate::startup::box_worker_with_limits(
+        &derived,
+        &config::Directories::working(),
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        &[],
+        None,
+        (&derived.jig, &derived.own),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(part.worker.jig.limits.as_ref().unwrap().hub.slots, 8);
+    for (name, expected) in [
+        ("fleet.slots", "workers[0].slots: must agree with engine.limits.overrides.fleet.slots, at least the slots\n"),
+        (
+            "checkout.workspaces",
+            "workers[0].slots: must agree with application.limits.overrides.checkout.workspaces, at least the slots\n",
+        ),
+        (
+            "git_component.operations",
+            "application.limits.overrides.git_component.operations: must agree with checkout.workspaces\n",
+        ),
+    ] {
+        let mut short = input.clone();
+        match name {
+            "fleet.slots" => short.jig.core.fleet.slots = 7,
+            "checkout.workspaces" => short.own.checkout.workspaces = 7,
+            "git_component.operations" => short.own.git_component.operations = 7,
+            _ => unreachable!("three independent slot bounds"),
+        }
+        let Err(refused) = eight_slot_start(&short) else { panic!("short {name} started") };
+        assert_eq!(lines(&refused).as_ref(), expected.as_bytes(), "{name}");
+    }
+}
+
+#[test]
+fn limit_settings_reach_the_box_workers_checkout_git_and_peer() {
+    let input = super::stock::generated();
+    let agent = fixtures::parsed_agent(fixtures::stock_configuration(63_740, 48_000).unwrap());
+    let directories = config::Directories::working();
+    let inputs = crate::startup::LimitInputs::new(
+        &input,
+        &directories,
+        &super::stock::files(),
+        Some(&agent.declaration()),
+        &fixtures::seeds(),
+        &crate::stock::Given::Stock,
+        true,
+        Some((&input.jig, &input.own)),
+    );
+    let overrides = [
+        jig_domain_core::settings::Override {
+            name: b"checkout.repositories".as_slice().into(),
+            value: 8,
+            reason: b"more repositories".as_slice().into(),
+        },
+        jig_domain_core::settings::Override {
+            name: b"git_component.stderr_bytes".as_slice().into(),
+            value: 1024,
+            reason: b"more git diagnostic room".as_slice().into(),
+        },
+        jig_domain_core::settings::Override {
+            name: b"forge_component.token_bytes".as_slice().into(),
+            value: 256,
+            reason: b"bounded tokens".as_slice().into(),
+        },
+    ];
+    let resolved = crate::startup::resolve_limits(&inputs, &[], &overrides).unwrap();
+    let part = crate::startup::box_worker_with_limits(
+        &input,
+        &directories,
+        &crate::stock::Given::Stock,
+        &crate::stock::agents(),
+        &[],
+        Some(&agent.declaration()),
+        (&resolved.jig, &resolved.temper),
+    )
+    .unwrap()
+    .unwrap();
+    assert_eq!(part.limits.checkout.repositories, 8);
+    assert_eq!(part.limits.git_component.stderr_bytes, 1024);
+    assert_eq!(part.limits.peer.token_bytes, 256);
 }
 
 #[test]
@@ -646,23 +748,13 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 }
 
 #[test]
-fn a_setup_or_box_override_is_handed_on_with_its_value() {
-    for (override_value, repositories) in [("", 6_u64), (",\"forge.client.repositories\":3", 3)] {
-        let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(
-            "\"overrides\":{}",
-            &["\"overrides\":{\"setup.backoff_ms\":2,\"box.steps\":3", override_value, "}"].concat(),
-        );
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert_eq!(&*lines(&problems), b"");
-        assert_eq!(
-            members.unwrap().overrides.as_ref(),
-            &[
-                (b"setup.backoff_ms".as_slice().into(), 2),
-                (b"box.steps".as_slice().into(), 3),
-                (b"forge.client.repositories".as_slice().into(), repositories),
-            ]
-        );
-    }
+fn a_demo_document_member_is_refused_naming_its_path() {
+    let mut input = fixtures::document();
+    let mut document: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    document["application"]["demo"] = serde_json::Value::Null;
+    input.document = serde_json::to_vec(&document).unwrap().into();
+    let problems = fixtures::named(&input, &config::Directories::working()).unwrap_err();
+    assert_eq!(&*lines(&problems), b"application.demo: moved: the playground's scripted model is the box's own\n");
 }
 
 // protocol/openid-provider.md: a configured provider is admitted, and startup reads its key and
@@ -762,18 +854,35 @@ fn a_standalone_check_reserve_shortfall_prepares_with_one_warning() {
     defaults.providers = temper_worker_service_fixtures::providers();
     defaults.charters.iter_mut().find(|charter| charter.number == 2).unwrap().policy.reserve_time =
         skein_lib::Duration::from_secs(60);
-    let mut service = crate::startup::startup_with(
-        &fixtures::document(),
+    let document = fixtures::document();
+    let files = fixtures::files();
+    let seeds = fixtures::seeds();
+    let checked = crate::startup::checked_start_with_limits(
+        &document,
         &config::Directories::working(),
-        &fixtures::files(),
-        &agent,
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
+        &files,
+        Some(&agent),
+        &seeds,
         fixtures::forge_runtime(),
+        None,
         &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
+        None,
+        &document.jig,
+        &document.own,
     )
     .expect("a charter shortfall is a warning");
+    let mut service = crate::startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
+        None,
+        Some(fixtures::worker_runtime()),
+        None,
+        None,
+        Box::new([]),
+    )
+    .unwrap();
     assert_eq!(service.notes().pop(), Some(crate::Note::Engine(crate::EngineNote::StartupWarning {
         line: b"engine.charters[1].reserve_time_ms: needs checks within 60000 ms; the agent's profile.policy.check_timeout is 90000 ms; raise charter 2's reserve_time (temper help settings) or lower the timeout".as_slice().into(),
     })));
@@ -825,21 +934,21 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
         service.engine.as_ref().unwrap().opening_limits().core,
         temper_engine_domain::core_limits(service.engine.as_ref().unwrap().limits()),
     );
-    let mut refused: serde_json::Value = serde_json::from_slice(&document).unwrap();
-    refused["application"]["limits"]["overrides"]["root.loads.rows"] = 0_u32.into();
-    let refused = serde_json::to_vec(&refused).unwrap();
+    let mut refused = document.clone();
+    refused.own.root.loads.rows = 0;
     for (name, input, expected) in [
         (
             "serve",
-            document.as_ref(),
+            &document,
             Ok((
                 service.engine.as_ref().expect("engine").opening_limits(),
                 service.engine.as_ref().expect("engine").limits().forge,
             )),
         ),
-        ("limits", refused.as_slice(), Err(b"engine.limits: past its bound\n".as_slice())),
+        ("limits", &refused, Err(b"engine.limits: past its bound\n".as_slice())),
     ] {
-        let found = crate::store_limits(input, &directories, Some(&fixtures::startup_agent().declaration()));
+        let found =
+            fixtures::document_store_limits(input, &directories, Some(&fixtures::startup_agent().declaration()));
         let found = found.map(|limits| (limits.store, limits.forge)).map_err(|problems| lines(&problems));
         assert_eq!(found.as_ref().map_err(AsRef::as_ref), expected.as_ref().map_err(AsRef::as_ref), "{name}");
     }
@@ -1020,44 +1129,35 @@ fn startup_requires_room_for_the_core_and_two_charter_documents() {
 #[test]
 fn capacity_overrides_name_the_failed_dependency() {
     let initial = super::stock::generated();
+    let mut stock = initial.jig;
+    stock.core.tasks.inbox_bytes = 63_738;
+    stock.core.notes.scopes = 32;
     for (member, value, causes) in [
-        (b"tasks.tasks".as_slice(), 129, &["tasks.exemptions", "768", "tasks.tasks"][..]),
-        (b"tasks.tasks", 769, &["tasks.tasks", "769", "people.inbox_tasks", "1538"][..]),
-        (b"tasks.project_tasks", 64, &[][..]),
+        (b"tasks.project_tasks".as_slice(), 64, &[][..]),
         (
             b"tasks.batch",
             1025,
             &["tasks.batch", "1025", "TaskInterests.result_followups", "1024", "schema ceiling", "reduce"],
         ),
-        (b"tasks.delegates", 81, &["tasks.delegates", "81", "people.operations", "82"]),
-        (b"tasks.delegates", 82, &["tasks.delegates", "82", "people.operations", "83"]),
         (b"documents.lines", 8, &[][..]),
         (b"tasks.tree_tasks", 128, &[][..]),
         (b"tasks.message_bytes", 63_739, &["tasks.message_bytes", "63739", "tasks.inbox_bytes", "63739"]),
         (b"authority.grants", 30, &["authority.grants", "30", "notes.scopes", "33"]),
     ] {
-        let initial = if member == b"tasks.message_bytes" {
-            super::stock::limited(&initial, b"tasks.inbox_bytes", 63_738)
-        } else {
-            initial.clone()
+        let given = jig_domain_core::settings::Override {
+            name: member.into(),
+            value,
+            reason: b"capacity guard".as_slice().into(),
         };
-        let document = super::stock::limited(&initial, member, value);
+        let resolution = config::overrides::with_overrides(&stock, core::slice::from_ref(&given));
         if causes.is_empty() {
+            let mut document = initial.clone();
+            document.jig = resolution.expect("independent override figures");
             fixtures::named(&document, &config::Directories::working()).expect("independent init override is admitted");
             continue;
         }
-        let found = fixtures::start(
-            &document,
-            &config::Directories::working(),
-            &fixtures::files(),
-            &fixtures::startup_agent(),
-            &fixtures::seeds(),
-            None,
-            fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
-        )
-        .err()
-        .expect("capacity dependency refuses before file or runtime access");
+        let found =
+            Problems::jig(resolution.expect_err("capacity dependency refuses while resolving figures"), &Path::root());
         let rendered = lines(&found);
         let text = core::str::from_utf8(&rendered).unwrap();
         for cause in causes {

@@ -14,6 +14,7 @@ const RELEASE_CYCLES: u32 = 22;
 )]
 #[expect(missing_debug_implementations, reason = "the engine owns account token records")]
 pub struct Engine {
+    pub(crate) limits_in_force: Option<Box<crate::limit_settings::LimitSettings>>,
     // Keep the root's state out of service construction and movement frames.
     pub(crate) domain: Box<root::Domain>,
     pub(crate) upgrade: Option<crate::upgrade::State>,
@@ -153,6 +154,7 @@ impl Engine {
         };
         domain.connection_limits(own.forge.forges, own.forge_component.installations);
         let mut engine = Self {
+            limits_in_force: None,
             upgrade: None,
             checkpoint: None,
             credentials,
@@ -227,7 +229,23 @@ impl Engine {
             None => !self.begin,
         }
     }
+    fn restored_limit_revision(&mut self) {
+        if let Some(state) = &mut self.limits_in_force
+            && state.revision == 0
+            && self.domain.ready()
+        {
+            state.revision = self.domain.settings_revision();
+        }
+    }
     pub(crate) fn step(&mut self, event: root::Event) {
+        self.restored_limit_revision();
+        let event = match crate::limit_settings::admission::party(self.limits_in_force.as_deref(), event) {
+            Ok(event) => event,
+            Err(reply) => {
+                self.clients.down(*reply);
+                return;
+            }
+        };
         let watcher = watcher(&event);
         let party = party_input(&event);
         if let Err(event) = root::try_step(&mut self.domain, &self.env, event) {
@@ -251,6 +269,7 @@ impl Engine {
                 self.observe_party(true);
             }
         }
+        self.restored_limit_revision();
         self.drain_notes();
     }
     fn holding(&self) -> Option<CoreWait> {
@@ -681,6 +700,7 @@ pub(crate) fn release(engine: &mut Engine) {
         if engine.requests.is_empty() {
             stop::advance(engine);
             root::try_step(&mut engine.domain, &engine.env, root::Event::Resume).expect("owner continuation admitted");
+            engine.restored_limit_revision();
             engine.drain_notes();
             #[cfg(test)]
             let before = engine.requests.len();
@@ -981,6 +1001,7 @@ fn party_input(event: &root::Event) -> bool {
         | root::Event::Setup { .. }
         | root::Event::Restart { .. }
         | root::Event::Stop
+        | root::Event::LimitsRaised
         | root::Event::Resume => false,
         root::Event::Party(_) => true,
     }
@@ -1001,6 +1022,7 @@ fn watcher(event: &root::Event) -> Option<skein_lib::Token> {
         | root::Event::Setup { .. }
         | root::Event::Restart { .. }
         | root::Event::Stop
+        | root::Event::LimitsRaised
         | root::Event::Resume => None,
     }
 }

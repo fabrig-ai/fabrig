@@ -782,6 +782,7 @@ pub fn form_setting(v: c::Setting) -> n::Setting {
         c::Setting::Worker(x) => n::Setting::Worker(form_setting_number(x)),
         c::Setting::Provider(x) => n::Setting::Provider(form_setting_number(x)),
         c::Setting::Rules => n::Setting::Rules,
+        c::Setting::Limits => n::Setting::Limits,
     }
 }
 pub fn client_setting(v: n::Setting) -> c::Setting {
@@ -794,6 +795,7 @@ pub fn client_setting(v: n::Setting) -> c::Setting {
         n::Setting::Worker(x) => c::Setting::Worker(client_setting_number(x)),
         n::Setting::Provider(x) => c::Setting::Provider(client_setting_number(x)),
         n::Setting::Rules => c::Setting::Rules,
+        n::Setting::Limits => c::Setting::Limits,
         n::Setting::ProjectPolicy { project } => c::Setting::ProjectPolicy { project },
     }
 }
@@ -1042,6 +1044,14 @@ pub fn form_setting_value(v: &c::SettingValue) -> n::SettingValue {
         c::SettingValue::Charter(x) => n::SettingValue::Charter(Box::new(form_charter(x))),
         c::SettingValue::Template(x) => n::SettingValue::Template(Box::new(form_template(x))),
         c::SettingValue::Policy(x) => n::SettingValue::Policy(Box::new(form_setting_policy(x))),
+        c::SettingValue::Limits(values) => {
+            let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+            for v in values {
+                out.push(n::Override { name: v.name.clone(), value: v.value, reason: v.reason.clone() })
+                    .expect("override count");
+            }
+            n::SettingValue::Limits(out.into_boxed())
+        }
         c::SettingValue::Rules(x) => n::SettingValue::Rules(Box::new(form_rules(x))),
     }
 }
@@ -1061,6 +1071,14 @@ pub fn client_setting_value(v: &n::SettingValue) -> c::SettingValue {
         n::SettingValue::Charter(x) => c::SettingValue::Charter(Box::new(client_charter(x))),
         n::SettingValue::Template(x) => c::SettingValue::Template(Box::new(client_template(x))),
         n::SettingValue::Policy(x) => c::SettingValue::Policy(Box::new(client_setting_policy(x))),
+        n::SettingValue::Limits(values) => {
+            let mut out = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
+            for v in values {
+                out.push(c::Override { name: v.name.clone(), value: v.value, reason: v.reason.clone() })
+                    .expect("override count");
+            }
+            c::SettingValue::Limits(out.into_boxed())
+        }
         n::SettingValue::Rules(x) => c::SettingValue::Rules(Box::new(client_rules(x))),
     }
 }

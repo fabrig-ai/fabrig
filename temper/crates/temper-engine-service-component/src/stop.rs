@@ -136,6 +136,7 @@ pub(crate) fn root(engine: &mut Engine) {
         Some(root::StartStop::ForgeRow(key)) => Stop::StoreRow {
             row: crate::UnreadableRow {
                 key: temper_protocol_store::keys::encode(&key, u32::MAX).expect("change part key"),
+                lowered: None,
             },
         },
         Some(root::StartStop::ForgeFit { phase, failure }) => Stop::ForgeFit { phase, failure },
@@ -146,6 +147,10 @@ pub(crate) fn root(engine: &mut Engine) {
             Some(why) => Stop::Journal { why },
             None => Stop::Binding,
         },
+    };
+    let stopped = match crate::limit_settings::restore_refusal(engine.limits_in_force.as_deref(), &stopped) {
+        Some(named) => named,
+        None => stopped,
     };
     engine.end = Some(End::Stopped(stopped));
 }

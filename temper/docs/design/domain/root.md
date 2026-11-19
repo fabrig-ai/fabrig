@@ -51,6 +51,7 @@ and the agent agent/README.md. What is still open is listed in section 12.
 ```
 temper-engine-domain                       the root: the journal, routing, translation, putting outputs together
 ├── jig-domain-core                        jig's core and its children (jig's domain/engine/README.md, section 3)
+├── temper-engine-domain-store             the root's store vocabulary: keys, records, ranges and pages (section 8)
 ├── temper-engine-domain-forge             the forge connector's top (forge/README.md, section 3)
 │   ├── temper-engine-domain-forge-vocabulary  what crosses the top's edge (forge/README.md, section 3)
 │   ├── skein-forge-client                 the working set, keeping up, fresh reads, the request budget, effects' keys, write lanes (skein's forge-client.md)
@@ -104,7 +105,7 @@ temper-engine-domain/src/
 ├── translate.rs        Config and the small total functions (section 6)
 ├── assemble.rs         assignments and briefs from their owners' parts (section 7)
 ├── link.rs             the hub's link records, and what a run left (sections 3 and 7)
-├── store.rs, loads.rs  keys, records, ranges and pages (section 8)
+├── store, loads        temper-engine-domain-store: keys, records, ranges and pages (section 8)
 ├── archive.rs          loads outside the working set (section 8)
 ├── restart.rs          the restart script's steps (section 9)
 ├── stopping.rs         the drain (section 9)

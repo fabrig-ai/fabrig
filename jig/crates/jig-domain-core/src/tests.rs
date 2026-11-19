@@ -495,6 +495,7 @@ pub(crate) fn config(seed: u64) -> Config {
         },
         kinds: Box::default(),
         defaults: crate::settings::Defaults {
+            limits: Box::default(),
             providers: Box::new([provider_setting(1, b"Fake", 1)]),
             workers: Box::new([
                 crate::settings::WorkerSetting {

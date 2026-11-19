@@ -115,6 +115,16 @@ fn value(value: &Value) -> Option<u64> {
             }
             Some(bytes)
         }
+        Value::Limits(values) => {
+            let mut bytes = skein_lib::len_u64(values.len())
+                .checked_mul(u64::try_from(size_of::<jig_domain_core::settings::Override>()).ok()?)?;
+            for value in values {
+                bytes = bytes
+                    .checked_add(skein_lib::len_u64(value.name.len()))?
+                    .checked_add(skein_lib::len_u64(value.reason.len()))?;
+            }
+            Some(bytes)
+        }
         Value::Rules(rules) => u64::try_from(size_of::<authority::Rules>())
             .ok()?
             .checked_add(authority(&rules.ceiling)?)?

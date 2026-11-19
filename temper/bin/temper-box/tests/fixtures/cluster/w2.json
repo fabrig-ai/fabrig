@@ -6,8 +6,8 @@
       }},
       "name": "w2",
       "secret": "secrets/w2.secret",
-      "slots": 1,
-      "memory_bytes": 4503599627370496
+      "slots": 1
+
     }}
   ],
   "application": {{}}

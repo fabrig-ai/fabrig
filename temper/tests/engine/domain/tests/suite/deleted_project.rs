@@ -363,6 +363,7 @@ fn key_is(key: &forge::Key, repository: Repository) -> bool {
         forge::Key::Call(_)
         | forge::Key::ProposedEffect(_)
         | forge::Key::Names(_)
+        | forge::Key::LimitHold(_)
         | forge::Key::Landed(_)
         | forge::Key::Entry(_)
         | forge::Key::Change(_)
@@ -412,6 +413,7 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
             | Value::Questions(_)
             | Value::Ways(_)
             | Value::Classes(_)
+            | Value::Limits(_)
             | Value::CharterWords(_)
             | Value::ProjectWords(_)
             | Value::Goal(_)
@@ -428,6 +430,7 @@ fn setting_is(edit: &forge::settings::Edit, repository: Repository) -> bool {
 }
 
 // Exhaustive, deliberately independent of the production release's list.
+#[expect(clippy::too_many_lines, reason = "the independent repository predicate exhausts every stored record kind")]
 fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
     let (key, record) = row;
     if let Key::Forge(key) = key
@@ -492,6 +495,19 @@ fn names_repository(row: (&Key, &Record), repository: Repository) -> bool {
         }
         // These contain task, project, forge or setting identities, not repository identities.
         // ChangeHot's ownership is pinned with the cold part's key in assert_whole.
+        forge::Stored::LimitHold(row) => match &row.set {
+            forge::LimitSet::DesignWriters(name) => name_is(name, repository),
+            forge::LimitSet::Operation
+            | forge::LimitSet::Entries
+            | forge::LimitSet::Holds
+            | forge::LimitSet::Tasks
+            | forge::LimitSet::Changes
+            | forge::LimitSet::Steps
+            | forge::LimitSet::Subscriptions
+            | forge::LimitSet::Watches
+            | forge::LimitSet::Heads
+            | forge::LimitSet::Repositories => false,
+        },
         forge::Stored::RefusedSetting(_)
         | forge::Stored::Call { .. }
         | forge::Stored::Landed { .. }

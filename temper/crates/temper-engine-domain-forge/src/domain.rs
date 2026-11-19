@@ -27,6 +27,8 @@ mod goal_branch;
 pub(crate) mod heads;
 mod hints;
 mod landed;
+#[cfg(test)]
+mod limit_refusals;
 #[path = "make.rs"]
 pub(crate) mod make;
 #[path = "outage.rs"]
@@ -1066,6 +1068,41 @@ impl Domain {
         })
     }
 
+    /// Raise every holder of the at-once limits (configuration/limit-settings.md, 5).
+    fn raise(&mut self, limits: &Limits) {
+        let before = self.landing.limits;
+        assert!(
+            limits.tasks >= before.tasks
+                && limits.holds >= before.holds
+                && limits.entries >= before.entries
+                && limits.client.entries >= before.client.entries,
+            "at-once limits only rise"
+        );
+        let mut raised = before;
+        raised.tasks = limits.tasks;
+        raised.holds = limits.holds;
+        raised.entries = limits.entries;
+        raised.client.entries = limits.client.entries;
+        assert_eq!(raised, *limits, "other limits wait for the next start");
+        self.names.raise(limits.tasks.checked_add(limits.repositories).expect("checked names capacity"));
+        self.proposed_effects.raise(limits.tasks);
+        self.releases.raise(limits.tasks);
+        self.change_due.raise(limits.changes.checked_add(limits.tasks).expect("checked task capacity"));
+        self.closing.raise(limits.tasks);
+        self.holds.raise(limits.holds);
+        self.lost.raise(limits.holds);
+        self.makings.raise(limits.holds);
+        self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
+        self.entries.raise(limits.entries);
+        self.flights.raise(limits.entries);
+        if let Some(outage) = &mut self.outage {
+            outage.raise(limits.entries);
+        }
+        self.reconciliation.raise(limits);
+        self.client.raise(&limits.client);
+        self.landing.limits = *limits;
+    }
+
     /// Whether the landing effect's exact-head condition guards this judge.
     #[must_use]
     pub fn guards_landing(&self, _project: u32, requirement: u16, _parameters: u32) -> bool {
@@ -1367,6 +1404,35 @@ impl Domain {
         goal_branch::waiting(self, name)
     }
 
+    /// Occupancy at a refused entrance (protocol/configuration/limit-settings.md, 6).
+    #[must_use]
+    pub fn limit_usage(&self, set: &crate::LimitSet) -> Option<u64> {
+        use crate::LimitSet;
+        Some(match set {
+            LimitSet::Operation => return None,
+            LimitSet::Entries => u64::from(self.entries.len()),
+            LimitSet::Holds => u64::from(self.holds.len()),
+            LimitSet::Tasks => u64::from(self.names.len()),
+            LimitSet::Changes => u64::from(self.changes.len()),
+            LimitSet::Steps => u64::from(self.steps.len()),
+            LimitSet::Subscriptions => u64::from(self.subscriptions.len()),
+            LimitSet::Watches => skein_lib::len_u64(self.client.live_keys().len()),
+            LimitSet::Heads => u64::from(self.heads.len()),
+            LimitSet::Repositories => {
+                let resources = self.client.live_keys();
+                let mut repositories = Map::with_capacity(u32::try_from(resources.len()).expect("bounded watches"));
+                for resource in resources {
+                    repositories.insert(resource.repository, ()).expect("repositories bounded by watches");
+                }
+                u64::from(repositories.len())
+            }
+            LimitSet::DesignWriters(name) => match self.holds.get(name) {
+                Some(hold) => skein_lib::len_u64(hold.design_writers.len()),
+                None => 0,
+            },
+        })
+    }
+
     /// Current holder and writer of one named resource for root claim checks.
     #[must_use]
     pub fn hold(&self, name: &Name) -> Option<&Hold> {
@@ -1595,6 +1661,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::LimitsRaised => d.raise(&env.limits),
         Event::ReadHistory { read, query } => crate::history::read::begin(d, read, query, out),
         Event::HistoryLoaded { load, rows, next } => crate::history::read::loaded(d, env, load, rows, next, out),
         Event::HistoryUnloaded { load } => crate::history::read::unloaded(d, load, out),
@@ -3741,13 +3808,14 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
         return;
     }
     if !d.repositories.contains_key(&row.repository) {
-        room::refused(out, &row, crate::RefusalCause::Unadopted);
+        room::refused(out, b"register change", &row, crate::RefusalCause::Unadopted);
         return;
     }
     for name in [&row.branch, &row.base] {
         if name.len() > skein_lib::usize_of(env.limits.name_bytes) {
             room::refused(
                 out,
+                b"register change",
                 &row,
                 crate::RefusalCause::Limit {
                     member: "forge.name_bytes",
@@ -3761,6 +3829,7 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
     if d.changes.len() == env.limits.changes {
         room::refused(
             out,
+            b"register change",
             &row,
             crate::RefusalCause::Limit {
                 member: "forge.changes",
@@ -3770,8 +3839,17 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
         );
         return;
     }
-    if !crate::follow_check::select(d, &mut row, &env.limits) {
-        emit(out, Request::Refused { task });
+    if let Err(needed) = crate::follow_check::select(d, &mut row, &env.limits) {
+        room::refused(
+            out,
+            b"register change",
+            &row,
+            crate::RefusalCause::Limit {
+                member: "forge.change_policy.gates",
+                configured: u64::from(env.limits.change_policy.gates),
+                needed,
+            },
+        );
         return;
     }
     row.change.way = d.landing.way(d.repositories.get(&row.repository).expect("adopted").project);
@@ -5862,14 +5940,34 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
     let touched = step_touched(d, &row, &pending);
     d.keep_touched(row.task, pending.branch, touched);
     if let Some(repository) = d.repositories.get(&row.repository) {
-        let Some(gates) = d.step_gates(&env.limits, &row, repository, touched) else {
-            emit(out, Request::Refused { task: row.task });
-            return;
+        let gates = match d.step_gates(&env.limits, &row, repository, touched) {
+            Ok(gates) => gates,
+            Err(crate::RefusalCause::InvalidName) => {
+                emit(out, Request::Refused { task: row.task });
+                return;
+            }
+            Err(
+                cause @ (crate::RefusalCause::Limit { .. }
+                | crate::RefusalCause::Unadopted
+                | crate::RefusalCause::Backend(_)),
+            ) => {
+                room::refused(out, b"step change", &row, cause);
+                return;
+            }
         };
         row.change.gates = gates;
     }
-    if !crate::follow_check::select(d, &mut row, &env.limits) {
-        emit(out, Request::Refused { task: row.task });
+    if let Err(needed) = crate::follow_check::select(d, &mut row, &env.limits) {
+        room::refused(
+            out,
+            b"step change",
+            &row,
+            crate::RefusalCause::Limit {
+                member: "forge.change_policy.gates",
+                configured: u64::from(env.limits.change_policy.gates),
+                needed,
+            },
+        );
         return;
     }
     // A workflow has its own runner-fault lifetime, not an agent's stall allowance.
@@ -9413,7 +9511,11 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.history_projects.insert(row.project, row).expect("restored history project room checked");
         }
         // Demand-loaded history is never restored (landing-history.md, 4.4).
-        Stored::HistoryEvent(_) | Stored::HistoryChange(_) | Stored::HistoryLanding(_) | Stored::HistoryLast(_) => {}
+        Stored::HistoryEvent(_)
+        | Stored::HistoryChange(_)
+        | Stored::HistoryLanding(_)
+        | Stored::HistoryLast(_)
+        | Stored::LimitHold(_) => {}
         Stored::Making(mut row) => {
             row.state = match row.state {
                 crate::MakingState::Making => crate::MakingState::Waiting,

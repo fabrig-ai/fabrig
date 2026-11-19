@@ -7,28 +7,42 @@ use crate::{documents, fakes};
 fn the_deployment_document_is_one_temper_serve_starts() {
     let bytes = documents::document();
     let value = documents::world_document();
-    assert!(value["engine"]["limits"]["overrides"]["core.resume_bytes"].as_u64().unwrap() >= 4_194_304);
+    assert!(value.jig.core.resume_bytes >= 4_194_304);
     assert!(value["workers"][0].get("limits").is_none());
-    let result = temper_service::startup::with_setup_given(
+    let files = documents::files();
+    let agent = documents::agent();
+    let seeds = documents::seeds(7).service();
+    let result = temper_service::startup::checked_start_with_limits(
         &bytes,
         &jig_protocol_config::Directories::working(),
-        &documents::files(),
-        Some(&documents::agent()),
-        &documents::seeds(7).service(),
-        None,
-        Some(temper_service::WorkerRuntime {
-            wires: None,
-            root: skein_io::kernel::Fd::new(2),
-            path: b"/worker".as_slice().into(),
-            agent: documents::pinned_agent(),
-        }),
+        &files,
+        Some(&agent),
+        &seeds,
         documents::forges(),
         None,
-        None,
-        None,
         &documents::given(&value),
-        Box::new([]),
-    );
+        Some(b"/usr/bin/git"),
+        &value.jig,
+        &value.limits,
+    )
+    .and_then(|checked| {
+        temper_service::startup::from_checked(
+            checked,
+            &files,
+            Some(&agent),
+            &seeds,
+            None,
+            Some(temper_service::WorkerRuntime {
+                wires: None,
+                root: skein_io::kernel::Fd::new(2),
+                path: b"/worker".as_slice().into(),
+                agent: documents::pinned_agent(),
+            }),
+            None,
+            None,
+            Box::new([]),
+        )
+    });
     if let Err(problems) = result {
         panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems)));
     }
@@ -42,18 +56,17 @@ fn resumes_have_a_floor_without_raising_turn_carriers() {
         let turn = u64::from(turn);
         let resume = (turn + 4).max(4_194_304);
         let window = resume + (u64::try_from(size_of::<Box<[u8]>>()).unwrap() - 4) * (resume / 4);
-        let engine = &document["engine"]["limits"]["overrides"];
-        assert_eq!(engine["core.resume_bytes"], resume);
-        assert_eq!(engine["hub.transcript_bytes"], window);
-        assert_eq!(engine["hub.turn_bytes"], turn);
-        assert_eq!(engine["hub.turn_queue_bytes"], 8 * turn);
-        let root = &document["application"]["limits"]["overrides"];
-        assert_eq!(root["root.journal.transcript_bytes"], resume);
-        assert_eq!(root["root.loads.transcript_bytes"], turn);
+        assert_eq!(u64::from(document.jig.core.resume_bytes), resume);
+        assert_eq!(document.jig.hub.transcript_bytes, window);
+        assert_eq!(document.jig.hub.turn_bytes, turn);
+        assert_eq!(document.jig.hub.turn_queue_bytes, 8 * turn);
+        assert!(document["workers"][0].get("limits").is_none());
+        assert_eq!(u64::from(document.limits.root.journal.transcript_bytes), resume);
+        assert_eq!(u64::from(document.limits.root.loads.transcript_bytes), turn);
         let loaded = turn + u64::try_from(size_of::<temper_engine_domain::Record>()).unwrap();
-        assert_eq!(root["root.loads.bytes"], loaded);
-        assert_eq!(root["root.loads.reply_bytes"], loaded);
-        assert_eq!(root["root.loads.read_bytes"], 2 * turn);
+        assert_eq!(u64::from(document.limits.root.loads.bytes), loaded);
+        assert_eq!(u64::from(document.limits.root.loads.reply_bytes), loaded);
+        assert_eq!(document.limits.root.loads.read_bytes, 2 * turn);
     }
 }
 
@@ -97,8 +110,7 @@ fn the_fakes_limits_are_their_constructors() {
 fn the_owned_values_equal_the_test_kits_values() {
     use jig_channel_kit::fixtures as channel;
     assert_eq!(documents::KEY, channel::KEY);
-    let mut owned: serde_json::Value =
-        serde_json::from_slice(&documents::engine_document()).expect("owned engine JSON");
+    let mut owned = documents::engine_document().document;
     let mut source: serde_json::Value =
         serde_json::from_slice(&channel::engine_document()).expect("channel engine JSON");
     // Temper sizes both watch rooms from clients.streams (temper/docs/design/protocol/configuration/limits.md).
@@ -108,6 +120,7 @@ fn the_owned_values_equal_the_test_kits_values() {
     // Limit fixtures are explicit here; the kit's profile does not cross this boundary.
     owned["engine"].as_object_mut().unwrap().remove("limits");
     source["engine"].as_object_mut().unwrap().remove("limits");
+    source["engine"].as_object_mut().unwrap().remove("memory_bytes");
     documents::settings::strip_fixed(&mut source);
     source["engine"].as_object_mut().expect("channel engine").remove("llm");
     assert_eq!(owned, source);

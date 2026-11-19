@@ -3,6 +3,27 @@ use crate::{records, v25};
 use temper_engine_domain_forge as forge;
 
 #[test]
+fn a_limit_hold_keeps_its_task_revision_figures_time_and_entrance() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = forge::Stored::LimitHold(forge::LimitHold {
+        task: 7,
+        member: b"forge.entries".as_slice().into(),
+        configured: 8,
+        needed: 9,
+        revision: 13,
+        at: skein_lib::Wall::from_nanos(42),
+        order: 3,
+        room: 1,
+        set: forge::LimitSet::Entries,
+    });
+    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    let bytes = records::encode(&row);
+    assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    let wrong = crate::keys::encode(&forge::Key::LimitHold(8), u32::MAX).unwrap();
+    assert_eq!(records::row(&wrong, &bytes, &bounds), Err(crate::Undecodable::Malformed));
+}
+
+#[test]
 fn a_changes_follows_round_trip_and_restore_with_the_configured_merge_bound() {
     use skein_lib::{Env, Queue, Time, Wall};
     use temper_engine_domain_forge_change::State;

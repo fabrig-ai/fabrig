@@ -138,6 +138,7 @@ fn path_sets(domain: &Domain, project: u32, items: &[ways::Item]) -> Box<[temper
                 | settings::Value::AgentFigures(_)
                 | settings::Value::Landing(_)
                 | settings::Value::Gates(_)
+                | settings::Value::Limits(_)
                 | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_) => {}
             },
@@ -213,6 +214,7 @@ fn project_ways(domain: &Domain, project: u32) -> Option<&settings::ProjectWays>
                 | settings::Value::AgentFigures(_)
                 | settings::Value::Landing(_)
                 | settings::Value::Gates(_)
+                | settings::Value::Limits(_)
                 | settings::Value::Welcome(_)
                 | settings::Value::ProjectTriager(_)
                 | settings::Value::Dependency(_)
@@ -391,6 +393,7 @@ pub(crate) fn erased(domain: &mut Domain, key: &forge::Key) {
         forge::Key::Call(_)
         | forge::Key::ProposedEffect(_)
         | forge::Key::Hold(_)
+        | forge::Key::LimitHold(_)
         | forge::Key::Names(_)
         | forge::Key::Subscription { .. }
         | forge::Key::BranchHead(_)

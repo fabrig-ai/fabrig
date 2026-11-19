@@ -142,8 +142,7 @@ impl Referee {
             story_steps: 100_000,
         };
         if matches!(scenario, crate::world::Story::PlaygroundA) {
-            let document =
-                serde_json::from_slice(temper_playground::stories::A.deployment).expect("story A's deployment");
+            let document = temper_playground::stories::A.configuration();
             let temper_service::stock::Given::Own { jig, .. } = temper_playground::documents::given(&document) else {
                 panic!("the composition supplies story A's defaults")
             };
