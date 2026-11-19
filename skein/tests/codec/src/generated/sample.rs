@@ -2,11 +2,14 @@
 
 use alloc::boxed::Box;
 use skein_lib::List;
+use skein_codec::field;
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
-/// This family's schema version.
 pub const VERSION: u16 = 1;
 
-/// The family's adjustable limits, each no larger than its ceiling.
+// Limits: the owner's values, checked once against ceilings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub field_name: u32,
@@ -15,7 +18,6 @@ pub struct Limits {
     pub report_fields: u32,
 }
 
-/// The schema's maximum limits.
 pub const CEILINGS: Limits = Limits {
     field_name: 4,
     field_value: 4,
@@ -23,7 +25,6 @@ pub const CEILINGS: Limits = Limits {
     report_fields: 2,
 };
 
-/// The limits' field names, in field order.
 pub const LIMIT_NAMES: &[&str] = &[
     "field_name",
     "field_value",
@@ -32,705 +33,311 @@ pub const LIMIT_NAMES: &[&str] = &[
 ];
 
 impl Limits {
-    /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
     pub fn values(&self) -> List<u32> {
         let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        self.values_for_field_record(&mut values);
+        values.push(self.field_name).expect("room for every named limit");
+        values.push(self.field_value).expect("room for every named limit");
+        values.push(self.report_title).expect("room for every named limit");
+        values.push(self.report_fields).expect("room for every named limit");
         values
     }
 }
 
-/// A field or tag that caused a codec problem.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Path {
-    /// The `name` field of `Field`.
-    FieldName,
-    /// The `value` field of `Field`.
-    FieldValue,
-    /// Bytes after `Field`.
-    FieldTail,
-    /// The tag of `Effect`.
-    EffectTag,
-    /// The `title` field of `Report`.
-    ReportTitle,
-    /// The `fields` field of `Report`.
-    ReportFields,
-    /// The `effect` field of `Report`.
-    ReportEffect,
-    /// The `present` field of `Report`.
-    ReportPresent,
-    /// The `nonce` field of `Report`.
-    ReportNonce,
-    /// The `age` field of `Report`.
-    ReportAge,
-    /// The version of `Report`.
-    ReportVersion,
-    /// Bytes after `Report`.
-    ReportTail,
-    /// The tag of `Choice`.
-    ChoiceTag,
-    /// Bytes after `Marker`.
-    MarkerTail,
-}
+const LIMIT_PATHS: &[Path] = &[
+    paths::FIELD_NAME,
+    paths::FIELD_VALUE,
+    paths::REPORT_TITLE,
+    paths::REPORT_FIELDS,
+];
 
-impl Path {
-    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::FieldName => "Field.name",
-            Self::FieldValue => "Field.value",
-            Self::FieldTail => "Field (tail)",
-            Self::EffectTag => "Effect (tag)",
-            Self::ReportTitle => "Report.title",
-            Self::ReportFields => "Report.fields",
-            Self::ReportEffect => "Report.effect",
-            Self::ReportPresent => "Report.present",
-            Self::ReportNonce => "Report.nonce",
-            Self::ReportAge => "Report.age",
-            Self::ReportVersion => "Report (version)",
-            Self::ReportTail => "Report (tail)",
-            Self::ChoiceTag => "Choice (tag)",
-            Self::MarkerTail => "Marker (tail)",
-        }
-    }
-}
-
-/// A decoding or bound failure at a schema path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Problem {
-    pub path: Path,
-    pub reason: skein_codec::Reason,
-}
-
-/// Checks the family limits, naming the first limit past its ceiling.
 pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_field_record_limits(limits)
-}
-
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    field_encoded_bound_family(limits, 0)
-}
-
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    field_decoded_bound_family(limits, 0)
-}
-
-/// Movable fields of `Field`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct FieldParts {
-    /// The `name` field.
-    pub name: Box<[u8]>,
-    /// The `value` field.
-    pub value: Box<[u8]>,
-}
-
-/// `Field` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Field {
-    name: Box<[u8]>,
-    value: Box<[u8]>,
-}
-
-impl Field {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: FieldParts) -> Result<Self, Problem> {
-        let FieldParts { name, value } = parts;
-        let value = Self { name, value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `name` field.
-    #[must_use]
-    pub fn name(&self) -> &[u8] { &self.name }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &[u8] { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> FieldParts { FieldParts { name: self.name, value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.name.len() > usize::try_from(limits.field_name.min(CEILINGS.field_name)).expect("u32 fits usize") { return Err(Problem { path: Path::FieldName, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::FieldName, reason: skein_codec::Reason::Utf8 }); }
-        if self.value.len() > usize::try_from(limits.field_value.min(CEILINGS.field_value)).expect("u32 fits usize") { return Err(Problem { path: Path::FieldValue, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-impl Field {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_name = &self.name;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_value = &self.value;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_value.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_name = &self.name;
-        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_name.as_ref())?;
-        let field_value = &self.value;
-        writer.put(&u32::try_from(field_value.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_value.as_ref())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::FieldTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_name = match skein_codec::read_text(reader, limits.field_name.min(CEILINGS.field_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::FieldName, reason }), };
-        let decoded_value = { let length = match skein_codec::read_len(reader, limits.field_value.min(CEILINGS.field_value)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::FieldValue, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::FieldValue, reason: skein_codec::Reason::Short })?) };
-        Ok(Self { name: decoded_name, value: decoded_value })
-    }
-}
-
-impl Field {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.field_name))?)?.checked_add(4_u64.checked_add(u64::from(limits.field_value))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.field_name))?.checked_add(u64::from(limits.field_value))?;
-        heap.checked_add(0)
-    }
-}
-
-fn field_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Field::encoded_bound_within(limits)?);
-    effect_encoded_bound_family(limits, biggest)
-}
-
-fn field_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Field::decoded_bound_within(limits)?);
-    effect_decoded_bound_family(limits, biggest)
-}
-
-fn check_field_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.field_name > CEILINGS.field_name { return Err(Problem { path: Path::FieldName, reason: skein_codec::Reason::Bound }); }
-    if limits.field_value > CEILINGS.field_value { return Err(Problem { path: Path::FieldValue, reason: skein_codec::Reason::Bound }); }
-    check_report_record_limits(limits)
-}
-
-impl Limits {
-    fn values_for_field_record(&self, values: &mut List<u32>) {
-        values.push(self.field_name).expect("room for every named limit");
-        values.push(self.field_value).expect("room for every named limit");
-        self.values_for_report_record(values);
-    }
-}
-
-/// `Effect` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum Effect {
-    /// `read` without a payload.
-    Read,
-    /// `write` without a payload.
-    Write,
-}
-
-impl Effect {
-    /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
-        Ok(value)
-    }
-
-}
-
-impl Effect {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        match self {
-            Self::Read | Self::Write => 1,
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
         }
     }
-
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Read => writer.put(&[0_u8])?,
-            Self::Write => writer.put(&[1_u8])?,
-        }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::EffectTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::EffectTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Read,
-            1 => Self::Write,
-            _ => return Err(Problem { path: Path::EffectTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
-    }
-}
-
-impl Effect {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
-        biggest.checked_add(0)
-    }
-}
-
-fn effect_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Effect::encoded_bound_within(limits)?);
-    report_encoded_bound_family(limits, biggest)
-}
-
-fn effect_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Effect::decoded_bound_within(limits)?);
-    report_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `Report`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct ReportParts {
-    /// The `title` field.
-    pub title: Box<[u8]>,
-    /// The `fields` field.
-    pub fields: List<Field>,
-    /// The `effect` field.
-    pub effect: Effect,
-    /// The `present` field.
-    pub present: Option<bool>,
-    /// The `nonce` field.
-    pub nonce: [u8; 2],
-    /// The `age` field.
-    pub age: skein_lib::Duration,
-}
-
-/// `Report` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Report {
-    title: Box<[u8]>,
-    fields: List<Field>,
-    effect: Effect,
-    present: Option<bool>,
-    nonce: [u8; 2],
-    age: skein_lib::Duration,
-}
-
-impl Report {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: ReportParts) -> Result<Self, Problem> {
-        let ReportParts { title, fields, effect, present, nonce, age } = parts;
-        let value = Self { title, fields, effect, present, nonce, age };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `title` field.
-    #[must_use]
-    pub fn title(&self) -> &[u8] { &self.title }
-
-    /// Reads the `fields` field.
-    #[must_use]
-    pub fn fields(&self) -> &List<Field> { &self.fields }
-
-    /// Reads the `effect` field.
-    #[must_use]
-    pub fn effect(&self) -> &Effect { &self.effect }
-
-    /// Reads the `present` field.
-    #[must_use]
-    pub fn present(&self) -> &Option<bool> { &self.present }
-
-    /// Reads the `nonce` field.
-    #[must_use]
-    pub fn nonce(&self) -> &[u8; 2] { &self.nonce }
-
-    /// Reads the `age` field.
-    #[must_use]
-    pub fn age(&self) -> skein_lib::Duration { self.age }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> ReportParts { ReportParts { title: self.title, fields: self.fields, effect: self.effect, present: self.present, nonce: self.nonce, age: self.age } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.title.len() > usize::try_from(limits.report_title.min(CEILINGS.report_title)).expect("u32 fits usize") { return Err(Problem { path: Path::ReportTitle, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.title.as_ref()) { return Err(Problem { path: Path::ReportTitle, reason: skein_codec::Reason::Utf8 }); }
-        if self.fields.capacity() > limits.report_fields.min(CEILINGS.report_fields) { return Err(Problem { path: Path::ReportFields, reason: skein_codec::Reason::Bound }); }
-        for item_0 in self.fields.as_slice() {
-        item_0.check(limits)?;
-        }
-        Ok(())
-    }
-}
-
-impl Report {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        let field_title = &self.title;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_title.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_fields = &self.fields;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        for item_0 in field_fields.as_slice() {
-        size = size.checked_add(item_0.measure()).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        let field_present = &self.present;
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        if field_present.is_some() {
-        size = size.checked_add(1).expect("schema ceilings fit u32");
-        }
-        size = size.checked_add(2).expect("schema ceilings fit u32");
-        size = size.checked_add(8).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&VERSION.to_be_bytes())?;
-        let field_title = &self.title;
-        writer.put(&u32::try_from(field_title.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_title.as_ref())?;
-        let field_fields = &self.fields;
-        writer.put(&field_fields.len().to_be_bytes())?;
-        for item_0 in field_fields.as_slice() {
-        item_0.encode(writer)?;
-        }
-        let field_effect = &self.effect;
-        field_effect.encode(writer)?;
-        let field_present = &self.present;
-        match field_present {
-            Some(some_0) => {
-                writer.put(&[1_u8])?;
-        writer.put(&[u8::from(*some_0)])?;
-            }
-            None => writer.put(&[0_u8])?,
-        }
-        let field_nonce = &self.nonce;
-        writer.put(field_nonce)?;
-        let field_age = &self.age;
-        writer.put(&field_age.as_nanos().to_be_bytes())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ReportTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let version = reader.u16().ok_or(Problem { path: Path::ReportVersion, reason: skein_codec::Reason::Short })?;
-        if version != VERSION { return Err(Problem { path: Path::ReportVersion, reason: skein_codec::Reason::Version }); }
-        let decoded_title = match skein_codec::read_text(reader, limits.report_title.min(CEILINGS.report_title)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::ReportTitle, reason }), };
-        let decoded_fields = { let count = match skein_codec::read_count(reader, limits.report_fields.min(CEILINGS.report_fields)) { Ok(count) => count, Err(reason) => return Err(Problem { path: Path::ReportFields, reason }), }; if count > reader.remaining() / 8 { return Err(Problem { path: Path::ReportFields, reason: skein_codec::Reason::Short }); } let mut items_0 = List::allocated(count); for _index in 0_u32..count { let item = Field::decode_from(limits, reader)?; items_0.push(item).expect("count within capacity"); } items_0 };
-        let decoded_effect = Effect::decode_from(limits, reader)?;
-        let decoded_present = match reader.u8().ok_or(Problem { path: Path::ReportPresent, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(match reader.u8().ok_or(Problem { path: Path::ReportPresent, reason: skein_codec::Reason::Short })? { 0 => false, 1 => true, _ => return Err(Problem { path: Path::ReportPresent, reason: skein_codec::Reason::Bool }) }), _ => return Err(Problem { path: Path::ReportPresent, reason: skein_codec::Reason::Tag }) };
-        let decoded_nonce = { let bytes = reader.bytes(2).ok_or(Problem { path: Path::ReportNonce, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") };
-        let decoded_age = skein_lib::Duration::from_nanos(reader.u64().ok_or(Problem { path: Path::ReportAge, reason: skein_codec::Reason::Short })?);
-        Ok(Self { title: decoded_title, fields: decoded_fields, effect: decoded_effect, present: decoded_present, nonce: decoded_nonce, age: decoded_age })
-    }
-}
-
-impl Report {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 2_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.report_title))?)?.checked_add(4_u64.checked_add(u64::from(limits.report_fields).checked_mul(Field::encoded_bound_within(limits)?)?)?)?;
-        size = size.checked_add(Effect::encoded_bound_within(limits)?)?.checked_add(1_u64.checked_add(1_u64)?)?;
-        size = size.checked_add(u64::from(2_u32))?.checked_add(8_u64)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.report_title))?.checked_add(List::<Field>::price(limits.report_fields)?.checked_add(u64::from(limits.report_fields).checked_mul(Field::decoded_bound_within(limits)?)?)?)?;
-        heap = heap.checked_add(Effect::decoded_bound_within(limits)?)?.checked_add(0_u64)?;
-        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
-        heap.checked_add(0)
-    }
-}
-
-fn report_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Report::encoded_bound_within(limits)?);
-    choice_encoded_bound_family(limits, biggest)
-}
-
-fn report_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Report::decoded_bound_within(limits)?);
-    choice_decoded_bound_family(limits, biggest)
-}
-
-fn check_report_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.report_title > CEILINGS.report_title { return Err(Problem { path: Path::ReportTitle, reason: skein_codec::Reason::Bound }); }
-    if limits.report_fields > CEILINGS.report_fields { return Err(Problem { path: Path::ReportFields, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
-impl Limits {
-    fn values_for_report_record(&self, values: &mut List<u32>) {
-        values.push(self.report_title).expect("room for every named limit");
-        values.push(self.report_fields).expect("room for every named limit");
+// Paths: declaration and part positions, with one naming table.
+pub mod paths {
+    use super::Path;
+    pub const FIELD_NAME: Path = Path::new(0, 0);
+    pub const FIELD_VALUE: Path = Path::new(0, 1);
+    pub const FIELD_TAIL: Path = Path::new(0, 2);
+    pub const EFFECT_TAG: Path = Path::new(1, 0);
+    pub const REPORT_TITLE: Path = Path::new(2, 0);
+    pub const REPORT_FIELDS: Path = Path::new(2, 1);
+    pub const REPORT_EFFECT: Path = Path::new(2, 2);
+    pub const REPORT_PRESENT: Path = Path::new(2, 3);
+    pub const REPORT_NONCE: Path = Path::new(2, 4);
+    pub const REPORT_AGE: Path = Path::new(2, 5);
+    pub const REPORT_VERSION: Path = Path::new(2, 6);
+    pub const REPORT_TAIL: Path = Path::new(2, 7);
+    pub const CHOICE_TAG: Path = Path::new(3, 0);
+    pub const MARKER_TAIL: Path = Path::new(4, 0);
+}
+
+const PATH_NAMES: &[&[&str]] = &[
+    &[
+        "Field.name",
+        "Field.value",
+        "Field (tail)",
+    ],
+    &[
+        "Effect (tag)",
+    ],
+    &[
+        "Report.title",
+        "Report.fields",
+        "Report.effect",
+        "Report.present",
+        "Report.nonce",
+        "Report.age",
+        "Report (version)",
+        "Report (tail)",
+    ],
+    &[
+        "Choice (tag)",
+    ],
+    &[
+        "Marker (tail)",
+    ],
+];
+
+/// The path as the schema spells it, or None outside this family's table.
+#[must_use]
+pub fn name(path: Path) -> Option<&'static str> {
+    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
+}
+
+// Table: postordered shapes, with compiler-known heap slot sizes.
+const TABLE: &[skein_codec::bounds::Node] = &[
+    skein_codec::bounds::Node::Bytes { limit: 0 },
+    skein_codec::bounds::Node::Bytes { limit: 1 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[3, 4] },
+    skein_codec::bounds::Node::Bytes { limit: 2 },
+    skein_codec::bounds::Node::List { limit: 3, item: 2, size: size_of::<Field>() },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Option { item: 8 },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[6, 7, 5, 9, 10, 11] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[12, 13] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
+];
+
+const DECLARATIONS: &[u32] = &[
+    2,
+    5,
+    12,
+    14,
+    15,
+];
+
+const CEILING_VALUES: &[u32] = &[
+    4,
+    4,
+    8,
+    2,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+}
+
+// Type: Field.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Field {
+    pub name: Box<[u8]>,
+    pub value: Box<[u8]>,
+}
+
+// Record: Field.
+impl Record for Field {
+    type Limits = Limits;
+    const TAIL: Path = paths::FIELD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.field_name.min(CEILINGS.field_name) }, &self.name, limits, out, paths::FIELD_NAME)?;
+        field::write(field::Bytes { limit: limits.field_value.min(CEILINGS.field_value) }, &self.value, limits, out, paths::FIELD_VALUE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.field_name.min(CEILINGS.field_name) }, limits, reader, paths::FIELD_NAME)?,
+            value: field::read(field::Bytes { limit: limits.field_value.min(CEILINGS.field_value) }, limits, reader, paths::FIELD_VALUE)?,
+        })
     }
 }
 
-/// `Choice` in this codec family.
+// Type: Effect.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum Effect {
+    Read,
+    Write,
+}
+
+// Record: Effect.
+impl Record for Effect {
+    type Limits = Limits;
+    const TAIL: Path = paths::EFFECT_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.decoded)
+    }
+
+    fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        match self {
+            Self::Read => field::put(out, &[0], paths::EFFECT_TAG),
+            Self::Write => field::put(out, &[1], paths::EFFECT_TAG),
+        }
+    }
+
+    fn read(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::EFFECT_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Read),
+            1 => Ok(Self::Write),
+            2..=u8::MAX => Err(Problem { path: paths::EFFECT_TAG, reason: skein_codec::Reason::Tag }),
+        }
+    }
+}
+
+// Type: Report.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Report {
+    pub title: Box<[u8]>,
+    pub fields: List<Field>,
+    pub effect: Effect,
+    pub present: Option<bool>,
+    pub nonce: [u8; 2],
+    pub age: skein_lib::Duration,
+}
+
+// Record: Report.
+impl Record for Report {
+    type Limits = Limits;
+    const TAIL: Path = paths::REPORT_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.decoded)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::put(out, &VERSION.to_be_bytes(), paths::REPORT_VERSION)?;
+        field::write(field::Text { limit: limits.report_title.min(CEILINGS.report_title) }, &self.title, limits, out, paths::REPORT_TITLE)?;
+        field::write(field::Sequence { limit: limits.report_fields.min(CEILINGS.report_fields), minimum: 8, item: field::Nested }, &self.fields, limits, out, paths::REPORT_FIELDS)?;
+        field::write(field::Nested, &self.effect, limits, out, paths::REPORT_EFFECT)?;
+        field::write(field::Optional { item: field::Boolean }, &self.present, limits, out, paths::REPORT_PRESENT)?;
+        field::write(field::Fixed::<2>, &self.nonce, limits, out, paths::REPORT_NONCE)?;
+        field::write(field::Span, &self.age, limits, out, paths::REPORT_AGE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        field::version(reader, VERSION, paths::REPORT_VERSION)?;
+        Ok(Self {
+            title: field::read(field::Text { limit: limits.report_title.min(CEILINGS.report_title) }, limits, reader, paths::REPORT_TITLE)?,
+            fields: field::read(field::Sequence { limit: limits.report_fields.min(CEILINGS.report_fields), minimum: 8, item: field::Nested }, limits, reader, paths::REPORT_FIELDS)?,
+            effect: field::read(field::Nested, limits, reader, paths::REPORT_EFFECT)?,
+            present: field::read(field::Optional { item: field::Boolean }, limits, reader, paths::REPORT_PRESENT)?,
+            nonce: field::read(field::Fixed::<2>, limits, reader, paths::REPORT_NONCE)?,
+            age: field::read(field::Span, limits, reader, paths::REPORT_AGE)?,
+        })
+    }
+}
+
+// Type: Choice.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Choice {
-    /// `report` carrying `Report`.
     Report(Report),
-    /// `empty` without a payload.
     Empty,
 }
 
-impl Choice {
-    /// Checks the payload against the given limits.
-    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
-        value.check(limits)?;
-        Ok(value)
+// Record: Choice.
+impl Record for Choice {
+    type Limits = Limits;
+    const TAIL: Path = paths::CHOICE_TAG;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.encoded)
     }
 
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        match self {
-            Self::Report(record) => Report::check(record, limits),
-            Self::Empty => Ok(()),
-        }?;
-        Ok(())
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.decoded)
     }
-}
 
-impl Choice {
-    /// Measures this variant's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         match self {
-            Self::Report(record) => 1_u32.checked_add(Report::measure(record)).expect("schema ceilings fit u32"),
-            Self::Empty => 1,
+            Self::Report(value) => { field::put(out, &[0], paths::CHOICE_TAG)?; value.write(limits, out) },
+            Self::Empty => field::put(out, &[1], paths::CHOICE_TAG),
         }
     }
 
-    /// Writes this variant's tag and payload.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        match self {
-            Self::Report(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
-            Self::Empty => writer.put(&[1_u8])?,
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: paths::CHOICE_TAG, reason: skein_codec::Reason::Short })?;
+        match tag {
+            0 => Ok(Self::Report(Report::read(limits, reader)?)),
+            1 => Ok(Self::Empty),
+            2..=u8::MAX => Err(Problem { path: paths::CHOICE_TAG, reason: skein_codec::Reason::Tag }),
         }
-        Ok(())
-    }
-
-    /// Reads a whole variant and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::ChoiceTag, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let tag = reader.u8().ok_or(Problem { path: Path::ChoiceTag, reason: skein_codec::Reason::Short })?;
-        let value = match tag {
-            0 => Self::Report(Report::decode_from(limits, reader)?),
-            1 => Self::Empty,
-            _ => return Err(Problem { path: Path::ChoiceTag, reason: skein_codec::Reason::Tag }),
-        };
-        Ok(value)
     }
 }
 
-impl Choice {
-    /// Maximum encoded bytes among variants.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(Report::encoded_bound_within(limits)?);
-        1_u64.checked_add(biggest)
-    }
-
-    /// Maximum heap held by any decoded variant.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut biggest = 0_u64;
-        biggest = biggest.max(Report::decoded_bound_within(limits)?);
-        biggest.checked_add(0)
-    }
-}
-
-fn choice_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Choice::encoded_bound_within(limits)?);
-    marker_encoded_bound_family(limits, biggest)
-}
-
-fn choice_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Choice::decoded_bound_within(limits)?);
-    marker_decoded_bound_family(limits, biggest)
-}
-
-/// Movable fields of `Marker`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct MarkerParts {
-}
-
-/// `Marker` in this codec family.
+// Type: Marker.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Marker {
 }
 
-impl Marker {
-    /// Makes a value within the given limits.
-    pub fn new(_limits: &Limits, parts: MarkerParts) -> Result<Self, Problem> {
-        let MarkerParts {  } = parts;
-        let value = Self {  };
-        Ok(value)
+// Record: Marker.
+impl Record for Marker {
+    type Limits = Limits;
+    const TAIL: Path = paths::MARKER_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.encoded)
     }
 
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> MarkerParts { MarkerParts {  } }
-
-}
-
-impl Marker {
-    /// Measures this empty record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 { 0_u32 }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&[])
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.decoded)
     }
 
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader);
-        if !reader.is_empty() { return Err(Problem { path: Path::MarkerTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
+    fn write(&self, _limits: &Limits, _out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        Ok(())
     }
 
-    fn decode_from(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Self {
-        Self {}
+    fn read(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+        })
     }
-}
-
-impl Marker {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let size = 0_u64;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let heap = 0_u64;
-        heap.checked_add(0)
-    }
-}
-
-fn marker_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Marker::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn marker_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Marker::decoded_bound_within(limits)?);
-    Some(biggest)
 }
 

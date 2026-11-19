@@ -27,7 +27,9 @@ fn the_saved_token_schema_has_no_drift() {
     let unpinned = skein_codegen::unpinned(source).expect("schema valid");
     assert!(unpinned.is_empty(), "oauth-v3: unpinned constructs: {unpinned:?}");
     let schema = skein_codegen::values(source).schema.clone();
-    let output = skein_codegen::generate(&schema);
+    let owner = skein_scratch::paths::tree().join("crates/skein-oauth");
+    let form = skein_codegen::form_of(&owner.join("schema"), &schema.family).expect("owner's lean mark readable");
+    let output = skein_codegen::generate_as(&schema, form);
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let codec = skein_scratch::paths::tree().join("crates/skein-oauth-codec");
     check(&codec.join("src/generated/oauth.rs"), output.records.as_bytes(), write);
