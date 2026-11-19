@@ -20,6 +20,9 @@ pub(super) fn encode(row: &d::LandingLog) -> w::LandingLog {
                             signed: encode_signed(&change.signed),
                             goal: change.goal,
                             milestone: change.milestone,
+                            person: change.person,
+                            goal_title: change.goal_title.clone(),
+                            draft: change.draft.clone(),
                         },
                     )
                     .expect(FITS),
@@ -56,9 +59,20 @@ pub(super) fn decode(row: w::LandingLog) -> d::LandingLog {
         let w::LoggedLandingParts { commit, branch, at, changes, tiers } = landing.into_parts();
         let mut members = List::with_capacity(changes.len());
         for change in changes.into_boxed() {
-            let w::LoggedChangeParts { task, pull, title, signed, goal, milestone } = change.into_parts();
+            let w::LoggedChangeParts { task, pull, title, signed, goal, milestone, person, goal_title, draft } =
+                change.into_parts();
             members
-                .push(d::LoggedChange { goal, milestone, task, pull, title, signed: decode_signed(signed) })
+                .push(d::LoggedChange {
+                    goal,
+                    milestone,
+                    person,
+                    goal_title,
+                    draft,
+                    task,
+                    pull,
+                    title,
+                    signed: decode_signed(signed),
+                })
                 .expect(FITS);
         }
         decoded

@@ -420,6 +420,9 @@ fn logged(task: u64, commit: u8, at: u64, branch: &[u8]) -> LoggedLanding {
         changes: Box::new([LoggedChange {
             goal: None,
             milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             signed: Box::new([]),
             task,
             pull: None,

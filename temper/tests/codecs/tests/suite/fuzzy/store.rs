@@ -10,7 +10,18 @@ use fixture::LIMITS;
 
 fn record(bytes: &[u8], bounds: &Bounds) {
     if let Ok(row) = records::decode(bytes, bounds) {
-        assert_eq!(records::encode(&row).as_ref(), bytes, "durable row");
+        let encoded = records::encode(&row);
+        if encoded.as_ref() != bytes {
+            // An empty stored landing reads as the default branch (protocol/store.md, 2).
+            let forge::Stored::Repository(repository) = &row else { panic!("durable row: {row:?}") };
+            assert_eq!(repository.landing, repository.settings.default_branch);
+            let mut before_fill = repository.clone();
+            before_fill.landing = Box::new([]);
+            assert_eq!(records::encode(&forge::Stored::Repository(before_fill)).as_ref(), bytes, "only landing filled");
+        }
+        let decoded = records::decode(&encoded, bounds).expect("a reencoded row decodes");
+        assert_eq!(decoded, row, "durable value");
+        assert_eq!(records::encode(&decoded), encoded, "durable bytes reach a fixed point");
         let key = forge::stored_key(&row);
         let encoded = keys::encode(&key, u32::MAX).expect("a decoded row's key fits");
         assert_eq!(keys::decode(&encoded, &LIMITS), Some(key));
@@ -532,6 +543,9 @@ fn verification_row(
             changes: Box::new([forge::LoggedChange {
                 goal: None,
                 milestone: None,
+                person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+                goal_title: optional_goal_words(rng),
+                draft: optional_goal_words(rng),
                 signed: Box::new([]),
                 task: rng.next_u64(),
                 pull: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
@@ -540,6 +554,35 @@ fn verification_row(
         }]),
     });
     row_and_key(&row, rng, bounds);
+    let row = forge::Stored::ChangeCold(Box::new(forge::ChangeCold {
+        person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
+        goal_title: optional_goal_words(rng),
+        draft: optional_goal_words(rng),
+        task: rng.next_u64(),
+        repository,
+        branch: b"change".as_slice().into(),
+        base: b"main".as_slice().into(),
+        goal: Some(rng.next_u64()),
+        milestone: None,
+        source: None,
+        base_repair: false,
+        producing_charter: 1,
+        review_charter: 2,
+        producing_llm: None,
+        review_llm: None,
+        repairs: None,
+        catch_up: None,
+        close: None,
+        title: b"change".as_slice().into(),
+        body: Box::new([]),
+        follows: None,
+        report: Box::new([]),
+    }));
+    row_and_key(&row, rng, bounds);
+}
+
+fn optional_goal_words(rng: &mut Rng) -> Option<Box<[u8]>> {
+    if rng.below(2) == 0 { None } else { Some(temper_codecs_world::drawn(rng, 256).into_boxed_slice()) }
 }
 
 fn status_rows(rng: &mut Rng, bounds: &Bounds) {

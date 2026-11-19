@@ -1136,6 +1136,9 @@ fn landing_logs_restore_and_report_their_missing_repository() {
             changes: Box::new([LoggedChange {
                 goal: None,
                 milestone: None,
+                person: None,
+                goal_title: None,
+                draft: None,
                 signed: Box::new([]),
                 task: 51,
                 pull: None,
@@ -1169,6 +1172,9 @@ fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
             LoggedChange {
                 goal: None,
                 milestone: None,
+                person: None,
+                goal_title: None,
+                draft: None,
                 signed: Box::new([]),
                 task: 1,
                 pull: None,

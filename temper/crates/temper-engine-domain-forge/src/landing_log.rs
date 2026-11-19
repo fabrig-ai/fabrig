@@ -44,6 +44,9 @@ pub(crate) fn landed(
         signed,
         goal: change.goal,
         milestone: change.milestone,
+        person: change.person,
+        goal_title: change.goal_title.clone(),
+        draft: change.draft.clone(),
     };
     let branch = change.base.clone();
     let mut tiers = List::with_capacity(d.landing.limits.tiers.tiers);

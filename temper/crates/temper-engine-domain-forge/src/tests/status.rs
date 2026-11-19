@@ -839,6 +839,9 @@ fn signed_landing(task: u64, at: Wall, people: &[u64]) -> LoggedLanding {
         changes: Box::new([LoggedChange {
             goal: None,
             milestone: None,
+            person: None,
+            goal_title: None,
+            draft: None,
             task,
             pull: None,
             title: b"Small fix".as_slice().into(),
@@ -934,6 +937,9 @@ fn its_words_say_what_landed_since_the_brief() {
                 changes: Box::new([LoggedChange {
                     goal: None,
                     milestone: None,
+                    person: None,
+                    goal_title: None,
+                    draft: None,
                     signed: Box::new([]),
                     task: u64::from(n),
                     pull: None,

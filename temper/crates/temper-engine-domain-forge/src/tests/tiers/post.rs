@@ -26,6 +26,9 @@ fn ready(logged: bool) -> Domain {
                             LoggedChange {
                                 goal: None,
                                 milestone: None,
+                                person: None,
+                                goal_title: None,
+                                draft: None,
                                 task: CHANGE,
                                 pull: Some(PULL),
                                 title: Box::new([]),
@@ -34,6 +37,9 @@ fn ready(logged: bool) -> Domain {
                             LoggedChange {
                                 goal: None,
                                 milestone: None,
+                                person: None,
+                                goal_title: None,
+                                draft: None,
                                 task: CHANGE + 1,
                                 pull: None,
                                 title: Box::new([]),

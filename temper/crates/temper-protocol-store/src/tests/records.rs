@@ -62,6 +62,24 @@ fn a_landing_other_than_the_default_branch_round_trips() {
 }
 
 #[test]
+fn an_empty_stored_landing_reads_as_the_default_branch() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    row.settings.default_branch = b"trunk".as_slice().into();
+    row.landing = Box::new([]);
+    let before = records::encode(&forge::Stored::Repository(row.clone()));
+    row.landing = row.settings.default_branch.clone();
+    let expected = forge::Stored::Repository(row);
+    let decoded = records::decode(&before, &bounds).expect("empty landing defaults");
+    assert_eq!(decoded, expected);
+    let after = records::encode(&decoded);
+    assert_ne!(after, before, "the default branch is now explicit");
+    assert_eq!(records::decode(&after, &bounds), Ok(expected));
+}
+
+#[test]
 fn a_landing_past_name_bytes_fails_to_decode() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
@@ -2403,6 +2421,9 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
                     forge::LoggedChange {
                         goal: None,
                         milestone: None,
+                        person: None,
+                        goal_title: None,
+                        draft: None,
                         signed: Box::new([]),
                         task: 51,
                         pull: Some(2),
@@ -2421,7 +2442,7 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     let limits = fixtures::LIMITS;
-    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_925);
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 11_021);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
     for extra in [0, 1] {
         for row in [

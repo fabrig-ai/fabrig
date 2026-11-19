@@ -878,6 +878,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
+            .checked_add(match &row.goal_title {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(match &row.draft {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
             .checked_add(bytes(&row.body))?
             .checked_add(bytes(&row.report))?
             .checked_add(match &row.follows {
@@ -977,6 +985,14 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
             .checked_add(bytes(&row.branch))?
             .checked_add(bytes(&row.base))?
             .checked_add(bytes(&row.title))?
+            .checked_add(match &row.goal_title {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
+            .checked_add(match &row.draft {
+                Some(words) => bytes(words),
+                None => 0,
+            })?
             .checked_add(bytes(&row.body))?
             .checked_add(bytes(&row.report))?
             .checked_add(llm(row.producing_llm.as_ref())?)?

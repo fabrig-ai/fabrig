@@ -29,6 +29,9 @@ fn a_merge_logs_its_change_with_its_title() {
                 changes: Box::new([LoggedChange {
                     goal: None,
                     milestone: None,
+                    person: None,
+                    goal_title: None,
+                    draft: None,
                     signed: Box::new([]),
                     task: CHANGE,
                     pull,
@@ -279,15 +282,61 @@ fn a_new_admission_replaces_sign_offs_and_joins_an_existing_commit() {
 #[test]
 fn a_merge_logs_its_goal_and_milestone() {
     for (goal, milestone) in [(Some(42), Some(40)), (None, None)] {
-        let mut d = configured_domain(&[]);
-        add_change(&mut d, CHANGE, b"main");
-        let row = d.changes.get_mut(&CHANGE).unwrap();
-        row.goal = goal;
-        row.milestone = milestone;
-        merged(&mut d, CHANGE, FIRST);
-        let member = &d.landing_log(REPO).unwrap().landings[0].changes[0];
-        assert_eq!((member.goal, member.milestone), (goal, milestone));
+        for already_logged in [false, true] {
+            let mut d = configured_domain(&[]);
+            if already_logged {
+                add_change(&mut d, SECOND, b"main");
+                merged(&mut d, SECOND, FIRST);
+            }
+            add_change(&mut d, CHANGE, b"main");
+            let row = d.changes.get_mut(&CHANGE).unwrap();
+            row.goal = goal;
+            row.milestone = milestone;
+            if goal.is_some() {
+                row.person = Some(7);
+                row.goal_title = Some(Box::from(b"R2 Reds blamed".as_slice()));
+                row.draft = Some(Box::from(b"temper/docs/design/draft/after-landing-repairs.md".as_slice()));
+            }
+            let expected = row.clone();
+            let out = merged(&mut d, CHANGE, FIRST);
+            let log = d.landing_log(REPO).unwrap();
+            assert_eq!(saved(&out).as_ref(), core::slice::from_ref(log));
+            assert_eq!(log.landings.len(), 1);
+            let member = log.landings[0].changes.last().unwrap();
+            assert_eq!((member.goal, member.milestone), (goal, milestone));
+            assert_eq!(member.person, expected.person);
+            assert_eq!(member.goal_title, expected.goal_title);
+            assert_eq!(member.draft, expected.draft);
+        }
     }
+}
+
+#[test]
+fn goal_words_are_counted_in_change_and_log_storage() {
+    let mut d = configured_domain(&[]);
+    add_change(&mut d, CHANGE, b"main");
+    let row = d.change(CHANGE).unwrap().clone();
+    let (cold, _) = row.clone().split();
+    let mut with_words = row.clone();
+    with_words.goal_title = Some(Box::from(b"title".as_slice()));
+    with_words.draft = Some(Box::from(b"path".as_slice()));
+    let (cold_with_words, _) = with_words.clone().split();
+    let payload = 9;
+    for (before, after) in [
+        (Stored::Change(Box::new(row)), Stored::Change(Box::new(with_words))),
+        (Stored::ChangeCold(Box::new(cold)), Stored::ChangeCold(Box::new(cold_with_words))),
+    ] {
+        assert_eq!(stored_bytes(&after), Some(stored_bytes(&before).unwrap() + payload));
+    }
+    merged(&mut d, CHANGE, FIRST);
+    let log = d.landing_log(REPO).unwrap().clone();
+    let mut with_words = log.clone();
+    with_words.landings[0].changes[0].goal_title = Some(Box::from(b"title".as_slice()));
+    with_words.landings[0].changes[0].draft = Some(Box::from(b"path".as_slice()));
+    assert_eq!(
+        stored_bytes(&Stored::LandingLog(with_words)),
+        Some(stored_bytes(&Stored::LandingLog(log)).unwrap() + payload)
+    );
 }
 
 #[test]

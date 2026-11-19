@@ -218,6 +218,85 @@ fn an_application_adopted_layout_without_landing_defaults_it_to_empty() {
 }
 
 #[test]
+fn earlier_landing_members_and_change_rows_default_goal_facts() {
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary as d;
+    let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
+    let mut before = family.current.to_owned();
+    before = before.replacen(
+        "record LoggedChange { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "record LoggedChange {", 1,
+    );
+    before = before.replacen(
+        "record ChangeCold { person: option u64 = none goal_title: option bytes 256 = none draft: option bytes 256 = none",
+        "record ChangeCold {", 1,
+    );
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).unwrap();
+    let new = schema::parse(family.current.as_bytes()).unwrap();
+    let person = Some(7);
+    let goal_title = Some(Box::from(b"R2 Reds blamed".as_slice()));
+    let draft = Some(Box::from(b"temper/docs/design/draft/after-landing-repairs.md".as_slice()));
+    let (mut cold, _) = super::fixtures::change_row(temper_engine_domain_forge_change::State::Ended).split();
+    cold.goal = Some(42);
+    cold.milestone = Some(40);
+    cold.person = person;
+    cold.goal_title = goal_title.clone();
+    cold.draft = draft.clone();
+    let log = d::LandingLog {
+        repository: cold.repository,
+        landings: Box::new([d::LoggedLanding {
+            commit: [7; 32],
+            branch: b"main".as_slice().into(),
+            at: skein_lib::Wall::from_nanos(123),
+            tiers: Box::new([]),
+            changes: Box::new([d::LoggedChange {
+                task: cold.task,
+                pull: Some(2),
+                title: b"member".as_slice().into(),
+                signed: Box::new([]),
+                goal: cold.goal,
+                milestone: cold.milestone,
+                person,
+                goal_title,
+                draft,
+            }]),
+        }]),
+    };
+    let mut old_cold = cold.clone();
+    old_cold.person = None;
+    old_cold.goal_title = None;
+    old_cold.draft = None;
+    let mut old_log = log.clone();
+    let member = &mut old_log.landings[0].changes[0];
+    member.person = None;
+    member.goal_title = None;
+    member.draft = None;
+    for (variant, stored, expected) in [
+        (b"landing_log".as_slice(), d::Stored::LandingLog(log), d::Stored::LandingLog(old_log)),
+        (b"change_cold".as_slice(), d::Stored::ChangeCold(Box::new(cold)), d::Stored::ChangeCold(Box::new(old_cold))),
+    ] {
+        let old_root = old.root(b"Row", Some(variant)).unwrap();
+        let new_root = new.root(b"Row", Some(variant)).unwrap();
+        let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).unwrap();
+        let mut work = Workspace::new();
+        assert!(work.fit(&write_old));
+        let mut earlier = skein_lib::Buffer::with_capacity(4096);
+        write_old.convert(&crate::records::encode(&stored), &mut earlier, &mut work).unwrap();
+        let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("goal facts default to none");
+        assert!(work.fit(&read_old));
+        let mut current = skein_lib::Buffer::with_capacity(4096);
+        read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+        let bounds = crate::bounds(&super::fixtures::LIMITS, super::fixtures::LIMITS.client.op_bytes).unwrap();
+        let decoded = crate::records::decode(current.as_slice(), &bounds).unwrap();
+        assert_eq!(decoded, expected, "{variant:?} preserves all other facts");
+    }
+}
+
+#[test]
 fn an_earlier_finding_defaults_blame_clearing_and_many() {
     use super::fixtures;
     use crate::records;
@@ -297,6 +376,9 @@ fn an_earlier_landing_log_defaults_member_goals_and_tier_entries() {
                 title: b"member".as_slice().into(),
                 goal: Some(42),
                 milestone: Some(40),
+                person: None,
+                goal_title: None,
+                draft: None,
             }]),
             tiers: Box::new([d::LoggedTier { tier: b"slow".as_slice().into(), verdict: d::LoggedVerdict::Verifying }]),
         }]),
