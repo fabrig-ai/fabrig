@@ -270,6 +270,16 @@ start afresh. Staging is made again at dev's build for each drill
     replaces dev's (5), and a build's texts go only once dev's registry
     holds no layout they give (jig's `protocol/store/layouts.md`, 5.4)
     or a floor move settled them (8).
+- **Temper's store at dev's layouts.** Step tests in
+  `temper-protocol-store` keep `13efa77461`'s `store-v25.schema` as a
+  fixture, equal to the guard's copy. For each value type changed in
+  place since (the landing log's members and tiers, a change's cold
+  part, a finding and its signature, a tier), a value written at that
+  text, and checked as a generic value of it, converts to the binary's
+  layout with its added fields at their defaults. A store seeded at that
+  text opens with the production sets in a new generation and reads each
+  row back; a second open writes nothing. The guard's own mutations pin
+  the red findings' defaults.
 - **The wires' rule is unchanged** (`wires.md`, 3): a layout change
   moves its wire version, keeps the old text and brings its patch and
   reverse or breaking declaration. A store's floor promises no wire
