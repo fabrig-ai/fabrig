@@ -304,6 +304,7 @@ fn core_fit(failure: &core::start::Failure) -> Option<(&'static [u8], u64, u64)>
             *limit,
         )),
         Failure::Settings { .. }
+        | Failure::Numbers { .. }
         | Failure::Application { .. }
         | Failure::ProjectPolicy { .. }
         | Failure::AccountsPastLimit { .. }
@@ -438,7 +439,8 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
             | R::RedNumber
             | R::RedPass
             | R::HistoryProject
-            | R::Milestone => None,
+            | R::Milestone
+            | R::PersonBrief => None,
         },
         S::NamedAnswerBytes
         | S::NamedAnswerRows
@@ -455,6 +457,7 @@ fn forge_fit(failure: &forge::RestoreFit) -> Option<&'static [u8]> {
         | S::LandingFlights
         | S::LandingMembers
         | S::LandingsKept
+        | S::LoggedTiers
         | S::LandingGates
         | S::LandingAsks
         | S::LandingEntries
@@ -565,6 +568,7 @@ fn opening_value(
         | forge::Stored::Verification(_)
         | forge::Stored::LandingLog(_)
         | forge::Stored::Milestone(_)
+        | forge::Stored::PersonBrief(_)
         | forge::Stored::Making(_)
         | forge::Stored::Dismissed { .. }
         | forge::Stored::ProjectFacts(_)

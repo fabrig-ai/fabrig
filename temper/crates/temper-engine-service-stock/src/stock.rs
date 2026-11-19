@@ -150,6 +150,7 @@ fn copy_defaults(own: &Defaults) -> Defaults {
         policies.insert(*number, policy.clone()).expect("counted policies");
     }
     Defaults {
+        providers: own.providers.clone(),
         limits: own.limits.clone(),
         workers: Box::new([]),
         models: own.models.clone(),

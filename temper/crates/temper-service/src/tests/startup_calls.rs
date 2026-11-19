@@ -3,7 +3,6 @@
 #![expect(clippy::disallowed_macros, reason = "ordinary tests format explicit scalar overrides")]
 use super::*;
 use crate::tests::fixtures;
-use core::fmt::Write;
 use fixtures::{check, checked_start, startup};
 
 fn document(engine: Option<u32>) -> fixtures::Start {
@@ -307,58 +306,6 @@ fn a_local_worker_derives_from_its_agent_instead_of_the_stock_agent() {
     );
 }
 
-fn checked_start(
-    input: &(impl fixtures::Input + ?Sized),
-    directories: &config::Directories,
-    files: &settings::Files,
-    agent: Option<&settings::Agent>,
-    seeds: &settings::Seeds,
-    forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>,
-) -> Result<CheckedStart, Problems> {
-    let input = fixtures::Input::configured(input);
-    checked_start_with_limits(
-        &input,
-        directories,
-        files,
-        agent,
-        seeds,
-        forges,
-        setup,
-        &crate::stock::Given::Stock,
-        None,
-        &input.jig,
-        &input.own,
-    )
-}
-#[expect(clippy::too_many_arguments, reason = "the same startup inputs with typed fixture figures")]
-fn startup(
-    input: &(impl fixtures::Input + ?Sized),
-    directories: &config::Directories,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    seeds: &settings::Seeds,
-    accounts: Option<AccountsRuntime>,
-    runtime: WorkerRuntime,
-    forges: List<crate::ForgeRuntime>,
-) -> Result<Service, Problems> {
-    let checked = checked_start(input, directories, files, Some(agent), seeds, forges, None)?;
-    from_checked(checked, files, Some(agent), seeds, accounts, Some(runtime), None, None, Box::new([]))
-}
-#[expect(clippy::too_many_arguments, reason = "the same startup checks with typed fixture figures")]
-fn check(
-    input: &(impl fixtures::Input + ?Sized),
-    directories: &config::Directories,
-    files: &settings::Files,
-    agent: &settings::Agent,
-    seeds: &settings::Seeds,
-    _accounts: Option<&AccountsRuntime>,
-    forges: List<crate::ForgeRuntime>,
-    setup: Option<&temper_forge_setup::check::Checked>,
-) -> Result<(), Problems> {
-    checked_start(input, directories, files, Some(agent), seeds, forges, setup)?;
-    Ok(())
-}
 fn store_limits(
     input: &(impl fixtures::Input + ?Sized),
     directories: &config::Directories,

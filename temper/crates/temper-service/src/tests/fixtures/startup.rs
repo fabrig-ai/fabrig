@@ -65,17 +65,10 @@ pub fn without(entries: List<(Box<[u8]>, Secret)>, name: &[u8]) -> List<(Box<[u8
     kept
 }
 /// The small worlds' provider and catalogue facts are typed inputs, not deployment members.
-pub fn given(input: &[u8], directories: &jig_protocol_config::Directories) -> crate::stock::Given {
+pub fn given(input: &(impl Input + ?Sized), _directories: &jig_protocol_config::Directories) -> crate::stock::Given {
     use jig_protocol_config as config;
-    let mut words = 32;
-    if let Ok(document) =
-        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
-        && let Some(at) = document.member(0, b"engine")
-        && let Ok(fixed) = crate::startup::fixed(directories)
-        && let Ok(engine) = config::engine(&document, at, directories, config::Defaults::PassedProviders, &fixed)
-    {
-        words = engine.limits.core.tasks.result_bytes;
-    }
+    let input = input.configured();
+    let words = input.jig.core.tasks.result_bytes;
     let llm = config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
     let models = crate::stock::models(&llm).into_vec().into_iter().filter(|row| row.model.provider == 1).collect();
     let mut jig = crate::stock::with_models(models, words);
@@ -84,7 +77,7 @@ pub fn given(input: &[u8], directories: &jig_protocol_config::Directories) -> cr
     crate::stock::Given::Own { jig, forge: crate::stock::forge(&root), ways: crate::stock::ways() }
 }
 pub fn checked_start(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: Option<&settings::Agent>,
@@ -92,21 +85,24 @@ pub fn checked_start(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<crate::startup::CheckedStart, crate::startup::Problems> {
-    crate::startup::checked_start_with(
-        input,
+    let input = input.configured();
+    crate::startup::checked_start_with_limits(
+        &input,
         directories,
         files,
         agent,
         seeds,
         forges,
         setup,
-        &given(input, directories),
+        &given(&input, directories),
         None,
+        &input.jig,
+        &input.own,
     )
 }
 #[expect(clippy::too_many_arguments, reason = "the fixture retains the public check's runtime facts")]
 pub fn check(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -115,15 +111,16 @@ pub fn check(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), crate::startup::Problems> {
-    if crate::startup::nearest(input) == Some(crate::startup::Shape::WorkerAlone) {
-        return crate::startup::check(input, directories, files, agent, seeds, accounts, forges, setup);
+    let input = input.configured();
+    if crate::startup::nearest(&input) == Some(crate::startup::Shape::WorkerAlone) {
+        return crate::startup::check(&input, directories, files, agent, seeds, accounts, forges, setup);
     }
-    checked_start(input, directories, files, Some(agent), seeds, forges, setup)?;
+    checked_start(&input, directories, files, Some(agent), seeds, forges, setup)?;
     Ok(())
 }
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies typed providers to the existing startup entry")]
 pub fn startup(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -132,21 +129,12 @@ pub fn startup(
     runtime: crate::WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    crate::startup::startup_with(
-        input,
-        directories,
-        files,
-        agent,
-        seeds,
-        accounts,
-        runtime,
-        forges,
-        &given(input, directories),
-    )
+    let checked = checked_start(input, directories, files, Some(agent), seeds, forges, None)?;
+    crate::startup::from_checked(checked, files, Some(agent), seeds, accounts, Some(runtime), None, None, Box::new([]))
 }
 #[expect(clippy::too_many_arguments, reason = "the fixture retains setup's existing runtime facts")]
 pub fn with_setup(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: Option<&settings::Agent>,
@@ -157,27 +145,15 @@ pub fn with_setup(
     setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    crate::startup::with_setup_given(
-        input,
-        directories,
-        files,
-        agent,
-        seeds,
-        accounts,
-        runtime,
-        forges,
-        setup,
-        box_line_bytes,
-        None,
-        &given(input, directories),
-        Box::new([]),
-    )
+    let checked = checked_start(input, directories, files, agent, seeds, forges, setup)?;
+    crate::startup::from_checked(checked, files, agent, seeds, accounts, runtime, box_line_bytes, None, Box::new([]))
 }
 pub fn named(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
 ) -> Result<crate::startup::Named, crate::startup::Problems> {
-    crate::startup::named_with(input, directories, &given(input, directories))
+    let input = input.configured();
+    input.named_with(directories, &given(&input, directories))
 }
 pub fn startup_agent() -> settings::Agent {
     // Match init's maximum run spend, including Fable's cache-write reserve.
@@ -274,32 +250,6 @@ pub fn with(input: &(impl Input + ?Sized), path: &[u8], json: &[u8]) -> Start {
     input
 }
 
-/// Several reads and disjoint edits of one fixture keep its typed limits.
-pub struct Json {
-    input: Start,
-    document: skein_json::Document,
-}
-impl Json {
-    pub fn new(input: &(impl Input + ?Sized)) -> Self {
-        let input = input.configured();
-        let document = jig_protocol_config::document(
-            &input,
-            &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-        )
-        .unwrap();
-        Self { input, document }
-    }
-    pub fn value(&self, path: &[u8]) -> &[u8] {
-        &self.input[member_span_in(&self.input, &self.document, path)]
-    }
-    pub fn with(&self, edits: &[(&[u8], &[u8])]) -> Start {
-        let mut input = self.input.clone();
-        for (path, json) in edits {
-            input = with(&input, path, json);
-        }
-        input
-    }
-}
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
     let document = jig_protocol_config::document(
         input,

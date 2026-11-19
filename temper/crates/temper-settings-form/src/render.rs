@@ -571,7 +571,7 @@ pub fn setting_fault(setting: c::Setting, fault: c::SettingFault, out: &mut Text
         c::Setting::Worker(n) | c::Setting::Provider(n) => (n.number, b"items".as_slice()),
         c::Setting::Application { number, .. } => (number, b"items".as_slice()),
         c::Setting::ProjectPolicy { project } => (project, b"items".as_slice()),
-        c::Setting::Rules => (0, b"items".as_slice()),
+        c::Setting::Rules | c::Setting::Limits => (0, b"items".as_slice()),
     };
     if number <= c::STOCK_NUMBERS {
         out.put(b"is among the stock's numbers, 1 to ");
@@ -1123,6 +1123,7 @@ pub fn limit_values(setting: c::Setting, value: &c::SettingValue) -> Option<allo
             | c::SettingValue::Charter(_)
             | c::SettingValue::Overlay(_)
             | c::SettingValue::Worker(_)
+            | c::SettingValue::Provider(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Policy(_)
@@ -1134,6 +1135,7 @@ pub fn limit_values(setting: c::Setting, value: &c::SettingValue) -> Option<allo
             | c::SettingValue::Charter(_)
             | c::SettingValue::Overlay(_)
             | c::SettingValue::Worker(_)
+            | c::SettingValue::Provider(_)
             | c::SettingValue::Model(_)
             | c::SettingValue::Template(_)
             | c::SettingValue::Policy(_)
@@ -1142,6 +1144,7 @@ pub fn limit_values(setting: c::Setting, value: &c::SettingValue) -> Option<allo
         c::Setting::Charter(_)
         | c::Setting::Template(_)
         | c::Setting::Worker(_)
+        | c::Setting::Provider(_)
         | c::Setting::Model(_)
         | c::Setting::Policy(_)
         | c::Setting::Rules

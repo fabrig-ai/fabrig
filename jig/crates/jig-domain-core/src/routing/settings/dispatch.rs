@@ -243,6 +243,7 @@ fn preflight(
             | s::Setting::Template(_)
             | s::Setting::Policy(_)
             | s::Setting::Rules
+            | s::Setting::Limits
             | s::Setting::Model(_)
             | s::Setting::Application { .. }
             | s::Setting::ProjectPolicy { .. } => {}

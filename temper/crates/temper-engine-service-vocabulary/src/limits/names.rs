@@ -844,6 +844,7 @@ pub static NAMES: [Name; 198] = [
     Name {
         name: "forge.landings_pending",
         unit: Unit::Count,
+        applies: Applies::NextStart,
         line: "Bounds landings kept per repository until every tier following their branch has judged them.",
         value: |limits| u64::from(limits.forge.landings_pending),
     },

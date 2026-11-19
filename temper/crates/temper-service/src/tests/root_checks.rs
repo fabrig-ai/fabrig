@@ -332,7 +332,7 @@ fn checked_profile_with_files(
         &fixtures::seeds(),
         skein_lib::List::with_capacity(0),
         None,
-        &fixtures::given(document, &jig_protocol_config::Directories::working()),
+        &fixtures::given(&document, &jig_protocol_config::Directories::working()),
         None,
         &document.jig,
         &document.own,

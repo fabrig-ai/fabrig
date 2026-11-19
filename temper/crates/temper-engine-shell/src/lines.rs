@@ -380,6 +380,7 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
                     Setting::Worker(_)
                     | Setting::Provider(_)
                     | Setting::Rules
+                    | Setting::Limits
                     | Setting::Application { .. }
                     | Setting::ProjectPolicy { .. } => unreachable!("only ranged kinds in a numbers refusal"),
                 };

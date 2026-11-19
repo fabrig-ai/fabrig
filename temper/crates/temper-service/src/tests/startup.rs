@@ -749,9 +749,12 @@ fn a_worker_secret_at_its_bound_excludes_its_final_newline() {
 
 #[test]
 fn a_demo_document_member_is_refused_naming_its_path() {
-    let input = fixtures::with(&fixtures::document(), b"application.demo", b"null");
+    let mut input = fixtures::document();
+    let mut document: serde_json::Value = serde_json::from_slice(&input).unwrap();
+    document["application"]["demo"] = serde_json::Value::Null;
+    input.document = serde_json::to_vec(&document).unwrap().into();
     let problems = fixtures::named(&input, &config::Directories::working()).unwrap_err();
-    assert_eq!(&*lines(&problems), b"application.demo: fixed by temper\n");
+    assert_eq!(&*lines(&problems), b"application.demo: moved: the playground's scripted model is the box's own\n");
 }
 
 // protocol/openid-provider.md: a configured provider is admitted, and startup reads its key and

@@ -26,8 +26,8 @@ pub enum Setting {
     },
     Model(u32),
     Worker(u32),
-    Limits,
     Provider(u32),
+    Limits,
 }
 /// A check fault, including a connector's judgment (jig/docs/design/domain/engine/settings.md, 1, 5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

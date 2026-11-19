@@ -1,5 +1,5 @@
 use super::{Bound, Choice, Field, Form, Limit, Shape, Value, Width, Word};
-pub static FORMS: [Form; 97] = [
+pub static FORMS: [Form; 98] = [
     Form { shape: Shape::File, name: b"file", choice: Choice::Every, line: b"File read by `settings apply` and `settings propose`." },
     Form { shape: Shape::Item, name: b"item", choice: Choice::Every, line: b"A `setting` and exactly one of `set`, `edit` and `overlay`." },
     Form { shape: Shape::Setting, name: b"setting", choice: Choice::Every, line: b"Kind and number, or project for project settings." },
@@ -132,7 +132,7 @@ pub static FORMS: [Form; 97] = [
     Form { shape: Shape::TemperLimits, name: b"temper-limits", choice: Choice::List { item: Shape::LimitOverride, bound: Bound::Most(256) }, line: b"Application limits, kind 22; as limits." },
     Form { shape: Shape::LimitOverride, name: b"limit-override", choice: Choice::Every, line: b"One reasoned override." },
 ];
-pub static FIELDS: [Field; 363] = [
+pub static FIELDS: [Field; 362] = [
     Field {
         shape: Shape::File,
         name: b"items",

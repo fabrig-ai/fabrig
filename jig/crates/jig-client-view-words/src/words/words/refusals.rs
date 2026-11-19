@@ -278,7 +278,7 @@ impl Words {
             }
             Setting::Application { number, .. } => (number, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
             Setting::ProjectPolicy { project } => (project, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
-            Setting::Rules => (0, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
+            Setting::Rules | Setting::Limits => (0, JigPhrase::SettingRangeStock, JigPhrase::SettingRangePast),
         };
         let phrase = if number <= STOCK_NUMBERS { stock } else { past };
         self.text(

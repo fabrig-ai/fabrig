@@ -117,7 +117,7 @@ pub const CHANGE_HOT: u8 = 48;
 pub const PERSON_BRIEF: u8 = 50;
 pub const MILESTONE: u8 = 49;
 /// A task held on a named limit (protocol/configuration/limit-settings.md, 6).
-pub const LIMIT_HOLD: u8 = 50;
+pub const LIMIT_HOLD: u8 = 51;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).
 pub const HISTORY_EVENT: u8 = 128;
 /// Landing history (temper/docs/design/domain/landing-history.md, 4.1).

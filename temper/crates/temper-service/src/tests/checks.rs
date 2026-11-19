@@ -770,11 +770,11 @@ fn missing_and_small_charter_models_warn_at_their_configuration_path() {
 #[test]
 fn each_document_shape_is_read_from_its_members() {
     use crate::startup::{Shape, shape};
-    for (document, expected) in [
+    for (document, expected) in vec![
         (fixtures::document(), Shape::Standalone),
         (fixtures::engine_alone_document(), Shape::EngineAlone),
         (fixtures::worker_alone_document(), Shape::WorkerAlone),
-    ] {
+    ].into_boxed_slice() {
         assert_eq!(shape(&document, &config::Directories::working()), Ok(expected));
     }
 }

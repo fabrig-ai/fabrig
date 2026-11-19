@@ -65,8 +65,8 @@ impl Value {
     pub fn as_provider(&self) -> Option<&ProviderSetting> {
         match self {
             Self::Provider(value) => Some(value),
-            Self::Limits(_) => None,
-            Self::Charter(_)
+            Self::Limits(_)
+            | Self::Charter(_)
             | Self::Overlay(_)
             | Self::Template(_)
             | Self::Policy(_)

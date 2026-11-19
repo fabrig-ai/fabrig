@@ -89,6 +89,7 @@ fn out_of_range(current: &Current, defaults: bool, setting: Setting, value: &Val
             number
         }
         Setting::Rules
+        | Setting::Limits
         | Setting::Provider(_)
         | Setting::Worker(_)
         | Setting::Application { .. }

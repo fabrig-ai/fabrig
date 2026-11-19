@@ -2307,7 +2307,7 @@ const PHRASES: u32 = 2824;
 const SEGMENTS: u32 = 5252;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
 const ENGLISH_BYTES: u32 = 66512;
-const ALL: [Word; 2100] = [
+const ALL: [Word; 2103] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,

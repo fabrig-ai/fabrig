@@ -62,7 +62,7 @@ pub static SHAPES: [Shape; 17] = [
 ];
 
 /// Every member the application decoders take, including refused settings members.
-pub static MEMBERS: [Member; 54] = [
+pub static MEMBERS: [Member; 53] = [
     Member {
         shape: "document",
         name: "engine",

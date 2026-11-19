@@ -3,33 +3,9 @@ use jig_domain_link::{Bounds, EndpointBound};
 use skein_lib::{Secret, Time, Token};
 use temper_protocol_records_forge as forge_records;
 
-// smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
-pub const DIALECT: u32 = 3;
-
-// The stock catalogue holds twelve charters.
-// The closer procedure and close job make seventeen executor places in both limits.
-pub const ENGINE: &[u8] = br#"{
-"llm": {
-"providers":[{"name":"fake-provider","number":1,"endpoint":"fake","sources":{"keys":true}}],
-"endpoints": [{
-"name": "fake",
-"number": 1,
-"dialect": 3,
-"provider": "fake-provider",
-"address": {"socket": "127.0.0.1:7101"},
-"transport": "plaintext",
-"headers": [],
-"connect_ms": 10000,
-"handshake_ms": 10000
-}]
-},
-"hosts": {
-"listener": [{"in_process": "workers"}]
-},
-"clients": {
-},
-"owners": [{"provider": 1, "subject": "owner-a"}]
-}"#;
+#[path = "../../../../testing/engine_limit_figures.rs"]
+mod engine_figures;
+use engine_figures::over as jig_limits_over;
 
 // An inline project policy is refused with its enclosing moved member.
 pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1, "permission": 1, "role": 0}],
@@ -43,138 +19,7 @@ pub const INLINE_PROJECTS: &[u8] = br#"[{"number": 1, "roles": [{"connector": 1,
 "budget": {"spend": 100, "deadline_unix_seconds": null}, "notes": 0, "note_resources": []}}]
 }}]"#;
 
-pub fn engine() -> settings::Engine {
-    static ENGINE_SETTINGS: std::sync::OnceLock<jig_protocol_config::Engine> = std::sync::OnceLock::new();
-    let jig = ENGINE_SETTINGS
-        .get_or_init(|| {
-            let mut jig = parse_engine(ENGINE);
-            let policy = jig.policies.first().unwrap();
-            assert_eq!(policy.number, 1);
-            jig.projects = Box::new([jig_protocol_config::Project {
-                number: 1,
-                name: "Project 1".into(),
-                policy: policy.policy.clone(),
-                roles: policy.roles.clone(),
-                templates: policy.templates.clone(),
-            }]);
-            for owner in &mut jig.owners {
-                owner.project = 1;
-            }
-            jig
-        })
-        .clone();
-    // This typed fixture reaches the core's start; policy 1 includes the train’s merge grants with the standing charter executors.
 
-    let own = small_limits();
-    let root = limits::engine(&jig.limits, &own).unwrap();
-    let connector = *jig.connectors.first().unwrap();
-    settings::Engine {
-        kinds: crate::stock::kinds(&root, connector),
-        period_span: crate::stock::PERIOD_SPAN,
-        host_reply_bytes: None,
-        agent_charter_bytes: None,
-        setups: Box::new([]),
-        test_github: None,
-        directories: jig_protocol_config::Directories::working(),
-        jig,
-        webhooks: None,
-        sign_in: None,
-        push: None,
-        clients: crate::startup::application::Clients {
-            listener: jig_protocol_config::Address::Addr(http::address()),
-            bundle: None,
-            public: None,
-        },
-        files: settings::Files { entries: skein_lib::List::with_capacity(0) },
-        demo: None,
-        program_environment: Box::new([]),
-        host_part: temper_engine_domain::room::HostPart {
-            allowance: u64::MAX,
-            ..temper_engine_domain::room::HostPart::EMPTY
-        },
-        ways_stock: crate::stock::ways(),
-        kinds_stock: temper_engine_domain::landing_stock(&[], &skein_lib::Map::with_capacity(0), 1, 4),
-        landing_held: false,
-        limits: own,
-    }
-}
-
-// The small worlds admit the stock's larger goal charter while keeping Small's store page.
-fn small_limits() -> limits::Limits {
-    let mut own = temper_limits_fixtures::small();
-    own.root.journal.run_bytes = 32_768;
-    own.root.transcript_memory = 1_152_921_504_606_846_976;
-    own
-}
-
-pub fn small_model() -> jig_domain_core::settings::CatalogueModel {
-    jig_domain_core::settings::CatalogueModel {
-        first_read: None,
-        number: 1,
-        model: jig_domain_core::Model {
-            provider: 1,
-            dialect: DIALECT,
-            endpoint: 1,
-            program: None,
-            name: b"small".as_slice().into(),
-            cache_life_ms: 0,
-            window: 8192,
-            output: 1024,
-            input_price: 1,
-            cached_price: 1,
-            cache_write_price: None,
-            output_price: 1,
-            price_unit: 1000,
-            effort: None,
-            efforts: Box::default(),
-        },
-        shown: None,
-        description: None,
-        picker: true,
-        withdrawn: false,
-        source: jig_domain_core::settings::ModelSource::Stock,
-        estimated: false,
-    }
-}
-
-/// A parsed engine passed the stock, before any component is made.
-#[path = "../../../../testing/engine_limit_figures.rs"]
-mod engine_figures;
-use engine_figures::over as jig_limits_over;
-fn jig_limits() -> jig_protocol_config::Limits {
-    jig_limits_over(&jig_protocol_config_fixtures::small())
-}
-
-pub fn parse_engine(bytes: &[u8]) -> jig_protocol_config::Engine {
-    parse_engine_over(bytes, &jig_limits())
-}
-pub fn parse_engine_over(bytes: &[u8], base: &jig_protocol_config::Limits) -> jig_protocol_config::Engine {
-    let document = jig_protocol_config::document(
-        bytes,
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap();
-    let mut jig = jig_protocol_config::engine_over(
-        &document,
-        0,
-        &jig_protocol_config::Directories::working(),
-        jig_protocol_config::Defaults::Passed,
-        &crate::startup::fixed(&jig_protocol_config::Directories::working()).unwrap(),
-        base,
-    )
-    .unwrap();
-    let own = match jig.llm.endpoints.first() {
-        Some(endpoint) => endpoint.name.as_ref() == b"fake",
-        None => false,
-    };
-    let defaults = if own {
-        crate::stock::checked_with(Box::new([small_model()]), jig.limits.core.tasks.result_bytes).unwrap()
-    } else {
-        crate::stock::defaults(&jig.llm, jig.limits.core.tasks.result_bytes)
-    };
-    jig_protocol_config::pass(&mut jig, defaults).unwrap();
-    jig
-}
 /// Startup guards keep the small policy bound; they never make the core.
 pub fn guard_engine() -> settings::Engine {
     let mut settings = engine();
@@ -417,7 +262,7 @@ pub fn worker_digests(_settings: &settings::Engine) -> settings::Files {
 }
 
 pub use link_setup::{
-    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, repository, small_model, wire_limits,
+    DIALECT, ENGINE, assignment_with_settings, encoding, forges, parse_engine, parse_engine_over, repository, small_model, wire_limits,
     worker_runtime,
 };
 pub(crate) use temper_service_link_fixtures::link_setup;
@@ -918,24 +763,11 @@ pub fn turn_document() -> Start {
     with(&document, b"engine.limits.overrides", &serde_json::to_vec(&overrides).unwrap())
 }
 
-pub fn turn_jig() -> jig_protocol_config::Engine {
-    let mut jig = engine().jig;
-    jig.limits.core.tasks.spec_bytes = 16_384;
-    jig.limits.core.tasks.result_bytes = 4_096;
-    jig.limits.core.tasks.message_bytes = 4_096;
-    jig
-}
-
 #[path = "../../../../testing/startup_fixture.rs"]
+#[expect(dead_code, reason = "this world supplies provider defaults through named_with")]
 mod typed;
 pub use typed::{Input, Start};
 
-pub fn named(
-    input: &(impl Input + ?Sized),
-    directories: &jig_protocol_config::Directories,
-) -> Result<crate::startup::Named, crate::startup::Problems> {
-    input.configured().named(directories)
-}
 pub fn named_with(
     input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,

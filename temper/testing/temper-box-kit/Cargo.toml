@@ -34,7 +34,6 @@ temper-client-shell-cli.workspace = true
 skein-forge.workspace = true
 jig-client-protocol-link.workspace = true
 temper-service.workspace = true
-temper-service-shell.workspace = true
 temper-service-core.workspace = true
 temper-forge-setup.workspace = true
 temper-client-shell-terminal.workspace = true
