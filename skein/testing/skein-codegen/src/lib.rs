@@ -24,7 +24,7 @@ pub mod patch;
 
 pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing, unpinned};
 pub use emit_limits::{pascal, snake};
-pub use largest::{largest, roots};
+pub use largest::{largest, largest_variants, roots};
 pub use parse::{Error, parse};
 
 /// One schema version of a family.
