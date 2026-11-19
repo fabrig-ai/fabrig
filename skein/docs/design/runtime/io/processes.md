@@ -543,11 +543,14 @@ pub enum Unenforced {
 - **Bounds,** checked at io's entrance: a reach past one is refused
   before anything is made, io answering `Failed` with
   `Error::Reach(Unenforced::Bounds)`, then `Closed`. The kernel record's
-  own validity holds the same bounds.
+  own validity holds the same bounds but one: it admits any `abi` from 6
+  up, so a record written below io's entrance can ask a backend for an
+  ABI no kernel has, which the backend refuses `Abi { found, needs }`
+  (../../testing/conformance.md, 1, *a missing ABI*).
 
   | Bound | Admitted | Refused |
   |---|---|---|
-  | `abi` | 6 (`Reach::ABI`) | any other |
+  | `abi` | 6 (`Reach::ABI`); the kernel record, 6 or above | any other; the kernel record, below 6 |
   | rules | none to 64 (`Reach::RULES`) | 65 |
   | a rule's path | relative, no NUL, at most 4,095 bytes (`Reach::PATH`) | one starting `/`, one holding a NUL, 4,096 bytes |
   | a rule's rights | at least one | none |

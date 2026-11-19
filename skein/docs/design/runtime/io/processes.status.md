@@ -8,3 +8,5 @@
   6: a spawn's reach: `Reach`, `Rule`, `Rights` and `Unenforced`,
   `Spawn`'s `reach`, its bounds at io's entrance, and `Error::Reach`.
   [in flight: change 9006]
+  6: the kernel record's validity admitting an `abi` above 6, while io's
+  entrance admits 6 alone. [in flight: change 9036]
