@@ -7,17 +7,18 @@ use jig_protocol_engine_workers::GrantValue;
 use skein_lib::Time;
 use skein_lib::Token;
 use temper_engine_domain as root;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 #[test]
 fn each_repositorys_grant_carries_its_identitys_value() {
     let values = fixtures::values_with_identity(1, b"forge-token-1234");
     let filled = values.grants(&[fixtures::application_grant(1, 1)], Time::ZERO);
     let [Some(GrantValue::Application { secret })] = filled.as_ref() else { panic!("one application value") };
     let identity = fixtures::decoded_identity(secret);
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = identity.kind() else { panic!("Forgejo identity") };
-    assert_eq!(token.token().expose(), b"forge-token-1234");
-    assert_eq!(identity.login(), b"temper");
-    assert_eq!(identity.name(), b"temper");
-    assert_eq!(identity.email(), b"temper@forge.example");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = &identity.kind else { panic!("Forgejo identity") };
+    assert_eq!(token.token.expose(), b"forge-token-1234");
+    assert_eq!(identity.login.as_ref(), b"temper");
+    assert_eq!(identity.name.as_ref(), b"temper");
+    assert_eq!(identity.email.as_ref(), b"temper@forge.example");
 }
 #[test]
 fn a_missing_identity_or_generation_keeps_its_grant_slot_empty() {
@@ -48,8 +49,8 @@ fn application_grants_answer_either_retained_generation() {
     for (index, token) in [(0, b"first".as_slice()), (1, b"second".as_slice())] {
         let Some(GrantValue::Application { secret }) = &filled[index] else { panic!("retained generation") };
         let identity = fixtures::decoded_identity(secret);
-        let temper_protocol_worker_wire::v1::Kind::Forgejo(value) = identity.kind() else { panic!("Forgejo") };
-        assert_eq!(value.token().expose(), token);
+        let temper_protocol_worker_wire::v1::Kind::Forgejo(value) = &identity.kind else { panic!("Forgejo") };
+        assert_eq!(value.token.expose(), token);
     }
     assert!(filled[2].is_none());
     assert!(filled[3].is_none());
@@ -162,13 +163,13 @@ fn an_assignment_carries_its_items_encoded_charter_and_identity_value() {
     let items =
         temper_protocol_worker_wire::v1::Items::decode(&encoding.limits, &mut skein_lib::Reader::new(&parts[0].bytes))
             .unwrap();
-    assert_eq!(items.repositories().get(0).unwrap().remote(), b"https://forge.example/acme/shop.git");
+    assert_eq!(items.repositories.get(0).unwrap().remote.as_ref(), b"https://forge.example/acme/shop.git");
     let charter = decoded_charter(&assignment.assignment.charter);
     assert!(charter.resume());
     let Some(GrantValue::Application { secret }) = &values[0] else { panic!("an application value") };
     let value = fixtures::decoded_identity(secret);
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = value.kind() else { panic!("Forgejo identity") };
-    assert_eq!(token.token().expose(), b"forge-token-1234");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = &value.kind else { panic!("Forgejo identity") };
+    assert_eq!(token.token.expose(), b"forge-token-1234");
 }
 #[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary tests assemble byte fixtures and inspect text")]
@@ -352,10 +353,8 @@ fn a_bad_or_missing_answer_part_discards_all_of_its_parts() {
     use jig_domain_host as host;
     use skein_lib::Token;
     let limits = fixtures::wire_limits();
-    let resource = temper_protocol_worker_wire::v1::Preparation::Refused(
-        temper_protocol_worker_wire::v1::Tag::new(&limits, temper_protocol_worker_wire::v1::TagParts { tag: 7 })
-            .unwrap(),
-    );
+    let resource =
+        temper_protocol_worker_wire::v1::Preparation::Refused(temper_protocol_worker_wire::v1::Tag { tag: 7 });
     let up = fixtures::answer(host::Ending::Failed {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(Token::new(2)) }),
         detail: Box::new([]),
@@ -379,10 +378,8 @@ fn a_named_preparation_part_reaches_the_roots_parts() {
     use jig_domain_host as host;
     use skein_lib::Token;
     let limits = fixtures::wire_limits();
-    let resource = temper_protocol_worker_wire::v1::Preparation::Refused(
-        temper_protocol_worker_wire::v1::Tag::new(&limits, temper_protocol_worker_wire::v1::TagParts { tag: 7 })
-            .unwrap(),
-    );
+    let resource =
+        temper_protocol_worker_wire::v1::Preparation::Refused(temper_protocol_worker_wire::v1::Tag { tag: 7 });
     let up = fixtures::answer(host::Ending::Failed {
         failure: host::Failure::Unprepared(host::Preparation::Permanent { resource: Some(Token::new(2)) }),
         detail: Box::new([]),
@@ -841,7 +838,7 @@ fn a_first_attempt_requests_saves_from_its_charters_resume_policy() {
         )
         .unwrap();
         assert_eq!(assignment.assignment.save, resume);
-        assert_eq!(items.repositories().get(0).unwrap().save().is_some(), resume);
+        assert_eq!(items.repositories.get(0).unwrap().save.is_some(), resume);
         assert!(!decoded_charter(&assignment.assignment.charter).resume(), "the first attempt has no transcript yet");
     }
 }
@@ -940,17 +937,17 @@ fn a_jobs_forge_workspace_becomes_worker_items() {
         temper_engine_domain::ForgeStart::Merge { branch: b"temper/change".as_slice().into(), base: [4; 32] };
     repository.push = Some(b"temper/change".as_slice().into());
     let items = job_items(repository);
-    assert_eq!(items.repositories().len(), 1);
-    let item = items.repositories().get(0).unwrap();
-    assert_eq!(item.remote(), b"https://forge.example/acme/shop.git");
-    assert_eq!(item.name(), b"shop");
-    assert_eq!(item.identity(), 1);
-    let temper_protocol_worker_wire::v1::Start::Merge(start) = item.start() else { panic!("merge start") };
-    assert_eq!(start.branch(), b"temper/change");
-    assert_eq!(start.base(), &[4; 32]);
-    let temper_protocol_worker_wire::v1::Access::Writable(access) = item.access() else { panic!("writable") };
-    assert_eq!(access.push(), b"temper/change");
-    assert!(item.save().is_none());
+    assert_eq!(items.repositories.len(), 1);
+    let item = items.repositories.get(0).unwrap();
+    assert_eq!(item.remote.as_ref(), b"https://forge.example/acme/shop.git");
+    assert_eq!(item.name.as_ref(), b"shop");
+    assert_eq!(item.identity, 1);
+    let temper_protocol_worker_wire::v1::Start::Merge(start) = &item.start else { panic!("merge start") };
+    assert_eq!(start.branch.as_ref(), b"temper/change");
+    assert_eq!(start.base, [4; 32]);
+    let temper_protocol_worker_wire::v1::Access::Writable(access) = &item.access else { panic!("writable") };
+    assert_eq!(access.push.as_ref(), b"temper/change");
+    assert!(item.save.is_none());
 }
 
 fn job_items(repository: temper_engine_domain::ForgeRepository) -> temper_protocol_worker_wire::v1::Items {
@@ -983,12 +980,12 @@ fn a_prepare_jobs_items_allow_only_its_ordered_prefix_branches() {
     ]);
     let expected = repository.prefixes.clone();
     let items = job_items(repository);
-    let item = items.repositories().get(0).expect("train repository");
-    let temper_protocol_worker_wire::v1::Access::Prefixes(prefixes) = item.access() else {
+    let item = items.repositories.get(0).expect("train repository");
+    let temper_protocol_worker_wire::v1::Access::Prefixes(prefixes) = &item.access else {
         panic!("only prefix creations are writable")
     };
-    assert_eq!(prefixes.branches().as_slice(), expected.as_ref());
-    assert!(item.save().is_none());
+    assert_eq!(prefixes.branches.as_slice(), expected.as_ref());
+    assert!(item.save.is_none());
 }
 
 /// temper/docs/design/domain/worker/jobs.md: a job without repositories has no items part.

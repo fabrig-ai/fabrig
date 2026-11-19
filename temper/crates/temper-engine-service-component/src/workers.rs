@@ -9,6 +9,7 @@ use skein_io::{self as io};
 use skein_lib::{List, Map, Queue, Reader, Time, Token};
 use temper_engine_domain as root;
 use temper_protocol_worker_wire::v1 as wire;
+use temper_protocol_worker_wire::v1::Record;
 /// Temper's roots, bridge and spoken entry, without constructing the other
 /// families in the engine's statement (temper/docs/design/protocol/wires.md, 4 and 10).
 pub fn application(

@@ -785,7 +785,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_worker_wire::SCHEMA,
-        temper_protocol_worker_wire::v1, sealed,
+        temper_protocol_worker_wire::v1, lean,
         limits [
             merge_branch,
             merged_branch,
