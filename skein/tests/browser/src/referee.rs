@@ -17,6 +17,7 @@ pub struct Referee {
     closed: bool,
     downloads: BTreeMap<Vec<u8>, (Token, Token)>,
     closed_persons: BTreeSet<Token>,
+    requests: BTreeMap<(Token, Vec<u8>), bool>,
 }
 
 impl Referee {
@@ -62,10 +63,69 @@ impl Referee {
         }
     }
 
+    fn request_event(&mut self, event: &Event) -> Result<(), String> {
+        let page = match event {
+            Event::Sent { page, .. }
+            | Event::Answered { page, .. }
+            | Event::Opened { page }
+            | Event::Trouble { page, trouble: skein_browser::boundary::Trouble::Request, .. } => Some(*page),
+            Event::Ready { .. }
+            | Event::Found { .. }
+            | Event::Met { .. }
+            | Event::Missed { .. }
+            | Event::Done { .. }
+            | Event::Warned { .. }
+            | Event::Refused { .. }
+            | Event::Address { .. }
+            | Event::Tabs { .. }
+            | Event::Attribute { .. }
+            | Event::Snapshot { .. }
+            | Event::Screenshot { .. }
+            | Event::Downloaded { .. }
+            | Event::Trouble { .. }
+            | Event::Closed { .. } => None,
+        };
+        if page.is_some_and(|page| self.closed_persons.contains(&page)) {
+            return Err("nothing of a page after its Closed".into());
+        }
+        match event {
+            Event::Sent { page, id, .. } => {
+                if self.requests.insert((*page, id.to_vec()), false).is_some() {
+                    return Err("a request is Sent once".into());
+                }
+            }
+            Event::Answered { page, id } => {
+                let answered = self.requests.get_mut(&(*page, id.to_vec())).ok_or("Answered follows Sent")?;
+                if *answered {
+                    return Err("a request is Answered at most once".into());
+                }
+                *answered = true;
+            }
+            Event::Ready { .. }
+            | Event::Opened { .. }
+            | Event::Found { .. }
+            | Event::Met { .. }
+            | Event::Missed { .. }
+            | Event::Done { .. }
+            | Event::Warned { .. }
+            | Event::Refused { .. }
+            | Event::Address { .. }
+            | Event::Tabs { .. }
+            | Event::Attribute { .. }
+            | Event::Snapshot { .. }
+            | Event::Screenshot { .. }
+            | Event::Downloaded { .. }
+            | Event::Trouble { .. }
+            | Event::Closed { .. } => {}
+        }
+        Ok(())
+    }
+
     pub fn event(&mut self, event: &Event, visible_matches: u32) -> Result<(), String> {
         if self.closed {
             return Err("nothing is emitted after Closed".into());
         }
+        self.request_event(event)?;
         if let Event::Downloaded { person, name, .. } = event {
             if self.closed_persons.contains(person) {
                 return Err("no download after its person's Closed".into());
@@ -104,7 +164,9 @@ impl Referee {
             | Event::Address { op, .. }
             | Event::Snapshot { op, .. }
             | Event::Screenshot { op, .. } => Some(*op),
-            Event::Downloaded { .. }
+            Event::Sent { .. }
+            | Event::Answered { .. }
+            | Event::Downloaded { .. }
             | Event::Warned { .. }
             | Event::Ready { .. }
             | Event::Opened { .. }
@@ -181,6 +243,29 @@ mod tests {
             ),
             Err("no download after its person's Closed".into())
         );
+    }
+
+    #[test]
+    fn requests_report_the_first_broken_contract() {
+        let mut referee = Referee::new();
+        let page = Token::new(3);
+        let answer = Event::Answered { page, id: b"7.1".as_slice().into() };
+        assert_eq!(referee.event(&answer, 0), Err("Answered follows Sent".into()));
+        let sent = Event::Sent {
+            page,
+            id: b"7.1".as_slice().into(),
+            load: b"L1".as_slice().into(),
+            document: false,
+            method: b"GET".as_slice().into(),
+            url: b"http://127.0.0.1:9/".as_slice().into(),
+        };
+        referee.event(&sent, 0).expect("Sent");
+        referee.event(&answer, 0).expect("first answer");
+        assert_eq!(referee.event(&answer, 0), Err("a request is Answered at most once".into()));
+        referee.event(&Event::Closed { owner: page }, 0).expect("Closed");
+        // Both duplicate and after-close are broken: closure is the first finding.
+        assert_eq!(referee.event(&answer, 0), Err("nothing of a page after its Closed".into()));
+        assert_eq!(referee.event(&sent, 0), Err("nothing of a page after its Closed".into()));
     }
 
     #[test]

@@ -183,5 +183,5 @@ pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
 /// plus one notice for each bounded standing interest.
 #[must_use]
 pub fn lines_per_decision(limits: &crate::Limits) -> Option<u32> {
-    limits.tasks.checked_mul(12)?.checked_add(limits.tasks.checked_mul(limits.subscriptions)?)
+    limits.tasks.checked_mul(12)?.checked_add(limits.tasks.checked_mul(crate::subscriptions::kept_capacity(limits)?)?)
 }

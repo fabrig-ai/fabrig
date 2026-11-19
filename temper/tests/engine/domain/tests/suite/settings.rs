@@ -25,6 +25,7 @@ const STOCK_RUN_BYTES: u32 = 32_768;
 const POLICY_CAP: u64 = 16_384;
 const PRIOR_POLICY_CAP: u64 = POLICY_CAP + 1;
 const POLICY_NUMBER: u32 = 1;
+const SAVED_POLICY_NUMBER: u32 = 33;
 const MADE_PROJECT: u32 = 2;
 const POLICY_ROLES: u32 = 2;
 // Production Small's journal/page byte authority; two >16 KiB policy rows
@@ -140,7 +141,7 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
         1,
         20,
         s::Item {
-            setting: s::Setting::Policy(POLICY_NUMBER),
+            setting: s::Setting::Policy(SAVED_POLICY_NUMBER),
             edit: s::Edit::Set(s::Value::Policy(Box::new(sized_policy(bytes)))),
         },
     );
@@ -157,7 +158,7 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
             sign_in: driver.session(),
             key: [21; 16],
             models: Box::new([]),
-            ask: people::Ask::MakeProject { name: "Saved policy".into(), policy: POLICY_NUMBER },
+            ask: people::Ask::MakeProject { name: "Saved policy".into(), policy: SAVED_POLICY_NUMBER },
         }));
         driver.settle();
         assert!(
@@ -172,7 +173,12 @@ fn saved_policy(bytes: u64, project: bool) -> Driver {
         );
         // Remove the source setting through another real decision: only the
         // project's retained copy must trigger the named narrowed restore.
-        change(&mut driver, 2, 22, s::Item { setting: s::Setting::Policy(POLICY_NUMBER), edit: s::Edit::Removed });
+        change(
+            &mut driver,
+            2,
+            22,
+            s::Item { setting: s::Setting::Policy(SAVED_POLICY_NUMBER), edit: s::Edit::Removed },
+        );
         assert_eq!(head(&driver).number, 3);
     }
     driver
@@ -205,7 +211,7 @@ fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_s
             phase: Some(core::start::Phase::LoadCore),
             failure: core::start::Failure::Settings {
                 failure: s::Failure {
-                    setting: s::Setting::Policy(POLICY_NUMBER),
+                    setting: s::Setting::Policy(SAVED_POLICY_NUMBER),
                     fault: s::Fault::Shape,
                     detail: None
                 },

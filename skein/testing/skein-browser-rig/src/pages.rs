@@ -16,6 +16,9 @@ const PRESS: &[u8] = br"document.querySelector('#bar').addEventListener('click',
 pub fn pages() -> Vec<skein_fake_person_browser::origins::Page> {
     use skein_fake_person_browser::origins::Page;
     [
+        (b"/requests".as_slice(), br"<!doctype html><h1>Requests</h1><script>fetch('/request-stream');addEventListener('pagehide',()=>fetch('/request-leave',{keepalive:true}));</script>".as_slice()),
+        (b"/request-stream".as_slice(), b"first bytes"),
+        (b"/request-leave".as_slice(), b"left"),
         (b"/download".as_slice(), DOWNLOAD),
         (b"/letter".as_slice(), LETTER),
         (b"/leave".as_slice(), LEAVE),

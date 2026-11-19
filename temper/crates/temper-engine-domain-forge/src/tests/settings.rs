@@ -17,10 +17,8 @@ const BOUNDS: Bounds = Bounds {
     landing_rules: 4,
     gates: 2,
     roles: 2,
-    charters: 3,
     segments: 5,
     segment_bytes: 8,
-    templates: 4,
     follows: 2,
     dependencies: 4,
     follow_paths: 2,
@@ -339,7 +337,7 @@ fn judge_refuses_each_fault_by_name() {
 fn judge_reads_the_forge_charters() {
     let goal = Item { kind: Kind::TemplateGoal.number(), scope: 0, number: 1, value: None };
     for (design, close_out) in [(false, false), (false, true), (true, false), (true, true)] {
-        for number in [1, BOUNDS.templates] {
+        for number in [1, 33, 64] {
             let item = Item { number, value: Some(Value::Goal(TemplateGoal { design, close_out })), ..goal.clone() };
             assert_eq!(judge(&item, &BOUNDS), Ok(()), "{item:?}");
         }
@@ -347,23 +345,21 @@ fn judge_reads_the_forge_charters() {
     for (label, item, expected) in [
         ("goal project scope", Item { scope: PROJECT, ..goal.clone() }, Err(Refusal::Scope)),
         ("goal number zero", Item { number: 0, ..goal.clone() }, Err(Refusal::Number)),
-        ("goal number past templates", Item { number: BOUNDS.templates + 1, ..goal.clone() }, Err(Refusal::Number)),
+        ("goal number past numbers", Item { number: 65, ..goal.clone() }, Err(Refusal::Number)),
         ("goal wrong value", Item { value: Some(Value::Charter(1)), ..goal.clone() }, Err(Refusal::Value)),
         ("goal removal or reset", goal, Ok(())),
     ] {
         assert_eq!(judge(&item, &BOUNDS), expected, "{label}");
     }
+    assert_eq!(Refusal::Charter.words().as_ref(), b"a charter outside 1 to 64, or the forge's charter removed");
     let base = Item { kind: Kind::Charters.number(), scope: 0, number: 1, value: Some(Value::Charter(1)) };
     for number in [1, 2] {
         let rows = [
             ("first charter", base.clone(), Ok(())),
-            ("last charter", Item { value: Some(Value::Charter(BOUNDS.charters)), ..base.clone() }, Ok(())),
+            ("own charter", Item { value: Some(Value::Charter(33)), ..base.clone() }, Ok(())),
+            ("last charter", Item { value: Some(Value::Charter(64)), ..base.clone() }, Ok(())),
             ("charter zero", Item { value: Some(Value::Charter(0)), ..base.clone() }, Err(Refusal::Charter)),
-            (
-                "charter past bound",
-                Item { value: Some(Value::Charter(BOUNDS.charters + 1)), ..base.clone() },
-                Err(Refusal::Charter),
-            ),
+            ("charter past bound", Item { value: Some(Value::Charter(65)), ..base.clone() }, Err(Refusal::Charter)),
             ("remove charter", Item { value: None, ..base.clone() }, Err(Refusal::Charter)),
             ("scope", Item { scope: 1, ..base.clone() }, Err(Refusal::Scope)),
         ];
@@ -552,8 +548,9 @@ fn a_projects_kinds_are_judged() {
     for (label, item, expected) in [
         ("scope", Item { scope: PROJECT, ..base.clone() }, Err(Refusal::Scope)),
         ("zero", Item { number: 0, ..base.clone() }, Err(Refusal::Number)),
-        ("last charter", Item { number: BOUNDS.charters, ..base.clone() }, Ok(())),
-        ("past charters", Item { number: BOUNDS.charters + 1, ..base.clone() }, Err(Refusal::Number)),
+        ("own charter", Item { number: 33, ..base.clone() }, Ok(())),
+        ("last charter", Item { number: 64, ..base.clone() }, Ok(())),
+        ("past charters", Item { number: 65, ..base.clone() }, Err(Refusal::Number)),
         ("remove or reset", Item { value: None, ..base.clone() }, Ok(())),
         ("ways", Item { value: Some(ways.clone()), ..base }, Err(Refusal::Value)),
         ("project ways", Item { kind: 10, scope: PROJECT, number: 1, value: Some(ways) }, Err(Refusal::Value)),

@@ -47,6 +47,7 @@ pub fn run() -> core::RunProof {
         task: 11,
         attempt: 15,
         conversation: 9,
+        endpoint: None,
         credentials: Box::new([2, 3]),
         window: Some(core::CurrentWindow { attempt: 14, turn: 2, closed: false }),
         crossed: true,

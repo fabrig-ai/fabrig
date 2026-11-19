@@ -9,6 +9,14 @@ mod log_end;
 mod log_reading;
 
 #[test]
+fn chromium_reports_streamed_answers_and_the_leaving_documents_load() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Requests);
+    rig.run();
+    assert!(rig.root_closed && rig.exited && rig.child_closed);
+}
+
+#[test]
 fn chromium_opens_finds_and_presses_a_button() {
     let chromium = chromium();
     let profile = Profile::fresh();

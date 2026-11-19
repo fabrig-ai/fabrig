@@ -39,13 +39,14 @@ Kind 4's members, each with its default and the section it serves:
 | `dependencies_join` | yes | `landing.md`, 4.1 |
 | `pins`: each a downstream and an upstream repository; `pins_follow_main` | none; no | `landing.md`, 4.1, 5.3 |
 | `gate_retries`; `gate_timeout` | 2; one hour | `landing.md`, 7.4; `landing.md`, 7.1 |
+| `wait`: `cleared` or `landed`, whether a change into a branch a tier follows lives to cleared or ends at landed | `cleared` | `after-landing.md`, section 6 |
 | `tier_retries`; `verification_bound`; `suspects`: `bisect` or `tell_all`; `red_pauses` | 2; two hours; `bisect`; no | `after-landing.md`, 3, 5.2, 6, 7 |
 | `findings`: on or off; `triager` and `chooser`, a task or a role; `tester_charter`; `areas`, each a repository and an area | off; the person's chat; the chat; none | `findings.md`, 2, 6, 8 |
 | `questions_on_forge` | off | `forge/issues.md`, 1 |
 
 - **What is built:** kind 4's `by`, `batch`, `combine`, `merge_job`,
   `close_job`, `landing_attempts`, `check_timeout`, `gate_retries`,
-  `gate_timeout`, `tier_retries` and `verification_bound`, and kind 5
+  `gate_timeout`, `wait`, `tier_retries` and `verification_bound`, and kind 5
   whole. Each field keeps the form, bounds and default
   `../protocol/configuration/engine.md`'s `landing` gives it, where the
   document's `application.landing` held them. A start now refuses that

@@ -24,6 +24,7 @@ pub enum Web {
     See(Box<[u8]>),
     Reload(Box<[u8]>),
     Look(Option<u32>),
+    Requests,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Tui {
@@ -126,7 +127,8 @@ impl Line {
             }
         };
         if let Some(extra) = fields.field() {
-            return Err(format!("extra field: {extra:?}"));
+            let (Field::Word(extra) | Field::Bytes(extra)) = extra;
+            return Err(format!("extra field: {:?}", String::from_utf8_lossy(&extra)));
         }
         Ok(Self { source: source.into(), record })
     }
@@ -254,6 +256,7 @@ fn web(fields: &mut Fields) -> Result<Web, String> {
             };
             Web::Act { role, name, order, act }
         }
+        b"requests" => Web::Requests,
         b"see" => Web::See(bytes(fields, "text")?),
         b"reload" => {
             let path = bytes(fields, "path and query")?;

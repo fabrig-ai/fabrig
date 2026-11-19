@@ -99,7 +99,14 @@ The loop's third step (`README.md`, 4), for each free place
     data still counts wherever it is. A page's words are
     compared where the case gives them (its `see`, as a `web see` line
     for a `web` case and a `tui see` line for a `tui` case), the rest
-    judged against the draft's promises; ctl cases first
+    judged against the draft's promises. A `web` step whose do is `web
+    requests` is that drive line, and its see is compared with the
+    line's last shown line, as a `see` is compared
+    (`../../client/drive.md`, 3.2), in these words: "A `web` step whose
+    do is `web requests` is that drive line: compare its see with the
+    line's last shown line, `N requests in W waves`, which must equal it;
+    one that differs is a finding, its seen the line's whole answer."
+    Ctl cases first
     (`../../draft/landed-qa.md`, 4 and 7): every `ctl` case before any
     `web` or `tui` one, each in a ctl session, `temper-qa pass open
     --ctl`, which starts no browser and no terminal
@@ -149,9 +156,11 @@ The loop's third step (`README.md`, 4), for each free place
     can reach it, then becomes a recipe (`places.md`, 6). When no line
     or setup can reach it, record a gap (`gaps.md`, 3).
   - **The commands:** the place's (`places.md`, 4 to 6), the drive
-    lines in brief (`../../client/drive.md`, 3), among them ctl's box
-    values and the `forge commit`, `forge push` and `forge checks` lines
-    on the fake Forgejo. One line says quoted bytes take printable ASCII
+    lines in brief (`../../client/drive.md`, 3), among them `web
+    requests`, which answers the requests the page has sent since it
+    last loaded, each with its wave, then `N requests in W waves`
+    (`../../client/drive.md`, 3.2), ctl's box values and the `forge
+    commit`, `forge push` and `forge checks` lines on the fake Forgejo. One line says quoted bytes take printable ASCII
     alone, other bytes as `\xHH`, with `\"` and `\\` for quote and
     backslash (`../../client/drive.md`, 3.1). Each file a
     `forge commit` or `forge push` names is written under
@@ -275,7 +284,8 @@ Focused and fuzzy, over the loop's fake world (`README.md`, 6):
   a finding gone closed with the commit; a finding open after two goals
   handed on, with its line.
 - **The brief** written for a start and for a resume, with its parts in
-  section 4's order.
+  section 4's order, holding section 4's words for a `web requests`
+  step and `web requests` among its drive lines.
 
 ## 10. Open questions
 

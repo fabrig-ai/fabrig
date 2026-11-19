@@ -87,3 +87,20 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
     };
     (scratch, directories)
 }
+
+pub fn tree(root: &std::path::Path) -> Vec<(std::path::PathBuf, u32, Vec<u8>)> {
+    use std::os::unix::fs::PermissionsExt;
+    let mut result = Vec::new();
+    let mut entries =
+        std::fs::read_dir(root).expect("data directory").map(|entry| entry.expect("data entry")).collect::<Vec<_>>();
+    entries.sort_by_key(std::fs::DirEntry::file_name);
+    for entry in entries {
+        let metadata = entry.metadata().expect("data metadata");
+        let bytes = if metadata.is_file() { std::fs::read(entry.path()).expect("data file") } else { Vec::new() };
+        result.push((entry.path(), metadata.permissions().mode(), bytes));
+        if metadata.is_dir() {
+            result.extend(tree(&entry.path()));
+        }
+    }
+    result
+}

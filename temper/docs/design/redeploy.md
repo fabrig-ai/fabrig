@@ -5,7 +5,9 @@ told the engine restarts, 4.2; each worker judged by its wait, 6.2) and
 2026-11-18 for milestone C3 of `draft/checkpoints.execution.md` (the
 check over a checkpoint while the old build serves, 4.1; the stop's
 checkpoint as the backup and the verdict read again over it, 4.2; going
-back by restore, 4.6).
+back by restore, 4.6), and again on 2026-11-18 for C3's follow-up (what
+a first redeploy needs, 2.3; the verdict once before the stop, 4.1; the
+stop's verdict by links, 4.2).
 How a deployment of temper takes a new build
 while its work goes on, and how each redeploy is refereed afterwards:
 `temper-redeploy`, an internal tool run by the deployments' operator
@@ -31,12 +33,16 @@ the tool runs, in what order, what it keeps and how it judges.
   each binary asked its `--version`.
 - **The check while the old build serves** (4.1): a checkpoint of the
   serving deployment, taken through the engine's `ctl`, and the new
-  build's `upgrade --check` over it, with its verdict on the workers. A
-  check that refuses ends the redeploy with nothing stopped.
+  build's `upgrade --check` over it, with its verdict on the workers;
+  when the engine is to go alone, the new build's `upgrade --workers`
+  over it too, the verdict the stop reads again. A check or a verdict
+  that refuses ends the redeploy with nothing stopped, so a build that
+  cannot read the verdict at the stop is refused before it.
 - **The engine alone, by default** (4.2, 4.3), when the check says the
   workers may stay: its settled stop, a checkpoint of the stopped
-  deployment as the backup, the verdict's inputs read again over it, and
-  the swap and the start the workers ride.
+  deployment as the backup, the verdict's inputs read again over it,
+  by links and small copies, and the swap and the start the workers
+  ride.
 - **Workers in turn, when asked** (4.4): one at a time, drained, swapped,
   started, and waited for until it opened and its logins came, before
   the next.
@@ -169,6 +175,42 @@ naming the member's path (`workers[1].swap`), exit 1.
 - **The tool's own environment** is handed to every child as it was
   captured (`testing/tools.md`, 4.3); it adds none.
 
+### 2.3 Before a deployment's first redeploy over a checkpoint
+
+A deployment last redeployed before milestone C3 of
+`draft/checkpoints.execution.md`, its description naming `backup`,
+needs all of these before its first `run` with this tool:
+
+- **The description's members** (2.1): `backup` removed; `checkpoint`
+  and `verdict` added; `check` given `{checkpoint}`, its directory the
+  checkpoint's, `DEPLOYMENT/checkpoints/{checkpoint}` under the engine's
+  deployment directory as 2.1's example has it, no longer the
+  deployment itself. A description naming `backup`, or whose `check` or
+  `verdict` lacks `{checkpoint}`, is refused before anything runs
+  (2.2).
+- **The serving engine,** the installed `temper-engine`, at C1 or
+  later: it answers `deployment checkpoint` while it serves (4.1, step
+  7) and takes the stop's checkpoint (4.2). A build before C1 refuses
+  the first, and the redeploy ends with nothing stopped.
+- **The staged build and `temper-redeploy`** at the build that brings
+  this section, or later: the staged build's `upgrade --workers`, whose
+  rehearsal at the stop links rather than copies (4.2), and the tool's
+  verdict once before the stop (4.1, step 10). A staged build before C3
+  has no `upgrade --workers`, and is refused at step 10 with nothing
+  stopped unless the redeploy is `--together`, which reads no verdict.
+- **`store.checkpoints.keep`,** where the configuration sets it, at
+  least 2 (`protocol/checkpoints.md`, 4): a redeploy takes two, the
+  check's and the stop's, and the stop's, the backup, is kept until the
+  next redeploy's stop (4.2, *Retention*).
+- **`ctl`'s account** a person who owns the deployment, whose act takes
+  the check's checkpoint (`protocol/checkpoints.md`, 3), besides its
+  role in each project the referee reads (6.1).
+
+Where the engine's cache directory, the `--cache` that `verdict` names,
+is on another file system than its data directory, the stop's verdict
+copies each file it would link (4.2): correct, but the outage grows with
+the checkpoint's maps.
+
 ## 3. The build staged
 
 - **COMMIT** is the build's twelve lowercase hexadecimal digits
@@ -226,12 +268,36 @@ exclude each other.
    line ending `workers may stay: `:
    - exit other than 0: a start would be refused, and the redeploy ends
      **refused**, exit 1, with nothing stopped;
-   - exit 0, `workers may stay: yes`: as the mode asks, the engine alone
-     (4.3), then with `--workers` the workers in turn (4.4), or with
-     `--together` every part together (4.5);
+   - exit 0, `workers may stay: yes`: as the mode asks, the verdict
+     before the stop (step 10), then the engine alone (4.3) and with
+     `--workers` the workers in turn (4.4); or with `--together` every
+     part together (4.5);
    - exit 0, `workers may stay: no`, `workers may stay: unknown…`, or no
      such line: every part together (4.5), each worker drained while the
      old engine still serves.
+10. **The verdict before the stop,** once per redeploy, when step 9
+    sends the engine alone, with or without `--workers`: the engine's
+    `verdict`, `{binary}` the staged `BUILDS/COMMIT/temper-engine`,
+    `{checkpoint}` the check's checkpoint, while the old build serves
+    (`protocol/binaries.md`, section 2). It is the command 4.2 runs
+    again over the stop's checkpoint, so a staged build that cannot
+    run it, such as one before milestone C3 of
+    `draft/checkpoints.execution.md`, which has no `upgrade --workers`,
+    is refused here rather than after the engine has stopped. Its lines
+    are printed and kept in the record's `lines` alone (section 5); by
+    its exit and its last line ending `workers may stay: `, as the
+    check's:
+    - exit 0, `workers may stay: yes`: the engine alone (4.3);
+    - exit 0, any other verdict, or none: every part together (4.5),
+      each worker drained while the old engine still serves, as a check
+      saying no;
+    - exit other than 0: the redeploy ends **refused**, exit 1, with
+      nothing stopped, its lines saying that a build without `upgrade
+      --workers` is redeployed with `--together` (6.3).
+
+    With `--together`, or after a check that does not say yes, no
+    verdict is read before the stop or at it, so `--together` still
+    takes a build before C3.
 
 A failure here refuses the redeploy with nothing stopped, exit 1. The
 check's checkpoint stays until the store's retention removes it
@@ -271,10 +337,16 @@ check's checkpoint stays until the store's retention removes it
   the configured workers and their kept openings, and judges them by
   the same rules, with no record walked and no job run
   (`protocol/binaries.md`, section 2; `protocol/wires.md`, 10.2). Its
+  rehearsal links the checkpoint's snapshot and every segment but the
+  newest into its scratch, and copies only the newest segment and the
+  secrets (jig's `protocol/store/opening.md`, 5, *Its reach*), so that
+  the stop makes links and small copies alone (`draft/checkpoints.md`,
+  6, step 3); a link the file system refuses is a copy (2.3). Its
   lines are printed and kept as the record's `verdict`:
   - exit 0, `workers may stay: yes`: the swap (4.3);
-  - exit 0, any other verdict, or none: an input changed since the check,
-    such as a worker's opening or the configuration. The engine started
+  - exit 0, any other verdict, or none: an input changed since the
+    check and the verdict before the stop (4.1, step 10), such as a
+    worker's opening or the configuration. The engine started
     again on its old build, its openings waited for (4.7), then every
     part together (4.5), each worker draining to a live engine;
   - exit other than 0: the step fails (4.6).
@@ -338,7 +410,10 @@ opening.
 - **A step fails** when its command line exits other than 0, cannot be
   spawned, or its wait passes its bound.
 - **Before anything stops** (4.1), a failure ends the redeploy
-  **refused**, exit 1, with nothing to start again.
+  **refused**, exit 1, with nothing to start again. A staged build
+  whose verdict fails before the stop (4.1, step 10), such as one before
+  milestone C3 with no `upgrade --workers`, is refused there and never
+  reaches the stop.
 - **Until a binary is swapped,** a failure starts again every part the
   redeploy stopped, on its old build, waits for their openings, and
   ends **refused**, exit 1: nothing is half done.
@@ -359,7 +434,10 @@ opening.
     the stop's state at the previous build's levels, which the previous
     build opens as it left it;
   - **where no level moved,** the previous build opening the store as it
-    stands, `run` with that build is a redeploy as any.
+    stands, `run` with that build is a redeploy as any: with
+    `--together` where that build is before milestone C3, since step 10
+    of 4.1 refuses a build without `upgrade --workers` on any other
+    path.
 - **The referee runs** after a refused or failed redeploy too, judging
   what it left.
 
@@ -397,7 +475,7 @@ renamed over it. Its members, which the referee reads and a later
 | `lines` | every line the run printed, each `{"at", "line"}` |
 | `checkpoint` | the name of the checkpoint the check read (4.1), or null before it was taken; absent from a record of a build before it, which a later `referee` reads as null |
 | `check` | `{"code", "lines"}`, or null before it ran |
-| `verdict` | the verdict read again at the stop (4.2), `{"code", "lines"}`, or null when not read; absent as `checkpoint` is |
+| `verdict` | the verdict read again at the stop (4.2), `{"code", "lines"}`, or null when not read; absent as `checkpoint` is. The verdict before the stop (4.1, step 10) is kept in `lines` alone, so the record's members are as they were |
 | `backup` | the name of the last settled stop's checkpoint (4.2), or null before one |
 | `window` | `{"from", "to", "worker"}`: the engine's stop to the first opening after the start the workers rode, or null |
 | `outages` | each `{"what", "from", "to"}`: a worker's name in turn, or `"every part"` |
@@ -493,7 +571,12 @@ fail: N
 
 `run`'s lines name each step as it ends: the builds before, the
 check's checkpoint, the check's lines as it printed them and what it
-decided, each stop with its time, each worker told or not at the
+decided, the verdict's lines before the stop (4.1, step 10) and what
+they decided, as the check's are named with `serving verdict` in place
+of `check` (`serving verdict exit CODE`, `serving verdict workers may
+stay: …`) and, when it fails, the line `serving verdict: a build
+without upgrade --workers is redeployed with --together` before the
+outcome, each stop with its time, each worker told or not at the
 window's stop (`worker NAME told: restart wait SECONDS s`, or `worker
 NAME keeps its grace: not told`), each stop's checkpoint, the verdict's
 lines read again and what they decided, each swap with its builds, each
@@ -598,10 +681,15 @@ host: no `ssh`, no service manager, no network.
   `backup` member and a `check` without `{checkpoint}` among them; a
   staged build left, a missing one fetched, a wrong answer refused; the
   engine alone with workers that may stay: the checkpoint taken and the
-  check run over it before any stop, the stop's checkpoint by the
-  installed binary, the verdict read again over it, then the swap; the
-  checkpoint's act refused, and a check refusing, each ending refused
-  with nothing stopped or swapped; a check saying no and unknown, the
+  check run over it before any stop, the verdict before the stop over
+  the same checkpoint, the stop's checkpoint by the installed binary,
+  the verdict read again over it, then the swap; the checkpoint's act
+  refused, a check refusing, and a verdict before the stop failing (a
+  staged build with no `upgrade --workers`), each ending refused with
+  nothing stopped or swapped, the last with its `--together` line; a
+  verdict before the stop saying no after a check's yes, every part
+  together with nothing stopped before the drain; `--together`, and a
+  check saying no, reading no verdict before the stop; a check saying no and unknown, the
   workers drained while the old engine serves, no engine started again,
   then the engine's stop and its checkpoint; the verdict turning no at
   the stop, the old engine started again and its openings waited for,
@@ -621,9 +709,11 @@ host: no `ssh`, no service manager, no network.
   hold since failing and one from before passed over, the task list's
   pages followed, a ctl call failing.
 - **Fuzzy,** seeded, over deployments of one to four workers, each mode,
-  each verdict at the check and at the stop, refusals, and steps failing
-  at random: the check before any stop, over the checkpoint the act
-  named; no stop's `checkpoint` while the engine runs; no swap without a
+  each verdict at the check, before the stop and at the stop, refusals,
+  and steps failing at random: the check before any stop, over the
+  checkpoint the act named; on the engine-alone path, no engine stop
+  without a verdict before it, over that checkpoint, exiting 0 with
+  `workers may stay: yes`; no stop's `checkpoint` while the engine runs; no swap without a
   checkpoint at the settled stop before it, the record's `backup` that
   checkpoint; no binary swapped
   on a running part; no two workers stopped at once in turn; no engine

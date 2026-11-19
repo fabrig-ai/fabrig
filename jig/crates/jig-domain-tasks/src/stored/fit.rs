@@ -323,7 +323,11 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Delegates, value.delegates.len(), limits.delegates)?;
     count(RestoreBound::Batch, value.result_followups.len(), limits.batch)?;
     count(RestoreBound::References, value.references.len(), limits.references)?;
-    count(RestoreBound::Subscriptions, value.subscriptions.len(), limits.subscriptions)?;
+    count(
+        RestoreBound::Subscriptions,
+        value.subscriptions.len(),
+        crate::subscriptions::kept_capacity(limits).ok_or(RestoreCause::Accounting)?,
+    )?;
     count(RestoreBound::Dependencies, value.dependencies.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.waiting_on.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;

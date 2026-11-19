@@ -297,7 +297,7 @@ fn page(value: &Value) -> Result<u32, Problem> {
     u32::try_from(page).or(Err(Problem::Range(b"page")))
 }
 
-fn max_bytes(value: &Value) -> Result<u32, Problem> {
+pub(crate) fn max_bytes(value: &Value) -> Result<u32, Problem> {
     // Zero denotes the root's configured read limit; explicit zero is invalid.
     match value.field(b"max_bytes")? {
         None => Ok(0),
@@ -335,7 +335,7 @@ fn numbers(value: &Value) -> Result<Box<[u64]>, Problem> {
     Ok(out.into_boxed())
 }
 
-fn file_path(value: &Value) -> Result<Box<[u8]>, Problem> {
+pub(crate) fn file_path(value: &Value) -> Result<Box<[u8]>, Problem> {
     let path = value.required(b"path")?.text(b"path")?;
     if path.as_ref() == b"." || path.as_ref() == b"./" { Ok(Box::from([])) } else { Ok(path) }
 }

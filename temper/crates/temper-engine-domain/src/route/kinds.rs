@@ -429,8 +429,6 @@ fn bounds(limits: &Limits) -> settings::Bounds {
         roles: limits.forge.roles,
         segments: limits.authority.segments,
         segment_bytes: limits.authority.segment_bytes.min(limits.forge.name_bytes),
-        charters: limits.tasks.charters,
-        templates: limits.templates,
         follows: limits.forge.follows,
         dependencies: limits.forge.dependencies,
         follow_paths: limits.forge.follow_paths,
@@ -799,7 +797,7 @@ fn owner_of_project(domain: &Domain, bounds: &settings::Bounds, project: u32, ow
         }
         settings::AreaOwner::Party(number) => domain.core.people.role(number, project).is_some(),
         settings::AreaOwner::Role(number) => number < bounds.roles,
-        settings::AreaOwner::Charter(number) => number > 0 && number <= bounds.charters,
+        settings::AreaOwner::Charter(number) => number > 0 && number <= jig_domain_people::NUMBERS,
     }
 }
 

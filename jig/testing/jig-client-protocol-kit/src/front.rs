@@ -28,7 +28,11 @@ impl Side {
         Self {
             party,
             wire: crate::native::wire::Wire::default(),
-            connections: Connections::new(&fixtures::connections_limits(), fixtures::HOST),
+            connections: Connections::new(
+                &fixtures::connections_limits(),
+                fixtures::HOST,
+                jig_client_protocol_http::Mapping::new(b"/jig").expect("default mapping"),
+            ),
             up: Queue::with_capacity(256),
             below: Queue::with_capacity(256),
             signing_link: None,

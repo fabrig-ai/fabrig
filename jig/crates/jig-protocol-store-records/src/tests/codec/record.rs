@@ -36,6 +36,23 @@ fn a_task_records_label_flags_and_last_activity_read_back() {
         assert_eq!(saved_tasks(&row), Ok(row));
     }
 }
+#[test]
+fn a_task_record_keeps_one_subscription_past_the_ordinary_bound() {
+    let mut record = current_record();
+    let mut subscriptions = skein_lib::List::with_capacity(fixtures::TASKS_LIMITS.subscriptions + 1);
+    for number in 0..=fixtures::TASKS_LIMITS.subscriptions {
+        subscriptions
+            .push(domain::Subscription {
+                number: u64::from(number) + 1,
+                kind: domain::SubscriptionKind::Topic { connector: 1, topic: u64::from(number) },
+            })
+            .expect("ordinary bound and one more");
+    }
+    record.subscriptions = subscriptions.into_boxed();
+    let row = live_record(record);
+    assert_eq!(saved_tasks(&row), Ok(row));
+}
+
 fn a_live_task_record_reads_back_whole() {
     for (reasons, offered) in [
         (domain::Reasons::QUESTION.union(domain::Reasons::TIMER), domain::Reasons::WORDS),

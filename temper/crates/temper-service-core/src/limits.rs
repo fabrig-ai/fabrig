@@ -221,6 +221,7 @@ pub const NAMES: &[&str] = &[
     "forge.changes_rows",
     "forge.changes_landed",
     "forge.landings_kept",
+    "forge.landings_pending",
     "forge.landings",
     "forge.key_entries",
     "forge.decided_per_project",

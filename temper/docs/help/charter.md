@@ -9,7 +9,11 @@ How an agent's run works: the instructions its agent reads, the models it may us
 A charter is a setting, `charter N`, numbered from 1. An agent task runs
 under one charter, which its template or its creator names. Each run of
 the task reads its charter's shared instructions whole, then each part
-whose `on` meets why it runs. A charter holds:
+whose `on` meets why it runs.
+Numbered: the stock's charters take 1 to 32, and your own 33 to 64; a
+charter below 33 that the stock doesn't have is refused.
+
+A charter holds:
 
 - its instructions, which the run's agent reads before its task's brief;
 - its `parts`: instructions for some reasons a run runs, each with its

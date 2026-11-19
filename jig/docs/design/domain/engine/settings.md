@@ -16,11 +16,11 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
 
   | Kind | Number | Value | Read |
   |---|---|---|---|
-  | charter | the charter's, from 1 | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration.md`, section 3); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
-  | template | the template's, from 1 | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
-  | policy | the policy's, from 1 | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
+  | charter | the charter's, 1 to 64, the defaults' 1 to 32 (below) | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration.md`, section 3); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
+  | template | the template's, 1 to 64, the defaults' 1 to 32 (below) | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
+  | policy | the policy's, 1 to 64, the defaults' 1 to 32 (below) | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
-  | model | the model's, 1 to 64, never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
+  | model | the model's, 1 to 64, the defaults' 1 to 32 (below), never given to another name (11) | a model whole: its name, shown name, LLM provider, endpoint, window, output, efforts and default effort, prices, description, whether a picker shows it, whether it is withdrawn, where it came from (the binary, a provider's list or a person), whether its prices are estimated and when a list first gave it | at each decision and when `me` is served: the newest; a run reads it from its charter (11) |
   | worker | the worker's, 1 to the fleet's configured workers, never given to another name (`workers.md`, 2) | a worker whole: its name, its places, its secret's digest, whether it is withdrawn (`workers.md`, 1) | at each opening and each hello, and when a deployment document is built: the newest (`workers.md`, 4) |
   | provider | the LLM provider's, 1 to 16, never given to another name (`llm-providers.md`, 3) | a provider whole: its name, its sources, its list's patterns, its terms and its endpoints, whether it is withdrawn (`llm-providers.md`, 1 and 2) | by the check and the keeping ask: the newest; by what dials, signs in and lists: the providers the start ran, so a change applies at the next start (`llm-providers.md`, 5) |
   | an application's kind | the application's | bytes jig never reads, kept by the connector that owns the kind (5) | by the application, from that connector: the newest |
@@ -42,6 +42,29 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   change: it follows its default again. A setting no default has is
   added by a change that sets it, and its removal, like its reset,
   erases that change. The rules are set or reset, never removed.
+- **Two ranges of numbers.** A charter's, a template's, a policy's and a
+  model's number is 1 to 64, `NUMBERS`: 1 to 32, `STOCK_NUMBERS`, are
+  the defaults', and 33 to 64 a deployment's own, both constants of
+  `jig-domain-people`'s settings vocabulary. So a release's new default
+  never lands on a number a deployment holds.
+  - *A deployment's own item* is a setting of those kinds that no
+    default has and that the settings offer. One below 33 is refused. So
+    is any offered setting of those kinds past 64, a default's too, and a
+    default past 32: a start refuses defaults that break the line as it
+    refuses any default out of shape.
+  - *A change over a default* stays at the default's number, set,
+    removed or reset as any change is, whatever its number.
+  - *A removal or a reset* at a number no default has offers nothing,
+    and is never refused; nor is a withdrawn model, which keeps its
+    number for the tasks that hold it and offers nothing (11), so that
+    an owner can always clear what is out of range.
+  - *The kinds' counts stay counts:* `tasks.charters`, `templates` and
+    the policies' limit cap how many a kind holds, never its numbers.
+  - *Judged by the one check* below, as its fault *range*: at a set, at a
+    proposal's entrance and its decision (2 and 6), and at a start (7),
+    which names every setting out of its range. An application's own
+    kinds numbered by a charter or a template bound their numbers in
+    their connectors (5), as their owner designs.
 - **Checked whole, by one check.** The core checks settings as a start
   has always checked the document (`../../protocol/configuration.md`, sections 3 and 3.1 and `../../protocol/limits.md`
   ): each value in its shape and within its bound
@@ -50,7 +73,8 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   completions, its models configured; a template's charter offered and
   its grace within the tasks child's span; a model in 11's shape; a policy within the rules,
   its roles well formed, its overrides' templates offered, its owner
-  role able to be a root's requester), the counts within their limits
+  role able to be a root's requester), each number within its kind's
+  range (above), the counts within their limits
   (charters within `tasks.charters`, templates within `templates`,
   policies within theirs), and the references among them, across the
   set. One function of the core's runs it: at each start over the
@@ -66,7 +90,15 @@ section 17; the records are `../../protocol/store/README.md`, 4.4.
   policy above them), *budget* (a charter's below its reserve or short
   of one costliest completion), *grace* (a template's past the tasks
   child's span), *owner* (a policy's owner role unable to be a root's
-  requester).
+  requester), *range* (a charter, template, policy or model numbered
+  out of its range, above: each client's words, and an application's
+  for its agents' tools, say which line it crossed from the setting's
+  kind and number alone, naming the kind and both ranges:
+  "template 9 is among the stock's numbers, 1 to 32; your own templates
+  take 33 to 64", or "template 70 is past the templates' numbers: the
+  stock's take 1 to 32, your own 33 to 64"). Within the check the range
+  is judged first, so that a set out of its range is refused as *range*
+  whatever else it breaks.
 - **What is not a setting:** the limits, which size memory at the
   start; the hosts but the workers (`workers.md`), the connectors, the
   clients and the first owners, the document's; and each project's own
@@ -512,6 +544,16 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
     charter's default that differs under its overlay changes the
     current settings, the overlay laid over the new default
     (`overlays.md`, 4);
+  - *the numbers first* (1): every default and every stored change of a
+    charter, template, policy or model out of its range refuses the
+    start in one refusal naming them all, ascending by kind and number,
+    each a default or a change, before the whole check, so that an
+    owner moves them all at once (`upgrade --check` rehearses the start
+    and names them before a redeploy). The core's `start::Failure`
+    carries it as `Numbers { settings: Box<[Numbered]> }`, each
+    `Numbered { setting: Setting, changed: bool }`, `changed` false
+    for a default, the list no longer than the defaults and changes the
+    start holds;
   - *the current settings are checked whole* (1): a start whose
     settings fail is refused, naming the setting, the change over it if
     any, and what fails, as a document failing its check always was;
@@ -752,8 +794,12 @@ models and a charter name.
   the wire's indices hold across a change and a release. The bound is
   `MODELS`, 64, for the deployment's life; a number no setting has is a
   hole, which nothing offers or resolves. The binary's defaults take low
-  numbers and keep them; a model a person or a provider's list adds takes
-  the highest free number, so a release's new default never meets one.
+  numbers, 1 to 32, and keep them; a model a person or a provider's list
+  adds takes the highest free number from 64 down to 33, a deployment's
+  own range (1), so a release's new default never meets one. With none
+  free there, an owner's add is refused as *count*, as a full catalogue
+  is, and a list's names past it are left out (12); a number below 33 is
+  never given to an added model.
 - **A number keeps its name.** A set naming another name than its
   default's or its stored change's is out of shape; so are a dialect or
   program its endpoint doesn't have, a name out of `valid_name`, and a
@@ -830,8 +876,9 @@ the release nor a first start. It moves no running work.
   defaults bound what a run is given, whatever a provider allows, and its
   efforts, its default effort being `high` where it lists that, else its first.
   Its prices stay estimated.
-- **The catalogue's room.** Past `MODELS`, a name takes no number, and the
-  account's `left_out` counts it, so the provider's first are kept.
+- **The catalogue's room.** With no number free from 64 down to 33 (11),
+  a name takes no number, and the account's `left_out` counts it, so the
+  provider's first are kept.
 - **A name gone from every list:** a model of this provider with `source` list
   that no account's last good read holds, this one's included, is withdrawn: out of
   the offer and every charter's resolution, its number and name kept for the tasks

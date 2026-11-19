@@ -3,6 +3,76 @@ use crate::support;
 use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
+fn the_sign_in_fixture_reads_the_initialized_listeners_without_an_llm_member() {
+    use std::num::NonZeroU16;
+    let scratch = support::Scratch::startup("sign-in-listeners");
+    let root = scratch.path().as_os_str().as_encoded_bytes();
+    let answer = temper_init::files(
+        &temper_init::Facts {
+            binary: b"/fixture/temper-box",
+            git: None,
+            claude: None,
+            ports: temper_init::Ports {
+                clients: NonZeroU16::new(8367).expect("clients port"),
+                webhooks: NonZeroU16::new(8371).expect("webhooks port"),
+            },
+            login: None,
+            sign_in: false,
+        },
+        &temper_init::Directories { config: root, data: root },
+        &[7; 32],
+    )
+    .expect("init files");
+    let temper_init::Content::Bytes { bytes, .. } =
+        &answer.files.iter().find(|file| file.name == b"temper.json").expect("deployment document").content
+    else {
+        panic!("deployment bytes")
+    };
+    support::write_private(&scratch.path().join("temper.json"), bytes);
+    let _issuer = support::sign_in::patch_configuration(scratch.path());
+    let providers = temper_agent_fixtures::providers::read(scratch.path());
+    let issuer = providers["providers"][0]["sources"]["sign_in"]["issuer"].as_str().expect("patched issuer");
+    assert!(issuer.starts_with("http://127.0.0.1:"), "independent local issuer: {issuer}");
+    scratch.remove();
+}
+
+#[test]
+fn rebinding_the_fake_model_keeps_the_split_deployments_issuer() {
+    let scratch = support::Scratch::startup("split-provider-rebind");
+    let config = scratch.path().join("config");
+    let data = scratch.path().join("data");
+    std::fs::create_dir(&config).expect("config directory");
+    std::fs::create_dir(&data).expect("data directory");
+    support::write_private(&config.join("temper.json"), b"{}");
+    let mut providers = temper_agent_fixtures::providers::stock();
+    providers["providers"][0]["sources"]["sign_in"]["issuer"] = "http://127.0.0.1:19002".into();
+    temper_agent_fixtures::providers::write(&data, &providers);
+    let peer = support::fake_llm(Box::new([]));
+    peer.configure(&config);
+    let rebound = temper_agent_fixtures::providers::read(&data);
+    assert_eq!(
+        rebound["providers"][0]["sources"]["sign_in"]["issuer"],
+        providers["providers"][0]["sources"]["sign_in"]["issuer"]
+    );
+    assert_eq!(rebound["endpoints"][0]["address"]["socket"], peer.address().to_string());
+    scratch.remove();
+}
+
+#[test]
+fn fixture_provider_edits_keep_routes_and_leave_demo_fixed() {
+    use serde_json::json;
+    let mut providers = temper_service::stock::providers().into_vec();
+    providers.truncate(1);
+    providers.push(temper_service::stock::scripted("127.0.0.1:19003".parse().expect("scripted address")));
+    let mut wanted = temper_agent_fixtures::providers::flat(&providers);
+    wanted["endpoints"][0]["address"] = json!({"socket":"127.0.0.1:19001"});
+    let items = support::provider_setup::items(&wanted);
+    assert_eq!(items.len(), 1, "set only the fixture provider, leaving other stock model references intact");
+    assert_eq!(items[0]["set"]["endpoints"][0]["address"]["socket"], "127.0.0.1:19001");
+    assert!(items.iter().all(|item| item["setting"]["number"] != 3), "demo is fixed, never a settings edit");
+}
+
+#[test]
 fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     use serde_json::json;
     use temper_service::startup;
@@ -84,8 +154,10 @@ fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
         json!({"newest":7}),
         json!({"setting":{"kind":"policy","number":1},"value":{
             "period_spend":48000,"roles":[{"number":0,"period_spend":48000}],"kept":"policy"}}),
-        json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat"}}),
-        json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer"}}),
+        json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat",
+            "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
+        json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer",
+            "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
     ]
     .iter()
     .map(|value| support::Ended {
@@ -101,6 +173,11 @@ fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
     assert_eq!(policy["kept"], "policy");
     assert_eq!(settings["items"][1]["set"]["kept"], "chat");
     assert_eq!(settings["items"][2]["set"]["kept"], "producer");
+    assert_eq!(
+        settings["items"][1]["set"]["model"]["provider"], 1,
+        "the chat uses the fake provider, not stock's first choice"
+    );
+    assert_eq!(settings["items"][2]["set"]["model"]["provider"], 1, "the producer uses the fake provider");
     assert_eq!(settings["items"][3]["set"]["gates"], json!([]), "turn's test gate is the only gate");
     scratch.remove();
 }

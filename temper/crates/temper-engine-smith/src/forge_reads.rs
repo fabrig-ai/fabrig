@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{List, Overflow, Writer};
 use smith_domain_run::HostAnswer;
+use temper_engine_domain as engine;
 
 pub(crate) struct Read {
     pub(crate) what: &'static [u8],
@@ -14,17 +15,17 @@ pub(crate) struct Read {
 }
 
 const READ_FORGE: &[Read] = &[
-    Read { what: b"branch", former: b"read_branch", required: &[b"branch"], optional: &[], rename: None },
+    Read { what: b"branch", former: b"read_branch", required: &[], optional: &[b"branch"], rename: None },
     Read { what: b"branches", former: b"read_branches", required: &[b"prefix"], optional: &[], rename: None },
     Read { what: b"compare", former: b"read_compare", required: &[b"before", b"after"], optional: &[], rename: None },
     Read {
         what: b"file",
         former: b"read_file",
-        required: &[b"commit", b"path"],
-        optional: &[b"max_bytes"],
+        required: &[b"path"],
+        optional: &[b"commit", b"branch", b"max_bytes"],
         rename: Some((b"commit", b"head")),
     },
-    Read { what: b"protection", former: b"read_protection", required: &[b"branch"], optional: &[], rename: None },
+    Read { what: b"protection", former: b"read_protection", required: &[], optional: &[b"branch"], rename: None },
     Read { what: b"settings", former: b"read_settings", required: &[], optional: &[], rename: None },
     Read { what: b"collaborators", former: b"read_collaborators", required: &[], optional: &[b"page"], rename: None },
     Read { what: b"permission", former: b"read_permission", required: &[b"user"], optional: &[], rename: None },
@@ -97,8 +98,11 @@ pub(crate) fn table(tool: &[u8]) -> &'static [Read] {
     }
 }
 
-pub(crate) fn decode(tool: &[u8], value: &Value) -> Result<Result<api::Read, HostAnswer>, Problem> {
-    let what = value.required(b"what")?.text(b"what")?;
+pub(crate) fn decode(tool: &[u8], value: &Value) -> Result<Result<engine::Tool, HostAnswer>, Problem> {
+    let what = match value.field(b"what")? {
+        Some(what) => what.text(b"what")?,
+        None => Box::from([]),
+    };
     let reads = table(tool);
     for read in reads {
         if read.what != what.as_ref() {
@@ -108,16 +112,43 @@ pub(crate) fn decode(tool: &[u8], value: &Value) -> Result<Result<api::Read, Hos
             if value.field(member)?.is_none() {
                 let mut text = Text::new();
                 text.add(tool)?;
-                text.add(b" ")?;
+                text.add(b": what=")?;
                 text.add(read.what)?;
-                text.add(b" needs ")?;
+                text.add(if read.required.len() == 1 { b" needs the member " } else { b" needs the members " })?;
                 for (position, member) in read.required.iter().enumerate() {
                     if position > 0 {
                         text.add(if position.saturating_add(1) == read.required.len() { b" and " } else { b", " })?;
                     }
                     text.add(member)?;
                 }
+                text.add(b".")?;
                 return Ok(Err(text.finish(true)?));
+            }
+        }
+        if tool == b"read_forge" {
+            if read.what == b"file" {
+                if value.field(b"commit")?.is_some() && value.field(b"branch")?.is_some() {
+                    let mut text = Text::new();
+                    text.add(b"read_forge: what=file takes commit or branch, not both.")?;
+                    return Ok(Err(text.finish(true)?));
+                }
+                if value.field(b"commit")?.is_none() {
+                    return Ok(Ok(engine::Tool::ReadBranchFile {
+                        branch: branch(value)?,
+                        path: forge::file_path(value)?,
+                        max_bytes: forge::max_bytes(value)?,
+                        repository: crate::calls::forge_repository(value)?,
+                    }));
+                }
+            }
+            if read.what == b"branch" || read.what == b"protection" {
+                let branch = branch(value)?;
+                let read = if read.what == b"branch" {
+                    api::Read::Branch { branch }
+                } else {
+                    api::Read::Protection { branch }
+                };
+                return Ok(Ok(engine::Tool::ReadNamed { repository: crate::calls::forge_repository(value)?, read }));
             }
         }
         let mut fields = List::with_capacity(
@@ -134,18 +165,27 @@ pub(crate) fn decode(tool: &[u8], value: &Value) -> Result<Result<api::Read, Hos
                 fields.push((Box::from(former), value.clone())).expect("one slot per member");
             }
         }
-        return Ok(Ok(forge::read_named(read.former, &Value::Object(fields.into_boxed()))?));
+        let read = forge::read_named(read.former, &Value::Object(fields.into_boxed()))?;
+        return Ok(Ok(engine::Tool::ReadNamed { repository: crate::calls::forge_repository(value)?, read }));
     }
     let mut text = Text::new();
     text.add(tool)?;
-    text.add(b" what must be ")?;
+    text.add(b": what is one of ")?;
     for (position, read) in reads.iter().enumerate() {
         if position > 0 {
-            text.add(b", ")?;
+            text.add(if position.saturating_add(1) == reads.len() { b" or " } else { b", " })?;
         }
         text.add(read.what)?;
     }
+    text.add(b".")?;
     Ok(Err(text.finish(true)?))
+}
+
+fn branch(value: &Value) -> Result<Box<[u8]>, Problem> {
+    match value.field(b"branch")? {
+        Some(branch) => branch.text(b"branch"),
+        None => Ok(Box::from([])),
+    }
 }
 
 pub(crate) fn reference(tool: &[u8], out: &mut Writer) -> Result<(), Overflow> {

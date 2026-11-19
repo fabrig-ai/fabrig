@@ -47,16 +47,41 @@ impl Place {
         super::private(&bin);
         super::private(&scratch);
         let ports = support::free_addresses(&[]);
-        let place = Self {
-            root,
-            scratch,
-            bin,
-            bundle,
-            setups: skein_scratch::paths::tree().join("docs/development/qa/setups"),
-            ports,
-        };
+        let setups = root.path().join("setups");
+        let place = Self { root, scratch, bin, bundle, setups, ports };
+        place.fixture();
         place.copy();
         place
+    }
+
+    fn fixture(&self) {
+        let source = skein_scratch::paths::tree().join("docs/development/qa/setups/turn-landing");
+        let target = self.setups.join("turn-landing");
+        let mut pending = vec![(source, target.clone())];
+        while let Some((source, target)) = pending.pop() {
+            fs::create_dir_all(&target).expect("fixture directory");
+            for entry in fs::read_dir(source).expect("fixture inputs") {
+                let entry = entry.expect("fixture entry");
+                let destination = target.join(entry.file_name());
+                let kind = entry.file_type().expect("fixture kind");
+                if kind.is_dir() {
+                    pending.push((entry.path(), destination));
+                } else {
+                    assert!(kind.is_file(), "regular fixture input");
+                    fs::copy(entry.path(), destination).expect("fixture copy");
+                }
+            }
+        }
+        // The recipe already restarts after landing.json. Commit the model's provider there,
+        // so that restart takes the store's fake endpoint rather than its stock default.
+        let providers = fs::read_to_string(target.join("config/providers.json")).expect("fixture providers");
+        let providers = providers.replace("{place.model}", &self.ports[7].to_string());
+        let providers = temper_agent_fixtures::providers::parse(providers.as_bytes());
+        let providers = temper_agent_fixtures::providers::flat(&providers);
+        let path = target.join("files/landing.json");
+        let mut settings = document(&path);
+        settings["items"].as_array_mut().expect("landing settings").extend(support::provider_setup::items(&providers));
+        support::write_private(&path, &serde_json::to_vec(&settings).expect("fixture settings"));
     }
 
     fn copy(&self) {

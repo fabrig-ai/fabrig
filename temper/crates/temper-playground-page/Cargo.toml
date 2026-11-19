@@ -10,6 +10,7 @@ publish.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
+temper-client-domain-forge.workspace = true
 temper-client-shell-web.workspace = true
 skein-lib.workspace = true
 skein-ui-web.workspace = true

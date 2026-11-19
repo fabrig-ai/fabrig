@@ -101,6 +101,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             | Tool::Subscribe { .. }
             | Tool::SubscribeForge { .. }
             | Tool::SubscribeNamedForge { .. }
+            | Tool::ReadBranchFile { .. }
             | Tool::ReadNamed { .. }
             | Tool::ReadForge { .. }
             | Tool::EffectForge { .. }
@@ -152,6 +153,7 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
         | Tool::SubscribeNamedForge { .. }
+        | Tool::ReadBranchFile { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
@@ -204,6 +206,7 @@ pub(crate) fn call_needs_input(tool: &Tool) -> bool {
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
         | Tool::SubscribeNamedForge { .. }
+        | Tool::ReadBranchFile { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
@@ -269,6 +272,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
         | Tool::SubscribeNamedForge { .. }
+        | Tool::ReadBranchFile { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::EffectForge { .. }
@@ -410,7 +414,9 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
             jig_domain_core::ToolKind::Note { scope: entry.scope.clone() }
         }
         Tool::Recall { by, .. } => jig_domain_core::ToolKind::Recall { by: by.clone() },
-        Tool::ReadTask { .. } | Tool::ReadNamed { .. } | Tool::ReadForge { .. } => jig_domain_core::ToolKind::Read,
+        Tool::ReadTask { .. } | Tool::ReadBranchFile { .. } | Tool::ReadNamed { .. } | Tool::ReadForge { .. } => {
+            jig_domain_core::ToolKind::Read
+        }
         Tool::Unavailable
         | Tool::Rejected(_)
         | Tool::RejectedMessage(_)
@@ -554,6 +560,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
         | Tool::NoteLines { .. }
         | Tool::Recall { .. }
         | Tool::EffectForge { .. }
+        | Tool::ReadBranchFile { .. }
         | Tool::ReadNamed { .. }
         | Tool::ReadForge { .. }
         | Tool::Propose { .. }

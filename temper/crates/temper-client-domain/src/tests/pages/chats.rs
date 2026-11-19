@@ -1643,3 +1643,15 @@ fn a_lost_closed_read_answers_empty_and_keeps_the_page() {
     assert!(chats.known(root.client()));
     assert_eq!(chats.page, Some(kept));
 }
+
+#[test]
+fn busy_chat_parts_keep_the_document_until_a_decoded_absence() {
+    let (mut h, read) = ClosedReads::new();
+    h.answer(read, 0, false);
+    h.live(&[document_line(4, document_part(Some(b"away-mode.md")))], 0);
+    h.live(&[document_line(4, RowPart::Failed(PartFailure::Busy))], 0);
+    assert_eq!(h.root.pages().chats().unwrap().documents.get(&4).unwrap().bytes(), b"away-mode.md");
+    h.live(&[document_line(4, document_part(None))], 0);
+    assert!(h.root.pages().chats().unwrap().documents.is_empty());
+    no_notes(&mut h.out);
+}

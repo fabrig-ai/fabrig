@@ -435,7 +435,10 @@ delivery hears every failure; the verdict is section 6's.
    - **Never a failure:** a missing or refused ledger refuses nothing;
      its line is the deployment's, which the summary does not repeat, as
      the hold's. A layer over at main stays a warning, as at the gate
-     (`tools/tiers/budgets.md`, 8).
+     (`tools/tiers/budgets.md`, 8), and so does a test that swings alone
+     at main, named with its figures in one-process's output
+     (`tools/tiers/references.md`, 6), which the summary does not repeat:
+     both are main's, not the delivery's.
 
 5. **The docs:** `python3 -I -B tools/citations/citations.py --base <base>
    --head <tree>` against section 3's private snapshot, including staged,
