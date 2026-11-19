@@ -1,9 +1,18 @@
 //! Stored settings fixtures for upgrade checks.
-/// Stored pre-range changes bypass a set's admission check; the moved pair leaves removals behind.
-pub fn seed_numbered_settings(directories: &temper_shell::directories::Directories, moved: bool) {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Numbers {
+    Kept,
+    Moved,
+    Past,
+    Taken,
+}
+
+/// Stored changes bypass admission; a taken case omits the changed charter's stored default.
+pub fn seed_numbered_settings(directories: &temper_shell::directories::Directories, numbers: Numbers) {
     use jig_domain_core::{CoreRecord, Record as Core, settings as s};
     use jig_protocol_store::Write;
     use std::{os::unix::ffi::OsStrExt, path::Path};
+    let moved = numbers == Numbers::Moved;
     let config = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     if !moved {
@@ -22,7 +31,13 @@ pub fn seed_numbered_settings(directories: &temper_shell::directories::Directori
     let mut template = stock.templates.first().expect("stock template").clone();
     let mut charter = stock.charters.first().expect("stock charter").clone();
     template.number = if moved { 33 } else { 9 };
-    charter.number = if moved { 34 } else { 17 };
+    charter.number = match numbers {
+        Numbers::Kept => 17,
+        Numbers::Moved => 34,
+        Numbers::Past => 65,
+        Numbers::Taken => charter.number,
+    };
+    let taken = (numbers == Numbers::Taken).then_some(s::Setting::Charter(charter.number));
     let revision = if moved { 2 } else { 1 };
     let mut items = vec![
         (s::Setting::Template(template.number), Some(s::Value::Template(Box::new(template)))),
@@ -36,6 +51,9 @@ pub fn seed_numbered_settings(directories: &temper_shell::directories::Directori
         let core = jig_protocol_config::core(&stock, [1; 16], 0);
         let current = s::Current::new(core.defaults, &stock.limits.core, &[]);
         for (setting, default) in &current.defaults {
+            if Some(*setting) == taken {
+                continue;
+            }
             writes.push(Write::Save(Core::Core(CoreRecord::Settings(s::Record::Default {
                 setting: *setting,
                 default: default.clone(),
