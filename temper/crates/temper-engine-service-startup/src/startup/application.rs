@@ -119,7 +119,6 @@ pub struct Identity {
 pub struct Worker {
     pub root: Box<[u8]>,
 }
-#[expect(clippy::too_many_lines, reason = "resolved overrides are checked together before store sizing")]
 fn configured_limits(
     document: &Document,
     at: u32,
