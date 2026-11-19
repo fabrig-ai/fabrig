@@ -34,7 +34,7 @@ pub enum Report {
 /// One page's life: the story's world behind the bridge, the shipped host in front.
 pub struct Page {
     host: host::Host,
-    memory: Memory<Process<()>, Machine, Report>,
+    memory: Memory<Process<crate::Journey>, Machine, Report>,
     inbox: Rc<Inbox<Report>>,
     store: Store,
     surface: skein_ui_web::page::Page<'static>,
@@ -67,8 +67,15 @@ impl Page {
         let seed = start.seed;
         let wall = start.wall;
         let inbox = Inbox::new();
+        let mut world = story::world_harness::<crate::Journey, _>(start, skein_sim_world::Bare);
+        world.host(skein_sim_world::HostedProgram {
+            program: crate::box_peer::PROGRAM.into(),
+            make: crate::box_peer::BoxPeer::program,
+            instances: 1,
+            operations: 16,
+        });
         let mut memory = Memory::new(
-            story::slices(start, story::SLICE_STEPS, Time::ZERO),
+            skein_playground::slices::Slices::new(world, story::reach(), story::SLICE_STEPS, Time::ZERO),
             bridge::Start { story: name.into(), seed, start: wall },
             LOG_BYTES,
             Rc::clone(&inbox),
@@ -128,6 +135,12 @@ impl Page {
         page.give(host::Report::Start, false);
         page.turn()?;
         Ok(page)
+    }
+
+    /// The world's time at the last drawing.
+    #[must_use]
+    pub fn now(&self) -> Time {
+        self.world().now()
     }
 
     /// The HTML of the last drawn page.

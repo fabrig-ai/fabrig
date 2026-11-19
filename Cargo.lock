@@ -6361,9 +6361,13 @@ name = "temper-client-walk-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-shell-web",
+ "jig-protocol-config",
+ "skein-fake-machine",
  "skein-fake-person",
+ "skein-io",
  "skein-lib",
  "skein-playground",
+ "skein-shell",
  "skein-sim-world",
  "skein-ui",
  "skein-ui-web",
@@ -6372,7 +6376,9 @@ dependencies = [
  "temper-client-view",
  "temper-client-walk-lines",
  "temper-fake",
+ "temper-forge-setup",
  "temper-playground",
+ "temper-service",
 ]
 
 [[package]]

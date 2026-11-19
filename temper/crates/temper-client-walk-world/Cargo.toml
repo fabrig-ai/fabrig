@@ -25,6 +25,12 @@ skein-ui-web.workspace = true
 skein-playground.workspace = true
 skein-fake-person.workspace = true
 temper-fake.workspace = true
+skein-io.workspace = true
+skein-shell.workspace = true
+skein-fake-machine.workspace = true
+temper-service.workspace = true
+temper-forge-setup.workspace = true
+jig-protocol-config.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"
