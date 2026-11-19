@@ -373,6 +373,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         })
     };
     let mut tier = forge::TierRow {
+        many: None,
         posting: None,
         hold: None,
         observations: temper_codecs_world::drawn(rng, 512).into_boxed_slice(),

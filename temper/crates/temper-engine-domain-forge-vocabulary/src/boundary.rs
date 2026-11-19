@@ -3139,6 +3139,8 @@ pub struct TierGoal {
 /// Family 28's policy and task (temper/docs/design/domain/after-landing.md, 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct TierRow {
+    /// The judged run's whole report's names, retained until the next run starts.
+    pub many: Option<temper_engine_domain_forge_tiers::ManyTests>,
     /// Observed execution identities awaiting or replaying the task projection across restart.
     pub observations: Box<[u8]>,
     pub repository: skein_forge::api::Repository,

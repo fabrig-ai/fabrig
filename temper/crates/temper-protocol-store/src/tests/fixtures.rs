@@ -1148,6 +1148,7 @@ pub fn tier_row() -> top::TierRow {
             .unwrap();
     }
     top::TierRow {
+        many: None,
         posting: None,
         hold: None,
         observations: Box::new([b'o'; 8192]),

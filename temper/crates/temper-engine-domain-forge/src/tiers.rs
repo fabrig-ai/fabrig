@@ -234,6 +234,7 @@ fn word(out: &mut skein_lib::Writer, value: usize) {
 
 fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
     TierRow {
+        many: None,
         hold: None,
         observations: Box::new([]),
         repository,
@@ -348,6 +349,7 @@ pub(crate) fn start_due(d: &mut Domain, env: &Env<Limits>, repository: Repositor
             let range = range.into_boxed();
             let next = p::start(&row.record, target.commit, tip_key, range, None, &settings(d, repository));
             let p::Next::Dispatch(run) = next else { unreachable!("a run without a receipt dispatches") };
+            row.many = None;
             row.result = d.landing.receipts.get(&receipt_key(d, &row, tip_key)).cloned();
             row.received = row.result.is_some();
             row.record.run = Some(run);
@@ -738,6 +740,9 @@ fn observed_part(
         }
         Some(landing::Verdict::Failed | landing::Verdict::Running) | None => return,
     };
+    if row.record.run.as_ref().expect("observed run").part == p::Part::Whole {
+        row.many = None;
+    }
     advance(d, env, row, follow, outcome, out);
 }
 fn reported_part(

@@ -199,6 +199,16 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
     w::TierRow::new(
         &w::CEILINGS,
         w::TierRowParts {
+            many: match &row.many {
+                Some(many) => Some(
+                    w::ManyTests::new(
+                        &w::CEILINGS,
+                        w::ManyTestsParts { tests: encode_tests(&many.tests), more: many.more, cut: many.cut },
+                    )
+                    .expect(FITS),
+                ),
+                None => None,
+            },
             observations: row.observations.clone(),
             repository: names::encode_repository(row.repository),
             tier: row.tier.clone(),
@@ -271,6 +281,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
 }
 pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let w::TierRowParts {
+        many,
         observations,
         repository,
         tier,
@@ -304,6 +315,13 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
     let record = decode_record(record)?;
     let run = record.run.as_ref();
     Ok(d::TierRow {
+        many: match many {
+            Some(many) => {
+                let w::ManyTestsParts { tests, more, cut } = many.into_parts();
+                Some(p::ManyTests { tests: decode_tests(tests)?, more, cut })
+            }
+            None => None,
+        },
         observations,
         repository: names::decode_repository(repository),
         tier,

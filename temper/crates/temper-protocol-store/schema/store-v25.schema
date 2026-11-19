@@ -294,6 +294,7 @@ enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
 enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
 record FailingTest { test_id: bytes 1024 }
+record ManyTests { tests: list 1024 FailingTest more: u32 cut: bool }
 record LandingSelection { tests: list 1024 FailingTest }
 record LandingSelectedGate { selection: option LandingSelection }
 record LandingProbed { member: u16 gate: u16 run: u64 passed: bool }
@@ -365,7 +366,7 @@ record TierCommentRepair { by: option u64 }
 enum TierCommentKind { verdict: TierCommentVerdict, repaired: TierCommentRepair }
 record TierComment { pull: u64 landing: fixed 32 kind: TierCommentKind }
 record TierPosting { number: u64 tip: fixed 32 link: bytes 2048 status: Check description: bytes 140 landings: list 1537 TierPostedLanding comments: list 8192 TierComment next: u32 entry: option u64 part: u16 op_bytes: u32 }
-record TierRow { observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 1537 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault hold: option TierHold result: option Receipt posting: option TierPosting received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
+record TierRow { many: option ManyTests observations: bytes 8192 repository: Repository tier: bytes 32 record: TierRecord task: option u64 requested: bool cancelled: bool purpose: option fixed 30 pending: list 1537 TierPending baseline: option TierPending branch: TierBranch probe: option TierProbeBranch flight: option TierFlight held: option TierFault hold: option TierHold result: option Receipt posting: option TierPosting received: bool goals: list 256 TierGoal goal: option u64 started: option u64 }
 record ReceiptRow { report: ReceiptReport = unset key: ReceiptKey receipt: Receipt }
 # 04.2: families 25 to 27 (temper/docs/design/protocol/store.md, 2).
 enum ForgeKind { forgejo, github }
