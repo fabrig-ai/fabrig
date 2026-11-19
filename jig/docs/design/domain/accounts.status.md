@@ -1,7 +1,10 @@
 # accounts: status
 
-2026-11-18. Where jig's code lags or departs from [accounts.md](accounts.md).
+2026-11-19. Where jig's code lags or departs from [accounts.md](accounts.md).
 
+- **Not yet:** 3.7: a program's usage window kept as kind 7, origin 5 [in flight: change 8987].
+- **Not yet:** 3.7: a usage read of an idle account, origin 6 [in flight: change 8994].
+- **Not yet:** 3.7: a window's readings and rate [in flight: change 8995].
 - **Not yet:** 3.7: a list read on the provider's `direct` endpoint; the core reads on the first endpoint naming the provider [in flight: change 927].
 - **Not yet:** 3.4 and 4.3: the source picks the endpoint; a model whose endpoint names a program takes program sources alone, and a charter names each model's stored endpoint [in flight: change 928].
 
@@ -23,7 +26,7 @@ lifetime-name bound and restoration after revival.
 
 Section 3.7 has no known implementation gap in the separate facts record,
 sign-in and refresh reports, program-status email, or audience filtering.
-Reports for kinds 3 to 7 remain section 7's deferred work.
+Reports for kinds 3 to 6 remain section 7's deferred work.
 
 Section 4.3's `Core::account_llm` is present: it names the charter's
 first offered model for the account, else its first serving candidate,

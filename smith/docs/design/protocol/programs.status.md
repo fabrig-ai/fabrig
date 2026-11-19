@@ -1,7 +1,9 @@
 # programs: status
 
-2026-11-18. Where smith's code lags or departs from [programs.md](programs.md).
+2026-11-19. Where smith's code lags or departs from [programs.md](programs.md).
 
+- **Not yet:** 5.6 and 8: every `rate_limit_event` reported as a usage window; only a rejected one is read [in flight: change 8985].
+- **Not yet:** 5.11 and 8: the usage read, `claude -p /usage`, and the fake's usage command [in flight: change 8990].
 
 Sections 2 and 5.1 have no known gap in Linux's program-child launch:
 status checks and print runs use the agent's own `--program-child`

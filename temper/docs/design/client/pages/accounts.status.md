@@ -1,7 +1,8 @@
 # accounts: status
 
-2026-11-18. Where the tree's code lags or departs from [accounts.md](accounts.md).
+2026-11-19. Where the tree's code lags or departs from [accounts.md](accounts.md).
 
+- **Not yet:** 2, *A Claude subscription's usage*: no window is drawn; the look request `accounts-usage` draws them, its landing taking the pace from the served rate.
 
 - **Not yet:** 2: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
 

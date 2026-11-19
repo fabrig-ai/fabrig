@@ -1,7 +1,8 @@
 # documents: status
 
-2026-11-18. Where the tree's code lags or departs from [documents.md](documents.md).
+2026-11-19. Where the tree's code lags or departs from [documents.md](documents.md).
 
+- **Not yet:** 1: a window's rate, `AccountWindow.rate`, client wire 36 [in flight: change 8995].
 
 
 - **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.

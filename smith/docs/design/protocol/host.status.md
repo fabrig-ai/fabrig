@@ -1,6 +1,8 @@
 # hosts: status
 
-2026-11-11. Where smith's code lags or departs from [host.md](host.md).
+2026-11-19. Where smith's code lags or departs from [host.md](host.md).
+
+- **Not yet:** 2: reading a program's usage [in flight: change 8990].
 
 Section 2 has no known gap in carrying a usable program check's optional
 email alongside its state.
