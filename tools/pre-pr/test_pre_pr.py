@@ -83,7 +83,7 @@ sys.exit(int(count > 0))
     def deliver(self, packages=('api',), expected_bundle=None,
                 clippy_answer=(0, []), one_process_answer=(0, [], None), process_answer=None,
                 build_answer=(0, ''), events=None, directories=None, dependencies=None, formatting_answer=(), hold=None,
-                metadata_forbidden=False):
+                metadata_forbidden=False, stderr=None):
         calls = []
         events = [] if events is None else events
         data = self.metadata(packages, directories, dependencies)
@@ -135,7 +135,7 @@ sys.exit(int(count > 0))
                 mock.patch.object(PRE_PR, 'clippy', side_effect=clippy_check) as clippy, \
                 mock.patch.object(PRE_PR, 'one_process', side_effect=test_check) as one_process, \
                 mock.patch.object(PRE_PR, 'run', side_effect=run), \
-                contextlib.redirect_stdout(log), contextlib.redirect_stderr(log):
+                contextlib.redirect_stdout(log), contextlib.redirect_stderr(stderr if stderr is not None else log):
             result = PRE_PR.main()
         self.clippy_mock = clippy
         self.one_process_mock = one_process
@@ -326,6 +326,103 @@ sys.exit(int(count > 0))
                     self.assertIn('passed before', log)
                     self.assertFalse(any(code))
                     process.Popen.assert_not_called()
+
+    def test_waiting_hold_delays_metadata_until_held(self):
+        self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+        self.write('hold.py', """import os, sys, time
+from pathlib import Path
+assert 'TIERS_HOLD' not in os.environ
+with Path('hold-events').open('a') as events:
+    events.write(f'waiting {time.monotonic()}\\n')
+print('waiting for a build place', flush=True)
+time.sleep(0.3)
+print('waiting for a build place', flush=True)
+time.sleep(0.8)
+with Path('hold-events').open('a') as events:
+    events.write(f'held {time.monotonic()}\\n')
+print('held', flush=True)
+sys.stdin.read()
+""")
+        self.env['TIERS_HOLD'] = 'python3 -I -B hold.py'
+        real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+        stderr = io.StringIO()
+
+        @contextlib.contextmanager
+        def hold(*args, **kwargs):
+            def metadata(*args):
+                with (self.root / 'hold-events').open('a') as events:
+                    events.write(f'metadata {time.monotonic()}\n')
+                return self.metadata(('api',))
+
+            PRE_PR.metadata.side_effect = metadata
+            with mock.patch.dict(real_hold.__wrapped__.__globals__, HOLD_READY_S=1):
+                with real_hold(*args, **kwargs):
+                    yield
+
+        result, log, _, code = self.deliver(hold=hold, stderr=stderr)
+        events = [line.split() for line in (self.root / 'hold-events').read_text().splitlines()]
+        self.assertEqual([event[0] for event in events], ['waiting', 'held', 'metadata'], events)
+        self.assertLessEqual(float(events[1][1]), float(events[2][1]), events)
+        self.assertEqual(result, 0, log)
+        self.assertTrue(all(code))
+        self.assertEqual(stderr.getvalue(), 'smith-check: waiting\nsmith-check: admitted\n')
+        self.assertEqual(log.count('pre-pr: hold: waiting for a build place\n'), 1, log)
+        self.assertRegex(log, r'(?m)^pre-pr: hold: held after [0-9]+ s$')
+        self.assertNotIn('going on unheld', log)
+
+    def test_hold_reads_whole_lines_and_stops_at_held(self):
+        real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+        for chunks, expected in (([b'held\nwaiting ignored\n'], ''),
+                                 ([b'wait', b'ing for a build place\nwaiting again\nheld\nwaiting ignored\n'],
+                                  'pre-pr: hold: waiting for a build place\npre-pr: hold: held after 0 s\n')):
+            with self.subTest(chunks=chunks):
+                output, stderr = io.StringIO(), io.StringIO()
+                process = mock.Mock()
+                process.poll.return_value = None
+                environment = dict(self.env, TIERS_HOLD='hold')
+                with mock.patch.dict(real_hold.__wrapped__.__globals__,
+                                     subprocess=mock.Mock(Popen=mock.Mock(return_value=process)),
+                                     select=mock.Mock(select=mock.Mock(return_value=([process.stdout], [], []))),
+                                     os=mock.Mock(read=mock.Mock(side_effect=chunks)),
+                                     time=mock.Mock(monotonic=mock.Mock(return_value=0))), \
+                        contextlib.redirect_stderr(stderr):
+                    with real_hold(['hold'], 'pre-pr', self.root, environment, output=output):
+                        self.assertFalse(process.stdin.close.called)
+                self.assertEqual(output.getvalue(), expected)
+                self.assertEqual(stderr.getvalue(), 'smith-check: waiting\nsmith-check: admitted\n' if expected else '')
+                process.kill.assert_not_called()
+                process.stdin.close.assert_called_once_with()
+                process.stdout.close.assert_called_once_with()
+
+    def test_waiting_hold_failure_resumes_before_warning(self):
+        for mode in ('silent', 'exit', 'closed'):
+            with self.subTest(mode=mode):
+                self.setUp()
+                self.write('api/src/lib.rs', 'pub fn changed() {}\n')
+                self.write('hold.py', """import os, sys, time
+print('waiting for a build place', flush=True)
+if sys.argv[1] == 'silent':
+    time.sleep(5)
+elif sys.argv[1] == 'closed':
+    os.close(1)
+    sys.stdin.read()
+else:
+    sys.exit(3)
+""")
+                self.env['TIERS_HOLD'] = 'python3 -I -B hold.py ' + mode
+                real_hold = PRE_PR.runpy.run_path(str(Path(__file__).resolve().parents[1] / 'tiers/run'))['hold']
+                fault = PRE_PR.failure('format', 'format fault')
+                with mock.patch.dict(real_hold.__wrapped__.__globals__, HOLD_READY_S=0.5):
+                    result, log, _, code = self.deliver(formatting_answer=[fault], hold=real_hold)
+                self.assertEqual(result, 1, log)
+                self.assertEqual(code, (True, True, True))
+                self.assertEqual(log.count('smith-check: waiting\n'), 1, log)
+                self.assertEqual(log.count('smith-check: admitted\n'), 1, log)
+                warning = log.index('; going on unheld')
+                self.assertLess(log.index('smith-check: admitted\n'), log.rfind('pre-pr: hold:', 0, warning))
+                self.assertLess(warning, log.index('pre-pr: format …'))
+                self.assertIn('format fault', log)
+                self.assertFalse((self.root / '.git/pre-pr-passed').exists())
 
     def test_early_hold_exit_keeps_a_refusal(self):
         self.env['TIERS_HOLD'] = "python3 -c __import__('sys').exit(3)"
