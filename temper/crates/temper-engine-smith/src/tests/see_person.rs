@@ -705,9 +705,13 @@ fn changes() -> Box<temper_engine_domain_forge::Document> {
 fn landings() -> Box<temper_engine_domain_forge::Document> {
     use temper_engine_domain_forge as f;
     Box::new(f::Document::Landings(f::LandingsView {
+        now: Wall::EPOCH,
+        turn_since: None,
         project: 7,
         turn: Some(50),
         landings: Box::new([f::LandingLine {
+            step: None,
+            last_event: None,
             train: None,
             task: 50,
             phase: temper_engine_domain_forge_landing::Phase::Waiting,

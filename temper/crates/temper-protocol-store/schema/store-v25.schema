@@ -203,7 +203,12 @@ record EarlyHeads { heads: list 64 StartedFrom }
 enum Early { none, started: EarlyHeads, spent: EarlyHeads }
 enum Execution { unknown, waiting, running }
 record ExecutionClock { since: u64 head: fixed 32 run: u64 attempt: u32 ran: u64 waited: u64 unknown: u64 at: u64 seen: Execution }
-record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 stale: option u64 = none since: u64 clock: option ExecutionClock = none ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none last_checked_by: option u64 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 }
+record LandingPrepare { head: fixed 32 main: fixed 32 }
+record LandingRepairAsk { gate: u16 candidate: fixed 32 below: option LandingBelow }
+record LandingPrefix { prefix: fixed 32 }
+record LandingResolve { base: fixed 32 }
+enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
+record Change { early: Early task: u64 state: ChangeState gates: list 1024 Gate clean: list 1024 fixed 32 repairs: u32 resolutions: u32 updates: u32 stale: option u64 = none since: u64 clock: option ExecutionClock = none ready_since: option u64 owns_turn: bool last_head: option fixed 32 last_checked: option fixed 32 = none last_checked_by: option u64 = none gate_failures: list 1024 GateFailure released: option ChangeHold released_resolution: bool = false way: Way landing: option u64 landing_ask: option LandingAsk = none }
 record ChangeCi { head: fixed 32 status: ChangeStatus }
 record EffectAccount { entry: u64 words: bytes 512 }
 record ResultText { bytes: bytes 1048576 cut: u64 }
@@ -309,11 +314,6 @@ record LandingSearch { green: u16 red: u16 tests: LandingSearchTests = whole }
 record LandingSearched { red: fixed 32 green: option fixed 32 changes: list 64 u64 }
 record LandingRound { merges: u32 = 0 branch: bytes 4096 pull: option u64 upstream: option fixed 32 combined: option LandingCombine recorded: bool told: bool ending: option LandingRoundEnd failure: bytes 8192 judging: bool changed: option u16 search: option LandingSearch }
 record LandingState { searched: option LandingSearched = none last_left: option u16 task: u64 project: u32 phase: LandingPhase members: list 64 LandingMember preparation: u16 stale_proofs: u32 branch: bytes 4096 round: option LandingRound own_hold: option LandingOwnHold }
-record LandingPrepare { head: fixed 32 main: fixed 32 }
-record LandingRepairAsk { gate: u16 candidate: fixed 32 below: option LandingBelow }
-record LandingPrefix { prefix: fixed 32 }
-record LandingResolve { base: fixed 32 }
-enum LandingAsk { prepare: LandingPrepare, repair: LandingRepairAsk, landed: LandingPrefix, resolve: LandingResolve, judge: Judgement }
 record LandingAskSlot { ask: option LandingAsk }
 enum LandingOperation { dispatch, rerun, pending, verdict, merge, open, close, delete, record }
 record LandingRun { id: u64 attempt: u32 ended: bool clock: option ExecutionClock = none }
@@ -327,7 +327,10 @@ record ReceiptName { name: bytes 32 }
 enum ReceiptCheck { gate: ReceiptName, tier: ReceiptName }
 record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck key: fixed 32 }
 record LandingFlakeRerun { key: ReceiptKey run: u64 findings: list 64 u32 pending: list 16 JobAttempt redispatch: bool ended: bool = false }
-record LandingRow { room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
+record LandingWaitMember { member: u16 }
+record LandingWaitGate { member: u16 gate: u16 }
+enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
+record LandingRow { last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
 record FailedTests { tests: list 1024 FailingTest }

@@ -6647,6 +6647,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
+ "temper-engine-domain-translate",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-protocol-brief",
@@ -6771,6 +6772,23 @@ dependencies = [
  "skein-lib",
  "temper-engine-domain-forge",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-engine-domain-translate"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-host",
+ "jig-domain-notes",
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-room",
+ "temper-engine-domain-store",
 ]
 
 [[package]]

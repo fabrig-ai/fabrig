@@ -7,6 +7,12 @@ use super::{
     emit, escalation, forge, forge_change, forge_issues, people, save, save_connector_answer, tasks,
 };
 use crate::commit_text;
+pub(crate) use temper_engine_domain_translate::{
+    branch_parts, branch_what, change_delegate_status, decimal, effect_access, forge_name, hub_name,
+    initial_change_title, read_name, repair_verdict, resource_name, saved_resources, saved_tags, tree_branch,
+    write_holding,
+};
+
 #[cfg(test)]
 use forge::change_words::REPAIR_PRESERVATION;
 use forge::change_words::{
@@ -30,6 +36,7 @@ pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
+<<<<<<< HEAD
 pub use forge::routing::adopt_repository_ask;
 pub(crate) use forge::routing::{
     adoption_failure, adoption_parts, append, branch_parts, branch_what, catch_up_commit, change_delegate_status,
@@ -41,6 +48,9 @@ pub(crate) use forge::routing::{
 };
 
 mod change_llm;
+=======
+use temper_engine_domain_translate::change_llm;
+>>>>>>> refs/hand5/g8757
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
@@ -82,7 +92,10 @@ pub(crate) mod prepare;
 #[cfg(test)]
 mod tests;
 
+<<<<<<< HEAD
 /// A closing task's saved-work branches, from its record's saved set.
+=======
+>>>>>>> refs/hand5/g8757
 pub(crate) fn saved_branches(domain: &Domain, env: &Env<Limits>, task: u64, root: u64) -> Box<[forge::Name]> {
     let Some(record) = domain.core.tasks.task(task) else { return Box::new([]) };
     let Some(tags) = saved_tags(&record.saved, domain.config.forge_connector) else { return Box::new([]) };
@@ -1817,6 +1830,11 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     domain.work.push(Work::Forge(forge::Event::Names { task, resources }));
 }
 
+<<<<<<< HEAD
+=======
+// Every live pushing child counts, even after a gate takes the current delegate slot
+// (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
+>>>>>>> refs/hand5/g8757
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {
@@ -1900,6 +1918,9 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     }
 }
 
+/// Register the connector's procedure beside the task's first due step.
+/// Parameter 1 names a project-unique repository tag, 2 the base,
+/// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     start_recovered_change(domain, env, context, None)
 }
@@ -2093,6 +2114,7 @@ pub(super) fn start_recovered_change(
                 change: forge_change::Change {
                     ended_held: None,
                     early: forge_change::Early::None,
+                    landing_ask: None,
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
@@ -4173,8 +4195,7 @@ pub(crate) fn outputs(
     decision: &mut Decision,
     out: &mut Queue<forge::Request>,
 ) {
-    for _ in 0..out.len() {
-        let request = out.pop().expect("connector output count");
+    while let Some(request) = out.pop() {
         match request {
             forge::Request::LoadHistory { load, range, after, most } => {
                 match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {
@@ -4867,9 +4888,17 @@ pub(crate) fn outputs(
                     tier_decision(domain, env, task, choice, projection);
                 }
             }
+            forge::Request::LandingReady { task } => {
+                let due = match domain.core.tasks.procedure_due(task) {
+                    Some((connector, code, _)) => connector == domain.config.forge_connector && code == LANDING_CODE,
+                    None => false,
+                };
+                domain.forge.decide_landing(&super::environment_forge(env), task, due, out);
+            }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {
                 if let Some(entry) = entry {
-                    let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                    let (_, _, step) =
+                        domain.core.tasks.procedure_due(task).expect("landing decision admitted before commit");
                     if let Some(description) = describe_landing_effect(domain, env, task, entry) {
                         let owner = effect_owner(domain);
                         domain

@@ -357,6 +357,7 @@ fn create_landing(
     for name in &names {
         super::report_resource(domain, env, project, name);
     }
+<<<<<<< HEAD
     let row = forge::LandingRow {
         flake_reruns: Box::new([]),
         room: None,
@@ -365,6 +366,20 @@ fn create_landing(
             last_left: None,
             searched: None,
             round: landing::Round::new(own_branch.clone()),
+=======
+    domain.work.push(Work::Forge(forge::Event::Landing {
+        row: forge::LandingRow {
+            last_event: None,
+            turn_since: None,
+            waiting: None,
+            flake_reruns: Box::new([]),
+            room: None,
+            job: None,
+            landing: landing::Landing {
+                last_left: None,
+                searched: None,
+                round: landing::Round::new(own_branch.clone()),
+>>>>>>> refs/hand5/g8757
 
             task: number,
             project,
@@ -582,13 +597,16 @@ pub(super) fn describe_landing_effect(
 }
 
 pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: landing::Decision) {
-    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
+    let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else {
+        domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+        return;
+    };
     if connector != domain.config.forge_connector || code != LANDING_CODE {
         return;
     }
     domain.forge.offered_landing(task);
     let end = match choice {
-        landing::Decision::Wait { until } => {
+        landing::Decision::Wait { until, on: _ } => {
             domain.forge.wait_landing(&super::super::environment_forge(env), task, until);
             StepEnd::Wait
         }

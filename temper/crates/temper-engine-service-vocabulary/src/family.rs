@@ -1955,6 +1955,10 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             let panel = w::LandingPanel::new(
                 limits,
                 w::LandingPanelParts {
+                    waits: match value.waits {
+                        Some(wait) => Some(landing_views::wait(wait, limits)?),
+                        None => None,
+                    },
                     task: value.task,
                     project: value.project,
                     phase: landing_phase(&value.phase),
@@ -1997,6 +2001,14 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
                         w::LandingLine::new(
                             limits,
                             w::LandingLineParts {
+                                step: match line.step {
+                                    Some(step) => Some(landing_views::step(step)),
+                                    None => None,
+                                },
+                                last_event: match line.last_event {
+                                    Some(at) => Some(at.as_nanos()),
+                                    None => None,
+                                },
                                 train: match line.train {
                                     Some(train) => Some(landing_views::train(train, limits)?),
                                     None => None,
@@ -2014,7 +2026,16 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
             }
             let panel = w::LandingsPanel::new(
                 limits,
-                w::LandingsPanelParts { project: value.project, turn: value.turn, landings },
+                w::LandingsPanelParts {
+                    now: value.now.as_nanos(),
+                    turn_since: match value.turn_since {
+                        Some(at) => Some(at.as_nanos()),
+                        None => None,
+                    },
+                    project: value.project,
+                    turn: value.turn,
+                    landings,
+                },
             )
             .ok()?;
             Some(wire::landings_panel(&panel))

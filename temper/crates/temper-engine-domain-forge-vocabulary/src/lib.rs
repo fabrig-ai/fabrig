@@ -139,8 +139,8 @@ pub use views::{
     APPROVALS_SUBJECT, ChangeFrom, ChangesLanded, ChangesQueue, ChangesQueued, ChangesSigned, ChangesView,
     DependencyView, Document, FollowLagEntry, FollowView, FollowsView, GateProof, LandingGate, LandingLine,
     LandingMember, LandingRound, LandingSearch, LandingSearchTests, LandingStep, LandingTrain, LandingView,
-    LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding, changes_subject, follows_subject,
-    landings_subject,
+    LandingWait, LandingWaitFor, LandingsView, PrefixJudgement, SearchPass, SearchSelection, TrainLanding,
+    changes_subject, follows_subject, landings_subject,
 };
 
 /// The prepare job (temper/docs/design/domain/worker/jobs.md).

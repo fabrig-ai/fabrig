@@ -53,6 +53,7 @@ impl Domain {
             return Err(*failure);
         }
         self.join_changes();
+        crate::landing::drop_stale_links(self);
         let result = derived(self, limits);
         if let Err(failure) = result {
             self.restore_fit = Some(Box::new(failure));

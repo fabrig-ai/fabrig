@@ -29,6 +29,7 @@ fn change_row() -> top::ChangeRow {
         change: change::Change {
             ended_held: None,
             early: change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 51,
@@ -603,6 +604,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::FollowRun { .. }

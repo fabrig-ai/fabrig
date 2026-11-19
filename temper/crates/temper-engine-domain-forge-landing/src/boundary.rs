@@ -368,12 +368,55 @@ pub enum Posting {
     Received,
 }
 
+/// What holds this step (domain/landing-waits.md, 2–3).
+/// Member and gate positions are counted from zero.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Awaited {
+    Release,
+    Ready {
+        member: u16,
+    },
+    Turn,
+    Prepare,
+    Prefixes,
+    Open,
+    Close,
+    Delete {
+        member: u16,
+    },
+    Post {
+        member: u16,
+        gate: u16,
+    },
+    Run {
+        member: u16,
+        gate: u16,
+    },
+    Receipt {
+        member: u16,
+        gate: u16,
+    },
+    Judgement {
+        member: u16,
+    },
+    Merge,
+    Record {
+        member: u16,
+    },
+    Ancestry {
+        member: u16,
+    },
+    /// An incomplete fact read in the top; the policy never decides this wait.
+    Read,
+}
+
 /// One thing due in this snapshot, as for a change.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Decision {
     None,
     Wait {
         until: Option<Wall>,
+        on: Awaited,
     },
     /// Stack from `main`, the round's base or the last kept prefix, starting at `member`.
     Prepare {

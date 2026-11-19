@@ -231,8 +231,8 @@ fn a_second_red_reads_new_attempts_and_repairs_without_a_third_run() {
         policy::Decision::Leave { member: 0, why: policy::Leave::Failed { gate: 0, run: run.number } }
     );
     assert_eq!(
-        d.landing.rows.get(&61).unwrap().asks[0],
-        Some(temper_engine_domain_forge_change::Ask::Repair { gate: 0, candidate: run.commit, below: None })
+        d.change(fixtures::CHANGE).unwrap().change.landing_ask.as_deref(),
+        Some(&temper_engine_domain_forge_change::Ask::Repair { gate: 0, candidate: run.commit, below: None })
     );
     assert_eq!(d.finding(5, 1).unwrap().seen, Some(1));
     assert!(!d.landing.flights.contains_key(&key));

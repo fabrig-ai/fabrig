@@ -203,6 +203,9 @@ fn refused_rows(repository: Repository) -> Vec<(&'static str, Stored)> {
         (
             "Landing",
             Stored::Landing(d::LandingRow {
+                last_event: None,
+                turn_since: None,
+                waiting: None,
                 flake_reruns: Box::new([]),
                 room: None,
                 job: None,

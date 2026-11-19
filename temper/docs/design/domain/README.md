@@ -53,6 +53,9 @@ all. Then temper's:
    - `landing-preparing.md`: a round at preparing reading at each step
      whether its prepare lives, has answered or is absent, and
      recovering across a restart, a worker's loss and a release.
+   - `landing-waits.md`: what each step waits for, no wait that nothing
+     will answer, the next step due as a round ends, and a stall shown
+     by `temper ctl landing list` and `landing show`.
    - `landing-history.md`: each change's and landing's steps kept as
      events after their rows go, swept by age and count, and read by
      `temper ctl landing history`.

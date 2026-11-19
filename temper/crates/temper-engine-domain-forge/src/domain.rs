@@ -4959,6 +4959,7 @@ fn step_verified(
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
     let prior = row.change.clone();
     row.change = stepped.change;
+    crate::landing::change_advanced(d, &mut row, &prior, stepped.decision, out);
     if landed_commit(&prior.state).is_none() && landed_commit(&row.change.state).is_some() {
         reds::landed(d, &env.limits, &row, out);
     }

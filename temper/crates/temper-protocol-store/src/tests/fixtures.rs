@@ -907,6 +907,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         change: Change {
             ended_held: None,
             early: temper_engine_domain_forge_change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 1,

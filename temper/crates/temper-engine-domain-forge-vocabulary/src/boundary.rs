@@ -1538,6 +1538,9 @@ pub enum LandingRefusal {
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub last_event: Option<skein_lib::Wall>,
+    pub turn_since: Option<skein_lib::Wall>,
+    pub waiting: Option<landing::Awaited>,
     pub room: Option<u64>,
     pub job: Option<crate::history::JobRecord>,
     pub landing: landing::Landing,
@@ -2857,6 +2860,10 @@ pub enum Request {
         task: u64,
         member: u16,
         step: LandingNews,
+    },
+    /// Facts are gathered; the root admits the decision in its due procedure step.
+    LandingReady {
+        task: u64,
     },
     LandingDecision {
         task: u64,

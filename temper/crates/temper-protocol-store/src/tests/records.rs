@@ -1512,6 +1512,66 @@ fn a_turn_change_ready_or_preparing_round_trips_with_its_landing() {
 }
 
 #[test]
+fn a_change_round_trips_the_ask_handed_over_by_its_landing() {
+    use temper_engine_domain_forge_change::{Ask, Below, Landed, State};
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    let mut row = fixtures::change_row(State::Ready { head: [1; 32], ready_since: skein_lib::Wall::from_nanos(2) });
+    row.change.landing = None;
+    row.change.landing_ask = Some(Box::new(Ask::Repair {
+        gate: 3,
+        candidate: [4; 32],
+        below: Some(Below {
+            green: [5; 32],
+            changes: [Some(Landed { change: 6, pull: 7 }), None, None, None],
+            by_test: true,
+            top: false,
+        }),
+    }));
+    let stored = fixtures::change_hot(row);
+    assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn a_change_stored_before_handed_over_asks_reads_with_none() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" landing_ask: option LandingAsk = none", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::change_row(temper_engine_domain_forge_change::State::Ready {
+        head: [1; 32],
+        ready_since: skein_lib::Wall::from_nanos(2),
+    });
+    row.change.landing_ask = Some(Box::new(temper_engine_domain_forge_change::Ask::Landed { prefix: [3; 32] }));
+    let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", None).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", None).unwrap(),
+            &[],
+        )
+        .unwrap();
+        let mut work = skein_codec::layout::Workspace::new();
+        assert!(work.fit(&plan));
+        let mut out = skein_lib::Buffer::with_capacity(131_072);
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    row.change.landing_ask = None;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
+    assert_eq!(records::decode(&bytes, &bounds), Ok(fixtures::change_hot(row)));
+}
+
+#[test]
 fn turn_writes_round_trip_with_their_parameters() {
     use skein_forge::api as a;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -1572,6 +1632,9 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
                     flake_reruns: Box::new([]),
                     room: Some(11),
                     job: Some(forge::history::JobRecord {
@@ -1640,6 +1703,9 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
 fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1735,6 +1801,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for faults in [false, true] {
         for own in [false, true] {
+<<<<<<< HEAD
             let phase = v25::LandingPhase {
                 place: v25::LandingPlace::Proving,
                 held: if faults { Some(v25::LandingFaults { member: 0, gate: 0 }) } else { None },
@@ -1762,6 +1829,60 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
             };
             let wire = v25::Row { value: v25::Value::Landing(Box::new(row)) };
             let bytes = wire.encode(&v25::CEILINGS).expect("measured room");
+=======
+            let phase = v25::LandingPhase::new(
+                &v25::CEILINGS,
+                v25::LandingPhaseParts {
+                    place: v25::LandingPlace::Proving,
+                    held: if faults {
+                        Some(
+                            v25::LandingFaults::new(&v25::CEILINGS, v25::LandingFaultsParts { member: 0, gate: 0 })
+                                .expect("fault hold"),
+                        )
+                    } else {
+                        None
+                    },
+                },
+            )
+            .expect("landing phase");
+            let landing = v25::LandingState::new(
+                &v25::CEILINGS,
+                v25::LandingStateParts {
+                    task: 61,
+                    project: 5,
+                    phase,
+                    members: List::with_capacity(0),
+                    preparation: 0,
+                    stale_proofs: 0,
+                    branch: Box::new([]),
+                    round: None,
+                    own_hold: own.then_some(v25::LandingOwnHold::Turn),
+                    last_left: None,
+                    searched: None,
+                },
+            )
+            .expect("landing state");
+            let row = v25::LandingRow::new(
+                &v25::CEILINGS,
+                v25::LandingRowParts {
+                    last_event: None,
+                    turn_since: None,
+                    waiting: None,
+                    flake_reruns: List::with_capacity(0),
+                    room: None,
+                    landing,
+                    asks: List::with_capacity(0),
+                    entries: List::with_capacity(0),
+                    job: None,
+                },
+            )
+            .expect("landing row");
+            let wire = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) })
+                .expect("landing row");
+            let mut writer = Writer::new(usize::try_from(wire.measure()).expect("row size"));
+            wire.encode(&mut writer).expect("measured room");
+            let bytes = writer.finish();
+>>>>>>> refs/hand5/g8757
             let decoded = records::decode(&bytes, &bounds);
             if faults && own {
                 assert_eq!(decoded, Err(crate::Undecodable::Malformed), "two holds cannot wrap one landing phase");

@@ -2,7 +2,7 @@
 //! Window pages carry whole or cut turns (temper/docs/design/domain/root.md, 7).
 pub use crate::route::approvals::{ApprovalPerson, ApprovalRow, ApprovalSet, ApprovalSize, Approvals, YourReview};
 use crate::route::{HostRequest, escalation, forge_route, proposals};
-use crate::{CallKey, Delivery, Key, Range, Record, RunPolicy, Write};
+use crate::{CallKey, Delivery, Key, Range, Record, Write};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_brief as brief;
@@ -144,6 +144,7 @@ pub struct ForgeWorkspace {
 }
 >>>>>>> refs/hand5/g9116
 
+<<<<<<< HEAD
 /// A decoded value of temper's settings kinds, retained for its request's decision
 /// (temper/docs/design/domain/routing.md, 6).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -540,6 +541,13 @@ pub struct Call {
     pub position: u32,
     pub tool: Tool,
 }
+=======
+pub use temper_engine_domain_translate::{
+    Call, ChangeAfter, ChangeBranch, ChangeCall, ChangeLanding, ChangeLlm, ChangeQuestions, DocumentAction,
+    EscalationChoice, FindingCall, FindingToolAnswer, FollowCall, FollowToolAnswer, KindValue, MessageForm,
+    ProposalChoice, ProposedAction, RedCall, RedToolAnswer, RememberAction, Tool, asking, no_workspace,
+};
+>>>>>>> refs/hand5/g8757
 
 /// A setup result contains no credential (protocol/credentials.md, 1).
 #[derive(Hash, Debug)]

@@ -1,195 +1,622 @@
 //! Seeded snapshots of stacks and their changing rounds (domain/landing.md, 4–8).
-use crate::tests::step::{decide, stack, stack_facts};
+use crate::tests::step::{stack, stack_facts};
 use crate::{Combine, Decision, Landing, Outcome, Phase, Preparation, Proof, Status};
-use skein_lib::{List, Rng};
+use skein_lib::{Duration, List, Rng, Wall};
 
 #[test]
 fn seeded_stacks_keep_their_prefix_and_turn_invariants() {
+    let mut whole_cut = false;
+    let mut selected_cut = false;
     for seed in 0..256 {
         prefix_search(seed);
-        assert_eq!(run(seed), run(seed), "replay seed {seed}");
+        let played = run(seed);
+        let [whole, selected] = played.2;
+        whole_cut |= whole;
+        selected_cut |= selected;
+        assert_eq!(played, run(seed), "replay seed {seed}");
     }
+    assert!(whole_cut && selected_cut, "the sweep reaches both kinds of cut");
 }
 
-#[expect(clippy::too_many_lines, reason = "seeded round effects and search invariants share one replay loop")]
-fn run(seed: u64) -> (Landing, Box<[Decision]>) {
+// Each effect takes 1–3 steps, separately from its result becoming readable.
+// The settling bound is 32 + 20 per member + 24 per drawn disturbance:
+// member steps, round cleanup, and another proof after each disturbance.
+fn run(seed: u64) -> (Landing, Box<[Decision]>, [bool; 2]) {
     let mut rng = Rng::new(seed);
     let count = usize::try_from(rng.below(6).checked_add(1).unwrap()).unwrap();
     let units = usize::try_from(rng.below(4).checked_add(1).unwrap()).unwrap().min(count);
     let mut landing = stack(count);
-    let mut f = stack_facts(count);
+    let mut world = Top::new(rng, count, units);
+    let mut disturbances = usize::from(world.stale.is_some())
+        .checked_add(usize::from(world.cancel))
+        .unwrap()
+        .checked_add(usize::from(world.red.is_some()))
+        .unwrap();
     for (index, member) in landing.members.iter_mut().enumerate() {
         member.unit = u16::try_from(index.checked_mul(units).unwrap().checked_div(count).unwrap()).unwrap();
-        f.members[index].judgement = Status::Pending;
-        if index > 0 && rng.below(4) == 0 {
-            f.members[index].dependencies = Box::new([u16::try_from(index.checked_sub(1).unwrap()).unwrap()]);
+        let fresh = &mut world.facts.members[index];
+        fresh.judgement = Status::Pending;
+        if index > 0 && world.rng.below(4) == 0 {
+            fresh.dependencies = Box::new([u16::try_from(index.checked_sub(1).unwrap()).unwrap()]);
         }
+        if world.rng.below(4) == 0 {
+            fresh.ready = false;
+            world.later(0, 0, u16::try_from(index).unwrap(), Effect::Ready);
+            disturbances = disturbances.checked_add(1).unwrap();
+        }
+        disturbances = disturbances.checked_add(usize::from(world.conflicts[index].is_some())).unwrap();
+        disturbances = disturbances.checked_add(usize::from(world.noise[index].is_some())).unwrap();
     }
-    let mut trace = List::with_capacity(160);
+    let bound = u32::try_from(
+        32_usize
+            .checked_add(20_usize.checked_mul(count).unwrap())
+            .unwrap()
+            .checked_add(24_usize.checked_mul(disturbances).unwrap())
+            .unwrap(),
+    )
+    .unwrap();
+    let mut trace = List::with_capacity(bound);
     let mut probes = 0_u32;
-    let mut bound = 0_u32;
-    for tick in 0_u32..160 {
-        if tick < 24 && landing.round.ending.is_none() {
-            let index = usize::try_from(rng.below(u64::try_from(count).unwrap())).unwrap();
-            let member = &landing.members[index];
-            if member.left.is_none() && member.landed.is_none() {
-                match rng.below(12) {
-                    0 => f.members[index].cancelled = true,
-                    1 => f.members[index].head = [90; 32],
-                    2 if landing.phase == Phase::Preparing && member.candidate.is_none() => {
-                        f.members[index].outcome =
-                            Some(if rng.below(2) == 0 { Outcome::Conflict } else { Outcome::EarlierConflict });
-                    }
-                    3 if landing.phase == Phase::Proving => f.members[index].gates[0].receipt = Status::Failed,
-                    4 if crate::domain::matches_turn(&landing.phase) => {
-                        for fresh in &mut f.members {
-                            fresh.main = [91; 32];
-                        }
-                    }
-                    _ => {}
-                }
+    let mut probe_bound = 0_u32;
+    let mut waiting = false;
+    let mut due = None;
+    for tick in 0..bound {
+        let answered = world.answer(&mut landing, tick);
+        let disturbed = world.disturb(&landing, tick);
+        let now = Wall::from_nanos(u64::from(tick).checked_mul(1_000_000_000).unwrap());
+        if waiting && !answered && !disturbed {
+            match due {
+                Some(at) if now >= at => {}
+                Some(_) | None => continue,
             }
         }
-        let next = decide(&landing, &f);
-        if next.landing.round.search != landing.round.search {
-            if landing.round.search.is_none() {
-                probes = 0;
-                let mut units = skein_lib::Set::with_capacity(6);
-                for member in &landing.members {
-                    if member.left.is_none() && member.landed.is_none() && member.candidate.is_some() {
-                        units.insert(member.unit).unwrap();
-                    }
-                }
-                bound = u32::BITS.checked_sub(units.len().saturating_sub(1).leading_zeros()).unwrap();
-            }
-            if crate::probe(&next.landing).is_some() {
-                probes = probes.checked_add(1).unwrap();
-            }
-            assert!(probes <= bound, "logarithmic search seed {seed}");
-        }
-        if let Some(search) = &landing.round.search {
-            for (index, (old, new)) in landing.members.iter().zip(&next.landing.members).enumerate() {
-                if old.landed.is_none() && new.landed.is_some() {
-                    assert!(index < usize::from(search.red), "red suffix seed {seed}");
-                }
-                if let Some(crate::Leave::Blamed { .. }) = new.left
-                    && old.left.is_none()
-                {
-                    let mut first = None;
-                    for member in landing.members.iter().skip(usize::from(search.green)) {
-                        if member.left.is_none() && member.landed.is_none() && member.candidate.is_some() {
-                            first = Some(member.unit);
-                            break;
-                        }
-                    }
-                    assert_eq!(Some(new.unit), first, "blame above green seed {seed}");
-                }
-            }
-        }
-        assert_eq!(next, decide(&landing, &f), "snapshot seed {seed} tick {tick}");
-        if let Decision::Merge { member, candidate } = next.decision {
-            let mut last = None;
-            for (index, m) in landing.members.iter().enumerate() {
-                if m.left.is_none() && m.landed.is_none() && index <= usize::from(member) {
-                    last = Some(index);
-                    assert_eq!(f.members[index].judgement, Status::Passed, "judged seed {seed}");
-                }
-            }
-            let last = last.unwrap();
-            let top = &landing.members[last];
-            assert_eq!(usize::from(member), last, "top seed {seed}");
-            assert_eq!(Some(candidate), top.candidate, "prefix seed {seed}");
-            for gate in &top.gates {
-                match gate.proof {
-                    Proof::Passed { .. } => {}
-                    Proof::Unkeyed | Proof::Keyed { .. } | Proof::Dispatched { .. } | Proof::Failed { .. } => {
-                        panic!("gates seed {seed}")
-                    }
-                }
-            }
+        let next = crate::step(&landing, &world.facts, &crate::Project::DEFAULT, &LIMITS, now);
+        invariants(seed, &landing, &world.facts, &next, &mut probes, &mut probe_bound);
+        if let Decision::Wait { until, on } = next.decision {
+            world.wait(seed, tick, &next.landing, until, on);
+            due = until;
+            waiting = true;
+        } else {
+            waiting = false;
         }
         // The cleanup boundary, not a leave notification, retires the changed suffix.
         if landing.round.ending.is_some() && next.landing.round.ending.is_none() {
-            let first = if landing.round.ending == Some(crate::RoundEnd::Stale) {
-                0
-            } else {
-                usize::from(landing.round.changed.unwrap())
-            };
-            for (index, (old, new)) in landing.members.iter().zip(&next.landing.members).enumerate() {
-                if index < first {
-                    assert_eq!(old, new, "kept below leave seed {seed}");
-                } else {
-                    assert_eq!(new.candidate, None, "cleared suffix seed {seed}");
-                    f.members[index].candidate = None;
-                    f.members[index].deleted = Status::Unknown;
-                    f.members[index].outcome = None;
-                    f.members[index].judgement = Status::Pending;
-                }
-            }
-            f.closed = Status::Unknown;
-            f.opened = None;
-            f.preparation = Preparation::Idle;
+            world.cleanup(seed, &landing, &next.landing);
         }
         trace.push(next.decision).unwrap();
+        world.start(&next.landing, next.decision, tick);
         match next.decision {
-            Decision::Prepare { member, .. } => {
-                f.preparation = Preparation::Failed;
-                // Partial pushes, including repeated reads of the kept prefix.
-                let take = if tick < 24 {
-                    usize::try_from(rng.below(u64::try_from(count).unwrap()).checked_add(1).unwrap()).unwrap()
-                } else {
-                    count
-                };
-                for (index, m) in next.landing.members.iter().enumerate().skip(usize::from(member)).take(take) {
-                    if m.left.is_none() && m.landed.is_none() && f.members[index].outcome.is_none() {
-                        f.members[index].candidate = Some((
-                            [u8::try_from(index.checked_add(30).unwrap()).unwrap(); 32],
-                            if rng.below(2) == 0 { Combine::Merge } else { Combine::Squash },
-                        ));
-                    }
-                }
-            }
-            Decision::Open => {
-                f.opened = Some(99);
-                f.opening = Status::Passed;
-            }
-            Decision::Close => f.closed = Status::Passed,
-            Decision::Delete { member } => f.members[usize::from(member)].deleted = Status::Passed,
-            Decision::Judge { member } => f.members[usize::from(member)].judgement = Status::Passed,
-            Decision::Key { member, candidate, .. } => f.members[usize::from(member)].gates[0].key = Some(candidate),
-            Decision::Dispatch { member, .. } => f.members[usize::from(member)].gates[0].receipt = Status::Passed,
-            Decision::Merge { candidate, .. } => {
-                for (fresh, member) in f.members.iter_mut().zip(&next.landing.members) {
-                    fresh.main = candidate;
-                    if member.combined == Some(Combine::Merge) {
-                        fresh.merged = member.candidate;
-                    }
-                }
-            }
-            Decision::Record { member, .. } => f.members[usize::from(member)].record = Status::Passed,
-            Decision::Hold(_) => f.released = true,
             Decision::Finish => {
                 for member in &next.landing.members {
                     assert!(member.landed.is_some() || member.left.is_some(), "terminal seed {seed}");
                 }
-                return (next.landing, trace.into_boxed());
+                if world.pending.is_empty() {
+                    return (next.landing, trace.into_boxed(), world.cuts);
+                }
             }
+            Decision::Hold(_) | Decision::Cancel => return (next.landing, trace.into_boxed(), world.cuts),
             Decision::None
             | Decision::Wait { .. }
-            | Decision::Post { .. }
+            | Decision::Prepare { .. }
+            | Decision::Key { .. }
+            | Decision::Dispatch { .. }
             | Decision::Retry { .. }
+            | Decision::Post { .. }
             | Decision::Repair { .. }
             | Decision::Proved
+            | Decision::Merge { .. }
             | Decision::Stale
-            | Decision::Cancel
+            | Decision::Open
+            | Decision::Record { .. }
             | Decision::Landed { .. }
+            | Decision::Close
+            | Decision::Delete { .. }
             | Decision::Resolve { .. }
-            | Decision::Leave { .. } => {}
+            | Decision::Leave { .. }
+            | Decision::Judge { .. } => {}
         }
-        f.turn_free = true;
         landing = next.landing;
     }
-    panic!("did not settle seed {seed}: {trace:?}");
+    panic!("did not settle seed {seed} in {bound} steps: {trace:?}, {:?}", world.pending);
+}
+
+const LIMITS: crate::Limits =
+    crate::Limits { members: 6, gates: 4, poll: Duration::from_secs(5), tests_bytes: 16, write_attempts: 2 };
+
+fn invariants(
+    seed: u64,
+    landing: &Landing,
+    f: &crate::Facts,
+    next: &crate::Stepped,
+    probes: &mut u32,
+    bound: &mut u32,
+) {
+    if next.landing.round.search != landing.round.search {
+        if landing.round.search.is_none() {
+            *probes = 0;
+            let mut units = skein_lib::Set::with_capacity(6);
+            for member in &landing.members {
+                if member.left.is_none() && member.landed.is_none() && member.candidate.is_some() {
+                    units.insert(member.unit).unwrap();
+                }
+            }
+            *bound = u32::BITS.checked_sub(units.len().saturating_sub(1).leading_zeros()).unwrap();
+        }
+        if crate::probe(&next.landing).is_some() {
+            *probes = probes.checked_add(1).unwrap();
+        }
+        assert!(*probes <= *bound, "logarithmic search seed {seed}");
+    }
+    if let Some(search) = &landing.round.search {
+        for (index, (old, new)) in landing.members.iter().zip(&next.landing.members).enumerate() {
+            if old.landed.is_none() && new.landed.is_some() {
+                assert!(index < usize::from(search.red), "red suffix seed {seed}");
+            }
+            if let Some(crate::Leave::Blamed { .. }) = new.left
+                && old.left.is_none()
+            {
+                let mut first = None;
+                for member in landing.members.iter().skip(usize::from(search.green)) {
+                    if member.left.is_none() && member.landed.is_none() && member.candidate.is_some() {
+                        first = Some(member.unit);
+                        break;
+                    }
+                }
+                assert_eq!(Some(new.unit), first, "blame above green seed {seed}");
+            }
+        }
+    }
+    if let Decision::Merge { member, candidate } = next.decision {
+        let mut last = None;
+        for (index, m) in landing.members.iter().enumerate() {
+            if m.left.is_none() && m.landed.is_none() && m.candidate.is_some() {
+                last = Some(index);
+                assert_eq!(f.members[index].judgement, Status::Passed, "judged seed {seed}");
+            }
+        }
+        let last = last.unwrap();
+        let top = &landing.members[last];
+        assert_eq!(usize::from(member), last, "top seed {seed}");
+        assert_eq!(Some(candidate), top.candidate, "prefix seed {seed}");
+        for gate in &top.gates {
+            match gate.proof {
+                Proof::Passed { .. } => {}
+                Proof::Unkeyed | Proof::Keyed { .. } | Proof::Dispatched { .. } | Proof::Failed { .. } => {
+                    panic!("gates seed {seed}")
+                }
+            }
+        }
+    }
+}
+
+#[derive(Debug)]
+struct Pending {
+    due: u32,
+    round: u16,
+    member: u16,
+    effect: Effect,
+}
+
+#[derive(Clone, Copy, Debug)]
+enum Effect {
+    Prepare,
+    Prefixes,
+    Open,
+    Close,
+    Delete,
+    Post { candidate: crate::Commit },
+    Run { candidate: crate::Commit, passed: bool, selected: bool },
+    Receipt { candidate: crate::Commit, passed: bool, selected: bool },
+    Judge { candidate: crate::Commit },
+    Ready,
+    Merge { candidate: crate::Commit, base: crate::Commit },
+    Readback { candidate: crate::Commit },
+    Record,
+}
+
+struct Top {
+    rng: Rng,
+    facts: crate::Facts,
+    pending: List<Pending>,
+    conflicts: Box<[Option<Outcome>]>,
+    noise: Box<[Option<(u32, bool)>]>,
+    red: Option<u16>,
+    by_test: bool,
+    stale: Option<bool>,
+    cancel: bool,
+    cuts: [bool; 2],
+}
+
+impl Top {
+    fn new(mut rng: Rng, count: usize, units: usize) -> Self {
+        let mut conflicts = List::with_capacity(u32::try_from(count).unwrap());
+        let mut noise = List::with_capacity(u32::try_from(count).unwrap());
+        for _ in 0..count {
+            conflicts
+                .push(match rng.below(12) {
+                    0 => Some(Outcome::Conflict),
+                    1 => Some(Outcome::EarlierConflict),
+                    _ => None,
+                })
+                .unwrap();
+            noise
+                .push(if rng.below(6) == 0 {
+                    Some((u32::try_from(rng.below(12).checked_add(2).unwrap()).unwrap(), rng.below(2) == 0))
+                } else {
+                    None
+                })
+                .unwrap();
+        }
+        let red = if rng.below(2) == 0 {
+            Some(u16::try_from(rng.below(u64::try_from(units).unwrap())).unwrap())
+        } else {
+            None
+        };
+        let by_test = rng.below(2) == 0;
+        let stale = match rng.below(4) {
+            0 => Some(false),
+            1 => Some(true),
+            _ => None,
+        };
+        let cancel = rng.below(32) == 0;
+        let mut facts = stack_facts(count);
+        facts.turn_free = true;
+        facts.preparation = Preparation::Absent;
+        Self {
+            rng,
+            facts,
+            pending: List::with_capacity(32),
+            conflicts: conflicts.into_boxed(),
+            noise: noise.into_boxed(),
+            red,
+            by_test,
+            stale,
+            cancel,
+            cuts: [false; 2],
+        }
+    }
+
+    fn merge_pending(&self) -> bool {
+        for fresh in &self.facts.members {
+            if fresh.merge == Status::Pending {
+                return true;
+            }
+        }
+        false
+    }
+
+    fn later(&mut self, tick: u32, round: u16, member: u16, effect: Effect) {
+        let due = tick.checked_add(u32::try_from(self.rng.below(3).checked_add(1).unwrap()).unwrap()).unwrap();
+        self.pending.push(Pending { due, round, member, effect }).unwrap();
+    }
+
+    fn disturb(&mut self, landing: &Landing, tick: u32) -> bool {
+        let mut disturbed = false;
+        if self.cancel && tick >= 8 {
+            for fresh in &mut self.facts.members {
+                fresh.cancelled = true;
+            }
+            self.cancel = false;
+            disturbed = true;
+        }
+        for (index, noise) in self.noise.iter_mut().enumerate() {
+            if let Some((at, cancel)) = *noise
+                && tick >= at
+                && !crate::domain::matches_turn(&landing.phase)
+            {
+                if cancel {
+                    self.facts.members[index].cancelled = true;
+                } else {
+                    self.facts.members[index].head = [90; 32];
+                }
+                *noise = None;
+                disturbed = true;
+            }
+        }
+        if let Some(during) = self.stale {
+            let due = if during { self.merge_pending() } else { proved(landing) };
+            if due {
+                for fresh in &mut self.facts.members {
+                    fresh.main = [91; 32];
+                }
+                self.stale = None;
+                disturbed = true;
+            }
+        }
+        disturbed
+    }
+
+    fn answer(&mut self, landing: &mut Landing, tick: u32) -> bool {
+        let mut answered = false;
+        let pending = core::mem::replace(&mut self.pending, List::with_capacity(32));
+        for p in pending.into_boxed() {
+            if p.due > tick {
+                self.pending.push(p).unwrap();
+                continue;
+            }
+            answered = true;
+            let index = usize::from(p.member);
+            match p.effect {
+                Effect::Prepare => {
+                    self.facts.preparation = Preparation::Idle;
+                    self.later(tick, p.round, p.member, Effect::Prefixes);
+                }
+                Effect::Prefixes => {
+                    for (index, member) in landing.members.iter().enumerate().skip(index) {
+                        if member.left.is_none() && member.landed.is_none() && member.candidate.is_none() {
+                            if let Some(outcome) = self.conflicts[index].take() {
+                                self.facts.members[index].outcome = Some(outcome);
+                            } else {
+                                // A changed round has another tree; kept prefixes keep their receipts.
+                                let mut candidate = crate::tests::step::prefix(index);
+                                candidate[1] = u8::try_from(p.round).unwrap();
+                                self.facts.members[index].candidate = Some((
+                                    candidate,
+                                    if self.rng.below(2) == 0 { Combine::Merge } else { Combine::Squash },
+                                ));
+                            }
+                        }
+                    }
+                }
+                Effect::Open => {
+                    self.facts.opened = Some(u64::from(p.round).checked_add(99).unwrap());
+                    self.facts.opening = Status::Passed;
+                }
+                Effect::Close => self.facts.closed = Status::Passed,
+                Effect::Delete => self.facts.members[index].deleted = Status::Passed,
+                Effect::Post { candidate } => {
+                    if fresh_candidate(&self.facts, index) == Some(candidate) {
+                        self.facts.members[index].gates[0].posting = Status::Passed;
+                    }
+                }
+                Effect::Run { candidate, passed, selected } => {
+                    if fresh_candidate(&self.facts, index) == Some(candidate) {
+                        self.facts.members[index].gates[0].flight = crate::Flight::Mine {
+                            run: Some(if passed { crate::Verdict::Passed } else { crate::Verdict::Failed }),
+                        };
+                    }
+                    self.later(tick, p.round, p.member, Effect::Receipt { candidate, passed, selected });
+                }
+                Effect::Receipt { candidate, passed, selected } => {
+                    if fresh_candidate(&self.facts, index) == Some(candidate) {
+                        let fresh = &mut self.facts.members[index];
+                        fresh.gates[0].flight = crate::Flight::None;
+                        if selected && passed {
+                            // A selected pass is a probe outcome, never a whole-key receipt.
+                            if landing.round.search.is_some() {
+                                keep_probe(landing, p.member, true);
+                            }
+                        } else {
+                            fresh.gates[0].receipt = if passed { Status::Passed } else { Status::Failed };
+                            fresh.failed[0] = if !passed && self.by_test {
+                                Some(crate::tests::search_tests::ids(&[b"b"]))
+                            } else {
+                                None
+                            };
+                        }
+                    }
+                }
+                Effect::Judge { candidate } => {
+                    if fresh_candidate(&self.facts, index) == Some(candidate) {
+                        self.facts.members[index].judgement = Status::Passed;
+                    }
+                }
+                Effect::Ready => self.facts.members[index].ready = true,
+                Effect::Merge { candidate, base } => {
+                    if self.facts.members[index].main == base {
+                        self.facts.members[index].merge = Status::Passed;
+                        self.later(tick, p.round, p.member, Effect::Readback { candidate });
+                    } else {
+                        self.facts.members[index].merge = Status::Failed;
+                    }
+                }
+                Effect::Readback { candidate } => {
+                    for (fresh, member) in self.facts.members.iter_mut().zip(&landing.members) {
+                        fresh.main = candidate;
+                        if member.combined == Some(Combine::Merge) {
+                            fresh.merged = member.candidate;
+                        }
+                    }
+                }
+                Effect::Record => self.facts.members[index].record = Status::Passed,
+            }
+        }
+        answered
+    }
+
+    fn cleanup(&mut self, seed: u64, before: &Landing, after: &Landing) {
+        let first = if before.round.ending == Some(crate::RoundEnd::Stale) {
+            0
+        } else {
+            usize::from(before.round.changed.unwrap())
+        };
+        for (index, (old, new)) in before.members.iter().zip(&after.members).enumerate() {
+            if index < first {
+                // By-test cuts reset even kept proofs; a kept prefix itself does not change.
+                assert_eq!(old.candidate, new.candidate, "kept prefix seed {seed}");
+                if !by_test(before) {
+                    assert_eq!(old, new, "kept below leave seed {seed}");
+                }
+            } else {
+                assert_eq!(new.candidate, None, "cleared suffix seed {seed}");
+                let fresh = &mut self.facts.members[index];
+                fresh.candidate = None;
+                fresh.deleted = Status::Unknown;
+                fresh.outcome = None;
+                fresh.judgement = Status::Pending;
+                fresh.merge = Status::Unknown;
+                fresh.gates[0].key = None;
+                fresh.gates[0].receipt = Status::Unknown;
+                fresh.gates[0].flight = crate::Flight::None;
+                fresh.gates[0].posting = Status::Unknown;
+                fresh.failed[0] = None;
+            }
+        }
+        self.facts.closed = Status::Unknown;
+        self.facts.opened = None;
+        self.facts.opening = Status::Unknown;
+        self.facts.preparation = Preparation::Absent;
+    }
+
+    fn start(&mut self, landing: &Landing, decision: Decision, tick: u32) {
+        let round = landing.preparation;
+        if landing.round.ending == Some(crate::RoundEnd::Cut) {
+            self.cuts[usize::from(by_test(landing))] = true;
+        }
+        match decision {
+            Decision::Prepare { member, .. } => {
+                self.facts.preparation = Preparation::Running;
+                self.later(tick, round, member, Effect::Prepare);
+            }
+            Decision::Open => {
+                self.facts.opening = Status::Pending;
+                self.later(tick, round, 0, Effect::Open);
+            }
+            Decision::Close => {
+                self.facts.closed = Status::Pending;
+                self.later(tick, round, 0, Effect::Close);
+            }
+            Decision::Delete { member } => {
+                self.facts.members[usize::from(member)].deleted = Status::Pending;
+                self.later(tick, round, member, Effect::Delete);
+            }
+            Decision::Judge { member } => {
+                let candidate = landing.members[usize::from(member)].candidate.unwrap();
+                self.later(tick, round, member, Effect::Judge { candidate });
+            }
+            Decision::Key { member, candidate, .. } => {
+                self.facts.members[usize::from(member)].gates[0].key = Some(candidate);
+            }
+            Decision::Post { member, .. } => {
+                self.facts.members[usize::from(member)].gates[0].posting = Status::Pending;
+                let candidate = landing.members[usize::from(member)].candidate.unwrap();
+                self.later(tick, round, member, Effect::Post { candidate });
+            }
+            Decision::Dispatch { member, .. } | Decision::Retry { member, .. } => {
+                let candidate = landing.members[usize::from(member)].candidate.unwrap();
+                let mut passed = true;
+                for m in landing.members.iter().take(usize::from(member).checked_add(1).unwrap()) {
+                    if m.left.is_none() && m.landed.is_none() && Some(m.unit) == self.red {
+                        passed = false;
+                    }
+                }
+                let selected = by_test(landing);
+                self.facts.members[usize::from(member)].gates[0].flight =
+                    crate::Flight::Mine { run: Some(crate::Verdict::Running) };
+                self.later(tick, round, member, Effect::Run { candidate, passed, selected });
+            }
+            Decision::Merge { member, candidate } => {
+                let base = landing.members[usize::from(member)].base.unwrap();
+                self.facts.members[usize::from(member)].merge = Status::Pending;
+                self.later(tick, round, member, Effect::Merge { candidate, base });
+            }
+            Decision::Record { member, .. } => {
+                self.facts.members[usize::from(member)].record = Status::Pending;
+                self.later(tick, round, member, Effect::Record);
+            }
+            Decision::Leave { member, .. } | Decision::Repair { member, .. } | Decision::Resolve { member, .. } => {
+                self.facts.members[usize::from(member)].ready = false;
+                self.later(tick, round, member, Effect::Ready);
+            }
+            Decision::Landed { member, .. } => self.facts.members[usize::from(member)].ready = false,
+            Decision::None
+            | Decision::Wait { .. }
+            | Decision::Proved
+            | Decision::Stale
+            | Decision::Finish
+            | Decision::Cancel
+            | Decision::Hold(_) => {}
+        }
+    }
+
+    fn wait(&self, seed: u64, tick: u32, landing: &Landing, until: Option<Wall>, on: crate::Awaited) {
+        use crate::Awaited;
+        assert_ne!(on, Awaited::Read, "the policy never waits on the top's read seed {seed}");
+        let deadline_required = match on {
+            Awaited::Prefixes | Awaited::Run { .. } | Awaited::Receipt { .. } | Awaited::Ancestry { .. } => true,
+            Awaited::Release
+            | Awaited::Ready { .. }
+            | Awaited::Turn
+            | Awaited::Prepare
+            | Awaited::Open
+            | Awaited::Close
+            | Awaited::Delete { .. }
+            | Awaited::Post { .. }
+            | Awaited::Judgement { .. }
+            | Awaited::Merge
+            | Awaited::Record { .. }
+            | Awaited::Read => false,
+        };
+        if deadline_required {
+            assert!(until.is_some(), "silent fact wait seed {seed} tick {tick}: {on:?}");
+        }
+        if let Some(until) = until {
+            assert!(
+                until.as_nanos() <= u64::from(tick).checked_add(5).unwrap().checked_mul(1_000_000_000).unwrap(),
+                "poll bound seed {seed}"
+            );
+            return;
+        }
+        let mut wake = (on == Awaited::Release && held(landing)) || (on == Awaited::Turn && !self.facts.turn_free);
+        for pending in &self.pending {
+            let member = pending.member;
+            let awaiting = match pending.effect {
+                Effect::Prepare => Some(Awaited::Prepare),
+                Effect::Open => Some(Awaited::Open),
+                Effect::Close => Some(Awaited::Close),
+                Effect::Merge { .. } => Some(Awaited::Merge),
+                Effect::Delete => Some(Awaited::Delete { member }),
+                Effect::Record => Some(Awaited::Record { member }),
+                Effect::Ready => Some(Awaited::Ready { member }),
+                Effect::Judge { .. } => Some(Awaited::Judgement { member }),
+                Effect::Post { .. } => Some(Awaited::Post { member, gate: 0 }),
+                Effect::Prefixes | Effect::Run { .. } | Effect::Receipt { .. } | Effect::Readback { .. } => None,
+            };
+            wake |= awaiting == Some(on);
+        }
+        assert!(wake, "no wake seed {seed} tick {tick}: {on:?}, {:?}", self.pending);
+    }
+}
+
+#[expect(clippy::manual_map, reason = "the strict subset uses no closures")]
+fn fresh_candidate(facts: &crate::Facts, index: usize) -> Option<crate::Commit> {
+    match facts.members[index].candidate {
+        Some((candidate, _)) => Some(candidate),
+        None => None,
+    }
+}
+fn by_test(landing: &Landing) -> bool {
+    match &landing.round.search {
+        Some(search) => match search.tests {
+            crate::SearchTests::ByTest { .. } => true,
+            crate::SearchTests::Whole | crate::SearchTests::WholeAgain => false,
+        },
+        None => false,
+    }
+}
+fn proved(landing: &Landing) -> bool {
+    match landing.phase {
+        Phase::Proved { .. } => true,
+        Phase::Waiting
+        | Phase::Preparing
+        | Phase::Proving
+        | Phase::Turn { .. }
+        | Phase::Landed
+        | Phase::Held { .. }
+        | Phase::Cancelled => false,
+    }
+}
+fn held(landing: &Landing) -> bool {
+    match landing.phase {
+        Phase::Held { .. } => true,
+        Phase::Waiting
+        | Phase::Preparing
+        | Phase::Proving
+        | Phase::Proved { .. }
+        | Phase::Turn { .. }
+        | Phase::Landed
+        | Phase::Cancelled => false,
+    }
 }
 
 fn prefix_search(seed: u64) {

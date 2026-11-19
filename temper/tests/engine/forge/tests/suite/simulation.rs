@@ -1487,6 +1487,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::EraseCarried { .. }
                 | top::Request::SetUp { .. }
                 | top::Request::LandingNews { .. }
+                | top::Request::LandingReady { .. }
                 | top::Request::LandingDecision { .. }
                 | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }

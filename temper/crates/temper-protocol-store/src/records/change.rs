@@ -552,8 +552,10 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         released_resolution,
         way,
         landing,
+        landing_ask,
         ended_held,
     } = value;
+<<<<<<< HEAD
     w::Change {
         early: encode_early(early),
         task: *task,
@@ -566,6 +568,48 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         stale: match stale {
             Some(value) => Some(value.as_nanos()),
             None => None,
+=======
+    w::Change::new(
+        &w::CEILINGS,
+        w::ChangeParts {
+            early: encode_early(early),
+            task: *task,
+            state: encode_change_state(state, *ended_held),
+            gates: encode_gates(gates),
+            clean: encode_commits(clean),
+            repairs: *repairs,
+            resolutions: *resolutions,
+            updates: *updates,
+            stale: match stale {
+                Some(value) => Some(value.as_nanos()),
+                None => None,
+            },
+            since: since.as_nanos(),
+            clock: encode_clock(*clock),
+            ready_since: match ready_since {
+                Some(value) => Some(value.as_nanos()),
+                None => None,
+            },
+            owns_turn: *owns_turn,
+            last_head: *last_head,
+            last_checked: *last_checked,
+            last_checked_by: *last_checked_by,
+            gate_failures: encode_gate_failures(gate_failures),
+            released_resolution: *released_resolution,
+            released: match released {
+                Some(why) => Some(encode_hold(*why)),
+                None => None,
+            },
+            way: match way {
+                d::Way::Queue => w::Way::Queue,
+                d::Way::Turn => w::Way::Turn,
+            },
+            landing: *landing,
+            landing_ask: match landing_ask {
+                Some(ask) => Some(super::landing::encode_ask(ask.as_ref().clone())),
+                None => None,
+            },
+>>>>>>> refs/hand5/g8757
         },
         since: since.as_nanos(),
         clock: encode_clock(*clock),
@@ -613,7 +657,12 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         released_resolution,
         way,
         landing,
+<<<<<<< HEAD
     } = value;
+=======
+        landing_ask,
+    } = value.into_parts();
+>>>>>>> refs/hand5/g8757
     let (state, ended_held) = decode_change_state(state);
     d::Change {
         early: decode_early(early),
@@ -650,6 +699,10 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
             w::Way::Turn => d::Way::Turn,
         },
         landing,
+        landing_ask: match landing_ask {
+            Some(ask) => Some(Box::new(super::landing::decode_ask(ask))),
+            None => None,
+        },
     }
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {

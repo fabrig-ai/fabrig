@@ -120,6 +120,9 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+                        last_event: None,
+                        turn_since: None,
+                        waiting: None,
                         flake_reruns: Box::new([]),
                         room: None,
                         job: None,

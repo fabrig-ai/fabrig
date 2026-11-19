@@ -250,6 +250,8 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   first in line by its kept time. Cancelled, by a person's act on the
   landing task, its members are left ready and in no landing, each
   unless it is recorded landed (section 8), and the train forms again.
+  Either way every change that names it, member or not, stops naming
+  it as it ends, an ask it still keeps for one going onto that change.
 - **No silent wait: held** when a step makes no progress past its bound,
   naming the step and what it waits on, its members' goals hearing it:
   - the prepare job failed past its tries (5.2), `prepare job: WHY`;
@@ -276,6 +278,9 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   bounded by the change's own stall (`forge/change/stalls.md`): the
   change holds, and the member leaves. A release lifts the landing's
   hold, and it prepares again in a new round, keeping its receipts.
+  Short of a hold, a step waits only on what it names, and with no
+  deadline only on its own effect, a change's step or a release
+  (`landing-waits.md`, 3).
 - **Drained** (jig's `domain/connectors.md`, 6.7): a landing in a
   draining hold's scope that has begun its proof goes on, through the
   turn, to land; one still preparing is idle, and held. A stale base or
@@ -304,6 +309,11 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
 - **It keeps its place:** its first ready time is unchanged, so once
   ready again it is first in line by that time. Leaving is never a
   repair by itself.
+- **Its link goes as it leaves:** at the leave, whatever its change
+  does next, the change stops naming the landing (section 12), and the
+  landing's ask for it, a resolution or a repair with its context, goes
+  onto the change, kept there until it takes it. No landing keeps a
+  change that left it out of its queue.
 - **The rest stay:** a member that leaves while the job stacks is
   skipped by that job (5.2). One that leaves later ends the round (5.1),
   but for a unit its round's search blames (`landing-search.md`, 4):
@@ -342,7 +352,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   prefixes and receipts. A prepare still running settles before cleanup;
   its delivered prefixes are read and retained even when the round ends
   before preparation recorded them. A restart at that boundary resumes
-  the same cleanup before any new prepare.
+  the same cleanup before any new prepare. Once the cleanup is
+  answered, the next step is due at once: the next round's prepare, its
+  opening, its proof and turn, or the landing's end, reading no fact of
+  the ended round (`landing-waits.md`, 3).
 - **The next round** takes the members still in the landing: its job
   stacks only those above the last kept prefix, onto it or onto the
   base (5.2); with none, the last kept prefix is its top, and no job is
@@ -909,7 +922,11 @@ Three kinds join `forge/README.md`'s section 4, each a row of its own:
   key: the verdict, the run, the candidate and the time.
 - **A change's state** grows its landing, its clean merges' heads, its
   way (`queue` or `turn`), its judgement at its prefix, its landing's
-  asks: judge, resolve, repair, landed.
+  asks: judge, resolve, repair, landed. It names only a landing it is
+  in and has not left; an ask handed over as it left or as its landing
+  ended is kept on the change (4.2, 4.3). The landing's row keeps the
+  times of its last event and its turn's start, and its latest wait
+  (`landing-waits.md`, 4).
 - **Registered layouts,** converted at read (`../protocol/store.md`,
   section 4): new fields declare their defaults, renamed parts their
   former names. A change no plan derives is a written job, not a map
@@ -944,8 +961,8 @@ Under `../client/ctl/tools.md`, 1's names (a group `landing`):
 
 | Tool | What it answers or does |
 |---|---|
-| `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top and at each probed prefix; its round's search (`landing-search.md`, 8); its step, its stale rounds and faults |
-| `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases; the live ones first |
+| `landing show LANDING` | a landing: its train, its round and its base, its pull request, its members in the stack's order, each with its unit, its branch, its head, its prefix and how it combined the member, its judgement, and, ended, its landed commit or why it left; each gate's key, receipt or run at the top and at each probed prefix; its round's search (`landing-search.md`, 8); its step and what it waits for (`landing-waits.md`, 4), its stale rounds and faults |
+| `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their trains and phases, each live one's step and the age of its last event, and the turn holder with how long it has held its turn; the live ones first |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time |
 | `landing history --project PROJECT [--change TASK \| --landing TASK] ...` | the steps of the project's changes and landings as events, kept after their rows go (`landing-history.md`, 5.1) |
 
@@ -985,6 +1002,10 @@ documents for another task or project remain errors.
   squashed member's record, uncertain, is found by its pull request
   read merged at its prefix, and made where it is not; ended, its
   release goes on.
+- **A link to an ended landing is dropped** as the store is read: a
+  change naming a landing ended, or one the store does not hold, stops
+  naming it, an ask that landing still keeps for it going onto the
+  change; ready, it waits in its train's queue by its kept time.
 - **Forming** is judged again for every train (section 9).
 
 ## 16. The world

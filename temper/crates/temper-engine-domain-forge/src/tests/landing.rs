@@ -4,8 +4,13 @@ use temper_engine_domain_forge_landing as policy;
 mod flake_rerun;
 #[path = "landing/room.rs"]
 mod room;
+<<<<<<< HEAD
 #[path = "landing/unreported.rs"]
 mod unreported;
+=======
+#[path = "landing/round_ends.rs"]
+mod round_ends;
+>>>>>>> refs/hand5/g8757
 
 #[test]
 fn project_landing_keeps_repository_tiers_and_settings_separate_by_project() {
@@ -302,6 +307,9 @@ fn landing_fixture_with(mut d: Domain) -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -434,6 +442,7 @@ fn landing_candidate_uses_reverse_ancestry_and_waits_on_unknown() {
             }
         }
         let decision = decision.expect("decision");
+        assert_eq!(d.landing(61).unwrap().waiting, if complete { None } else { Some(policy::Awaited::Read) });
         assert!(if complete {
             decision == policy::Decision::Open
         } else {
@@ -1341,7 +1350,8 @@ fn landing_hearing_row((hint, fallback, elapsed, other, delay): (bool, u64, u64,
     );
     let mut until = None;
     while let Some(request) = out.pop() {
-        if let Request::LandingDecision { decision: policy::Decision::Wait { until: found }, .. } = request {
+        if let Request::LandingDecision { decision: policy::Decision::Wait { until: found, on }, .. } = request {
+            assert_eq!(on, policy::Awaited::Read);
             until = found;
         }
     }
@@ -1519,6 +1529,315 @@ fn a_turn_merges_landed_owner_survives_rebuild() {
     outputs(&mut restarted, Event::SettleOutbox);
     assert_eq!(restarted.landed.get(&fixtures::HEAD), Some(&fixtures::CHANGE));
 }
+fn take_departed_change(
+    d: &mut Domain,
+    head: [u8; 32],
+    cancelled: bool,
+) -> temper_engine_domain_forge_change::Decision {
+    use skein_forge::api::{Answer, Op, Read};
+    let mut event = fixtures::change_step();
+    if let Event::StepChange { heard, .. } = &mut event {
+        heard.cancelled = cancelled;
+    }
+    let mut requests = outputs(d, event);
+    for _ in 0..20_u32 {
+        for request in &requests {
+            if let Request::ChangeDecision { decision, .. } = request {
+                return *decision;
+            }
+        }
+        let (call, op) = fixtures::next_call(d);
+        let answer = match op {
+            Op::Read(Read::Branch { branch }) => {
+                Answer::Commit(if branch.as_ref() == b"main" { fixtures::BASE } else { head })
+            }
+            Op::Read(Read::Pull { number, .. }) => {
+                let mut pull = fixtures::open_pull();
+                pull.number = number;
+                pull.commit = head;
+                Answer::Pull(pull)
+            }
+            Op::Read(Read::Commits { .. }) => Answer::Commits { commits: Box::new([]), more: false },
+            Op::Read(Read::Reviews { .. }) => Answer::Reviews { reviews: Box::new([]), more: false, cut: false },
+            Op::Read(Read::Checks { .. }) => fixtures::checks(skein_forge::api::Check::Passed),
+            Op::Read(_) | Op::Write(_) => panic!("unexpected departed change read {op:?}"),
+        };
+        requests = fixtures::answer(d, call, Ok(answer));
+    }
+    panic!("departed change decides");
+}
+
+fn departed_state(why: policy::Leave, since: Wall) -> temper_engine_domain_forge_change::State {
+    use temper_engine_domain_forge_change as c;
+    match why {
+        policy::Leave::Blamed { .. } => c::State::Repairing {
+            requested: true,
+            why: c::Repair::LandingAt {
+                gate: 0,
+                candidate: fixtures::HEAD,
+                below: Some(c::Below {
+                    green: fixtures::BASE,
+                    changes: [Some(c::Landed { change: OTHER_CHANGE, pull: 1 }), None, None, None],
+                    by_test: false,
+                    top: true,
+                }),
+            },
+        },
+        policy::Leave::Failed { .. } => c::State::Repairing {
+            requested: true,
+            why: c::Repair::LandingAt { gate: 0, candidate: fixtures::HEAD, below: None },
+        },
+        policy::Leave::Conflict => c::State::Resolving { requested: true, base: fixtures::BASE },
+        policy::Leave::Refused { .. } => c::State::Repairing { requested: true, why: c::Repair::Gate(9) },
+        policy::Leave::HeadMoved { head } => c::State::Gating { head, asked: Box::new([9]) },
+        policy::Leave::Cancelled => c::State::Ended,
+        policy::Leave::Held
+        | policy::Leave::EarlierConflict
+        | policy::Leave::Unit { .. }
+        | policy::Leave::Dependency { .. } => c::State::Ready { head: fixtures::HEAD, ready_since: since },
+    }
+}
+
+#[test]
+fn every_leave_drops_the_link_and_the_change_takes_its_next_step() {
+    use temper_engine_domain_forge_change as c;
+    const NEW: [u8; 32] = [19; 32];
+    let since = Wall::from_nanos(1);
+    for (why, judging) in [
+        (policy::Leave::Blamed { gate: 0, run: 7, red: fixtures::HEAD, green: fixtures::BASE }, false),
+        (policy::Leave::Failed { gate: 0, run: 7 }, false),
+        (policy::Leave::Conflict, false),
+        (policy::Leave::Conflict, true),
+        (policy::Leave::EarlierConflict, false),
+        (policy::Leave::HeadMoved { head: NEW }, false),
+        (policy::Leave::Cancelled, false),
+        (policy::Leave::Held, false),
+        (policy::Leave::Refused { gate: 9 }, true),
+        (policy::Leave::Unit { change: OTHER_CHANGE }, false),
+        (policy::Leave::Dependency { change: OTHER_CHANGE }, false),
+    ] {
+        let (mut d, _, run) = clocked_gate();
+        let row = d.changes.get_mut(&fixtures::CHANGE).unwrap();
+        row.pending = None;
+        row.effect = c::EffectResult::None;
+        row.change.state = c::State::Ready { head: fixtures::HEAD, ready_since: since };
+        row.change.way = c::Way::Turn;
+        row.change.ready_since = Some(since);
+        if why == (policy::Leave::HeadMoved { head: NEW }) || why == (policy::Leave::Refused { gate: 9 }) {
+            row.change.gates = Box::new([c::Gate {
+                number: 9,
+                kind: c::GateKind::Agent,
+                blocking: true,
+                freshness: c::Freshness::Exact,
+                eager: false,
+            }]);
+        }
+        if why == (policy::Leave::HeadMoved { head: NEW }) {
+            row.change.last_head = Some(NEW);
+        }
+        if why == (policy::Leave::Refused { gate: 9 }) {
+            row.verdicts = Box::new([c::GateReport { number: 9, head: fixtures::HEAD, status: c::Status::Failed }]);
+        }
+        if judging {
+            row.change.state = c::State::Judging {
+                head: fixtures::HEAD,
+                ready_since: since,
+                asked: Box::new([9]),
+                target: c::Judgement {
+                    landing: 61,
+                    round: 0,
+                    pull: 2,
+                    branch: b"prefix".as_slice().into(),
+                    base: b"main".as_slice().into(),
+                    prefix: fixtures::HEAD,
+                },
+            };
+        }
+        let mut member = 0_u16;
+        if let policy::Leave::Blamed { .. } = why {
+            let mut green = row.clone();
+            green.task = OTHER_CHANGE;
+            green.change.task = OTHER_CHANGE;
+            outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(green)) });
+            let landing = d.landing.rows.get_mut(&61).unwrap();
+            let mut green = landing.landing.members[0].clone();
+            green.change = OTHER_CHANGE;
+            green.candidate = Some(fixtures::BASE);
+            landing.landing.members[0].unit = 1;
+            landing.landing.members = Box::new([green, landing.landing.members[0].clone()]);
+            landing.asks = Box::new([None, None]);
+            member = 1;
+        }
+        let landing = d.landing.rows.get_mut(&61).unwrap();
+        landing.landing.members[usize::from(member)].left = Some(why);
+        landing.landing.members[usize::from(member)].judging = true;
+        if let policy::Leave::Blamed { .. } = why {
+            landing.landing.round.search = Some(policy::Search { green: 1, red: 2, tests: policy::SearchTests::Whole });
+        }
+        assert_eq!(step_regate(&mut d, 61, 91, &run), policy::Decision::Leave { member, why });
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.change.landing, None, "{why:?}");
+        assert_eq!(row.change.ready_since, Some(since));
+        assert_eq!(d.landing(61).unwrap().asks[usize::from(member)], None, "ask handed over");
+        let head = if let policy::Leave::HeadMoved { head } = why { head } else { fixtures::HEAD };
+        take_departed_change(&mut d, head, why == policy::Leave::Cancelled);
+        let row = d.change(fixtures::CHANGE).unwrap();
+        assert_eq!(row.change.state, departed_state(why, since));
+        assert_eq!(row.change.landing_ask, None, "taken once");
+        if why == policy::Leave::EarlierConflict {
+            let mut later = row.clone();
+            later.task = OTHER_CHANGE;
+            later.change.task = OTHER_CHANGE;
+            later.change.state = c::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+            later.change.ready_since = Some(env().wall);
+            outputs(&mut d, Event::Change { row: later });
+            outputs(&mut d, Event::SettleEffects { task: 61, root: 61, ending: ReleaseEnding::Cancelled });
+            assert!(d.train_free(REPO, b"main"));
+            assert_eq!(d.first_waiting(REPO, b"main", &[], env().wall), Some(fixtures::CHANGE));
+        }
+    }
+}
+
+#[test]
+fn ending_a_landing_unlinks_every_change_and_hands_over_untaken_asks() {
+    use temper_engine_domain_forge_change as c;
+    for cancelled in [false, true] {
+        let (mut d, key, run) = clocked_gate();
+        d.landing.flights.remove(&key);
+        let mut original = d.change(fixtures::CHANGE).unwrap().clone();
+        original.pending = None;
+        original.effect = c::EffectResult::None;
+        original.change.state = c::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+        original.change.way = c::Way::Turn;
+        outputs(&mut d, Event::Restore { record: Stored::Change(Box::new(original.clone())) });
+        for task in [OTHER_CHANGE, OTHER_CHANGE + 1] {
+            let mut other = original.clone();
+            other.task = task;
+            other.change.task = task;
+            outputs(&mut d, Event::Change { row: other });
+        }
+        let row = d.landing.rows.get_mut(&61).unwrap();
+        let mut left = row.landing.members[0].clone();
+        left.change = OTHER_CHANGE;
+        left.unit = 1;
+        left.left = Some(policy::Leave::Conflict);
+        left.leave_told = true;
+        row.landing.members[0].landed = Some(fixtures::HEAD);
+        row.landing.members = Box::new([row.landing.members[0].clone(), left]);
+        row.asks =
+            Box::new([Some(c::Ask::Landed { prefix: fixtures::HEAD }), Some(c::Ask::Resolve { base: fixtures::BASE })]);
+        if cancelled {
+            outputs(&mut d, Event::SettleEffects { task: 61, root: 61, ending: ReleaseEnding::Cancelled });
+        } else {
+            row.landing.phase = policy::Phase::Landed;
+            assert_eq!(step_regate(&mut d, 61, 91, &run), policy::Decision::Finish);
+        }
+        for (_, change) in &d.changes {
+            assert_ne!(change.change.landing, Some(61), "including a linked nonmember");
+        }
+        assert_eq!(d.landing(61).unwrap().asks.as_ref(), &[None, None]);
+        assert_eq!(
+            landing::ask_for(&d, d.change(OTHER_CHANGE).unwrap()),
+            Some(c::Ask::Resolve { base: fixtures::BASE })
+        );
+        assert_eq!(
+            d.change(fixtures::CHANGE).unwrap().change.landing_ask.as_deref(),
+            Some(&c::Ask::Landed { prefix: fixtures::HEAD })
+        );
+        take_departed_change(&mut d, fixtures::HEAD, false);
+        assert!(
+            matches!(d.change(fixtures::CHANGE).unwrap().change.state, c::State::Landed { merge, .. } if merge == fixtures::HEAD)
+        );
+        assert_eq!(d.change(fixtures::CHANGE).unwrap().change.landing_ask, None);
+    }
+}
+
+#[test]
+fn restored_stale_links_drop_after_all_rows_and_both_change_parts_are_read() {
+    use temper_engine_domain_forge_change as c;
+    for phase in [None, Some(policy::Phase::Landed), Some(policy::Phase::Cancelled), Some(policy::Phase::Proving)] {
+        for cold_first in [None, Some(true), Some(false)] {
+            let mut before = landing_fixture();
+            member_landing(&mut before);
+            let mut row = before.change(fixtures::CHANGE).unwrap().clone();
+            let since = Wall::from_nanos(1);
+            row.pending = None;
+            row.effect = c::EffectResult::None;
+            row.change.state = c::State::Ready { head: fixtures::HEAD, ready_since: since };
+            row.change.ready_since = Some(since);
+            before.changes.remove(&row.task);
+            before.change_cold.remove(&row.task);
+            let saves = outputs(&mut before, Event::Change { row: row.clone() });
+            row.change.way = c::Way::Turn;
+            let mut cold = None;
+            let mut hot = None;
+            for request in saves {
+                if let Request::Save { record: Stored::ChangeCold(row), .. } = &request {
+                    cold = Some(row.clone());
+                }
+                if let Request::Save { record: Stored::ChangeHot(row), .. } = request {
+                    hot = Some(row);
+                }
+            }
+            let parts = [
+                Stored::ChangeCold(cold.expect("saved cold part")),
+                Stored::ChangeHot(hot.expect("last saved hot part")),
+            ];
+            let mut restarted = domain();
+            outputs(&mut restarted, Event::Restore { record: Stored::Repository(adopted()) });
+            match cold_first {
+                None => {
+                    outputs(&mut restarted, Event::Restore { record: Stored::Change(Box::new(row.clone())) });
+                }
+                Some(first) => {
+                    let parts =
+                        if first { [parts[0].clone(), parts[1].clone()] } else { [parts[1].clone(), parts[0].clone()] };
+                    for record in parts {
+                        assert!(outputs(&mut restarted, Event::Restore { record }).is_empty());
+                    }
+                }
+            }
+            // The landing is read last: a link must not be treated as missing at a part's read.
+            if let Some(phase) = phase.clone() {
+                let mut landing = before.landing(61).unwrap().clone();
+                landing.landing.phase = phase;
+                landing.asks = Box::new([Some(c::Ask::Resolve { base: fixtures::BASE })]);
+                if cold_first.is_none() && landing.landing.phase == policy::Phase::Landed {
+                    landing.landing.round.branch = Box::new([]);
+                    landing.landing.members[0].landed = Some(fixtures::HEAD);
+                    landing.asks = Box::new([None]);
+                }
+                assert!(outputs(&mut restarted, Event::Restore { record: Stored::Landing(landing) }).is_empty());
+            }
+            outputs(&mut restarted, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+            assert_eq!(restarted.restore_fit_failure(), None);
+            let row = restarted.change(fixtures::CHANGE).unwrap();
+            if phase == Some(policy::Phase::Proving) {
+                assert_eq!(row.change.landing, Some(61));
+                assert!(!landing::waiting(row));
+            } else {
+                assert_eq!(row.change.landing, None);
+                if phase.is_some() {
+                    let ask = if cold_first.is_none() && phase == Some(policy::Phase::Landed) {
+                        c::Ask::Landed { prefix: fixtures::HEAD }
+                    } else {
+                        c::Ask::Resolve { base: fixtures::BASE }
+                    };
+                    assert_eq!(row.change.landing_ask.as_deref(), Some(&ask));
+                    assert_eq!(landing::ask_for(&restarted, row), Some(ask));
+                    assert_eq!(restarted.landing(61).unwrap().asks.as_ref(), &[None]);
+                }
+                assert!(landing::waiting(row));
+                assert_eq!(
+                    restarted.waiting_changes(REPO, b"main").as_ref(),
+                    &[c::Ready { task: fixtures::CHANGE, since, priority: row.priority }]
+                );
+                assert!(restarted.train_free(REPO, b"main"));
+            }
+        }
+    }
+}
+
 #[test]
 fn cancelling_a_landing_leaves_its_change_live_and_detached() {
     let mut d = landing_fixture();
@@ -2457,7 +2776,11 @@ fn a_hearing_without_preparation_reaches_policy_as_running() {
             decision = Some(found);
         }
     }
-    assert_eq!(decision, Some(policy::Decision::Wait { until: None }), "the policy waits on a running prepare");
+    assert_eq!(
+        decision,
+        Some(policy::Decision::Wait { until: None, on: policy::Awaited::Prepare }),
+        "the policy waits on a running prepare"
+    );
     assert_eq!(d.landing.rows.get(&61).expect("waiting round").landing.phase, policy::Phase::Preparing);
 }
 
@@ -3173,6 +3496,22 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     );
     assert_eq!(d.receipt(&key).unwrap().run.id, 57);
     assert!(d.receipt(&key).unwrap().passed);
+}
+
+#[test]
+fn the_tops_held_wait_names_its_release() {
+    let mut d = landing_fixture();
+    outputs(&mut d, Event::Restore { record: Stored::Landing(landing_row(61, policy::Phase::Waiting)) });
+    d.landing.held = true;
+    let out = outputs(&mut d, Event::StepLanding { task: 61, entry: 91, heard: preparing_heard(None) });
+    let mut decision = None;
+    for request in &out {
+        if let Request::LandingDecision { decision: found, .. } = request {
+            decision = Some(*found);
+        }
+    }
+    assert_eq!(decision, Some(policy::Decision::Wait { until: None, on: policy::Awaited::Release }));
+    assert_eq!(d.landing(61).unwrap().waiting, Some(policy::Awaited::Release));
 }
 
 fn has_landing_decision(requests: &[Request], expected: policy::Decision) -> bool {

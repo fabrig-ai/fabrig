@@ -294,6 +294,8 @@ pub struct Change {
     pub way: Way,
     /// Its landing's task, once it is a member (domain/landing.md, 4.2).
     pub landing: Option<u64>,
+    /// An ask handed over as the change leaves or its landing ends (domain/landing.md, 4.3).
+    pub landing_ask: Option<Box<Ask>>,
     pub state: State,
     /// Its hold as it became `Ended` (temper/docs/design/domain/forge/branches.md, 2).
     pub ended_held: Option<Hold>,

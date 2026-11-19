@@ -191,3 +191,31 @@ pub(super) fn hold(value: &forge::LandingPhase, limits: &w::Limits) -> Option<w:
         forge::LandingHold::Turn => w::LandingHold::Turn,
     })
 }
+
+pub(super) fn wait(value: forge::LandingWait, limits: &w::Limits) -> Option<w::LandingWait> {
+    let on = match value.on {
+        forge::LandingWaitFor::Nothing => w::LandingWaitFor::Nothing,
+        forge::LandingWaitFor::Release => w::LandingWaitFor::Release,
+        forge::LandingWaitFor::Turn => w::LandingWaitFor::Turn,
+        forge::LandingWaitFor::Prepare => w::LandingWaitFor::Prepare,
+        forge::LandingWaitFor::Prefixes => w::LandingWaitFor::Prefixes,
+        forge::LandingWaitFor::Open => w::LandingWaitFor::Open,
+        forge::LandingWaitFor::Close => w::LandingWaitFor::Close,
+        forge::LandingWaitFor::Merge => w::LandingWaitFor::Merge,
+        forge::LandingWaitFor::Read => w::LandingWaitFor::Read,
+        forge::LandingWaitFor::Ready => w::LandingWaitFor::Ready,
+        forge::LandingWaitFor::Delete => w::LandingWaitFor::Delete,
+        forge::LandingWaitFor::Judgement => w::LandingWaitFor::Judgement,
+        forge::LandingWaitFor::Record => w::LandingWaitFor::Record,
+        forge::LandingWaitFor::Ancestry => w::LandingWaitFor::Ancestry,
+        forge::LandingWaitFor::Post => w::LandingWaitFor::Post,
+        forge::LandingWaitFor::Run => w::LandingWaitFor::Run,
+        forge::LandingWaitFor::Receipt => w::LandingWaitFor::Receipt,
+        forge::LandingWaitFor::Room => w::LandingWaitFor::Room,
+    };
+    w::LandingWait::new(
+        limits,
+        w::LandingWaitParts { on, change: value.change, gate: value.gate, run: value.run, landing: value.landing },
+    )
+    .ok()
+}
