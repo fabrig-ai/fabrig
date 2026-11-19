@@ -2,6 +2,7 @@ use super::{commit_text, landing_words};
 use alloc::boxed::Box;
 
 mod call_room;
+mod due_ready;
 mod flake;
 mod reds;
 mod room;

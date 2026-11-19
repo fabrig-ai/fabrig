@@ -188,8 +188,9 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
-    // A procedure remains due through its asynchronous forge read. Settle all
-    // changes woken together before sealing this train (domain/landing.md, 9).
+    // A due waiting change leaves its unit out; a not-yet-ready change's due
+    // step holds only this train until it settles (domain/landing.md, 9).
+    let mut excluded = List::with_capacity(env.limits.forge.changes);
     for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
         let Some(row) = domain.forge.change(task) else { continue };
         if row.base.as_ref() == branch
@@ -197,12 +198,15 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
             && row.change.landing.is_none()
             && domain.core.tasks.procedure_due(task).is_some()
         {
+            if let forge_change::State::Ready { .. } = row.change.state {
+                excluded.push(task).expect("bounded changes");
+                continue;
+            }
             return false;
         }
     }
     let Some(repo) = domain.forge.repository(repository) else { return false };
     let project = repo.project;
-    let mut excluded = List::with_capacity(env.limits.forge.changes);
     for (provider, base) in domain.forge.waiting_trains() {
         for candidate in domain.forge.waiting_changes(provider, &base) {
             let Some(task) = domain.core.tasks.task(candidate.task) else { continue };
@@ -210,7 +214,9 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
                 tasks::Phase::Active(_) | tasks::Phase::Waiting => false,
                 tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_) => true,
             };
-            if held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task) {
+            if (held || kept(domain, env, candidate.task) || super::change_delegate_live(domain, candidate.task))
+                && !excluded.as_slice().contains(&candidate.task)
+            {
                 excluded.push(candidate.task).expect("bounded changes");
             }
         }
