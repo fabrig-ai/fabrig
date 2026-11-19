@@ -2280,6 +2280,7 @@ mod records {
                 asked: false,
                 first: Some(top::FirstIntent::Empty(top::EmptyIntent {
                     playground: false,
+                    sample: false,
                     org: b"org".as_slice().into(),
                     repository: b"repo".as_slice().into(),
                     label: b"Work".as_slice().into(),

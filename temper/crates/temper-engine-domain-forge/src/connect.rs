@@ -273,6 +273,7 @@ fn make(
                     }
                     Some(crate::FirstIntent::Empty(crate::EmptyIntent {
                         playground: false,
+                        sample: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
                         label: first.label.clone(),
@@ -524,6 +525,7 @@ fn admin(
                     forge,
                     crate::First {
                         playground: false,
+                        sample: false,
                         org: first.org.clone(),
                         repository: first.repository.clone(),
                         state: crate::FirstState::Making,
@@ -543,6 +545,7 @@ fn keep_first(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
         record.first = match d.first.get(&forge) {
             Some(first) => Some(crate::FirstIntent::Empty(crate::EmptyIntent {
                 playground: first.playground,
+                sample: first.sample,
                 org: first.org.clone(),
                 repository: first.repository.clone(),
                 label: first.label.clone(),

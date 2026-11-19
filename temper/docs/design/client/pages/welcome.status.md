@@ -1,6 +1,14 @@
 # welcome: status
 
-2026-11-12. Where the tree's code lags or departs from [welcome.md](welcome.md).
+2026-11-19. Where the tree's code lags or departs from [welcome.md](welcome.md).
+
+- **Not yet:** 1, *Forge* and *Forgejo's sheet*, and 2, *Where it
+  departs from its mockup*: the card headed "Local" with its line, the
+  sheet headed "Local forge", its lede and its copies' line; the view
+  draws the earlier words [in flight: change 10132].
+- **Not yet:** 1, *Forgejo's sheet*: the sample, first and the default,
+  with no fields, and the empty repository gone from the sheet, which
+  offers the empty repository by default [in flight: change 10139].
 
 
 - **Not yet:** 1: two endings leave nothing under "Model none yet"

@@ -305,6 +305,7 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
                 &bounds,
                 w::FirstEmptyParts {
                     playground: false,
+                    sample: false,
                     org: draft.fields[0].clone(),
                     repository: draft.fields[1].clone(),
                 },

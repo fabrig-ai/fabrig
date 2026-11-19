@@ -59,6 +59,7 @@ pub(super) struct AdoptionFiles {
 #[derive(Debug)]
 pub(crate) struct Intent {
     pub(crate) playground: bool,
+    pub(crate) sample: bool,
     pub(crate) label: Box<[u8]>,
     pub(crate) org: Box<[u8]>,
     pub(crate) repository: Box<[u8]>,
@@ -1297,6 +1298,21 @@ fn create_local(engine: &mut crate::engine::Engine, forge: u16) -> bool {
                 content: temper_forge_setup::PLAYGROUND_MAIN.into(),
             },
         ])
+    } else if first.sample {
+        Box::new([
+            host::File {
+                path: temper_forge_setup::SAMPLE_HELLO_PATH.into(),
+                content: temper_forge_setup::SAMPLE_HELLO.into(),
+            },
+            host::File {
+                path: temper_forge_setup::SAMPLE_TEST_PATH.into(),
+                content: temper_forge_setup::SAMPLE_TEST.into(),
+            },
+            host::File {
+                path: temper_forge_setup::STARTER_PATH.into(),
+                content: temper_forge_setup::sample_workflow(&first.label).expect("admitted runner label"),
+            },
+        ])
     } else {
         Box::new([starter])
     };
@@ -1662,8 +1678,8 @@ pub(crate) fn first(engine: &mut crate::engine::Engine, forge: u16, first: domai
     }
     if let Some(local) = engine.setup.lifecycle.local_mut(forge) {
         local.first = match first {
-            domain::SetUpFirst::Empty { org, repository, playground } => {
-                Some(Intent { playground, label: b"temper-host".as_slice().into(), org, repository })
+            domain::SetUpFirst::Empty { org, repository, playground, sample } => {
+                Some(Intent { playground, sample, label: b"temper-host".as_slice().into(), org, repository })
             }
             domain::SetUpFirst::Copies { .. } | domain::SetUpFirst::Nothing => None,
         };

@@ -25,6 +25,7 @@ fn setup(forge: Making) -> Ask {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             playground: false,
+            sample: false,
         },
     }
 }
@@ -102,7 +103,8 @@ fn set_up_new_owned_makes_a_record_and_asks_the_box() {
         first: SetUpFirst::Empty {
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
-            playground: false
+            playground: false,
+            sample: false
         }
     }));
     outputs(&mut d, Event::SetUpAnswered { forge: 1, request: Token::new(1), answer: SetUpAnswer::SettingUp });
@@ -477,6 +479,7 @@ fn playground_empty_setup_keeps_its_files_intent() {
                 org: b"playground".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 playground: true,
+                sample: false,
             },
         },
     );
@@ -484,6 +487,38 @@ fn playground_empty_setup_keeps_its_files_intent() {
     let row = d.forges().rows[0].clone();
     assert_eq!(row.starts_with, StartsWith::Repository);
     assert_eq!(row.first.unwrap().state, FirstState::Making);
+}
+
+#[test]
+fn sample_empty_setup_keeps_its_intent_and_restores_its_row() {
+    let mut d = fresh(true);
+    let out = application(
+        &mut d,
+        1,
+        Ask::SetUp {
+            forge: Making::New(ForgeAsk::Owned),
+            first: SetUpFirst::Empty {
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                playground: false,
+                sample: true,
+            },
+        },
+    );
+    let record = saved(&out);
+    assert!(empty_intent(&record).sample);
+    for restored in [false, true] {
+        if restored {
+            d = fresh(true);
+            outputs(&mut d, Event::Restore { record: Stored::Forge(record.clone()) });
+        }
+        let rows = d.forges();
+        assert_eq!(rows.rows[0].starts_with, StartsWith::Repository);
+        let first = rows.rows[0].first.as_ref().unwrap();
+        assert_eq!(first.state, FirstState::Making);
+        assert!(first.sample);
+        assert!(!first.playground);
+    }
 }
 
 fn copy_addresses(count: u32, address: &[u8]) -> Box<[Box<[u8]>]> {

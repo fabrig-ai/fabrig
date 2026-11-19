@@ -179,10 +179,11 @@ Where the client does otherwise:
   person or "Sign out" (`welcome-top`); temper box's line is a paragraph
   under the Welcome step's cards' note, not in the bar, and Forge, Model
   and Ready draw none. "Set up temper" is the first card and the default;
-  Forge's Forgejo card comes first with "Run on this machine" alone,
-  no "Or connect your deployment", which opens Forgejo's sheet, what
-  it starts with, an empty repository by default, as the user's
-  greenfield mock draws it; Model's cards hold the plans alone,
+  Forge's Forgejo card comes first, headed "Local", with "Run on this
+  machine" alone, no "Or connect your deployment", which opens
+  Forgejo's sheet, "Local forge", what it starts with, the sample by
+  default with no fields (the look request `local-forge`), where the
+  user's greenfield mock draws an empty repository with its names; Model's cards hold the plans alone,
   no key; the forge's ticked line says who temper is on it and that
   its first repository is made; the foot has no "Later";
   Ready is the greenfield mock's, its pane, the request

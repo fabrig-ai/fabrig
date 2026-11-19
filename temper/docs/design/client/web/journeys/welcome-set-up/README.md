@@ -3,7 +3,7 @@
 On a fresh `temper box --fake-backends`: the box's printed sign-in link
 opened, the welcome drawn under its top bar, "Set up temper" pressed, then Forgejo's
 "Run on this machine" on the Forge step, and its sheet's own "Run on
-this machine", an empty repository chosen.
+this machine", the sample chosen.
 
 <!-- Setup mark 4 counts key marks, not printed page numbers. -->
 Every welcome page's bar holds temper's mark, Steps, the link region and
@@ -18,7 +18,7 @@ draw none (`../../look-requests.md`, 3; `welcome-top` and `night-switch-top`).
   leads to `04.html`.
 - `04.html`: the Forge step's choices as they were when "Run on this
   machine" was pressed. Its "Run on this machine" leads to `05.html`.
-- `05.html`: Forgejo's sheet over the choices, an empty repository
+- `05.html`: Forgejo's sheet over the choices, the sample
   chosen, as it was first drawn. It leads to `06.html`.
 - `06.html`: the sheet as it was when its "Run on this machine" was
   pressed. Its "Run on this machine" leads to `07.html`.

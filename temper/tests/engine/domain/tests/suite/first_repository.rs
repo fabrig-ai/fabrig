@@ -44,7 +44,7 @@ fn setup(driver: &mut Driver, serial: u8, org: &[u8], repository: &[u8]) -> Opti
         driver,
         serial,
         forge::Making::Kept(1),
-        forge::SetUpFirst::Empty { org: org.into(), repository: repository.into(), playground: false },
+        forge::SetUpFirst::Empty { org: org.into(), repository: repository.into(), playground: false, sample: false },
     )
 }
 fn setup_intent(

@@ -382,7 +382,7 @@ from the engine's own answers, is where the look is tuned.
 | `connect-forge-first-run-6` | the first run's `ConnectForge` at step 6: Forgejo here setting up, the box preparing |
 | `forges-first-run-7` | the first run's Forges at step 7: Forgejo here connected |
 | `welcome-forge-choose` | the welcome's Forge choices, before any forge is connected |
-| `welcome-forge-details` | the welcome's Forgejo Details, with organization and repository paired |
+| `welcome-forge-details` | the welcome's Forgejo Details, the sheet "Local forge" with the sample chosen by default and no fields |
 | `welcome-sheet-copies` | Forgejo's sheet with public copy addresses, in the order written |
 | `welcome-sheet-copies-refused` | Forgejo's sheet refuses an invalid copy address above its foot |
 | `welcome-sheet-nothing` | Forgejo's sheet with Nothing for now selected |

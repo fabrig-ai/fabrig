@@ -167,6 +167,7 @@ fn with_first(mut row: w::ForgeRowParts) -> w::ForgeRowParts {
             &w::CEILINGS,
             w::FirstRepositoryParts {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 1 }).unwrap()),

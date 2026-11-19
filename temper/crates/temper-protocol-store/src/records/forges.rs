@@ -54,6 +54,7 @@ fn encode_first(row: &d::FirstIntent) -> w::FirstIntent {
     match row {
         d::FirstIntent::Empty(first) => w::FirstIntent::Empty(w::EmptyIntent {
             playground: first.playground,
+            sample: first.sample,
             org: first.org.clone(),
             repository: first.repository.clone(),
             label: first.label.clone(),
@@ -127,8 +128,8 @@ fn decode_bot(row: w::Bot) -> d::Bot {
 fn decode_first(row: w::FirstIntent) -> d::FirstIntent {
     match row {
         w::FirstIntent::Empty(row) => {
-            let w::EmptyIntent { playground, org, repository, label } = row;
-            d::FirstIntent::Empty(d::EmptyIntent { playground, org, repository, label })
+            let w::EmptyIntent { playground, sample, org, repository, label } = row;
+            d::FirstIntent::Empty(d::EmptyIntent { playground, sample, org, repository, label })
         }
         w::FirstIntent::Copies(row) => d::FirstIntent::Copies { addresses: row.addresses.into_boxed() },
         w::FirstIntent::Nothing => d::FirstIntent::Nothing,

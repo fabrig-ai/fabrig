@@ -1928,6 +1928,7 @@ fn forge_record_round_trips_every_mode_and_state() {
                         record.first = if first {
                             Some(forge::FirstIntent::Empty(forge::EmptyIntent {
                                 playground: optional,
+                                sample: false,
                                 ..match record.first.take().expect("fixture first intent") {
                                     forge::FirstIntent::Empty(first) => first,
                                     forge::FirstIntent::Copies { .. } | forge::FirstIntent::Nothing => {
@@ -2380,18 +2381,60 @@ fn each_setup_intent_round_trips_in_its_forge_record() {
             repository: Box::new([]),
             label: Box::new([]),
             playground: false,
+            sample: false,
         }),
         FirstIntent::Empty(EmptyIntent {
             org: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_org).unwrap()),
             repository: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_repository).unwrap()),
             label: skein_lib::bytes::zeroed(usize::try_from(limits.empty_intent_label).unwrap()),
             playground: true,
+            sample: true,
         }),
     ] {
         let mut record = fixtures::forge_record();
         record.first = Some(first);
         new_family_round_trip(&forge::Stored::Forge(record));
     }
+}
+
+#[test]
+fn a_forge_written_without_sample_decodes_with_false() {
+    let mut family = None;
+    for candidate in crate::OWNER_SET.families {
+        if candidate.name == "temper-store" {
+            family = Some(candidate);
+        }
+    }
+    let family = family.unwrap();
+    let before = family.current.replace(" sample: bool = false", "");
+    assert_ne!(before, family.current);
+    let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
+    let mut row = fixtures::forge_record();
+    let Some(forge::FirstIntent::Empty(first)) = &mut row.first else { panic!("empty fixture intent") };
+    first.sample = true;
+    let mut bytes = records::encode(&forge::Stored::Forge(row.clone()));
+    let mut work = skein_codec::layout::Workspace::new();
+    // Removing the sample flag and defaulting it to false cannot grow the row.
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
+    for (source, target) in [(&new, &old), (&old, &new)] {
+        let plan = skein_codec::layout::Plan::derive(
+            source,
+            source.root(b"Row", Some(b"forge")).unwrap(),
+            &[],
+            target,
+            target.root(b"Row", Some(b"forge")).unwrap(),
+            &[],
+        )
+        .unwrap();
+        assert!(work.fit(&plan));
+        plan.convert(&bytes, &mut out, &mut work).unwrap();
+        bytes = out.as_slice().into();
+    }
+    let Some(forge::FirstIntent::Empty(first)) = &mut row.first else { panic!("empty fixture intent") };
+    first.sample = false;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&bytes, &bounds), Ok(forge::Stored::Forge(row)));
 }
 
 pub(super) fn full_copy_addresses(count: u32, length: u32) -> Box<[Box<[u8]>]> {
