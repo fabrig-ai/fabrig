@@ -260,3 +260,42 @@ fn tui_frame_original() -> Vec<u8> {
     world.report(Report::Resize(skein_ui_screen::Size { rows: 0, columns: 0 }));
     world.save().into_vec()
 }
+
+fn fixed_capture() -> Box<[u8]> {
+    use fixtures::web::{Capture, managed_capture};
+    use skein_ui::{Act, Role};
+    let mut capture = managed_capture(Capture::fixed());
+    capture.act(Role::Button, b"Connect as its admin", Act::Press);
+    capture.save()
+}
+
+#[test]
+fn a_fixed_capture_keeps_its_start_through_add() {
+    let recording = fixed_capture();
+    let scratch = skein_scratch::Scratch::new("journeys-fixed-add");
+    tool::add(scratch.path(), "fixed", &recording, &[]).expect("redact, prove, normalise and scan");
+    let added = fs::read(scratch.path().join("fixed/recording")).expect("added recording");
+    let header = b"journey 2\nseed 7\nclocks 3600000000000 1767690000000000000\nfixed\n";
+    assert!(recording.starts_with(header), "capture keeps the fixed facts");
+    assert!(added.starts_with(header), "add keeps the fixed facts");
+    let mut replay = journey::Replay::new(&added).expect("added fixed recording");
+    let mut marks = 0;
+    while replay.next().expect("added fixed recording replays").is_some() {
+        marks += 1;
+    }
+    assert_eq!(marks, 2, "the press mark and the end are replayed");
+}
+
+#[test]
+fn two_fixed_walks_and_their_added_recordings_are_identical() {
+    let first = fixed_capture();
+    let second = fixed_capture();
+    assert!(first == second, "fresh captures of the same scripted walk have identical bytes");
+    let scratch = skein_scratch::Scratch::new("journeys-fixed-twice");
+    for (name, recording) in [("first", first), ("second", second)] {
+        tool::add(scratch.path(), name, &recording, &[]).expect("add fixed walk");
+    }
+    let first = fs::read(scratch.path().join("first/recording")).expect("first added recording");
+    let second = fs::read(scratch.path().join("second/recording")).expect("second added recording");
+    assert!(first == second, "add writes identical recording bytes");
+}

@@ -5901,8 +5901,11 @@ name = "temper-client-journeys-kit"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-wire",
  "jig-client-shell-web",
+ "jig-client-test-records",
  "skein-lib",
+ "skein-ui",
  "skein-ui-screen",
  "skein-ui-screen-terminal",
  "skein-ui-web",

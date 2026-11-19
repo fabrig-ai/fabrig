@@ -52,9 +52,32 @@ impl Replay {
     /// # Errors
     /// Refuses malformed records, facts, versions and a missing final end.
     pub fn new(recording: &[u8]) -> Result<Self, Refusal> {
-        let (lines, facts, at) = read(recording).map_err(Refusal::Unreadable)?;
+        Self::from_lines(lines(recording).map_err(Refusal::Unreadable)?)
+    }
+    /// Start from parsed records, checking the same ordered facts and final end as `new`.
+    pub fn from_lines(lines: Vec<Line>) -> Result<Self, Refusal> {
+        let (lines, facts, at) = read_lines(lines).map_err(Refusal::Unreadable)?;
         let (host, page) = facts.start();
         Ok(Self { lines, at, turn: 0, marks: 0, host, page, in_turn: false, departed: false, ended: false })
+    }
+    /// Prove every live print and remove its html, retaining the parsed records for admission.
+    pub fn prove_drawn(mut self, drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Vec<Line>, Refusal> {
+        while let Some(mark) = self.next_drawing(drawn).map_err(Refusal::Stale)? {
+            let recorded = mark.recorded.ok_or(Refusal::Unproved { mark: mark.number })?;
+            let html = mark.page.html();
+            let actual = html.as_bytes();
+            if actual != recorded {
+                let byte =
+                    actual.iter().zip(recorded).position(|(a, b)| a != b).unwrap_or(actual.len().min(recorded.len()));
+                return Err(Refusal::Differs { mark: mark.number, byte });
+            }
+        }
+        for line in &mut self.lines {
+            if let Line::Mark(html) | Line::End(html) = line {
+                *html = None;
+            }
+        }
+        Ok(self.lines)
     }
     /// The replayed host, to read once the replay has ended.
     #[must_use]
@@ -229,7 +252,9 @@ impl Replay {
 }
 // Share the recording envelope without replaying: an old walk may be stale.
 pub(super) fn read(recording: &[u8]) -> Result<(Vec<Line>, Facts, usize), Unreadable> {
-    let lines = lines(recording)?;
+    read_lines(lines(recording)?)
+}
+fn read_lines(lines: Vec<Line>) -> Result<(Vec<Line>, Facts, usize), Unreadable> {
     let (facts, at) = facts(&lines)?;
     if !matches!(lines.last(), Some(Line::End(_))) {
         return Err(Unreadable { line: number(lines.len()), why: "missing end" });
@@ -335,22 +360,8 @@ pub fn prove(recording: &[u8]) -> Result<Box<[u8]>, Refusal> {
 /// # Errors
 /// Refuses a stale replay, a bare mark or the first differing html byte.
 pub fn prove_drawn(recording: &[u8], drawn: &mut dyn FnMut(u32, &Page<'static>)) -> Result<Box<[u8]>, Refusal> {
-    let mut replay = Replay::new(recording)?;
-    while let Some(mark) = replay.next_drawing(drawn).map_err(Refusal::Stale)? {
-        let recorded = mark.recorded.ok_or(Refusal::Unproved { mark: mark.number })?;
-        let html = mark.page.html();
-        let actual = html.as_bytes();
-        if actual != recorded {
-            let byte =
-                actual.iter().zip(recorded).position(|(a, b)| a != b).unwrap_or(actual.len().min(recorded.len()));
-            return Err(Refusal::Differs { mark: mark.number, byte });
-        }
-    }
     let mut out = Vec::new();
-    for mut line in replay.lines {
-        if let Line::Mark(html) | Line::End(html) = &mut line {
-            *html = None;
-        }
+    for line in Replay::new(recording)?.prove_drawn(drawn)? {
         line.write(&mut out);
     }
     Ok(out.into())
