@@ -27,8 +27,9 @@ and a fake GitHub's is a test's.
   (section 6).
 - **GitHub** is github.com's; a test gives a fake's (section 7).
 - **No person gives a place at set-up:** the port is always chosen and
-  the binaries fetched (`../../draft/config.status.md`, *Design
-  departs*).
+  the binaries fetched, unless the box's file names them in
+  `[programs]` (`../configuration/file.md`, 3.1)
+  (`../../draft/config.status.md`, *Design departs*).
 
 ## 2. Chosen at set-up
 
@@ -49,6 +50,10 @@ and a fake GitHub's is a test's.
   - **Its binaries,** Forgejo's and the runner's, fetched at temper's
     pinned versions into the cache (`owned.md`, 6). A test that must not
     fetch puts the pinned binaries where the fetch finds them present.
+    Where the box's file names `[programs]` `forgejo` or `runner`
+    (`../configuration/file.md`, 3.1), the set-up takes that path, an
+    absolute one, in place of the fetched binary, and the setup file
+    keeps it (3), so the forge's later starts run it.
   - **Its runner,** the stock's: the binary fetched, the label
     `temper-host:host`, capacity 1, `PATH` `/usr/local/bin:/usr/bin:/bin`.
   - **No public origin,** and **its sign-in client** `forgejo` where the

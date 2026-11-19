@@ -82,7 +82,7 @@ impl Before {
         };
         let mut expected = BTreeSet::from([chat.join("state")]);
         let marker = chat.join("format");
-        let current = smith_local_protocol::format::file();
+        let current = smith_local_protocol::format::file(&smith_local_protocol::format::layouts());
         assert_eq!(
             after.get(&marker).and_then(|entry| entry.bytes.as_deref()),
             Some(current.bytes.as_ref()),

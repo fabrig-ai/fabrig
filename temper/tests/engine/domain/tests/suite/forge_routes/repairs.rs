@@ -5,7 +5,8 @@ use super::*;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_tiers::Failures;
 use temper_engine_domain_world::tier_runs::{
-    self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, merge, produce_delegated, restart_cut, task, tier, until,
+    self, LANDING_TICKS, RUN_TICKS, SEED, Tier, change, change_state, merge, produce_delegated, restart_cut, task,
+    tier, until,
 };
 
 const GOAL_REQUEST: u8 = 92;
@@ -51,7 +52,7 @@ fn red_landings(edits: &[(u64, &[u8], &[u8])], red: usize) -> (World, engine::As
     }
     let red = landings[red];
     until(&mut world, RUN_TICKS * 3, "blamed landing red", |world| {
-        matches!(change(world, red).change.state, State::Red { .. })
+        matches!(change_state(world, red), State::Red { .. })
     });
     (world, goal, landings)
 }
@@ -107,7 +108,7 @@ fn a_goals_change_keeps_the_red_landing_it_repairs_across_restart() {
     tier_runs::produce_delegated(&mut world, answer, b"main", b"failures", b"");
     assert_eq!(change(&world, number).repairs, Some(commit));
     until(&mut world, RUN_TICKS, "repair landing cleared", |world| {
-        matches!(change(world, number).change.state, State::Cleared { .. })
+        matches!(change_state(world, number), State::Cleared { .. })
     });
     tier_runs::posted(&mut world);
     world.close();
@@ -117,7 +118,7 @@ fn a_goals_change_keeps_the_red_landing_it_repairs_across_restart() {
 fn a_cleared_landing_is_refused_as_a_red_to_repair() {
     let (mut world, goal, [cleared, _, _]) = red_range();
     until(&mut world, RUN_TICKS, "unblamed landing cleared", |world| {
-        matches!(change(world, cleared).change.state, State::Cleared { .. })
+        matches!(change_state(world, cleared), State::Cleared { .. })
     });
     let commit = merge(&world, cleared);
     let before = world.call_errors.len();
@@ -179,8 +180,7 @@ fn red_goal() -> (World, engine::Assignment, u64) {
         task(world, goal.task).phase == tasks::Phase::Active(tasks::Active::Idle)
     });
     until(&mut world, RUN_TICKS * 2, "red verdict and goal news kept", |world| {
-        matches!(change(world, red).change.state, State::Red { .. })
-            && !tier_runs::red_news(world, goal.task).is_empty()
+        matches!(change_state(world, red), State::Red { .. }) && !tier_runs::red_news(world, goal.task).is_empty()
     });
     until(&mut world, LANDING_TICKS, "red wakes goal", |world| {
         world.assigned.iter().any(|run| run.task == goal.task && run.attempt > goal.attempt)
@@ -255,7 +255,7 @@ fn a_repair_naming_its_red_clears_it() {
     let answer = request_repair(&mut world, &goal, commit, b"main").expect("repair accepted");
     let repair = produce_delegated(&mut world, answer, b"main", b"failures", b"");
     assert_eq!(change(&world, repair).repairs, Some(commit));
-    assert!(matches!(change(&world, red).change.state, State::Red { .. }), "red awaits the next verdict");
+    assert!(matches!(change_state(&world, red), State::Red { .. }), "red awaits the next verdict");
     until(&mut world, RUN_TICKS, "repair run judged", |world| tier(world).record.sequence == 3);
     let runs = tier_runs::runs(&world);
     let run = runs.last().expect("repair run");

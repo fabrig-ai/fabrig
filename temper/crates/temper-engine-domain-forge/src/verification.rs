@@ -165,10 +165,11 @@ pub(crate) fn judged(
     tier: &[u8],
     verdict: &policy::Verdict,
     landings: &[policy::Landing],
+    many: Option<&policy::ManyTests>,
     out: &mut Queue<Request>,
 ) {
     assert_eq!(landings.len(), verdict.landings.len(), "one blame per landing in the judged range");
-    crate::landing_log::judged(d, repository, tier, verdict, landings, out);
+    crate::landing_log::judged(d, repository, tier, verdict, landings, many, out);
     let subject = crate::views::changes_mark(d, repository);
     let mut keys = List::with_capacity(d.verifications.len());
     for ((repo, commit), _) in &d.verifications {
@@ -233,6 +234,10 @@ pub(crate) fn released(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
         }
     }
     let Some(key) = found else { return };
+    let row = d.verifications.get(&key).expect("found verification");
+    if row.changes.len() == 1 && d.change_waits_landed(task) {
+        crate::tiers::filing::switched(d, task, &row.clone(), out);
+    }
     let mut row = d.verifications.remove(&key).expect("found verification");
     let subject = crate::views::changes_mark(d, row.repository);
     if row.changes.len() == 1 {

@@ -338,31 +338,31 @@ Map item 25: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/des
 
 ### 3.26 A workflow that runs on no pull request
 
-Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.27 What a refused copy leaves
 
-Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.28 A merge style per repository,
 
-Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.29 A change whose forge is not connected,
 
-Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.30 `Forbidden` and `Missing` taken as access lacking
 
-Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.31 Signed commits required
 
-Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.32 Connecting a forge as another user
 
-Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 9.
+Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
 
 ### 3.33 Saved branches outside the task's saved set
 

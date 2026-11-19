@@ -13,3 +13,8 @@ mod fuzzy {
     mod record;
     mod world;
 }
+
+mod codec_memory {
+    include!("../../../../testing/codec-memory.rs");
+}
+mod largest_memory;

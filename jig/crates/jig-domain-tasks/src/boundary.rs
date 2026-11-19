@@ -1435,6 +1435,9 @@ pub enum Refusal {
     },
     /// A required resource is unavailable in this project.
     ResourceUnavailable,
+    /// A batch's reports did not all come within `tasks.hold_wait`;
+    /// `blocked_by` names its missing members in batch order (domain/tasks/holds.md, 2).
+    Unreported,
     /// Startup is restoring, checked or failed; no mutation is admitted.
     NotReady,
     /// Named creator/task is not in the live arena.
@@ -1537,7 +1540,8 @@ pub struct Problem {
     /// The tasks the refusal names: the live delegates that prevented a finish, in the requester's
     /// current order; a circle's tasks; an unreachable dependency; an ended dependency;
     /// omitted dependencies marked started from; or the
-    /// pending dependencies keeping the task. Absent for every other refusal.
+    /// pending dependencies keeping the task; or `Unreported` members whose resources
+    /// lack reports, in batch order. Absent for every other refusal.
     pub blocked_by: Option<Box<[u64]>>,
     /// Exact room check metadata; absent for shape, state and other refusals.
     pub capacity: Option<crate::Capacity>,

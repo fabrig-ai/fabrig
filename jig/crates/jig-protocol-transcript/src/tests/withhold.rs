@@ -1,4 +1,5 @@
 use super::*;
+use smith_transcript::Record;
 
 const TITLE: &[u8] = b"Kept about this person";
 const SECTION: &[u8] = b"## Kept about this person\n\n1. First\n2. Second\n3. Third\n\n## Shared\nKept words.\n";
@@ -29,9 +30,9 @@ fn row(name: &'static str, before: smith::Turn, private: Private, after: smith::
 }
 
 fn system(value: &[u8]) -> smith::Turn {
-    let mut parts = source(&[]).into_parts();
+    let mut parts = source(&[]);
     parts.system = Some(Box::from(value));
-    smith::Turn::new(&CEILINGS, parts).unwrap()
+    parts
 }
 
 fn texts(role: smith::Role, values: &[SBlock]) -> smith::Turn {
@@ -39,30 +40,26 @@ fn texts(role: smith::Role, values: &[SBlock]) -> smith::Turn {
 }
 
 fn replay() -> smith::Replay {
-    smith::Replay::new(
-        &CEILINGS,
-        smith::ReplayParts { dialect: DIALECT, bytes: Box::from(b"provider bytes".as_slice()) },
-    )
-    .unwrap()
+    smith::Replay { dialect: DIALECT, bytes: Box::from(b"provider bytes".as_slice()) }
 }
 
 fn replayed(value: &[u8]) -> SBlock {
-    let mut parts = text(value).into_parts();
+    let mut parts = text(value);
     parts.replay = Some(replay());
-    SBlock::Text(smith::Text::new(&CEILINGS, parts).unwrap())
+    SBlock::Text(parts)
 }
 
 fn named_call(id: &[u8], name: &[u8], input: &[u8], replay: Option<smith::Replay>) -> SBlock {
     let SBlock::Call(call) = call(id) else { panic!("call builder returns a call") };
-    let mut parts = call.into_parts();
+    let mut parts = call;
     parts.name = Box::from(name);
     parts.input = Box::from(input);
     parts.replay = replay;
-    SBlock::Call(smith::Call::new(&CEILINGS, parts).unwrap())
+    SBlock::Call(parts)
 }
 
 fn answer(value: &[u8], error: bool) -> smith::Returned {
-    smith::Returned::Said(smith::Said::new(&CEILINGS, smith::SaidParts { text: Box::from(value), error }).unwrap())
+    smith::Returned::Said(smith::Said { text: Box::from(value), error })
 }
 
 fn calls(returned: smith::Returned, projected: bool) -> smith::Turn {
@@ -123,21 +120,8 @@ fn private_parts_are_withheld_with_the_same_admission() {
         ("said error", answer(b"private error", true), true),
         ("outcome success", owned(smith::Outcome::Removed), false),
         ("outcome refused", owned(smith::Outcome::NotGranted), true),
-        (
-            "invalid",
-            smith::Returned::Invalid(
-                smith::Invalid::new(&CEILINGS, smith::InvalidParts { problem: smith::CallProblem::UnknownTool })
-                    .unwrap(),
-            ),
-            true,
-        ),
-        (
-            "not run",
-            smith::Returned::NotRun(
-                smith::NotRun::new(&CEILINGS, smith::NotRunParts { why: smith::NotRunWhy::Stopped }).unwrap(),
-            ),
-            true,
-        ),
+        ("invalid", smith::Returned::Invalid(smith::Invalid { problem: smith::CallProblem::UnknownTool }), true),
+        ("not run", smith::Returned::NotRun(smith::NotRun { why: smith::NotRunWhy::Stopped }), true),
         ("withdrawn", smith::Returned::Withdrawn, true),
     ] {
         rows.push(row(name, calls(returned, false), private(), calls(answer(WITHHELD.as_bytes(), error), true)))
@@ -160,7 +144,7 @@ fn private_parts_are_withheld_with_the_same_admission() {
         rows.push(Row { name, limits: limits(), bytes, private: private(), expected: Err(error) }).unwrap();
     }
     let mut byte_bound = limits();
-    byte_bound.bytes = source(&[]).measure();
+    byte_bound.bytes = source(&[]).measure(&CEILINGS).unwrap();
     rows.push(Row {
         name: "input byte bound",
         limits: byte_bound,
@@ -172,7 +156,7 @@ fn private_parts_are_withheld_with_the_same_admission() {
     let short = system(b"## Kept about this person\n");
     let expanded = system(b"## Kept about this person\n\nWithheld: shown to its person alone.\n\n");
     let mut output_bound = limits();
-    output_bound.bytes = expanded.measure();
+    output_bound.bytes = expanded.measure(&CEILINGS).unwrap();
     rows.push(Row {
         name: "output at byte bound",
         limits: output_bound,

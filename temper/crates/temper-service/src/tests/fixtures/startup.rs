@@ -3,6 +3,7 @@
     clippy::disallowed_methods,
     reason = "ordinary fixture code builds and edits configuration bytes"
 )]
+use super::{Input, Start};
 use crate::settings;
 use jig_domain_link::EndpointBound;
 use skein_lib::{List, Secret};
@@ -11,9 +12,9 @@ pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
 
-"sign_in":null,"limits":{"profile":"standard","overrides":{}}
+"sign_in":null
 }"#;
-pub fn document() -> Box<[u8]> {
+pub fn document() -> Start {
     let mut document = Vec::from(b"{\"engine\":".as_slice());
     let engine = core::str::from_utf8(super::ENGINE)
         .unwrap()
@@ -21,15 +22,22 @@ pub fn document() -> Box<[u8]> {
     document.extend_from_slice(engine.as_bytes());
     document.extend_from_slice(
         br#", "workers":[{
-"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1,
-"memory_bytes":1152921504606846976}],"application":"#,
+"engine":{"in_process":"workers"},"name":"local","secret":"worker-secret","slots":1}],"application":"#,
     );
-    document.extend_from_slice(core::str::from_utf8(APPLICATION).unwrap().replace("\"overrides\":{}", "\"overrides\":{\"checkout.name_bytes\":600,\"checkout.repositories\":4,\"git_component.stdout_bytes\":131072,\"forge.name_bytes\":256,\"forge.landing_members\":2,\"forge.resources_per_task\":4}").as_bytes());
+    document.extend_from_slice(APPLICATION);
     document.extend_from_slice(b"}");
-    let document = document.into_boxed_slice();
-    let document = with(&document, b"engine.limits.overrides", engine_turn_limits().as_bytes());
-    // Retain the checkout bounds alongside the turn-derived application bounds.
-    with(&document, b"application.limits.overrides", br#"{"root.journal.run_bytes":32768,"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":131072,"forge.name_bytes":256,"forge.landing_members":2,"forge.resources_per_task":4}"#)
+    let (mut jig, mut own) = startup_limits();
+    jig.hub.accounts = 8;
+    jig.hub.inbox = 8;
+    jig.hub.held = 8;
+    jig.hub.event_bytes = 512;
+    own.checkout.name_bytes = 600;
+    own.checkout.repositories = 4;
+    own.git_component.stdout_bytes = 131_072;
+    own.forge.name_bytes = 256;
+    own.forge.landing_members = 2;
+    own.forge.resources_per_task = 4;
+    Start::given(&document, &jig, &own)
 }
 pub fn parsed() -> skein_json::Document {
     jig_protocol_config::document(
@@ -57,17 +65,10 @@ pub fn without(entries: List<(Box<[u8]>, Secret)>, name: &[u8]) -> List<(Box<[u8
     kept
 }
 /// The small worlds' provider and catalogue facts are typed inputs, not deployment members.
-pub fn given(input: &[u8], directories: &jig_protocol_config::Directories) -> crate::stock::Given {
+pub fn given(input: &(impl Input + ?Sized), _directories: &jig_protocol_config::Directories) -> crate::stock::Given {
     use jig_protocol_config as config;
-    let mut words = 32;
-    if let Ok(document) =
-        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 })
-        && let Some(at) = document.member(0, b"engine")
-        && let Ok(fixed) = crate::startup::fixed(directories)
-        && let Ok(engine) = config::engine(&document, at, directories, config::Defaults::PassedProviders, &fixed)
-    {
-        words = engine.limits.core.tasks.result_bytes;
-    }
+    let input = input.configured();
+    let words = input.jig.core.tasks.result_bytes;
     let llm = config::Llm { models: Box::new([]), providers: Box::new([]), endpoints: Box::new([]) };
     let models = crate::stock::models(&llm).into_vec().into_iter().filter(|row| row.model.provider == 1).collect();
     let mut jig = crate::stock::with_models(models, words);
@@ -76,7 +77,7 @@ pub fn given(input: &[u8], directories: &jig_protocol_config::Directories) -> cr
     crate::stock::Given::Own { jig, forge: crate::stock::forge(&root), ways: crate::stock::ways() }
 }
 pub fn checked_start(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: Option<&settings::Agent>,
@@ -84,21 +85,24 @@ pub fn checked_start(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<crate::startup::CheckedStart, crate::startup::Problems> {
-    crate::startup::checked_start_with(
-        input,
+    let input = input.configured();
+    crate::startup::checked_start_with_limits(
+        &input,
         directories,
         files,
         agent,
         seeds,
         forges,
         setup,
-        &given(input, directories),
+        &given(&input, directories),
         None,
+        &input.jig,
+        &input.own,
     )
 }
 #[expect(clippy::too_many_arguments, reason = "the fixture retains the public check's runtime facts")]
 pub fn check(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -107,15 +111,16 @@ pub fn check(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), crate::startup::Problems> {
-    if crate::startup::nearest(input) == Some(crate::startup::Shape::WorkerAlone) {
-        return crate::startup::check(input, directories, files, agent, seeds, accounts, forges, setup);
+    let input = input.configured();
+    if crate::startup::nearest(&input) == Some(crate::startup::Shape::WorkerAlone) {
+        return crate::startup::check(&input, directories, files, agent, seeds, accounts, forges, setup);
     }
-    checked_start(input, directories, files, Some(agent), seeds, forges, setup)?;
+    checked_start(&input, directories, files, Some(agent), seeds, forges, setup)?;
     Ok(())
 }
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies typed providers to the existing startup entry")]
 pub fn startup(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -124,21 +129,12 @@ pub fn startup(
     runtime: crate::WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    crate::startup::startup_with(
-        input,
-        directories,
-        files,
-        agent,
-        seeds,
-        accounts,
-        runtime,
-        forges,
-        &given(input, directories),
-    )
+    let checked = checked_start(input, directories, files, Some(agent), seeds, forges, None)?;
+    crate::startup::from_checked(checked, files, Some(agent), seeds, accounts, Some(runtime), None, None, Box::new([]))
 }
 #[expect(clippy::too_many_arguments, reason = "the fixture retains setup's existing runtime facts")]
 pub fn with_setup(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: Option<&settings::Agent>,
@@ -149,31 +145,19 @@ pub fn with_setup(
     setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    crate::startup::with_setup_given(
-        input,
-        directories,
-        files,
-        agent,
-        seeds,
-        accounts,
-        runtime,
-        forges,
-        setup,
-        box_line_bytes,
-        None,
-        &given(input, directories),
-        Box::new([]),
-    )
+    let checked = checked_start(input, directories, files, agent, seeds, forges, setup)?;
+    crate::startup::from_checked(checked, files, agent, seeds, accounts, runtime, box_line_bytes, None, Box::new([]))
 }
 pub fn named(
-    input: &[u8],
+    input: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
 ) -> Result<crate::startup::Named, crate::startup::Problems> {
-    crate::startup::named_with(input, directories, &given(input, directories))
+    let input = input.configured();
+    input.named_with(directories, &given(&input, directories))
 }
 pub fn startup_agent() -> settings::Agent {
     // Match init's maximum run spend, including Fable's cache-write reserve.
-    let init = super::super::stock::engine(&super::super::stock::generated());
+    let init = super::super::stock::initial_engine();
     startup_agent_with_spend(init.rules.maximum_run_spend)
 }
 
@@ -199,7 +183,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     let turn = super::agent().limits.bodies.turn_body;
     let resume = turn.checked_add(4).unwrap();
     let window = u64::from(resume) * 4;
-    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
     let keys: &[(&str, u64)] = if path == b"engine.limits.overrides" {
         &[
             ("hub.accounts", 8),
@@ -225,17 +208,6 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
             ("hub.transcript_bytes", window),
             ("hub.turn_queue_bytes", u64::from(turn) * 8),
         ]
-    } else if path == b"application.limits.overrides" {
-        &[
-            ("forge.client.answer_bytes", 65536),
-            ("forge.client.op_bytes", 512),
-            ("forge_component.body_bytes", 16384),
-            ("root.journal.transcript_bytes", u64::from(resume)),
-            ("root.loads.transcript_bytes", u64::from(turn)),
-            ("root.loads.bytes", u64::from(loaded)),
-            ("root.loads.reply_bytes", u64::from(loaded)),
-            ("root.loads.read_bytes", u64::from(turn) * 2),
-        ]
     } else {
         return json.into();
     };
@@ -256,24 +228,26 @@ fn turn_limits(path: &[u8], json: &[u8]) -> Box<[u8]> {
     text.push('}');
     text.into_bytes().into_boxed_slice()
 }
-fn engine_turn_limits() -> String {
-    let document = core::str::from_utf8(super::ENGINE).unwrap();
-    let overrides = document.split_once("\"overrides\":").unwrap().1;
-    let mut result = overrides.split_once('}').unwrap().0.to_string();
-    result.push('}');
-    result
-}
 /// Copy a JSON value for a fixture derived from another document.
-pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
-    input[member_span(input, path)].into()
+pub fn value(input: &(impl Input + ?Sized), path: &[u8]) -> Box<[u8]> {
+    let input = input.configured();
+    if let Some(value) = input.limits(path) {
+        return value;
+    }
+    input[member_span(&input, path)].into()
 }
-pub fn with(input: &[u8], path: &[u8], json: &[u8]) -> Box<[u8]> {
+pub fn with(input: &(impl Input + ?Sized), path: &[u8], json: &[u8]) -> Start {
+    let mut input = input.configured();
+    if input.over(path, json) {
+        return input;
+    }
     let json = turn_limits(path, json);
-    let span = member_span(input, path);
+    let span = member_span(&input, path);
     let mut result = input[..span.start].to_vec();
     result.extend_from_slice(&json);
     result.extend_from_slice(&input[span.end..]);
-    result.into_boxed_slice()
+    input.document = result.into_boxed_slice();
+    input
 }
 
 fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
@@ -342,34 +316,36 @@ fn member_span_in(input: &[u8], document: &skein_json::Document, path: &[u8]) ->
 }
 
 /// One webhook listener on the shipped profile.
-pub fn webhook_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
-        .unwrap()
-        .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
-        .into_bytes()
-        .into_boxed_slice()
+pub fn webhook_document() -> Start {
+    with(&document(), b"application.webhooks", br#"{"listener":{"socket":"127.0.0.1:7200"}}"#)
 }
 
 /// The same deployment with its worker hosted by another process.
-pub fn engine_alone_document() -> Box<[u8]> {
+pub fn engine_alone_document() -> Start {
     let input = with(&document(), b"engine.hosts.listener", br#"[{"socket":"127.0.0.1:0"}]"#);
     with(&input, b"workers", b"[]")
 }
 
 /// A worker's document has no engine or engine application members.
-pub fn worker_alone_document() -> Box<[u8]> {
+pub fn worker_alone_document() -> Start {
     let mut input: serde_json::Value = serde_json::from_slice(&document()).unwrap();
     input.as_object_mut().unwrap().remove("engine");
     input["workers"][0]["engine"] = serde_json::from_str(r#"{"socket":"127.0.0.1:7100"}"#).unwrap();
     input["workers"][0].as_object_mut().unwrap().remove("agent");
     input["workers"][0].as_object_mut().unwrap().remove("limits");
     input["application"] = serde_json::json!({});
-    serde_json::to_vec(&input).unwrap().into_boxed_slice()
+    Start::stock(&serde_json::to_vec(&input).unwrap())
+}
+
+pub fn start_defaults() -> crate::stock::Given {
+    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
+    defaults.providers = temper_worker_service_fixtures::providers();
+    crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() }
 }
 
 #[expect(clippy::too_many_arguments, reason = "the fixture supplies its own defaults at the startup boundary")]
 pub fn start(
-    document: &[u8],
+    document: &(impl Input + ?Sized),
     directories: &jig_protocol_config::Directories,
     files: &settings::Files,
     agent: &settings::Agent,
@@ -378,17 +354,67 @@ pub fn start(
     runtime: crate::WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
 ) -> Result<crate::Service, crate::startup::Problems> {
-    let mut defaults = crate::stock::with_models(Box::new([super::small_model()]), 32);
-    defaults.providers = temper_worker_service_fixtures::providers();
-    crate::startup::startup_with(
-        document,
+    start_with(document, directories, files, agent, seeds, accounts, runtime, forges, &start_defaults())
+}
+
+#[expect(clippy::too_many_arguments, reason = "the fixture reuses defaults beside its typed startup limits")]
+pub fn start_with(
+    document: &(impl Input + ?Sized),
+    directories: &jig_protocol_config::Directories,
+    files: &settings::Files,
+    agent: &settings::Agent,
+    seeds: &settings::Seeds,
+    accounts: Option<crate::AccountsRuntime>,
+    runtime: crate::WorkerRuntime,
+    forges: List<crate::ForgeRuntime>,
+    given: &crate::stock::Given,
+) -> Result<crate::Service, crate::startup::Problems> {
+    let document = document.configured();
+    let checked = crate::startup::checked_start_with_limits(
+        &document,
         directories,
         files,
-        agent,
+        Some(agent),
         seeds,
-        accounts,
-        runtime,
         forges,
-        &crate::stock::Given::Own { jig: defaults, forge: Box::default(), ways: crate::stock::ways() },
-    )
+        None,
+        given,
+        None,
+        &document.jig,
+        &document.own,
+    )?;
+    crate::startup::from_checked(checked, files, Some(agent), seeds, accounts, Some(runtime), None, None, Box::new([]))
+}
+
+pub fn startup_limits() -> (jig_protocol_config::Limits, crate::limits::Limits) {
+    let sources = temper_service_core::derived::Sources::agent(&super::agent().declaration());
+    let stock = crate::limits::stock();
+    let (base, mut own) = crate::limits::base(stock.live_goals, stock.tool_payload, sources).unwrap();
+    let mut jig = super::jig_limits_over(&base);
+    let turn = sources.turn;
+    own.root.transcript_memory = 1_152_921_504_606_846_976;
+    own.root.journal.run_bytes = 32_768;
+    own.checkout.workspaces = 1;
+    own.git_component.operations = 1;
+    let resume = turn.checked_add(4).unwrap();
+    let loaded = turn.checked_add(u32::try_from(size_of::<temper_engine_domain::Record>()).unwrap()).unwrap();
+    jig.hub.turn_bytes = u64::from(turn);
+    jig.hub.transcript_bytes = u64::from(resume) * 4;
+    jig.hub.turn_queue_bytes = u64::from(turn) * 8;
+    jig.core.resume_bytes = resume;
+    own.checkout.name_bytes = 600;
+    own.checkout.repositories = 4;
+    own.git_component.stdout_bytes = 131_072;
+    own.forge.name_bytes = 256;
+    own.forge.landing_members = 2;
+    own.forge.resources_per_task = 4;
+    crate::limits::apply(&mut own, b"forge.client.answer_bytes", 65_536).unwrap();
+    own.forge.client.op_bytes = 512;
+    own.forge_component.body_bytes = 16_384;
+    own.root.journal.transcript_bytes = resume;
+    own.root.loads.transcript_bytes = turn;
+    own.root.loads.bytes = loaded;
+    own.root.loads.reply_bytes = loaded;
+    own.root.loads.read_bytes = u64::from(turn) * 2;
+    (jig, own)
 }

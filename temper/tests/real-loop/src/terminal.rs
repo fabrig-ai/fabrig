@@ -296,6 +296,7 @@ impl Typist {
         self.submit(
             Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: OPEN.into(),
                     args: args.into(),
                     env: Box::new([]),

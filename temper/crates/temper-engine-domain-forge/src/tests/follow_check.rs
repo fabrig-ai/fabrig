@@ -16,7 +16,7 @@ fn sha1(byte: u8) -> api::Commit {
     commit[..20].fill(byte);
     commit
 }
-fn configured() -> (Domain, ChangeRow) {
+pub(crate) fn configured() -> (Domain, ChangeRow) {
     let mut d = domain();
     d.writers.insert(1, 1).unwrap();
     let mut target = adopted();
@@ -66,9 +66,36 @@ fn configured() -> (Domain, ChangeRow) {
     let mut row = fixtures::opening_row();
     row.change.state = c::State::Gating { head: fixtures::HEAD, asked: Box::new([c::FOLLOW_CHECK_GATE]) };
     row.follows = Some(ChangeFollows { follow: 1, commits: Box::new([sha1(0xaa), sha1(0xbb)]) });
-    assert!(check::select(&d, &mut row, &LIMITS));
+    assert_eq!(check::select(&d, &mut row, &LIMITS), Ok(()));
     (d, row)
 }
+#[test]
+fn a_follow_gate_at_registration_names_its_limit() {
+    let (mut d, mut row) = configured();
+    row.change.gates = Box::new([c::Gate {
+        number: 1,
+        kind: c::GateKind::Agent,
+        blocking: true,
+        freshness: c::Freshness::Exact,
+        eager: false,
+    }]);
+    let mut env = env();
+    env.limits.change_policy.gates = 1;
+    let mut out = Queue::uncapped();
+    step(&mut d, &env, Event::Change { row }, &mut out);
+    assert!(
+        out.iter().any(|request| matches!(
+            request,
+            Request::ResourceRefused {
+                cause: RefusalCause::Limit { member: "forge.change_policy.gates", configured: 1, needed: 2 },
+                ..
+            }
+        )),
+        "{out:?}"
+    );
+    assert!(!out.iter().any(|request| matches!(request, Request::Refused { .. })));
+}
+
 fn advance(d: &mut Domain, row: &mut ChangeRow) -> Action {
     check::advance(d, &env(), row, fixtures::HEAD, &mut Queue::uncapped())
 }
@@ -211,7 +238,7 @@ fn the_follow_source_is_in_dispatch_and_canonical_key_and_receipts_answer_only_t
     keyed(&mut d, &mut reused);
     assert!(matches!(advance(&mut d, &mut reused), Action::Done), "the same key reuses the receipt without dispatch");
     reused.follows.as_mut().unwrap().commits = Box::new([sha1(0xaa)]);
-    assert!(check::select(&d, &mut reused, &LIMITS));
+    assert_eq!(check::select(&d, &mut reused, &LIMITS), Ok(()));
     keyed(&mut d, &mut reused);
     assert_ne!(reused.follow_check.as_ref().unwrap().key, Some(key));
     assert!(matches!(advance(&mut d, &mut reused), Action::Write), "equal trees at a different source have no receipt");

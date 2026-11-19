@@ -244,6 +244,27 @@ fn family_and_field_helpers_have_no_ordinals_or_long_functions() {
     check_function_lengths(&output.records);
 }
 
+#[test]
+fn construct_detection_keeps_the_method_split_boundary() {
+    // An encode method has its signature, two lines per scalar field, and
+    // one extra head line for a version. The renderer splits at 98 lines.
+    const BELOW_SPLIT: u32 = 48;
+    const ABOVE_SPLIT: u32 = 49;
+    for (prefix, fields, split) in
+        [("", BELOW_SPLIT, false), ("", ABOVE_SPLIT, true), ("versioned ", BELOW_SPLIT, true)]
+    {
+        let mut source = format!("family boundary 1\n{prefix}record R {{\n");
+        for index in 0..fields {
+            writeln!(&mut source, "field{index}: u8").expect("schema string");
+        }
+        source.push_str("}\n");
+        let found = crate::constructs(&source).expect("valid split fixture");
+        assert_eq!(found.contains(&crate::Construct::SplitFunction), split, "{prefix}{fields} fields");
+        let output = generate(&parse(&source).expect("valid split fixture"));
+        assert_eq!(output.records.contains("Self::encode_field0_field("), split, "{prefix}{fields} fields");
+    }
+}
+
 pub(super) fn check_item_names(source: &str) {
     for line in source.lines() {
         let words = line.split_whitespace().collect::<Vec<_>>();

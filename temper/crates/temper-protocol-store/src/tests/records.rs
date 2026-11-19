@@ -1,6 +1,28 @@
 use super::fixtures;
 use crate::{records, v25};
+use skein_codec::Record;
 use temper_engine_domain_forge as forge;
+
+#[test]
+fn a_limit_hold_keeps_its_task_revision_figures_time_and_entrance() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let row = forge::Stored::LimitHold(forge::LimitHold {
+        task: 7,
+        member: b"forge.entries".as_slice().into(),
+        configured: 8,
+        needed: 9,
+        revision: 13,
+        at: skein_lib::Wall::from_nanos(42),
+        order: 3,
+        room: 1,
+        set: forge::LimitSet::Entries,
+    });
+    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    let bytes = records::encode(&row);
+    assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
+    let wrong = crate::keys::encode(&forge::Key::LimitHold(8), u32::MAX).unwrap();
+    assert_eq!(records::row(&wrong, &bytes, &bounds), Err(crate::Undecodable::Malformed));
+}
 
 #[test]
 fn a_changes_follows_round_trip_and_restore_with_the_configured_merge_bound() {
@@ -50,6 +72,23 @@ fn each_family_of_names_holds_and_topics_round_trips_unchanged() {
     }
 }
 #[test]
+fn a_holds_head_beside_and_waiting_write_round_trip() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let name = forge::Name { forge: 1, repository: 20, what: forge::What::Branch(Box::new([b"g".as_slice().into()])) };
+    for waiting in [None, Some([9; 32])] {
+        let row = forge::Stored::Hold(forge::Hold {
+            name: name.clone(),
+            task: 7,
+            writer: None,
+            design_writers: Box::new([]),
+            drift: None,
+            beside: Some(forge::HeadBeside { head: [8; 32], waiting }),
+        });
+        assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn a_landing_other_than_the_default_branch_round_trips() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
     let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
@@ -59,6 +98,24 @@ fn a_landing_other_than_the_default_branch_round_trips() {
     assert_eq!(row.settings.default_branch.as_ref(), b"main");
     let stored = forge::Stored::Repository(row);
     assert_eq!(records::decode(&records::encode(&stored), &bounds), Ok(stored));
+}
+
+#[test]
+fn an_empty_stored_landing_reads_as_the_default_branch() {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits fit");
+    let forge::Stored::Repository(mut row) = fixtures::adopted(forge::Protection::Absent) else {
+        panic!("adopted repository")
+    };
+    row.settings.default_branch = b"trunk".as_slice().into();
+    row.landing = Box::new([]);
+    let before = records::encode(&forge::Stored::Repository(row.clone()));
+    row.landing = row.settings.default_branch.clone();
+    let expected = forge::Stored::Repository(row);
+    let decoded = records::decode(&before, &bounds).expect("empty landing defaults");
+    assert_eq!(decoded, expected);
+    let after = records::encode(&decoded);
+    assert_ne!(after, before, "the default branch is now explicit");
+    assert_eq!(records::decode(&after, &bounds), Ok(expected));
 }
 
 #[test]
@@ -85,6 +142,7 @@ fn a_holds_design_writers_and_their_fresh_read_progress_round_trip() {
             },
             task: 1,
             writer: None,
+            beside: None,
             design_writers: Box::new([forge::DesignWriter { task: 1, attempt: 2, rereading }]),
             drift: None,
         });
@@ -111,6 +169,7 @@ fn a_branch_past_name_bytes_fails_to_decode() {
         segments.push(1_u8).expect("bounded bytes");
     }
     let row = forge::Stored::Hold(forge::Hold {
+        beside: None,
         design_writers: Box::new([]),
         name: forge::Name { forge: 1, repository: 2, what: forge::What::Branch(Box::new([segments.into_boxed()])) },
         task: 1,
@@ -499,19 +558,20 @@ fn a_change_written_without_a_checked_delegate_decodes_with_none() {
     row.change.last_checked = Some([29; 32]);
     row.change.last_checked_by = Some(41);
     let mut bytes = records::encode(&fixtures::change_hot(row.clone()));
+    let mut work = skein_codec::layout::Workspace::new();
+    // Removing the delegate and defaulting it to none cannot grow the populated row.
+    let mut out = skein_lib::Buffer::with_capacity(u32::try_from(bytes.len()).unwrap());
     for (source, target) in [(&new, &old), (&old, &new)] {
         let plan = skein_codec::layout::Plan::derive(
             source,
-            source.root(b"Row", None).unwrap(),
+            source.root(b"Row", Some(b"change_hot")).unwrap(),
             &[],
             target,
-            target.root(b"Row", None).unwrap(),
+            target.root(b"Row", Some(b"change_hot")).unwrap(),
             &[],
         )
         .unwrap();
-        let mut work = skein_codec::layout::Workspace::new();
         assert!(work.fit(&plan));
-        let mut out = skein_lib::Buffer::with_capacity(131_072);
         plan.convert(&bytes, &mut out, &mut work).unwrap();
         bytes = out.as_slice().into();
     }
@@ -568,9 +628,9 @@ fn an_ended_changes_hold_round_trips_in_its_state() {
         let row = fixtures::change_hot(row);
         let bytes = records::encode(&row);
         let wire = v25::Row::decode(&v25::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded row");
-        let v25::Value::ChangeHot(wire) = wire.into_parts().value else { panic!("change row") };
-        assert_eq!(wire.change().state().live(), &v25::ChangeLive::Ended);
-        assert_eq!(wire.change().state().holds().len(), u32::from(ended_held.is_some()));
+        let v25::Value::ChangeHot(wire) = wire.value else { panic!("change row") };
+        assert_eq!(wire.change.state.live, v25::ChangeLive::Ended);
+        assert_eq!(wire.change.state.holds.len(), u32::from(ended_held.is_some()));
         assert_eq!(records::decode(&bytes, &bounds), Ok(row));
     }
 }
@@ -1151,14 +1211,10 @@ fn appended_people_refusals_round_trip_in_application_answers() {
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v25::CoreRefused::new(&v25::CEILINGS, v25::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v25::Application::new(
-            &v25::CEILINGS,
-            v25::ApplicationParts { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) },
-        )
-        .expect("application");
-        let row =
-            v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Application(application) }).expect("row");
+        let value = v25::CoreRefused { refusal };
+        let application =
+            v25::Application { token: 9, until: 10, outcome: v25::ApplicationOutcome::CoreRefused(value) };
+        let row = v25::Row { value: v25::Value::Application(application) };
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable::Malformed));
     }
 }
@@ -1264,7 +1320,7 @@ fn binding_schema_refuses_fields_one_past_their_bounds() {
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
     ] {
-        w::Binding::new(&w::CEILINGS, w::BindingParts { address, subject }).unwrap_err();
+        w::Binding { address, subject }.encode(&w::CEILINGS).unwrap_err();
     }
 }
 
@@ -1675,59 +1731,37 @@ fn a_landing_run_written_without_a_clock_decodes_with_none() {
 
 #[test]
 fn landing_faults_and_own_holds_are_mutually_exclusive() {
-    use skein_lib::{List, Writer};
+    use skein_lib::List;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for faults in [false, true] {
         for own in [false, true] {
-            let phase = v25::LandingPhase::new(
-                &v25::CEILINGS,
-                v25::LandingPhaseParts {
-                    place: v25::LandingPlace::Proving,
-                    held: if faults {
-                        Some(
-                            v25::LandingFaults::new(&v25::CEILINGS, v25::LandingFaultsParts { member: 0, gate: 0 })
-                                .expect("fault hold"),
-                        )
-                    } else {
-                        None
-                    },
-                },
-            )
-            .expect("landing phase");
-            let landing = v25::LandingState::new(
-                &v25::CEILINGS,
-                v25::LandingStateParts {
-                    task: 61,
-                    project: 5,
-                    phase,
-                    members: List::with_capacity(0),
-                    preparation: 0,
-                    stale_proofs: 0,
-                    branch: Box::new([]),
-                    round: None,
-                    own_hold: own.then_some(v25::LandingOwnHold::Turn),
-                    last_left: None,
-                    searched: None,
-                },
-            )
-            .expect("landing state");
-            let row = v25::LandingRow::new(
-                &v25::CEILINGS,
-                v25::LandingRowParts {
-                    flake_reruns: List::with_capacity(0),
-                    room: None,
-                    landing,
-                    asks: List::with_capacity(0),
-                    entries: List::with_capacity(0),
-                    job: None,
-                },
-            )
-            .expect("landing row");
-            let wire = v25::Row::new(&v25::CEILINGS, v25::RowParts { value: v25::Value::Landing(Box::new(row)) })
-                .expect("landing row");
-            let mut writer = Writer::new(usize::try_from(wire.measure()).expect("row size"));
-            wire.encode(&mut writer).expect("measured room");
-            let bytes = writer.finish();
+            let phase = v25::LandingPhase {
+                place: v25::LandingPlace::Proving,
+                held: if faults { Some(v25::LandingFaults { member: 0, gate: 0 }) } else { None },
+            };
+            let landing = v25::LandingState {
+                task: 61,
+                project: 5,
+                phase,
+                members: List::with_capacity(0),
+                preparation: 0,
+                stale_proofs: 0,
+                branch: Box::new([]),
+                round: None,
+                own_hold: own.then_some(v25::LandingOwnHold::Turn),
+                last_left: None,
+                searched: None,
+            };
+            let row = v25::LandingRow {
+                flake_reruns: List::with_capacity(0),
+                room: None,
+                landing,
+                asks: List::with_capacity(0),
+                entries: List::with_capacity(0),
+                job: None,
+            };
+            let wire = v25::Row { value: v25::Value::Landing(Box::new(row)) };
+            let bytes = wire.encode(&v25::CEILINGS).expect("measured room");
             let decoded = records::decode(&bytes, &bounds);
             if faults && own {
                 assert_eq!(decoded, Err(crate::Undecodable::Malformed), "two holds cannot wrap one landing phase");
@@ -2401,8 +2435,12 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
                 at: skein_lib::Wall::from_nanos(123),
                 changes: vec![
                     forge::LoggedChange {
+                        fixes: Box::new([]),
                         goal: None,
                         milestone: None,
+                        person: None,
+                        goal_title: None,
+                        draft: None,
                         signed: Box::new([]),
                         task: 51,
                         pull: Some(2),
@@ -2420,8 +2458,9 @@ fn landing_log(landings: u32, members: u32, branch_bytes: u32) -> forge::Stored 
 
 #[test]
 fn landing_logs_round_trip_and_refuse_each_configured_bound() {
+    assert_eq!(v25::CEILINGS.logged_red_tests, forge::LOGGED_TESTS);
     let limits = fixtures::LIMITS;
-    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 10_925);
+    assert_eq!(records::encode(&landing_log(16, 2, 64)).len(), 11_149);
     let bounds = crate::bounds(&limits, limits.client.op_bytes).unwrap();
     for extra in [0, 1] {
         for row in [
@@ -2449,8 +2488,23 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
     for verdict in [
         forge::LoggedVerdict::Verifying,
         forge::LoggedVerdict::Cleared { run: u64::MAX },
-        forge::LoggedVerdict::Red { run: 7, failing: Some(u32::MAX) },
-        forge::LoggedVerdict::Red { run: 9, failing: None },
+        forge::LoggedVerdict::Red {
+            run: 7,
+            failing: Some(u32::MAX),
+            tests: Box::new([b"suite::a".as_slice().into(), b"suite::b".as_slice().into()]),
+            many: None,
+        },
+        forge::LoggedVerdict::Red { run: 9, failing: None, tests: Box::new([]), many: None },
+        forge::LoggedVerdict::Red {
+            run: 10,
+            failing: None,
+            tests: Box::new([]),
+            many: Some(temper_engine_domain_forge_tiers::ManyTests {
+                tests: Box::new([b"suite::t00".as_slice().into()]),
+                more: 21,
+                cut: true,
+            }),
+        },
     ] {
         let mut row = landing_log(1, 1, 1);
         if let forge::Stored::LandingLog(row) = &mut row {
@@ -2460,6 +2514,25 @@ fn landing_logs_round_trip_and_refuse_each_configured_bound() {
         }
         assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
     }
+    let mut row = landing_log(1, 1, 1);
+    if let forge::Stored::LandingLog(row) = &mut row {
+        let mut tiers = skein_lib::List::with_capacity(limits.tiers.tiers.checked_add(1).unwrap());
+        for at in 0..=limits.tiers.tiers {
+            tiers
+                .push(forge::LoggedTier {
+                    tier: skein_lib::Decimal::of(u64::from(at)).as_bytes().into(),
+                    verdict: forge::LoggedVerdict::Red {
+                        run: 7,
+                        failing: Some(1),
+                        tests: Box::new([b"suite::a".as_slice().into()]),
+                        many: None,
+                    },
+                })
+                .unwrap();
+        }
+        row.landings[0].tiers = tiers.into_boxed();
+    }
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable::Malformed));
 }
 
 #[test]
@@ -3016,6 +3089,8 @@ fn findings_round_trip_full_rows_options_and_topic_and_refuse_wrong_keys() {
                     row.reason = None;
                     row.signature = None;
                     row.seen = None;
+                    row.blame = None;
+                    row.cleared = None;
                     row.filer = forge::Filer::Party(1);
                 }
                 let row = forge::Stored::Finding(row);
@@ -3124,18 +3199,16 @@ fn devices_round_trip_at_both_bounds_and_refuse_malformed_rows_and_keys() {
     oversized.extend_from_slice(&(u64::from(u32::MAX) + 1).to_be_bytes());
     assert!(crate::keys::decode(&oversized, &fixtures::LIMITS).is_none());
     for (endpoint, label) in [(1025, 60), (1024, 61)] {
-        v25::Device::new(
-            &v25::CEILINGS,
-            v25::DeviceParts {
-                party: 1,
-                number: 1,
-                endpoint: vec![b'e'; endpoint].into_boxed_slice(),
-                label: vec![b'l'; label].into_boxed_slice(),
-                p256dh: [4; 65],
-                auth: [7; 16],
-                at: 0,
-            },
-        )
+        v25::Device {
+            party: 1,
+            number: 1,
+            endpoint: vec![b'e'; endpoint].into_boxed_slice(),
+            label: vec![b'l'; label].into_boxed_slice(),
+            p256dh: [4; 65],
+            auth: [7; 16],
+            at: 0,
+        }
+        .encode(&v25::CEILINGS)
         .unwrap_err();
     }
 }
@@ -3198,44 +3271,29 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
     let encoded = records::encode(&row);
     for route in [true, false] {
         let row = w::Row::decode(bounds.limits(), &mut skein_lib::Reader::new(&encoded)).unwrap();
-        let w::Value::ChangeHot(change) = row.into_parts().value else { panic!("stored change") };
-        let mut parts = change.into_parts();
+        let w::Value::ChangeHot(change) = row.value else { panic!("stored change") };
+        let mut parts = change;
         let mut open = skein_lib::List::with_capacity(1);
         if !route {
-            open.push(
-                w::Open::new(
-                    &w::CEILINGS,
-                    w::OpenParts {
-                        asker: 7,
-                        number: 1,
-                        line: Box::new([]),
-                        words: Box::new([]),
-                        stands: w::Stands::Retired,
-                    },
-                )
-                .unwrap(),
-            )
+            open.push(w::Open {
+                asker: 7,
+                number: 1,
+                line: Box::new([]),
+                words: Box::new([]),
+                stands: w::Stands::Retired,
+            })
             .unwrap();
         }
-        parts.questions = w::Questions::new(
-            &w::CEILINGS,
-            w::QuestionsParts {
-                route: if route { w::Route::Retired } else { w::Route::Up },
-                taken: 1,
-                open,
-                waiting: skein_lib::List::with_capacity(0),
-                answered: skein_lib::List::with_capacity(0),
-            },
-        )
-        .unwrap();
-        let row = w::Row::new(
-            &w::CEILINGS,
-            w::RowParts { value: w::Value::ChangeHot(Box::new(w::ChangeHot::new(&w::CEILINGS, parts).unwrap())) },
-        )
-        .unwrap();
-        let mut bytes = skein_lib::Writer::new(usize::try_from(row.measure()).unwrap());
-        row.encode(&mut bytes).unwrap();
-        assert_eq!(records::decode(&bytes.finish(), &bounds), Err(crate::Undecodable::Malformed));
+        parts.questions = w::Questions {
+            route: if route { w::Route::Retired } else { w::Route::Up },
+            taken: 1,
+            open,
+            waiting: skein_lib::List::with_capacity(0),
+            answered: skein_lib::List::with_capacity(0),
+        };
+        let row = w::Row { value: w::Value::ChangeHot(parts) };
+        let bytes = row.encode(&w::CEILINGS).unwrap();
+        assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable::Malformed));
     }
 }
 
@@ -3559,30 +3617,25 @@ fn project_facts_written_with_a_brief_and_run_decode_with_both_dropped() {
         landed: u64::MAX,
         last_landed: skein_lib::Wall::from_nanos(u64::MAX),
     });
-    let brief = v25::StatusBrief::new(
-        &v25::CEILINGS,
-        v25::StatusBriefParts {
-            sentence: b"Project's old brief".as_slice().into(),
-            lede: b"Not any person's".as_slice().into(),
-            at: 11,
-            landed: 7,
-            findings: Some([3; 32]),
-        },
-    )
-    .unwrap();
-    let run = v25::StatusRunning::new(
-        &v25::CEILINGS,
-        v25::StatusRunningParts { task: Some(19), landed: 9, since: 13, findings: Some([5; 32]) },
-    )
-    .unwrap();
+    let brief = v25::StatusBrief {
+        sentence: b"Project's old brief".as_slice().into(),
+        lede: b"Not any person's".as_slice().into(),
+        at: 11,
+        landed: 7,
+        findings: Some([3; 32]),
+    };
+    let run = v25::StatusRunning { task: Some(19), landed: 9, since: 13, findings: Some([5; 32]) };
     let facts_bytes = records::encode(&facts);
-    let mut bytes =
-        skein_lib::Writer::new(facts_bytes.len() + usize::try_from(brief.measure() + run.measure()).unwrap() + 2);
+    let mut bytes = skein_lib::Writer::new(
+        facts_bytes.len()
+            + usize::try_from(brief.measure(&v25::CEILINGS).unwrap() + run.measure(&v25::CEILINGS).unwrap()).unwrap()
+            + 2,
+    );
     bytes.put(&facts_bytes).unwrap();
     bytes.put(&[1]).unwrap();
-    brief.encode(&mut bytes).unwrap();
+    brief.write(&v25::CEILINGS, &mut bytes).unwrap();
     bytes.put(&[1]).unwrap();
-    run.encode(&mut bytes).unwrap();
+    run.write(&v25::CEILINGS, &mut bytes).unwrap();
     let plan = skein_codec::layout::Plan::derive(
         &old,
         old.root(b"Row", None).unwrap(),

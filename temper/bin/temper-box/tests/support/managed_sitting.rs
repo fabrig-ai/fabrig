@@ -59,7 +59,7 @@ pub fn run() {
     let git = address(addresses["git"].as_str().expect("relay git address"));
     let [clients] = temper_fixtures::ports::addresses::<1>(&[]);
     configure(root, api, git, upstream, clients);
-    let mut command = child_command(root, &binary, "engine");
+    let mut command = child_command(root, &binary.with_file_name("temper-engine"), "engine");
     command
         .arg("serve")
         .arg("--config")
@@ -138,7 +138,8 @@ fn finish_relay(relay: &mut Process, evidence: &Path) {
 
 fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr, clients: SocketAddr) {
     let fixtures = paths::package().join("tests/fixtures/github");
-    let mut template = fs::read_to_string(fixtures.join("engine.json")).expect("engine template");
+    let mut template =
+        fs::read_to_string(fixtures.join("engine").join(temper_config_shell::FILE)).expect("engine template");
     for (name, value) in [
         ("proc.forge.ready.address", api),
         ("proc.llm.ready.address", address("127.0.0.1:9")),
@@ -147,16 +148,29 @@ fn configure(root: &Path, api: SocketAddr, git: SocketAddr, upstream: SocketAddr
         template = template.replace(&format!("{{{name}}}"), &value.to_string());
     }
     let template = template.replace("{{", "{").replace("}}", "}").replace("\"acme\"", &format!("\"{OWNER}\""));
-    let mut value: Value = serde_json::from_str(&template).expect("rendered engine template");
-    value["engine"]["limits"]["overrides"]["people.projects"] = 3.into();
+    let read = temper_box_kit::configuration::parse(template.as_bytes(), temper_config_shell::Shape::EngineAlone);
+    let mut file = read.file;
+    let mut value = temper_playground::documents::Configuration::from_jig(
+        serde_json::from_slice(&read.document).expect("engine start"),
+    );
+    value.jig_over("people.projects", 3);
     // Bind the machine endpoints as the process GitHub story does.
-    value["application"]["test"]["github"] = json!({
-        "api":{"socket":api.to_string()},"transport":"plaintext",
-        "remote":format!("http://{git}"),"web":format!("http://{upstream}")
+    file.test.github = Some(temper_config_shell::TestGitHub {
+        api: api.to_string(),
+        transport: temper_config_shell::Transport::Plaintext,
+        remote: format!("http://{git}"),
+        web: format!("http://{upstream}"),
+        git: None,
     });
     private_directory(&root.join("config/charters"));
     super::write_private(&root.join("config/charters/chat.txt"), b"No model calls in this sitting.\n");
-    super::write_private(&root.join("config/temper.json"), &serde_json::to_vec(&value).expect("engine JSON"));
+    temper_box_kit::write_file(
+        &root.join("config").join(temper_config_shell::FILE),
+        &file,
+        temper_config_shell::Shape::EngineAlone,
+    );
+    temper_box_kit::limit_settings::remember(&root.join("config"), &value);
+    temper_box_kit::limit_settings::install_paths(&[root.join("config"), root.join("data"), root.join("cache")]);
 }
 
 fn connect(root: &Path, binary: &Path, clients: SocketAddr, peers: &[(SocketAddr, u32); 2]) {

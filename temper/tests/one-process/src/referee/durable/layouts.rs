@@ -1,5 +1,6 @@
 //! The durable observer decodes registered rows through their retained layouts.
 //! See temper/docs/design/testing/README.md, 2.5 and temper/docs/design/testing/checks.md, 1.
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptFamily, Owner, ValueType, keys, registry_v1 as wire};
 use skein_codec::{
     layout::{Misconverted, Plan, Workspace},
@@ -72,7 +73,7 @@ impl Layouts {
         let bytes = self.rows.get(key.as_ref()).ok_or("registered text present")?;
         let text = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(bytes))
             .map_err(|why| format!("registry text: {why:?}"))?;
-        let schema = Rc::new(schema::parse(text.text()).map_err(|why| format!("registry schema: {why:?}"))?);
+        let schema = Rc::new(schema::parse(&text.text).map_err(|why| format!("registry schema: {why:?}"))?);
         self.prepared.borrow_mut().texts.insert(digest, schema.clone());
         Ok(schema)
     }
@@ -80,12 +81,12 @@ impl Layouts {
     fn decoder(&self, family: &KeptFamily, ty: &ValueType, key: &[u8]) -> Result<Decoder, String> {
         let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(self.rows.get(key).expect("found layout")))
             .map_err(|why| format!("registry layout: {why:?}"))?;
-        let old = self.text(*layout.text())?;
-        let old_held = layout.held().iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
+        let old = self.text(layout.text)?;
+        let old_held = layout.held.iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
         let binary = binary_schemas()?;
         let new = &binary.iter().find(|(text, _)| *text == family.current).expect("binary family present").1;
         let new_held = binary.iter().map(|(_, schema)| schema).collect::<Vec<_>>();
-        let old_root = old.root(layout.root(), layout.variant().as_deref()).ok_or("stored root present")?;
+        let old_root = old.root(&layout.root, layout.variant.as_deref()).ok_or("stored root present")?;
         let new_root = new.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).ok_or("binary root present")?;
         let plan = Plan::derive(
             &old,
@@ -186,14 +187,10 @@ mod tests {
     use jig_domain_core as core;
     use jig_domain_tasks as tasks;
     use jig_protocol_store::codec;
-    use skein_lib::Writer;
 
     fn encoded_text(value: &str) -> Box<[u8]> {
-        let value =
-            wire::Text::new(&wire::CEILINGS, wire::TextParts { text: value.as_bytes().into() }).expect("registry text");
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("text size"));
-        value.encode(&mut out).expect("measured text");
-        out.finish()
+        let value = wire::Text { text: value.as_bytes().into() };
+        value.encode(&jig_protocol_store::registry_v1::CEILINGS).expect("measured text")
     }
 
     fn attempt() -> core::Record {
@@ -218,19 +215,14 @@ mod tests {
         let mut digest = skein_lib::sha256::Sha256::new();
         digest.update(family.current.as_bytes());
         let digest = digest.finish();
-        let layout = wire::Layout::new(
-            &wire::CEILINGS,
-            wire::LayoutParts {
-                root: b"Row".as_slice().into(),
-                variant: Some(b"attempt".as_slice().into()),
-                layout: fingerprint,
-                text: digest,
-                held: skein_lib::List::with_capacity(0),
-            },
-        )
-        .expect("layout row");
-        let mut out = Writer::new(usize::try_from(layout.measure()).expect("layout size"));
-        layout.encode(&mut out).expect("measured layout");
+        let layout = wire::Layout {
+            root: b"Row".as_slice().into(),
+            variant: Some(b"attempt".as_slice().into()),
+            layout: fingerprint,
+            text: digest,
+            held: skein_lib::List::with_capacity(0),
+        };
+        let out = layout.encode(&jig_protocol_store::registry_v1::CEILINGS).expect("measured layout");
         let mut layouts = Layouts::default();
         layouts.observe(&[
             skein_kv::Op::Put {
@@ -243,7 +235,7 @@ mod tests {
                     1024,
                 )
                 .expect("layout key"),
-                value: out.finish(),
+                value: out,
             },
         ]);
         let limits = fixtures::codec();

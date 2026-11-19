@@ -1,4 +1,5 @@
 //! Restores use the checked copy; activation is a separate durable request (protocol/store/opening.md 2).
+use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{Event, OpenRefusal, Request, Wire, Write, codec, component_v3, keys};
 use jig_store_world::{
     World,
@@ -144,12 +145,24 @@ fn a_second_switch_is_refused() {
     assert!(matches!(events.as_slice(), [Event::OpenRefused { owner: SWITCH, why: OpenRefusal::Failed }]));
 }
 
-pub(crate) fn a_switch_cut_leaves_one_generation_whole(cut: u32) -> bool {
+pub(crate) fn switch_cuts(cuts: Vec<u32>) -> Vec<bool> {
     let mut world = pending();
     let original = patches::source(&mut world);
-    world.cut_at(cut);
+    let records = Records::story();
+    let sweep = crate::sweep::Sweep::start(&mut world, cuts, move |world, cut| {
+        a_switch_cut_leaves_one_generation_whole(world, &records, &original, cut)
+    });
+    world.switch().expect("uncut switch");
+    sweep.finish(&mut world)
+}
+
+fn a_switch_cut_leaves_one_generation_whole(
+    world: &mut World,
+    records: &Records,
+    original: &std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>,
+    cut: u32,
+) -> bool {
     // A cut after the final sync may also have delivered the switch's terminal.
-    world.switch();
     assert!(world.reached_cut(), "switch cut reached");
     assert_eq!(world.operation_count(), cut, "switch cut reached");
     world.crash(u64::from(cut));
@@ -159,9 +172,9 @@ pub(crate) fn a_switch_cut_leaves_one_generation_whole(cut: u32) -> bool {
     if world.pending {
         world.switch();
     }
-    patches::whole(&mut world);
-    patches::kept(&original, &patches::source(&mut world), &cut);
-    Records::story().check(&mut world, &cut);
+    patches::whole(world);
+    patches::kept(original, &patches::source(world), &cut);
+    records.check(world, &cut);
     old_active
 }
 
@@ -180,14 +193,15 @@ fn a_cut_at_the_switch_s_first_mutation_and_around_its_rename_leaves_one_generat
         .find(|(operation, change)| *operation > rename && *change == Change::Sync)
         .expect("switch sync")
         .0;
-    for (why, cut, expected_old) in [
+    let cuts = [
         ("switch first mutation", first_mutation, Some(true)),
         ("switch rename", rename, Some(true)),
         ("switch sync", sync, None),
         ("switch synced", sync + 1, Some(false)),
-    ] {
+    ];
+    let outcomes = switch_cuts(cuts.iter().map(|(_, cut, _)| *cut).collect());
+    for ((why, cut, expected_old), old_active) in cuts.into_iter().zip(outcomes) {
         eprintln!("{why}: {cut}");
-        let old_active = a_switch_cut_leaves_one_generation_whole(cut);
         if let Some(expected) = expected_old {
             assert_eq!(old_active, expected, "{why}: rename is durable after its directory sync");
         }
@@ -218,7 +232,7 @@ fn wires_row(mut world: World) -> Vec<(Vec<u8>, u32)> {
     );
     let Some(skein_kv::Event::Got { value: Some(bytes), .. }) = events.pop() else { panic!("wires row") };
     let row = component_v3::Wires::decode(&component_v3::CEILINGS, &mut Reader::new(&bytes)).expect("wires decode");
-    row.wires().iter().map(|wire| (wire.name().to_vec(), wire.version())).collect()
+    row.wires.iter().map(|wire| (wire.name.as_ref().to_vec(), wire.version)).collect()
 }
 
 #[test]

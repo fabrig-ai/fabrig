@@ -4,6 +4,7 @@ use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_domain_fleet as fleet;
 use jig_protocol_config::{self as config, Path};
+use jig_protocol_store::tasks_v13::Record;
 use skein_io::Addr;
 use skein_lib::{Decimal, Duration, List, Writer};
 use temper_engine_domain as domain;
@@ -37,11 +38,15 @@ pub fn stock(engine: &config::Engine, problems: &mut Problems) {
             &engine.limits,
         )
     {
-        problems.push(
-            Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
-            What::Half(crate::startup::EngineWhat::Stock(floor)),
-        );
+        stock_floor(floor, problems);
     }
+}
+/// Publish a floor measured while parsing the same defaults passed to jig.
+pub fn stock_floor(floor: crate::stock::Floor, problems: &mut Problems) {
+    problems.push(
+        Path::root().member(b"engine").member(b"limits").member(b"overrides").member(floor.limit),
+        What::Half(crate::startup::EngineWhat::Stock(floor)),
+    );
 }
 /// Named compatibility checks on the envelope runtime and store actually use.
 pub fn engine_envelope(root: &domain::Limits, problems: &mut Problems) {

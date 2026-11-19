@@ -88,7 +88,7 @@ mod wire {
         let root = family.roots.iter().find(|root| root.name == "Field").expect("Field generated decoder");
         let kept = read(family.text);
         let current = read(CURRENT);
-        let drawn_schema = skein_codegen::parse(family.text).expect("generated draw schema");
+        let drawn_schema = skein_codegen::values(family.text).schema.clone();
         let diff = diff::diff(&kept, &current, &[]).expect("same family");
         assert_eq!(diff.kind(), Some(Kind::NoneNeeded));
         for seed in 0..DRAWS {
@@ -128,7 +128,7 @@ mod wire {
             let diff = diff::diff(&kept, &current, &[]).expect("same family");
             assert_eq!(lines(&diff), ["none add Unused"], "{}", family.name);
             assert_ne!(kept.fingerprints().family(), current.fingerprints().family(), "{}", family.name);
-            let drawn_schema = skein_codegen::parse(family.text).expect("generated draw schema");
+            let drawn_schema = skein_codegen::values(family.text).schema.clone();
             for root in family.roots {
                 for seed in 0..DRAWS {
                     let bytes = generated::draw(&drawn_schema, root.name, &mut Rng::new(seed));

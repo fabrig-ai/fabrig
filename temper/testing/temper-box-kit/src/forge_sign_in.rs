@@ -1,29 +1,37 @@
 //! Configuration and commands shared by forge sign-in proofs.
 use super::{configuration, write_private};
-use serde_json::{Value, json};
 use std::{
-    fs,
     path::Path,
     process::{Command, Output},
 };
 
 /// Add the Google member and the matching confidential Forgejo client.
 pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
-    let path = directory.join("temper.json");
-    let mut value: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
-    value["engine"]["owners"] = json!([{"provider":3,"subject":"sam@example.com"}]);
-    value["engine"]["clients"]["provider"] = json!({
-        "key":"provider.key", "addresses":[3],
-        "clients":[{"id":"forgejo", "secret":"forgejo.secret",
-            "redirect_uri":format!("http://{forge}/user/oauth2/temper/callback")}]
+    let path = directory.join(temper_config_shell::FILE);
+    let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
+    file.owner = Some("sam@example.com".into());
+    file.openid = Some(temper_config_shell::OpenId {
+        key: Some("provider.key".into()),
+        addresses: Some(vec![3]),
+        clients: vec![temper_config_shell::OpenIdClient {
+            id: "forgejo".into(),
+            secret: Some("forgejo.secret".into()),
+            redirect: format!("http://{forge}/user/oauth2/temper/callback"),
+        }],
     });
-    value["application"]["clients"]["listener"] = json!({"socket":temper});
-    value["application"]["sign_in"] = json!({
-        "google":{"provider":3,"client":"temper-test","secret":"google.secret","endpoints":{
-            "issuer":format!("http://{google}"),"authorization":format!("http://{google}/auth"),
-            "token":format!("http://{google}/token"),"keys":format!("http://{google}/keys"),"transport":"plaintext"}},
-        "members":[{"address":"sam@example.com","login":"sam"}],
-        "forges":[{"forge":1,"client":"forgejo"}]
+    file.listen = Some(temper.parse().expect("temper listener"));
+    file.sign_in = Some(temper_config_shell::SignIn {
+        client: "temper-test".into(),
+        secret: "google.secret".into(),
+        members: vec![temper_config_shell::Member { address: "sam@example.com".into(), login: "sam".into() }],
+        forges: vec![temper_config_shell::ForgeSignIn { forge: 1, client: "forgejo".into() }],
+    });
+    file.test.google = Some(temper_config_shell::TestGoogle {
+        issuer: format!("http://{google}"),
+        authorization: format!("http://{google}/auth"),
+        token: format!("http://{google}/token"),
+        keys: format!("http://{google}/keys"),
+        transport: temper_config_shell::Transport::Plaintext,
     });
     if !directory.join("forge-1/setup").exists() {
         let address: std::net::SocketAddr = forge.parse().expect("fixture forge socket");
@@ -39,7 +47,7 @@ pub fn configure(directory: &Path, forge: &str, temper: &str, google: &str) {
         );
     }
     write_private(&directory.join("google.secret"), b"throwaway-google-secret");
-    write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    super::write_file(&path, &file, temper_config_shell::Shape::Standalone);
 }
 
 #[must_use]

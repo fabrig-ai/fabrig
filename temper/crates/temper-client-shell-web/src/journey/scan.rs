@@ -24,7 +24,9 @@ pub struct Found {
 pub fn page(html: &str, originals: &Originals) -> Option<What> {
     let mut decoded = Vec::with_capacity(html.len());
     let mut rest = html.as_bytes();
-    while let Some((&first, tail)) = rest.split_first() {
+    while let Some(at) = skein_lib::bytes::find(rest, b"&") {
+        decoded.extend_from_slice(&rest[..at]);
+        rest = &rest[at..];
         let escape = [
             (b"&lt;".as_slice(), b'<'),
             (b"&gt;".as_slice(), b'>'),
@@ -37,10 +39,11 @@ pub fn page(html: &str, originals: &Originals) -> Option<What> {
             decoded.push(byte);
             rest = &rest[text.len()..];
         } else {
-            decoded.push(first);
-            rest = tail;
+            decoded.push(b'&');
+            rest = &rest[1..];
         }
     }
+    decoded.extend_from_slice(rest);
     bytes(&decoded, originals)
 }
 /// Every field, a stream's records and plain text, and each run's joined text.

@@ -442,3 +442,42 @@ fn only_direct_items_take_their_lists_numbers_without_wrapping() {
         assert_eq!(print.text.as_slice(), expected);
     }
 }
+
+#[test]
+fn a_meter_prints_its_name_and_words_without_a_character_bar() {
+    let tree = fixtures::page(|b| {
+        b.open(Role::Meter);
+        b.name(b"Week");
+        b.fraction(skein_ui::Fraction { done: 2900, total: 10000 });
+        b.run(Run::Plain, b"29% used");
+        b.close();
+    });
+    let mut print = Print::new(&fixtures::LIMITS).expect("print fits");
+    render(&tree, b"ops", None, &mut print);
+    assert_eq!(print.text.as_slice(), b"== ops == \nWeek: 29% used\n");
+    assert!(print.numbers.is_empty());
+}
+
+#[test]
+fn shown_folded_prints_exactly_as_an_ordinary_first_child() {
+    let mut outputs = skein_lib::List::with_capacity(2);
+    for shown in [false, true] {
+        let mut b = skein_ui::Builder::new(&fixtures::LIMITS);
+        b.open(Role::Disclosure);
+        b.name(b"Account");
+        b.description(b"Ready");
+        b.open(Role::Paragraph);
+        if shown {
+            b.state(skein_ui::State::ShownFolded);
+        }
+        b.text(Run::Plain, b"Week");
+        b.close();
+        b.text(Run::Plain, b"Sources");
+        b.close();
+        let mut print = Print::new(&fixtures::LIMITS).expect("print fits");
+        render(&b.finish(), b"ops", None, &mut print);
+        outputs.push(skein_lib::bytes::copy_of(print.text.as_slice())).expect("two outputs fit");
+    }
+    assert_eq!(outputs.get(0).expect("ordinary output").as_ref(), b"== ops == \nAccount: Ready\n  Week\n  Sources\n");
+    assert_eq!(outputs.get(0), outputs.get(1));
+}

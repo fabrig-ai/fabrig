@@ -84,7 +84,7 @@ impl NativeClient {
         let mut shell = Shell::new(jig_client_shell_native::Settings {
             mapping: jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
                 .expect("temper mapping"),
-            engine: settings.engine,
+            engine: jig_client_shell_native::Engine::Plain(settings.engine),
             directory: settings.directory,
             limits: bounds.connections,
             io: bounds.io,

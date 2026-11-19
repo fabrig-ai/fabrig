@@ -60,6 +60,7 @@ pub fn lines(binary: &str, outcome: &Outcome, deployment: &[u8]) -> (String, u8)
                     | skein_io::Error::Unreachable
                     | skein_io::Error::TimedOut
                     | skein_io::Error::Reset
+                    | skein_io::Error::Reach(_)
                     | skein_io::Error::Other,
                 ) => "io refused the command",
             };

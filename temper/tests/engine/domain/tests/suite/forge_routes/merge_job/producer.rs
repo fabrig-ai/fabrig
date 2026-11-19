@@ -1,5 +1,6 @@
 //! A conflict waits for the producer's terminal (domain/forge/change/repairs.md).
 use super::*;
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 const BRANCH: &[u8] = b"temper/handed";
 
@@ -289,7 +290,7 @@ fn a_turn_preparation_waits_for_its_producers_final_head() {
         &mut skein_lib::Reader::new(&job.spec),
     )
     .expect("prepare spec");
-    let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+    let request: serde_json::Value = serde_json::from_slice(spec.request.as_ref()).expect("prepare request");
     assert_eq!(
         request["members"][0]["head"],
         String::from_utf8(forge_top::commit_text(&translate::commit(head)).into_vec()).expect("head text")

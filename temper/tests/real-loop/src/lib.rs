@@ -25,6 +25,7 @@ pub mod calls;
 mod cancel_kills;
 pub mod ending;
 mod patience;
+pub use patience::{Frozen, Judge as FrozenJudge};
 pub mod service;
 pub mod world;
 pub use skein_io::kernel::Exit;
@@ -269,7 +270,7 @@ pub fn run_forge(
 #[must_use]
 pub fn run_configured(
     recipe: impl FnOnce() -> llm::Recipe,
-    configure: fn(&mut serde_json::Value, &mut serde_json::Value),
+    configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value),
     steps: impl FnOnce() -> Vec<calls::Step>,
 ) -> Ran {
     let scratch = Scratch::new("real-configured");

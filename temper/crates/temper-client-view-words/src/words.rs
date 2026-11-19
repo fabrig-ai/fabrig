@@ -623,6 +623,25 @@ pub enum Word {
     LimitsStoreFill,
     LimitsProject,
     LimitsCut,
+    LimitsSettings,
+    LimitsStock,
+    LimitsSetting,
+    LimitsInForce,
+    LimitsNoSetting,
+    LimitsCount,
+    LimitsBytes,
+    LimitsMilliseconds,
+    LimitsAtOnce,
+    LimitsNextStart,
+    LimitsWaitingStart,
+    LimitsLeftOut,
+    LimitsHeldBytes,
+    LimitsReadRefused,
+    LimitsMore,
+    LimitsFirst,
+    NeedsLimit,
+    NeedsLimitRaise,
+    NeedsLimitOwner,
     LimitsCensusTitle,
     LimitsCensusLede,
     LimitsCensusRow,
@@ -1270,9 +1289,8 @@ pub enum Word {
     WelcomeForgeConnected,
     WelcomeForgeLine,
     WelcomeModelSigningIn,
-    ForgeConfigCode,
-    ForgeIdentityCode,
-    ForgeSetupCode,
+    ForgeAdminCommand,
+    ForgeBotCommand,
     ForgeConnecting,
     ForgesTitle,
     ForgeHere,
@@ -1282,10 +1300,9 @@ pub enum Word {
     ForgeOwnServerConnect,
     ForgeRunHere,
     ForgeCardConnected,
-    ForgeConfigLead,
-    ForgeConfigStep,
-    ForgeIdentityStep,
-    ForgeSetupStep,
+    ForgeElsewhereLead,
+    ForgeAdminStep,
+    ForgeBotStep,
     ForgeElsewhere,
     ForgeOther,
     ForgePlayground,
@@ -1326,11 +1343,6 @@ pub enum Word {
     ForgeTerminalDetails,
     ForgeTerminalNext,
     ForgeElsewhereDetails,
-    ForgeConfig,
-    ForgeIdentity,
-    ForgeSetupEntry,
-    ForgeBotOnly,
-    ForgeRestart,
     ForgeSettingUpTitle,
     ForgeFetch,
     ForgeMakingFirst,
@@ -2258,7 +2270,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2809;
+const PHRASES: u32 = 2829;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2285,10 +2297,10 @@ const PHRASES: u32 = 2809;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5217;
+const SEGMENTS: u32 = 5253;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66249;
-const ALL: [Word; 2084] = [
+const ENGLISH_BYTES: u32 = 65985;
+const ALL: [Word; 2096] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -2856,6 +2868,25 @@ const ALL: [Word; 2084] = [
     Word::LimitsStoreFill,
     Word::LimitsProject,
     Word::LimitsCut,
+    Word::LimitsSettings,
+    Word::LimitsStock,
+    Word::LimitsSetting,
+    Word::LimitsInForce,
+    Word::LimitsNoSetting,
+    Word::LimitsCount,
+    Word::LimitsBytes,
+    Word::LimitsMilliseconds,
+    Word::LimitsAtOnce,
+    Word::LimitsNextStart,
+    Word::LimitsWaitingStart,
+    Word::LimitsLeftOut,
+    Word::LimitsHeldBytes,
+    Word::LimitsReadRefused,
+    Word::LimitsMore,
+    Word::LimitsFirst,
+    Word::NeedsLimit,
+    Word::NeedsLimitRaise,
+    Word::NeedsLimitOwner,
     Word::LimitsCensusTitle,
     Word::LimitsCensusLede,
     Word::LimitsCensusRow,
@@ -3488,9 +3519,8 @@ const ALL: [Word; 2084] = [
     Word::WelcomeForgeConnected,
     Word::WelcomeForgeLine,
     Word::WelcomeModelSigningIn,
-    Word::ForgeConfigCode,
-    Word::ForgeIdentityCode,
-    Word::ForgeSetupCode,
+    Word::ForgeAdminCommand,
+    Word::ForgeBotCommand,
     Word::ForgeConnecting,
     Word::ForgesTitle,
     Word::ForgeHere,
@@ -3500,10 +3530,9 @@ const ALL: [Word; 2084] = [
     Word::ForgeOwnServerConnect,
     Word::ForgeRunHere,
     Word::ForgeCardConnected,
-    Word::ForgeConfigLead,
-    Word::ForgeConfigStep,
-    Word::ForgeIdentityStep,
-    Word::ForgeSetupStep,
+    Word::ForgeElsewhereLead,
+    Word::ForgeAdminStep,
+    Word::ForgeBotStep,
     Word::ForgeElsewhere,
     Word::ForgeOther,
     Word::ForgePlayground,
@@ -3543,11 +3572,6 @@ const ALL: [Word; 2084] = [
     Word::ForgeTerminalDetails,
     Word::ForgeTerminalNext,
     Word::ForgeElsewhereDetails,
-    Word::ForgeConfig,
-    Word::ForgeIdentity,
-    Word::ForgeSetupEntry,
-    Word::ForgeBotOnly,
-    Word::ForgeRestart,
     Word::ForgeSettingUpTitle,
     Word::ForgeFetch,
     Word::ForgeMakingFirst,
@@ -4936,6 +4960,25 @@ impl Word {
             Self::LimitsStoreFill => 4786,
             Self::LimitsProject => 4787,
             Self::LimitsCut => 4788,
+            Self::LimitsSettings => 9859,
+            Self::LimitsStock => 9860,
+            Self::LimitsSetting => 9861,
+            Self::LimitsInForce => 9862,
+            Self::LimitsNoSetting => 9863,
+            Self::LimitsCount => 9864,
+            Self::LimitsBytes => 9865,
+            Self::LimitsMilliseconds => 9866,
+            Self::LimitsAtOnce => 9867,
+            Self::LimitsNextStart => 9868,
+            Self::LimitsWaitingStart => 9869,
+            Self::LimitsLeftOut => 9870,
+            Self::LimitsHeldBytes => 9871,
+            Self::LimitsReadRefused => 9872,
+            Self::LimitsMore => 9873,
+            Self::LimitsFirst => 9874,
+            Self::NeedsLimit => 9875,
+            Self::NeedsLimitRaise => 9876,
+            Self::NeedsLimitOwner => 9877,
             Self::LimitsCensusTitle => 9238,
             Self::LimitsCensusLede => 9239,
             Self::LimitsCensusRow => 9240,
@@ -5618,9 +5661,8 @@ impl Word {
             Self::WelcomeForgeConnected => 1708,
             Self::WelcomeForgeLine => 1835,
             Self::WelcomeModelSigningIn => 1832,
-            Self::ForgeConfigCode => 1711,
-            Self::ForgeIdentityCode => 1712,
-            Self::ForgeSetupCode => 1713,
+            Self::ForgeAdminCommand => 1711,
+            Self::ForgeBotCommand => 1712,
             Self::ForgeConnecting => 1717,
             Self::ForgesTitle => 1719,
             Self::ForgeHere => 1720,
@@ -5630,10 +5672,9 @@ impl Word {
             Self::ForgeOwnServerConnect => 3921,
             Self::ForgeRunHere => 3922,
             Self::ForgeCardConnected => 3923,
-            Self::ForgeConfigLead => 3924,
-            Self::ForgeConfigStep => 3925,
-            Self::ForgeIdentityStep => 3926,
-            Self::ForgeSetupStep => 3927,
+            Self::ForgeElsewhereLead => 3924,
+            Self::ForgeAdminStep => 3925,
+            Self::ForgeBotStep => 3926,
             Self::ForgeElsewhere => 1722,
             Self::ForgeOther => 1723,
             Self::ForgePlayground => 1724,
@@ -5674,11 +5715,6 @@ impl Word {
             Self::ForgeTerminalDetails => 1749,
             Self::ForgeTerminalNext => 1843,
             Self::ForgeElsewhereDetails => 1750,
-            Self::ForgeConfig => 1751,
-            Self::ForgeIdentity => 1752,
-            Self::ForgeSetupEntry => 1753,
-            Self::ForgeBotOnly => 1754,
-            Self::ForgeRestart => 1755,
             Self::ForgeSettingUpTitle => 1757,
             Self::ForgeFetch => 1758,
             Self::ForgeMakingFirst => 1847,
@@ -6513,15 +6549,23 @@ pub enum Shell {
     Browser,
 }
 #[derive(Clone, Debug)]
+#[expect(
+    clippy::partial_pub_fields,
+    reason = "the vocabulary is read-only so its capacities can be checked once; shell facts remain public"
+)]
 pub struct Words {
     /// The shell's minutes east of universal time (temper/docs/design/client/view.md, 6).
     pub zone_minutes: i32,
     pub shell: Shell,
-    pub book: Phrasebook,
+    pub(crate) book: Phrasebook,
     pub language: u16,
     pub connector: u16,
     /// The checked joined bound of ordinary Name holes.
     pub name_bytes: u32,
+    capacity_connector: u16,
+    ordinary: Option<u32>,
+    classes: Option<u32>,
+    follows: Option<u32>,
 }
 // A refusal joins only this closed vocabulary, bounded numbers and a calendar
 // clock: 256 bytes holds its longest three-sentence explanation whole.
@@ -6554,6 +6598,13 @@ const FOLLOW_WORDS: [Word; 12] = [
 ];
 #[expect(clippy::too_many_lines, reason = "one table prices each phrase-specific input bound")]
 fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32, Invalid> {
+    // Limit names and reasons have wire bounds independent of the client's ordinary text projection.
+    if word == Word::LimitsSetting && kind == HoleKind::Name {
+        return Ok(if last { 120 } else { 13 });
+    }
+    if (word == Word::NeedsLimit || word == Word::NeedsLimitRaise) && kind == HoleKind::Name {
+        return Ok(64);
+    }
     // Sixteen area names and Anything else, joined in a role's card head (team.md, 1).
     if word == Word::TeamOwnsSince {
         return Ok(temper_client_protocol_wire::v1::CEILINGS
@@ -6952,11 +7003,31 @@ impl Words {
                 .max(temper_client_domain::forge::change::ADDRESS_BYTES),
         };
         let book = Phrasebook::load(shapes.into_boxed(), Box::new([language]), &limits)?;
-        Ok(Words { zone_minutes: 0, shell, book, language: 0, connector, name_bytes: joined })
+        let mut words = Words {
+            zone_minutes: 0,
+            shell,
+            book,
+            language: 0,
+            connector,
+            name_bytes: joined,
+            capacity_connector: connector,
+            ordinary: None,
+            classes: None,
+            follows: None,
+        };
+        words.ordinary = words.walk_ordinary_capacity();
+        words.classes = words.walk_classes_capacity();
+        words.follows = words.walk_follows_capacity();
+        Ok(words)
+    }
+    /// The checked vocabulary; its capacities remain valid while words are reused.
+    #[must_use]
+    pub const fn book(&self) -> &Phrasebook {
+        &self.book
     }
     #[must_use]
     pub fn say(&self, word: Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
+        self.book().say(self.language, word.id(self.connector), holes).expect("checked forge phrase").text
     }
     #[must_use]
     pub fn deadline(&self, at: skein_lib::Wall) -> Box<[u8]> {
@@ -6965,7 +7036,7 @@ impl Words {
     }
     #[must_use]
     pub fn say_word(&self, word: jig_client::words::Word, holes: &[Hole]) -> Box<[u8]> {
-        self.book.say(self.language, word.id(), holes).expect("checked jig word").text
+        self.book().say(self.language, word.id(), holes).expect("checked jig word").text
     }
     /// A run's supplied placement time in absolute UTC.
     #[must_use]
@@ -6982,12 +7053,13 @@ impl Words {
         word: temper_client_domain::forge::words::ResourceWord,
         holes: &[Hole],
     ) {
-        let text = self.book.say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
+        let text =
+            self.book().say(self.language, word.id(self.connector), holes).expect("checked resource phrase").text;
         builder.text(Run::Plain, &text);
     }
     #[must_use]
     pub fn path_bytes(&self) -> u32 {
-        self.book
+        self.book()
             .capacity(temper_client_domain::forge::words::ResourceWord::Path.id(self.connector))
             .expect("checked path word")
     }
@@ -6997,21 +7069,30 @@ impl Words {
     }
     /// Grouped classes occur only in Settings and a proposal's items (client/pages/settings.md, 2).
     pub(crate) fn classes_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.classes } else { self.walk_classes_capacity() }
+    }
+    fn walk_classes_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in [Word::ClassesDecide, Word::ClassesAsk, Word::ClassesAskAway, Word::HowReachAwayBut] {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     /// Landing boxes are priced only on How work runs (client/pages/settings.md, 2).
     pub(crate) fn follows_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.follows } else { self.walk_follows_capacity() }
+    }
+    fn walk_follows_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in FOLLOW_WORDS {
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         Some(most)
     }
     pub(crate) fn ordinary_capacity(&self) -> Option<u32> {
+        if self.connector == self.capacity_connector { self.ordinary } else { self.walk_ordinary_capacity() }
+    }
+    fn walk_ordinary_capacity(&self) -> Option<u32> {
         let mut most = 0;
         for word in ALL {
             if FOLLOW_WORDS.contains(&word)
@@ -7019,10 +7100,10 @@ impl Words {
             {
                 continue;
             }
-            most = most.max(self.book.capacity(word.id(self.connector))?);
+            most = most.max(self.book().capacity(word.id(self.connector))?);
         }
         for word in jig_client::words::ALL {
-            most = most.max(self.book.capacity(word.id())?);
+            most = most.max(self.book().capacity(word.id())?);
         }
         Some(most.max(forge::capacity(self)?).max(accounts::capacity(self)?))
     }
@@ -7988,22 +8069,20 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::WelcomeForgeConnected => (&[b"", b" \xc2\xb7 connected as ", b""], &[Name, Name]),
         Word::WelcomeForgeLine => (&[b"", b" \xc2\xb7 ", b" \xc2\xb7 ", b""], &[Name, Name, Name]),
         Word::WelcomeModelSigningIn => (&[b"", b" \xc2\xb7 signing in\xe2\x80\xa6"], &[Name]),
-        Word::ForgeConfigCode => (&[b"{\n  \"number\": ", b",\n  \"kind\": \"forgejo\",\n  \"api\": {\"host\": \"forge.example\", \"port\": 443},\n  \"transport\": {\"tls\": {\n    \"server_name\": \"forge.example\", \"trust\": null\n  }},\n  \"git\": \"https://forge.example\",\n  \"web\": null,\n  \"log_origins\": null\n}"], &[Number]),
-        Word::ForgeIdentityCode => (&[b"{\n  \"number\": ", b", \"forge\": ", b", \"login\": null,\n  \"author\": {\n    \"name\": \"temper\",\n    \"email\": \"temper-bot@forge.example\"\n  }\n}"], &[Number, Number]),
-        Word::ForgeSetupCode => (&[b"{\n  \"forge\": ", b",\n  \"bot\": {\"login\": \"temper\", \"email\": \"temper-bot@forge.example\"},\n  \"mode\": \"managed\"\n}"], &[Number]),
+        Word::ForgeAdminCommand => (&[b"temper ctl DIR forge connect forgejo-admin FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY"], &[]),
+        Word::ForgeBotCommand => (&[b"temper ctl DIR forge connect forgejo FILE --api forge.example:443 --tls forge.example --git https://forge.example --key KEY"], &[]),
         Word::ForgeConnecting => (&[b"Connecting"], &[]),
         Word::ForgesTitle => (&[b"Forges"], &[]),
         Word::ForgeHere => (&[b"Forgejo on this machine"], &[]),
         Word::ForgeGitHub => (&[b"GitHub"], &[]),
         Word::ForgeOwnServer => (&[b"Or a server of your own"], &[]),
-        Word::ForgeOwnServerDescription => (&[b"temper connects as its admin, or with its bot\xe2\x80\x99s tokens. Needs a change to temper\xe2\x80\x99s configuration and a restart."], &[]),
+        Word::ForgeOwnServerDescription => (&[b"temper connects as its admin, or with its bot's tokens. No restart."], &[]),
         Word::ForgeOwnServerConnect => (&[b"Connect your Forgejo"], &[]),
         Word::ForgeRunHere => (&[b"Run Forgejo here"], &[]),
         Word::ForgeCardConnected => (&[b"\xe2\x9c\x93 Connected"], &[]),
-        Word::ForgeConfigLead => (&[b"In ~/.config/temper/temper.json, with your host and unused numbers:"], &[]),
-        Word::ForgeConfigStep => (&[b"Add it to application.forges:"], &[]),
-        Word::ForgeIdentityStep => (&[b"Add its git identity to application.identities:"], &[]),
-        Word::ForgeSetupStep => (&[b"To connect as its admin, add it to application.setup. Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
+        Word::ForgeElsewhereLead => (&[b"Choose how temper connects. Replace DIR with your client directory, FILE with the private token file, KEY with a fresh request key, and forge.example with your host:"], &[]),
+        Word::ForgeAdminStep => (&[b"As its admin, use forge connect forgejo-admin; temper makes and keeps its bot:"], &[]),
+        Word::ForgeBotStep => (&[b"With its bot's tokens, use forge connect forgejo:"], &[]),
         Word::ForgeElsewhere => (&[b"A Forgejo elsewhere"], &[]),
         Word::ForgeOther => (&[b"Forgejo"], &[]),
         Word::ForgePlayground => (&[b"Playground forge"], &[]),
@@ -8013,7 +8092,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeHereTime => (&[b"Here \xc2\xb7 about a minute"], &[]),
         Word::ForgeCommandsTime => (&[b"Needs four commands and a restart"], &[]),
         Word::ForgeElsewhereDescription => (&[b"Your own Forgejo server. temper connects as its admin, or with its bot\xe2\x80\x99s tokens."], &[]),
-        Word::ForgeElsewhereTime => (&[b"Needs a change to temper\xe2\x80\x99s configuration and a restart"], &[]),
+        Word::ForgeElsewhereTime => (&[b"Connect with a command; no restart"], &[]),
         Word::ForgeShowHow => (&[b"Show how"], &[]),
         Word::ForgeAll => (&[b"Other forges"], &[]),
         Word::ForgeConnectGitHub => (&[b"Connect GitHub"], &[]),
@@ -8043,12 +8122,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeTerminal => (&[b"Set it up under temper box"], &[]),
         Word::ForgeTerminalNext => (&[b"Start temper with temper box to set one up here."], &[]),
         Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself."], &[]),
-        Word::ForgeElsewhereDetails => (&[b"Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot\xe2\x80\x99s tokens."], &[]),
-        Word::ForgeConfig => (&[b"For a forge at forge.example, add this entry to application.forges in ~/.config/temper/temper.json. Replace the example host with yours; use an unused forge number."], &[]),
-        Word::ForgeIdentity => (&[b"Add its git identity to application.identities, using an unused identity number and the same forge number:"], &[]),
-        Word::ForgeSetupEntry => (&[b"To connect as its admin, add its setup entry to application.setup:"], &[]),
-        Word::ForgeBotOnly => (&[b"Without it, temper takes its bot\xe2\x80\x99s tokens only."], &[]),
-        Word::ForgeRestart => (&[b"Restart temper box, then connect it from this page."], &[]),
+        Word::ForgeElsewhereDetails => (&[b"Connect as its admin and temper makes and keeps its bot, or connect with its bot's tokens. No configuration edit or restart."], &[]),
         Word::ForgeSettingUpTitle => (&[b"Setting up Forgejo on this machine"], &[]),
         Word::ForgeFetched => (&[b"Fetched Forgejo"], &[]),
         Word::ForgeConnectingAsTemper => (&[b"Connecting as temper"], &[]),
@@ -8623,7 +8697,7 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::MembersLede => (&[b"Each project\xe2\x80\x99s people and services, and the role each holds there. Who owns an area of a project is its Team\xe2\x80\x99s."], &[]),
         Word::LimitsTab => (&[b"Limits"], &[]),
         Word::LimitsHeading => (&[b"What this deployment holds."], &[]),
-        Word::LimitsLede => (&[b"The capacities temper\xe2\x80\x99s engine runs within, as it reports them. Its owner sets them in its configuration."], &[]),
+        Word::LimitsLede => (&[b"Every limit, its stock and setting, and the figure in force. An owner can change settings; each row says when a raise applies."], &[]),
         Word::MembersDeployment => (&[b"The deployment"], &[]),
         Word::MembersOwner => (&[b"You are its owner."], &[]),
         Word::MembersNoRole => (&[b"You hold no role in it."], &[]),
@@ -8656,6 +8730,25 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::LimitsStoreFill => (&[b"", b" of ", b""], &[Name, Name]),
         Word::LimitsProject => (&[b"Project ", b""], &[Number]),
         Word::LimitsCut => (&[b"Some capacity facts were omitted."], &[]),
+        Word::LimitsSettings => (&[b"Limits by name"], &[]),
+        Word::LimitsStock => (&[b"Stock: ", b""], &[Number]),
+        Word::LimitsSetting => (&[b"", b" (", b": ", b")"], &[Number, Name, Name]),
+        Word::LimitsInForce => (&[b"In force: ", b""], &[Number]),
+        Word::LimitsNoSetting => (&[b"No override"], &[]),
+        Word::LimitsCount => (&[b"count"], &[]),
+        Word::LimitsBytes => (&[b"bytes"], &[]),
+        Word::LimitsMilliseconds => (&[b"milliseconds"], &[]),
+        Word::LimitsAtOnce => (&[b"Raises apply at once"], &[]),
+        Word::LimitsNextStart => (&[b"Raises apply at the next start"], &[]),
+        Word::LimitsWaitingStart => (&[b"Waits for the next start"], &[]),
+        Word::LimitsLeftOut => (&[b"Left out: no limit of this release"], &[]),
+        Word::LimitsHeldBytes => (&[b"Root holds ", b" bytes"], &[Number]),
+        Word::LimitsReadRefused => (&[b"The limit settings could not be read."], &[]),
+        Word::LimitsMore => (&[b"Next limits"], &[]),
+        Word::LimitsFirst => (&[b"First limits"], &[]),
+        Word::NeedsLimit => (&[b"", b" is ", b"; this needed ", b"."], &[Name, Number, Number]),
+        Word::NeedsLimitRaise => (&[b"Raise ", b" to ", b""], &[Name, Number]),
+        Word::NeedsLimitOwner => (&[b"A deployment owner can raise it. You can ask temper."], &[]),
         Word::LimitsCensusTitle => (&[b"What the store holds"], &[]),
         Word::LimitsCensusLede => (&[b"As of commit ", b"; writes since commit ", b", the store's last snapshot."], &[Number, Number]),
         Word::LimitsCensusRow => (&[b"", b" rows \xc2\xb7 ", b" \xc2\xb7 ", b" writes"], &[Name, Name, Name]),

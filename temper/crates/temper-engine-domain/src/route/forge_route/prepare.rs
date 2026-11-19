@@ -4,8 +4,8 @@ use super::{ForgeWorkspace, forge, workspace_repository};
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_json::writer::{Encoder, Limits};
-use skein_lib::{List, Writer};
-use temper_protocol_worker_wire::v1;
+use skein_lib::List;
+use temper_protocol_worker_wire::v1::{self, Record};
 
 pub(crate) use temper_engine_domain_forge_landing::Combine;
 
@@ -35,14 +35,11 @@ pub(crate) fn spec(request: &PrepareRequest, bound: u32) -> Option<Box<[u8]>> {
     let length = measure.measured().ok()?;
     let mut json = Encoder::write(length, &limits);
     encode(&mut json, request);
-    let spec =
-        v1::JobSpec::new(&v1::CEILINGS, v1::JobSpecParts { command: Box::new([]), request: json.finish() }).ok()?;
-    if spec.measure() > bound {
+    let spec = v1::JobSpec { command: Box::new([]), request: json.finish() };
+    if spec.measure(&v1::CEILINGS).ok()? > bound {
         return None;
     }
-    let mut writer = Writer::new(usize::try_from(spec.measure()).ok()?);
-    spec.encode(&mut writer).ok()?;
-    Some(writer.finish())
+    spec.encode(&v1::CEILINGS).ok()
 }
 fn encode(json: &mut Encoder, request: &PrepareRequest) {
     json.object_start();
@@ -137,8 +134,8 @@ mod tests {
         };
         let bytes = spec(&request, 16_384).expect("bounded prepare");
         let decoded = v1::JobSpec::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("encoded spec");
-        assert_eq!(decoded.command(), b"");
-        assert_eq!(decoded.request(), br#"{"version":1,"repository":"repo","main":"0101010101010101010101010101010101010101010101010101010101010101","from":"0101010101010101010101010101010101010101010101010101010101010101","combine":"squash","train_upstream":"0303030303030303030303030303030303030303030303030303030303030303","members":[{"number":12,"branch":"temper/7/c12","prefix":"temper/7/l13","head":"0202020202020202020202020202020202020202020202020202020202020202","message":"Merge \"title\"\n\nLanded","squash":"title\n\nTemper-Change: 12"}],"upstreams":[],"gates":[]}"#);
+        assert_eq!(decoded.command.as_ref(), b"");
+        assert_eq!(decoded.request.as_ref(), br#"{"version":1,"repository":"repo","main":"0101010101010101010101010101010101010101010101010101010101010101","from":"0101010101010101010101010101010101010101010101010101010101010101","combine":"squash","train_upstream":"0303030303030303030303030303030303030303030303030303030303030303","members":[{"number":12,"branch":"temper/7/c12","prefix":"temper/7/l13","head":"0202020202020202020202020202020202020202020202020202020202020202","message":"Merge \"title\"\n\nLanded","squash":"title\n\nTemper-Change: 12"}],"upstreams":[],"gates":[]}"#);
         assert!(spec(&request, u32::try_from(bytes.len()).expect("length") - 1).is_none());
     }
 }

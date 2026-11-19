@@ -10,6 +10,9 @@ mod refusal;
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     #[expect(clippy::match_same_arms, reason = "each request's arm is filled by its own task")]
     match request {
+        root::Request::LimitSettingsCommitted { revision, jig, temper } => {
+            engine.limits_committed(revision, jig, temper);
+        }
         root::Request::MakingCopied { key } => crate::setup::making::copied(engine, &key),
         root::Request::PlaygroundActs { .. } => {}
         root::Request::ResetAct { .. } => {}
@@ -239,11 +242,26 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                     }
                 }
                 root::PartyRequest::Deliver(root::Delivery::ForgeRead { reply, answer }) => {
-                    match crate::family::forge_read(
-                        answer,
-                        &engine.clients.program_environment,
-                        &temper_client_protocol_wire::v1::CEILINGS,
-                    ) {
+                    let bounds = &temper_client_protocol_wire::v1::CEILINGS;
+                    let record = match answer {
+                        root::ForgeReadAnswer::Limits { after, held } => match engine.limits_in_force() {
+                            Some(state) => {
+                                crate::limit_settings::reading::answer(state, after.as_deref(), held, bounds)
+                            }
+                            None => None,
+                        },
+                        other @ (root::ForgeReadAnswer::LimitHolds { .. }
+                        | root::ForgeReadAnswer::Milestone(_)
+                        | root::ForgeReadAnswer::History(_)
+                        | root::ForgeReadAnswer::Finding(_)
+                        | root::ForgeReadAnswer::View(_)
+                        | root::ForgeReadAnswer::ProgramEnvironment
+                        | root::ForgeReadAnswer::Setting { .. }
+                        | root::ForgeReadAnswer::ProposalItems { .. }) => {
+                            crate::family::forge_read(other, &engine.clients.program_environment, bounds)
+                        }
+                    };
+                    match record {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(
                             jig_protocol_engine_clients::FromApplication::Read {
                                 reply,
@@ -299,6 +317,7 @@ fn store(engine: &mut Engine, request: root::StoreRequest) {
 fn worker(engine: &mut Engine, request: root::WorkerRequest) {
     match request {
         root::WorkerRequest::Settings(workers) => {
+            engine.workers.local(&workers);
             engine.workers.down(
                 engine.env.now,
                 jig_protocol_engine_workers::Event::Workers(workers),
@@ -369,6 +388,7 @@ fn worker_delivery(engine: &mut Engine, delivery: root::Delivery) {
         root::Delivery::Push(_)
         | root::Delivery::Providers(..)
         | root::Delivery::WorkerFigures { .. }
+        | root::Delivery::LimitSettingsCommitted { .. }
         | root::Delivery::PlaygroundNote { .. }
         | root::Delivery::Procedure { .. }
         | root::Delivery::Application { .. }
@@ -437,7 +457,7 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
             engine.events.push(root::Event::Worker(root::WorkerInput::Asked { channel, run, attempt, number, answer }));
         }
         root::HostRequest::Decode { to, task, attempt, call } => {
-            engine.events.push(crate::tools::decode_configured(
+            let event = crate::tools::decode_configured(
                 to,
                 task,
                 attempt,
@@ -446,10 +466,12 @@ fn host_request(engine: &mut Engine, request: root::HostRequest) {
                 engine.domain.models(),
                 &engine.domain.catalogue(),
                 &engine.domain.repository_identities(task),
-            ));
+            );
+            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_deref(), event));
         }
         root::HostRequest::SettingsNote { to, call, body } => {
-            engine.events.push(crate::tools::settings_note(to, *call, &body, &engine.domain.catalogue()));
+            let event = crate::tools::settings_note(to, *call, &body, &engine.domain.catalogue());
+            engine.events.push(crate::limit_settings::admission::host(engine.limits_in_force.as_deref(), event));
         }
         root::HostRequest::Dropped { .. } => {}
     }

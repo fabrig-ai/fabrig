@@ -9,14 +9,11 @@ fn every_shared_story_survives_every_commit_and_seeded_random_cuts() {
     let mut random = skein_lib::Rng::new(31);
     for scenario in ALL {
         let seed = random.below(1000);
-        let cuts = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
-        let reached = std::rc::Rc::clone(&cuts);
-        let baseline = replay::every_cut(scenario, seed, move |cut, world| {
+        let baseline = replay::fresh_cuts(scenario, None, seed, None, move |cut, world| {
             assert!(world.outcome().crashes.contains(&cut), "{scenario:?}, cut {cut}, seed {seed}");
-            reached.borrow_mut().push(cut);
         })
         .unwrap_or_else(|error| panic!("{scenario:?}, seed {seed}: {error:?}"));
-        assert_eq!(*cuts.borrow(), (1..=baseline.commits).collect::<Vec<_>>(), "every original numbered cut");
+        assert_eq!(baseline.forked, (1..=baseline.commits).collect::<Vec<_>>(), "every original numbered cut");
         let cut = Cut::Random { seed };
         run::<Testing>(scenario, cut, seed)
             .unwrap_or_else(|error| panic!("{scenario:?}, {cut:?}: {error:?}"))

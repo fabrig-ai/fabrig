@@ -6,7 +6,7 @@ use skein_json::writer::Encoder;
 use skein_ui::phrases::Phrasebook;
 #[expect(
     clippy::too_many_lines,
-    reason = "read-set dispatch keeps provider settings and the other selected documents together"
+    reason = "read-set dispatch keeps each selected document and its joined limit values together"
 )]
 pub(super) fn text(
     reading: &Reading,
@@ -32,7 +32,10 @@ pub(super) fn text(
         super::super::activity::chat(thread, call, limits, out);
         return;
     }
-    for (_, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
+    for (&local, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
+        if call.tool == crate::jig::rows::SETTINGS_AT && (local == 2 || local == 3) {
+            continue;
+        }
         match page {
             Readout::Jig(c::ReadResult::Value(c::ReadValue::TaskText(page))) => {
                 super::super::task_source::text(page, limits, out);
@@ -54,6 +57,9 @@ pub(super) fn text(
                 | c::ReadValue::Revisions(_)),
             )) => {
                 super::settings::text(value, call, limits, vocabulary, out);
+                if call.tool == crate::jig::rows::SETTINGS_AT {
+                    super::settings::inventory_limits(reading, vocabulary, out);
+                }
                 super::settings::provider_marks(value, reading, out);
             }
 
@@ -158,6 +164,9 @@ pub(super) fn encode(reading: &Reading, me: Option<&c::Me>, limits: &Limits, out
         super::encode_person_task(person, out, budget);
     }
     for (local, page) in reading.pages.range(..crate::jig::runner::proposal::FIRST) {
+        if call.tool == crate::jig::rows::SETTINGS_AT && (*local == 2 || *local == 3) {
+            continue;
+        }
         if reading.called.call.tool == 1 && *local == 5 && !super::super::lists::updates_fit(reading, limits.rows) {
             continue;
         }

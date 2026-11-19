@@ -41,7 +41,7 @@ fn close(world: &mut World) {
     assert!(world.scratch_contents().is_empty(), "scratch emptied");
 }
 fn rehearsal_lines(events: &[Event], wires: Option<&[KeptWire]>) {
-    let Some(Event::Rehearsing { owner: OWNER, wires: found, openings }) = events.first() else {
+    let Some(Event::Rehearsing { owner: OWNER, wires: found, openings, .. }) = events.first() else {
         panic!("first line: {events:?}")
     };
     assert!(openings.is_empty());
@@ -216,22 +216,70 @@ pub(crate) enum WiresOutcome {
     Durable,
 }
 
-fn cut_wires(cut: u32) -> (World, u64) {
-    let (mut world, last) = wires_start();
-    world.trace_writes();
-    world.cut_at(cut);
-    let _ = world.mark();
-    assert!(world.reached_cut(), "wires cut {cut} reached");
-    assert_eq!(world.operation_count(), cut, "wires cut reached exactly");
-    world.crash(SEED);
-    (world, last)
-}
-
 /// Power loss at the wires' commit keeps going back open or closes it durably
 /// (protocol/store/opening.md 2, step 8; domain/testing.md 9).
-pub(crate) fn a_wires_cut_recovers(cut: u32) -> WiresOutcome {
-    let (mut world, last) = cut_wires(cut);
-    let before = world.contents();
+pub(crate) fn wires_cuts(cuts: &[u32]) -> Vec<WiresOutcome> {
+    use std::io::{Read, Seek, Write as _};
+    let (mut world, last) = wires_start();
+    let records = Records::story();
+    // An unlinked file conveys the complete crash image between sibling children.
+    // Neither the simulated disk nor a child shares its mutable state.
+    let mut image = tempfile::tempfile().expect("anonymous crash-image channel");
+    world.trace_writes();
+    let sweep = crate::sweep::Sweep::start_with(&mut world, cuts.to_vec(), move |world, cut| {
+        let goes_back = crate::sweep::fork_case(world, cut, |world| {
+            world.cut_at(cut);
+            assert!(world.reached_cut(), "wires cut {cut} reached");
+            assert_eq!(world.operation_count(), cut, "wires cut reached exactly");
+            world.crash(SEED);
+            image.rewind().expect("rewind crash image");
+            image.set_len(0).expect("empty crash image");
+            let before = world.contents();
+            image.write_all(&crash_image(&before)).expect("send complete crash image");
+            a_wires_cut_recovers(world, &records, &before, last, cut) == WiresOutcome::Lost
+        });
+        if goes_back {
+            image.rewind().expect("rewind received crash image");
+            let mut before = Vec::new();
+            image.read_to_end(&mut before).expect("receive complete crash image");
+            crate::sweep::fork_case(world, cut, |retry| {
+                retry.cut_at(cut);
+                assert_eq!(retry.operation_count(), cut, "forward wires cut reached exactly");
+                retry.crash(SEED);
+                let contents = retry.contents();
+                assert_eq!(crash_image(&contents), before, "cut {cut} replays the same crash");
+                let manifest = contents
+                    .get(b"generations/2/manifest".as_slice())
+                    .expect("switched manifest")
+                    .as_ref()
+                    .expect("manifest file");
+                let replay_last =
+                    jig_protocol_store::codec::component::Manifest::decode(manifest).expect("manifest decodes").store;
+                assert_eq!(replay_last, last);
+                assert_eq!(retry.active(), b"2\n");
+                let events = retry.request(retry.open_request());
+                assert!(
+                    matches!(events.as_slice(), [Event::Opened { last: found, pending: false, .. }] if *found == last),
+                    "no patch or site on the next start: cut {cut}: {events:?}"
+                );
+                retry.accept_recovery(last);
+                records.check_public(retry, &cut);
+                assert!(retry.wires(WIRES));
+                assert_eq!(retry.mark(), Some(last + 1), "retry commits its wires: cut {cut}");
+                true
+            });
+        }
+        goes_back
+    });
+    assert_eq!(world.mark(), Some(last + 1));
+    sweep
+        .finish(&mut world)
+        .into_iter()
+        .map(|goes_back| if goes_back { WiresOutcome::Lost } else { WiresOutcome::Durable })
+        .collect()
+}
+
+fn a_wires_cut_recovers(world: &mut World, records: &Records, before: &Contents, last: u64, cut: u32) -> WiresOutcome {
     let events = world.back();
     match events.as_slice() {
         [Event::Back { owner: OWNER, to: 1 }] => {
@@ -239,28 +287,13 @@ pub(crate) fn a_wires_cut_recovers(cut: u32) -> WiresOutcome {
             world.crash(SEED);
             world.owner_sets(BASE);
             assert_eq!(world.open(), Some(1), "previous generation opens: cut {cut}");
-            Records::story().check_public(&mut world, &cut);
+            records.check_public(world, &cut);
 
-            // Back removes the switched generation on the next start. Replay the
-            // same crash to check the forward start without consuming that copy.
-            let (mut retry, replay_last) = cut_wires(cut);
-            assert_eq!(replay_last, last);
-            assert_eq!(retry.contents(), before, "cut {cut} replays the same crash");
-            assert_eq!(retry.active(), b"2\n");
-            let events = retry.request(retry.open_request());
-            assert!(
-                matches!(events.as_slice(), [Event::Opened { last: found, pending: false, .. }] if *found == last),
-                "no patch or site on the next start: cut {cut}: {events:?}"
-            );
-            retry.accept_recovery(last);
-            Records::story().check_public(&mut retry, &cut);
-            assert!(retry.wires(WIRES));
-            assert_eq!(retry.mark(), Some(last + 1), "retry commits its wires: cut {cut}");
             WiresOutcome::Lost
         }
         [Event::BackRefused { owner: OWNER, why: BackRefusal::Committed { manifest, last: found } }] => {
             assert_eq!((*manifest, *found), (last, last + 1), "wires commit recovered: cut {cut}");
-            unchanged_except_recovery_empty_segments(&before, &world.contents(), Some(2));
+            unchanged_except_recovery_empty_segments(before, &world.contents(), Some(2));
             WiresOutcome::Durable
         }
         other => panic!("back after wires cut {cut}: {other:?}"),
@@ -275,8 +308,7 @@ fn cuts_at_the_wires_commit_keep_back_open_or_refuse_as_committed() {
     // A single write can be both the first write and the last operation before sync.
     let mut cuts = vec![first, sync - 1, sync, sync + 1];
     cuts.dedup();
-    for cut in cuts {
-        let outcome = a_wires_cut_recovers(cut);
+    for (cut, outcome) in cuts.iter().zip(wires_cuts(&cuts)) {
         eprintln!("wires cut {cut}: {outcome:?}");
         lost |= outcome == WiresOutcome::Lost;
         durable |= outcome == WiresOutcome::Durable;
@@ -328,6 +360,24 @@ fn back_before_own_commit_reopens_previous_records_and_transcript_lengths() {
 }
 
 type Contents = std::collections::BTreeMap<Vec<u8>, Option<Vec<u8>>>;
+
+// Lengths and the file/directory tag preserve every path and byte exactly in
+// the sibling oracle channel; no filesystem or production stored form uses it.
+fn crash_image(contents: &Contents) -> Vec<u8> {
+    let mut image = Vec::new();
+    for (path, bytes) in contents {
+        image.extend(path.len().to_ne_bytes());
+        image.extend(path);
+        if let Some(bytes) = bytes {
+            image.push(1);
+            image.extend(bytes.len().to_ne_bytes());
+            image.extend(bytes);
+        } else {
+            image.push(0);
+        }
+    }
+    image
+}
 
 /// Back only permits skein-kv's recovery to add empty files in the active main map.
 fn unchanged_except_recovery_empty_segments(before: &Contents, after: &Contents, recovery: Option<u64>) {

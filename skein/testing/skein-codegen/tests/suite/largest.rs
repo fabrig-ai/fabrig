@@ -2,7 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use skein_codegen::{largest, parse, roots};
+    use skein_codegen::{Schema, largest, largest_variants, parse, roots};
 
     #[test]
     fn roots_follow_wire_references_but_not_held_contents() {
@@ -94,6 +94,34 @@ mod tests {
         assert_eq!(largest(&schema, "Unit", &[1, 2]).expect("first unit variant"), b"\0");
     }
 
+    fn variant_schema() -> Schema {
+        parse(
+            "family f 7
+             record Short { text: text 9 }
+             record Long { items: list 9 u16 }
+             enum Choice { unit, short: Short, long: boxed Long }
+             versioned record Root { choice: Choice }",
+        )
+        .expect("unit, text and list variants")
+    }
+
+    #[test]
+    fn largest_variants_keeps_each_variant_in_schema_order() {
+        let schema = variant_schema();
+        assert_eq!(
+            largest_variants(&schema, "Choice", &[2, 3]).expect("each clamped variant"),
+            [b"\0".as_slice(), b"\x01\0\0\0\x02aa", b"\x02\0\0\0\x03\xff\xff\xff\xff\xff\xff",]
+        );
+    }
+
+    #[test]
+    fn largest_variants_returns_one_record_with_longest_nested_enum() {
+        let schema = variant_schema();
+        let variants = largest_variants(&schema, "Root", &[2, 3]).expect("one record");
+        assert_eq!(variants, [b"\0\x07\x02\0\0\0\x03\xff\xff\xff\xff\xff\xff"]);
+        assert_eq!(variants, [largest(&schema, "Root", &[2, 3]).expect("largest record")]);
+    }
+
     #[test]
     fn largest_versioned_records_include_the_schema_version() {
         let schema =
@@ -106,9 +134,17 @@ mod tests {
     fn largest_refuses_unknown_names_and_invalid_limits() {
         let schema = parse("family f 1 record Row { x: text 3 }").expect("one bound");
         assert!(largest(&schema, "Absent", &[1]).expect_err("unknown declaration").message.contains("Absent"));
+        assert!(largest_variants(&schema, "Absent", &[1]).expect_err("unknown declaration").message.contains("Absent"));
         for limits in [&[][..], &[1, 2][..]] {
             assert!(largest(&schema, "Row", limits).expect_err("limit count").message.contains("expected 1 limits"));
+            assert!(
+                largest_variants(&schema, "Row", limits)
+                    .expect_err("limit count")
+                    .message
+                    .contains("expected 1 limits")
+            );
         }
         assert!(largest(&schema, "Row", &[4]).expect_err("limit above ceiling").message.contains("ceiling 3"));
+        assert!(largest_variants(&schema, "Row", &[4]).expect_err("limit above ceiling").message.contains("ceiling 3"));
     }
 }

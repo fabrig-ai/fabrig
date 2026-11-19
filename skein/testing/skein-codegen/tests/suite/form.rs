@@ -16,6 +16,38 @@ mod tests {
     }
 
     #[test]
+    fn clean_mark_selects_each_family_form() {
+        let scratch = skein_scratch::Scratch::new("clean-lean-mark");
+        std::fs::write(scratch.path().join("lean"), "# choices\n\n sample # owned\n other\n\n").expect("clean mark");
+        for (family, form) in [("sample", Form::Lean), ("other", Form::Lean), ("sample-extra", Form::Sealed)] {
+            assert_eq!(form_of(scratch.path(), family).expect("clean family form"), form);
+        }
+    }
+
+    #[test]
+    fn conflicted_mark_is_refused_before_generation() {
+        let scratch = skein_scratch::Scratch::new("conflicted-lean-mark");
+        let first = scratch.path().join("sample-v1.schema");
+        let second = scratch.path().join("sample-v1-part1.schema");
+        std::fs::write(&first, "family sample 1\nrecord Row { value: u8 }\n").expect("schema");
+        std::fs::write(&second, "").expect("schema fragment");
+        let mark = scratch.path().join("lean");
+        let out = scratch.path().join("out");
+        for marker in ["<<<<<<<head", "|||||||base", "=======", ">>>>>>>incoming"] {
+            std::fs::write(&mark, format!("# choices\nsample\n{marker}\nother\n")).expect("conflicted mark");
+            for family in ["sample", "other", "absent"] {
+                let error = form_of(scratch.path(), family).expect_err("conflicted mark refused");
+                assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+                assert!(error.to_string().contains(&format!("{}:3:", mark.display())), "{error}");
+            }
+            let result = run(&first, &second, &out);
+            assert!(!result.status.success(), "a conflicted mark refuses the command");
+            assert!(String::from_utf8_lossy(&result.stderr).contains(&format!("{}:3:", mark.display())));
+            assert!(!out.exists(), "a conflicted mark writes nothing");
+        }
+    }
+
+    #[test]
     fn command_reads_first_schema_mark_or_writes_nothing() {
         let scratch = skein_scratch::Scratch::new("lean-mark");
         let first_dir = scratch.path().join("first");

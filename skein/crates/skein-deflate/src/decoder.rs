@@ -80,6 +80,11 @@ const DISTANCES: [(u16, u8); 30] = [
 /// widths are sent together, and a width code has 19.
 const SYMBOLS: usize = 320;
 
+/// Short canonical codes are resolved by their first nine bits. Longer or
+/// unused prefixes retain the canonical search (RFC 1951, 3.2.2).
+const PREFIX_BITS: u32 = 9;
+const PREFIXES: usize = 1 << PREFIX_BITS;
+
 /// Inflates exactly one raw DEFLATE stream, clearing `out` first.
 /// Its fixed capacity is the output limit; no trailing bytes are accepted.
 #[must_use]
@@ -166,7 +171,7 @@ impl Input {
 enum Code {
     FixedLiterals,
     FixedDistances,
-    Canonical { counts: [u16; 16], symbols: [u16; SYMBOLS], shortest: u8 },
+    Canonical { counts: [u16; 16], symbols: [u16; SYMBOLS], shortest: u8, prefixes: [u16; PREFIXES] },
 }
 
 /// The code whose symbols have these widths, 0 for a symbol unused; an
@@ -203,7 +208,25 @@ fn code(widths: &[u8]) -> Option<Code> {
             *offset = offset.checked_add(1)?;
         }
     }
-    Some(Code::Canonical { counts, symbols, shortest })
+    let mut prefixes = [0_u16; PREFIXES];
+    let mut first = 0_usize;
+    let mut index = 0_usize;
+    for (width, count) in counts.iter().enumerate().skip(1) {
+        let count = usize::from(*count);
+        if width <= usize::try_from(PREFIX_BITS).ok()? {
+            let shift = PREFIX_BITS.checked_sub(u32::try_from(width).ok()?)?;
+            for offset in 0..count {
+                let symbol = *symbols.get(index.checked_add(offset)?)?;
+                let entry = symbol | u16::try_from(width).ok()?.checked_shl(PREFIX_BITS)?;
+                let start = first.checked_add(offset)?.checked_shl(shift)?;
+                let end = start.checked_add(1_usize.checked_shl(shift)?)?;
+                prefixes.get_mut(start..end)?.fill(entry);
+            }
+        }
+        first = first.checked_add(count)?.checked_mul(2)?;
+        index = index.checked_add(count)?;
+    }
+    Some(Code::Canonical { counts, symbols, shortest, prefixes })
 }
 
 impl Code {
@@ -219,7 +242,15 @@ impl Code {
                 }
                 (symbol, 5)
             }
-            Self::Canonical { counts, symbols, shortest } => canonical(bits, counts, symbols, *shortest)?,
+            Self::Canonical { counts, symbols, shortest, prefixes } => {
+                let prefix = usize::try_from(bits >> 23_u32).ok()?;
+                let entry = *prefixes.get(prefix)?;
+                if entry == 0 {
+                    canonical(bits, counts, symbols, *shortest)?
+                } else {
+                    (entry & 0x1ff, u32::from(entry >> PREFIX_BITS))
+                }
+            }
         };
         if width > available {
             return None;
@@ -327,6 +358,28 @@ fn header(input: &mut Input, data: &[u8]) -> Option<(Code, Code)> {
     Some((code(all.get(..literals)?)?, code(all.get(literals..total)?)?))
 }
 
+/// Copies a back-reference in growing, non-overlapping slices: an overlap
+/// repeats what has just been copied. A full list retains the inflated prefix.
+fn repeat(out: &mut List<u8>, distance: u32, length: u32) -> Option<()> {
+    let from = out.len().checked_sub(distance)?;
+    let fits = length.min(out.room());
+    let end = out.len().checked_add(fits)?;
+    // Each copy at least doubles the source available for the next, bounded
+    // by the match's length (at most 258 in RFC 1951).
+    for _ in 0..length {
+        let left = end.checked_sub(out.len())?;
+        if left == 0 {
+            break;
+        }
+        let count = left.min(out.len().checked_sub(from)?);
+        if count == 0 {
+            return None;
+        }
+        out.extend_from_within(from..from.checked_add(count)?)?;
+    }
+    (fits == length).then_some(())
+}
+
 /// Reads a block's symbols in these codes to its end.
 fn codes(input: &mut Input, data: &[u8], out: &mut List<u8>, literals: &Code, distances: &Code) -> Option<()> {
     // Each symbol takes a bit at least, so the member's bits bound them.
@@ -341,12 +394,7 @@ fn codes(input: &mut Input, data: &[u8], out: &mut List<u8>, literals: &Code, di
                 let length = u32::from(base).checked_add(input.bits(data, u32::from(extra))?)?;
                 let (base, extra) = *DISTANCES.get(usize::from(distances.decode(input, data)?))?;
                 let distance = u32::from(base).checked_add(input.bits(data, u32::from(extra))?)?;
-                let mut from = out.len().checked_sub(distance)?;
-                for _byte in 0..length {
-                    let byte = *out.get(from)?;
-                    out.push(byte).ok()?;
-                    from = from.checked_add(1)?;
-                }
+                repeat(out, distance, length)?;
             }
         }
     }

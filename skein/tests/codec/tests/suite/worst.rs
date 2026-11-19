@@ -4,6 +4,7 @@
 mod tests {
     use skein_codec_tests::{scalars, v1};
     use skein_lib::List;
+    use v1::Record;
 
     #[test]
     fn sample_wire_and_heap_ceilings_include_nested_lists() {

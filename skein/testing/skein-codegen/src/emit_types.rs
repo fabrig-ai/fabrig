@@ -186,15 +186,24 @@ fn emit_record(schema: &Context<'_>, record: &Record, out: &mut String) {
     out.push_str(&format!("    /// Moves the fields out without copying.\n    #[must_use]\n    pub fn into_parts(self) -> {}Parts {{ {}Parts {{ {moved} }} }}\n\n", record.name, record.name));
     let mut helpers = String::new();
     if has_bounds {
-        let mut method =
-            Method::new("check", "    fn check(&self, limits: &Limits) -> Result<(), Problem> {\n", "        Ok(())\n");
-        for field in &record.fields {
-            emit_check(schema, record, field, &mut method.body);
-        }
-        emit_functions::render(record, &method, out, &mut helpers);
+        emit_functions::render(record, &check_method(schema, record), out, &mut helpers);
     }
     out.push_str("}\n\n");
     out.push_str(&helpers);
+}
+
+fn check_method(schema: &Context<'_>, record: &Record) -> Method {
+    let mut method =
+        Method::new("check", "    fn check(&self, limits: &Limits) -> Result<(), Problem> {\n", "        Ok(())\n");
+    for field in &record.fields {
+        emit_check(schema, record, field, &mut method.body);
+    }
+    method
+}
+
+/// Tests the bound-check fragment with the renderer's own splitting rule.
+pub(crate) fn splits_record(schema: &Context<'_>, record: &Record) -> bool {
+    schema.has_bounds(&Type::Named(record.name.clone())) && check_method(schema, record).splits()
 }
 
 fn emit_enum(schema: &Context<'_>, enumeration: &Enumeration, out: &mut String) {

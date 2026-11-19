@@ -9,6 +9,7 @@ pub fn start(
     environment: &[EnvironmentEntry],
 ) -> Result<u8, Refused> {
     temper_engine_shell::forge::start_with_reader(
+        temper_config_shell::Shape::Standalone,
         directories,
         arguments,
         ssl_cert_file,
@@ -24,8 +25,9 @@ pub fn run(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
 ) -> u8 {
-    temper_engine_shell::forge::run_with_reader(
+    temper_engine_shell::forge::run_with_shape_reader(
         binary,
+        temper_config_shell::Shape::Standalone,
         directories,
         arguments,
         ssl_cert_file,
@@ -34,5 +36,10 @@ pub fn run(
     )
 }
 pub fn command(binary: &str, command: Command) -> Result<u8, String> {
-    temper_engine_shell::forge::command_with_reader(binary, command, crate::setup::engine)
+    temper_engine_shell::forge::command_with_reader(
+        binary,
+        temper_config_shell::Shape::Standalone,
+        command,
+        crate::setup::engine,
+    )
 }

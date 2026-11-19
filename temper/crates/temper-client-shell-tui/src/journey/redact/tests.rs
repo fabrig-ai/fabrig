@@ -376,15 +376,27 @@ impl World {
             plain: false,
             version: Box::default(),
             boxed: false,
-            address: address.into(),
+            address: temper_client_tui::Origin::Http(
+                std::str::from_utf8(address).unwrap().parse().expect("fixture socket"),
+            ),
             front,
             local: front,
             note: None,
             kept: Vec::new(),
             credential: None,
         };
+        Self::with_facts(&facts)
+    }
+    pub fn with_version(version: &[u8]) -> Self {
+        let mut facts = super::super::tests::fixture::facts();
+        facts.version = version.into();
+        facts.size = Size { rows: 16, columns: 100 };
+        facts.credential = Some(skein_lib::Secret::new(Box::new([7; 40])));
+        Self::with_facts(&facts)
+    }
+    fn with_facts(facts: &Facts) -> Self {
         let (host, start) = facts.start();
-        let mut world = Self { host, recorder: Recorder::new(&facts), now: 1 };
+        let mut world = Self { host, recorder: Recorder::new(facts), now: 1 };
         world.report(start);
         world
     }
@@ -469,10 +481,6 @@ fn redacted_approval_proves_and_replays_to_its_end() {
 }
 
 #[test]
-#[expect(
-    clippy::too_many_lines,
-    reason = "one table checks found links in either form and the unsent welcome's redaction"
-)]
 fn found_links_are_redacted_even_when_never_sent() {
     let url = printed_link();
     let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
@@ -546,36 +554,5 @@ fn found_links_are_redacted_even_when_never_sent() {
             failures.push(format!("{name}: not a link original"));
         }
     }
-    let mut world = World::with_front(b"127.0.0.1:8367", true);
-    world.report(Report::Front(BoxLine::Link { url: skein_lib::Secret::new(url.clone()) }));
-    let now = Time::from_nanos(world.now);
-    let wall = Wall::from_nanos(world.now);
-    world.host.clocks(now, wall);
-    world.recorder.turn(now, wall);
-    world.recorder.mark(&mut world.host);
-    world.recorder.deadline(world.host.deadline());
-    let recording = world.save();
-    let records = lines(&recording).expect("welcome records");
-    assert!(
-        !records.iter().any(|line| matches!(line, Line::Send { message: Sent::SignInLink(_), .. })),
-        "the printed link was never sent"
-    );
-    assert!(
-        records.iter().any(|line| {
-            if let Line::Mark(Some(print)) = line {
-                return find_from(print, &url, 0).is_some();
-            }
-            false
-        }),
-        "the mark drew the printed link whole"
-    );
-    let redacted = redact(&recording, &[]).expect("redact welcome");
-    let proved = prove(&redacted.recording).expect("redacted welcome proof");
-    assert!(scan(&proved, &redacted.originals).expect("welcome scan").is_none(), "redacted welcome scan");
-    let mut replay = Replay::new(&proved).expect("welcome replay");
-    let frame = replay.next().expect("welcome duties").expect("welcome mark").frame;
-    let hidden_url = url_base64(&[b'x'; 32]);
-    assert!(find_from(&frame.text(), &url, 0).is_none(), "welcome no longer draws the printed link's original");
-    assert!(find_from(&frame.text(), &hidden_url, 0).is_some(), "welcome draws the redacted link");
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }

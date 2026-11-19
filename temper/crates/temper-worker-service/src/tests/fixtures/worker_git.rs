@@ -1,6 +1,7 @@
 use crate::Worker;
 use skein_io::{self as io, kernel};
 use skein_lib::{Time, Token};
+use temper_protocol_worker_wire::v1::Record;
 use temper_worker_protocol_git_world::io::{Below, Input, Invocation, Script};
 pub const IDENTITY: u32 = 1;
 
@@ -50,9 +51,7 @@ impl WorkerStand {
             for _ in 0..self.worker.io().len() {
                 let request = self.worker.io().pop().unwrap();
                 if let io::Request::Spawn { owner, spawn } = request {
-                    if let Some(word) = spawn.args.get(26)
-                        && word.as_ref() == command
-                    {
+                    if spawn.args.contains(&Box::from(command)) {
                         return (owner, spawn);
                     }
                     self.below.out.io.push(io::Request::Spawn { owner, spawn });
@@ -81,31 +80,20 @@ pub fn started_worker() -> WorkerStand {
 pub fn github_record(login: &[u8], second_token: &[u8]) -> temper_protocol_worker_wire::v1::Identity {
     use skein_lib::{List, Secret};
     use temper_protocol_worker_wire::v1;
-    let limits = super::wire_limits();
     let mut entries = List::with_capacity(2);
     for (account, account_login, token) in
         [(11, b"first".as_slice(), b"tok-other".as_slice()), (22, b"second".as_slice(), second_token)]
     {
         entries
-            .push(
-                v1::Entry::new(
-                    &limits,
-                    v1::EntryParts { account, account_login: account_login.into(), token: Secret::new(token.into()) },
-                )
-                .unwrap(),
-            )
+            .push(v1::Entry { account, account_login: account_login.into(), token: Secret::new(token.into()) })
             .unwrap();
     }
-    v1::Identity::new(
-        &limits,
-        v1::IdentityParts {
-            kind: v1::Kind::Github(v1::Entries::new(&limits, v1::EntriesParts { entries }).unwrap()),
-            login: login.into(),
-            name: b"Temper App".as_slice().into(),
-            email: b"app@example.test".as_slice().into(),
-        },
-    )
-    .unwrap()
+    v1::Identity {
+        kind: v1::Kind::Github(v1::Entries { entries }),
+        login: login.into(),
+        name: b"Temper App".as_slice().into(),
+        email: b"app@example.test".as_slice().into(),
+    }
 }
 
 pub fn github_value(generation: u64, secret: skein_lib::Secret) -> jig_protocol_worker_link::Request {
@@ -122,13 +110,12 @@ pub fn github_assignment(account: Option<u64>) -> jig_protocol_worker_link::Requ
     let jig_protocol_worker_link::Request::Down { down, mut parts } = super::repository_assignment() else {
         panic!("assignment")
     };
-    let limits = super::wire_limits();
-    let items = v1::Items::decode(&limits, &mut skein_lib::Reader::new(&parts[0].bytes)).unwrap().into_parts();
+    let items = v1::Items::decode(&super::wire_limits(), &mut skein_lib::Reader::new(&parts[0].bytes)).unwrap();
     let mut repositories = skein_lib::List::with_capacity(1);
-    let mut repository = items.repositories.get(0).unwrap().clone().into_parts();
+    let mut repository = items.repositories.get(0).unwrap().clone();
     repository.account = account;
-    repositories.push(v1::Repository::new(&limits, repository).unwrap()).unwrap();
-    parts[0].bytes = payload::items(&v1::Items::new(&limits, v1::ItemsParts { repositories }).unwrap());
+    repositories.push(repository).unwrap();
+    parts[0].bytes = payload::items(&v1::Items { repositories });
     jig_protocol_worker_link::Request::Down { down, parts }
 }
 

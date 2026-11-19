@@ -1,6 +1,7 @@
 //! A goal's red families (protocol/store.md, 2).
 use super::fixtures;
 use crate::{Undecodable, keys, records, v25};
+use skein_codec::Record;
 use skein_lib::{List, Writer};
 use temper_engine_domain_forge_vocabulary as d;
 
@@ -98,18 +99,16 @@ fn red_decoding_checks_key_why_head_and_configured_byte_bounds() {
         assert_eq!(records::decode(&records::encode(&stored), &bounds), Err(Undecodable::Malformed));
     }
     for (key, head, why) in [(1025, 20, 1), (1, 33, 1), (1, 20, 257)] {
-        v25::Red::new(
-            &v25::CEILINGS,
-            v25::RedParts {
-                goal: 7,
-                key: filled(b'k', key),
-                head: filled(1, head),
-                why: filled(b'w', why),
-                by: v25::Recorder::Task(v25::Number::new(&v25::CEILINGS, v25::NumberParts { number: 7 }).unwrap()),
-                at: 1,
-                generation: 1,
-            },
-        )
+        v25::Red {
+            goal: 7,
+            key: filled(b'k', key),
+            head: filled(1, head),
+            why: filled(b'w', why),
+            by: v25::Recorder::Task(v25::Number { number: 7 }),
+            at: 1,
+            generation: 1,
+        }
+        .encode(&v25::CEILINGS)
         .unwrap_err();
     }
 }
@@ -225,6 +224,8 @@ fn finding() -> d::Finding {
         reason: None,
         signature: None,
         seen: None,
+        blame: None,
+        cleared: None,
     }
 }
 fn finding_prefix() -> Box<[u8]> {
@@ -251,15 +252,16 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
                 source: b"check".as_slice().into(),
                 ids: Box::new([b"key".as_slice().into()]),
                 first: Box::default(),
+                many: false,
             });
             row.seen = Some(1);
         }
         let options: &[u8] = if options {
-            b"\x01\0\x01\0\0\0\x02\0\0\0\x05check\0\0\0\x01\0\0\0\x03key\0\0\0\0\x01\0\0\0\x01"
+            b"\x01\0\x01\0\0\0\x02\0\0\0\x05check\0\0\0\x01\0\0\0\x03key\0\0\0\0\0\x01\0\0\0\x01"
         } else {
             b"\0\0"
         };
-        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options]);
+        let golden = skein_lib::bytes::concat(&[b"\0\x19\x25", &finding_prefix(), options, b"\0\0"]);
         let stored = d::Stored::Finding(row.clone());
         assert_eq!(records::encode(&stored), golden);
         assert_eq!(records::decode(&golden, &bounds), Ok(stored));
@@ -270,30 +272,52 @@ fn finding_options_have_golden_bytes_validate_signatures_and_charge_their_owned_
         assert_eq!(d::stored_bytes(&cloned), Some(held));
     }
     let repo = skein_forge::api::Repository { forge: 1, repository: 2 };
+    let many = d::Stored::Finding(d::Finding {
+        signature: Some(d::FindingSignature {
+            repository: repo,
+            source: b"focused".as_slice().into(),
+            ids: Box::new([]),
+            first: Box::default(),
+            many: true,
+        }),
+        ..finding()
+    });
+    assert_eq!(records::decode(&records::encode(&many), &bounds), Ok(many));
     for signature in [
+        d::FindingSignature {
+            repository: repo,
+            source: b"focused".as_slice().into(),
+            ids: Box::new([b"key".as_slice().into()]),
+            first: Box::default(),
+            many: true,
+        },
         d::FindingSignature {
             repository: repo,
             source: Box::default(),
             ids: Box::new([b"a".as_slice().into()]),
             first: Box::default(),
+            many: false,
         },
         d::FindingSignature {
             repository: repo,
             source: b"check".as_slice().into(),
             ids: Box::new([]),
             first: Box::default(),
+            many: false,
         },
         d::FindingSignature {
             repository: repo,
             source: b"check".as_slice().into(),
             ids: Box::new([b"b".as_slice().into(), b"a".as_slice().into()]),
             first: Box::default(),
+            many: false,
         },
         d::FindingSignature {
             repository: repo,
             source: b"check".as_slice().into(),
             ids: Box::new([b"a".as_slice().into(), b"a".as_slice().into()]),
             first: Box::default(),
+            many: false,
         },
     ] {
         let row = d::Stored::Finding(d::Finding { signature: Some(signature), ..finding() });

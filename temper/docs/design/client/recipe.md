@@ -103,7 +103,10 @@ recipe's own `files/`, just as `forge commit` (`drive.md`, 3.5).
 - **A person's acts alone:** no look, no `end` and no empty line; each
   refuses the recipe, naming its line (`drive.md`, 4 keeps them out of
   the kept lines too). `tui stop` is the walk's (section 5) and refused
-  in a recipe.
+  in a recipe. `web mark`, `tui mark` and `tui approve` are a journey's
+  lines (`journey-walks.md`, 2.2), each refusing the recipe, naming its
+  line: a recipe's walk signs its TUI in as the session does
+  (`drive.md`, 3.3).
 - **The check** is every line after `check`, where the recipe has one:
   each a `ctl` line, which its author keeps to reads and waits
   (`ctl/tools.md`, 2 and 4), so that its failure is the state's absence,

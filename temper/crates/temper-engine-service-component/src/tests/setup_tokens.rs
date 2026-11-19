@@ -7,6 +7,7 @@
 )]
 //! Connected Forgejo token admission and durable Check sequencing (temper/docs/design/protocol/forge/engine.md, 6).
 use super::*;
+use temper_protocol_worker_wire::v1::Record;
 
 #[test]
 fn incomplete_and_admin_bundles_stop_before_any_plan() {
@@ -319,9 +320,9 @@ pub(super) fn connected(service: &crate::Service, user: u64, tokens: &Tokens, ge
         &mut Reader::new(value.expose()),
     )
     .unwrap();
-    assert_eq!(identity.login(), b"checked-user");
-    let temper_protocol_worker_wire::v1::Kind::Forgejo(auth) = identity.kind() else { panic!("Forgejo identity") };
-    assert!(auth.token().expose() == tokens.git.expose());
+    assert_eq!(identity.login.as_ref(), b"checked-user");
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(auth) = &identity.kind else { panic!("Forgejo identity") };
+    assert!(auth.token.expose() == tokens.git.expose());
     let rows = engine.forge_records.rows.forge(1).unwrap();
     assert!(rows.get(Item::ApiToken).unwrap() == tokens.api.expose());
     assert!(rows.get(Item::GitToken).unwrap() == tokens.git.expose());

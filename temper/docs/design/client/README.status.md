@@ -5,6 +5,10 @@
 
 - **Not yet:** 2: there is no `temper-client-web-page`: the shell is the bundle's `cdylib`.
 
+- **Not yet:** 4.1, *The tab's address*: `approval_address(origin, code)`,
+  `https://NAME/terminal` with no code at a name [in flight: change
+  8877].
+
 
 
 

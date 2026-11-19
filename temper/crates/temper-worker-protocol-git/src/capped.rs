@@ -33,6 +33,10 @@ impl Capped {
         Ok(())
     }
     #[must_use]
+    pub fn room(&self) -> u32 {
+        self.cap.checked_sub(self.bytes.len()).expect("bounded output")
+    }
+    #[must_use]
     pub fn as_bytes(&self) -> &[u8] {
         self.bytes.as_slice()
     }

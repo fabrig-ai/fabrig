@@ -16,6 +16,7 @@ use temper_engine_domain_forge as forge_top;
 use temper_engine_domain_world::protocol::{self, Protocol};
 use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
+use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
 // in the connector's fixture output cohorts.
 const FORGE_OUTPUT: u32 = 80;
@@ -121,6 +122,8 @@ pub struct World {
     pub forge_reads: Option<Vec<(Token, skein_forge::api::Read)>>,
     pub scripted_forge_reads: Vec<(skein_forge::api::Read, Result<skein_forge::api::Answer, skein_forge::api::Error>)>,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
+    /// Durable limit-setting words at the service face.
+    pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
@@ -179,6 +182,12 @@ pub struct World {
     pub held_ancestry_answers: Vec<engine::Event>,
     /// Timeouts before dispatch: the caller cannot know the write was never made.
     pub lose_writes: u32,
+    /// Lose only merges in transit while other trains and projections continue.
+    pub lose_merges: u32,
+    /// Pause a merge before it reaches the forge, to race a goal's delivery.
+    pub held_merge_calls: Option<Vec<engine::Request>>,
+    /// Forgejo answers divergent fast-forward-only merges 500, a lost answer.
+    pub forgejo_merge_divergence: bool,
     pub fail_issue_writes: bool,
     pub fail_open_writes: bool,
     pub issue_write_times: Vec<Wall>,
@@ -199,6 +208,20 @@ pub struct World {
 pub struct StoryLimits {
     /// Gather startup edits before constructing either the store or the root.
     pub second_project: bool,
+    pub forge_entries: Option<u32>,
+    pub forge_holds: Option<u32>,
+    pub forge_pending: Option<u32>,
+    pub forge_calls: Option<u32>,
+    pub forge_rate: Option<u32>,
+    pub forge_rows: Option<u32>,
+    pub forge_resources: Option<u32>,
+    pub forge_repositories: Option<u32>,
+    pub forge_resources_per_task: Option<u32>,
+    pub forge_tasks: Option<u32>,
+    pub close_job: Option<(Option<Box<[u8]>>, bool)>,
+    pub goal_closer: bool,
+    pub landing_attempts: Option<u8>,
+    pub landing_deployment: Option<Box<[engine::LandingRule]>>,
     pub project_landing: Option<(u32, temper_landing_fixtures::ProjectLanding)>,
     pub project_policy: Option<jig_domain_core::ConfiguredPolicy>,
     pub settings_owner: Option<people::IdentityKey>,
@@ -236,6 +259,14 @@ pub struct StoryLimits {
     pub tree_tasks: Option<u32>,
     pub inbox_messages: Option<u32>,
     pub inbox_bytes: Option<u32>,
+    /// Larger diagnostics use the runtime task and authority bounds in the store codec too.
+    pub message_bytes: Option<u32>,
+    /// News fixtures size the task's result without enlarging the transcript carrier.
+    pub message_result_bytes: Option<u32>,
+    pub message_inbox_bytes: Option<u32>,
+    pub subscriptions: Option<u32>,
+    pub inbox_recipients: Option<u32>,
+    pub call_records: Option<u32>,
     pub brief: Option<engine::BriefLimits>,
     pub stall: Option<Duration>,
     pub spec_bytes: Option<u32>,
@@ -273,6 +304,82 @@ pub enum Until {
     Effect,
     Delegated,
     SecondAssignment,
+}
+
+fn configure_close_job(
+    config: &mut engine::Config,
+    limits: &mut engine::Limits,
+    command: Option<&[u8]>,
+    authority: bool,
+) {
+    // Retain the close request and both whole change word fields in the fixture carrier.
+    limits.tasks.spec_bytes = 16_384;
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
+    limits.loads.bytes = limits.loads.bytes.max(65_536);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
+    config.core.jobs = Box::new([jig_domain_link::JobBound {
+        kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
+        spec: 16_384,
+        result: 512,
+        deadline: Duration::from_secs(600),
+    }]);
+    if authority {
+        let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
+        let mut extended = kinds.to_vec();
+        if !extended.contains(&authority::Executor::Job(forge_top::CLOSE_KIND)) {
+            extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
+        }
+        let count = u32::try_from(extended.len()).expect("fixture executor count");
+        limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(count);
+        limits.authority.executors = limits.authority.executors.max(count);
+        *kinds = extended.into_boxed_slice();
+        for project in &mut config.core.seed_projects {
+            project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
+            project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+        }
+    }
+    crate::oracle::config::landing(config, 1).close_job = command.map(Into::into);
+    limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn configure_goal_closer(config: &mut engine::Config, limits: &mut engine::Limits) {
+    // The closer's report and new work reserve words beside the goal's landing news.
+    limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(24_576);
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(131_072);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(131_072);
+    limits.loads.bytes = limits.loads.bytes.max(131_072);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(131_072);
+    let kinds = &mut config.core.defaults.rules.ceiling.delegation.kinds;
+    let mut extended = kinds.to_vec();
+    if !extended.contains(&authority::Executor::Procedure(6)) {
+        extended.push(authority::Executor::Procedure(6));
+    }
+    let count = u32::try_from(extended.len()).expect("fixture executor count");
+    limits.tasks.executor_kinds = limits.tasks.executor_kinds.max(count);
+    limits.authority.executors = limits.authority.executors.max(count);
+    *kinds = extended.into_boxed_slice();
+    for project in &mut config.core.seed_projects {
+        project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
+        project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
+    }
+    limits.documents = paths::document_limits(limits.documents, limits);
+}
+
+fn configure_landing_deployment(config: &mut engine::Config, rules: &[engine::LandingRule]) {
+    let replacement = engine::landing_stock(rules, &skein_lib::Map::with_capacity(0), 1, 4);
+    let mut stock = skein_lib::List::uncapped();
+    for item in replacement {
+        if item.kind == 1 {
+            stock.push(item).expect("uncapped replacement landing rules");
+        }
+    }
+    for item in &config.kinds_stock {
+        if item.kind != 1 {
+            stock.push(item.clone()).expect("uncapped project rules and charters");
+        }
+    }
+    config.kinds_stock = stock.into_boxed();
 }
 
 impl World {
@@ -1240,6 +1347,63 @@ impl World {
             if let Some(pages) = timing.forge_pages {
                 config.forges[0].web = Some(pages.into());
             }
+            if let Some((command, authority)) = &timing.close_job {
+                configure_close_job(&mut config, &mut limits, command.as_deref(), *authority);
+            }
+            if timing.goal_closer {
+                configure_goal_closer(&mut config, &mut limits);
+            }
+            if let Some(bound) = timing.landing_attempts {
+                crate::oracle::config::landing(&mut config, 1).landing_attempts = bound;
+            }
+            if let Some(entries) = timing.forge_entries {
+                limits.forge.entries = entries;
+            }
+            if let Some(holds) = timing.forge_holds {
+                limits.forge.holds = holds;
+            }
+            if let Some(pending) = timing.forge_pending {
+                limits.forge.client.pending = pending;
+            }
+            if let Some(calls) = timing.forge_calls {
+                limits.forge.client.calls = calls;
+            }
+            if let Some(rate) = timing.forge_rate {
+                limits.forge.client.rate = rate;
+            }
+            if let Some(rows) = timing.forge_rows {
+                limits.forge.client.rows = rows;
+            }
+            if let Some(resources) = timing.forge_resources {
+                limits.forge.client.resources = resources;
+            }
+            if let Some(repositories) = timing.forge_repositories {
+                limits.forge.client.repositories = repositories;
+            }
+            if let Some(resources) = timing.forge_resources_per_task {
+                limits.forge.resources_per_task = resources;
+            }
+            if let Some(tasks) = timing.forge_tasks {
+                limits.forge.tasks = tasks;
+            }
+            if let Some(bytes) = timing.message_bytes {
+                limits.tasks.message_bytes = bytes;
+            }
+            if let Some(bytes) = timing.message_result_bytes {
+                limits.tasks.result_bytes = bytes;
+            }
+            if let Some(bytes) = timing.message_inbox_bytes {
+                limits.tasks.inbox_bytes = bytes;
+            }
+            if let Some(subscriptions) = timing.subscriptions {
+                limits.tasks.subscriptions = subscriptions;
+            }
+            if let Some(recipients) = timing.inbox_recipients {
+                limits.people.inbox_recipients = recipients;
+            }
+            if let Some(records) = timing.call_records {
+                limits.call_records = records;
+            }
             for worker in &mut config.core.defaults.workers {
                 worker.places = limits.fleet.slots;
             }
@@ -1248,6 +1412,9 @@ impl World {
         let mut runtime = crate::oracle::config::copy(&bootstrap);
         if kinds || timing.settings_owner.is_some() {
             runtime.core.kinds = temper_engine_service_stock::stock::kinds(&limits, runtime.core.connectors[0]);
+        }
+        if let Some(rules) = &timing.landing_deployment {
+            configure_landing_deployment(&mut runtime, rules);
         }
         [(bootstrap, limits), (runtime, limits)]
     }
@@ -1457,8 +1624,26 @@ impl World {
             store_limits.tasks.holdings = limits.tasks.holdings;
             store_limits.journal.writes = limits.journal.writes;
         }
-        if timing.second_project || timing.project_policy.is_some() || timing.settings_owner.is_some() {
+        if timing.second_project
+            || timing.project_policy.is_some()
+            || timing.settings_owner.is_some()
+            || timing.close_job.is_some()
+            || timing.goal_closer
+            || timing.landing_attempts.is_some()
+        {
             store_limits = limits;
+        }
+        if timing.message_bytes.is_some() {
+            // Diagnostic fixtures retain broad history pages with the runtime's task codec.
+            store_limits = temper_engine_domain_world::store::widest();
+            store_limits.tasks = limits.tasks;
+            store_limits.authority = limits.authority;
+        }
+        if timing.inbox_recipients.is_some() {
+            store_limits.people.inbox_recipients = limits.people.inbox_recipients;
+        }
+        if timing.call_records.is_some() {
+            store_limits.call_records = limits.call_records;
         }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
@@ -1489,6 +1674,7 @@ impl World {
             forge_reads: None,
             scripted_forge_reads: Vec::new(),
             adopted: Vec::new(),
+            limit_settings: Vec::new(),
             follow_answers: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
@@ -1529,6 +1715,9 @@ impl World {
             hold_ancestry_answers: false,
             held_ancestry_answers: Vec::new(),
             lose_writes: 0,
+            lose_merges: 0,
+            held_merge_calls: None,
+            forgejo_merge_divergence: false,
             fail_issue_writes: false,
             fail_open_writes: false,
             issue_write_times: Vec::new(),
@@ -1814,8 +2003,8 @@ impl World {
             &mut skein_lib::Reader::new(&spec),
         )
         .expect("prepare spec");
-        assert_eq!(spec.command(), b"");
-        let request: serde_json::Value = serde_json::from_slice(spec.request()).expect("prepare request");
+        assert_eq!(spec.command.as_ref(), b"");
+        let request: serde_json::Value = serde_json::from_slice(&spec.request).expect("prepare request");
         let engine::ForgeStart::Commit(from) = item.start else { panic!("immutable stack start") };
         assert_eq!(request["from"], String::from_utf8(engine::commit_text(&from).into_vec()).expect("from hex"));
         let mut base = fake::commit_count(&from).expect("fake base");
@@ -1920,35 +2109,7 @@ impl World {
     #[must_use]
     pub fn with_close_job(mut self, command: Option<&[u8]>, authority: bool) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "close configuration precedes startup");
-        // Retain the close request and both whole change word fields in the fixture carrier.
-        self.env.limits.tasks.spec_bytes = 16_384;
-        self.env.limits.journal.transcript_bytes = self.env.limits.journal.transcript_bytes.max(65_536);
-        self.env.limits.loads.transcript_bytes = self.env.limits.loads.transcript_bytes.max(65_536);
-        self.env.limits.loads.bytes = self.env.limits.loads.bytes.max(65_536);
-        self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(self.env.limits.loads.bytes);
-        self.restart_config.core.jobs = Box::new([jig_domain_link::JobBound {
-            kind: jig_domain_link::JobKind(forge_top::CLOSE_KIND),
-            spec: 16_384,
-            result: 512,
-            deadline: Duration::from_secs(600),
-        }]);
-        if authority {
-            let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
-            let mut extended = kinds.to_vec();
-            if !extended.contains(&authority::Executor::Job(forge_top::CLOSE_KIND)) {
-                extended.push(authority::Executor::Job(forge_top::CLOSE_KIND));
-            }
-            let count = u32::try_from(extended.len()).expect("fixture executor count");
-            self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
-            self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
-            *kinds = extended.into_boxed_slice();
-            for project in &mut self.restart_config.core.seed_projects {
-                project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
-                project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
-            }
-        }
-        crate::oracle::config::landing(&mut self.restart_config, 1).close_job = command.map(Into::into);
-        self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
+        configure_close_job(&mut self.restart_config, &mut self.env.limits, command, authority);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut codec = self.env.limits;
@@ -1985,26 +2146,7 @@ impl World {
     #[must_use]
     pub fn with_goal_closer(mut self) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "closer authority precedes startup");
-        // The closer's report and new work reserve words beside the goal's landing news.
-        self.env.limits.tasks.inbox_bytes = self.env.limits.tasks.inbox_bytes.max(24_576);
-        self.env.limits.journal.transcript_bytes = self.env.limits.journal.transcript_bytes.max(131_072);
-        self.env.limits.loads.transcript_bytes = self.env.limits.loads.transcript_bytes.max(131_072);
-        self.env.limits.loads.bytes = self.env.limits.loads.bytes.max(131_072);
-        self.env.limits.loads.reply_bytes = self.env.limits.loads.reply_bytes.max(131_072);
-        let kinds = &mut self.restart_config.core.defaults.rules.ceiling.delegation.kinds;
-        let mut extended = kinds.to_vec();
-        if !extended.contains(&authority::Executor::Procedure(6)) {
-            extended.push(authority::Executor::Procedure(6));
-        }
-        let count = u32::try_from(extended.len()).expect("fixture executor count");
-        self.env.limits.tasks.executor_kinds = self.env.limits.tasks.executor_kinds.max(count);
-        self.env.limits.authority.executors = self.env.limits.authority.executors.max(count);
-        *kinds = extended.into_boxed_slice();
-        for project in &mut self.restart_config.core.seed_projects {
-            project.policy.policy.ceiling.delegation.kinds.clone_from(kinds);
-            project.policy.policy.roles[0].authority.delegation.kinds.clone_from(kinds);
-        }
-        self.env.limits.documents = paths::document_limits(self.env.limits.documents, &self.env.limits);
+        configure_goal_closer(&mut self.restart_config, &mut self.env.limits);
         self.creating =
             jig_test_profile::fixtures::Creating::new(&self.restart_config.core, self.env.limits.tasks.tree_tasks);
         let mut codec = self.env.limits;
@@ -2025,19 +2167,7 @@ impl World {
     pub fn with_landing_deployment(mut self, rules: Box<[engine::LandingRule]>) -> Self {
         assert_eq!(self.env.now, Time::ZERO, "landing rules precede world startup");
         assert!(!self.root.ready(), "landing rules precede bootstrap");
-        let replacement = engine::landing_stock(&rules, &skein_lib::Map::with_capacity(0), 1, 4);
-        let mut stock = skein_lib::List::uncapped();
-        for item in replacement {
-            if item.kind == 1 {
-                stock.push(item).expect("uncapped replacement landing rules");
-            }
-        }
-        for item in &self.restart_config.kinds_stock {
-            if item.kind != 1 {
-                stock.push(item.clone()).expect("uncapped project rules and charters");
-            }
-        }
-        self.restart_config.kinds_stock = stock.into_boxed();
+        configure_landing_deployment(&mut self.restart_config, &rules);
         self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
             .expect("valid deployment landing rules");
         self
@@ -2338,6 +2468,12 @@ impl World {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
                     }
+                    if let Some(calls) = &mut self.held_merge_calls
+                        && matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. }))
+                    {
+                        calls.push(engine::Request::Forge { call, repository, op });
+                        continue;
+                    }
                     if matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::Merge { .. })) {
                         self.merges += 1;
                     }
@@ -2398,8 +2534,20 @@ impl World {
                         continue;
                     }
 
-                    if self.lose_writes > 0 && matches!(op, skein_forge::api::Op::Write(_)) {
-                        self.lose_writes -= 1;
+                    let lose_merge = self.lose_merges > 0
+                        && matches!(
+                            op,
+                            skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                                how: skein_forge::api::MergeHow::FastForwardOnly,
+                                ..
+                            })
+                        );
+                    if lose_merge || (self.lose_writes > 0 && matches!(op, skein_forge::api::Op::Write(_))) {
+                        if lose_merge {
+                            self.lose_merges -= 1;
+                        } else {
+                            self.lose_writes -= 1;
+                        }
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
                             skein_forge_client::Event::Answered {
                                 free: 0,
@@ -2630,6 +2778,7 @@ impl World {
                         answer: Ok(()),
                     })));
                 }
+                request @ engine::Request::LimitSettingsCommitted { .. } => self.limit_settings.push(request),
                 engine::Request::Worker(engine::WorkerRequest::Settings(_))
                 | engine::Request::Account(_)
                 | engine::Request::ForgeKept(_)
@@ -2672,6 +2821,13 @@ impl World {
     }
 
     /// Release the terminals this world held; the provider operation is not repeated.
+    pub fn release_merge_calls(&mut self) {
+        for request in self.held_merge_calls.take().expect("merge calls paused") {
+            self.out.push(request);
+        }
+        self.collect();
+    }
+
     pub fn release_write_answers(&mut self) {
         self.hold_write_answers = None;
         self.events.extend(self.held_write_answers.drain(..));
@@ -3086,7 +3242,22 @@ impl World {
                             answer
                         }
                         Err(error) => {
-                            Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
+                            if self.forgejo_merge_divergence
+                                && error == raw::Error::Conflict
+                                && matches!(
+                                    op,
+                                    skein_forge::api::Op::Write(skein_forge::api::Write::Merge {
+                                        how: skein_forge::api::MergeHow::FastForwardOnly,
+                                        ..
+                                    })
+                                )
+                            {
+                                // The provider-neutral fake reports divergence; Forgejo's
+                                // dialect keeps its 500 as Timeout (forge/forgejo.md, 1.2).
+                                Err(skein_forge::api::Error::Timeout)
+                            } else {
+                                Err(translate::error(error, fake::time(&self.fake_env.limits, self.fake_env.now)))
+                            }
                         }
                     };
                     if let Ok(skein_forge::api::Answer::Located { repository }) = &result
@@ -3912,21 +4083,21 @@ pub fn failed_ci_with_delayed_brief() -> (World, u64, u64) {
     (world, chat.task, producer.task)
 }
 
-/// Effective box limits, read through the shipped init template.
+/// The stock box limits, with the worlds' typed gather allowance.
 #[must_use]
 pub fn box_limits() -> engine::Limits {
     let (jig, temper) = box_profiles();
     temper_engine_service_vocabulary::limits::engine(&jig, &temper).expect("coherent box limits")
 }
 
-/// The store join allowance from the same init template projection as `box_limits`.
+/// The store join allowance from the same stock resolution as `box_limits`.
 #[must_use]
 pub fn box_joins() -> u32 {
     box_profiles().0.store.joins
 }
 
 fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
-    // A story reads the same template for its defaults, root limits and store joins.
+    // A story shares the stock resolution for its defaults, root limits and store joins.
     static PROFILES: std::sync::OnceLock<(
         jig_protocol_config::Limits,
         temper_engine_service_vocabulary::limits::Limits,
@@ -3935,37 +4106,16 @@ fn box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabul
 }
 
 fn read_box_profiles() -> (jig_protocol_config::Limits, temper_engine_service_vocabulary::limits::Limits) {
-    use jig_protocol_config as config;
-    let document = config::document(
-        include_bytes!("../../../../crates/temper-init/template/temper.json"),
-        &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    let stock = temper_engine_service_vocabulary::limits::stock();
+    let (jig, mut own) = temper_engine_service_vocabulary::limits::base(
+        stock.live_goals,
+        stock.tool_payload,
+        temper_service_core::derived::STOCK,
     )
-    .expect("init template JSON");
-    let mut root = config::read::Object::new(&document, 0).expect("template object");
-    let engine = root.member(&document, b"engine").expect("engine member");
-    let mut engine = config::read::Object::new(&document, engine).expect("engine object");
-    let at = engine.member(&document, b"limits").expect("engine limits");
-    let parsed = config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"));
-    assert!(parsed.problems.is_empty(), "init limits: {:?}", parsed.problems);
-    let application = root.member(&document, b"application").expect("application member");
-    let mut application = config::read::Object::new(&document, application).expect("application object");
-    let at = application.member(&document, b"limits").expect("application limits");
-    let mut limits = config::read::Object::new(&document, at).expect("application limits object");
-    let at = limits.member(&document, b"overrides").expect("application overrides");
-    let mut overrides = config::read::Object::new(&document, at).expect("application overrides object");
-    let end = config::read::after(&document, at).expect("application overrides end");
-    let mut temper = temper_engine_service_vocabulary::limits::stock();
-    // The deadline stories use a thirty-second gather and advance their clock by it.
-    temper.root.brief.gather = Duration::from_secs(30);
-    for index in at..end {
-        let token = document.token(index).expect("application override token");
-        let Some(name) = document.text(token) else { continue };
-        let Some(value_at) = overrides.member(&document, name) else { continue };
-        let value = config::read::integer(&document, value_at, u64::MAX).expect("numeric application override");
-        temper_engine_service_vocabulary::limits::apply(&mut temper, name, value)
-            .unwrap_or_else(|what| panic!("init application override {}: {what:?}", String::from_utf8_lossy(name)));
-    }
-    (parsed.limits, temper)
+    .expect("derived stock box limits");
+    // The deadline stories advance their clock by this typed gather allowance.
+    own.root.brief.gather = Duration::from_secs(30);
+    (jig, own)
 }
 
 #[cfg(test)]

@@ -29,7 +29,7 @@ mod tests {
         let mut tags = BTreeMap::<String, BTreeSet<u8>>::new();
         let mut shown = BTreeMap::<String, String>::new();
         for family in families() {
-            let schema = skein_codegen::parse(family.text).expect("valid schema");
+            let schema = skein_codegen::values(family.text).schema.clone();
             let names = schema
                 .declarations
                 .iter()

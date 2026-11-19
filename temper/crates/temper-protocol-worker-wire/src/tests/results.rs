@@ -1,6 +1,6 @@
 //! Check report bounds and the v8/v9 bridge (domain/forge/reds.md, 5.6).
 use super::fixtures;
-use crate::v1;
+use crate::v1::{self, Record};
 use skein_lib::{List, Reader, Writer};
 
 fn keys(count: u32, bytes: u32) -> List<Box<[u8]>> {
@@ -15,32 +15,22 @@ fn largest_report(limits: &v1::Limits) -> v1::CheckResults {
     let mut flakes = List::with_capacity(limits.check_results_flakes);
     for _ in 0..limits.check_results_flakes {
         flakes
-            .push(
-                v1::Flake::new(
-                    limits,
-                    v1::FlakeParts {
-                        key: skein_lib::bytes::zeroed(usize::try_from(limits.flake_key).unwrap()),
-                        log: skein_lib::bytes::zeroed(usize::try_from(limits.flake_log).unwrap()),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(v1::Flake {
+                key: skein_lib::bytes::zeroed(usize::try_from(limits.flake_key).unwrap()),
+                log: skein_lib::bytes::zeroed(usize::try_from(limits.flake_log).unwrap()),
+            })
             .unwrap();
     }
-    v1::CheckResults::new(
-        limits,
-        v1::CheckResultsParts {
-            tag: u64::MAX,
-            check_number: u64::MAX,
-            tree: Box::new([1; 32]),
-            base: Some(Box::new([2; 32])),
-            verdict: v1::Verdict::Refused,
-            passed: keys(limits.check_results_passed, limits.check_results_passed_item),
-            failed: keys(limits.check_results_failed, limits.check_results_failed_item),
-            flakes,
-        },
-    )
-    .unwrap()
+    v1::CheckResults {
+        tag: u64::MAX,
+        check_number: u64::MAX,
+        tree: Box::new([1; 32]),
+        base: Some(Box::new([2; 32])),
+        verdict: v1::Verdict::Refused,
+        passed: keys(limits.check_results_passed, limits.check_results_passed_item),
+        failed: keys(limits.check_results_failed, limits.check_results_failed_item),
+        flakes,
+    }
 }
 
 #[test]
@@ -60,16 +50,16 @@ fn reports_roundtrip_at_bounds_and_the_ask_envelope_holds_the_worker_ceiling() {
 #[test]
 fn reports_decode_only_within_the_engines_key_bounds_and_flake_ceilings() {
     let limits = fixtures::limits();
-    for (passed, path) in [(true, v1::Path::CheckResultsPassed), (false, v1::Path::CheckResultsFailed)] {
+    for (passed, path) in [(true, v1::paths::CHECK_RESULTS_PASSED), (false, v1::paths::CHECK_RESULTS_FAILED)] {
         for (count, length) in [(3, 12), (1, 13)] {
-            let mut parts = largest_report(&limits).into_parts();
+            let mut parts = largest_report(&limits);
             parts.flakes = List::with_capacity(0);
             if passed {
                 parts.passed = keys(count, length);
             } else {
                 parts.failed = keys(count, length);
             }
-            let ask = v1::Ask::Results(v1::CheckResults::new(&v1::CEILINGS, parts).unwrap());
+            let ask = v1::Ask::Results(parts);
             let bytes = crate::ask(&ask);
             let Err(error) = v1::Ask::decode(&limits, &mut Reader::new(&bytes)) else {
                 panic!("over-bound report decoded");
@@ -79,9 +69,9 @@ fn reports_decode_only_within_the_engines_key_bounds_and_flake_ceilings() {
     }
     // Length prefixes past a schema ceiling must be refused before reading their payload.
     for (count, key, log, path) in [
-        (17_u32, 0_u32, 0_u32, v1::Path::CheckResultsFlakes),
-        (1, 513, 0, v1::Path::FlakeKey),
-        (1, 0, 2049, v1::Path::FlakeLog),
+        (17_u32, 0_u32, 0_u32, v1::paths::CHECK_RESULTS_FLAKES),
+        (1, 513, 0, v1::paths::FLAKE_KEY),
+        (1, 0, 2049, v1::paths::FLAKE_LOG),
     ] {
         let mut bytes = Writer::new(63);
         bytes.put(&[1]).unwrap(); // Ask::Results
@@ -110,12 +100,7 @@ fn reds_cross_v8_and_v9_but_results_and_kept_cannot_go_back() {
     let mut bridge = application.kept.get(0).unwrap().bridge().unwrap();
     for (root, bytes) in [
         (b"Ask".as_slice(), crate::ask(&v1::Ask::Reds)),
-        (
-            b"Answer".as_slice(),
-            crate::answer(&v1::Answer::Reds(
-                v1::Reds::new(&limits, v1::RedsParts { reds: List::with_capacity(0) }).unwrap(),
-            )),
-        ),
+        (b"Answer".as_slice(), crate::answer(&v1::Answer::Reds(v1::Reds { reds: List::with_capacity(0) }))),
     ] {
         assert_eq!(bridge.translate(8, 9, root, bytes.clone()).unwrap(), bytes);
         assert_eq!(bridge.translate(9, 8, root, bytes.clone()).unwrap(), bytes);
@@ -144,10 +129,7 @@ fn v9_values_cross_v10_but_landed_values_cannot_go_back() {
         assert_eq!(bridge.total(9, root), Some(false));
     }
     for (root, bytes) in [
-        (
-            b"Ask".as_slice(),
-            crate::ask(&v1::Ask::Landed(v1::Head::new(&limits, v1::HeadParts { head: [37; 32] }).unwrap())),
-        ),
+        (b"Ask".as_slice(), crate::ask(&v1::Ask::Landed(v1::Head { head: [37; 32] }))),
         (b"Answer".as_slice(), crate::answer(&v1::Answer::Landed)),
         (b"Answer".as_slice(), crate::answer(&v1::Answer::Unlanded)),
     ] {

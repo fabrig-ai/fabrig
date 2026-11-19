@@ -161,11 +161,17 @@ fn render_owner(value: &mut Value, owner: &str) {
     }
 }
 /// Shape the live engine without reading inputs or constructing a relay.
-pub fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, git: SocketAddr, workers: SocketAddr) {
+pub fn configure_engine(
+    value: &mut temper_playground::documents::Configuration,
+    owner: &str,
+    api: SocketAddr,
+    git: SocketAddr,
+    workers: SocketAddr,
+) {
     render_owner(value, owner);
     value["engine"]["hosts"]["listener"][0]["socket"] = workers.to_string().into();
     value["application"]["test"]["github"] = json!({"api":{"socket":api.to_string()},"transport":"plaintext","remote":format!("http://{git}"),"web":format!("http://{git}")});
-    value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 15000.into();
+    value.temper_over("forge_component.log_poll_ms", 15000);
 }
 fn configure_llm(path: &Path, inputs: &Inputs) -> Result<(), String> {
     github_land::configure_llm(path);
@@ -290,10 +296,20 @@ impl Judge<'_> {
         let host = hosts.last_mut().ok_or_else(|| "client".to_owned())?;
         if self.stage == Stage::Llm && self.members.is_up() {
             self.members.prepare("engine");
-            let path = self.members.dir("engine").join("config/temper.json");
-            let mut value = read_document(&path)?;
+            let path = self.members.dir("engine").join("config").join(temper_config_shell::FILE);
+            let mut value = super::limit_settings::configuration(&self.members.dir("engine").join("config"));
             configure_engine(&mut value, &self.inputs.owner, self.relay.api, self.relay.git, self.workers);
-            save(&path, &value)?;
+            let mut file = super::read_file(&path, temper_config_shell::Shape::EngineAlone);
+            file.workers = Some(self.workers);
+            file.test.github = Some(temper_config_shell::TestGitHub {
+                api: self.relay.api.to_string(),
+                transport: temper_config_shell::Transport::Plaintext,
+                remote: format!("http://{}", self.relay.git),
+                web: format!("http://{}", self.relay.git),
+                git: None,
+            });
+            super::write_file(&path, &file, temper_config_shell::Shape::EngineAlone);
+            super::limit_settings::remember(&self.members.dir("engine").join("config"), &value);
             save(
                 &self.inputs.scratch.join("landing-settings.json"),
                 &json!({"items":github_land::landing_settings(self.relay.git, &self.inputs.owner, REPOSITORY)}),

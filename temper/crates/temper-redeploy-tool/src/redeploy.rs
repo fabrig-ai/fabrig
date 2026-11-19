@@ -91,6 +91,14 @@ impl Failure {
         Self { step: step.into(), why: why.into(), recovery: false }
     }
 }
+// The tool's verdict notes (temper/docs/design/redeploy.md, 6.3).
+const SERVING_VERDICT_UNSUPPORTED: &str =
+    "serving verdict: a build without upgrade --workers is redeployed with --together";
+const SERVING_VERDICT_REFUSED: &str = "serving verdict: refused by the staged build; its lines above say why";
+const REHEARSAL_LINKED: &str = "rehearsal linked ";
+const REHEARSAL_PREFIX: &str = "temper-engine upgrade: rehearsal linked ";
+const REHEARSAL_UNKNOWN: &str = "rehearsal linked: unknown; the staged build may copy the whole checkpoint at the stop";
+
 #[derive(Clone, Copy)]
 enum CheckStep {
     Check,
@@ -262,9 +270,23 @@ impl Run<'_> {
         self.note(&format!("{step} exit {:?}", output.code))?;
         if let Err(failure) = success(step, &output) {
             if let CheckStep::ServingVerdict = kind {
-                self.note("serving verdict: a build without upgrade --workers is redeployed with --together")?;
+                self.note(if lines.iter().any(|line| line.contains("no command upgrade --workers")) {
+                    SERVING_VERDICT_UNSUPPORTED
+                } else {
+                    SERVING_VERDICT_REFUSED
+                })?;
             }
             return Err(failure);
+        }
+        match kind {
+            CheckStep::Check => {}
+            CheckStep::ServingVerdict | CheckStep::Verdict => {
+                let note = match rehearsal_counts(&lines) {
+                    Some((linked, copied)) => format!("{step} {REHEARSAL_LINKED}{linked} files, copied {copied}"),
+                    None => format!("{step} {REHEARSAL_UNKNOWN}"),
+                };
+                self.note(&note)?;
+            }
         }
         let may_stay =
             lines.iter().rev().find_map(|line| line.rsplit_once("workers may stay: ").map(|(_, verdict)| verdict))
@@ -505,6 +527,19 @@ impl Run<'_> {
         Ok(())
     }
 }
+fn rehearsal_counts(lines: &[String]) -> Option<(&str, &str)> {
+    let counts = lines.iter().find_map(|line| line.strip_prefix(REHEARSAL_PREFIX))?;
+    let (linked, copied) = counts.split_once(" files, copied ")?;
+    if linked.is_empty()
+        || copied.is_empty()
+        || !linked.bytes().all(|byte| byte.is_ascii_digit())
+        || !copied.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return None;
+    }
+    Some((linked, copied))
+}
+
 fn success(step: &str, output: &Output) -> Result<(), Failure> {
     if output.code == Some(0) {
         Ok(())

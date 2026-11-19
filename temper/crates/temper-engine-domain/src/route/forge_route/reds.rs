@@ -142,6 +142,7 @@ pub(crate) fn check_results(
             source: b"check".as_slice().into(),
             ids: Box::new([flake.key.clone()]),
             first: Box::default(),
+            many: false,
         };
         let title = skein_lib::bytes::concat(&[b"Flake in a delivery's check: ", &flake.key]);
         let title = title.get(..character_start(&title, 200)).expect("title prefix").into();

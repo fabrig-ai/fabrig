@@ -257,6 +257,7 @@ fn child_command() -> crate::kernel::Spawn {
     pipes.push(crate::kernel::Pipe { child: 0, way: crate::kernel::Way::In, parent: None }).expect("input pipe slot");
     pipes.push(crate::kernel::Pipe { child: 1, way: crate::kernel::Way::Out, parent: None }).expect("output pipe slot");
     crate::kernel::Spawn {
+        reach: None,
         program: Box::from(&b"/bin/cat"[..]),
         args: Box::default(),
         env: Box::default(),

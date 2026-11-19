@@ -268,10 +268,12 @@ fn the_store_files_kit_uses_only_the_store_and_foundation() {
             "jig-protocol-store",
             "jig-domain-core",
             "jig-domain-tasks",
+            "skein-codec",
             "skein-lib",
             "skein-io",
             "skein-kv",
             "skein-fake-machine",
+            "skein-fork",
             "skein-sim",
         ]
         .contains(&name.as_str())
@@ -291,7 +293,15 @@ fn the_native_shell_links_only_the_clients_components_and_foundation() {
     dependencies.sort();
     assert_eq!(
         dependencies,
-        ["jig-client", "jig-client-protocol-http", "jig-client-protocol-wire", "skein-http", "skein-io", "skein-lib"]
+        [
+            "jig-client",
+            "jig-client-protocol-http",
+            "jig-client-protocol-wire",
+            "skein-http",
+            "skein-io",
+            "skein-lib",
+            "skein-tls"
+        ]
     );
 }
 

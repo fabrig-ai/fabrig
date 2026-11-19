@@ -3,8 +3,8 @@ use jig_client_domain::Family;
 use jig_client_test_domain::family::wire as application;
 use jig_client_test_domain::{connector_values::ConnectorDocument, family as d, first};
 use jig_client_test_protocol_wire::codec;
-use jig_client_test_protocol_wire::v2 as w;
-use skein_lib::{Reader, Writer};
+use jig_client_test_protocol_wire::v2::{self as w, Record};
+use skein_lib::Reader;
 
 #[must_use]
 pub fn owned(bytes: Box<[u8]>) -> Family {
@@ -46,14 +46,8 @@ pub fn document(subject: d::Subject, bytes: &[u8]) -> Option<d::Document> {
 #[must_use]
 pub fn saved(value: &first::Record) -> Box<[u8]> {
     let first::Record::Place { version, party, address } = value;
-    let record = w::Place::new(
-        &w::CEILINGS,
-        w::PlaceParts { store_version: *version, party: *party, project: address.project, item: address.item },
-    )
-    .expect("bounded place record");
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured room");
-    writer.finish()
+    let record = w::Place { store_version: *version, party: *party, project: address.project, item: address.item };
+    record.encode(&w::CEILINGS).expect("bounded place record")
 }
 #[must_use]
 pub fn restored(bytes: &[u8]) -> Option<first::Record> {
@@ -62,7 +56,7 @@ pub fn restored(bytes: &[u8]) -> Option<first::Record> {
     if reader.remaining() != 0 {
         return None;
     }
-    let w::PlaceParts { store_version: version, party, project, item } = record.into_parts();
+    let w::Place { store_version: version, party, project, item } = record;
     Some(first::Record::Place { version, party, address: first::Address { project, item } })
 }
 #[must_use]

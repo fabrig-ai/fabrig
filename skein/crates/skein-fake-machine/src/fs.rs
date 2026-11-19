@@ -7,6 +7,7 @@ mod digest;
 mod locks;
 mod moves;
 mod opens;
+mod reach;
 
 use alloc::boxed::Box;
 use alloc::collections::{BTreeMap, BTreeSet, VecDeque};
@@ -285,6 +286,7 @@ pub struct Machine {
     top: NodeId,
     owner: u32,
     roots: u32,
+    landlock: crate::Landlock,
 }
 
 impl Default for Machine {
@@ -323,6 +325,28 @@ impl Machine {
             top: 0,
             owner: effective_user,
             roots: 0,
+            landlock: crate::Landlock::Abi(6),
+        }
+    }
+
+    /// Copy the filesystem as held, including unsynced work, without open handles.
+    /// A crash of either copy makes its own seeded durability choices.
+    #[must_use]
+    pub fn fork(&self) -> Machine {
+        Machine {
+            nodes: self.nodes.clone(),
+            durable_nodes: self.durable_nodes.clone(),
+            pending_writes: self.pending_writes.clone(),
+            pending_dirs: self.pending_dirs.clone(),
+            pending_links: self.pending_links.clone(),
+            pending_moves: self.pending_moves.clone(),
+            next_node: self.next_node,
+            handles: BTreeMap::new(),
+            next_handle: self.next_handle,
+            top: self.top,
+            owner: self.owner,
+            roots: self.roots,
+            landlock: self.landlock,
         }
     }
 
@@ -739,6 +763,18 @@ impl Machine {
         no_follow: bool,
         path_only: bool,
     ) -> Result<Found, Refusal> {
+        self.resolve_at(root, root, path, create, no_follow, path_only)
+    }
+
+    fn resolve_at(
+        &self,
+        root: NodeId,
+        start: NodeId,
+        path: &[u8],
+        create: bool,
+        no_follow: bool,
+        path_only: bool,
+    ) -> Result<Found, Refusal> {
         if path.is_empty() {
             return Err(Refusal::NotFound);
         }
@@ -753,7 +789,7 @@ impl Machine {
         }
         let mut slash = path.last() == Some(&b'/');
         let mut todo = components(path);
-        let mut dir = root;
+        let mut dir = start;
         let mut links = 0_u32;
         while let Some(name) = todo.pop_front() {
             let last = todo.is_empty();

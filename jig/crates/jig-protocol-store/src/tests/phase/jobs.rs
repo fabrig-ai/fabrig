@@ -3,6 +3,7 @@
 use super::*;
 use crate::{Converts, Job, JobAnswer, JobPage, JobRefusal, JobWrite, KeyRange, Owner, OwnerSet, OwnerSets};
 use alloc::collections::VecDeque;
+use skein_codec::Record as _;
 
 const UPSTREAM_JOB: Job = Job {
     counts: &[],
@@ -42,7 +43,7 @@ pub(super) fn done(store: &mut Store, owner: Owner, name: &str) -> Option<u64> {
     let bytes = fixtures::get_kv(store, &key)?;
     let row =
         crate::registry_v1::Job::decode(&crate::registry_v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    Some(row.ended())
+    Some(row.ended)
 }
 fn app(store: &mut Store, key: &[u8]) -> Option<Box<[u8]>> {
     let key = crate::keys::application(key, store.limits.store.key).unwrap();

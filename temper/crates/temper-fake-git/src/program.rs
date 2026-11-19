@@ -10,6 +10,7 @@ use temper_worker_protocol_git::invocation::Command;
 
 #[derive(Debug)]
 enum Job {
+    Metadata(Vec<u8>),
     Scan(Vec<u8>),
     List(Vec<u8>, Fd),
     ReadOpen(Vec<u8>),
@@ -27,6 +28,7 @@ enum Job {
 #[derive(Debug)]
 enum Pending {
     Socket,
+    Metadata(Vec<u8>),
     Scan(Vec<u8>),
     List(Vec<u8>, Fd),
     ReadOpen(Vec<u8>),
@@ -54,6 +56,7 @@ pub struct Start {
 #[derive(Debug)]
 pub struct Git<T: Transport> {
     checked: Option<Checked>,
+    bare: bool,
     checkout: Checkout,
     transport: T,
     connection: Option<crate::connection::Connection>,
@@ -98,9 +101,10 @@ impl<T: Transport> Git<T> {
                 jobs.push_back(Job::Input(*pipes.get(&0).expect("commit stdin")));
             }
             match &checked.command {
+                Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
                 Command::Version => {}
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
-                    jobs.push_back(Job::Scan(path(&checked.at, directory)));
+                    jobs.push_back(Job::Scan(path(&checked.root, directory)));
                 }
                 Command::Reds(_)
                 | Command::Format
@@ -113,11 +117,7 @@ impl<T: Transport> Git<T> {
                 | Command::SnapshotFetch { .. }
                 | Command::Fetch { .. }
                 | Command::Create { .. }
-                | Command::CheckOut { .. }
-                | Command::Clean
-                | Command::Merge { .. }
                 | Command::Unmerged
-                | Command::Add
                 | Command::DiffPaths { .. }
                 | Command::DiffIndex { .. }
                 | Command::WriteTree
@@ -125,7 +125,18 @@ impl<T: Transport> Git<T> {
                 | Command::MergeBases { .. }
                 | Command::BringsList { .. }
                 | Command::IsAncestor { .. }
-                | Command::Push { .. } => jobs.push_back(Job::Scan(checked.at.to_vec())),
+                | Command::Push { .. } => jobs.push_back(match &checked.git_dir {
+                    Some(directory) => Job::Scan(directory.to_vec()),
+                    None => Job::Metadata(checked.at.to_vec()),
+                }),
+                Command::CheckOut { .. } | Command::Clean | Command::Merge { .. } | Command::Add => {
+                    jobs.push_back(Job::Scan(checked.at.to_vec()));
+                    if let Some(directory) = &checked.git_dir
+                        && directory.as_ref() != checked.at.as_ref()
+                    {
+                        jobs.push_back(Job::Scan(directory.to_vec()));
+                    }
+                }
             }
         }
         let mut checkout = Checkout::new();
@@ -136,6 +147,7 @@ impl<T: Transport> Git<T> {
             exchange: None,
             runs: 0,
             checked,
+            bare: false,
             checkout,
             transport,
             root,
@@ -153,6 +165,50 @@ impl<T: Transport> Git<T> {
             submissions: Queue::with_capacity(1),
         }
     }
+    // A command loads only the git subtrees its answer reads or changes. Unseen
+    // directories stay outside both sides of the disk diff, so they stay intact.
+    fn needs_directory(&self, directory: &[u8], name: &[u8]) -> bool {
+        let checked = self.checked.as_ref().expect("scanning a checked invocation");
+        let metadata = checked
+            .git_dir
+            .as_deref()
+            .map_or_else(|| if self.bare { checked.at.to_vec() } else { path(&checked.at, b".git") }, <[u8]>::to_vec);
+        if directory != metadata {
+            return true;
+        }
+        match &checked.command {
+            Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
+            Command::Version | Command::Origin { .. } | Command::Clone { .. } | Command::Store { .. } => true,
+            Command::Clean | Command::Add | Command::SnapshotReset { .. } => {
+                name == b"temper-index" || name == b"temper-conflicts"
+            }
+            Command::CheckOut { .. } | Command::Merge { .. } => {
+                name == b"objects" || name == b"temper-index" || name == b"temper-conflicts"
+            }
+            Command::Reds(command) => match command {
+                temper_worker_protocol_git::reds::CheckCommand::Pin
+                | temper_worker_protocol_git::reds::CheckCommand::Base { .. } => name == b"refs",
+                temper_worker_protocol_git::reds::CheckCommand::Ancestor { .. } => name == b"objects",
+                temper_worker_protocol_git::reds::CheckCommand::Merge => false,
+            },
+            Command::Format
+            | Command::Remote { .. }
+            | Command::SnapshotHead
+            | Command::SnapshotMerge { .. }
+            | Command::IsAncestor { .. } => false,
+            Command::UpdateRef { .. } | Command::Fetch { .. } => name == b"objects" || name == b"refs",
+            Command::SnapshotReachable { .. } => name == b"temper-delivery-heads",
+            Command::SnapshotFetch { .. } => name == b"objects" || name == b"temper-delivery-heads",
+            Command::Unmerged => name == b"temper-conflicts",
+            Command::DiffIndex { .. } | Command::CommitTree { .. } => name == b"objects" || name == b"temper-index",
+            Command::WriteTree => name == b"temper-index",
+            Command::Create { .. }
+            | Command::DiffPaths { .. }
+            | Command::MergeBases { .. }
+            | Command::BringsList { .. }
+            | Command::Push { .. } => name == b"objects",
+        }
+    }
     fn emit(&mut self, op: Op, pending: Pending) {
         self.serial += 1;
         self.pending = Some(pending);
@@ -161,6 +217,10 @@ impl<T: Transport> Git<T> {
     fn next(&mut self, job: Job) {
         match job {
             Job::Socket(op) => self.emit(op, Pending::Socket),
+            Job::Metadata(at) => self.emit(
+                Op::Open { root: self.root, path: path(&at, b".git").into(), how: OpenHow::DirectoryNoFollow },
+                Pending::Metadata(at),
+            ),
             Job::Scan(path) => self.emit(
                 Op::Open { root: self.root, path: path.clone().into(), how: OpenHow::DirectoryNoFollow },
                 Pending::Scan(path),
@@ -225,6 +285,19 @@ impl<T: Transport> Git<T> {
     )]
     fn file_complete(&mut self, pending: Pending, kind: Op, result: Result<Done, k::Error>) {
         match (pending, kind, result) {
+            (Pending::Metadata(at), _, Ok(Done::Fd(fd))) => {
+                let git = path(&at, b".git");
+                self.before.insert(at, k::Kind::Directory);
+                self.owned.insert(fd);
+                self.before.insert(git.clone(), k::Kind::Directory);
+                self.checkout.mkdir(&git);
+                self.jobs.push_front(Job::List(git, fd));
+            }
+            (Pending::Metadata(at), _, Err(k::Error::NotFound)) => {
+                // Bare repositories hold their metadata directly at the command's root.
+                self.bare = true;
+                self.jobs.push_front(Job::Scan(at));
+            }
             (Pending::Scan(path), _, Ok(Done::Fd(fd))) => {
                 self.owned.insert(fd);
                 self.before.insert(path.clone(), k::Kind::Directory);
@@ -239,6 +312,18 @@ impl<T: Transport> Git<T> {
                     self.jobs.push_front(Job::List(path.clone(), fd));
                     for entry in entries.iter().take(usize::try_from(count).expect("eight entries")) {
                         let full = path_of_entry(&path, *entry, &names);
+                        // Explicit metadata is scanned separately, never through the work tree.
+                        if let Some(checked) = &self.checked
+                            && checked.git_dir.is_some()
+                            && full == crate::answer::path(&checked.at, b".git")
+                        {
+                            continue;
+                        }
+                        if entry.kind == k::Kind::Directory
+                            && !self.needs_directory(&path, entry.name(&names).expect("listed name"))
+                        {
+                            continue;
+                        }
                         self.before.insert(full.clone(), entry.kind);
                         match entry.kind {
                             k::Kind::Directory => self.jobs.push_back(Job::Scan(full)),
@@ -282,7 +367,8 @@ impl<T: Transport> Git<T> {
                 let op = match *job {
                     Job::Make(path) => Op::MakeDirectory { dir: fd, name: basename(&path), mode: 0o700 },
                     Job::Remove(path, directory) => Op::Remove { dir: fd, name: basename(&path), directory },
-                    Job::Scan(_)
+                    Job::Metadata(_)
+                    | Job::Scan(_)
                     | Job::List(..)
                     | Job::ReadOpen(_)
                     | Job::Read(..)
@@ -409,7 +495,11 @@ impl<T: Transport> Git<T> {
         let checked = self.checked.as_ref().expect("admitted route invocation");
         let remote = crate::check::remote(&checked.command)
             .map(<[u8]>::to_vec)
-            .or_else(|| self.files.get(&path(&checked.at, b".git/temper-remote")).cloned())
+            .or_else(|| {
+                self.files
+                    .get(&path(checked.git_dir.as_deref().unwrap_or(&path(&checked.at, b".git")), b"temper-remote"))
+                    .cloned()
+            })
             .unwrap_or_default();
         let result = crate::exchange::Exchange::new(call, remote).and_then(|exchange| {
             let limits = self.transport.route_limits().expect("missing call's route limits");

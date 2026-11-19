@@ -84,6 +84,7 @@ fn given_fd_three_claims_the_parents_backlog_and_leaves_the_parent_listening() {
             op: Token::new(1),
             kind: Op::Spawn {
                 spawn: Box::new(Spawn {
+                    reach: None,
                     program: Box::from(&b"service"[..]),
                     args: Box::new([]),
                     env: Box::new([]),

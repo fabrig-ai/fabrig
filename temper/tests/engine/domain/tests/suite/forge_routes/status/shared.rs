@@ -141,6 +141,8 @@ fn shared(project_key: bool) -> Shared {
                 reason: None,
                 signature: None,
                 seen: None,
+                blame: None,
+                cleared: None,
             })),
         });
     }

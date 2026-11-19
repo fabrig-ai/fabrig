@@ -1,6 +1,7 @@
 //! Protection survives all three durable paths at `STORE_VERSION` 25.
 use skein_forge::api::Bypass;
 use temper_protocol_store::{STORE_VERSION, Undecodable, records, v25};
+use v25::Record;
 
 use crate::fixture;
 use crate::protection;

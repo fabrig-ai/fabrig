@@ -1,7 +1,7 @@
 //! Paths are checked before any output is built (protocol/setup/init.md, 2).
 use crate::{Fact, Reason, Refusal};
 
-#[expect(clippy::disallowed_methods, reason = "init is a protocol boundary: its paths must be JSON text")]
+#[expect(clippy::disallowed_methods, reason = "init validates its machine paths as UTF-8")]
 pub(crate) fn check(fact: Fact, path: &[u8], name: &[u8]) -> Result<(), Refusal> {
     if !path.starts_with(b"/") {
         return Err(Refusal { fact, reason: Reason::Relative });

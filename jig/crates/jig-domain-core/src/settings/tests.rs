@@ -22,7 +22,12 @@ fn numbered_value(current: &Current, kind: Setting, number: u32) -> (Setting, Va
             v.number = number;
             Setting::Model(number)
         }
-        Value::Overlay(_) | Value::Rules(_) | Value::Provider(_) | Value::Worker(_) | Value::Application(_) => {
+        Value::Overlay(_)
+        | Value::Rules(_)
+        | Value::Limits(_)
+        | Value::Provider(_)
+        | Value::Worker(_)
+        | Value::Application(_) => {
             unreachable!("numbered value")
         }
     };
@@ -69,7 +74,12 @@ fn settings_numbers_reserve_stock_holes_and_bound_own_items() {
             Value::Template(v) => v.grace = Some(Duration::from_secs(1)),
             Value::Model(v) => v.picker = false,
             Value::Charter(_) | Value::Policy(_) => {}
-            Value::Overlay(_) | Value::Rules(_) | Value::Provider(_) | Value::Worker(_) | Value::Application(_) => {
+            Value::Overlay(_)
+            | Value::Rules(_)
+            | Value::Limits(_)
+            | Value::Provider(_)
+            | Value::Worker(_)
+            | Value::Application(_) => {
                 unreachable!("numbered value")
             }
         }
@@ -153,7 +163,7 @@ fn template() -> Template {
 fn charter(current: &mut Current) -> &mut Charter {
     match &mut current.defaults.get_mut(&Setting::Charter(1)).unwrap().value {
         Value::Charter(value) => value,
-        Value::Template(_) | Value::Policy(_) | Value::Rules(_) => unreachable!(),
+        Value::Template(_) | Value::Policy(_) | Value::Rules(_) | Value::Limits(_) => unreachable!(),
         Value::Overlay(_) | Value::Provider(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
             unreachable!("an application's setting: apps-core")
         }
@@ -189,7 +199,8 @@ fn lookups_apply_sets_removals_additions_and_resets_without_a_third_set() {
             Setting::Rules,
             Setting::Worker(1),
             Setting::Worker(2),
-            Setting::Provider(1)
+            Setting::Provider(1),
+            Setting::Limits,
         ]
     );
 }
@@ -486,7 +497,7 @@ fn decision_edits_apply_each_kind_over_defaults_and_additions() {
                 Some((Setting::Template(33), Value::Template(value)))
             }
             Value::Policy(value) => Some((Setting::Policy(33), Value::Policy(value))),
-            Value::Rules(_) => None,
+            Value::Rules(_) | Value::Limits(_) => None,
             Value::Overlay(_) | Value::Provider(_) | Value::Worker(_) | Value::Model(_) | Value::Application(_) => {
                 unreachable!("an application's setting: apps-core")
             }

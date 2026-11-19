@@ -107,9 +107,14 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             row.provider.repository = number;
             Stored::Repository(row)
         }
-        RecordKind::Hold => {
-            Stored::Hold(Hold { design_writers: Box::new([]), name: name(number), task: n, writer: None, drift: None })
-        }
+        RecordKind::Hold => Stored::Hold(Hold {
+            beside: None,
+            design_writers: Box::new([]),
+            name: name(number),
+            task: n,
+            writer: None,
+            drift: None,
+        }),
         RecordKind::Names => Stored::Names { task: n, resources: Box::new([]) },
         RecordKind::Subscription => Stored::Subscription(Subscriber {
             task: n,
@@ -249,6 +254,8 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
             reason: None,
             signature: None,
             seen: None,
+            blame: None,
+            cleared: None,
         }),
         RecordKind::Red => Stored::Red(Red {
             goal: n,
@@ -1091,8 +1098,11 @@ fn setting_rule_fields_fit_at_the_bound_and_refuse_one_more_before_insertion() {
 
 fn tier_row(number: u32) -> TierRow {
     TierRow {
+        many: None,
         posting: None,
         hold: None,
+        waiting: Box::new([]),
+        unkept: 0,
         observations: Box::new([]),
         requested: false,
         cancelled: false,
@@ -1132,8 +1142,12 @@ fn landing_logs_restore_and_report_their_missing_repository() {
             branch: b"main".as_slice().into(),
             at: Wall::from_nanos(123),
             changes: Box::new([LoggedChange {
+                fixes: Box::new([]),
                 goal: None,
                 milestone: None,
+                person: None,
+                goal_title: None,
+                draft: None,
                 signed: Box::new([]),
                 task: 51,
                 pull: None,
@@ -1165,8 +1179,12 @@ fn landing_log_fields_fit_at_the_limit_and_refuse_one_more() {
         at: Wall::EPOCH,
         changes: vec![
             LoggedChange {
+                fixes: Box::new([]),
                 goal: None,
                 milestone: None,
+                person: None,
+                goal_title: None,
+                draft: None,
                 signed: Box::new([]),
                 task: 1,
                 pull: None,

@@ -71,7 +71,9 @@ fn act(root: &mut d::Domain, act: Act) {
     f::root_event(root, Event::Act { action: Action::Pages(act) });
 }
 pub(super) fn view(root: &d::Domain, shell: Shell) -> crate::View {
-    let words = Words::english(f::FORGE, 512, shell).unwrap();
+    view_with_words(root, Words::english(f::FORGE, 512, shell).unwrap())
+}
+fn view_with_words(root: &d::Domain, words: Words) -> crate::View {
     let mut limits = f::domain_limits();
     limits.client.domain.text = 512;
     limits.client.domain.long_text = 65536;
@@ -435,6 +437,9 @@ fn the_running_line_stands_while_the_reply_is_written_without_browser_dots() {
 #[expect(clippy::too_many_lines, reason = "the offered commands, choice lists and notes are rows of one view table")]
 fn the_commands_list_what_the_page_offers() {
     use terminal::{Act as T, Command as C};
+    let mut vocabulary = Words::english(f::FORGE, 512, Shell::Browser).unwrap();
+    let (mut root, _, task_watch) = f::terminal::command_root_with_watches(0);
+    let model = root.pages().me(root.client()).unwrap().projects.get(0).unwrap().models.get(0).unwrap().clone();
     for (state, words, expected) in [
         (0, "/", "/model /effort /draft /pause /close /new /chats /theme /font /help /exit"),
         (3, "/", "/model /effort /draft /close /new /chats /theme /font /help /exit"),
@@ -445,10 +450,14 @@ fn the_commands_list_what_the_page_offers() {
         (0, "/model now", ""),
         (0, "hello", ""),
     ] {
-        let mut root = command_root(state);
+        f::chat_helpers::deliver_chat(
+            &mut root,
+            task_watch,
+            c::Delivery::Task(Box::new(f::terminal::command_task(state, &model))),
+        );
         act(&mut root, Act::Terminal(T::Enter));
         act(&mut root, Act::MessageWords { words: words.as_bytes().into() });
-        let mut view = view(&root, Shell::Browser);
+        let mut view = view_with_words(&root, vocabulary);
         let menu = f::find(view.tree(), Role::Menu, b"Commands");
         assert_eq!(menu.is_some(), !expected.is_empty(), "{state} {words}");
         let items: Vec<_> = view.tree().nodes().iter().filter(|n| n.role == Role::MenuItem).cloned().collect();
@@ -496,6 +505,7 @@ fn the_commands_list_what_the_page_offers() {
                     .any(|n| n.role == Role::TextArea && n.placeholder.as_deref() == Some(b"/new starts another chat"))
             );
         }
+        vocabulary = view.into_words();
     }
     for (state, expected) in [
         (ProposalState::Ordinary, "/draft /close /new /chats /theme /font /help /exit"),
@@ -504,7 +514,7 @@ fn the_commands_list_what_the_page_offers() {
         let mut root = document_root(Some(b"# Draft\nBody"), Mode::Chat, &[], state);
         act(&mut root, Act::Terminal(T::Enter));
         act(&mut root, Act::MessageWords { words: b"/".as_slice().into() });
-        let v = view(&root, Shell::Browser);
+        let v = view_with_words(&root, vocabulary);
         let names: Vec<_> = v
             .tree()
             .nodes()
@@ -513,6 +523,7 @@ fn the_commands_list_what_the_page_offers() {
             .map(|n| core::str::from_utf8(n.name.as_ref().unwrap()).unwrap())
             .collect();
         assert_eq!(names, expected.split_whitespace().collect::<Vec<_>>());
+        vocabulary = v.into_words();
     }
     for (command, head) in [
         (C::Model, "Model. A change applies from the next turn."),
@@ -528,7 +539,7 @@ fn the_commands_list_what_the_page_offers() {
         };
         act(&mut root, Act::Terminal(T::Enter));
         act(&mut root, Act::Terminal(T::Run { command }));
-        let mut view = view(&root, Shell::Browser);
+        let mut view = view_with_words(&root, vocabulary);
         let tree = view.tree();
         let menu = f::find(tree, Role::Menu, head.as_bytes()).unwrap();
         assert!(tree.find(menu).unwrap().states.as_slice().contains(&State::Options));
@@ -569,11 +580,13 @@ fn the_commands_list_what_the_page_offers() {
             }
             act(&mut root, Act::Confirm);
             assert!(root.pages().confirmation().unwrap().sent.is_some());
-            let waiting = self::view(&root, Shell::Browser);
+            let waiting = view_with_words(&root, view.into_words());
             assert!(!waiting.tree().nodes().iter().any(|n| n.states.as_slice().contains(&State::Options)));
             assert!(!waiting.tree().nodes().iter().any(|n| n.role == Role::Dialog));
             assert!(f::find(waiting.tree(), Role::Button, b"Close the list").is_none());
+            view = waiting;
         }
+        vocabulary = view.into_words();
     }
     let (mut root, retained_watch) = command_root_with_watch(0);
     act(&mut root, Act::Terminal(T::Enter));
@@ -626,7 +639,7 @@ fn the_commands_list_what_the_page_offers() {
     );
     assert_eq!(root.pages().listing(), Some(terminal::Listing::Chats));
     assert_eq!(root.pages().chats().unwrap().live(root.client()).unwrap().rows.len(), 4);
-    let mut v = view(&root, Shell::Browser);
+    let mut v = view_with_words(&root, vocabulary);
     let items: Vec<_> = v.tree().nodes().iter().filter(|n| n.role == Role::MenuItem).cloned().collect();
     assert_eq!(items.iter().map(|n| n.name.as_deref().unwrap()).collect::<Vec<_>>(), [b"T2".as_slice(), b"T4", b"T3"]);
     for (item, task) in items.iter().zip([2, 4, 3]) {
@@ -636,6 +649,7 @@ fn the_commands_list_what_the_page_offers() {
             Some(Action::Pages(Act::Go { address: Address::Chat { task } }))
         );
     }
+    vocabulary = v.into_words();
     for address in
         [Address::Chat { task: f::chat::TASK }, Address::NewChat { draft: false }, Address::Ask { project: f::PROJECT }]
     {
@@ -663,7 +677,7 @@ fn the_commands_list_what_the_page_offers() {
             Act::ChatWords { words: b"/nope".as_slice().into() }
         };
         act(&mut root, writing);
-        let mut v = view(&root, Shell::Browser);
+        let mut v = view_with_words(&root, vocabulary);
         let field = v
             .tree()
             .nodes()
@@ -677,20 +691,22 @@ fn the_commands_list_what_the_page_offers() {
         let id = field.id;
         let expected = if let Address::Chat { .. } = address { Act::Send } else { Act::StartChat };
         assert_eq!(crate::act(&mut v, id, skein_ui::Act::Submit), Some(Action::Pages(expected)));
+        vocabulary = v.into_words();
     }
     let mut root = command_root(0);
     act(&mut root, Act::Terminal(T::Enter));
-    let mut quiet = view(&root, Shell::Browser);
+    let mut quiet = view_with_words(&root, vocabulary);
     assert!(f::find(quiet.tree(), Role::Disclosure, b"Model").is_none());
     let id = f::find(quiet.tree(), Role::Button, "chosen · high".as_bytes()).unwrap();
     assert_eq!(
         crate::act(&mut quiet, id, skein_ui::Act::Press),
         Some(Action::Pages(Act::Terminal(T::Run { command: C::Model })))
     );
+    vocabulary = quiet.into_words();
     let mut root = command_root(0);
     act(&mut root, Act::Terminal(T::Enter));
     act(&mut root, Act::Terminal(T::Run { command: C::Help }));
-    let v = view(&root, Shell::Browser);
+    let v = view_with_words(&root, vocabulary);
     let help = v
         .tree()
         .nodes()

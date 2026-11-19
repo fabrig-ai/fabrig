@@ -272,6 +272,7 @@ fn task_problem(problem: &jig_domain_tasks::Problem) -> Rendered {
         jig_domain_tasks::Refusal::Unproposable => b"no proposal could be accepted",
         jig_domain_tasks::Refusal::PersonRevision { .. } => b"person revision",
         jig_domain_tasks::Refusal::ResourceUnavailable => b"resource unavailable",
+        jig_domain_tasks::Refusal::Unreported => b"unreported",
         jig_domain_tasks::Refusal::NotReady => b"not ready",
         jig_domain_tasks::Refusal::Unknown => b"unknown",
         jig_domain_tasks::Refusal::Busy => return task_busy(problem),

@@ -6,6 +6,17 @@ use skein_fake_person::{Doing, Face, Find, Found};
 use skein_lib::{Time, Token};
 use skein_ui::{Act, NodeId, Role};
 
+#[test]
+fn text_boxes_query_the_browser_textbox_role_with_an_exact_name() {
+    let mut face = face();
+    let find = Find::text_box(b"Reply");
+    assert_eq!(face.find(&find), Found::Pending);
+    let Request::Find { query, .. } = face.requests().next().expect("text box query") else { panic!("find request") };
+    assert_eq!(query.role.as_ref(), b"textbox");
+    assert_eq!(query.name.as_ref(), b"Reply");
+    assert_eq!(query.matching, skein_browser::boundary::Match::Exact);
+}
+
 fn pressing() -> (BrowserFace<'static>, Token) {
     let mut face = face();
     let find = Find::exactly_named(Role::Button, b"Sign out");

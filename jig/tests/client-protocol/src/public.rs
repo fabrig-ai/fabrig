@@ -108,7 +108,8 @@ impl Probe {
             jig_client_protocol_http::public(&jig_client_protocol_http::Mapping::new(b"/jig").expect("prefix"), &path);
         assert!(call.headers.is_empty() && call.body.is_empty(), "credential-less public GET");
         self.call = Some(call);
-        self.requests.push(io::Request::Connect { owner: Token::new(1), addr: native::settings().engine });
+        let jig_client_shell_native::Engine::Plain(addr) = native::settings().engine else { panic!("plain fixture") };
+        self.requests.push(io::Request::Connect { owner: Token::new(1), addr });
     }
     fn http_env(&self) -> Env<http::Limits> {
         self.env.with(fixtures::connections_limits().http)

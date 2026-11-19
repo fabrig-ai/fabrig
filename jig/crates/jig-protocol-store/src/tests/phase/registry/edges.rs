@@ -34,8 +34,9 @@ fn assert_rows(rows: &[&Row]) {
 }
 fn alias(store: &mut Store, number: u16, from: u16, to: u16) -> skein_kv::Op {
     let value = row(store, number, from).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let mut writer =
+        skein_lib::Writer::new(usize::try_from(value.measure(&crate::registry_v1::CEILINGS).unwrap()).unwrap());
+    value.write(&crate::registry_v1::CEILINGS, &mut writer).unwrap();
     skein_kv::Op::Put {
         key: crate::keys::encode_own(
             &crate::keys::Own::Layout { family: FAMILY.name.into(), number, id: to },
@@ -80,15 +81,15 @@ fn new_value_types_register_and_read_back() {
     let mut store = store(&disk, NEW_SET);
     let events = disk.open(&mut store);
     let [Event::Opened { pending: true, .. }, Event::Census { .. }] = events.as_ref() else { panic!("{events:?}") };
-    assert_eq!(*row(&mut store, 0, 2).unwrap().text(), hash(KEPT_NEW));
+    assert_eq!(row(&mut store, 0, 2).unwrap().text, hash(KEPT_NEW));
     for number in [1, 2] {
         let ty = NEW_FAMILY.types.iter().find(|ty| ty.number == number).unwrap();
         let registered = row(&mut store, number, 2).unwrap();
-        assert_eq!(*registered.text(), hash(CURRENT_NEW), "the new type registers its binary text");
-        assert_eq!(registered.root(), ty.root.as_bytes());
-        assert_eq!(registered.variant().as_deref(), ty.variant.map(str::as_bytes));
+        assert_eq!(registered.text, hash(CURRENT_NEW), "the new type registers its binary text");
+        assert_eq!(registered.root.as_ref(), ty.root.as_bytes());
+        assert_eq!(registered.variant.as_deref(), ty.variant.map(str::as_bytes));
         let root = current.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).unwrap();
-        assert_eq!(*registered.layout(), current.layout(root, &[]).unwrap().digest());
+        assert_eq!(registered.layout, current.layout(root, &[]).unwrap().digest());
         assert!(row(&mut store, number, 3).is_none(), "new types start at the family's version id");
     }
     assert_eq!(app(&mut store, b"a/2").unwrap().as_ref(), &[0, 2, 0]);
