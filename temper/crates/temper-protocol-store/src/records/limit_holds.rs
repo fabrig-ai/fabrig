@@ -1,25 +1,21 @@
 //! The durable account of a named limit hold (protocol/configuration/limit-settings.md, 6).
-use super::{Bounds, FITS, Undecodable, d, names, w};
+use super::{Bounds, Undecodable, d, names, w};
 
 pub(super) fn encode(row: &d::LimitHold) -> w::LimitHold {
-    w::LimitHold::new(
-        &w::CEILINGS,
-        w::LimitHoldParts {
-            task: row.task,
-            member: row.member.clone(),
-            configured: row.configured,
-            needed: row.needed,
-            revision: row.revision,
-            at: row.at.as_nanos(),
-            room: row.room,
-            set: encode_set(&row.set),
-            order: row.order,
-        },
-    )
-    .expect(FITS)
+    w::LimitHold {
+        task: row.task,
+        member: row.member.clone(),
+        configured: row.configured,
+        needed: row.needed,
+        revision: row.revision,
+        at: row.at.as_nanos(),
+        room: row.room,
+        set: encode_set(&row.set),
+        order: row.order,
+    }
 }
 pub(super) fn decode(value: w::LimitHold, bounds: &Bounds) -> Result<d::LimitHold, Undecodable> {
-    let w::LimitHoldParts { task, member, configured, needed, revision, at, room, set, order } = value.into_parts();
+    let w::LimitHold { task, member, configured, needed, revision, at, room, set, order } = value;
     Ok(d::LimitHold {
         task,
         member,

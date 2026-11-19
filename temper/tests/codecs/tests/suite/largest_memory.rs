@@ -2,7 +2,7 @@
 //! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
-use temper_protocol_records::v1::Record;
+use skein_codec::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -423,7 +423,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_protocol_store::OWNER_SET.families.first().expect("store family").current,
-        temper_protocol_store::v25, sealed,
+        temper_protocol_store::v25, lean,
         limits [
             segment_name,
             answer_name_name,
@@ -751,7 +751,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             project_areas_areas,
             limit_override_name,
             limit_override_reason,
-            temper_limits_overrides,
+            limit_overrides_overrides,
             agent_figure_name,
             agent_endpoint_limits_endpoint,
             agent_figures_profile,
