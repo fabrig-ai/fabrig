@@ -376,9 +376,11 @@ them (8).
   as asked ends it failed, saying why. A failed task's dependents are
   held (6); its requester decides what follows.
 - **A failure always says why.** A failed task's reason, and so its
-  summary's (`../../protocol/store/retention.md`, 3), is never empty. A
-  run's declared failure with no reason ends with `Its run declared
-  failure without a reason.` Each failed ending jig makes itself carries
+  summary's (`../../protocol/store/retention.md`, 3), is never empty. An
+  executor's declared failure with no reason ends with `Its EXECUTOR
+  declared failure without a reason.`, EXECUTOR `run` for an agent's
+  run, `person` for a person's answer and `procedure` for a procedure's
+  step. Each failed ending jig makes itself carries
   its words, N the run tries its class allows (6):
   - past its tries parked with nothing left to await (2): `Its runs
     parked with nothing left to await, past its N run tries.`;
@@ -390,7 +392,11 @@ them (8).
     the colon and REASON left out where that is empty.
 
   Any other ending jig makes failed with no reason of its own takes the
-  nearest of these, never none.
+  nearest of these, never none. Each is cut at a character's edge to
+  the bound every failed reason has, `tasks.result_bytes`, as a reason
+  past it would be: a deployment whose bound is 0 keeps no reason at
+  all, its own choice, and one whose bound is smaller than the words
+  keeps their beginning (the standard's holds them whole).
 
 ## 8. Kept by a dependency
 
