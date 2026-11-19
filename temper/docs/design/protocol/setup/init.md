@@ -379,7 +379,7 @@ playground and no Forgejo on this machine.
 - **Refused,** exit 1, before it writes anything, naming the file: when
   the configuration directory holds `temper.toml` or `temper.json`, or the data
   directory holds `worker.secret` or, with `--box`,
-  `demo/llm.key` or `demo/bin/git`. It never replaces a file; a person
+  `demo/bin/git`. It never replaces a file; a person
   who starts again removes them.
 - **Its directories:** the data and cache directories made and checked
   as every command makes and checks them (../configuration/directories.md
@@ -388,14 +388,14 @@ playground and no Forgejo on this machine.
   `--box`, the data directory's `demo/` and `demo/bin/`, made private
   (0o700).
 - **Its files,** each created new, in this order, the document last, so
-  that a configuration directory holding one holds them all, the two in
-  `demo/` with `--box` alone:
+  that a configuration directory holding one holds them all, the one in
+  `demo/` with `--box` alone; the scripted model's key, `demo/llm.key`,
+  is the playground's, made at its start (`playground.md`), not init's:
 
   | File | Directory | Mode | What it is |
   |---|---|---|---|
   | `worker.secret` | data | 0o600 | 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `provider.key` | data | 0o600 | with `--box`, the OpenID provider's signing key, made as `owned.md`, 8's first step, and kept if already there (`../openid-provider.md`, 9); no such file when it can't be made |
-  | `demo/llm.key` | data | 0o600 | the scripted model's key (`playground.md`): 32 bytes from the kernel's random source, as 64 lowercase hexadecimal digits and a newline |
   | `demo/bin/git` | data | a link | the playground's git, `temper-box fake git` (`playground.md`): a symbolic link to the binary |
   | `temper.toml` | configuration | 0o644 | the default file (3) |
 
