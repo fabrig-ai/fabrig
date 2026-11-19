@@ -17,8 +17,7 @@
   to be recorded again. `again` couldn't record on a fake box, because
   the owned Forgejo's pinned download couldn't be fetched: codeberg.org didn't resolve anywhere on 2026-11-18. Free decided this on
   2026-11-18, through temper/dev. temper/tiers records them again after
-  landing, together with the browser's three
-  (`../web/journeys.status.md`), and then deletes this entry.
+  landing, and then deletes this entry.
 
 - **Departs:** 3.2: the committed recordings' `screen` says `dark`, the
   run's fallback when they were recorded, where `again`, in a
