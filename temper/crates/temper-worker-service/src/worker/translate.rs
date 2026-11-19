@@ -107,6 +107,7 @@ pub fn workspace(items: Option<&v1::Items>) -> Assigned {
                 expected: *value.expected(),
                 landing: value.landing().clone(),
                 delivered: *value.delivered(),
+                pin: *value.pin(),
             },
             v1::Access::ReadOnly => worker::Access::ReadOnly,
             v1::Access::Prefixes(value) => worker::Access::Prefixes { branches: value.branches().clone().into_boxed() },
@@ -312,7 +313,13 @@ mod tests {
             let access = v1::Access::Writable(
                 v1::Writable::new(
                     &v1::CEILINGS,
-                    v1::WritableParts { push: b"change/7".as_slice().into(), expected: None, landing: None, delivered },
+                    v1::WritableParts {
+                        push: b"change/7".as_slice().into(),
+                        expected: None,
+                        landing: None,
+                        delivered,
+                        pin: None,
+                    },
                 )
                 .expect("writable"),
             );
@@ -326,7 +333,40 @@ mod tests {
                     expected: None,
                     landing: None,
                     delivered,
+                    pin: None,
                 },
+            );
+        }
+    }
+
+    #[test]
+    fn a_named_pin_reaches_the_workers_workspace_items() {
+        for pin in [None, Some([8; 32])] {
+            let access = v1::Access::Writable(
+                v1::Writable::new(
+                    &v1::CEILINGS,
+                    v1::WritableParts {
+                        push: b"change/7".as_slice().into(),
+                        expected: None,
+                        landing: None,
+                        delivered: Some([7; 32]),
+                        pin,
+                    },
+                )
+                .expect("writable"),
+            );
+            let bytes = wire::items(&items_with_access(access));
+            let decoded = v1::Items::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("wire items");
+            let translated = workspace(Some(&decoded));
+            assert_eq!(
+                translated.repositories.first().expect("repository").access,
+                temper_worker_domain::wire::Access::Writable {
+                    push: b"change/7".as_slice().into(),
+                    expected: None,
+                    landing: None,
+                    delivered: Some([7; 32]),
+                    pin,
+                }
             );
         }
     }

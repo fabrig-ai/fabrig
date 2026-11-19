@@ -305,12 +305,14 @@ enum PrepareStep {
         ours: Commit,
         commit: Commit,
         merging: Option<Commit>,
+        pushed: Option<Commit>,
     },
     /// The pin, followed by the start's remaining preparation or a producer merge.
     FetchLanding {
         repository: u32,
         ours: Commit,
         merging: Option<Commit>,
+        pushed: Option<Commit>,
     },
     FetchBase {
         repository: u32,
@@ -1214,11 +1216,8 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 unreachable!("io ends a fetch with its own terminals")
             }
         },
-        PrepareStep::FetchLanding { repository, ours, merging } => match done {
-            Done::Fetched { commit } => match merging {
-                Some(base) => begin_merge(holding, repository, ours, Some(base)),
-                None => after_start(holding, repository, ours, Some(commit)),
-            },
+        PrepareStep::FetchLanding { repository, ours, merging, pushed } => match done {
+            Done::Fetched { commit } => after_pin(holding, repository, ours, commit, merging, pushed),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
             | Done::Results { .. }
@@ -1234,11 +1233,8 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("a landing fetch has fetch terminals"),
         },
-        PrepareStep::PointLanding { repository, ours, commit, merging } => match done {
-            Done::Succeeded => match merging {
-                Some(base) => begin_merge(holding, repository, ours, Some(base)),
-                None => after_start(holding, repository, ours, Some(commit)),
-            },
+        PrepareStep::PointLanding { repository, ours, commit, merging, pushed } => match done {
+            Done::Succeeded => after_pin(holding, repository, ours, commit, merging, pushed),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
             | Done::Results { .. }
@@ -1442,7 +1438,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
             Done::IsAncestor { contains: true } => resume_contained(holding, repository, ours),
             Done::IsAncestor { contains: false } => {
                 if pin_branch(nth(holding, repository)).is_some() {
-                    fetch_landing(holding, repository, ours, Some(base))
+                    fetch_landing(holding, repository, ours, Some(base), None)
                 } else {
                     begin_merge(holding, repository, ours, Some(base))
                 }
@@ -1633,10 +1629,7 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
             repository,
             Want::Branch { branch: copy_of(nth(holding, repository).push.as_deref().expect("writable item")) },
         ),
-        PrepareStep::FetchLanding { repository, .. } => (
-            repository,
-            Want::Branch { branch: copy_of(pin_branch(nth(holding, repository)).expect("writable landing")) },
-        ),
+        PrepareStep::FetchLanding { repository, .. } => (repository, pin_want(nth(holding, repository))),
         PrepareStep::FetchBase { repository, base, .. } => (repository, Want::Commit { commit: base }),
         PrepareStep::Reds { .. }
         | PrepareStep::Candidate { .. }
@@ -1678,11 +1671,42 @@ fn fetch_push(holding: &Holding, repository: u32, ours: Commit) -> Next {
     }
 }
 
-fn fetch_landing(holding: &Holding, repository: u32, ours: Commit, merging: Option<Commit>) -> Next {
-    let want = Want::Branch { branch: copy_of(pin_branch(nth(holding, repository)).expect("writable landing")) };
+fn pin_want(repository: &Repository) -> Want {
+    match repository.pin {
+        Some(commit) => Want::Commit { commit },
+        None => Want::Branch { branch: copy_of(pin_branch(repository).expect("writable landing")) },
+    }
+}
+
+fn fetch_landing(
+    holding: &Holding,
+    repository: u32,
+    ours: Commit,
+    merging: Option<Commit>,
+    pushed: Option<Commit>,
+) -> Next {
+    let want = pin_want(nth(holding, repository));
     match fetched(holding, repository, &want) {
-        Some(commit) => Next::Step(PrepareStep::PointLanding { repository, ours, commit, merging }),
-        None => Next::Step(PrepareStep::FetchLanding { repository, ours, merging }),
+        Some(commit) => Next::Step(PrepareStep::PointLanding { repository, ours, commit, merging, pushed }),
+        None => Next::Step(PrepareStep::FetchLanding { repository, ours, merging, pushed }),
+    }
+}
+
+fn after_pin(
+    holding: &mut Holding,
+    repository: u32,
+    ours: Commit,
+    commit: Commit,
+    merging: Option<Commit>,
+    pushed: Option<Commit>,
+) -> Next {
+    if nth(holding, repository).pin.is_some() {
+        after_replaced_pin(holding, repository, ours, pushed)
+    } else {
+        match merging {
+            Some(base) => begin_merge(holding, repository, ours, Some(base)),
+            None => after_start(holding, repository, ours, Some(commit)),
+        }
     }
 }
 
@@ -1711,7 +1735,7 @@ fn fetched_start(holding: &Holding, repository: u32, ours: Commit) -> Next {
     if spec.push.is_some() && spec.landing.is_none() {
         fetch_push(holding, repository, ours)
     } else if !merge && pin_branch(spec).is_some() {
-        fetch_landing(holding, repository, ours, None)
+        fetch_landing(holding, repository, ours, None, None)
     } else {
         after_start(holding, repository, ours, None)
     }
@@ -1737,7 +1761,9 @@ fn after_start(holding: &Holding, repository: u32, ours: Commit, pin: Option<Com
 }
 
 fn fetched_push(holding: &Holding, repository: u32, ours: Commit, pushed: Option<Commit>) -> Next {
-    if nth(holding, repository).landing.is_none() {
+    if nth(holding, repository).pin.is_some() {
+        fetch_landing(holding, repository, ours, None, pushed)
+    } else if nth(holding, repository).landing.is_none() {
         Next::Step(PrepareStep::PinReplaced { repository, ours, pushed })
     } else {
         after_replaced_pin(holding, repository, ours, pushed)
@@ -2009,7 +2035,7 @@ fn prepare_step(
                 into: Into::Landing,
                 at: place(workspace, spec),
                 remote: copy_of(&spec.remote),
-                want: Want::Branch { branch: copy_of(pin_branch(spec).expect("writable item names its landing")) },
+                want: pin_want(spec),
                 identity: spec.identity,
                 account: spec.account,
             }

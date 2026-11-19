@@ -206,6 +206,7 @@ fn largest_writable_items_count_the_own_delivery_head() {
             expected: Some([1; 32]),
             landing: Some(zeroed(usize::try_from(limits.writable_landing_some).unwrap())),
             delivered: Some([7; 32]),
+            pin: None,
         },
     )
     .unwrap();
@@ -359,6 +360,7 @@ fn landing_branch_uses_the_name_bound_and_largest_items_count_it() {
             expected: None,
             landing: Some(skein_lib::bytes::zeroed(length)),
             delivered: None,
+            pin: None,
         };
         let value = v1::Writable::new(&limits, parts);
         if length == 16 {

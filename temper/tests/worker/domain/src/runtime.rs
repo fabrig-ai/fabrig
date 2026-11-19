@@ -523,6 +523,7 @@ impl World {
                 expected: Some(HEAD),
                 landing: None,
                 delivered: None,
+                pin: None,
             },
         };
         let assignment = host::Assignment {

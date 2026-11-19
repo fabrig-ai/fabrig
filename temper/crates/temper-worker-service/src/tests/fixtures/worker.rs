@@ -14,6 +14,7 @@ pub fn one_repository() -> wire::Workspace {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             },
             identity: 1,
             account: None,
@@ -237,6 +238,7 @@ fn assigned(repository: bool) -> jig_protocol_worker_link::Request {
                                     expected: None,
                                     landing: None,
                                     delivered: None,
+                                    pin: None,
                                 },
                             )
                             .unwrap(),

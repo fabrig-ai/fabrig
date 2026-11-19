@@ -25,7 +25,13 @@ pub fn repository_parts(tag: u64, remote: Box<[u8]>) -> v1::RepositoryParts {
     let branch = v1::Branch::new(&limits, v1::BranchParts { branch: Box::from(&b"main"[..]) }).expect("base branch");
     let writable = v1::Writable::new(
         &limits,
-        v1::WritableParts { push: Box::from(&b"temper/work"[..]), expected: None, landing: None, delivered: None },
+        v1::WritableParts {
+            push: Box::from(&b"temper/work"[..]),
+            expected: None,
+            landing: None,
+            delivered: None,
+            pin: None,
+        },
     )
     .expect("push branch");
     v1::RepositoryParts {

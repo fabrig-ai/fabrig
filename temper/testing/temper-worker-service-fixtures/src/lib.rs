@@ -143,6 +143,7 @@ pub fn one_repository() -> wire::Workspace {
                 expected: None,
                 landing: None,
                 delivered: None,
+                pin: None,
             },
             identity: 1,
             account: None,

@@ -187,6 +187,7 @@ impl Workspace {
                 prefixes: Box::new([]),
                 expected: None,
                 delivered: None,
+                pin: None,
                 landing: repository.landing.clone(),
                 identity: 0,
                 account: None,

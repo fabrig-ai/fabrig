@@ -293,6 +293,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
         delivered: None,
+        pin: None,
         identity: 1,
     }
 }
