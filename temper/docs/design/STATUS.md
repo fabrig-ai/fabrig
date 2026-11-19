@@ -493,28 +493,23 @@ jig's `protocol/client/sign-in.md`;
 `draft/asked-link.status.md`).
 
 A journey's recording holds nonsecret placeholders for what varies
-between walks of the same screens: the TUI's build, every loopback port
-and approval code. `add` inserts them after its proof and checks by
-replay. A browser's print numbers skein-ui's ids afresh per page. Times
-stand; a framed field takes only a placeholder of the original's width
-(`client/journey-placeholders.md`;
+between walks: the TUI's build, loopback ports and approval codes,
+inserted by `add` and checked by replay; a framed field's is the
+original's width, and a browser's print numbers skein-ui's ids afresh
+per page (`client/journey-placeholders.md`;
 `draft/journey-placeholders.status.md`).
 
 `again` fixes start 2026-01-06T09:00:00Z, seed 7 for a journey's fake
-box engine, worker and fake peers, page and TUI; each clock moves only
-to its own deadlines. Two walks' recordings and prints match except
-where real processes decide. The box's TLS-fetching loop and agents
-keep the host's clock; hand-walked recordings keep their times (`client/journey-clock.md`;
-`draft/journey-clock.status.md`).
+box engine, worker, peers, page and TUI, each clock moving only to its
+own deadlines: two walks match but where real processes, the box's
+TLS-fetching loop and agents, keep the host's clock
+(`client/journey-clock.md`; `draft/journey-clock.status.md`).
 
-Main's journey files have one writer, run after each landing, one
-offer at a time, ending `Printed: COMMIT`; no test or goal writes them
-(`client/journey-writer.md`).
-
-A browser journey whose `walk` is of version 2 is printed in one
-process, its lines acted on the shipped web host against the
-playground's composition at fixed facts, by `temper-client-walk`;
-`welcome-playground` is the first (`client/journey-walks.md`).
+Main's journey files have one writer, run after each landing, ending
+`Printed: COMMIT`; no test or goal writes them
+(`client/journey-writer.md`). A journey whose `walk` is of version 2,
+`welcome-playground` first, prints in one process by
+`temper-client-walk` (`client/journey-walks.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
