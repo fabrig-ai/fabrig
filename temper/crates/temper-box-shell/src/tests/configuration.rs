@@ -1,5 +1,6 @@
 //! Configuration reference pages (temper/docs/design/protocol/documentation.md, 6 and 8).
 #[path = "../../../../testing/temper-box-kit/src/configuration.rs"]
+#[expect(dead_code, reason = "these shell tests use the shared startup documents, not the cluster's figures")]
 pub(crate) mod support;
 use core::num::NonZeroU16;
 use serde_json::Value;

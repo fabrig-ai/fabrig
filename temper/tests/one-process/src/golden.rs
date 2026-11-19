@@ -783,7 +783,6 @@ fn startup_configuration(
     }
     // Kept deployment inputs use the current box shape; the stored generation stays untouched.
     document["world_settings"]["playground"] = true.into();
-    let mut inherited = Vec::new();
     for worker in document["workers"].as_array_mut().expect("kept workers") {
         worker["name"] = "local".into();
         for member in ["agent", "limits", "memory_bytes"] {

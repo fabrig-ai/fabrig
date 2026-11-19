@@ -774,7 +774,7 @@ impl Bounded {
             &self.seeds,
             self.forges(),
             Some(&self.setup),
-            &temper_service::stock::Given::Stock,
+            &self.given,
             None,
             &self.limits.jig,
             &self.limits.limits,
@@ -793,7 +793,6 @@ impl Bounded {
             }),
             None,
             None,
-            &self.given,
             Box::new([]),
         )
     }

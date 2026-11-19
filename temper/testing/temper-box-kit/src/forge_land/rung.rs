@@ -32,10 +32,6 @@ fn require(yes: bool, message: &str) -> Result<(), String> {
     if yes { Ok(()) } else { Err(message.to_owned()) }
 }
 
-fn read_json(path: &Path) -> Value {
-    serde_json::from_slice(&fs::read(path).expect("configuration bytes")).expect("configuration JSON")
-}
-
 fn write_json(path: &Path, value: &Value) {
     super::super::write_private(path, &serde_json::to_vec(value).expect("configuration JSON"));
 }

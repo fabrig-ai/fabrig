@@ -29,11 +29,6 @@ pub fn check_over(
         None => temper_service::startup::named_with(bytes, directories, given),
     }
     .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-    let document = config::document(
-        bytes,
-        &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
-    )
-    .expect("named checked document");
     let mut listeners = match &named.clients {
         config::Address::Addr(a) => a.socket().into_iter().collect::<Vec<_>>(),
         config::Address::Host { .. } => Vec::new(),

@@ -137,7 +137,7 @@ impl ServiceHost {
         let address = forge
             .as_ref()
             .map_or(([127, 0, 0, 1], 0).into(), |listener| listener.local_addr().expect("held forge address"));
-        let mut configuration = fixtures::write(&path, address, address).expect("stand-in standalone documents");
+        let mut configuration = fixtures::write_configured(&path, address, address, configure).expect("stand-in standalone documents");
         if direct_key {
             fixtures::key_documents(&path, &mut configuration).expect("standard key route");
         }
@@ -152,20 +152,9 @@ impl ServiceHost {
             configuration.document =
                 serde_json::from_slice(&std::fs::read(path.join("temper.json")).expect("deployment"))
                     .expect("deployment JSON");
-            if let Some(configure) = configure {
-                let mut agent = serde_json::from_slice(&std::fs::read(path.join("world-agent.json")).expect("agent"))
-                    .expect("agent JSON");
-                configure(&mut configuration, &mut agent);
-                configuration = temper_playground::documents::Configuration::from_jig_over(
-                    configuration.document.clone(),
-                    &configuration.jig,
-                    &configuration.limits,
-                );
-                fixtures::turn_bounds::apply(&mut configuration, fixtures::turn_bounds::turn_body(&agent));
-                fixtures::private(&path.join("world-agent.json"), &serde_json::to_vec(&agent).expect("agent JSON"))
-                    .expect("agent configuration");
-                temper_agent_fixtures::apply(&mut configuration, &path, &agent);
-            }
+            configuration["world_settings"] = serde_json::from_slice(
+                &std::fs::read(path.join("world-settings.json")).expect("world settings")
+            ).expect("world settings JSON");
             fixtures::finish_configuration(&path, &mut configuration).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {
@@ -176,7 +165,7 @@ impl ServiceHost {
             );
         }
         if let Some(address) = issuer {
-            fixtures::sign_in_documents(&path, address).expect("local issuer registration");
+            fixtures::sign_in_documents(&path, address, &mut configuration).expect("local issuer registration");
         }
         let roots = Self::directories(&path, cluster.is_some());
         let config = std::fs::read(roots.document()).expect("standalone document");

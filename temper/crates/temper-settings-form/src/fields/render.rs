@@ -3,7 +3,7 @@ use crate::{Limits, Text};
 use alloc::boxed::Box;
 use skein_lib::Decimal;
 
-pub const INTRO: &[u8] = b"Read/edit/set whole: `settings show KIND N`. Refusals: shape, count, reference, rules, budget, grace, owner, linked, accounts. Spend: deployment model-price units. uN: unsigned N-bit integer (0..2^N-1). bool: true/false. t[N]/h[N]: text/lowercase hex, <=N bytes; ns: nanoseconds; [N] T: <=N entries of T. ? optional; ! required; |null admits null. Choices: JSON strings; A|B: alternatives; choice: described alternatives. set: setting.kind; project-policy: policy.";
+pub const INTRO: &[u8] = b"Read/edit/set whole: `settings show KIND N`. Refusals=shape/count/reference/rules/budget/grace/owner/linked/accounts. Spend=deployment model-price units. uN=unsigned 0..2^N-1; bool=true/false; t[N]/h[N]=text/lowercase hex <=N bytes; ns=nanoseconds; [N] T<=N entries. ?=optional; !=required; |null=nullable. Choices=JSON strings; A|B=alternatives; choice=described alternatives. set=setting.kind; project-policy=policy.";
 
 #[must_use]
 pub fn page(limits: &Limits) -> Box<[u8]> {
@@ -115,6 +115,12 @@ fn line(bytes: &[u8], out: &mut Text) {
             out.put(b"! ");
             out.put(rest);
         } else if let Some(rest) = bytes.strip_prefix(b"Required: ") {
+            out.put(b"! ");
+            out.put(rest);
+        } else if let Some(rest) = bytes.strip_prefix(b"Optional.") {
+            out.put(b"?");
+            out.put(rest);
+        } else if let Some(rest) = bytes.strip_prefix(b"Required ") {
             out.put(b"! ");
             out.put(rest);
         } else if let Some(rest) = bytes.strip_prefix(b"Required.") {

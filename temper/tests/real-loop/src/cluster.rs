@@ -392,10 +392,11 @@ mod tests {
         let scratch = crate::Scratch::new("cluster-initial-figures");
         let data = scratch.path().join("data");
         let address = ([127, 0, 0, 1], 0).into();
-        fixtures::write(&data, address, address).expect("fixture documents");
-        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }.write(scratch.path(), false);
+        let mut configuration = fixtures::write(&data, address, address).expect("fixture documents");
+        Shape::Engine { workers: vec!["w1"], grace: skein_lib::Duration::from_millis(10) }
+            .write(scratch.path(), false, &mut configuration);
 
-        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data) else {
+        let (temper_service::stock::Given::Own { forge, .. }, _) = fixtures::given_and_projects(&data, &configuration) else {
             panic!("world startup defaults")
         };
         let agents = forge.iter().find(|row| row.kind == 21).expect("initial agent figures");

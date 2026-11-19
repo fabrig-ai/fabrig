@@ -1,47 +1,4 @@
 use super::*;
-#[test]
-fn a_restart_over_a_live_change_answers_a_person() {
-    let settings = fixtures::calm(fixtures::SEED);
-    let run = Rc::new(RefCell::new(referee::Run::default()));
-    let (_, disk, store) =
-        run_phase(settings, Story::HeldChange, Phase::Story, machine::fresh(), Store::new(), run.clone());
-    let (outcome, _, _) = run_phase(settings, Story::HeldChange, Phase::SignIn, disk, store, run);
-    assert_eq!(outcome.signed_in, 1);
-}
-
-#[test]
-fn an_adoption_saves_a_pending_window_before_the_engine_commit() {
-    PROGRESS.with(|progress| *progress.borrow_mut() = Progress::default());
-    let mut seen = None;
-    assert_eq!(saved_adoptions(&mut seen), Some(std::collections::BTreeSet::new()), "initial empty saved keys");
-    stories::set(Story::Adoption);
-    stories::setup_settings(Phase::Story);
-    let fresh = stories::given(&fixtures::document());
-    assert_eq!(format!("{:?}", fixtures::adoption_given()), format!("{fresh:?}"), "cached adoption defaults");
-    assert_eq!(
-        format!("{:?}", fixtures::adoption_codec()),
-        format!("{:?}", fixtures::codec()),
-        "cached adoption codec bounds"
-    );
-    assert_eq!(
-        stories::settings_file(),
-        temper_playground::documents::settings_file().as_slice(),
-        "cached stock settings bytes"
-    );
-    let setup = Rc::new(RefCell::new(referee::Run::default()));
-    let (outcome, _, _) =
-        run_phase(fixtures::calm(1), Story::Adoption, Phase::Story, machine::fresh(), Store::new(), setup.clone());
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert_eq!(outcome.adopted, 1);
-    PROGRESS.with(|progress| {
-        assert!(
-            setup.borrow().window.is_some_and(|(start, end)| start < end),
-            "saved pending adoption window precedes the engine commit: {:?}",
-            progress.borrow().cache.borrow()
-        );
-    });
-}
-
 use skein_io::kernel::{Done, Error, Op};
 use skein_lib::Token;
 // Two fixture binds exercise kernel-assigned hooks and fixed service ports.

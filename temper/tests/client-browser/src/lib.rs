@@ -586,12 +586,13 @@ mod tests {
         let core = jig_protocol_config::core(&engine, [0; 16], 1);
         core.defaults
     }
-    fn written_tier(directory: &Path) -> serde_json::Value {
-        super::configuration::write(directory, Path::new("/test/bundle"));
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("written deployment"))
-            .expect("deployment JSON")
+    fn written_tier(directory: &Path) -> temper_playground::documents::Configuration {
+        let mut value = super::configuration::write(directory, Path::new("/test/bundle"));
+        value.document = serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("written deployment"))
+            .expect("deployment JSON");
+        value
     }
-    fn assert_turn_admission(value: &serde_json::Value, directory: &Path) {
+    fn assert_turn_admission(value: &temper_playground::documents::Configuration, directory: &Path) {
         let agent = temper_agent_fixtures::at(value, directory);
         assert!(
             agent["endpoints"]
@@ -602,10 +603,9 @@ mod tests {
             "the box includes its scripted provider"
         );
         let turn = u64::from(temper_playground::documents::turn_bounds::turn_body(&agent));
-        let hub = value["engine"]["limits"]["overrides"]["hub.turn_bytes"].as_u64().expect("hub turn bytes");
-        let loads = &value["application"]["limits"]["overrides"];
-        let transcript = loads["root.loads.transcript_bytes"].as_u64().expect("loaded transcript bytes");
-        let loaded = loads["root.loads.bytes"].as_u64().expect("loaded page bytes");
+        let hub = value.jig.hub.turn_bytes;
+        let transcript = u64::from(value.limits.root.loads.transcript_bytes);
+        let loaded = u64::from(value.limits.root.loads.bytes);
         let row = u64::try_from(size_of::<temper_engine_domain::Record>()).expect("record slot");
         assert!(
             value["workers"].as_array().expect("workers").iter().all(|worker| worker.get("limits").is_none()),
@@ -621,7 +621,7 @@ mod tests {
         let scratch = skein_scratch::Scratch::new("browser-turn-admission");
         let value = written_tier(scratch.path());
         assert_turn_admission(&value, scratch.path());
-        let shape = super::configuration::shape(value);
+        let shape = super::configuration::shape(value.document);
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
     }
     #[test]
@@ -651,13 +651,12 @@ mod tests {
         super::welcome_provider(&mut value, &sign_in);
         let path = scratch.path().join("temper.json");
         super::configuration::private(&path, &serde_json::to_vec(&value).expect("two-provider deployment JSON"));
-        let value: serde_json::Value =
+        value.document =
             serde_json::from_slice(&fs::read(path).expect("written deployment")).expect("deployment JSON");
         assert_turn_admission(&value, scratch.path());
         let agent = temper_agent_fixtures::at(&value, scratch.path());
-        let mut value = value;
         value["world_providers"] = temper_agent_fixtures::providers::read(scratch.path());
-        let shape = super::configuration::shape(value.clone());
+        let shape = super::configuration::shape(value.document.clone());
         assert_eq!(shape, temper_service_core::startup::Shape::Standalone);
         let engine = super::configuration::stock_engine(&value);
         let core = jig_protocol_config::core(&engine, [0; 16], 1);

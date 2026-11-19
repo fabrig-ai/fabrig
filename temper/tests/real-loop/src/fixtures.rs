@@ -104,16 +104,20 @@ pub fn documents(
 }
 
 /// Offer the shipped sign-in way only to the stories hosting its fake issuer.
-pub(crate) fn sign_in_documents(directory: &Path, issuer: SocketAddr) -> std::io::Result<()> {
+pub(crate) fn sign_in_documents(
+    directory: &Path,
+    issuer: SocketAddr,
+    config: &mut temper_playground::documents::Configuration,
+) -> std::io::Result<()> {
     let path = directory.join("temper.json");
-    let mut config: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+    config.document = serde_json::from_slice(&std::fs::read(&path)?)?;
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     config["world_settings"]["llm"]["providers"] = serde_json::json!([{
         "name":"openai", "number":1, "signed_in_plan":true, "manage_usage":format!("https://{issuer}/settings/usage"), "endpoint":"fake",
         "sources":{"keys":true,"sign_in":crate::issuer::registration(issuer)}
     }]);
     config["world_settings"]["llm"]["endpoints"][0]["provider"] = "openai".into();
-    finish_configuration(directory, &mut config)
+    finish_configuration(directory, config)
 }
 
 /// Create the standalone tree; every private directory and file has its final mode.
@@ -121,6 +125,15 @@ pub fn write(
     directory: &Path,
     llm: SocketAddr,
     forge: SocketAddr,
+) -> std::io::Result<temper_playground::documents::Configuration> {
+    write_configured(directory, llm, forge, None)
+}
+
+pub(crate) fn write_configured(
+    directory: &Path,
+    llm: SocketAddr,
+    forge: SocketAddr,
+    configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
 ) -> std::io::Result<temper_playground::documents::Configuration> {
     for name in ["", "accounts", "secrets", "state", "clients"] {
         std::fs::create_dir_all(directory.join(name))?;
@@ -376,7 +389,6 @@ pub(crate) fn key_documents(
     let mut agent: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
     agent["endpoints"][0]["provider"] = "openai".into();
     agent["endpoints"][0]["dialect"] = 3.into();
-    let config_path = directory.join("temper.json");
     config["world_settings"] = serde_json::from_slice(&std::fs::read(directory.join("world-settings.json"))?)?;
     config["world_settings"]["llm"]["endpoints"][0]["dialect"] = 3.into();
     config.jig_over("people.projects", 2);
@@ -384,7 +396,7 @@ pub(crate) fn key_documents(
     // Each project needs its period and the owner's pool in the tasks ledger.
     config.jig_over("tasks.funders", 4);
     config["world_settings"]["requester"] = true.into();
-    finish_configuration(directory, &mut config)?;
+    finish_configuration(directory, config)?;
     private(&path, &serde_json::to_vec(&agent)?)
 }
 

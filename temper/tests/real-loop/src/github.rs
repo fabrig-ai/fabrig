@@ -152,6 +152,7 @@ pub(crate) fn write(
     fixture: Fixture,
     value: &mut temper_playground::documents::Configuration,
 ) -> std::io::Result<()> {
+    value["world_settings"] = serde_json::from_slice(&std::fs::read(path.join("world-settings.json"))?)?;
     let mut agent: Value = serde_json::from_slice(&std::fs::read(path.join("world-agent.json"))?)?;
     value["application"]["clients"]["listener"] = json!({"socket":clients.to_string()});
     value["application"]["test"]["github"] = json!({"api":{"socket":address.to_string()},

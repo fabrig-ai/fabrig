@@ -19,7 +19,9 @@ pub fn configure(directory: &Path, forge: &Throwaway) -> String {
     let path = directory.join("temper.json");
     let mut value = super::limit_settings::configuration(directory);
     let owned: Value = serde_json::from_slice(super::owned::EXAMPLE).expect("owned example");
-    value["engine"]["llm"] = owned["engine"]["llm"].clone();
+    let providers = temper_agent_fixtures::providers::input(&mut value);
+    providers["providers"].as_array_mut().expect("providers").retain(|provider| provider["number"] == 1);
+    providers["endpoints"].as_array_mut().expect("endpoints").retain(|endpoint| endpoint["provider"] == "openai");
     value.jig_over("documents.rows", 32);
     let mut agent: Value = temper_agent_fixtures::configuration(&owned);
     if let Some(program) = agent["programs"].get_mut("claude_code") {

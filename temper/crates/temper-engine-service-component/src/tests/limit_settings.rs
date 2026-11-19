@@ -28,13 +28,11 @@ fn inputs() -> LimitInputs {
             login: Some(b"ada"),
             ports: temper_init::Ports {
                 clients: NonZeroU16::new(8367).unwrap(),
-                llm: NonZeroU16::new(8370).unwrap(),
                 webhooks: NonZeroU16::new(8371).unwrap(),
             },
         },
         &temper_init::Directories { config: b"/config", data: b"/data" },
         &[0; 32],
-        &[1; 32],
     )
     .unwrap();
     let file = generated.files.into_iter().find(|file| file.name == b"temper.json").unwrap();
@@ -42,10 +40,12 @@ fn inputs() -> LimitInputs {
         panic!("document");
     };
     let mut document: serde_json::Value = serde_json::from_slice(&bytes).unwrap();
-    for provider in document["engine"]["llm"]["providers"].as_array_mut().unwrap() {
-        provider["sources"].as_object_mut().unwrap().remove("sign_in");
-        provider["signed_in_plan"] = false.into();
+    let mut providers = crate::stock::providers();
+    for provider in &mut providers {
+        provider.provider.sign_in = None;
+        provider.provider.signed_in_plan = false;
     }
+    let given = crate::stock::Given::Stock.with_providers(providers, Box::new([]));
     document["workers"] = serde_json::json!([]);
     document["engine"]["hosts"]["listener"] = serde_json::json!([{"socket":"127.0.0.1:0"}]);
     let bytes = serde_json::to_vec(&document).unwrap();
@@ -57,7 +57,7 @@ fn inputs() -> LimitInputs {
         &files,
         None,
         &fixtures::seeds(),
-        &crate::stock::Given::Stock,
+        &given,
         false,
         None,
     )
@@ -186,6 +186,7 @@ fn repository(number: u32) -> forge::Stored {
         owner: b"demo".as_slice().into(),
         name: b"widget".as_slice().into(),
         prefix: b"temper/".as_slice().into(),
+        landing: b"main".as_slice().into(),
         role: forge::Role::Owned,
         ci: false,
         checks: Box::new([]),

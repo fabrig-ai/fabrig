@@ -1,6 +1,5 @@
-//! The process tier's deployment, copied: `documents` from `testing/temper-box-kit/src/configuration.rs`
-//! and `write` from `support::configuration` with `Forge::Unreached`, which are test modules of package
-//! `temper` and cannot be imported. The LLM endpoint is unreached at `127.0.0.1:9`; no forge is kept
+//! The browser tier's typed deployment follows `testing/temper-box-kit/src/configuration.rs`
+//! with `Forge::Unreached`. The LLM endpoint is unreached at `127.0.0.1:9`; no forge is kept
 //! until connected; `application.clients.bundle` names the bundle; and every relative path is made absolute
 //! under the scratch, as jig's `tests/client-browser` does, since `temper serve` joins paths to its working
 //! directory and the harness starts it in the test's. The first-run demo reserves every listener init wrote
@@ -22,10 +21,6 @@ const RELATIVE: &[&str] = &[
     "workspaces",
 ];
 
-pub(crate) fn documents(directory: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
-    let (agent, value) = typed_documents(directory, bundle);
-    (agent, serde_json::to_vec(&value).expect("deployment JSON").into())
-}
 pub(crate) fn typed_documents(
     directory: &Path,
     bundle: &Path,
@@ -162,7 +157,7 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
 }
 
 /// The deployment and its prospective agents and providers, applied by ctl before the ordinary stories.
-pub(crate) fn write(directory: &Path, bundle: &Path) {
+pub(crate) fn write(directory: &Path, bundle: &Path) -> temper_playground::documents::Configuration {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
     for name in ["", "accounts", "secrets", "state"] {
         fs::create_dir_all(directory.join(name)).expect("deployment directory");
@@ -179,8 +174,7 @@ pub(crate) fn write(directory: &Path, bundle: &Path) {
     private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
     private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
-    let (agent, value) = documents(directory, bundle);
-    let mut value = serde_json::from_slice(&value).expect("deployment JSON");
+    let (agent, mut value) = typed_documents(directory, bundle);
     let agent = serde_json::from_slice(&agent).expect("agent JSON");
     temper_agent_fixtures::apply(&mut value, directory, &agent);
     let composed = temper_agent_fixtures::at(&value, directory);
@@ -189,6 +183,7 @@ pub(crate) fn write(directory: &Path, bundle: &Path) {
     provider_settings(directory, &mut settings);
     private(&directory.join("browser-agents.json"), &serde_json::to_vec(&settings).expect("agents and providers JSON"));
     private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
+    value
 }
 
 /// Keep ctl's prospective providers aligned with the world's kept inputs, including fixture edits.
