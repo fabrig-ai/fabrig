@@ -754,7 +754,9 @@ The default, for a project with no prepare command:
   outside its unit (4.1).
 - **One step at most:** the hold lasts that one step. A change whose
   step ends with it not ready holds no more while it stays gating at
-  that head, whatever wakes it again. No other due step holds a train:
+  that head, whatever wakes it again. The running engine remembers
+  that, unstored, so after a restart such a change may hold for one more
+  step. No other due step holds a train:
   not a change still checking or producing, gating with a gate
   outstanding, kept by a pending dependency, or already waiting (left
   out, above).
