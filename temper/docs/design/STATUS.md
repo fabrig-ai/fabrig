@@ -508,8 +508,9 @@ TLS-fetching loop and agents, keep the host's clock
 Main's journey files have one writer, run after each landing, ending
 `Printed: COMMIT`; no test or goal writes them
 (`client/journey-writer.md`). A journey whose `walk` is of version 2,
-`welcome-playground` first, prints in one process by
-`temper-client-walk` (`client/journey-walks.md`).
+`welcome-playground` and `welcome-set-up` first, prints in one process
+by `temper-client-walk`, the box's part played by a peer of the world's
+(`client/journey-walks.md`).
 
 Design documents:
 - [`README.md`](README.status.md)
