@@ -288,7 +288,10 @@ impl World {
                 assert!(hello.hosting.len() <= 1);
             }
             Request::Link(host::LinkUp::Turn { run, attempt, turn }) => self.turned(run, attempt, &turn)?,
-            Request::Git { .. } | Request::AgentStopped { .. } | Request::Unprepared { .. } | Request::Link(host::LinkUp::Draining) => {}
+            Request::Git { .. }
+            | Request::AgentStopped { .. }
+            | Request::Unprepared { .. }
+            | Request::Link(host::LinkUp::Draining) => {}
             Request::Link(up) => panic!("unscripted link record: {up:?}"),
             Request::Answer { run, attempt, answer, work, preparation } => {
                 assert_eq!((run, attempt, preparation), (RUN, ATTEMPT, None));

@@ -23,11 +23,15 @@ pub fn worker_service_ending(
 pub fn note_line(binary: &str, note: service::Note) -> String {
     match note {
         service::Note::Git { run, attempt, job, repository, what } => {
-            use temper_worker_domain::{Git, checkout::git::{Into, Want}};
+            use temper_worker_domain::{
+                Git,
+                checkout::git::{Into, Want},
+            };
             let mut line = format!("{binary} worker: run {run} attempt {attempt}");
-            if let Some(kind) = job {
+            if let Some((kind, verb)) = job {
                 use std::fmt::Write as _;
-                write!(line, " job {kind}").expect("format job kind");
+                let verb = verb.escape_ascii();
+                write!(line, " job {kind} {verb}").expect("format job kind and verb");
             }
             match what {
                 Git::Fetch { want, into } => {

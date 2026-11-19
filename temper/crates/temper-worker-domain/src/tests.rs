@@ -4,8 +4,8 @@
 
 mod admission;
 mod entrance;
-mod git_notes;
 pub(crate) mod fixtures;
+mod git_notes;
 pub(crate) mod harness;
 mod jobs;
 mod lifecycle;

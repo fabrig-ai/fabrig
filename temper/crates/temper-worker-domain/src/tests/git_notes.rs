@@ -11,13 +11,11 @@ const COMMIT: Commit = Commit::new([0xab; 32]);
 const KIND: JobKind = JobKind(9);
 
 fn note(job: Option<JobKind>, repository: &[u8], what: Git) -> Request {
-    Request::Git {
-        run: fixtures::RUN,
-        attempt: fixtures::ATTEMPT,
-        job,
-        repository: repository.into(),
-        what,
-    }
+    let job = match job {
+        Some(kind) => Some((kind, b"check".as_slice().into())),
+        None => None,
+    };
+    Request::Git { run: fixtures::RUN, attempt: fixtures::ATTEMPT, job, repository: repository.into(), what }
 }
 
 fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
@@ -83,7 +81,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                 }
             }
             request @ Request::Git { .. } => notes.push(request).expect("four prepare notes"),
-            Request::Decode { .. } | Request::Job { .. } => {},
+            Request::Decode { .. } | Request::Job { .. } | Request::Link(_) => {}
             Request::AgentStopped { .. }
             | Request::Unprepared { .. }
             | Request::ResultsIgnored { .. }
@@ -94,7 +92,6 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
             | Request::Source { .. }
             | Request::SourceFault
             | Request::Hello(_)
-            | Request::Link(_)
             | Request::Answer { .. }
             | Request::JobAnswer { .. }
             | Request::CancelRelay { .. }
@@ -145,15 +142,36 @@ fn a_prepared_hold_notes_only_fetch_and_check_out_before_forwarding_io() {
     let (mut h, hold, _) = prepared(None);
     let at = Place { workspace: Token::new(0), repository: b"app".as_slice().into(), git: None };
     for (op, what) in [
-        (Op::Fetch { at: at.clone(), store: Token::new(0), remote: b"org/app".as_slice().into(),
-            want: Want::Default, into: Into::Landing, identity: 0, account: None },
-         Some(Git::Fetch { want: Want::Default, into: Into::Landing })),
-        (Op::CheckOut { at: at.clone(), commit: COMMIT, clean: true, identity: 0, account: None },
-         Some(Git::CheckOut { commit: COMMIT })),
+        (
+            Op::Fetch {
+                at: at.clone(),
+                store: Token::new(0),
+                remote: b"org/app".as_slice().into(),
+                want: Want::Default,
+                into: Into::Landing,
+                identity: 0,
+                account: None,
+            },
+            Some(Git::Fetch { want: Want::Default, into: Into::Landing }),
+        ),
+        (
+            Op::CheckOut { at: at.clone(), commit: COMMIT, clean: true, identity: 0, account: None },
+            Some(Git::CheckOut { commit: COMMIT }),
+        ),
         (Op::Point { at: at.clone(), into: Into::Landing, commit: COMMIT }, None),
         (Op::Merge { at: at.clone(), theirs: COMMIT, identity: 0, account: None }, None),
-        (Op::Push { at, remote: b"org/app".as_slice().into(), commit: COMMIT,
-            branch: b"topic".as_slice().into(), expected: None, identity: 0, account: None }, None),
+        (
+            Op::Push {
+                at,
+                remote: b"org/app".as_slice().into(),
+                commit: COMMIT,
+                branch: b"topic".as_slice().into(),
+                expected: None,
+                identity: 0,
+                account: None,
+            },
+            None,
+        ),
     ] {
         let mut expected = List::with_capacity(2);
         if let Some(what) = what {
@@ -163,7 +181,9 @@ fn a_prepared_hold_notes_only_fetch_and_check_out_before_forwarding_io() {
         assert_eq!(routed(&mut h, hold, op.clone()), expected.into_boxed());
         // An unowned hold is still forwarded, without a note.
         let unknown = Token::new(u64::MAX);
-        assert_eq!(routed(&mut h, unknown, op.clone()).as_ref(),
-            &[Request::Io { owner: unknown, op, deadline: Time::ZERO }]);
+        assert_eq!(
+            routed(&mut h, unknown, op.clone()).as_ref(),
+            &[Request::Io { owner: unknown, op, deadline: Time::ZERO }]
+        );
     }
 }

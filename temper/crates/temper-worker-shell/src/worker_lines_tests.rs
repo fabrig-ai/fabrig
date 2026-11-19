@@ -6,21 +6,44 @@ const BINARY: &str = "temper-worker";
 /// domain/worker/README.md, 4.3: sources, destinations and names stay on one line.
 #[test]
 fn git_fetch_words_name_each_source_and_destination() {
-    use temper_worker_domain::{Git, checkout::git::{Commit, Into, Want}};
+    use temper_worker_domain::{
+        Git,
+        checkout::git::{Commit, Into, Want},
+    };
     let mut sha1 = [0; 32];
     sha1[..20].fill(0xab);
     for (repository, want, into, expected) in [
-        (b"app".as_slice(), Want::Branch { branch: b"main".as_slice().into() }, Into::Fetched,
-         "temper worker: run 81 attempt 2 fetch app branch main into fetched\n"),
-        (b"app".as_slice(), Want::Commit { commit: Commit::new(sha1) }, Into::Fetched,
-         "temper worker: run 81 attempt 2 fetch app commit abababababababababababababababababababab into fetched\n"),
-        (b"app".as_slice(), Want::Default, Into::Landing,
-         "temper worker: run 81 attempt 2 fetch app default into landing\n"),
-        (b"app\n\x01\xff".as_slice(), Want::Branch { branch: b"main\n\x00\xc3\xa9".as_slice().into() }, Into::Fetched,
-         "temper worker: run 81 attempt 2 fetch app\\n\\x01\\xff branch main\\n\\x00\\xc3\\xa9 into fetched\n"),
+        (
+            b"app".as_slice(),
+            Want::Branch { branch: b"main".as_slice().into() },
+            Into::Fetched,
+            "temper worker: run 81 attempt 2 fetch app branch main into fetched\n",
+        ),
+        (
+            b"app".as_slice(),
+            Want::Commit { commit: Commit::new(sha1) },
+            Into::Fetched,
+            "temper worker: run 81 attempt 2 fetch app commit abababababababababababababababababababab into fetched\n",
+        ),
+        (
+            b"app".as_slice(),
+            Want::Default,
+            Into::Landing,
+            "temper worker: run 81 attempt 2 fetch app default into landing\n",
+        ),
+        (
+            b"app\n\x01\xff".as_slice(),
+            Want::Branch { branch: b"main\n\x00\xc3\xa9".as_slice().into() },
+            Into::Fetched,
+            "temper worker: run 81 attempt 2 fetch app\\n\\x01\\xff branch main\\n\\x00\\xc3\\xa9 into fetched\n",
+        ),
     ] {
         let note = worker::Note::Git {
-            run: 81, attempt: 2, job: None, repository: repository.into(), what: Git::Fetch { want, into },
+            run: 81,
+            attempt: 2,
+            job: None,
+            repository: repository.into(),
+            what: Git::Fetch { want, into },
         };
         assert_eq!(worker_note_words("temper", note), expected);
     }
@@ -32,13 +55,30 @@ fn git_check_out_words_name_the_job_and_full_commit() {
     use temper_worker_domain::{Git, checkout::git::Commit};
     let mut sha1 = [0; 32];
     sha1[..20].fill(0xcd);
-    for (raw, expected) in [
-        (sha1, "temper-worker worker: run 9551 attempt 3 job 1 check out app\\n\\x01\\xff cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\n"),
-        ([0xcd; 32], concat!("temper-worker worker: run 9551 attempt 3 job 1 check out app\\n\\x01\\xff ",
-            "cdcdcdcdcdcdcdcd", "cdcdcdcdcdcdcdcd", "cdcdcdcdcdcdcdcd", "cdcdcdcdcdcdcdcd", "\n")),
+    for (raw, verb, expected) in [
+        (
+            sha1,
+            b"prepare".as_slice(),
+            "temper-worker worker: run 9551 attempt 3 job 1 prepare check out app\\n\\x01\\xff cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd\n",
+        ),
+        (
+            [0xcd; 32],
+            b"prepare\n\x00\xff".as_slice(),
+            concat!(
+                "temper-worker worker: run 9551 attempt 3 job 1 prepare\\n\\x00\\xff check out app\\n\\x01\\xff ",
+                "cdcdcdcdcdcdcdcd",
+                "cdcdcdcdcdcdcdcd",
+                "cdcdcdcdcdcdcdcd",
+                "cdcdcdcdcdcdcdcd",
+                "\n"
+            ),
+        ),
     ] {
         let note = worker::Note::Git {
-            run: 9551, attempt: 3, job: Some(1), repository: b"app\n\x01\xff".as_slice().into(),
+            run: 9551,
+            attempt: 3,
+            job: Some((1, verb.into())),
+            repository: b"app\n\x01\xff".as_slice().into(),
             what: Git::CheckOut { commit: Commit::new(raw) },
         };
         assert_eq!(worker_note_words(BINARY, note), expected);

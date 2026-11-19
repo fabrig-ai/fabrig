@@ -880,15 +880,21 @@ impl Worker {
         &mut self,
         run: Token,
         attempt: Token,
-        job: Option<jig_domain_link::JobKind>,
+        job: Option<(jig_domain_link::JobKind, Box<[u8]>)>,
         repository: Box<[u8]>,
         what: root::Git,
     ) {
         let job = match job {
-            Some(kind) => Some(kind.0),
+            Some((kind, verb)) => Some((kind.0, verb)),
             None => None,
         };
-        self.notes.push(crate::worker_alone::Note::Git { run: run.raw(), attempt: attempt.raw(), job, repository, what });
+        self.notes.push(crate::worker_alone::Note::Git {
+            run: run.raw(),
+            attempt: attempt.raw(),
+            job,
+            repository,
+            what,
+        });
     }
     #[expect(clippy::too_many_lines, reason = "the root boundary routes each request exhaustively")]
     pub(crate) fn route(&mut self, request: root::Request) {

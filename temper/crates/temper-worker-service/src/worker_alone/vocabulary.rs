@@ -18,7 +18,7 @@ pub enum Note {
     Git {
         run: u64,
         attempt: u64,
-        job: Option<u32>,
+        job: Option<(u32, Box<[u8]>)>,
         repository: Box<[u8]>,
         what: temper_worker_domain::Git,
     },

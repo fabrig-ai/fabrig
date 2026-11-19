@@ -370,8 +370,8 @@ fn answered(domain: &mut Domain, run: Token, attempt: Token, answer: host::RunAn
 /// Each fetch and check out gets an operator note before its io request
 /// (domain/worker/README.md, 4.3). Unowned operations still reach io.
 fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queue<Request>) {
-    use checkout::git::Op;
     use crate::Git;
+    use checkout::git::Op;
 
     let (at, what) = match op {
         Op::Fetch { at, want, into, .. } => (at, Git::Fetch { want: want.clone(), into: *into }),
@@ -394,16 +394,10 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
     let Some(owner) = workspace::hold_owner(domain, hold) else { return };
     let Some(hosting) = domain.host.hosting(owner) else { return };
     let job = match domain.job_evidence.get(&(hosting.run, hosting.attempt)) {
-        Some(evidence) => Some(evidence.kind),
+        Some(evidence) => Some((evidence.kind, domain.tooling.verb(evidence.kind))),
         None => None,
     };
-    out.push(Request::Git {
-        run: hosting.run,
-        attempt: hosting.attempt,
-        job,
-        repository: at.repository.clone(),
-        what,
-    });
+    out.push(Request::Git { run: hosting.run, attempt: hosting.attempt, job, repository: at.repository.clone(), what });
 }
 
 /// One of the checkout's requests: out to io, or to the host.
