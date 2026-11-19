@@ -170,6 +170,7 @@ fn spawn(
         .collect();
     env.push([DIRECTORY.name.as_bytes(), b"=", checkpoint.as_os_str().as_bytes()].concat().into());
     Ok(Spawn {
+        reach: None,
         program,
         args: args.into(),
         env: env.into(),

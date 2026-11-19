@@ -31,6 +31,7 @@ fn spawn_and_exit(
     let mut deadline = deadlines::Patience::new("the given listener child settling", Duration::from_secs(3));
     let (mut submissions, mut completions, mut events) = deadlines::records(16);
     let spawn = Spawn {
+        reach: None,
         program: Box::from(skein_scratch::paths::binary("process_fixture").as_os_str().as_bytes()),
         args: Box::new([Box::from(&b"given-listener"[..]), Box::from(address.to_string().as_bytes())]),
         env: Box::new([Box::from(&b"LISTEN_FDS=1"[..])]),
@@ -156,6 +157,7 @@ fn cleanup_aborts_a_child_discovered_while_draining() {
         let env = now.with(limits);
         let (mut submissions, mut completions, mut events) = deadlines::records(16);
         let spawn = Spawn {
+            reach: None,
             program: Box::from(skein_scratch::paths::binary("process_fixture").as_os_str().as_bytes()),
             args: Box::new([Box::from(&b"never"[..])]),
             env: Box::new([]),

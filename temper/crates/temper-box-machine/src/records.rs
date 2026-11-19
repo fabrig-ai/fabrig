@@ -279,7 +279,8 @@ fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {
         | Error::AddressNotAvailable
         | Error::Unreachable
         | Error::TimedOut
-        | Error::TooLate => b"unexpected file error",
+        | Error::TooLate
+        | Error::Reach(_) => b"unexpected file error",
         Error::Other(code) => {
             return joined(&[
                 b"box: ",

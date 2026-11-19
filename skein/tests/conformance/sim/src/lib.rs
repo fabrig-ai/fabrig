@@ -17,7 +17,7 @@ use std::collections::BTreeMap;
 use skein_conformance::{
     Backend, Cancelling, Check, Item, Made, Race, cancel_accept_racing_a_connect, cancel_recv_racing_bytes,
 };
-use skein_fake_machine::{How, Machine, Opened, serve};
+use skein_fake_machine::{How, Landlock, Machine, Opened, serve};
 use skein_io::kernel::{Complete, Error, Fd, Submit};
 use skein_lib::{Duration, Queue, Time};
 use skein_sim::{Config, Faults, Handle, Pid, Sim};
@@ -130,6 +130,20 @@ impl Backend for Simulated {
         self.sim.assert_quiescent(process);
         self.sim.assert_no_open_fds(process);
         assert_eq!(self.machine.open_handles(), 0, "the machine has nothing open once every descriptor closed");
+    }
+
+    fn reach_rules(&mut self, _process: Pid, _executable: &[u8]) -> Vec<skein_io::kernel::Rule> {
+        Vec::new()
+    }
+
+    fn hold_inheritable(&mut self, _process: Pid, _fd: Fd) {}
+
+    fn set_id_copy(&mut self, _process: Pid, _root: Fd, _executable: &[u8], _path: &[u8]) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn set_landlock(&mut self, state: Landlock) {
+        self.machine.set_landlock(state);
     }
 
     fn append(&mut self, process: Pid, root: Fd, path: &[u8], mode: u32) -> Result<Fd, Error> {

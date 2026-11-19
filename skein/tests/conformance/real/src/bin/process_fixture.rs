@@ -14,6 +14,7 @@ const DESCRIPTORS: &str = "/dev/fd";
 
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads the process conformance fixture command line")]
 fn main() -> ExitCode {
+    skein_shell::helper::dispatch();
     skein_fail_stop::install();
     let mut args = std::env::args();
     let _program = args.next();

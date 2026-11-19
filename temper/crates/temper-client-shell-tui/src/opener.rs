@@ -10,6 +10,7 @@ pub struct Opener {
 #[must_use]
 pub fn spawn(opener: &Opener, address: &[u8], root: Fd) -> Spawn {
     Spawn {
+        reach: None,
         program: opener.program.clone(),
         args: Box::new([Box::from(address)]),
         env: opener.env.clone(),
