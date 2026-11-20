@@ -100,7 +100,7 @@ fn a_failed_copy_check_leaves_no_install_receipt() {
     face.cross_device = true;
     face.check_error = true;
     let why = install(&next, &id(3), &place, temper_qa_tool::Kind::Box, &mut face).expect_err("failed check");
-    assert!(why.0.contains("sha256sum --check"), "{why}");
+    assert!(why.0.contains("checksum check"), "{why}");
     assert!(!place.join("manifest").exists());
     // The first install checked its copied bundle, and the second install's check failed.
     assert_eq!(face.checks.len(), 2);

@@ -659,7 +659,11 @@ Every world checks what the strategy lists (testing-strategy.md, section
 - **The real loop, once settled:**
   - the scratch directory changed only where the scenario expects;
   - nothing is left running: the agent finished, and every child was
-    reaped, each job's process group included.
+    reaped, each job's process group included. The test process reads
+    its own unreaped children from outside the loop, a zombie awaiting
+    its wait among them, through skein's shell
+    (`skein/docs/design/runtime/readiness.md`, 5): Linux's `/proc` and
+    macOS's libproc give the same reading (6.2).
 - **Containment, with contained trees** (protocol/agent.md, sections
   2 and 3; protocol/host.md, section 3), in the real loop:
   - **writes stay in the view:** commands that try to write outside the
@@ -705,6 +709,26 @@ support contains no tests; its stories stay in `live-smith`.
 The live tests are a separate suite, outside the gate, under the
 `live-smith` profile only (2.3). Benchmarks are no suite: they run by their
 own command (2.4).
+
+### 6.2 On macOS
+
+- **The real loop and the end-to-end tests run on macOS** as on Linux,
+  in the `smith` part of `temper/docs/design/testing/macos.md`
+  (section 4). Their settled check (6) holds there: every
+  child of the test process, running or a zombie, has its test process
+  as its parent until its wait, so macOS's listing by parent answers
+  what Linux's threads' `children` files do, and no test is Linux's
+  for it.
+- **Linux's own tests, by name,** as skein's are
+  (`skein/docs/design/runtime/shell.md`, 8): built for Linux alone,
+  `cfg(target_os = "linux")` with the reason beside it, a helper only
+  they use gated too, and listed here; none is dropped silently. Every
+  other test runs on both systems. The benchmarks' are their own
+  (`benchmarks/README.md`).
+
+| Test | Its reason |
+|---|---|
+| `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs.md`, 5.1 and section 9) |
 
 ## 7. Layout
 

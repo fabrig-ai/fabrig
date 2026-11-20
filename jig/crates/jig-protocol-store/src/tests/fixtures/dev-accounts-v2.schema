@@ -1,0 +1,32 @@
+family jig-store-accounts 2
+
+# The installation's identifier (protocol/store/README.md 4.4), kept at the first start.
+versioned record Installation { id: fixed 16 }
+
+# The accounts' counter, accounts and sources (protocol/store/README.md 4.4 item 9). The
+# bounds are the accounts child's: a subject, a display name, a source's name.
+record Next { number: u32 }
+record Party { party: u64 }
+enum Holder { deployment, party: Party }
+record Project { project: u32 }
+enum Use { party: Party, project: Project }
+record Refused { status: u16 }
+enum ReadFailure { refused: Refused, unreachable, unreadable, deadline, agent, room }
+record ListRecord { names: u64 read: option u64 tried: option u64 failure: option ReadFailure left_out: u32 }
+record Account { number: u32 provider: u32 holder: Holder place: u32 uses: option list 16 Use subject: bytes 255 display: bytes 64 list: option ListRecord }
+enum Kind { sign_in, key, program, none }
+record Limited { reset: option u64 }
+enum Held { limited: Limited, refused, moving }
+record Source { account: u32 number: u32 place: u32 kind: Kind name: bytes 32 held: option Held }
+record Issued { number: u32 holder: Holder name: bytes 32 signed_out: bool }
+record FactText { text: bytes 255 }
+record FactCount { count: u64 }
+record FactInstant { at: u64 }
+record FactSpan { nanos: u64 }
+record FactShare { basis: u16 }
+record FactWindow { length: option u64 used: option u16 resets: option u64 state: u16 }
+enum FactValue { text: FactText, count: FactCount, instant: FactInstant, span: FactSpan, share: FactShare, window: FactWindow }
+record Fact { kind: u16 label: bytes 32 value: FactValue seen: u64 source: option u32 origin: u16 }
+record Facts { account: u32 facts: list 24 Fact }
+enum Value { next: Next, account: Account, source: Source, issued: Issued, facts: Facts }
+versioned record Row { value: Value }
