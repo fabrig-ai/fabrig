@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-09. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-20. Where temper's code lags or departs from [playground.md](playground.md).
 
 
 Section 9's walk of story A in the one-process world, by the terminal
@@ -32,10 +32,6 @@ doubling startup refuses, and `documents.text_bytes`,
 - **Not yet:**
   - 4: the reset without the box: its fake forge's removal waits for the
     box (`domain/forge/adoption.md`, 1, and its status).
-  - 4: a start for a journey's walk: the composition starts only at
-    `documents::FORGE` [in flight: change 10529].
-  - 4: a start for a journey's walk: the composition holds no fake
-    issuer or accounts' runtime [in flight: change 10531].
   - 6: the playground forge's links shown as text.
   - 7: released with temper: no release's build calls
     `scripts/bundle.sh --playground`, `scripts/release.sh` itself being
