@@ -81,6 +81,10 @@ pub enum Report {
     Handshake {
         failed: Option<tui::Handshake>,
     },
+    Listening {
+        port: Option<u16>,
+    },
+    Returned(crate::loopback::Returned),
     /// A line of the box's, read.
     Front(temper_client_tui::BoxLine),
     Stage(tui::BoxStage),
@@ -105,6 +109,7 @@ pub struct Lend {
     pub line: Box<[u8]>,
 }
 
+#[expect(clippy::struct_excessive_bools, reason = "independent duties of the host seam")]
 #[derive(Default)]
 pub struct Duties {
     pub asked: Vec<jig_client::Request>,
@@ -113,6 +118,9 @@ pub struct Duties {
     pub address: Option<tui::Origin>,
     pub local: bool,
     pub open: Option<Box<[u8]>>,
+    pub listen: bool,
+    pub unlisten: bool,
+    pub answer: Option<crate::loopback::Answer>,
     pub close: bool,
     pub stop: Option<Stop>,
     pub lend: Option<Lend>,
@@ -233,11 +241,15 @@ impl Host {
             assert!(matches!(report, Report::Start(_)), "a report before the TUI's start");
         }
         if self.closed && !matches!(report, Report::Heard(_) | Report::Kept { .. } | Report::Lent { .. }) {
-            return Duties::default();
+            return Duties {
+                answer: matches!(report, Report::Returned(_)).then_some(crate::loopback::Answer::NotFound),
+                ..Duties::default()
+            };
         }
         let mut duties = Duties::default();
         if self.refused() {
             match report {
+                Report::Returned(_) => duties.answer = Some(crate::loopback::Answer::NotFound),
                 Report::Key(Key::Control(b'c')) => self.close(&mut duties),
                 Report::Resize(size) => self.size = size,
                 Report::Start(_)
@@ -247,6 +259,7 @@ impl Host {
                 | Report::Kept { .. }
                 | Report::Opened { .. }
                 | Report::Handshake { .. }
+                | Report::Listening { .. }
                 | Report::Local { .. }
                 | Report::Front(_)
                 | Report::Stage(_)
@@ -257,6 +270,8 @@ impl Host {
         }
         let project = self.root.pages().project();
         match report {
+            Report::Listening { .. } => {}
+            Report::Returned(_) => duties.answer = Some(crate::loopback::Answer::NotFound),
             Report::Lent { number, exit } => self.lent(number, exit),
             Report::Local { link } => self.found(link),
             Report::Handshake { failed } => self.tell(Told::Handshake { failed }),

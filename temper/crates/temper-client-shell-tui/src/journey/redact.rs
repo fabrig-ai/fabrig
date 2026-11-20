@@ -82,6 +82,12 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
             fields.extend(event.iter_mut().map(|bytes| (bytes, Text)));
             fields
         }
+        Line::Returned(returned) => {
+            let mut fields = vec![(&mut returned.target, Text)];
+            fields.extend(returned.host.iter_mut().map(|bytes| (bytes, Text)));
+            fields
+        }
+        Line::Answer(crate::loopback::Answer::Redirect { to }) => vec![(to, Text)],
         Line::Found(bytes) => bytes.iter_mut().map(|bytes| (bytes, Text)).collect(),
         Line::Lend { name: bytes, .. }
         | Line::BoxLog(bytes)
@@ -115,6 +121,10 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
         | Line::Saved
         | Line::Unsaved
         | Line::Kept { .. }
+        | Line::Listening(_)
+        | Line::Listen
+        | Line::Unlisten
+        | Line::Answer(crate::loopback::Answer::NotFound)
         | Line::Handshake(_)
         | Line::Opened { .. }
         | Line::Unstream
@@ -129,6 +139,7 @@ pub fn fields_mut(line: &mut Line) -> Vec<(&mut Box<[u8]>, Framing)> {
 
 /// Read sign-in records through the wire, leaving refused bodies to the last scan.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "classify every journey record when collecting originals")]
 pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
     let mut candidates = Vec::new();
     for line in lines {
@@ -207,6 +218,11 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Saved
             | Line::Unsaved
             | Line::Kept { .. }
+            | Line::Listening(_)
+            | Line::Returned(_)
+            | Line::Listen
+            | Line::Unlisten
+            | Line::Answer(_)
             | Line::Handshake(_)
             | Line::Opened { .. }
             | Line::Stream(None)
