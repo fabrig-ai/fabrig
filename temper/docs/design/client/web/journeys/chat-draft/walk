@@ -1,0 +1,37 @@
+walk 2
+after project-landing
+web reload "/projects/1/settings"
+web see "Chats can write drafts"
+web reload "/chats"
+web press link "+ New chat"
+web input textbox "What do you want done?" "Let us design Away mode."
+web press button "Send"
+web see "Let us write down how Away mode works."
+web mark
+web press button "Split"
+web press button "Write it up from this chat"
+web see "Away mode does not grant extra authority."
+web see "I wrote an Away mode draft with its purpose, return flow and open questions."
+web mark
+web press button "Chat"
+web input textbox "Message" "Add what happens to a running goal."
+web press button "Send"
+web see "I added how a running goal continues and waits for your decisions."
+web mark
+web press button "Split"
+web see "A running goal continues within its existing authority and budget."
+web mark
+web press button "Draft"
+web see "Start goal\xe2\x80\xa6"
+web mark
+web press button "Start goal\xe2\x80\xa6"
+web see "Start a goal from away-mode.md"
+web mark
+web press button "Start goal"
+web see "The local goal wrote its report."
+web see "Nothing remains in this demonstration."
+web see "landed"
+web mark
+web press link "Draft"
+web see "Let us write down how Away mode works."
+web mark
