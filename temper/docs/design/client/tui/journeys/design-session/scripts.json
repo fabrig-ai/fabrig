@@ -34,7 +34,7 @@
                 },
                 "description": "Farewell line",
                 "body": "Put the farewell line at the end of README.md.\nNo open questions block the work.\n",
-                "name": 3,
+                "name": 2,
                 "recalled": 1,
                 "first": 15,
                 "remove": 2
@@ -48,11 +48,11 @@
       ],
       "inputs": [
         {
-          "cue": "Note 3 revision 2 written",
+          "cue": "Note 2 revision 2 written",
           "turn": 3
         },
         {
-          "cue": "Note 3 revision 1 written",
+          "cue": "Note 2 revision 1 written",
           "turn": 1
         },
         {
@@ -99,7 +99,7 @@
                 },
                 "description": "Farewell line",
                 "body": "Put the farewell line at the end of README.md.\nNo open questions block the work.\n",
-                "name": 3,
+                "name": 2,
                 "recalled": 1,
                 "first": 15,
                 "remove": 2
@@ -113,11 +113,11 @@
       ],
       "inputs": [
         {
-          "cue": "Note 3 revision 2 written",
+          "cue": "Note 2 revision 2 written",
           "turn": 3
         },
         {
-          "cue": "Note 3 revision 1 written",
+          "cue": "Note 2 revision 1 written",
           "turn": 1
         },
         {
