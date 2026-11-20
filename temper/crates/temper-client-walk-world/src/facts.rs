@@ -32,6 +32,9 @@ pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     start.deployment.document["application"]["clients"]["listener"]["socket"] = SERVICE.into();
     start.deployment["engine"]["clients"]["provider"] =
         serde_json::json!({"key":"provider.key", "clients":[], "addresses":[1]});
+    // The native host draws the client; the served mount carries its page facts.
+    start.deployment["world_settings"]["page"] =
+        "<!doctype html><html><head><title>temper</title></head><body><div id=\"app\"></div></body></html>".into();
     let document = llm::Document::decode_with_scripts(stories::A.llm, scripts).map_err(|why| format!("{why:?}"))?;
     let mut configuration = llm::configuration(&document, documents::KEY, documents::seeds(SEED).llm);
     // The box's issuer and first added model key use the same seed. Keep the
