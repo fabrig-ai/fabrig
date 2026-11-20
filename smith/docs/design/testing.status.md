@@ -2,7 +2,6 @@
 
 2026-11-20. Where smith's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 4: on macOS the real fakes still take `127.1.0.0` plus the process id, and a failing listener says only that it must bind. [in flight: change 10629]
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
     (`tests/local-process/tests/suite/fuzzy/world.rs`), and no world

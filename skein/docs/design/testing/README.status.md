@@ -20,7 +20,6 @@ A span counts its thread's allocations (`Span::made`, held by
 and skein-codec's patcher step tests show reuse by rooms and by none
 counted around each reused pass, never by an address.
 
-- **Not yet:** 5: `skein_world::real::host_bound` and `host_bound_on`, and the loop thread's CPU on macOS (`skein_shell::keeper::thread_cpu`, the settle line's thread-clock form). [in flight: change 10647]
 - **Not yet:** 4: the probe's report of a contained tree.
   4: the probe for a reach, `skein_fake_machine::probe`, and the machine honouring a reach.
   [in flight: change 9030]
