@@ -28,7 +28,7 @@ mod held_branch;
 mod history;
 mod kinds;
 #[path = "tests/landing.rs"]
-mod landing_routes;
+pub(crate) mod landing_routes;
 mod limits;
 mod link;
 mod make;

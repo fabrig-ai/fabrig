@@ -5,7 +5,7 @@ use skein_lib::{Decimal, Duration, Time, bytes};
 
 pub const WAIT_REPORT: Duration = Duration::from_secs(30);
 
-#[derive(Debug)]
+#[derive(Hash, Debug)]
 pub struct Report {
     since: Time,
     next: Duration,
@@ -55,6 +55,26 @@ pub fn age_words(age: Duration) -> Box<[u8]> {
     } else {
         bytes::concat(&[Decimal::of(seconds.div_euclid(60)).as_bytes(), b" min"])
     }
+}
+
+/// One kind's count and oldest names (protocol/README.md, 6.3).
+/// Callers supply at most three names in oldest-first order.
+#[must_use]
+pub fn wait_kind(count: u64, singular: &[u8], plural: &[u8], names: &[Box<[u8]>]) -> Box<[u8]> {
+    if count == 0 {
+        return Box::default();
+    }
+    let kind = if count == 1 { singular } else { plural };
+    let mut words = bytes::concat(&[Decimal::of(count).as_bytes(), b" ", kind]);
+    if !names.is_empty() {
+        words = bytes::concat(&[&words, b" ("]);
+        for (at, name) in names.iter().take(3).enumerate() {
+            let separator: &[u8] = if at == 0 { b"" } else { b", " };
+            words = bytes::concat(&[&words, separator, name]);
+        }
+        words = bytes::concat(&[&words, b")"]);
+    }
+    words
 }
 
 #[cfg(test)]

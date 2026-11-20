@@ -6867,6 +6867,7 @@ dependencies = [
  "temper-engine-domain-translate",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
+ "temper-limits-fixtures",
  "temper-protocol-brief",
  "temper-protocol-reaches",
  "temper-protocol-worker-wire",
@@ -7756,6 +7757,13 @@ dependencies = [
 name = "temper-limits-fixtures"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-protocol-config",
  "skein-forge-client",
  "skein-forge-setup",

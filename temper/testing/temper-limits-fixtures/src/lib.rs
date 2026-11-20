@@ -1,5 +1,6 @@
 //! Small limits for tests alone (temper/docs/design/protocol/configuration/limits.md).
 #![no_std]
+pub mod root_resume;
 use skein_lib::Duration;
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;

@@ -493,6 +493,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::ClientStreamFailed { sign_in, why } => {
             format!("{binary} serve: client stream closed: sign_in={sign_in} reason={why:?}\n")
         }
+        temper_engine_service::Note::StartWaiting { line } => start_wait_line(binary, &line),
         temper_engine_service::Note::CoreWaiting { why } => temper_service_shell::core_wait_line(binary, &why.words()),
         temper_engine_service::Note::CoreAnswers => temper_service_shell::core_answers_line(binary),
         temper_engine_service::Note::StartupWarning { line } => {
@@ -804,6 +805,22 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         }
     }
 }
+// protocol/README.md, 6.3: names cannot introduce another operator line.
+fn start_wait_line(binary: &str, words: &[u8]) -> String {
+    let text = format!("{binary} serve: {}", String::from_utf8_lossy(words));
+    let mut line = String::new();
+    for ch in text.chars() {
+        let part = if ch.is_control() { ch.escape_default().to_string() } else { ch.to_string() };
+        if line.len().saturating_add(part.len()) > 1020 {
+            line.push_str("...");
+            break;
+        }
+        line.push_str(&part);
+    }
+    line.push('\n');
+    line
+}
+
 // temper/docs/design/domain/worker/README.md, 4.3: one bounded, escaped operator line.
 fn run_refusal_line(binary: &str, diagnostic: temper_engine_service::RunRefusalDiagnostic) -> String {
     let temper_engine_service::RunRefusalDiagnostic { task, run, attempt, reason } = diagnostic;

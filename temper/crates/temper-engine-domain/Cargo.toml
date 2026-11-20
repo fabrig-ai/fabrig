@@ -44,6 +44,7 @@ temper-engine-domain-forge-change.workspace = true
 temper-engine-domain-forge-issues.workspace = true
 
 [dev-dependencies]
+temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-protocol-brief.workspace = true
 jig-protocol-worker-wire.workspace = true

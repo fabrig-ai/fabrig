@@ -1486,6 +1486,28 @@ fn job_stderr_forms_escape_and_bound_their_why() {
     }
 }
 #[test]
+fn a_start_wait_note_is_one_bounded_stderr_line() {
+    use temper_engine_service::Note;
+    let line = b"starting: reading the forge afresh for 30 s: 2 fresh reads (work/hello branch main, work/hello pull 7), 4 goal branches (task 40, task 10, task 30)";
+    assert_eq!(
+        note_line("temper-engine", Note::StartWaiting { line: line.as_slice().into() }),
+        "temper-engine serve: starting: reading the forge afresh for 30 s: 2 fresh reads (work/hello branch main, work/hello pull 7), 4 goal branches (task 40, task 10, task 30)\n"
+    );
+    for text in ["starting: a name\nwith\rcontrols\0and é", &"界".repeat(1024)] {
+        let line = note_line("temper", Note::StartWaiting { line: text.as_bytes().into() });
+        assert!(line.len() <= 1024);
+        assert_eq!(line.lines().count(), 1);
+        assert!(line.ends_with('\n'));
+        assert!(!line.contains('\r'));
+        assert!(!line.contains('\0'));
+    }
+    assert_eq!(
+        note_line("custom", Note::StartWaiting { line: b"starting: link for 30 s: task A\ntask B".as_slice().into() }),
+        "custom serve: starting: link for 30 s: task A\\ntask B\n"
+    );
+}
+
+#[test]
 fn core_wait_notes_name_the_reason_and_recovery() {
     use temper_engine_service::{CoreWait, Note};
     for (binary, note, expected) in [

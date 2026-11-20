@@ -913,7 +913,7 @@ fn firing_before_start_and_before_wires_does_not_consume_or_open_the_start() {
     crate::fire(&mut domain, &env);
     assert_eq!(domain.start_phase(), Some(jig_domain_core::start::Phase::LoadCore));
     assert!(!domain.ready());
-    assert_eq!(domain.next_deadline(&env), None);
+    assert_eq!(domain.next_deadline(&env), Some(env.now.saturating_add(temper_engine_domain_forge::WAIT_REPORT)));
 }
 
 fn take_start(domain: &mut Domain, env: &Env<Limits>) -> crate::Released {

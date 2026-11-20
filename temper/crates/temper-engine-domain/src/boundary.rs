@@ -651,6 +651,12 @@ pub enum Missing {
 /// An observation of the root, which decides nothing (domain/root.md, 3 and 6.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
+    /// A start step past the report bound (protocol/README.md, 6.3).
+    StartWaiting {
+        step: jig_domain_core::start::Phase,
+        age: skein_lib::Duration,
+        waits: Box<[u8]>,
+    },
     /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
     ForgeLink {
         forge: u16,

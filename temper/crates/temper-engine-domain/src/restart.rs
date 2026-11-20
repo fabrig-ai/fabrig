@@ -368,6 +368,7 @@ pub(crate) fn start_action(domain: &mut Domain, env: &Env<Limits>, decision: &mu
         }
         Action::Commit(continuation) => emit(decision, &env.limits, Delivery::Start(continuation)),
         Action::Step(phase) => {
+            domain.start_report = Some(forge::Report::new(env.now));
             #[cfg(test)]
             domain.start_phases.push(phase);
             match phase {

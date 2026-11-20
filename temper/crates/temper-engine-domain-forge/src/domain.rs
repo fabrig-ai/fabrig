@@ -38,6 +38,7 @@ mod rebase;
 #[path = "reds.rs"]
 pub(crate) mod reds;
 pub(crate) mod release;
+mod restart_wait;
 #[path = "restore.rs"]
 mod restore;
 mod room;

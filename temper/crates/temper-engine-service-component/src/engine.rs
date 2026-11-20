@@ -353,6 +353,18 @@ impl Engine {
             }
             let Some(fact) = self.domain.pop_fact() else { break };
             match fact {
+                root::Fact::StartWaiting { step, age, waits } => {
+                    self.notes.push(crate::Note::StartWaiting {
+                        line: skein_lib::bytes::concat(&[
+                            b"starting: ",
+                            crate::core_wait::starting(Some(step)),
+                            b" for ",
+                            &temper_engine_domain_forge::age_words(age),
+                            b": ",
+                            &waits,
+                        ]),
+                    });
+                }
                 root::Fact::LandingUnmade { task, repository, branch, changes } => {
                     self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
                 }

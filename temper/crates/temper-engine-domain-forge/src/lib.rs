@@ -30,7 +30,7 @@ mod landing_proofs;
 mod milestone_rows;
 mod readiness;
 mod report;
-pub use report::{Report, WAIT_REPORT, age_words};
+pub use report::{Report, WAIT_REPORT, age_words, wait_kind};
 mod room;
 mod settling;
 mod stall;
