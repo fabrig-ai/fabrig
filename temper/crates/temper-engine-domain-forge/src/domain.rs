@@ -790,6 +790,17 @@ impl Domain {
         }
     }
 
+    /// A making keeps its place while its task is held (domain/forge/room.md, 3).
+    #[must_use]
+    pub fn making_waits(&self, task: u64) -> bool {
+        for (_, pending) in &self.makings {
+            if pending.task == task && pending.outbox_wait.is_some() {
+                return true;
+            }
+        }
+        false
+    }
+
     /// An ask holds room until this procedure can decide afresh.
     #[must_use]
     pub fn room_asked(&self, task: u64) -> bool {
