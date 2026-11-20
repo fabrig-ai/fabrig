@@ -1,7 +1,7 @@
 //! A landing verdict files only failures not held by its tier (domain/red-findings.md, 2–5 and 9).
 use super::{Domain, Env, Limits, List, Request, TierRow, p, red};
 use crate::findings::{
-    BlameStrength, BlamedGoal, BlamedLanding, FindingBlame, FindingKind, FindingState, FindingWrite, VerdictFiling,
+    BlameStrength, BlamedLanding, FindingBlame, FindingKind, FindingState, FindingWrite, VerdictFiling,
 };
 use alloc::boxed::Box;
 use skein_forge::api::Commit;
@@ -22,6 +22,7 @@ pub(super) fn finish(
     out: &mut Queue<Request>,
 ) -> bool {
     clearing::judged(d, env, row, verdict, out);
+    crate::findings::judging::judged(d, env, row, verdict, out);
     let mut filings = prepare(d, row, verdict, &env.limits, &[]);
     let mut needs_logs = false;
     for filing in &filings.rows {
@@ -160,19 +161,7 @@ fn remaining(failing: &p::Failures, held: &[Box<[u8]>], many_held: bool) -> Opti
     }
 }
 fn landing(d: &Domain, row: &TierRow, commit: Commit, limits: &Limits) -> BlamedLanding {
-    let mut goals = List::with_capacity(limits.landing_members);
-    for member in words::members(d, row, commit) {
-        let Some(goal) = member.goal else { continue };
-        let mut seen = false;
-        for kept in &goals {
-            let kept: &BlamedGoal = kept;
-            seen |= kept.goal == goal;
-        }
-        if !seen && goals.room() > 0 {
-            goals.push(BlamedGoal { goal, milestone: member.milestone, person: member.person }).expect("goal room");
-        }
-    }
-    BlamedLanding { commit, goals: goals.into_boxed() }
+    crate::findings::blamed_landing(commit, &words::members(d, row, commit), limits.landing_members)
 }
 
 fn prepare(d: &Domain, row: &TierRow, verdict: &p::Verdict, limits: &Limits, logs: &[crate::JobLog]) -> Filings {

@@ -73,19 +73,19 @@ temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
 
 Held transcripts/turns, not process memory: `transcript_memory` in
 `temper-limits` (1 GiB: `1073741824`). At the bound, due tasks await
-earlier turns' saves, even after restart. Read: `temper ctl settings show`; apply: `temper ctl settings apply`.
+earlier turns' saves, even after restart. Read: `temper ctl settings show`; set: `temper ctl settings apply`.
 
 More runs: `temper ctl DIR worker places w1 PLACES --key KEY`.
 Places are the worker setting's, taken at next opening from engine figures. Engine limits: `limits`; starts name short ones. Each place is an agent
 process, up to `agents`' `declared.memory`.
 
-Expect: valid TOML; not running.
+Expect: valid TOML; stopped.
 
 If not: step 3 names bad keys.
 
 ## 2. Keep the secrets
 
-As `temper`, enter Google's client secret without echo, chat or copying:
+As `temper`, enter Google's client secret: no echo, chat or copying.
 
 ```
 sudo -u temper bash -c 'umask 077; mkdir -p DATA/secrets; IFS= read -rsp "Google client secret: " s; echo; printf %s "$s" > DATA/secrets/google-client.secret; unset s'
@@ -106,7 +106,7 @@ temper ctl DIR worker add w1 --places 4 --digest HEX --key KEY
 
 Workers are store settings; `engine.hosts.workers` is refused.
 
-Expect: `stat -c '%U %a' FILE` prints `temper 600` for each.
+Expect: each `stat -c '%U %a' FILE` prints `temper 600`.
 
 If not: temper refuses a secret readable by another user or a link:
 give it to `temper`, mode 0600.
@@ -138,7 +138,7 @@ With `[[sign_in.forges]]` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
-If not: start refusal names member, file, address or restore:
+If not: refusal names member, file, address or restore:
 `temper-engine serve: restore KIND: REASON` or
 `temper-engine serve: restart refused during PHASE: REASON`.
 Reason: store cause, record family/key if available. Keep `DATA` unchanged; report it.
@@ -230,7 +230,7 @@ journalctl -u temper -o cat | grep 'task TASK run'
 ## 6. Sign in, through a tunnel, and connect the forge
 
 The proxy refuses the link's public page and route. Give ctl the listener's
-origin, on `engine` as `temper`:
+origin, as `temper` on `engine`:
 
 ```
 journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
@@ -238,8 +238,8 @@ journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*'
 
 Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
-After signing in, even after a store reset, add the worker with step 2's
-`worker add`. Until then it redials with `not-admitted`; no engine restart.
+After sign-in, including after a reset, add the worker with step 2's
+`worker add`. It redials with `not-admitted` until then; no engine restart.
 
 Connect Forgejo: no record means `forge list` is empty, `forge setup`
 refuses. New store: forge 1:
@@ -270,14 +270,14 @@ Other refusals: temper help forgejo, step 2.
 ## 7. Redeploy from main
 
 Redeploy resets the store, keeping Forgejo, secrets and members.
-Before stopping, export each `sign_in` or `granted` account:
+Before stopping, export each `sign_in`/`granted` account:
 
 ```
 temper ctl DIR account list
 temper ctl DIR account export ACCOUNT FILE
 ```
 
-Stop units; on both hosts fetch, check, install and unpack the new commit
+Stop units; both hosts: fetch, check, install and unpack the new commit
 as above; edit documents. Keep `DATA/secrets/`, `DATA/forge-1/` and, for
 Forgejo's sign-in through temper, the provider's key and client's secret;
 delete the rest of `DATA`. On `worker`, keep `secrets/` alone.

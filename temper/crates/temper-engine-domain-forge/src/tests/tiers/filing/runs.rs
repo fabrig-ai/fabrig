@@ -1,5 +1,6 @@
 //! Clearing, many ids and durable waiting, in judged-run order (red-findings.md, 2, 5–7).
 use super::*;
+mod judging;
 
 fn next(d: &mut Domain, mut failing: p::Failures, originally: &[&[u8]]) {
     if let p::Failures::Tests(ids) = &mut failing {
@@ -271,8 +272,9 @@ pub(crate) fn random_runs(seed: u64) -> (Vec<Finding>, Box<[VerdictFiling]>, u32
                 _ => Triage::Drop(b"triaged".as_slice().into()),
             };
             if !finding.state.ended() {
-                let write =
-                    d.prepare_triage_finding(TriageFinding { project: 5, number: finding.number, act }).unwrap();
+                let write = d
+                    .prepare_triage_finding(Filer::Task(40), TriageFinding { project: 5, number: finding.number, act })
+                    .unwrap();
                 finding = write.row.clone();
                 d.commit_finding(&env.limits, write, &mut Queue::uncapped());
             }

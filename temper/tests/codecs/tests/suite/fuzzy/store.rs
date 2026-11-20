@@ -417,6 +417,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         task: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
         record: p::Record {
             sequence: rng.next_u64(),
+            last_run: Some(rng.next_u64()),
             judged: if rng.below(2) == 0 { None } else { Some(p::Judged { tip: [5; 32], key: [6; 32] }) },
             failing: failures.clone(),
             flakes: Box::new([p::Flake { test: Box::from(b"flake".as_slice()), count: 2 }]),

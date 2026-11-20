@@ -57,21 +57,36 @@ pub(super) fn encode_reply(reply: &d::FindingReply) -> w::FindingReply {
         Ok(d::FindingDone::Routed(number)) => w::FindingResult::Routed(w::Number { number: *number }),
         Ok(d::FindingDone::Backlog) => w::FindingResult::Backlog,
         Ok(d::FindingDone::Dropped) => w::FindingResult::Dropped,
+        Ok(d::FindingDone::Repaired(number)) => w::FindingResult::Repaired(w::Number { number: *number }),
+        Ok(d::FindingDone::Blamed) => w::FindingResult::Blamed,
         Err(why) => w::FindingResult::Refused(w::FindingRefused { why: encode_refusal(why) }),
     };
-    w::FindingReply { project: reply.project, number: reply.number, area: reply.area.clone(), result }
+    let mut more = skein_lib::List::with_capacity(15);
+    for &number in &reply.more {
+        more.push(number).expect(FITS);
+    }
+    w::FindingReply {
+        project: reply.project,
+        number: reply.number,
+        area: reply.area.clone(),
+        result,
+        more,
+        landing: reply.landing,
+    }
 }
 pub(super) fn decode_reply(reply: w::FindingReply) -> d::FindingReply {
-    let w::FindingReply { project, number, area, result } = reply;
+    let w::FindingReply { project, number, area, result, more, landing } = reply;
     let result = match result {
         w::FindingResult::Filed(value) => Ok(d::FindingDone::Filed(decode_holder(value.holder))),
         w::FindingResult::Handed(value) => Ok(d::FindingDone::Handed(decode_holder(value.holder))),
         w::FindingResult::Routed(value) => Ok(d::FindingDone::Routed(value.number)),
         w::FindingResult::Backlog => Ok(d::FindingDone::Backlog),
         w::FindingResult::Dropped => Ok(d::FindingDone::Dropped),
+        w::FindingResult::Repaired(value) => Ok(d::FindingDone::Repaired(value.number)),
+        w::FindingResult::Blamed => Ok(d::FindingDone::Blamed),
         w::FindingResult::Refused(value) => Err(decode_refusal(value.why)),
     };
-    d::FindingReply { project, number, area, result }
+    d::FindingReply { project, number, area, result, more: more.into_boxed(), landing }
 }
 
 fn encode_findingkind(value: d::FindingKind) -> w::FindingKind {
