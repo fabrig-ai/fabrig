@@ -276,7 +276,7 @@ By the user's word of 2026-11-20, the configuration crosses a build as `upgrades
 
 - **Each build reads its own members and the previous release's.** A member that moves or is renamed is read from its old place too, with one warning naming the new one. Once dev.fabrig.ai runs a build that reads the new form, the old place is refused as unknown, naming it, and the `configuration` page says where each went (6.5): as for the store, no code is kept for a configuration older than dev.fabrig.ai's (`store-floor.md`).
 - **The same holds for a worker's configuration and the small files a build reads at its start:** a secret's file renamed, an environment entry moved, the forge's setup file.
-- **A change no plan derives,** such as a member split in two or a unit changed, brings a written converter in the build, tested against a copy of dev.fabrig.ai's configuration, and never an operator's step.
+- **A change no plan derives,** such as a member split in two or a unit changed, brings a written converter in the build, tested against a fixture of the previous release's form, never a deployment's own configuration, and never an operator's step.
 - **The registered store's changes use defaults, former names or a written job,** with no version move or patch (jig's `protocol/store/layouts.md`).
 
 ## 9. Acceptance
