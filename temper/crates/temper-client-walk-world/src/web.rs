@@ -28,6 +28,9 @@ use temper_playground::{machine::Machine, programs, programs::Process, story};
 const LOG_BYTES: u32 = 1_048_576;
 // Bound zero-time turns as well as world time when the host keeps asking at once.
 const TURNS_AT_ONE_INSTANT: u32 = 128;
+// Page loads are outside the host's exchange-id sequence, through the same cookie jar.
+const PAGE_EXCHANGE: u32 = u32::MAX;
+const PAGE_BYTES: u32 = 65_536;
 
 /// What enters the page's inbox: the bridge's raises and the page's own.
 pub enum Report {
@@ -52,6 +55,10 @@ pub struct Page {
     pending_input: bool,
     seed: u64,
     ways: temper_client_view::sign_in::Ways,
+    loading: bool,
+    signing_in: Option<u32>,
+    document: Option<Result<Box<[u8]>, Failed>>,
+    served: Box<[u8]>,
 }
 
 /// A bounded driver operation could not finish (journey-walks.md, 3.2).
@@ -163,9 +170,16 @@ impl Page {
             tab: None,
             held: Held::default(),
             tui_starts: 0,
+            loading: true,
+            signing_in: None,
+            document: None,
+            served: Box::new([]),
         };
         page.give(host::Report::Start, false);
-        page.turn()?;
+        let within = Duration::from_secs(60);
+        let end = page.now().saturating_add(within);
+        page.until(end, |page| Ok(page.signing_in.is_none().then_some(())))?;
+        page.load(&taken.address, within)?;
         Ok(page)
     }
 
@@ -364,6 +378,7 @@ impl Page {
 
     /// Restart the host, retaining the world's cookies and the page's small store.
     pub fn reload(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
+        self.loading = true;
         let (now, wall) = self.memory.clocks(self.browser);
         self.host =
             host::Host::new(temper_client_shell_web::limits::client(), self.seed, now, wall, 0, self.ways.clone());
@@ -371,8 +386,42 @@ impl Page {
         self.memory.navigate(path);
         self.host.start(path, self.store.read_all(&self.memory), None);
         self.give(host::Report::Start, false);
-        self.turn()?;
+        self.load(path, within)?;
         self.wait(&Find::named(Role::Main, b""), None, within).map(|_| ())
+    }
+
+    /// Fetch the engine's mount through the visitor, with its cookies, before drawing.
+    /// Only the forge metas enter the native host; its sign-in ways are unchanged.
+    fn load(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
+        self.loading = true;
+        self.document = None;
+        self.memory.send(&fetch::Exchange {
+            id: PAGE_EXCHANGE,
+            path: path.into(),
+            method: "GET".into(),
+            headers: Vec::new(),
+            body: Box::new([]),
+            bound: PAGE_BYTES,
+            pieces: None,
+            cache: fetch::Cache::NoStore,
+            keep: &[],
+        });
+        let end = self.now().saturating_add(within);
+        let document = self.until(end, |page| page.document.take().transpose())?;
+        self.served = document;
+        let mut forges = temper_client_view::forge_sign_in::Forges::new();
+        let text = String::from_utf8_lossy(&self.served);
+        // The engine writes these attributes in this fixed form, escaping five characters.
+        for meta in text.split("<meta name=\"temper-forge-sign-in\" content=\"").skip(1) {
+            if let Some((content, _)) = meta.split_once('"') {
+                let content = content.replace("&quot;", "\"").replace("&#39;", "'")
+                    .replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                forges.read(&content);
+            }
+        }
+        self.host.forge_sign_in(forges);
+        self.loading = false;
+        self.turn()
     }
 
     /// Walk the script, moving browser time only to the world's, host's or person's next instant.
@@ -467,6 +516,22 @@ impl Page {
         let (now, wall) = self.memory.clocks(self.browser);
         self.host.clocks(now, wall);
         while let Some(report) = self.inbox.next() {
+            match &report {
+                Report::Fetch(fetch::Report::Answered { exchange, .. } | fetch::Report::Failed { exchange })
+                    if Some(*exchange) == self.signing_in => self.signing_in = None,
+                _ => {}
+            }
+            let report = match report {
+                Report::Fetch(fetch::Report::Answered { exchange: PAGE_EXCHANGE, status, body, .. }) => {
+                    self.document = Some(if status == 200 { Ok(body) } else { Err(Failed::Asked("page load refused")) });
+                    continue;
+                }
+                Report::Fetch(fetch::Report::Failed { exchange: PAGE_EXCHANGE }) => {
+                    self.document = Some(Err(Failed::Asked("page load failed")));
+                    continue;
+                }
+                other => other,
+            };
             let read_on = matches!(
                 &report,
                 Report::Fetch(
@@ -499,7 +564,9 @@ impl Page {
                 self.give_tui(TuiReport::Due)?;
             }
         }
-        self.host.draw(&mut self.surface, &mut Vec::new());
+        if !self.loading {
+            self.host.draw(&mut self.surface, &mut Vec::new());
+        }
         Ok(())
     }
 
@@ -568,6 +635,11 @@ impl Page {
             self.memory.navigate(&to);
         }
         self.pending_input |= !requests.exchanges.is_empty() || requests.stream.is_some() || read_on;
+        for exchange in &requests.exchanges {
+            if exchange.path.as_ref() == b"/jig/v1/sign-in/link" {
+                self.signing_in = Some(exchange.id);
+            }
+        }
         let mut reports = Vec::new();
         transport::carry(requests, &mut self.store, &mut self.memory, &mut reports);
         if duties.writes != 0 || !reports.is_empty() {
