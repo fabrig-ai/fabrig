@@ -1,7 +1,8 @@
 # lifecycle: status
 
-2026-11-19. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
+2026-11-20. Where the tree's code lags or departs from [lifecycle.md](lifecycle.md).
 
+- **Not yet:** 2, 6 and 12.1: an attempt its worker's stop cut ends suspended, not interrupted: its end read `suspended` in the activity and its row, and its deadline moved by the time it spent suspended. [in flight: change 10948]
 
 
 - **Not yet:** 6: an account's terminal read once its source is usable again is rechecked at once, with no backoff [in flight: change 9667].
