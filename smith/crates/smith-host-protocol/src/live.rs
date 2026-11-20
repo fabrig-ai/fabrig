@@ -34,7 +34,7 @@ impl Streams {
         let Some(ask) = self.ask else {
             return Err(Rule::NotAsked);
         };
-        let (index, asked) = match piece.kind() {
+        let (index, asked) = match &piece.kind {
             LiveKind::Text => (0, ask.text),
             LiveKind::Reasoning => (1, ask.reasoning),
             LiveKind::Input => (2, ask.input),
@@ -42,28 +42,28 @@ impl Streams {
         if !asked {
             return Err(Rule::NotAsked);
         }
-        if self.last_turn.checked_add(1) != Some(piece.turn()) {
+        if self.last_turn.checked_add(1) != Some(piece.turn) {
             return Err(Rule::Turn);
         }
-        if (*piece.kind() == LiveKind::Input) != piece.call().is_some() {
+        if (piece.kind == LiveKind::Input) != piece.call.is_some() {
             return Err(Rule::Call);
         }
         let held = self.ends.get_mut(index).expect("one slot per live kind");
         if let Some((retry, end)) = *held {
-            if piece.retry() < retry {
+            if piece.retry < retry {
                 return Err(Rule::Retry);
             }
-            let same_call = *piece.kind() != LiveKind::Input || self.input.as_ref() == piece.call().as_ref();
-            if piece.retry() == retry && same_call && piece.offset() < end {
+            let same_call = piece.kind != LiveKind::Input || self.input.as_ref() == piece.call.as_ref();
+            if piece.retry == retry && same_call && piece.offset < end {
                 return Err(Rule::Offset);
             }
         }
-        let Some(end) = piece.offset().checked_add(skein_lib::len_u64(piece.bytes().len())) else {
+        let Some(end) = piece.offset.checked_add(skein_lib::len_u64(piece.bytes.as_ref().len())) else {
             return Err(Rule::Offset);
         };
-        *held = Some((piece.retry(), end));
-        if *piece.kind() == LiveKind::Input {
-            self.input.clone_from(piece.call());
+        *held = Some((piece.retry, end));
+        if piece.kind == LiveKind::Input {
+            self.input.clone_from(&piece.call);
         }
         Ok(())
     }
@@ -72,27 +72,14 @@ impl Streams {
 #[cfg(test)]
 mod tests {
     use super::{Rule, Streams};
-    use smith_channel::{CEILINGS, Live, LiveCall, LiveCallParts, LiveKind, LiveParts};
+    use smith_channel::{Live, LiveCall, LiveKind};
     use smith_host_domain::channel::LiveAsk;
 
     fn piece(turn: u32, retry: u32, kind: LiveKind, offset: u64, length: usize, call: bool) -> Live {
-        let call = if call {
-            Some(
-                LiveCall::new(
-                    &CEILINGS,
-                    LiveCallParts { id: b"call".as_slice().into(), tool: b"tool".as_slice().into() },
-                )
-                .unwrap(),
-            )
-        } else {
-            None
-        };
+        let call =
+            if call { Some(LiveCall { id: b"call".as_slice().into(), tool: b"tool".as_slice().into() }) } else { None };
         let bytes = [b'a'; 4096];
-        Live::new(
-            &CEILINGS,
-            LiveParts { turn, retry, kind, offset, bytes: bytes.get(..length).expect("bounded fixture").into(), call },
-        )
-        .unwrap()
+        Live { turn, retry, kind, offset, bytes: bytes.get(..length).expect("bounded fixture").into(), call }
     }
 
     fn text(turn: u32, retry: u32, offset: u64, length: usize) -> Live {
@@ -132,15 +119,9 @@ mod tests {
         let first = piece(1, 0, LiveKind::Input, 0, 3, true);
         assert_eq!(streams.check(&first), Ok(()));
         assert_eq!(streams.check(&piece(1, 0, LiveKind::Input, 2, 1, true)), Err(Rule::Offset));
-        let mut second = first.into_parts();
-        second.call = Some(
-            LiveCall::new(
-                &CEILINGS,
-                LiveCallParts { id: b"second".as_slice().into(), tool: b"tool".as_slice().into() },
-            )
-            .unwrap(),
-        );
-        assert_eq!(streams.check(&Live::new(&CEILINGS, second).unwrap()), Ok(()));
+        let mut second = first;
+        second.call = Some(LiveCall { id: b"second".as_slice().into(), tool: b"tool".as_slice().into() });
+        assert_eq!(streams.check(&second), Ok(()));
         assert_eq!(streams.check(&text(1, 0, 0, 3)), Ok(()));
         assert_eq!(streams.check(&text(1, 0, 2, 1)), Err(Rule::Offset));
     }

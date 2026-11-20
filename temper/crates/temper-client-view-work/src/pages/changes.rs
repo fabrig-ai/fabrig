@@ -23,27 +23,27 @@ pub struct LinePart {
     pub red: bool,
 }
 fn queued(panel: &w::ChangesPanel) -> u64 {
-    let mut count = u64::from(panel.more());
-    for queue in panel.queues() {
-        count = count.checked_add(u64::from(queue.changes().len())).expect("wire rows fit");
-        count = count.checked_add(u64::from(queue.in_flight().is_some())).expect("wire rows fit");
+    let mut count = u64::from(panel.more);
+    for queue in &panel.queues {
+        count = count.checked_add(u64::from(queue.changes.len())).expect("wire rows fit");
+        count = count.checked_add(u64::from(queue.in_flight.is_some())).expect("wire rows fit");
     }
     count
 }
 /// The one branch name among queues with rows, or the landing when none has rows.
 fn branch_named(panel: &w::ChangesPanel) -> Option<&[u8]> {
     let mut name = None;
-    for queue in panel.queues() {
-        if !queue.changes().is_empty() || queue.in_flight().is_some() {
+    for queue in &panel.queues {
+        if !queue.changes.is_empty() || queue.in_flight.is_some() {
             if let Some(previous) = name
-                && previous != queue.branch()
+                && previous != &queue.branch
             {
                 return None;
             }
-            name = Some(queue.branch());
+            name = Some(&queue.branch);
         }
     }
-    let name = name.unwrap_or(panel.landing());
+    let name = name.unwrap_or(&panel.landing);
     if name.is_empty() { None } else { Some(name) }
 }
 fn branch_words(panel: &w::ChangesPanel, words: &Words, fallback: Word) -> Box<[u8]> {
@@ -65,8 +65,8 @@ impl<'a> LandingFacts<'a> {
     pub fn panel(panel: &'a w::ChangesPanel, red: &'a [&'a [u8]]) -> Self {
         Self {
             queued: queued(panel),
-            last: match panel.landed().get(0) {
-                Some(last) => Some(Wall::from_nanos(last.at())),
+            last: match panel.landed.get(0) {
+                Some(last) => Some(Wall::from_nanos(last.at)),
                 None => None,
             },
             branch: branch_named(panel),
@@ -203,9 +203,9 @@ pub fn main(b: &mut Builder, root: &Domain, words: &Words, bindings: &mut Bindin
     section(b, &words.say(Word::ChangesLanded, &[]));
     b.open(Role::List);
     b.style(look::HOME_ROWS);
-    for row in panel.landed() {
-        let when = times.say(words, TimeForm::Clock, Wall::from_nanos(row.at()));
-        row_start(b, root, words, bindings, row.task(), row.title(), &when);
+    for row in &panel.landed {
+        let when = times.say(words, TimeForm::Clock, Wall::from_nanos(row.at));
+        row_start(b, root, words, bindings, row.task, &row.title, &when);
         row_when(b, words, &when);
         b.close();
         b.close();
@@ -224,8 +224,8 @@ fn queues(
     times: &mut Times,
 ) {
     let mut sections = 0_usize;
-    for queue in panel.queues() {
-        if !queue.changes().is_empty() || queue.in_flight().is_some() {
+    for queue in &panel.queues {
+        if !queue.changes.is_empty() || queue.in_flight.is_some() {
             sections = sections.checked_add(1).expect("wire queues fit");
         }
     }
@@ -239,59 +239,57 @@ fn queues(
         return;
     }
     let mut shown = 0_usize;
-    for queue in panel.queues() {
-        if queue.changes().is_empty() && queue.in_flight().is_none() {
+    for queue in &panel.queues {
+        if queue.changes.is_empty() && queue.in_flight.is_none() {
             continue;
         }
         shown = shown.checked_add(1).expect("wire queues fit");
-        let heading = if *queue.way() == w::Way::Turn {
+        let heading = if queue.way == w::Way::Turn {
             super::change::say(
                 words,
                 W::Train,
-                &[Hole::Name(queue.repository().into()), Hole::Name(queue.branch().into())],
+                &[Hole::Name(queue.repository.clone()), Hole::Name(queue.branch.clone())],
             )
         } else if sections == 1 {
             words.say(Word::ChangesQueue, &[])
         } else {
-            words.say(
-                Word::ChangesQueueNamed,
-                &[Hole::Name(queue.repository().into()), Hole::Name(queue.branch().into())],
-            )
+            words
+                .say(Word::ChangesQueueNamed, &[Hole::Name(queue.repository.clone()), Hole::Name(queue.branch.clone())])
         };
         section(b, &heading);
         b.open(Role::List);
         b.style(look::HOME_ROWS);
-        if let Some(flight) = queue.in_flight() {
+        if let Some(flight) = &queue.in_flight {
             let identity = super::change::say(
                 words,
                 W::TrainFlight,
-                &[Hole::Number(flight.task()), Hole::Number(flight.member()), Hole::Number(u64::from(flight.round()))],
+                &[Hole::Number(flight.task), Hole::Number(flight.member), Hole::Number(u64::from(flight.round))],
             );
-            let status = if let Some(prefix) = flight.probe()
-                && (*flight.step() == w::LandingStep::Probing || *flight.step() == w::LandingStep::ProbingByTest)
+            let status = if let Some(prefix) = &flight.probe
+                && (flight.step == w::LandingStep::Probing || flight.step == w::LandingStep::ProbingByTest)
             {
                 let phrase =
-                    if *flight.step() == w::LandingStep::ProbingByTest { W::ProbingByTestAt } else { W::ProbingAt };
+                    if flight.step == w::LandingStep::ProbingByTest { W::ProbingByTestAt } else { W::ProbingAt };
                 super::change::say(words, phrase, &[Hole::Name(crate::public::short(prefix).as_slice().into())])
             } else {
-                super::change::say(words, step_word(flight.step()), &[])
+                super::change::say(words, step_word(&flight.step), &[])
             };
             let label = crate::accounts::words::join(&[&identity, &words.say(Word::ToolSeparator, &[]), &status]);
-            row_start(b, root, words, bindings, flight.member(), flight.title(), &label);
+            row_start(b, root, words, bindings, flight.member, &flight.title, &label);
             row_when(b, words, &label);
             b.close();
             b.close();
         }
-        for (index, row) in queue.changes().iter().enumerate() {
-            let (checking, when) = if *queue.way() == w::Way::Turn {
+        for (index, row) in queue.changes.iter().enumerate() {
+            let (checking, when) = if queue.way == w::Way::Turn {
                 let place = skein_lib::len_u64(index)
                     .checked_add(1)
                     .expect("wire ordinal fits")
-                    .checked_add(u64::from(queue.in_flight().is_some()))
+                    .checked_add(u64::from(queue.in_flight.is_some()))
                     .expect("wire rows fit");
                 (false, words.say(Word::ChangesPlace, &[Hole::Name(ordinal(place, words))]))
             } else {
-                match (index, row.checks_since()) {
+                match (index, &row.checks_since) {
                     (0, Some(since)) => (
                         true,
                         words.say(
@@ -317,7 +315,7 @@ fn queues(
             } else {
                 when.clone()
             };
-            row_start(b, root, words, bindings, row.task(), row.title(), &label);
+            row_start(b, root, words, bindings, row.task, &row.title, &label);
             b.open(Role::Text);
             b.style(look::HOME_WHEN);
             if words.shell == Shell::Terminal {
@@ -334,11 +332,11 @@ fn queues(
             b.close();
             b.close();
         }
-        if shown == sections && panel.more() > 0 {
+        if shown == sections && panel.more > 0 {
             text(
                 b,
                 Role::Item,
-                &words.say(Word::ChangesMore, &[Hole::Number(u64::from(panel.more()))]),
+                &words.say(Word::ChangesMore, &[Hole::Number(u64::from(panel.more))]),
                 Some(look::CHANGES_MORE),
             );
         }

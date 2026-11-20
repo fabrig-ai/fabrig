@@ -40,7 +40,13 @@ fn client() -> Client {
     let mut c = new();
     c.step(Event::StartUnlinked { kept: List::with_capacity(0) });
     c.step(Event::Up {
-        up: Up::Served { served: true, versions: Some(contract::VersionRange { first: 37, last: 37 }) },
+        up: Up::Served {
+            served: true,
+            versions: Some(contract::VersionRange {
+                first: jig_client_protocol_wire::VERSION,
+                last: jig_client_protocol_wire::VERSION,
+            }),
+        },
     });
     c.step(Event::SignIn { with: With::Transport });
     c
@@ -182,7 +188,12 @@ fn an_unlinked_client_fires_a_dropped_watch_s_backoff() {
 fn an_unlinked_approval_is_carried_by_the_host() {
     let code = super::approval::code();
     for (event, act, answer) in [
-        (Event::AskApproval, ApprovalAct::Ask, Approval::NotAsked(NotAsked::Refused)),
+        (Event::AskApproval { port: None }, ApprovalAct::Ask { port: None }, Approval::NotAsked(NotAsked::Refused)),
+        (
+            Event::AskApproval { port: Some(43210) },
+            ApprovalAct::Ask { port: Some(43210) },
+            Approval::NotAsked(NotAsked::Refused),
+        ),
         (
             Event::ReadApproval { code },
             ApprovalAct::Read { code },
@@ -191,7 +202,7 @@ fn an_unlinked_approval_is_carried_by_the_host() {
         (
             Event::DecideApproval { code, approve: true },
             ApprovalAct::Decide { code, approve: true },
-            Approval::Decided { code, decided: Decided::Approved },
+            Approval::Decided { code, decided: Decided::Approved { loopback: None } },
         ),
     ] {
         let mut c = new();
@@ -199,8 +210,8 @@ fn an_unlinked_approval_is_carried_by_the_host() {
         assert_eq!(c.requests(), &[UnlinkedRequest::ApprovalAct(act)]);
         let expected = match &answer {
             Approval::NotAsked(why) => Approval::NotAsked(*why),
-            Approval::Read { code, state } => Approval::Read { code: *code, state: *state },
-            Approval::Decided { code, decided } => Approval::Decided { code: *code, decided: *decided },
+            Approval::Read { code, state } => Approval::Read { code: *code, state: state.clone() },
+            Approval::Decided { code, decided } => Approval::Decided { code: *code, decided: decided.clone() },
             Approval::Asked { secret, code, expires } => {
                 Approval::Asked { secret: secret.clone(), code: *code, expires: *expires }
             }

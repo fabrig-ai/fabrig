@@ -16,6 +16,7 @@ pub mod reds;
 pub mod ring;
 pub mod sequence;
 mod snapshot;
+mod store_lock;
 #[cfg(test)]
 mod tests;
 

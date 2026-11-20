@@ -10,8 +10,7 @@ pub(super) fn credential() -> skein_lib::Secret {
     skein_lib::Secret::new(TOKEN_BYTES.into())
 }
 
-pub(super) const LINK: &[u8] =
-    b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+pub(super) const LINK: &[u8] = b"http://127.0.0.1:7100/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 pub(super) fn link_chat(stored: Option<skein_lib::Secret>) -> (NativeClient, skein_lib::Token, skein_lib::Token) {
     let mut host = common::native();
@@ -115,7 +114,7 @@ pub(super) fn activity_answer(nonempty: bool) -> Box<[u8]> {
     let event = w::Activity::RunBegan(
         w::ActivityRunBegan::new(
             &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true },
+            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None },
         )
         .expect("run marker"),
     );

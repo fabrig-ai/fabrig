@@ -2,9 +2,10 @@ landing list --project PROJECT [--ended]
   --project PROJECT: a project's name or number; required. The project
   --ended: a switch. Also the landings that ended
 List a project's landings, live first, then newest first
-Prints: `landings of project PROJECT`, the turn, and a line per landing: its task, phase, changes and repositories
+Prints: `landings of project PROJECT`, the turn and its age, and a line per landing: its task, phase, live step and last event age, changes and repositories
 --json: the record landings.
 Key: none.
 Without --ended, the live landings alone. `landing show TASK` reads one.
+Ages use the engine's document time; an older row says last event unknown.
 These are turn landings. Queue merges create no landing task and do not
 appear here, including with --ended. Read a queue change with `change show TASK`.

@@ -177,7 +177,7 @@ impl Composition {
 
     pub(super) fn approval(&mut self, client: ClientId, act: jig_client::ApprovalAct) {
         let event = match act {
-            jig_client::ApprovalAct::Ask => link::Event::AskApproval,
+            jig_client::ApprovalAct::Ask { port } => link::Event::AskApproval { port },
             jig_client::ApprovalAct::Read { code } => link::Event::ReadApproval { code },
             jig_client::ApprovalAct::Decide { code, approve } => link::Event::DecideApproval { code, approve },
         };
@@ -187,7 +187,7 @@ impl Composition {
     pub(super) fn take_approval(&mut self, client: ClientId, secret: Secret) {
         assert!(self.approval_takes.insert(client), "one approval take per client in flight");
         self.pending_reply = Some(Reply::SignIn { client });
-        self.link(client, link::Event::SignIn { with: link::With::Approval { secret } });
+        self.link(client, link::Event::SignIn { with: link::With::Approval { secret, grant: None } });
     }
 
     pub(super) fn take_approval_answer(&mut self, client: ClientId) -> Option<link::Approval> {
@@ -611,6 +611,8 @@ impl Composition {
                     link::Message::SignOut => clients::Message::SignOut(Box::new([])),
                 };
                 self.event(Event::Transport(clients::FromTransport::Exchange {
+                    via: jig_protocol_engine_clients::Via::Listener,
+                    source: None,
                     browser: self.browsers.contains(&client),
                     exchange: name,
                     credential,

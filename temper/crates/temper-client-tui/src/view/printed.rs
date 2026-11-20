@@ -44,15 +44,15 @@ pub(crate) fn draw(b: &mut Builder, printed: &Printed, words: &Words) {
                 b.style(look::SPACED);
                 b.open(Role::Group);
                 b.open(Role::Paragraph);
-                text(b, Role::Text, way.name(), Some(look::NAME));
-                if way.current() {
+                text(b, Role::Text, &way.name, Some(look::NAME));
+                if way.current {
                     text(b, Role::Text, &words.view().say(Word::ViewNow, &[]), Some(look::HINT));
                 }
                 b.close();
-                text(b, Role::Paragraph, way.line(), Some(look::HINT));
+                text(b, Role::Paragraph, &way.line, Some(look::HINT));
                 b.close();
                 b.open(Role::Group);
-                print_path(b, way.path());
+                print_path(b, &way.path);
                 b.close();
                 b.close();
             }
@@ -60,7 +60,7 @@ pub(crate) fn draw(b: &mut Builder, printed: &Printed, words: &Words) {
             w::View::Proposal(proposal) => {
                 b.open(Role::Group);
                 b.style(look::SPACED);
-                for (word, path) in [(Word::ViewBefore, proposal.before()), (Word::ViewAfter, proposal.after())] {
+                for (word, path) in [(Word::ViewBefore, &proposal.before), (Word::ViewAfter, &proposal.after)] {
                     b.open(Role::Group);
                     text(b, Role::Paragraph, &words.view().say(word, &[]), Some(look::HEAD));
                     print_path(b, path);
@@ -68,20 +68,20 @@ pub(crate) fn draw(b: &mut Builder, printed: &Printed, words: &Words) {
                 }
                 b.close();
             }
-            w::View::Charter(charter) => card(b, charter.card()),
-            w::View::Rule(rule) => card(b, rule.card()),
+            w::View::Charter(charter) => card(b, &charter.card),
+            w::View::Rule(rule) => card(b, &rule.card),
             w::View::Roles(roles) => {
-                for role in roles.roles() {
-                    card(b, role.card());
+                for role in &roles.roles {
+                    card(b, &role.card);
                 }
             }
-            w::View::NotDrawn(value) => text(b, Role::Paragraph, value.words(), None),
+            w::View::NotDrawn(value) => text(b, Role::Paragraph, &value.words, None),
         },
     }
 }
 fn print_path(b: &mut Builder, path: &w::BranchPath) {
-    for stop in path.stops() {
-        let (mark, mark_style, word_style, indented) = match stop.actor() {
+    for stop in &path.stops {
+        let (mark, mark_style, word_style, indented) = match &stop.actor {
             w::Actor::Person => (PERSON, Some(look::SIGNAL), None, false),
             w::Actor::Agent => (AGENT, None, None, false),
             w::Actor::Code => (CODE, Some(look::HINT), Some(look::HINT), true),
@@ -94,10 +94,10 @@ fn print_path(b: &mut Builder, path: &w::BranchPath) {
         b.open(Role::Paragraph);
         text(b, Role::Text, mark, mark_style);
         text(b, Role::Text, b" ", None);
-        let words = if stop.over().is_empty() {
-            skein_lib::bytes::copy_of(stop.words())
+        let words = if stop.over.is_empty() {
+            skein_lib::bytes::copy_of(&stop.words)
         } else {
-            skein_lib::bytes::concat(&[stop.words(), b" (", stop.over(), b")"])
+            skein_lib::bytes::concat(&[&stop.words, b" (", &stop.over, b")"])
         };
         text(b, Role::Text, &words, word_style);
         b.close();
@@ -108,13 +108,13 @@ fn print_path(b: &mut Builder, path: &w::BranchPath) {
     }
 }
 fn card(b: &mut Builder, card: &w::Card) {
-    text(b, Role::Paragraph, card.name(), Some(look::NAME));
-    text(b, Role::Paragraph, card.who(), Some(look::HINT));
+    text(b, Role::Paragraph, &card.name, Some(look::NAME));
+    text(b, Role::Paragraph, &card.who, Some(look::HINT));
     b.open(Role::Group);
-    for fact in card.facts() {
+    for fact in &card.facts {
         b.open(Role::Slot);
-        text(b, Role::Term, fact.label(), None);
-        text(b, Role::Description, fact.value(), None);
+        text(b, Role::Term, &fact.label, None);
+        text(b, Role::Description, &fact.value, None);
         b.close();
     }
     b.close();

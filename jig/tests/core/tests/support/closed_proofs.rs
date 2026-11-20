@@ -126,6 +126,9 @@ pub fn activity(world: &World) -> Vec<tasks::Line> {
         .collect()
 }
 pub fn fresh(world: &World) {
+    fresh_because(world, Some(tasks::Fresh::Closed));
+}
+pub fn fresh_because(world: &World, expected: Option<tasks::Fresh>) {
     let assignment = world.assigned.as_ref().expect("fresh assignment");
     assert!(!assignment.run.policy.resume);
     assert!(assignment.transcript.is_empty());
@@ -133,7 +136,10 @@ pub fn fresh(world: &World) {
     assert_eq!(proof(world).conversation, assignment.attempt);
     assert_eq!(proof(world).window, None);
     assert!(!proof(world).crossed, "every new claim writes its own uncrossed proof");
-    assert!(matches!(activity(world).last(), Some(tasks::Line::RunBegan { resumed: false, .. })));
+    assert!(matches!(
+        activity(world).last(),
+        Some(tasks::Line::RunBegan { resumed: false, fresh, .. }) if *fresh == expected
+    ));
 }
 
 pub use crate::run_helpers::{SEED, hello, hello_hosting, tail};
@@ -161,10 +167,10 @@ fn a_window_resumes_only_on_its_claimed_endpoint() {
         assert_eq!(jig_core_world::fixtures::live_row(&world, task).refusals, refusals);
         assert_eq!(world.domain.take_brief_failure(), None);
         assert!(
-            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, .. }) if *resumed == resume)
+            matches!(f::activity(&world).last(), Some(tasks::Line::RunBegan { resumed, fresh, .. }) if *resumed == resume && *fresh == if resume { None } else { Some(tasks::Fresh::Moved) })
         );
         if !resume {
-            f::fresh(&world);
+            f::fresh_because(&world, Some(tasks::Fresh::Moved));
         }
         world.close();
     }

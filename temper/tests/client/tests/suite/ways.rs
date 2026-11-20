@@ -58,7 +58,7 @@ fn act(world: &mut Clients, person: ClientId, act: Act) {
     settle(world);
 }
 fn current(world: &Clients, person: ClientId, index: u32, name: &[u8]) {
-    assert_eq!(*panel(world, person).current(), Some(index));
+    assert_eq!(panel(world, person).current, Some(index));
     let tabs = page(world, person).tabs();
     let current = tabs.iter().filter(|tab| tab.current).collect::<Vec<_>>();
     assert_eq!(current.len(), 1);
@@ -179,14 +179,14 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
     );
     for (repository, paths) in [(Repository::CiAndTiers, PATHS[0]), (Repository::Neither, PATHS[1])] {
         let (mut world, person) = with_repository(Reader::Owner, Some(repository));
-        assert_eq!(panel(&world, person).own().repository().as_deref(), Some(b"acme/shop".as_slice()));
+        assert_eq!(panel(&world, person).own.repository.as_deref(), Some(b"acme/shop".as_slice()));
         current(&world, person, REVIEW, b"Agents review");
         for (index, (name, expected)) in NAMES.into_iter().zip(paths).enumerate() {
             let tab = u32::try_from(index).expect("tab index");
             act(&mut world, person, Act::WayTab { project: PROJECT, tab });
             let nodes = world.tree(person).nodes();
             let shown = under(nodes, Role::Group, if tab == REVIEW { b"How work runs" } else { name });
-            let line = panel(&world, person).ways().get(tab).expect("read's way").line();
+            let line = panel(&world, person).ways.get(tab).expect("read's way").line.as_ref();
             assert_eq!(words(styled(nodes, look::WAY_LINE)).as_bytes(), line, "way's line from the read");
             assert_eq!(drawn_path(shown), expected, "{}", String::from_utf8_lossy(name));
             assert_eq!(
@@ -224,16 +224,71 @@ fn the_three_ways_draw_ci_and_tiers_or_neither() {
 #[test]
 fn a_custom_rule_draws_yours_without_checks_or_acts() {
     let (world, person) = with_repository(Reader::Owner, Some(Repository::Yours));
-    assert_eq!(panel(&world, person).current(), &None);
+    assert_eq!(&panel(&world, person).current, &None);
     assert_eq!(page(&world, person).shown(), Some(3));
     let nodes = world.tree(person).nodes();
     let stocks = under(nodes, Role::List, b"Stock ways:");
-    assert_eq!(stocks.iter().filter(|node| node.role == Role::Button).count(), 3);
-    assert!(stocks.iter().all(|node| !node.name.as_deref().is_some_and(|name| name.ends_with(b", now"))));
+    let names: Vec<_> =
+        stocks.iter().filter(|node| node.role == Role::Button).map(|node| node.name.as_deref().unwrap()).collect();
+    assert_eq!(names, [b"Project 1's own, now".as_slice(), b"You approve", b"Agents review", b"Draft first"]);
     assert!(!nodes.iter().any(|node| node.role == Role::Tabs));
     let own = under(nodes, Role::Group, b"How work runs");
     assert!(!drawn_path(own).lines().any(|line| line == "check, code"));
     no_acts(nodes);
+}
+
+#[test]
+fn choosing_the_running_way_from_the_menu_shows_it_again() {
+    for address in [Address::Ask { project: PROJECT }, Address::Settings { project: PROJECT }] {
+        let mut world = World::<Temper, Joint>::new(
+            Settings { seed: fixtures::SEED, words: fixtures::decision_words(), ..Settings::default() },
+            ways::fixture(fixtures::SEED, &fixtures::domain_limits(), Reader::Owner),
+        );
+        world.randomness(0, 0, 0);
+        let caller = world.front().caller;
+        let person = world.client_with(caller, address, fixtures::domain_limits(), |seed| {
+            let limits = fixtures::domain_limits();
+            let words = temper_client_view::words::Words::english(
+                fixtures::FORGE,
+                limits.client.domain.text,
+                temper_client_view::words::Shell::Browser,
+            )
+            .expect("browser words fit");
+            let bounds = fixtures::view_bounds(&limits, &words);
+            (
+                temper_client_world::app::Root::Person(Box::new(temper_client_domain::unlinked(&limits, seed))),
+                temper_client_world::app::View::Person(Box::new(temper_client_view::View::new(
+                    &bounds,
+                    &limits,
+                    words,
+                    fixtures::FORGE,
+                ))),
+            )
+        });
+        settle(&mut world);
+        for (name, shown, act_name) in
+            [(b"You approve".as_slice(), APPROVE, b"Use this".as_slice()), (b"Agents review", REVIEW, b"Keep it")]
+        {
+            let menu = under(world.tree(person).nodes(), Role::Menu, b"Stock ways");
+            let item =
+                menu.iter().find(|node| node.role == Role::MenuItem && node.name.as_deref() == Some(name)).unwrap().id;
+            world.act(person, item, skein_ui::Act::Press);
+            settle(&mut world);
+            assert_eq!(page(&world, person).shown(), Some(shown));
+            let nodes = world.tree(person).nodes();
+            let menu = under(nodes, Role::Menu, b"Stock ways");
+            let button = menu[0].button.as_ref().unwrap();
+            assert_eq!(button.words.as_ref(), name);
+            assert_eq!(button.name.as_ref(), [b"Way shown: ".as_slice(), name].concat());
+            assert!(named(styled(nodes, look::WAY_ACTS), Role::Button, act_name));
+            assert!(!named(nodes, Role::Button, b"Back"));
+        }
+        let nodes = world.tree(person).nodes();
+        assert_eq!(
+            words(styled(nodes, look::WAY_LINE)).as_bytes(),
+            panel(&world, person).ways.get(REVIEW).unwrap().line.as_ref()
+        );
+    }
 }
 
 #[test]
@@ -344,7 +399,7 @@ fn use_draft_first_commits_the_goal_way() {
 #[test]
 fn use_you_approve_refuses_a_box_owner_unknown_on_the_forge() {
     let (mut world, person) = world(Reader::BoxOwner);
-    assert_eq!(panel(&world, person).own().repository().as_deref(), Some(b"acme/shop".as_slice()));
+    assert_eq!(panel(&world, person).own.repository.as_deref(), Some(b"acme/shop".as_slice()));
     let before = panel(&world, person).clone();
     let revision = kinds::revision(&world.front().engine.store.rows);
     act(&mut world, person, Act::WayTab { project: PROJECT, tab: APPROVE });
@@ -375,8 +430,8 @@ fn a_member_reads_the_ways_without_an_act() {
     let (mut world, person) = world(Reader::Member);
     current(&world, person, REVIEW, b"Agents review");
     let panel = panel(&world, person);
-    assert!(!panel.may_change());
-    assert_eq!(panel.ways().len(), 3);
+    assert!(!panel.may_change);
+    assert_eq!(panel.ways.len(), 3);
     for index in [APPROVE, REVIEW, DRAFT] {
         assert_eq!(page(&world, person).act(index), None);
         act(&mut world, person, Act::WayTab { project: PROJECT, tab: index });

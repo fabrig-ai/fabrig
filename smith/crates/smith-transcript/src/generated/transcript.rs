@@ -1338,6 +1338,15 @@ impl Record for Hit {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 35)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Bytes { limit: limits.hit_path.min(CEILINGS.hit_path) }, &self.path, limits, out, paths::HIT_PATH)?;
         field::write(field::U32, &self.line, limits, out, paths::HIT_LINE)?;
@@ -3570,6 +3579,15 @@ impl Record for Turn {
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 209)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {

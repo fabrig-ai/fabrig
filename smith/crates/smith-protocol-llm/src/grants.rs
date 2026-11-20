@@ -98,6 +98,9 @@ impl Grants {
     /// Clone only the requested still-valid value for the connection's Start.
     /// A missing or lapsed grant has no lower effect.
     pub fn read(&self, name: GrantName, now: Time) -> Result<Credential, GrantError> {
+        if name.generation == 0 {
+            return Err(GrantError::Bounds);
+        }
         let entry = self.values.get(&(name.account, name.generation)).ok_or(GrantError::Missing)?;
         if entry.lapses <= now {
             return Err(GrantError::Lapsed);

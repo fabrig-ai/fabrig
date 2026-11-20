@@ -4,6 +4,7 @@
 use skein_fake_llm_domain::api;
 use skein_lib::List;
 use smith_agent_process_world::{World, charter};
+use smith_charter::Record;
 
 // The end-to-end regression repeats this twenty-byte line 160 times: 3,200
 // content bytes across a 2,048-byte input threshold.
@@ -16,49 +17,28 @@ const OUTPUT: u32 = 32_768;
 const SPEND: u64 = 20;
 
 fn coding_charter() -> Box<[u8]> {
-    let limits = &smith_charter::CEILINGS;
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
-        let mut budget = parts.budget.clone().into_parts();
+        let mut budget = parts.budget.clone();
         budget.turns = u32::try_from(CALLS).expect("coding turns");
         budget.spend = SPEND;
         // Standard checks receive five minutes; the charter reserves that inside
         // a ten-minute virtual run, leaving the model five minutes to work.
         budget.time = skein_lib::Duration::from_secs(600);
-        budget.reserve = smith_charter::Reserve::new(
-            limits,
-            smith_charter::ReserveParts { turns: 0, time: skein_lib::Duration::from_secs(300) },
-        )
-        .expect("check reserve");
-        parts.budget = smith_charter::Budget::new(limits, budget).expect("coding budget");
-        let mut main = parts.main.clone().into_parts();
+        budget.reserve = smith_charter::Reserve { turns: 0, time: skein_lib::Duration::from_secs(300) };
+        parts.budget = budget;
+        let mut main = parts.main.clone();
         main.output = OUTPUT;
-        parts.main = smith_charter::Llm::new(limits, main).expect("coding model");
-        let mut tools = parts.tools.clone().into_parts();
-        tools.families = smith_charter::Families::new(
-            limits,
-            smith_charter::FamiliesParts { inspect: true, modify: true, shell: true, agents: false },
-        )
-        .expect("workspace tools");
-        parts.tools = smith_charter::Tools::new(limits, tools).expect("coding tools");
-        let mut contract = parts.contract.clone().into_parts();
-        contract.change = Some(
-            smith_charter::ChangeRule::new(
-                limits,
-                smith_charter::ChangeRuleParts { checks_must_pass: true, fields: List::with_capacity(0) },
-            )
-            .expect("checked change"),
-        );
-        parts.contract = smith_charter::Contract::new(limits, contract).expect("coding contract");
-        parts.conventions = Some(
-            smith_charter::Conventions::new(
-                limits,
-                smith_charter::ConventionsParts {
-                    guide: b"AGENTS.md".as_slice().into(),
-                    checks: b".smith-test/check".as_slice().into(),
-                },
-            )
-            .expect("check convention"),
-        );
+        parts.main = main;
+        let mut tools = parts.tools.clone();
+        tools.families = smith_charter::Families { inspect: true, modify: true, shell: true, agents: false };
+        parts.tools = tools;
+        let mut contract = parts.contract.clone();
+        contract.change = Some(smith_charter::ChangeRule { checks_must_pass: true, fields: List::with_capacity(0) });
+        parts.contract = contract;
+        parts.conventions = Some(smith_charter::Conventions {
+            guide: b"AGENTS.md".as_slice().into(),
+            checks: b".smith-test/check".as_slice().into(),
+        });
     })
 }
 
@@ -127,7 +107,7 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
     assert_eq!(world.checked_files(), [b"new\n".to_vec()], "the subsequent check sees the replacement");
     assert_eq!(world.workspace_file(b"result.txt"), b"new\n");
     assert_eq!(world.workspace_file(b"original.txt"), b"edited\n");
-    assert!(matches!(world.answer().expect("host answer").result(), smith_channel::RunResult::Accepted(_)));
+    assert!(matches!(&world.answer().expect("host answer").result, smith_channel::RunResult::Accepted(_)));
     assert_eq!(world.observed().iter().filter(|frame| frame.kind == 0x0107).count(), 1, "one checked delivery");
     world.assert_agent_clean();
 }
@@ -139,28 +119,18 @@ fn report_delivery_charter() -> Box<[u8]> {
     // Two required delivery fields, each bounded to a short title or body.
     const FIELDS: u32 = 2;
     smith_agent_process_world::wire::edit_charter(&coding_charter(), |parts| {
-        let limits = &smith_charter::CEILINGS;
-        let mut contract = parts.contract.clone().into_parts();
+        let mut contract = parts.contract.clone();
         contract.change = None;
-        parts.contract = smith_charter::Contract::new(limits, contract).expect("report contract");
+        parts.contract = contract;
         let mut fields = List::with_capacity(FIELDS);
         for name in [b"title".as_slice(), b"body"] {
             fields
-                .push(
-                    smith_charter::FieldRule::new(
-                        limits,
-                        smith_charter::FieldRuleParts { name: name.into(), max: DELIVERY_FIELD_BYTES },
-                    )
-                    .expect("delivery field"),
-                )
+                .push(smith_charter::FieldRule { name: name.into(), max: DELIVERY_FIELD_BYTES })
                 .expect("two delivery fields");
         }
-        let mut tools = parts.tools.clone().into_parts();
-        tools.deliver = Some(
-            smith_charter::ChangeRule::new(limits, smith_charter::ChangeRuleParts { checks_must_pass: true, fields })
-                .expect("checked delivery grant"),
-        );
-        parts.tools = smith_charter::Tools::new(limits, tools).expect("delivery tools");
+        let mut tools = parts.tools.clone();
+        tools.deliver = Some(smith_charter::ChangeRule { checks_must_pass: true, fields });
+        parts.tools = tools;
     })
 }
 
@@ -209,11 +179,13 @@ fn a_report_run_offers_its_delivery_grant_and_continues() {
     );
     assert_eq!(world.checked_files(), [b"delivered\n".to_vec()]);
     let answer = world.answer().expect("host answer");
-    let smith_channel::RunResult::Accepted(accepted) = answer.result() else { panic!("report accepted: {answer:?}") };
-    let result =
-        smith_charter::RunResult::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(accepted.result()))
-            .expect("report result");
-    assert_eq!(result.form(), &smith_charter::Form::Report);
-    assert_eq!(result.text(), REPORT);
+    let smith_channel::RunResult::Accepted(accepted) = &answer.result else { panic!("report accepted: {answer:?}") };
+    let result = smith_charter::RunResult::decode(
+        &smith_charter::CEILINGS,
+        &mut skein_lib::Reader::new(accepted.result.as_ref()),
+    )
+    .expect("report result");
+    assert_eq!((&result.form), &smith_charter::Form::Report);
+    assert_eq!(result.text.as_ref(), REPORT);
     world.assert_agent_clean();
 }

@@ -105,6 +105,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
@@ -125,6 +126,7 @@ fn make_and_claim_have_independent_before_and_after_durable_cuts() {
     w.send(Event::Prepare { reply_to, task: 2 });
     let reply_to = w.to();
     w.stage(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,
@@ -153,6 +155,7 @@ fn stale_claims_and_replayed_terminal_are_and_do_not_mutate() {
     w.claim(1, 4);
     let reply_to = w.to();
     w.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: jig_domain_tasks::Reasons::ALL,
         reasons: jig_domain_tasks::Reasons::FIRST,

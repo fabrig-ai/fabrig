@@ -14,6 +14,7 @@ pub use machine::Store;
 /// The chat store version named by the product startup record.
 pub const CHAT_STORE_VERSION: u64 = 1;
 
+use crate::local_store_v1::Record;
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Token, Writer};
 use smith_host_domain::Transcript;
@@ -48,26 +49,20 @@ pub fn save_state(state: ChatState) -> File {
         Some(read) => Some(read.raw()),
         None => None,
     };
-    let record = crate::local_store_v1::State::new(
-        &crate::local_store_v1::CEILINGS,
-        crate::local_store_v1::StateParts {
-            identity: state.identity.bytes(),
-            activation: state.activation,
-            next_message: state.next_message,
-            read,
-        },
-    )
-    .expect("metadata has no variable bounds");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes fit usize"));
-    record.encode(&mut writer).expect("measured metadata");
-    File { name: b"state".as_slice().into(), bytes: writer.finish() }
+    let record = crate::local_store_v1::State {
+        identity: state.identity.bytes(),
+        activation: state.activation,
+        next_message: state.next_message,
+        read,
+    };
+    let bytes = record.encode(&crate::local_store_v1::CEILINGS).expect("metadata has no variable bounds");
+    File { name: b"state".as_slice().into(), bytes }
 }
 
 /// Read a complete generated local metadata file.
 pub fn decode_state(bytes: &[u8]) -> Result<ChatState, StoreError> {
     let record = crate::local_store_v1::State::decode(&crate::local_store_v1::CEILINGS, &mut Reader::new(bytes))
-        .or(Err(StoreError::Malformed))?
-        .into_parts();
+        .or(Err(StoreError::Malformed))?;
     let read = match record.read {
         Some(read) => Some(Token::new(read)),
         None => None,
@@ -112,14 +107,9 @@ pub fn save_turn(
         Some(read) => Some(read.raw()),
         None => None,
     };
-    let record = crate::local_store_v1::Turn::new(
-        &crate::local_store_v1::CEILINGS,
-        crate::local_store_v1::TurnParts { read, opens_window, body: bytes },
-    )
-    .or(Err(StoreError::TooLarge))?;
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured bytes fit usize"));
-    record.encode(&mut writer).expect("measured turn envelope");
-    Ok(File { name: turn_name(place), bytes: writer.finish() })
+    let record = crate::local_store_v1::Turn { read, opens_window, body: bytes };
+    let bytes = record.encode(&crate::local_store_v1::CEILINGS).or(Err(StoreError::TooLarge))?;
+    Ok(File { name: turn_name(place), bytes })
 }
 
 /// Read the whole generated envelope without interpreting the transcript body.
@@ -131,7 +121,7 @@ pub(super) fn turn_opens_window_bounded(bytes: &[u8], file_bytes: u32) -> Result
     let limits = envelope_limits(file_bytes);
     let record =
         crate::local_store_v1::Turn::decode(&limits, &mut Reader::new(bytes)).or(Err(StoreError::Malformed))?;
-    Ok(record.opens_window())
+    Ok(record.opens_window)
 }
 
 /// Decode only the last window's ordered files, retaining their saved bodies for forwarding.
@@ -165,9 +155,8 @@ pub(super) fn decode_turns_bounded(
     let mut bodies = List::with_capacity(count);
     let mut last_read = None;
     for file in files {
-        let record = crate::local_store_v1::Turn::decode(&envelope, &mut Reader::new(file))
-            .or(Err(StoreError::Malformed))?
-            .into_parts();
+        let record =
+            crate::local_store_v1::Turn::decode(&envelope, &mut Reader::new(file)).or(Err(StoreError::Malformed))?;
         last_read = match record.read {
             Some(read) => Some(Token::new(read)),
             None => None,
@@ -253,8 +242,7 @@ pub(crate) mod tests {
         let file = save_turn(1, None, true, &turn, &transcript::CEILINGS, &endpoints).expect("saved turn");
         let envelope =
             crate::local_store_v1::Turn::decode(&crate::local_store_v1::CEILINGS, &mut Reader::new(&file.bytes))
-                .expect("saved envelope")
-                .into_parts();
+                .expect("saved envelope");
         let expected = smith_protocol_translate::transcript_piece(&[envelope.body]).expect("saved piece");
         let unknown = Endpoints::new(List::with_capacity(0));
         let (history, _) = decode_turns(&[file.bytes], &transcript::CEILINGS, &unknown).expect("carried history");
@@ -282,12 +270,9 @@ pub(crate) mod tests {
         let earlier = save_turn(1, None, true, &first, &transcript::CEILINGS, &endpoints).expect("first file");
         let mut envelope =
             crate::local_store_v1::Turn::decode(&crate::local_store_v1::CEILINGS, &mut Reader::new(&earlier.bytes))
-                .unwrap()
-                .into_parts();
+                .unwrap();
         envelope.body = b"not a transcript body".as_slice().into();
-        let envelope = crate::local_store_v1::Turn::new(&crate::local_store_v1::CEILINGS, envelope).unwrap();
-        let mut unread_body = Writer::new(usize::try_from(envelope.measure()).expect("measured bytes fit usize"));
-        envelope.encode(&mut unread_body).unwrap();
+        let unread_body = envelope.encode(&crate::local_store_v1::CEILINGS).expect("bounded envelope");
         let window_file = save_turn(3, None, true, &window, &transcript::CEILINGS, &endpoints).expect("window file");
         let ordinary = smith_domain::Turn {
             model: b"model".as_slice().into(),
@@ -299,7 +284,7 @@ pub(crate) mod tests {
         let last = save_turn(4, Some(Token::new(9)), false, &ordinary, &transcript::CEILINGS, &endpoints)
             .expect("ordinary file");
         let (loaded, read) =
-            decode_turns(&[unread_body.finish(), window_file.bytes, last.bytes], &transcript::CEILINGS, &endpoints)
+            decode_turns(&[unread_body, window_file.bytes, last.bytes], &transcript::CEILINGS, &endpoints)
                 .expect("only the current window is decoded");
         assert_eq!(loaded.expect("history").value().turns.as_ref(), &[window, ordinary]);
         assert_eq!(read, Some(Token::new(9)));

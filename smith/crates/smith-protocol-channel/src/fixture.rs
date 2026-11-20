@@ -1,5 +1,6 @@
 //! Opening limits for deterministic channel tests (smith/docs/design/protocol/channel.md, section 2).
 use crate::Limits;
+use smith_channel::Record;
 
 /// Small framing queues and empty run tables for opening and refusal tests.
 #[must_use]

@@ -11,8 +11,8 @@ use temper_client_domain::pages::stock_ways::{StockWays, WayAct};
 use temper_client_domain::{Address, pages::Act};
 use temper_client_protocol_wire::v1 as wire;
 
-/// The shown way's line and, in the browser, its acts and stock menu
-/// (temper/docs/design/client/pages/ask-temper.md, 1; settings.md, 2).
+/// The shown way's line, the column to itself, and, in the browser, its act
+/// and the drop-down naming the way shown (temper/docs/design/client/pages/ask-temper.md, 1).
 /// The terminal calls `head_acts` after the path and its foot.
 pub fn head(b: &mut Builder, ways: &StockWays, project_name: &[u8], w: &Words, bindings: &mut Bindings, project: u32) {
     let tabs = ways.tabs();
@@ -21,9 +21,9 @@ pub fn head(b: &mut Builder, ways: &StockWays, project_name: &[u8], w: &Words, b
     let line = if tab.index.is_some() {
         tab.line.clone()
     } else if let Some(words) = ways.words()
-        && !words.lede().is_empty()
+        && !words.lede.is_empty()
     {
-        copy_of(words.lede())
+        copy_of(&words.lede)
     } else {
         w.say(Word::WayOwn, &[Hole::Name(copy_of(project_name))])
     };
@@ -34,57 +34,70 @@ pub fn head(b: &mut Builder, ways: &StockWays, project_name: &[u8], w: &Words, b
     b.text(Run::Plain, &line);
     b.close();
     if w.shell == Shell::Browser {
-        head_acts(b, ways, w, bindings, project);
+        head_acts(b, ways, project_name, w, bindings, project);
     }
     b.close();
 }
 
-/// The shown way's act, Back to the running way, and the stock ways in read
-/// order. The terminal draws a list, with the running way's tick in words.
-pub fn head_acts(b: &mut Builder, ways: &StockWays, w: &Words, bindings: &mut Bindings, project: u32) {
+/// The shown way's act and the drop-down naming it: the project's own way
+/// first, then the stock ways in read order, the way shown ticked and the way
+/// the project runs saying "current" (temper/docs/design/client/pages/ask-temper.md, 1).
+/// The terminal draws a list, the running way's "current" in words.
+pub fn head_acts(
+    b: &mut Builder,
+    ways: &StockWays,
+    project_name: &[u8],
+    w: &Words,
+    bindings: &mut Bindings,
+    project: u32,
+) {
     let tabs = ways.tabs();
     let Some(index) = ways.shown() else { return };
     let Some(shown) = tabs.get(index) else { return };
     b.open(Role::Slot);
     b.style(look::WAY_ACTS);
     act_button(b, ways, index, w, bindings, project);
-    if !shown.current {
-        for (at, tab) in tabs.iter().enumerate() {
-            if tab.current {
-                b.open(Role::Button);
-                b.name(&w.say(Word::WayBack, &[]));
-                b.bind(bindings.insert(Act::WayTab { project, tab: u32::try_from(at).expect("wire bounds tabs") }));
-                b.close();
-                break;
-            }
-        }
-    }
     b.open(Role::Slot);
     b.style(look::WAY_PICK);
     b.open(if w.shell == Shell::Terminal { Role::List } else { Role::Menu });
     b.name(&w.say(Word::WayStock, &[]));
     b.style(look::WAY_MENU);
-    for (at, tab) in tabs.iter().enumerate() {
-        if tab.index.is_none() {
-            continue;
-        }
-        let at = u32::try_from(at).expect("wire bounds tabs");
-        if w.shell == Shell::Terminal {
-            b.open(Role::Item);
-            b.open(Role::Button);
-            let now = if tab.current { w.say(Word::WaysNow, &[]) } else { copy_of(b"") };
-            b.name(&skein_lib::bytes::concat(&[&tab.name, &now]));
+    if w.shell == Shell::Browser {
+        let shown_name = if shown.index.is_some() {
+            shown.name.clone()
         } else {
-            b.open(Role::MenuItem);
-            b.name(&tab.name);
-        }
-        if tab.current && w.shell == Shell::Browser {
-            b.state(State::Selected);
-        }
-        b.bind(bindings.insert(Act::WayTab { project, tab: at }));
-        b.close();
-        if w.shell == Shell::Terminal {
+            w.say(Word::WayOwnName, &[Hole::Name(copy_of(project_name))])
+        };
+        b.menu_button(&shown_name, &w.say(Word::WayShown, &[Hole::Name(shown_name.clone())]));
+    }
+    for own in [true, false] {
+        for (at, tab) in tabs.iter().enumerate() {
+            if tab.index.is_none() != own {
+                continue;
+            }
+            let at = u32::try_from(at).expect("wire bounds tabs");
+            let name =
+                if own { w.say(Word::WayOwnName, &[Hole::Name(copy_of(project_name))]) } else { tab.name.clone() };
+            if w.shell == Shell::Terminal {
+                b.open(Role::Item);
+                b.open(Role::Button);
+                let now = if tab.current { w.say(Word::WaysNow, &[]) } else { copy_of(b"") };
+                b.name(&skein_lib::bytes::concat(&[&name, &now]));
+            } else {
+                b.open(Role::MenuItem);
+                b.name(&name);
+                if at == index {
+                    b.state(State::Selected);
+                }
+                if tab.current {
+                    b.description(&w.say(Word::WayCurrent, &[]));
+                }
+            }
+            b.bind(bindings.insert(Act::WayTab { project, tab: at }));
             b.close();
+            if w.shell == Shell::Terminal {
+                b.close();
+            }
         }
     }
     b.close();
@@ -103,16 +116,16 @@ pub fn drawing(
 ) {
     let mut stops = List::with_capacity(paths::STOPS);
     let mut acts = List::with_capacity(paths::STOPS);
-    for (index, stop) in path.stops().iter().enumerate() {
+    for (index, stop) in path.stops.iter().enumerate() {
         let index = u32::try_from(index).expect("wire bounds stops");
-        let (mark, act) = match stop.actor() {
+        let (mark, act) = match &stop.actor {
             wire::Actor::Person => (paths::Mark::Person, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Agent => (paths::Mark::Agent, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Code => (paths::Mark::Code, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Bar => (paths::Mark::Bar, None),
         };
         stops
-            .push(paths::Stop { mark, words: stop.words(), needed: stop.needed(), over: stop.over() })
+            .push(paths::Stop { mark, words: &stop.words, needed: stop.needed, over: &stop.over })
             .expect("wire bounds stops");
         acts.push(act).expect("one act per stop");
     }
@@ -144,36 +157,36 @@ pub fn legend(b: &mut Builder, w: &Words) {
 /// The open stop's card: heading, `who`, "Open NAME ›" where the stop opens a
 /// charter, a gate or a rule, and its facts.
 pub fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindings, project: u32) {
-    let mut heading = copy_of(stop.words());
+    let mut heading = copy_of(&stop.words);
     if let Some(first) = heading.first_mut() {
         first.make_ascii_uppercase();
     }
-    let card = stop.card();
+    let card = &stop.card;
     b.open(Role::Region);
     b.name(&heading);
     b.style(look::WAYS_ZOOM);
     b.open(Role::Slot);
     b.style(look::WAYS_ZOOM_HEAD);
     text(b, Role::Heading { level: 3 }, &heading, None);
-    b.text(Run::Plain, card.who());
-    let address = match stop.opens() {
-        wire::Opens::Charter(c) => Some(Address::Role { project, charter: c.charter() }),
-        wire::Opens::Gate(g) => Some(Address::Role { project, charter: g.charter() }),
-        wire::Opens::Rule(r) => Some(Address::Rule { project, kind: r.kind(), number: r.number() }),
+    b.text(Run::Plain, &card.who);
+    let address = match &stop.opens {
+        wire::Opens::Charter(c) => Some(Address::Role { project, charter: c.charter }),
+        wire::Opens::Gate(g) => Some(Address::Role { project, charter: g.charter }),
+        wire::Opens::Rule(r) => Some(Address::Rule { project, kind: r.kind, number: r.number }),
         wire::Opens::Nothing | wire::Opens::Tier(_) | wire::Opens::Queue | wire::Opens::Turn => None,
     };
     if let Some(address) = address {
-        let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(card.name()))]);
+        let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(&card.name))]);
         crate::bindings::link(b, &label, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &label);
         b.close();
     }
     b.close();
     b.open(Role::Group);
-    for fact in card.facts() {
+    for fact in &card.facts {
         b.open(Role::Slot);
-        text(b, Role::Term, fact.label(), None);
-        text(b, Role::Description, fact.value(), None);
+        text(b, Role::Term, &fact.label, None);
+        text(b, Role::Description, &fact.value, None);
         b.close();
     }
     b.close();

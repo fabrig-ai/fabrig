@@ -444,9 +444,9 @@ fn sheet_copies_wait_for_each_line_then_close_with_both_rows_on_the_watch() {
     ]) {
         assert_eq!((making.org.as_ref(), making.name.as_ref()), (org, name));
         let temper_client_protocol_wire::v1::MakeFrom::Copy(copy) = &making.from else { panic!("copy source") };
-        assert_eq!(copy.address(), address);
+        assert_eq!(copy.address.as_ref(), address);
         let into = making.into.as_ref().expect("project destination");
-        assert_eq!((into.project(), into.home()), (1, home));
+        assert_eq!((into.project, into.home), (1, home));
     }
 }
 

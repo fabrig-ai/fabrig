@@ -231,7 +231,7 @@ impl World {
 }
 
 pub(super) fn printed_link() -> Box<[u8]> {
-    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into()
+    format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into()
 }
 
 pub(super) fn url_base64(bytes: &[u8]) -> Box<[u8]> {

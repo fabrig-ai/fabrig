@@ -155,7 +155,11 @@ fn the_welcome_uses_the_header_and_spaces_its_link() {
     tui.header(false, VERSION.into());
     tui.step(Told::Front { set_up: false, box_log: Box::default() });
     tui.step(Told::BoxLine {
-        line: crate::BoxLine::Link { url: skein_lib::Secret::new(b"http://127.0.0.1:8367/link".as_slice().into()) },
+        line: crate::BoxLine::Link {
+            url: skein_lib::Secret::new(
+                b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".as_slice().into(),
+            ),
+        },
     });
     let mut view = f::view();
     f::build(&mut view, &tui, &root);
@@ -169,7 +173,7 @@ fn the_welcome_uses_the_header_and_spaces_its_link() {
         "",
         " Welcome. Set temper up in your browser: open this link on this machine.",
         "",
-        " http://127.0.0.1:8367/link",
+        " http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
         "",
         " It signs you in as this temper's owner, once, within 2 hours.",
         "",

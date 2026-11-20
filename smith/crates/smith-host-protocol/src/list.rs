@@ -5,7 +5,8 @@
 
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
-use skein_lib::{List, Queue, Reader, Secret, Time, Token, Writer};
+use skein_lib::{List, Queue, Reader, Secret, Time, Token};
+use smith_channel::Record;
 use smith_channel::{self as wire, CEILINGS, CredentialValue as Credential};
 use smith_host_domain::{ListFailure, ListOutcome, ListedModel};
 use smith_protocol_program::{self as program, Command, Ended};
@@ -38,11 +39,8 @@ impl ListRead {
         deadline: Time,
         below: &mut Queue<io::Request>,
     ) -> Result<Self, program::Error> {
-        let ask = wire::ListAsk::new(&CEILINGS, wire::ListAskParts { endpoint, credential: Some(credential) })
-            .expect("validated channel credential");
-        let mut writer = Writer::new(usize::try_from(ask.measure()).expect("bounded list ask"));
-        ask.encode(&mut writer).expect("measured list ask");
-        let input = Secret::new(writer.finish());
+        let ask = wire::ListAsk { endpoint, credential: Some(credential) };
+        let input = Secret::new(ask.encode(&CEILINGS).expect("bounded list ask"));
         let mut arguments = List::with_capacity(
             u32::try_from(launch.arguments.len()).expect("agent arguments fit u32").checked_add(1).expect("list flag"),
         );
@@ -129,9 +127,8 @@ fn translate(ended: Ended<'_>) -> ListOutcome {
     };
     match answer {
         wire::ListAnswer::Listed(rows) => {
-            let mut models = List::with_capacity(rows.rows().len());
-            for row in rows.into_parts().rows.into_boxed() {
-                let row = row.into_parts();
+            let mut models = List::with_capacity(rows.rows.len());
+            for row in rows.rows.into_boxed() {
                 models
                     .push(ListedModel {
                         name: row.name,
@@ -144,8 +141,8 @@ fn translate(ended: Ended<'_>) -> ListOutcome {
             }
             ListOutcome::Listed(models.into_boxed())
         }
-        wire::ListAnswer::Failed(failure) => ListOutcome::Failed(match failure.into_parts().failure {
-            wire::ListFailed::Refused(refused) => ListFailure::Refused { status: refused.status() },
+        wire::ListAnswer::Failed(failure) => ListOutcome::Failed(match failure.failure {
+            wire::ListFailed::Refused(refused) => ListFailure::Refused { status: refused.status },
             wire::ListFailed::Unreachable => ListFailure::Unreachable,
             wire::ListFailed::Unreadable => ListFailure::Unreadable,
             wire::ListFailed::Deadline => ListFailure::Deadline,

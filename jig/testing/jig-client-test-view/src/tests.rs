@@ -195,6 +195,7 @@ fn task() -> Task {
         talk: None,
         session: None,
         dependency_facts: List::with_capacity(0),
+        unread: List::with_capacity(0),
         kept_account: None,
         run_wait: None,
         settings: None,

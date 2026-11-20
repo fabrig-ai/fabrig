@@ -2,7 +2,7 @@
 use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, llm::EndpointAddress};
-use jig_protocol_worker_wire::v17 as w;
+use jig_protocol_worker_wire::v18 as w;
 use skein_lib::{Decimal, Duration, List, bytes};
 use temper_client_protocol_wire::v1 as s;
 
@@ -19,9 +19,9 @@ pub fn compose(engine: &settings::Engine, agents: &s::AgentFigures) -> w::Figure
 /// The agent's call bound, independent of the carriers' `tool_payload` floor.
 #[must_use]
 pub fn tool_payload(agents: &s::AgentFigures) -> u32 {
-    for figure in agents.profile() {
-        if figure.name() == b"declared.tool_payload" {
-            return u32::try_from(figure.value()).expect("judged agent payload fits u32");
+    for figure in &agents.profile {
+        if figure.name.as_ref() == b"declared.tool_payload" {
+            return u32::try_from(figure.value).expect("judged agent payload fits u32");
         }
     }
     temper_service_core::derived::STOCK.payload
@@ -49,31 +49,29 @@ impl Composer {
 
     #[must_use]
     pub fn compose(&self, agents: &s::AgentFigures) -> w::Figures {
-        let mut profile = List::with_capacity(agents.profile().len());
-        for figure in agents.profile() {
-            profile.push(limit(figure.name(), figure.value())).expect("counted profile figures");
+        let mut profile = List::with_capacity(agents.profile.len());
+        for figure in &agents.profile {
+            profile.push(limit(&figure.name, figure.value)).expect("counted profile figures");
         }
         let mut endpoints =
             List::with_capacity(u32::try_from(self.endpoints.len()).expect("configured endpoints").min(ENDPOINTS));
         for endpoint in self.endpoints.iter().take(skein_lib::usize_of(ENDPOINTS)) {
-            let mut limits = agents.fallback();
-            for named in agents.endpoints() {
-                if named.endpoint() == endpoint.name.as_ref() {
-                    limits = named.limits();
+            let mut limits = &agents.fallback;
+            for named in &agents.endpoints {
+                if named.endpoint.as_ref() == endpoint.name.as_ref() {
+                    limits = &named.limits;
                     break;
                 }
             }
             endpoints.push(endpoint_figure(endpoint, limits)).expect("counted endpoints");
         }
-        let agents =
-            w::Agents::new(&w::CEILINGS, w::AgentsParts { profile, endpoints }).expect("configured agents fit figures");
-        w::Figures::new(&w::CEILINGS, w::FiguresParts { places: 0, limits: self.limits.clone(), agents })
-            .expect("configured limits fit figures")
+        let agents = w::Agents { profile, endpoints };
+        w::Figures { places: 0, limits: self.limits.clone(), agents }
     }
 }
 
 fn limit(name: &[u8], value: u64) -> w::Limit {
-    w::Limit::new(&w::CEILINGS, w::LimitParts { name: bytes::copy_of(name), value }).expect("limit name fits figures")
+    w::Limit { name: bytes::copy_of(name), value }
 }
 
 fn endpoint_figure(endpoint: &config::llm::Endpoint, limits: &s::AgentLimits) -> w::AgentEndpoint {
@@ -83,53 +81,39 @@ fn endpoint_figure(endpoint: &config::llm::Endpoint, limits: &s::AgentLimits) ->
     };
     let transport = match &endpoint.transport {
         config::llm::Transport::Plaintext => w::Transport::Plaintext,
-        config::llm::Transport::Tls { server_name, trust } => w::Transport::Tls(
-            w::Tls::new(&w::CEILINGS, w::TlsParts { server_name: server_name.clone(), trust: trust.clone() })
-                .expect("configured TLS fits figures"),
-        ),
+        config::llm::Transport::Tls { server_name, trust } => {
+            w::Transport::Tls(w::Tls { server_name: server_name.clone(), trust: trust.clone() })
+        }
     };
     let mut headers = List::with_capacity(u32::try_from(endpoint.headers.len()).expect("configured headers"));
     for header in &endpoint.headers {
-        headers
-            .push(
-                w::Header::new(&w::CEILINGS, w::HeaderParts { name: header.name.clone(), value: header.value.clone() })
-                    .expect("configured header fits figures"),
-            )
-            .expect("counted headers");
+        headers.push(w::Header { name: header.name.clone(), value: header.value.clone() }).expect("counted headers");
     }
-    let limits = w::EndpointLimits::new(
-        &w::CEILINGS,
-        w::EndpointLimitsParts {
-            window: limits.window(),
-            output: limits.output(),
-            reasoning_item: limits.reasoning_item(),
-            head: Duration::from_millis(limits.head_ms()),
-            idle: Duration::from_millis(limits.idle_ms()),
-            oversized: match limits.oversized() {
-                s::Oversized::Fail => w::Oversized::Fail,
-                s::Oversized::Drop => w::Oversized::Drop,
-            },
+    let limits = w::EndpointLimits {
+        window: limits.window,
+        output: limits.output,
+        reasoning_item: limits.reasoning_item,
+        head: Duration::from_millis(limits.head_ms),
+        idle: Duration::from_millis(limits.idle_ms),
+        oversized: match &limits.oversized {
+            s::Oversized::Fail => w::Oversized::Fail,
+            s::Oversized::Drop => w::Oversized::Drop,
         },
-    )
-    .expect("endpoint limits fit figures");
-    w::AgentEndpoint::new(
-        &w::CEILINGS,
-        w::AgentEndpointParts {
-            name: endpoint.name.clone(),
-            number: endpoint.number,
-            dialect: endpoint.dialect,
-            provider: endpoint.provider.clone(),
-            program: endpoint.program.clone(),
-            host,
-            port,
-            transport,
-            headers,
-            connect: endpoint.connect,
-            handshake: endpoint.handshake,
-            limits,
-        },
-    )
-    .expect("configured endpoint fits figures")
+    };
+    w::AgentEndpoint {
+        name: endpoint.name.clone(),
+        number: endpoint.number,
+        dialect: endpoint.dialect,
+        provider: endpoint.provider.clone(),
+        program: endpoint.program.clone(),
+        host,
+        port,
+        transport,
+        headers,
+        connect: endpoint.connect,
+        handshake: endpoint.handshake,
+        limits,
+    }
 }
 
 fn ip(address: core::net::IpAddr) -> Box<[u8]> {

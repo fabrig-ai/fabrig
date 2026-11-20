@@ -40,6 +40,7 @@ pub enum Line {
         attempt: u64,
         why: Why,
         resumed: bool,
+        fresh: Option<Fresh>,
     },
     RunEnded {
         attempt: u64,
@@ -79,6 +80,16 @@ pub enum Line {
         pending: Box<[u64]>,
         question: Option<u64>,
     },
+}
+
+/// Why a resumable charter began fresh with an earlier window (domain/engine/executors.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Fresh {
+    Moved,
+    Closed,
+    Cut,
+    Limit,
+    Session,
 }
 
 /// Maximum bytes retained from a standing run's result (jig/docs/design/domain/tasks/standing.md, 7).

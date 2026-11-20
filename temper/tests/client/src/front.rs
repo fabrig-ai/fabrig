@@ -29,7 +29,7 @@ pub fn printed_link() -> Box<[u8]> {
 
 fn link_url(secret: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
-    let prefix = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=";
+    let prefix = b"http://127.0.0.1:8367/sign-in?secret=";
     let encoded = base64::encoded_len(Alphabet::Url, 32).expect("printed secret size");
     let mut out = skein_lib::Writer::new(prefix.len() + usize::try_from(encoded).expect("short encoding"));
     out.put(prefix).expect("measured prefix");
@@ -628,15 +628,31 @@ impl Joint {
         self.component.as_browser(client);
     }
 
-    pub fn ask_approval(&mut self, client: ClientId) -> (jig_client::ApprovalCode, Wall) {
-        self.component.ask_approval(client);
+    /// The transport's way and source for this client's exchanges; absent is listener, unknown.
+    pub fn exchange_from(
+        &mut self,
+        client: ClientId,
+        via: jig_protocol_engine_clients::Via,
+        source: Option<std::net::IpAddr>,
+    ) {
+        self.component.exchange_from(client, via, source);
+    }
+
+    pub fn ask_approval(
+        &mut self,
+        client: ClientId,
+        port: Option<u16>,
+        via: jig_protocol_engine_clients::Via,
+        source: Option<std::net::IpAddr>,
+    ) -> (jig_client::ApprovalCode, Wall) {
+        self.component.ask_approval(client, port, via, source);
         self.pump_component();
         self.component.asked(client).expect("the component answered asked")
     }
 
-    pub fn take_approval(&mut self, client: ClientId) {
+    pub fn take_approval(&mut self, client: ClientId, grant: Option<skein_lib::Secret>) {
         self.taking.remove(&client);
-        self.component.take_approval(client);
+        self.component.take_approval(client, grant);
         self.pump_component();
     }
 
@@ -1475,9 +1491,11 @@ impl Joint {
             limits.journal.held = 1024;
             limits.journal.deliveries = 256;
             limits.journal.result_bytes = 4096;
-            // The deep task row includes its optional session, talk, question watermark and open attempt.
+            // The deep task row includes its session, talk and question watermark;
+            // the attempt, kept-words box and words watermark add inline carriers.
             let opening =
-                u32::try_from(size_of::<Option<jig_domain_tasks::OpenAttempt>>()).expect("inline attempt bytes");
+                u32::try_from(size_of::<(Option<jig_domain_tasks::OpenAttempt>, Box<[jig_domain_tasks::Word]>, u64)>())
+                    .expect("inline attempt and words bytes");
             limits.journal.transcript_bytes = 8296_u32.checked_add(opening).expect("deep row allowance");
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
@@ -1813,59 +1831,36 @@ impl Joint {
             return false;
         }
         let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS) else { return false };
-        let w::Request::Reachable(read) = request.request() else { return false };
-        self.reachable_reads.push((read.forge(), *read.installation(), read.page()));
+        let w::Request::Reachable(read) = &request.request else { return false };
+        self.reachable_reads.push((read.forge, read.installation, read.page));
         let mut rows = skein_lib::List::with_capacity(if self.reachable_pages { 10 } else { 2 });
-        if self.reachable_pages && read.page() == 1 {
+        if self.reachable_pages && read.page == 1 {
             for id in 100..108 {
-                rows.push(
-                    w::Reached::new(
-                        &w::CEILINGS,
-                        w::ReachedParts {
-                            id,
-                            owner: w::Account::new(
-                                &w::CEILINGS,
-                                w::AccountParts { id: 1, login: b"noise".as_slice().into() },
-                            )
-                            .expect("owner"),
-                            name: skein_lib::Decimal::of(id).as_bytes().into(),
-                            private: false,
-                        },
-                    )
-                    .expect("row"),
-                )
+                rows.push(w::Reached {
+                    id,
+                    owner: w::Account { id: 1, login: b"noise".as_slice().into() },
+                    name: skein_lib::Decimal::of(id).as_bytes().into(),
+                    private: false,
+                })
                 .expect("page");
             }
         }
         for (page, id, name) in [(1, 7, b"shop".as_slice()), (2, 8, b"second".as_slice())] {
-            if self.reachable_pages && read.page() != page {
+            if self.reachable_pages && read.page != page {
                 continue;
             }
             if self.reachable_empty {
                 break;
             }
-            rows.push(
-                w::Reached::new(
-                    &w::CEILINGS,
-                    w::ReachedParts {
-                        id,
-                        owner: w::Account::new(
-                            &w::CEILINGS,
-                            w::AccountParts { id: 1, login: b"acme".as_slice().into() },
-                        )
-                        .expect("fixed owner"),
-                        name: name.into(),
-                        private: id == 8,
-                    },
-                )
-                .expect("fixed row"),
-            )
+            rows.push(w::Reached {
+                id,
+                owner: w::Account { id: 1, login: b"acme".as_slice().into() },
+                name: name.into(),
+                private: id == 8,
+            })
             .expect("fixed page");
         }
-        let outcome = w::Outcome::Page(
-            w::Page::new(&w::CEILINGS, w::PageParts { rows, more: self.reachable_pages && read.page() < 3 })
-                .expect("fixed page"),
-        );
+        let outcome = w::Outcome::Page(w::Page { rows, more: self.reachable_pages && read.page < 3 });
         self.callbacks.push((
             who,
             RootEvent::Client {
@@ -1877,9 +1872,7 @@ impl Joint {
                         answer: Some(jig_client::Answered::Family(jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::answer(
-                                &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).expect("fixed answer"),
-                            ),
+                            bytes: wire::answer(&w::Answer { outcome }),
                         })),
                     },
                 },
@@ -1899,10 +1892,10 @@ impl Joint {
         {
             use temper_client_protocol_wire::{self as wire, v1 as w};
             let decoded = wire::decode_requesting(&record.bytes, &w::CEILINGS);
-            let ending = decoded.as_ref().is_some_and(|request| *request.request() == w::Request::EndPlayground);
+            let ending = decoded.as_ref().is_some_and(|request| request.request == w::Request::EndPlayground);
             if record.family == wire::FORGE
                 && decoded.is_some_and(|request| {
-                    matches!(request.request(), w::Request::StartPlayground | w::Request::EndPlayground)
+                    matches!(&request.request, w::Request::StartPlayground | w::Request::EndPlayground)
                 })
             {
                 let outcome = if ending {
@@ -1916,10 +1909,9 @@ impl Joint {
                     self.playground_outcomes.pop_front().unwrap_or(w::Outcome::Running)
                 };
                 if outcome == w::Outcome::Running {
-                    let mut parts =
-                        self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true)).into_parts();
+                    let mut parts = self.playground.take().unwrap_or_else(|| account_acts::playground_answer(true));
                     parts.state = w::PlaygroundState::Running;
-                    self.playground = Some(w::PlaygroundAnswer::new(&w::CEILINGS, parts).expect("playground fixture"));
+                    self.playground = Some(parts);
                 }
                 self.callbacks.push((
                     who,
@@ -1932,10 +1924,7 @@ impl Joint {
                                 answer: Some(jig_client::Answered::Family(jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::answer(
-                                        &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome })
-                                            .expect("scripted start answer"),
-                                    ),
+                                    bytes: wire::answer(&w::Answer { outcome }),
                                 })),
                             },
                         },
@@ -2054,15 +2043,11 @@ impl Joint {
         } = request
         {
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Deployment)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::Deployment)
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 let (welcome, owned) = self.deployment;
-                let answer = w::DeploymentAnswer::new(
-                    &w::CEILINGS,
-                    w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
-                )
-                .expect("deployment answer");
+                let answer = w::DeploymentAnswer { push: None, welcome, owned, program_login: None };
                 self.callbacks.push((
                     who,
                     RootEvent::Client {
@@ -2081,14 +2066,10 @@ impl Joint {
                 return true;
             }
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::ProgramEnvironment)
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                let answer = w::ProgramEnvironmentAnswer::new(
-                    &w::CEILINGS,
-                    w::ProgramEnvironmentAnswerParts { environment: self.program_environment.clone() },
-                )
-                .expect("program environment");
+                let answer = w::ProgramEnvironmentAnswer { environment: self.program_environment.clone() };
                 self.callbacks.push((
                     who,
                     RootEvent::Client {
@@ -2107,7 +2088,7 @@ impl Joint {
                 return true;
             }
             if temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Limits(_)))
+                .is_some_and(|reading| matches!(&reading.read, temper_client_protocol_wire::v1::Read::Limits(_)))
             {
                 let answer = self.limit_pages.pop_front();
                 self.callbacks.push((
@@ -2128,7 +2109,7 @@ impl Joint {
                 return true;
             }
             if !temper_client_protocol_wire::decode_reading(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS)
-                .is_some_and(|reading| *reading.read() == temper_client_protocol_wire::v1::Read::Playground)
+                .is_some_and(|reading| reading.read == temper_client_protocol_wire::v1::Read::Playground)
             {
                 return false;
             }
@@ -2310,53 +2291,43 @@ impl Joint {
         use temper_client_protocol_wire::{self as wire, v1 as w};
         let Some(playground) = playground else { return };
         let Some(rows) = wire::decode_forges(bytes, &w::CEILINGS) else { return };
-        let rows = rows.into_parts();
+
         let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
             // A change story can use the engine's fake stand as its playground forge.
-            if row.number() != playground.forge() {
+            if row.number != playground.forge {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *playground.state() == w::PlaygroundState::Running {
-            w::Connection::Connected(
-                w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 2, login: b"playground".as_slice().into() })
-                    .expect("fake connection"),
-            )
+        let connection = if playground.state == w::PlaygroundState::Running {
+            w::Connection::Connected(w::Connected { id: 2, login: b"playground".as_slice().into() })
         } else {
             w::Connection::NotConnected
         };
         forges
-            .push(
-                w::ForgeRow::new(
-                    &w::CEILINGS,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        makings: skein_lib::List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: playground.forge(),
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Fake,
-                        connection,
-                        offer: w::Offer::NotOffered,
-                        first: None,
-                        installations: skein_lib::List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: skein_lib::List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .expect("scripted playground forge"),
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: skein_lib::List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: playground.forge,
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Fake,
+                connection,
+                offer: w::Offer::NotOffered,
+                first: None,
+                installations: skein_lib::List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: skein_lib::List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .expect("playground row fits");
-        *bytes =
-            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked }).expect("scripted forges"));
+        *bytes = wire::forges(&w::Forges { forges, linked });
     }
     // Runtime records have no host-supplied version or password until the setup host reports them.
     fn host_forges(event: &mut RootEvent) {
@@ -2367,20 +2338,21 @@ impl Joint {
             return;
         };
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
-        let rows = rows.into_parts();
+
         let linked = rows.linked;
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.forges.into_boxed() {
-            let mut parts = row.into_parts();
-            if parts.owned.as_ref().is_some_and(|owned| {
-                owned.forgejo().is_empty() && owned.runner().is_none() && owned.password().is_empty()
-            }) {
+            let mut parts = row;
+            if parts
+                .owned
+                .as_ref()
+                .is_some_and(|owned| owned.forgejo.is_empty() && owned.runner.is_none() && owned.password.is_empty())
+            {
                 parts.owned = None;
             }
-            forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("host forge row")).expect("bounded forge rows");
+            forges.push(parts).expect("bounded forge rows");
         }
-        record.bytes =
-            wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked }).expect("host forges"));
+        record.bytes = wire::forges(&w::Forges { forges, linked });
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         Self::host_forges(&mut event);

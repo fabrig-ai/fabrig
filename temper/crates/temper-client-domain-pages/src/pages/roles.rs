@@ -4,6 +4,7 @@ use crate::{Address, forge, owner::Owner};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, Told, contract as c};
 use skein_lib::{Decimal, Queue};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -96,9 +97,8 @@ impl Roles {
             self.failed = true;
             return;
         };
-        let read = w::ViewRead::new(&bounds, w::ViewReadParts { project, address: view_address(address) })
-            .expect("page address fits view");
-        let record = w::Reading::new(&bounds, w::ReadingParts { read: w::Read::View(read) }).expect("view read fits");
+        let read = w::ViewRead { project, address: view_address(address) };
+        let record = w::Reading { read: w::Read::View(read) };
         let handle = Handle { asker: Owner::Pages.asker(), number: *next };
         *next = next.checked_add(1).expect("page handles fit");
         if let Some(old) = self.handle.replace(handle) {
@@ -113,7 +113,7 @@ impl Roles {
                 record: jig_client::Family {
                     family: wire::FORGE,
                     version: wire::CLIENT_VERSION,
-                    bytes: wire::reading(&record),
+                    bytes: record.encode(&bounds).expect("view read fits"),
                 },
             },
         }));
@@ -209,5 +209,5 @@ fn answer(page: &Readout, limits: forge::Limits) -> Option<w::View> {
     let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else {
         return None;
     };
-    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.into_parts().view)
+    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.view)
 }

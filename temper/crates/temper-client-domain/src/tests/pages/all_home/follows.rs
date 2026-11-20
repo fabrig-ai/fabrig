@@ -9,9 +9,9 @@ fn opened(fixture: &Across) -> Box<[u32]> {
     let mut projects = List::uncapped();
     for (_, subject) in &fixture.opened {
         if let Watchable::Family { record, .. } = subject
-            && let w::Watch::Follows(key) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch()
+            && let w::Watch::Follows(key) = &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch
         {
-            projects.push(key.project()).unwrap();
+            projects.push(key.project).unwrap();
         }
     }
     projects.into_boxed()
@@ -75,42 +75,31 @@ fn project_home_needs_you_and_launchpad_hold_no_follows() {
     }
 }
 fn follow(stopped: Option<&[u8]>) -> w::FollowView {
-    let mut row =
-        super::super::how::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed)).into_parts();
+    let mut row = super::super::how::follow_row(&[], w::FollowStart::Owner, 2, Some(w::FollowVerdict::Passed));
     row.source = b"acme/vsr".as_slice().into();
     row.stopped = match stopped {
         Some(words) => Some(Box::from(words)),
         None => None,
     };
-    let mut parity = row.parity.unwrap().into_parts();
+    let mut parity = row.parity.unwrap();
     let mut source = [0; 32];
     for (byte, value) in source.iter_mut().zip([0x9c, 0x04, 0xd7, 0xe1, 0xa2, 0xb3]) {
         *byte = value;
     }
     parity.source = source;
-    row.parity = Some(w::FollowParity::new(&w::CEILINGS, parity).unwrap());
-    w::FollowView::new(&w::CEILINGS, row).unwrap()
+    row.parity = Some(parity);
+    row
 }
 fn panel(project: u32, follows: &[w::FollowView], dependencies: &[u32]) -> w::FollowsPanel {
     let mut rows = List::with_capacity(w::CEILINGS.follows_panel_dependencies);
     for (index, project) in dependencies.iter().enumerate() {
-        rows.push(
-            w::DependencyView::new(
-                &w::CEILINGS,
-                w::DependencyViewParts {
-                    number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
-                    project: *project,
-                },
-            )
-            .unwrap(),
-        )
+        rows.push(w::DependencyView {
+            number: u32::try_from(index.checked_add(1).unwrap()).unwrap(),
+            project: *project,
+        })
         .unwrap();
     }
-    w::FollowsPanel::new(
-        &w::CEILINGS,
-        w::FollowsPanelParts { project, follows: List::from_boxed(follows.into()), dependencies: rows },
-    )
-    .unwrap()
+    w::FollowsPanel { project, follows: List::from_boxed(follows.into()), dependencies: rows }
 }
 fn me() -> c::Me {
     let mut me = f::chats::me();
@@ -169,7 +158,7 @@ fn relation_boxes_keep_project_and_document_order_and_words() {
         [expected_dependency(FOURTH, b"fabrig", b"vsr-rs"),],
         "an unanswered project's boxes are absent, not its neighbours'"
     );
-    let mut second = follow(None).into_parts();
+    let mut second = follow(None);
     second.number = 2;
     second.source = b"aaa/second".as_slice().into();
     let mut expected_second = expected_follow(None);
@@ -177,11 +166,7 @@ fn relation_boxes_keep_project_and_document_order_and_words() {
         *source = b"aaa/second".as_slice().into();
     }
     assert_eq!(
-        all_home::relations(
-            &[panel(SECOND, &[follow(None), w::FollowView::new(&w::CEILINGS, second).unwrap()], &[FIRST])],
-            me.projects.as_slice()
-        )
-        .as_ref(),
+        all_home::relations(&[panel(SECOND, &[follow(None), second], &[FIRST])], me.projects.as_slice()).as_ref(),
         [expected_follow(None), expected_second, expected_dependency(SECOND, b"vsr-rs", b"vsr"),],
         "a document's follows keep their order before its dependencies"
     );

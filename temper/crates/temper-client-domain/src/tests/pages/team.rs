@@ -372,9 +372,9 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = watching.watch() {
-                    assert!(!findings.mine());
-                    assert_eq!(*findings.state(), Some(temper_client_protocol_wire::v1::FindingState::New));
+                if let temper_client_protocol_wire::v1::Watch::Findings(findings) = &watching.watch {
+                    assert!(!findings.mine);
+                    assert_eq!(findings.state, Some(temper_client_protocol_wire::v1::FindingState::New));
                     let findings = findings.clone();
                     let opened = client(f, jig_client::Event::Watch { handle, subject });
                     f.findings.push((handle, opened_token(&opened), findings)).unwrap();
@@ -475,8 +475,8 @@ fn page(f: &mut Reads, event: Event) -> Effects {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if let temper_client_protocol_wire::v1::Read::View(view) = reading.read() {
-                    f.charters.push((handle, view.address().into())).unwrap();
+                if let temper_client_protocol_wire::v1::Read::View(view) = &reading.read {
+                    f.charters.push((handle, view.address.clone())).unwrap();
                 }
             }
             Request::Client(jig_client::Event::Unwatch { handle }) => {
@@ -1181,17 +1181,13 @@ fn standing_reads_each_now_again_on_line_delivery() {
 
 fn charter_view(charter: u32, label: &[u8], value: &[u8]) -> temper_client_protocol_wire::v1::View {
     use temper_client_protocol_wire::v1 as w;
-    let fact = w::Fact::new(&w::CEILINGS, w::FactParts { label: label.into(), value: value.into() }).unwrap();
-    let card = w::Card::new(
-        &w::CEILINGS,
-        w::CardParts {
-            name: b"Prover".as_slice().into(),
-            who: b"an agent".as_slice().into(),
-            facts: List::from_boxed(Box::new([fact])),
-        },
-    )
-    .unwrap();
-    w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter, card }).unwrap())
+    let fact = w::Fact { label: label.into(), value: value.into() };
+    let card = w::Card {
+        name: b"Prover".as_slice().into(),
+        who: b"an agent".as_slice().into(),
+        facts: List::from_boxed(Box::new([fact])),
+    };
+    w::View::Charter(w::CharterView { charter, card })
 }
 
 #[test]
@@ -1317,7 +1313,7 @@ fn team_reads_the_selected_charter_and_closes_it_on_switch_or_leave() {
     assert_eq!(f.charters.get(0).unwrap().1.as_ref(), b"charter 13");
     let charter_handle = f.charters.get(0).unwrap().0;
     let view = charter_view(13, b"Asked to", b"Reproduce before routing.");
-    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view }).unwrap();
+    let answer = w::ViewAnswer { view };
     page(
         &mut f,
         Event::Told {
@@ -1391,47 +1387,31 @@ const WALL: Wall = Wall::from_nanos(20 * DAY);
 pub(super) fn landing(task: u64, at: u64, parties: &[u64]) -> w::ChangesLanded {
     let mut signed = List::with_capacity(u32::try_from(parties.len()).unwrap());
     for party in parties {
-        signed
-            .push(
-                w::ChangesSigned::new(
-                    &w::CEILINGS,
-                    w::ChangesSignedParts { name: None, party: *party, head: [3; 32], at: 0 },
-                )
-                .unwrap(),
-            )
-            .unwrap();
+        signed.push(w::ChangesSigned { name: None, party: *party, head: [3; 32], at: 0 }).unwrap();
     }
-    w::ChangesLanded::new(
-        &w::CEILINGS,
-        w::ChangesLandedParts {
-            goal: None,
-            chat: None,
-            milestone: None,
-            task,
-            at,
-            signed,
-            title: b"Change".as_slice().into(),
-            commit: [4; 32],
-            default_branch: true,
-        },
-    )
-    .unwrap()
+    w::ChangesLanded {
+        goal: None,
+        chat: None,
+        milestone: None,
+        task,
+        at,
+        signed,
+        title: b"Change".as_slice().into(),
+        commit: [4; 32],
+        default_branch: true,
+    }
 }
 pub(super) fn changes(rows: &[w::ChangesLanded], more: u32) -> w::ChangesPanel {
-    w::ChangesPanel::new(
-        &w::CEILINGS,
-        w::ChangesPanelParts {
-            project: PROJECT,
-            landing: b"main".as_slice().into(),
-            queues: List::with_capacity(0),
-            more: 0,
-            landed: List::with_capacity(0),
-            landed_more: 0,
-            landed_default: List::from_boxed(rows.into()),
-            landed_default_more: more,
-        },
-    )
-    .unwrap()
+    w::ChangesPanel {
+        project: PROJECT,
+        landing: b"main".as_slice().into(),
+        queues: List::with_capacity(0),
+        more: 0,
+        landed: List::with_capacity(0),
+        landed_more: 0,
+        landed_default: List::from_boxed(rows.into()),
+        landed_default_more: more,
+    }
 }
 
 #[test]

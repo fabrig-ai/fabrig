@@ -111,27 +111,20 @@ fn meta_line_uses_the_home_repository_or_the_project_name() {
             w::Mode::Owned,
             super::connect_forge::connected(),
             w::Offer::NotOffered,
-        )
-        .into_parts();
+        );
         parts.repositories = List::with_capacity(1);
         if adopted {
             parts
                 .repositories
-                .push(
-                    w::Adoption::new(
-                        &w::CEILINGS,
-                        w::AdoptionParts {
-                            owner: b"owner".as_slice().into(),
-                            name: b"repo".as_slice().into(),
-                            project: f::PROJECT,
-                        },
-                    )
-                    .unwrap(),
-                )
+                .push(w::Adoption {
+                    owner: b"owner".as_slice().into(),
+                    name: b"repo".as_slice().into(),
+                    project: f::PROJECT,
+                })
                 .unwrap();
         }
         let mut rows = List::with_capacity(1);
-        rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+        rows.push(parts).unwrap();
         let root = f::forge_root(Address::NewChat { draft: false }, rows);
         let expected = if adopted {
             "Say what you want; the agent works in owner/repo."

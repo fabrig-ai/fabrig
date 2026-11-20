@@ -60,6 +60,7 @@ fn encode_hold(value: d::Hold) -> w::ChangeHold {
         d::Hold::Retargeted => w::ChangeHold::Retargeted,
         d::Hold::Failed => w::ChangeHold::Failed,
         d::Hold::Flake => w::ChangeHold::Flake,
+        d::Hold::NoTest => w::ChangeHold::NoTest,
         d::Hold::Rejected => w::ChangeHold::Rejected,
         d::Hold::Authority(cause) => w::ChangeHold::Authority(w::AuthorityHold {
             lack: match cause.lack {
@@ -89,6 +90,7 @@ fn decode_hold(value: w::ChangeHold) -> d::Hold {
         w::ChangeHold::Retargeted => d::Hold::Retargeted,
         w::ChangeHold::Failed => d::Hold::Failed,
         w::ChangeHold::Flake => d::Hold::Flake,
+        w::ChangeHold::NoTest => d::Hold::NoTest,
         w::ChangeHold::Rejected => d::Hold::Rejected,
         w::ChangeHold::Authority(cause) => d::Hold::Authority(d::AuthorityHold {
             lack: match cause.lack {
@@ -550,6 +552,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
         released_resolution,
         way,
         landing,
+        landing_ask,
         ended_held,
     } = value;
     w::Change {
@@ -586,6 +589,10 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             d::Way::Turn => w::Way::Turn,
         },
         landing: *landing,
+        landing_ask: match landing_ask {
+            Some(ask) => Some(super::landing::encode_ask(ask.as_ref().clone())),
+            None => None,
+        },
     }
 }
 pub(super) fn decode_change(value: w::Change) -> d::Change {
@@ -611,6 +618,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
         released_resolution,
         way,
         landing,
+        landing_ask,
     } = value;
     let (state, ended_held) = decode_change_state(state);
     d::Change {
@@ -648,6 +656,10 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
             w::Way::Turn => d::Way::Turn,
         },
         landing,
+        landing_ask: match landing_ask {
+            Some(ask) => Some(Box::new(super::landing::decode_ask(ask))),
+            None => None,
+        },
     }
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
@@ -781,6 +793,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         delegate,
         delegate_status,
         delegate_flake,
+        delegate_no_test,
         verdicts,
         gate_remarks,
         drift,
@@ -826,6 +839,7 @@ pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
         },
         delegate_status: encode_status(*delegate_status),
         delegate_flake: *delegate_flake,
+        delegate_no_test: *delegate_no_test,
         delegate_head: *delegate_head,
         verdicts: encode_gate_reports(verdicts),
         gate_remarks: encode_gate_remarks(gate_remarks),
@@ -877,6 +891,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         delegate,
         delegate_status,
         delegate_flake,
+        delegate_no_test,
         verdicts,
         gate_remarks,
         drift,
@@ -929,6 +944,7 @@ pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, s
         },
         delegate_status: decode_status(delegate_status),
         delegate_flake,
+        delegate_no_test,
         delegate_head,
         verdicts: decode_gate_reports(verdicts),
         gate_remarks: decode_gate_remarks(gate_remarks),

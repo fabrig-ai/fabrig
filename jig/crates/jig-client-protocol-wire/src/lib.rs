@@ -5,7 +5,7 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 pub const CLIENT_SCHEMA: &str =
-    concat!(include_str!("../schema/client-v37.schema"), include_str!("../schema/client-v37-part1.schema"));
+    concat!(include_str!("../schema/client-v39.schema"), include_str!("../schema/client-v39-part1.schema"));
 
 /// The current family schema text (skein/docs/design/data/codec/README.md, section 6).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
@@ -17,8 +17,8 @@ pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 #[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
 #[rustfmt::skip]
 #[path = "generated/client.rs"]
-pub mod v37;
-pub use v37::*;
+pub mod v39;
+pub use v39::*;
 
 #[rustfmt::skip]
 #[path = "generated/public.rs"]
@@ -37,7 +37,7 @@ pub const PUBLIC_CARD: u16 = 3;
 
 /// The client wire version this release reads and writes.
 pub const VERSION: u32 = {
-    let [high, low] = v37::VERSION.to_be_bytes();
+    let [high, low] = v39::VERSION.to_be_bytes();
     u32::from_be_bytes([0, 0, high, low])
 };
 

@@ -10,6 +10,7 @@ use jig_domain_fleet as fleet;
 use jig_domain_link::{LoginMethod, LoginState, SourceFailure};
 use jig_domain_link::{SignOutResult, SourceName};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_fake_machine::{How, Item, Opened};
 use skein_io::{self as io, kernel};
 use skein_lib::{Duration, Queue, Reader, ReplyTo, Time, Token};
@@ -109,7 +110,7 @@ impl Judge {
                     if *kind == wire::Kind::Logins.number() {
                         let record = wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(bytes))
                             .map_err(|why| format!("whole login bytes: {why:?}"))?;
-                        if record.logins().len() == 1 {
+                        if record.logins.len() == 1 {
                             snapshots.push(record);
                         }
                     }
@@ -118,7 +119,7 @@ impl Judge {
             }
         }
         for snapshot in snapshots {
-            let row = snapshot.into_parts().logins.into_boxed().into_iter().next().ok_or("one source")?.into_parts();
+            let row = snapshot.logins.into_boxed().into_iter().next().ok_or("one source")?;
             {
                 let (observed_value, wanted) = (&(row.name.as_ref()), &(b"alice"));
                 if observed_value != wanted {
@@ -131,10 +132,9 @@ impl Judge {
                 wire::LoginState::Usable => LoginState::Usable,
                 wire::LoginState::NotSignedIn => LoginState::NotSignedIn,
                 wire::LoginState::SignedInOtherwise(method) => {
-                    LoginState::SignedInOtherwise(LoginMethod::new(method.method()).ok_or("method")?)
+                    LoginState::SignedInOtherwise(LoginMethod::new(method.method.as_ref()).ok_or("method")?)
                 }
                 wire::LoginState::Failed(failure) => {
-                    let failure = failure.into_parts();
                     if failure.detail.len() > 4096 {
                         return Err(String::from("assertion failed: failure.detail.len() <= 4096"));
                     }

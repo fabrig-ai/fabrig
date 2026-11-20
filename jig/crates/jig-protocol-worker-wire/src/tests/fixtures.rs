@@ -1,26 +1,25 @@
-use crate::{
-    Bounds, BoundsParts, Credential, CredentialParts, EndpointBound, EndpointBoundParts, Hello, HelloParts, Hosting,
-    HostingParts, Phase, v17,
-};
+use crate::v18::Record;
+use crate::{Bounds, Credential, EndpointBound, Hello, Hosting, Phase, v18};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Secret, Writer};
 
 pub const WORKER_A: &[u8] = b"worker-a";
 pub const WORKER_B: &[u8] = b"worker-b";
 
-pub const LIMITS: v17::Limits = v17::Limits {
+pub const LIMITS: v18::Limits = v18::Limits {
     ask_bytes: 4,
     ask_bytes_bytes: 4,
     agreed_wire_name: 32,
     agreed_wires: 16,
-    model_failure_endpoint: v17::CEILINGS.model_failure_endpoint,
-    model_failure_model: v17::CEILINGS.model_failure_model,
+    model_failure_endpoint: v18::CEILINGS.model_failure_endpoint,
+    model_failure_model: v18::CEILINGS.model_failure_model,
+    model_failure_refusal_some: v18::CEILINGS.model_failure_refusal_some,
     mismatch_wire: 32,
-    list_row_name: v17::CEILINGS.list_row_name,
-    list_row_shown_some: v17::CEILINGS.list_row_shown_some,
-    list_row_efforts: v17::CEILINGS.list_row_efforts,
-    list_row_efforts_item: v17::CEILINGS.list_row_efforts_item,
-    listed_rows_rows: v17::CEILINGS.listed_rows_rows,
+    list_row_name: v18::CEILINGS.list_row_name,
+    list_row_shown_some: v18::CEILINGS.list_row_shown_some,
+    list_row_efforts: v18::CEILINGS.list_row_efforts,
+    list_row_efforts_item: v18::CEILINGS.list_row_efforts_item,
+    listed_rows_rows: v18::CEILINGS.listed_rows_rows,
     input_call_id: 256,
     input_call_tool: 64,
     piece_bytes: 32,
@@ -34,13 +33,13 @@ pub const LIMITS: v17::Limits = v17::Limits {
     login_email_some: 255,
     logins_logins: 2,
     signed_out_name: 32,
-    wire_name: v17::CEILINGS.wire_name,
-    wire_layouts: v17::CEILINGS.wire_layouts,
-    credential_wires: v17::CEILINGS.credential_wires,
+    wire_name: v18::CEILINGS.wire_name,
+    wire_layouts: v18::CEILINGS.wire_layouts,
+    credential_wires: v18::CEILINGS.credential_wires,
     credential_name: 16,
     credential_secret: 32,
     bounds_endpoints: 2,
-    bounds_program_endpoints: v17::CEILINGS.bounds_program_endpoints,
+    bounds_program_endpoints: v18::CEILINGS.bounds_program_endpoints,
     hello_jobs: 2,
     job_spec: 32,
     job_grants: 2,
@@ -82,79 +81,59 @@ pub const LIMITS: v17::Limits = v17::Limits {
     inbound_words: 32,
     relay_text_text: 32,
     relayed_name: 16,
-    ..v17::CEILINGS
+    ..v18::CEILINGS
 };
 
 pub fn encode(hello: &Hello) -> Box<[u8]> {
-    let mut writer = Writer::new(skein_lib::length::usize_of(hello.measure()));
-    hello.encode(&mut writer).expect("measured room");
+    let mut writer =
+        Writer::new(skein_lib::length::usize_of(hello.measure(&crate::CEILINGS).expect("record within limits")));
+    hello.write(&crate::CEILINGS, &mut writer).expect("measured room");
     writer.finish()
 }
 
 pub fn credential(name: &[u8], secret: &[u8]) -> Credential {
-    Credential::new(
-        &LIMITS,
-        CredentialParts {
-            name: name.into(),
-            secret: Secret::new(secret.into()),
-            wires: List::with_capacity(0),
-            output: 1_048_576,
-            opening: crate::Opening::Link,
-        },
-    )
-    .expect("small credential")
+    Credential {
+        name: name.into(),
+        secret: Secret::new(secret.into()),
+        wires: List::with_capacity(0),
+        output: 1_048_576,
+        opening: crate::Opening::Link,
+    }
 }
 
 pub fn model() -> EndpointBound {
-    EndpointBound::new(&LIMITS, EndpointBoundParts { endpoint: 1, window: 8192, output: 1024 }).expect("small model")
+    EndpointBound { endpoint: 1, window: 8192, output: 1024 }
 }
 
 pub fn hello_fullest() -> Hello {
     let mut models = List::with_capacity(2);
     models.push(model()).expect("first model slot");
     models.push(model()).expect("second model slot");
-    let mut program_endpoints = List::with_capacity(v17::CEILINGS.bounds_program_endpoints);
-    for endpoint in 0..v17::CEILINGS.bounds_program_endpoints {
+    let mut program_endpoints = List::with_capacity(v18::CEILINGS.bounds_program_endpoints);
+    for endpoint in 0..v18::CEILINGS.bounds_program_endpoints {
         program_endpoints.push(endpoint).unwrap();
     }
-    let bounds = Bounds::new(
-        &LIMITS,
-        BoundsParts {
-            program_endpoints,
-            endpoints: models,
-            turns: 40,
-            spend: 100,
-            time: Duration::from_secs(300),
-            waiting: Duration::from_secs(60),
-            checks: Duration::from_secs(20),
-            message_bytes: 32,
-            inbox: 2,
-            unacknowledged: 2,
-            reply_bytes: Some(4096),
-        },
-    )
-    .expect("small agent bounds");
+    let bounds = Bounds {
+        program_endpoints,
+        endpoints: models,
+        turns: 40,
+        spend: 100,
+        time: Duration::from_secs(300),
+        waiting: Duration::from_secs(60),
+        checks: Duration::from_secs(20),
+        message_bytes: 32,
+        inbox: 2,
+        unacknowledged: 2,
+        reply_bytes: Some(4096),
+    };
     let mut workstreams = List::with_capacity(2);
     workstreams.push(7).expect("first workstream slot");
     workstreams.push(8).expect("second workstream slot");
     let mut hosting = List::with_capacity(2);
     for phase in [Phase::Active, Phase::Answered] {
-        hosting
-            .push(Hosting::new(&LIMITS, HostingParts { task: 3, attempt: 4, phase }).expect("hosting record"))
-            .expect("two hosting slots");
+        hosting.push(Hosting { task: 3, attempt: 4, phase }).expect("two hosting slots");
     }
-    Hello::new(
-        &LIMITS,
-        HelloParts {
-            slots: 2,
-            stop_bound: Duration::from_secs(95),
-            workstreams,
-            hosting,
-            bounds,
-            jobs: List::with_capacity(0),
-        },
-    )
-    .expect("full hello within small list limits")
+    Hello { slots: 2, stop_bound: Duration::from_secs(95), workstreams, hosting, bounds, jobs: List::with_capacity(0) }
 }
 
 pub fn hello_smallest() -> Hello {
@@ -166,7 +145,7 @@ pub const MESSAGE_FIRST: u64 = 41;
 pub const MESSAGE_SECOND: u64 = 42;
 
 pub fn refusal(name: u64, reason: crate::MessageRefusal) -> crate::Refused {
-    crate::Refused::new(&LIMITS, crate::RefusedParts { name, reason }).expect("named refusal")
+    crate::Refused { name, reason }
 }
 
 fn refusals() -> List<crate::Refused> {
@@ -177,88 +156,53 @@ fn refusals() -> List<crate::Refused> {
 }
 
 pub fn turn_with_refusals() -> crate::Turn {
-    crate::Turn::new(
-        &LIMITS,
-        crate::TurnParts {
-            task: 3,
-            attempt: 4,
-            number: 7,
-            spent: 100,
-            read: Some(MESSAGE_FIRST),
-            opens_window: true,
-            refused: refusals(),
-            body: b"opaque-turn".as_slice().into(),
-        },
-    )
-    .expect("turn within small limits")
+    crate::Turn {
+        task: 3,
+        attempt: 4,
+        number: 7,
+        spent: 100,
+        read: Some(MESSAGE_FIRST),
+        opens_window: true,
+        refused: refusals(),
+        body: b"opaque-turn".as_slice().into(),
+    }
 }
 
 fn work() -> crate::Work {
-    crate::Work::new(
-        &LIMITS,
-        crate::WorkParts { left: Some(b"left-work".as_slice().into()), saved: Some(b"saved-work".as_slice().into()) },
-    )
-    .expect("application's opaque work")
+    crate::Work { left: Some(b"left-work".as_slice().into()), saved: Some(b"saved-work".as_slice().into()) }
 }
 
 fn answer(ending: crate::Ending) -> crate::Answer {
-    crate::Answer::new(
-        &LIMITS,
-        crate::AnswerParts {
-            task: 3,
-            attempt: 4,
-            turns: 7,
-            spent: 100,
-            read: Some(MESSAGE_FIRST),
-            refused: refusals(),
-            ending,
-        },
-    )
-    .expect("answer within small limits")
+    crate::Answer { task: 3, attempt: 4, turns: 7, spent: 100, read: Some(MESSAGE_FIRST), refused: refusals(), ending }
 }
 
 pub fn answer_ended() -> crate::Answer {
-    let ended =
-        crate::Ended::new(&LIMITS, crate::EndedParts { outcome: b"opaque-result".as_slice().into(), work: work() })
-            .expect("ended result");
+    let ended = crate::Ended { outcome: b"opaque-result".as_slice().into(), work: work() };
     answer(crate::Ending::Ended(ended))
 }
 
 pub fn answer_failed() -> crate::Answer {
-    let run = crate::RunFailureValue::new(&LIMITS, crate::RunFailureValueParts { value: crate::RunFailure::Model })
-        .expect("typed run failure");
-    let failed = crate::Failed::new(
-        &LIMITS,
-        crate::FailedParts {
-            model: None,
-            failure: crate::Failure::Run(run),
-            detail: b"bounded-detail".as_slice().into(),
-            work: work(),
-        },
-    )
-    .expect("failed answer");
+    let run = crate::RunFailureValue { value: crate::RunFailure::Model };
+    let failed = crate::Failed {
+        model: None,
+        failure: crate::Failure::Run(run),
+        detail: b"bounded-detail".as_slice().into(),
+        work: work(),
+    };
     answer(crate::Ending::Failed(failed))
 }
 
 fn fact(value: crate::FactValue) -> crate::Fact {
-    crate::Fact::new(&LIMITS, crate::FactParts { task: 3, attempt: 4, value }).expect("typed activity")
+    crate::Fact { task: 3, attempt: 4, value }
 }
 
 pub fn fact_count() -> crate::Fact {
-    let count = crate::Count::new(
-        &LIMITS,
-        crate::CountParts { kind: crate::CountKind::LlmRetried, elapsed: Duration::from_secs(2), value: 3 },
-    )
-    .expect("count activity");
+    let count = crate::Count { kind: crate::CountKind::LlmRetried, elapsed: Duration::from_secs(2), value: 3 };
     fact(crate::FactValue::Count(count))
 }
 
 pub fn fact_long() -> crate::Fact {
-    let long = crate::Long::new(
-        &LIMITS,
-        crate::LongParts { operation: crate::Operation::Checks, span: Duration::from_secs(6) },
-    )
-    .expect("long activity");
+    let long = crate::Long { operation: crate::Operation::Checks, span: Duration::from_secs(6) };
     fact(crate::FactValue::Long(long))
 }
 
@@ -268,71 +212,46 @@ pub const KEY_ONE: &[u8] = b"key-one";
 pub const CREDENTIAL_ONE: &[u8] = b"credential-one";
 
 pub fn credential_value(scheme: crate::Scheme, bytes: &[u8]) -> crate::GrantValue {
-    let value =
-        crate::CredentialValue::new(&LIMITS, crate::CredentialValueParts { scheme, bytes: Secret::new(bytes.into()) })
-            .expect("credential within small limits");
+    let value = crate::CredentialValue { scheme, bytes: Secret::new(bytes.into()) };
     crate::GrantValue::Credential(value)
 }
 
 pub fn application_value() -> crate::GrantValue {
-    let value = crate::ApplicationValue::new(
-        &LIMITS,
-        crate::ApplicationValueParts { secret: Secret::new(CREDENTIAL_ONE.into()) },
-    )
-    .expect("application value within small limits");
+    let value = crate::ApplicationValue { secret: Secret::new(CREDENTIAL_ONE.into()) };
     crate::GrantValue::Application(value)
 }
 
 pub fn grant(value: crate::GrantValue, number: u32, generation: u64) -> crate::Grant {
-    crate::Grant::new(&LIMITS, crate::GrantParts { number, generation, valid: Duration::from_secs(60), value })
-        .expect("grant within small limits")
+    crate::Grant { number, generation, valid: Duration::from_secs(60), value }
 }
 
-pub fn granted_key(limits: &v17::Limits, key: &[u8]) -> crate::Granted {
-    let value = crate::CredentialValue::new(
-        limits,
-        crate::CredentialValueParts { scheme: crate::Scheme::Key, bytes: Secret::new(key.into()) },
-    )
-    .expect("key within the limits");
-    let grant = crate::Grant::new(
-        limits,
-        crate::GrantParts {
-            number: 5,
-            generation: 9,
-            valid: Duration::from_secs(60),
-            value: crate::GrantValue::Credential(value),
-        },
-    )
-    .expect("grant within the limits");
-    crate::Granted::new(limits, crate::GrantedParts { task: 3, attempt: 4, grant }).expect("granted within the limits")
+pub fn granted_key(key: &[u8]) -> crate::Granted {
+    let value = crate::CredentialValue { scheme: crate::Scheme::Key, bytes: Secret::new(key.into()) };
+    let grant = crate::Grant {
+        number: 5,
+        generation: 9,
+        valid: Duration::from_secs(60),
+        value: crate::GrantValue::Credential(value),
+    };
+    crate::Granted { task: 3, attempt: 4, grant }
 }
 
 fn start_message(name: u64) -> crate::Message {
-    crate::Message::new(
-        &LIMITS,
-        crate::MessageParts {
-            name,
-            sender: b"person".as_slice().into(),
-            words: b"message".as_slice().into(),
-            finish_requested: name == MESSAGE_SECOND,
-        },
-    )
-    .expect("start message")
+    crate::Message {
+        name,
+        sender: b"person".as_slice().into(),
+        words: b"message".as_slice().into(),
+        finish_requested: name == MESSAGE_SECOND,
+    }
 }
 
 fn answered_call() -> crate::AnsweredCall {
-    let answer =
-        crate::HostAnswer::new(&LIMITS, crate::HostAnswerParts { error: true, body: b"host-answer".as_slice().into() })
-            .expect("host answer");
-    crate::AnsweredCall::new(
-        &LIMITS,
-        crate::AnsweredCallParts {
-            name: b"call-one".as_slice().into(),
-            tool: b"tool".as_slice().into(),
-            answer: crate::SettledAnswer::Host(answer),
-        },
-    )
-    .expect("answered call")
+    let answer = crate::HostAnswer { error: true, body: b"host-answer".as_slice().into() };
+    crate::AnsweredCall {
+        name: b"call-one".as_slice().into(),
+        tool: b"tool".as_slice().into(),
+        answer: crate::SettledAnswer::Host(answer),
+    }
 }
 
 pub fn assignment_resumed() -> crate::Assignment {
@@ -346,29 +265,20 @@ pub fn assignment_resumed() -> crate::Assignment {
     for value in [credential_value(crate::Scheme::Bearer, TOKEN_ONE), application_value()] {
         grants.push(grant(value, 5, 9)).expect("two grant slots");
     }
-    let workspace = crate::Workspace::new(
-        &LIMITS,
-        crate::WorkspaceParts { workstream: 7, items: b"workspace-items".as_slice().into() },
-    )
-    .expect("workspace");
-    crate::Assignment::new(
-        &LIMITS,
-        crate::AssignmentParts {
-            task: 3,
-            attempt: 4,
-            identity: IDENTITY_FIRST,
-            workspace: Some(workspace),
-            save: true,
-            live: crate::LiveAsk::new(&LIMITS, crate::LiveAskParts { text: false, reasoning: false, input: false })
-                .expect("live ask"),
-            charter: b"opaque-charter".as_slice().into(),
-            transcript: b"\0\0\0\x08turn-one\0\0\0\x08turn-two".as_slice().into(),
-            answered,
-            messages,
-            grants,
-        },
-    )
-    .expect("resumed assignment")
+    let workspace = crate::Workspace { workstream: 7, items: b"workspace-items".as_slice().into() };
+    crate::Assignment {
+        task: 3,
+        attempt: 4,
+        identity: IDENTITY_FIRST,
+        workspace: Some(workspace),
+        save: true,
+        live: crate::LiveAsk { text: false, reasoning: false, input: false },
+        charter: b"opaque-charter".as_slice().into(),
+        transcript: b"\0\0\0\x08turn-one\0\0\0\x08turn-two".as_slice().into(),
+        answered,
+        messages,
+        grants,
+    }
 }
 
 pub const SIZES_ONE_SLOT: crate::sizes::Sizes = crate::sizes::Sizes {
@@ -445,7 +355,7 @@ pub const SIZES_LARGE: crate::sizes::Sizes = crate::sizes::Sizes {
     facts: 4470,
 };
 
-fn one_slot_limits() -> v17::Limits {
+fn one_slot_limits() -> v18::Limits {
     crate::sizes::limits(&SIZES_ONE_SLOT).expect("small size bounds")
 }
 
@@ -454,51 +364,37 @@ fn full_bytes() -> Box<[u8]> {
 }
 
 pub fn fullest_turn() -> crate::Turn {
-    let limits = one_slot_limits();
     let mut refused = List::with_capacity(1);
     refused.push(refusal(MESSAGE_FIRST, crate::MessageRefusal::Ending)).expect("one refusal slot");
-    crate::Turn::new(
-        &limits,
-        crate::TurnParts {
-            task: 3,
-            attempt: 4,
-            number: 7,
-            spent: 100,
-            read: Some(MESSAGE_FIRST),
-            opens_window: true,
-            refused,
-            body: full_bytes(),
-        },
-    )
-    .expect("full turn")
+    crate::Turn {
+        task: 3,
+        attempt: 4,
+        number: 7,
+        spent: 100,
+        read: Some(MESSAGE_FIRST),
+        opens_window: true,
+        refused,
+        body: full_bytes(),
+    }
 }
 
-fn fullest_call(limits: &v17::Limits) -> crate::AnsweredCall {
-    let answer = crate::HostAnswer::new(limits, crate::HostAnswerParts { error: true, body: full_bytes() })
-        .expect("full host answer");
-    crate::AnsweredCall::new(
-        limits,
-        crate::AnsweredCallParts { name: full_bytes(), tool: full_bytes(), answer: crate::SettledAnswer::Host(answer) },
-    )
-    .expect("full answered call")
+fn fullest_call() -> crate::AnsweredCall {
+    let answer = crate::HostAnswer { error: true, body: full_bytes() };
+    crate::AnsweredCall { name: full_bytes(), tool: full_bytes(), answer: crate::SettledAnswer::Host(answer) }
 }
 
-fn fullest_grants(limits: &v17::Limits) -> List<crate::Grant> {
+fn fullest_grants(limits: &v18::Limits) -> List<crate::Grant> {
     let mut grants = List::with_capacity(2);
     for number in [5, 6] {
         let mut name = skein_lib::bytes::zeroed(skein_lib::length::usize_of(limits.program_value_name));
         name.fill(b'x');
-        let value = crate::ProgramValue::new(limits, crate::ProgramValueParts { name }).expect("full program value");
-        let grant = crate::Grant::new(
-            limits,
-            crate::GrantParts {
-                number,
-                generation: 9,
-                valid: Duration::from_secs(60),
-                value: crate::GrantValue::Program(value),
-            },
-        )
-        .expect("full grant");
+        let value = crate::ProgramValue { name };
+        let grant = crate::Grant {
+            number,
+            generation: 9,
+            valid: Duration::from_secs(60),
+            value: crate::GrantValue::Program(value),
+        };
         grants.push(grant).expect("two grant slots");
     }
     grants
@@ -507,42 +403,30 @@ fn fullest_grants(limits: &v17::Limits) -> List<crate::Grant> {
 pub fn fullest_assignment() -> crate::Assignment {
     let limits = one_slot_limits();
     let mut answered = List::with_capacity(1);
-    answered.push(fullest_call(&limits)).expect("one answered call slot");
+    answered.push(fullest_call()).expect("one answered call slot");
     let mut messages = List::with_capacity(1);
     messages
-        .push(
-            crate::Message::new(
-                &limits,
-                crate::MessageParts {
-                    name: MESSAGE_FIRST,
-                    sender: full_bytes(),
-                    words: full_bytes(),
-                    finish_requested: false,
-                },
-            )
-            .expect("full message"),
-        )
+        .push(crate::Message {
+            name: MESSAGE_FIRST,
+            sender: full_bytes(),
+            words: full_bytes(),
+            finish_requested: false,
+        })
         .expect("one message slot");
-    let workspace = crate::Workspace::new(&limits, crate::WorkspaceParts { workstream: 7, items: full_bytes() })
-        .expect("full workspace");
-    crate::Assignment::new(
-        &limits,
-        crate::AssignmentParts {
-            task: 3,
-            attempt: 4,
-            identity: IDENTITY_FIRST,
-            workspace: Some(workspace),
-            save: true,
-            live: crate::LiveAsk::new(&LIMITS, crate::LiveAskParts { text: false, reasoning: false, input: false })
-                .expect("live ask"),
-            charter: full_bytes(),
-            transcript: full_bytes(),
-            answered,
-            messages,
-            grants: fullest_grants(&limits),
-        },
-    )
-    .expect("full assignment")
+    let workspace = crate::Workspace { workstream: 7, items: full_bytes() };
+    crate::Assignment {
+        task: 3,
+        attempt: 4,
+        identity: IDENTITY_FIRST,
+        workspace: Some(workspace),
+        save: true,
+        live: crate::LiveAsk { text: false, reasoning: false, input: false },
+        charter: full_bytes(),
+        transcript: full_bytes(),
+        answered,
+        messages,
+        grants: fullest_grants(&limits),
+    }
 }
 
 pub fn repeated(byte: u8, length: u32) -> Box<[u8]> {

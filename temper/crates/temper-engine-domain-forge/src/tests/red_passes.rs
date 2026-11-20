@@ -52,6 +52,7 @@ fn merged_pull() -> PendingStep {
         progress: List::uncapped(),
         task: CHANGE,
         retry_at: None,
+        read: None,
         entry: OPEN,
         follow_tree: List::with_capacity(LIMITS.key_entries),
         stage: StepStage::Branch,
@@ -120,6 +121,9 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                 .insert(
                     61,
                     LandingRow {
+                        last_event: None,
+                        turn_since: None,
+                        waiting: None,
                         flake_reruns: Box::new([]),
                         room: None,
                         job: None,
@@ -133,6 +137,7 @@ fn a_landing_read_back_ends_only_red_generations_the_change_passed() {
                             branch: b"temper/7/g7".as_slice().into(),
                             preparation: 0,
                             stale_proofs: 0,
+                            last_prepare: None,
                             members: Box::new([landing::Member {
                                 round: None,
                                 change: CHANGE,

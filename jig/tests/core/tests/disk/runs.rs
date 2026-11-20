@@ -15,8 +15,9 @@ fn a_closed_window_starts_fresh_with_its_tail() {
     assert_eq!(f::tail(&world), Some(f::TAIL));
     assert_eq!(f::tries(&world), f::tries(&control));
     let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    let Some(tasks::Line::RunBegan { resumed, fresh, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
+    *fresh = None;
     assert_eq!(activity, f::activity(&control));
     assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
     assert_eq!(
@@ -47,8 +48,9 @@ fn a_closed_window_keeps_its_tail_after_a_transient_try() {
     assert_eq!(f::tries(&world), f::tries(&control));
     assert!(control.assigned.as_ref().expect("control resumes").run.policy.resume);
     let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    let Some(tasks::Line::RunBegan { resumed, fresh, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
+    *fresh = None;
     assert_eq!(activity, f::activity(&control));
 }
 
@@ -67,8 +69,9 @@ fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
     assert_eq!(f::tail(&world), None);
     assert_eq!(f::tries(&world), f::tries(&control));
     let mut activity = f::activity(&world);
-    let Some(tasks::Line::RunBegan { resumed, .. }) = activity.last_mut() else { panic!("fresh run activity") };
+    let Some(tasks::Line::RunBegan { resumed, fresh, .. }) = activity.last_mut() else { panic!("fresh run activity") };
     *resumed = true;
+    *fresh = None;
     assert_eq!(activity, f::activity(&control));
     // The store deliberately keeps the closed transcript unreadable.
     world.broken();

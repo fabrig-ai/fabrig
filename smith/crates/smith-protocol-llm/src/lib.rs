@@ -82,7 +82,7 @@ pub use prompt::prompt;
 /// Retained grants, result rules and receiving bounds for one client terminal.
 pub use types::Context;
 
-pub use types::{Error, ToolKind, ToolSchema};
+pub use types::{Cause, Error, Refusal, ToolKind, ToolSchema};
 
 pub use skein_llm_connection::Measures;
 

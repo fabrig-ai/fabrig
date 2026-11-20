@@ -3,6 +3,7 @@ use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
 use skein_lib::{Queue, Secret};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -183,11 +184,15 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
     }
     let value = draft.bundle(kind).expect("validated replacement bundle");
     let bounds = super::wire_limits(&limits).expect("checked limits");
-    let request = w::Request::Replace(w::Replace::new(&bounds, w::ReplaceParts { forge }).expect("forge fits"));
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).expect("request fits");
+    let request = w::Request::Replace(w::Replace { forge });
+    let record = w::Requesting { request };
     let request = Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(&bounds).expect("request fits"),
+        },
     };
     side.serial = side.serial.checked_add(1).expect("keys fit");
     let key = Key { asker: crate::owner::Owner::Forge.asker(), number: side.serial };

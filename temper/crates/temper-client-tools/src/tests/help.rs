@@ -91,12 +91,12 @@ fn review_recipe_quotes_the_waiting_changes_output() {
     let mut parts = super::change::approval_parts();
     parts.step = w::Step::First;
     parts.ci = w::Ci::Passed;
-    let mut approval = parts.approvals.get(0).expect("waiting approval").clone().into_parts();
+    let mut approval = parts.approvals.get(0).expect("waiting approval").clone();
     approval.number = 1;
     approval.role = 1;
     approval.freshness = w::RuleFreshness::Exact;
-    *parts.approvals.get_mut(0).expect("waiting approval") = w::Approval::new(&w::CEILINGS, approval).unwrap();
-    let panel = w::ChangePanel::new(&w::CEILINGS, parts).expect("waiting change");
+    *parts.approvals.get_mut(0).expect("waiting approval") = approval;
+    let panel = parts;
     let output =
         crate::change::print(Some(&panel), false, None, b"", &fixtures::limits_root(), &crate::change::Holds::new());
     assert_eq!(output.status, 0);
@@ -114,7 +114,7 @@ fn review_recipe_quotes_the_waiting_changes_output() {
         let expected = line
             .replace("PROJECT", "1")
             .replace("ROLE", "1")
-            .replace("URL", core::str::from_utf8(panel.pull().as_ref().expect("pull request").address()).unwrap());
+            .replace("URL", core::str::from_utf8(&panel.pull.as_ref().expect("pull request").address).unwrap());
         let mut found = false;
         for rendered in output.lines() {
             found |= rendered == expected;
@@ -685,6 +685,31 @@ fn help_names_invalid_run_end_causes() {
     }
 }
 
+#[test]
+fn landing_help_explains_waits_and_engine_relative_ages() {
+    let page = temper_docs::find(b"landing").expect("landing help");
+    for words in [
+        "waits for:",
+        "the round's pull request to close",
+        "nothing; it steps next",
+        "Ended landings show no wait",
+        "`turn: free`",
+        "`last event unknown`",
+        "engine's document time",
+        "`2d 3h`",
+        "`4h 31m`",
+        "`37m 12s`",
+        "`12s`",
+        "`0s`",
+        "`now`",
+        "`turn_since`",
+        "`step`",
+        "`last_event`",
+        "nanoseconds or null",
+    ] {
+        assert!(page.text.contains(words), "landing help must explain {words}");
+    }
+}
 #[test]
 fn the_landing_reference_is_what_the_table_renders() {
     reference_matches(b"landing", b"ctl-landing");

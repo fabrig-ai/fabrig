@@ -446,7 +446,7 @@ fn assert_box_streams(ended: &support::boxed::Outcome, forgejo: std::net::Socket
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| {
         panic!("the box's stdout carries the link: {}", String::from_utf8_lossy(&ended.stderr));
     });
-    assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "the sign-in link");
+    assert!(skein_lib::bytes::find(link, b"/sign-in?secret=").is_some(), "the sign-in link");
     let alone = |line: &[u8]| line.is_empty() || line.starts_with(b"http://127.0.0.1:");
     assert!(ended.stdout.split(|byte| *byte == b'\n').all(alone), "stdout holds links alone");
     let steps = ["prepare-1: ", "forgejo-1: ", "runner-1: ", "serve: "];
@@ -959,7 +959,7 @@ fn engine_lines(engine: &support::cluster::Stopped) -> Result<(), String> {
         return Err("exactly one stdout line".into());
     }
     let secret = link
-        .strip_prefix(&format!("http://{clients}/jig/v1/sign-in/link?secret="))
+        .strip_prefix(&format!("http://{clients}/sign-in?secret="))
         .ok_or_else(|| "sign-in link at the clients listener".to_owned())?;
     if secret.is_empty() {
         return Err("a sign-in secret".into());

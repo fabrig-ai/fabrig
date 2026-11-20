@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Time, Token};
 use smith_events::{Block, Completion, Message, Prompt, Role};
 
-use crate::Error;
+use crate::{Cause, Error, Refusal};
 
 /// One request's content selection, supplied by its service before translation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -54,7 +54,7 @@ pub(crate) fn prompt(
         (None, None)
     };
     let since = usize::try_from(observation.messages).expect("u32 fits usize");
-    let appended = input.messages.get(since..).ok_or(Error::Invalid)?;
+    let appended = input.messages.get(since..).ok_or(Error::Invalid { cause: Cause::Smith(Refusal::Observation) })?;
     let mut messages = List::with_capacity(u32::try_from(appended.len()).or(Err(Error::Limit))?);
     for message in appended {
         let role = match message.role {
@@ -268,6 +268,9 @@ mod tests {
         assert!(retry.messages.is_empty());
         assert_eq!(retry.system, None);
         assert_eq!(retry.tools, None);
-        assert_eq!(prompt(&input, Observation { first: false, messages: 4 }, &limits), Err(Error::Invalid));
+        assert_eq!(
+            prompt(&input, Observation { first: false, messages: 4 }, &limits),
+            Err(Error::Invalid { cause: Cause::Smith(Refusal::Observation) })
+        );
     }
 }

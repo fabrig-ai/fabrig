@@ -506,9 +506,10 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   reported without raising another failure.
 - **No fixture outlives its test.** A fixture that would run until
   signalled ends with the test that started it however the test ends,
-  a runner's kill that runs no cleanup among them: on Linux its leader
-  dies with the thread that started it (a parent-death signal,
-  `exec_dying_with_parent`, ../runtime/shell.md, 3), each descendant
+  a runner's kill that runs no cleanup among them: its leader dies with
+  the thread that started it on Linux, and with its process on macOS (a
+  parent-death signal or its watcher, `exec_dying_with_parent`,
+  ../runtime/shell.md, 3), each descendant
   it starts that leaves its group or session ends its own loop once
   that owner process is gone. None of that waits on unwinding: a test
   that unwinds may have the kit end the rest sooner (../examples.md, 6),

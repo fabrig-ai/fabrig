@@ -28,6 +28,7 @@ fn configured_component(variables: &[crate::Variable]) -> Component {
     let mut component = Component::new(
         &limits(),
         crate::Environment::encode(variables, &limits()).expect("configured environment fits"),
+        Box::from(b"/fixture/bin/rg".as_slice()),
     );
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
@@ -859,6 +860,7 @@ fn configured_variables_are_encoded_once_for_commands_and_checks_and_absent_for_
             match down.pop().expect("spawn") {
                 Below::Spawn { spawn, .. } => {
                     if operation == 2 {
+                        assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
                         assert!(spawn.env.is_empty());
                     } else {
                         assert_eq!(spawn.env.as_ref(), expected.as_ref());
@@ -1010,7 +1012,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
         Below::Spawn { spawn, root, .. } => {
             assert_eq!(root, Token::new(10));
             assert_eq!(spawn.dir.as_ref(), b"src");
-            assert_eq!(spawn.program.as_ref(), b"/usr/bin/rg");
+            assert_eq!(spawn.program.as_ref(), b"/fixture/bin/rg");
             assert!(spawn.env.is_empty());
             assert!(has_argument(&spawn.args, b"--files"));
             assert!(has_argument(&spawn.args, b"--hidden"));

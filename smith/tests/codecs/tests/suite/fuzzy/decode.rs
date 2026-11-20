@@ -2,15 +2,14 @@
 //! (protocol/charter.md, section 8; protocol/transcript.md, section 9;
 //! protocol/channel.md, section 10).
 
-use skein_lib::{Reader, Rng, Writer};
-use smith_transcript::Record;
+use skein_lib::{Reader, Rng};
+use smith_channel::Record;
 
 macro_rules! check {
     ($bytes:expr, $family:ident, $record:ident) => {
         if let Ok(value) = $family::$record::decode(&$family::CEILINGS, &mut Reader::new($bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), $bytes);
+            let bytes = value.encode(&$family::CEILINGS).expect("decoded value encodes");
+            assert_eq!(bytes.as_ref(), $bytes);
         }
     };
 }
@@ -18,9 +17,7 @@ macro_rules! check {
 fn check_all(bytes: &[u8]) {
     check!(bytes, smith_charter, Charter);
     check!(bytes, smith_charter, RunResult);
-    if let Ok(value) = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(bytes)) {
-        assert_eq!(value.encode(&smith_transcript::CEILINGS).expect("decoded turn").as_ref(), bytes);
-    }
+    check!(bytes, smith_transcript, Turn);
     check!(bytes, smith_channel, Start);
     check!(bytes, smith_channel, Message);
     check!(bytes, smith_channel, MessageRefused);

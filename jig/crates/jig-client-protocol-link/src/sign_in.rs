@@ -33,8 +33,9 @@ impl Link {
                 }
                 self.signing_exchange(ExchangeKind::SignIn, Message::SignInService, Some(credential), None, out);
             }
-            With::Approval { secret } => {
-                let Ok(record) = w::ApprovalSignIn::new(self.limits.wire(), w::ApprovalSignInParts { secret }) else {
+            With::Approval { secret, grant } => {
+                let Ok(record) = w::ApprovalSignIn::new(self.limits.wire(), w::ApprovalSignInParts { secret, grant })
+                else {
                     out.push(Request::Signing { signing: Signing::Approval(crate::Taking::Unknown) });
                     return;
                 };
@@ -220,6 +221,7 @@ impl Link {
                 self.generation = self.generation.saturating_add(1);
                 Signing::SignedIn { party: fields.party }
             }
+            w::ApprovalSignInAnswer::NotGranted => Signing::Approval(crate::Taking::NotGranted),
             w::ApprovalSignInAnswer::Waiting => Signing::Approval(crate::Taking::Waiting),
             w::ApprovalSignInAnswer::Refused => Signing::Approval(crate::Taking::Refused),
             w::ApprovalSignInAnswer::Expired => Signing::Approval(crate::Taking::Expired),

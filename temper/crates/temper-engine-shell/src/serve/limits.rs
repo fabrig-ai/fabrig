@@ -100,27 +100,78 @@ pub fn open_limits(
         skein_shell::Kernel::open(skein_shell::Config { operations: service::store::KERNEL_HANDOFF_ENTRIES })
             .map_err(|why| why.to_string())?;
     let clock = skein_shell::Clock::new();
-    let result = opened(&mut store, &mut kernel, &clock, deployment);
+    let result = opened(&mut store, &mut kernel, &clock, Some(deployment));
     if let Err(why) = result {
         closed(&mut store, &mut kernel, &clock);
         return Err(why);
     }
-    let over = held.as_ref().map(|held| (held.jig.as_ref(), held.temper.as_ref()));
+    let state = resolved(&mut store, &mut kernel, &clock, inputs, held.as_ref())?;
+    if let Some(held) = held {
+        eprintln!("{}", held.line);
+    }
+    Ok((store, state))
+}
+
+/// The check's copy, opened by the store-only loop before its engine is sized.
+#[derive(Debug)]
+pub struct Opening {
+    pub store: Store,
+    /// The limits a start takes from the copy; none when the copy didn't open,
+    /// its terminal kept in the store for the engine's report.
+    pub settings: Option<LimitSettings>,
+    /// Before the copy was made, for the rehearsal's time.
+    pub began: skein_lib::Time,
+}
+/// The check opens its copy as a start opens its store, at the stock's figures, and
+/// resolves the copy's two kinds, or `held`'s figures, as a start does
+/// (configuration/limit-settings.md, 3). `adopt` gives the store the copy's roots.
+/// The rehearsal's progress and terminals stay queued for its engine's report.
+pub fn rehearse_limits(
+    inputs: LimitInputs,
+    models: &[jig_domain_core::Model],
+    held: Option<&Held>,
+    build_name: &'static str,
+    adopt: impl FnOnce(&mut Store) -> Result<(), String>,
+) -> Result<Opening, String> {
+    let mut store = Store::for_limits(&inputs, models).map_err(|why| text(&why))?;
+    store.build_name(build_name);
+    let clock = skein_shell::Clock::new();
+    let began = clock.now().now;
+    adopt(&mut store)?;
+    let mut kernel =
+        skein_shell::Kernel::open(skein_shell::Config { operations: service::store::KERNEL_HANDOFF_ENTRIES })
+            .map_err(|why| why.to_string())?;
+    let settings = match opened(&mut store, &mut kernel, &clock, None) {
+        Ok(true) => Some(resolved(&mut store, &mut kernel, &clock, inputs, held)?),
+        Ok(false) => None,
+        Err(why) => {
+            closed(&mut store, &mut kernel, &clock);
+            return Err(why);
+        }
+    };
+    Ok(Opening { store, settings, began })
+}
+/// Read, resolve and install the opened store's limit settings; a held pair replaces both kinds.
+fn resolved(
+    store: &mut Store,
+    kernel: &mut skein_shell::Kernel,
+    clock: &skein_shell::Clock,
+    inputs: LimitInputs,
+    held: Option<&Held>,
+) -> Result<LimitSettings, String> {
+    let over = held.map(|held| (held.jig.as_ref(), held.temper.as_ref()));
     let state = match store.resolve_settings(inputs, over) {
         Ok(state) => state,
         Err(why) => {
             let why = text(&why);
-            closed(&mut store, &mut kernel, &clock);
-            return Err(held.as_ref().map_or_else(|| why.clone(), |held| held_failure(&why, held)));
+            closed(store, kernel, clock);
+            return Err(held.map_or_else(|| why.clone(), |held| held_failure(&why, held)));
         }
     };
     for left in &state.in_force.left_out {
         eprintln!("{}", left_out_line(left));
     }
-    if let Some(held) = held {
-        eprintln!("{}", held.line);
-    }
-    Ok((store, state))
+    Ok(state)
 }
 fn left_out_line(left: &service::startup::LeftOut) -> String {
     format!(
@@ -132,13 +183,17 @@ fn left_out_line(left: &service::startup::LeftOut) -> String {
 fn text(why: &service::startup::Problems) -> String {
     String::from_utf8_lossy(&service::startup::lines(why)).into_owned()
 }
+/// Until the store opens, or, for a rehearsal, ends at a terminal. A start, naming its
+/// `deployment`, refuses in its own words; a rehearsal has none and keeps its terminals and
+/// its jobs' progress for its engine's report. Whether the store opened.
 fn opened(
     store: &mut Store,
     kernel: &mut skein_shell::Kernel,
     clock: &skein_shell::Clock,
-    deployment: &[u8],
-) -> Result<(), String> {
+    deployment: Option<&[u8]>,
+) -> Result<bool, String> {
     let mut completions = Queue::uncapped();
+    let mut ended = false;
     loop {
         kernel.reap(&mut completions);
         while let Some(complete) = completions.pop() {
@@ -153,17 +208,35 @@ fn opened(
                 jig_protocol_store::Event::Opened { installation, pending, .. } => {
                     store.opened_limits(installation, pending);
                 }
-                jig_protocol_store::Event::OpenRefused { why, .. } => {
-                    let (line, _) = service::refused_start(&why, deployment);
-                    return Err(String::from_utf8_lossy(&line).into_owned());
+                jig_protocol_store::Event::OpenRefused { owner, why } => {
+                    if let Some(deployment) = deployment {
+                        let (line, _) = service::refused_start(&why, deployment);
+                        return Err(String::from_utf8_lossy(&line).into_owned());
+                    }
+                    ended = true;
+                    keep.push(jig_protocol_store::Event::OpenRefused { owner, why });
                 }
                 event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
                     if !store.opening_site(event) {
                         return Err("store opening job failed".into());
                     }
                 }
-                jig_protocol_store::Event::Corrupt { .. } => return Err("store opening failed".into()),
-                jig_protocol_store::Event::Ran { .. } => {}
+                jig_protocol_store::Event::Corrupt { owner } => {
+                    if deployment.is_some() {
+                        return Err("store opening failed".into());
+                    }
+                    ended = true;
+                    keep.push(jig_protocol_store::Event::Corrupt { owner });
+                }
+                event @ jig_protocol_store::Event::Undecodable { .. } => {
+                    ended |= deployment.is_none();
+                    keep.push(event);
+                }
+                event @ jig_protocol_store::Event::Ran { .. } => {
+                    if deployment.is_none() {
+                        keep.push(event);
+                    }
+                }
                 event @ (jig_protocol_store::Event::Restored { .. }
                 | jig_protocol_store::Event::RestoreRefused { .. }
                 | jig_protocol_store::Event::Checkpointed { .. }
@@ -172,7 +245,6 @@ fn opened(
                 | jig_protocol_store::Event::CheckpointRefused { .. }
                 | jig_protocol_store::Event::Rehearsing { .. }
                 | jig_protocol_store::Event::Decoded { .. }
-                | jig_protocol_store::Event::Undecodable { .. }
                 | jig_protocol_store::Event::Back { .. }
                 | jig_protocol_store::Event::BackRefused { .. }
                 | jig_protocol_store::Event::Closed { .. }
@@ -200,8 +272,8 @@ fn opened(
         while let Some(event) = keep.pop() {
             store.events().push(event);
         }
-        if store.opened() && kernel.in_flight() == 0 && store.submissions().is_empty() {
-            return Ok(());
+        if (store.opened() || ended) && kernel.in_flight() == 0 && store.submissions().is_empty() {
+            return Ok(store.opened());
         }
         let wait = if store.work_pending(now) {
             skein_shell::Wait::No

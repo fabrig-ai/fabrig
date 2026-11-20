@@ -79,7 +79,7 @@ pub(crate) fn delete(
         return out;
     }
     assert!(core.pending_calls.insert(call.key, true) == Ok(None), "note deletion call room reserved");
-    let owner = core.begin_note_route(NoteRoute::Call { to: call.to, key: call.key });
+    let owner = core.begin_note_route(NoteRoute::Call { to: call.to, key: call.key, records: Box::new([]) });
     work.push(Work::Event(Event::Notes(notes::Event::Edit {
         owner,
         party,

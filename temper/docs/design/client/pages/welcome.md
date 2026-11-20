@@ -126,7 +126,11 @@
     ChatGPT or Claude.", the forges and the plans v0.1.0 supports (the
     user, 2026-10-26), not the offered `me.providers` ways.
   - *Forge* is `ConnectForge`'s Choose and Details (`../forge/deployment.md`),
-    its Choose two cards, Forgejo's first, the default, whose one way,
+    its Choose two cards, Forgejo's first, the default, headed "Local"
+    (the user, 2026-11-19, the look request `local-forge`), "A forge of
+    your own: temper starts Forgejo on this machine and manages it. You
+    can import existing repositories into it, from GitHub or
+    elsewhere.", whose one way,
     "Run on this machine", opens Forgejo's sheet (below), then GitHub's
     (`../forge/deployment.md`); a Forgejo deployment of the
     person's own is connected from the forges page, not here (the user,
@@ -140,30 +144,36 @@
     (the user, 2026-11-04). The step connects a forge and
     nothing more, on every kind: it adopts no repository and asks no
     project's name (`../../draft/first-run-projects.md`, 4).
-    *Forgejo's sheet* (the user, 2026-11-04) is Forgejo on this
-    machine's Details on the welcome: a modal sheet over Choose, at its
-    address (`../web/README.md`, 2.3), headed "Forgejo on this machine", with
-    "temper starts it here and connects to it; you connect your model
-    meanwhile."; then what it starts with, "Start it with", three
+    *Forgejo's sheet* (the user, 2026-11-04; its words and the sample,
+    2026-11-19, the look request `local-forge`) is Forgejo on this
+    machine's Details on the welcome, and on Settings' Connect a forge,
+    which opens the same sheet: a modal sheet over Choose, at its
+    address (`../web/README.md`, 2.3), headed "Local forge", with
+    "temper starts Forgejo here and connects to it; you connect your
+    model meanwhile."; then what it starts with, "Start it with", three
     choices, each a card with its line, the chosen one's own fields
     under it:
-    - "An empty repository", "A README and a starter CI check.", the
-      default, its Organization and Name `work` and `hello` until
-      written;
-    - "Copies of public repositories", "Copied into your Forgejo from
-      GitHub or another git host, to play around with. Nothing is sent
-      back.", its addresses "one per line", `github.com/owner/name`;
+    - "A sample project", "A short shell script with tests and CI. Use
+      it to explore temper’s features.", the default, with no fields and
+      no name shown: the repository is `work/hello`
+      (`../../protocol/setup/owned.md`, 7, *The sample*);
+    - "Copies of public repositories", "Copied into your local forge
+      from GitHub or another git host, to play around with. Nothing is
+      sent back.", its addresses "one per line", `github.com/owner/name`;
     - "Nothing for now", "Your first project opens with no repository.
       Make or copy one later from temper’s UI, or adopt one you push
       yourself.".
 
+    The empty repository is not among them: Home's "Add a repository"
+    keeps it (`home.md`, 1), and ctl's `forge setup` asks it
+    (`../../protocol/setup/owned.md`, 7).
     Its foot is "Cancel", also Escape, back to Choose, then the primary
     "Run on this machine". Run sends the `SetUp` that makes the forge
     (`../forge/deployment.md`), its first repository as the choice says
     (`../../protocol/setup/owned.md`, 7):
-    - an empty repository, with the names written, the repository made
-      unadopted; with either blank, one alert, "Both an organization and a
-      name.", and nothing sent;
+    - the sample, `empty` with `work`, `hello` and `sample`
+      (`../forge/records.md`), the repository made unadopted, with
+      nothing to write and so no alert of its own;
     - copies, each non-empty line read as an address: `http://` or
       `https://`, `.git` and trailing `/` stripped; `HOST/OWNER/NAME`, or
       `OWNER/NAME` meaning `github.com`; then the source's own check
@@ -717,9 +727,9 @@ repository, and the cues the playground's, copied in from its read:
   scripted model and a forge, built in. A taste of how temper feels,
   with nothing to connect.", and under them "Tried the playground
   first? Set up whenever you like; the playground then steps aside.";
-  Forge's cards are Forgejo's, "A forge of your own: temper starts it
-  on this machine and manages it. You can import existing repositories
-  into it, from GitHub or elsewhere.", with "Run on this machine"
+  Forge's cards are Forgejo's, headed "Local", "A forge of your own:
+  temper starts Forgejo on this machine and manages it. You can import
+  existing repositories into it, from GitHub or elsewhere.", with "Run on this machine"
   alone, which opens Forgejo's sheet, then GitHub's; Model's lead is "temper’s agents run on a plan you
   sign in to.", its cards the plans alone, each with its muted line;
   the forge's ticked line reads "✓ FORGE · connected as LOGIN ·

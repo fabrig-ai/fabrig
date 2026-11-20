@@ -2,6 +2,7 @@ use jig_domain_host as host;
 use jig_domain_link::{Login, LoginState, SignOutResult, SourceName};
 use jig_protocol_worker_link::{Event, Request};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::{List, Reader, Writer};
 // jig/docs/design/protocol/channel/records.md, 1 bounds a login email in bytes.
@@ -17,15 +18,13 @@ fn world() -> World {
 fn sources(names: &[&[u8]]) -> skein_channel::Frame {
     let mut rows = List::with_capacity(u32::try_from(names.len()).expect("small list"));
     for name in names {
-        rows.push(
-            wire::ProgramSource::new(&wire::CEILINGS, wire::ProgramSourceParts { name: (*name).into() })
-                .expect("wire name"),
-        )
-        .expect("row");
+        rows.push(wire::ProgramSource { name: (*name).into() }).expect("row");
     }
-    let record = wire::Sources::new(&wire::CEILINGS, wire::SourcesParts { sources: rows }).expect("wire list");
-    let mut body = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut body).expect("encode");
+    let record = wire::Sources { sources: rows };
+    let mut body = Writer::new(skein_lib::length::usize_of(
+        record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
+    ));
+    record.write(&jig_protocol_worker_wire::CEILINGS, &mut body).expect("encode");
     fixtures::frame(0x0188, &body.finish())
 }
 #[test]
@@ -35,13 +34,11 @@ fn host_wide_source_records_cross_bytes_without_an_assignment() {
     for kind in [0x0189, 0x018a] {
         let mut body = Writer::new(9);
         match kind {
-            0x0189 => wire::Check::new(&wire::CEILINGS, wire::CheckParts { name: b"alice".as_slice().into() })
-                .expect("check")
-                .encode(&mut body)
+            0x0189 => wire::Check { name: b"alice".as_slice().into() }
+                .write(&jig_protocol_worker_wire::CEILINGS, &mut body)
                 .expect("encode"),
-            _ => wire::SignOut::new(&wire::CEILINGS, wire::SignOutParts { name: b"alice".as_slice().into() })
-                .expect("sign-out")
-                .encode(&mut body)
+            _ => wire::SignOut { name: b"alice".as_slice().into() }
+                .write(&jig_protocol_worker_wire::CEILINGS, &mut body)
                 .expect("encode"),
         }
         world.play(fixtures::frame(kind, &body.finish()));
@@ -77,10 +74,10 @@ fn host_wide_source_records_cross_bytes_without_an_assignment() {
     assert_eq!(logins.len(), emails.len());
     for (record, email) in logins.into_iter().zip(emails) {
         let logins = wire::Logins::decode(&fixtures::codec(), &mut Reader::new(&record.body)).expect("encoded logins");
-        assert_eq!(logins.logins().len(), 1);
-        let row = logins.logins().get(0).expect("row");
-        assert_eq!(row.name(), b"alice");
-        assert_eq!(row.email(), &email);
+        assert_eq!(logins.logins.len(), 1);
+        let row = logins.logins.get(0).expect("row");
+        assert_eq!(row.name.as_ref(), b"alice");
+        assert_eq!((&row.email), &email);
     }
     assert!(records.iter().any(|record| record.kind == 0x0109));
 }
@@ -115,8 +112,8 @@ fn backpressure_keeps_only_the_latest_inventory_until_the_queue_is_empty() {
         .map(|record| wire::Logins::decode(&fixtures::codec(), &mut Reader::new(&record.body)).expect("inventory"))
         .collect::<Vec<_>>();
     assert_eq!(inventories.len(), 2, "one queued frame and one latest pending snapshot");
-    assert_eq!(inventories[0].logins().get(0).expect("first row").name(), alice.as_bytes());
-    assert_eq!(inventories[1].logins().get(0).expect("latest row").name(), latest.as_bytes());
+    assert_eq!(inventories[0].logins.get(0).expect("first row").name.as_ref(), alice.as_bytes());
+    assert_eq!(inventories[1].logins.get(0).expect("latest row").name.as_ref(), latest.as_bytes());
 }
 
 #[test]
@@ -143,7 +140,7 @@ fn a_lost_channel_drops_held_inventories_before_redial() {
     assert!(
         wire::Logins::decode(&fixtures::codec(), &mut Reader::new(&records[1][1].body))
             .expect("fresh inventory")
-            .logins()
+            .logins
             .is_empty()
     );
 }

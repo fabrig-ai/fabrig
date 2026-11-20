@@ -22,7 +22,7 @@ pub(crate) fn head(root: &Domain, w: &Words, project: u32) -> (Box<[u8]>, Box<[u
         Head::Own => {
             let ways = root.pages().stock_ways().expect("parts names a shown read");
             let (headline, lede) = match ways.words() {
-                Some(words) => (copy_of(words.headline()), copy_of(words.lede())),
+                Some(words) => (copy_of(&words.headline), copy_of(&words.lede)),
                 None => {
                     (w.say(Word::HowOwn, &[]), w.say(Word::HowOwnLine, &[Hole::Name(project_name(root, w, project))]))
                 }

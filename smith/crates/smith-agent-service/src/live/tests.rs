@@ -25,8 +25,7 @@ struct Sent {
     call: Option<smith_channel::LiveCall>,
 }
 fn ask(text: bool, reasoning: bool, input: bool) -> smith_channel::LiveAsk {
-    smith_channel::LiveAsk::new(&smith_channel::CEILINGS, smith_channel::LiveAskParts { text, reasoning, input })
-        .expect("ask")
+    smith_channel::LiveAsk { text, reasoning, input }
 }
 fn stream(takes: bool) -> (Live, Room) {
     let mut live = Live::new(Some(ask(true, false, false)), standard().policy.live_interval);
@@ -218,7 +217,7 @@ fn interleaved_text_and_input_keep_separate_offsets_and_identities() {
     let mut calls = List::with_capacity(5);
     for piece in &room.sent {
         match &piece.call {
-            Some(call) => calls.push(Some(call.id())).expect("five pieces"),
+            Some(call) => calls.push(Some(call.id.as_ref())).expect("five pieces"),
             None => calls.push(None).expect("five pieces"),
         }
     }

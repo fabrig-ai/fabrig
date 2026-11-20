@@ -3,6 +3,94 @@ use crate::config::{ConfigurationRefusal, from_value, profile_from_value};
 use smith_agent_profile::profile::{Check, Layer, LimitName, Refusal, Value};
 
 #[cfg(unix)]
+fn executable(path: &std::path::Path) {
+    use std::os::unix::fs::PermissionsExt;
+    // An invalid executable is enough: finding must never run it.
+    std::fs::write(path, b"not an executable format\n").expect("rg stand-in");
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
+}
+
+#[cfg(unix)]
+#[test]
+fn rg_finding_takes_the_first_executable_file_on_path() {
+    use std::os::unix::{ffi::OsStrExt, fs::PermissionsExt};
+    let scratch = skein_scratch::Scratch::new("smith-rg-path");
+    for directory in ["A", "B", "C"] {
+        std::fs::create_dir(scratch.path().join(directory)).expect("PATH directory");
+        executable(&scratch.path().join(directory).join("rg"));
+    }
+    std::fs::set_permissions(scratch.path().join("A/rg"), std::fs::Permissions::from_mode(0o600))
+        .expect("non-executable mode");
+    let path = std::env::join_paths([
+        std::path::PathBuf::from("rel"),
+        scratch.path().join("missing"),
+        scratch.path().join("A"),
+        scratch.path().join("B"),
+        scratch.path().join("C"),
+    ])
+    .expect("PATH");
+    assert_eq!(
+        crate::config::find_rg(Some(path.as_bytes())),
+        Some(scratch.path().join("B/rg")),
+        "first executable file"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn rg_finding_skips_relative_directories_and_a_directory_named_rg() {
+    use std::os::unix::ffi::OsStrExt;
+    let scratch = skein_scratch::Scratch::new("smith-rg-relative");
+    std::fs::create_dir(scratch.path().join("rel")).expect("relative PATH directory");
+    executable(&scratch.path().join("rel/rg"));
+    std::fs::create_dir_all(scratch.path().join("directory/rg")).expect("directory named rg");
+    let up: std::path::PathBuf =
+        std::env::current_dir().expect("working directory").components().skip(1).map(|_| "..").collect();
+    let relative = up.join(scratch.path().strip_prefix("/").expect("absolute scratch")).join("rel");
+    assert!(relative.join("rg").is_file(), "relative entry holds the executable fixture");
+    let path = std::env::join_paths([relative, scratch.path().join("directory")]).expect("PATH");
+    assert_eq!(
+        crate::config::find_rg(Some(path.as_bytes())),
+        None,
+        "neither relative entries nor directories are programs"
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn rg_finding_has_no_result_for_empty_or_absent_path() {
+    assert_eq!(crate::config::find_rg(Some(b"")), None, "empty PATH");
+    assert_eq!(crate::config::find_rg(None), None, "absent PATH");
+}
+
+#[cfg(unix)]
+#[test]
+fn resolving_finds_rg_after_decoding_without_running_it() {
+    let scratch = skein_scratch::Scratch::new("smith-rg-startup");
+    let mut document = shaped_document();
+    document["environment"] = serde_json::json!([{"name":"PATH", "value":scratch.path()}]);
+    let decoded = crate::config::decode(&serde_json::to_vec(&document).expect("document JSON"))
+        .expect("decode without filesystem effects");
+    let rg = scratch.path().join("rg");
+    executable(&rg);
+    let configuration = decoded.resolve(&mut Vec::new()).expect("native resolution");
+    assert_eq!(configuration.service.rg.as_ref(), rg.as_os_str().as_encoded_bytes(), "startup's rg");
+}
+
+#[cfg(unix)]
+#[test]
+fn resolving_without_rg_on_path_uses_the_system_fallback() {
+    let scratch = skein_scratch::Scratch::new("smith-rg-fallback");
+    let absent = shaped_document();
+    let mut missing = shaped_document();
+    missing["environment"] = serde_json::json!([{"name":"PATH", "value":scratch.path()}]);
+    for document in [absent, missing] {
+        let configuration = from_value(document).expect("fallback configuration");
+        assert_eq!(configuration.service.rg.as_ref(), b"/usr/bin/rg", "compatible fallback");
+    }
+}
+
+#[cfg(unix)]
 #[test]
 fn reading_bytes_keeps_file_content_and_absent_file_refusal() {
     let scratch = skein_scratch::Scratch::new("smith-config-bytes");

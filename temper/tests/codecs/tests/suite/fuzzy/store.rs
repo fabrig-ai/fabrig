@@ -291,6 +291,7 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         2 => Some(forge::FirstIntent::Copies { addresses: Box::new([drawn_field(rng), drawn_field(rng)]) }),
         _ => Some(forge::FirstIntent::Empty(forge::EmptyIntent {
             playground: rng.below(2) == 0,
+            sample: false,
             org: drawn_field(rng),
             repository: drawn_field(rng),
             label: drawn_field(rng),

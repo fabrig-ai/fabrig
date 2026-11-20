@@ -1,14 +1,19 @@
 #!/usr/bin/env python3
 """Offline fixtures for macos.md, 4–5; no builds, network or credentials."""
 
+import contextlib
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
 import re
 import runpy
+import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 import xml.etree.ElementTree as ET
@@ -56,7 +61,21 @@ class MacosTests(unittest.TestCase):
         parts, unheld = self.place("e2e", story + "\n" + browser)
         self.assertEqual(parts["process"], dict(run=True, ids=[story], pairs=["process-temper"]))
         self.assertEqual(parts["browser"], dict(run=True, ids=[browser], pairs=["browser-skein"]))
+        self.assertFalse(parts["browser-temper"]["run"])
         self.assertEqual(unheld, [])
+        temper = "temper-client-browser-world::browser_all.story_a_walks_on_the_built_playground"
+        parts, unheld = self.place("e2e", temper)
+        self.assertEqual(parts["browser-temper"], dict(run=True, ids=[temper], pairs=["browser-temper"]))
+        self.assertFalse(parts["browser"]["run"])
+        self.assertFalse(parts["process"]["run"])
+        self.assertEqual(unheld, [])
+        for owner in ("browser", "browser-temper"):
+            with self.subTest(owner=owner):
+                parts, unheld = self.place("e2e", "build." + owner)
+                self.assertEqual([part for part, value in parts.items() if value["run"]], [owner])
+                self.assertEqual(parts[owner]["ids"], ["build." + owner])
+                self.assertEqual(parts[owner]["pairs"], [])
+                self.assertEqual(unheld, [])
 
     def test_suites_tree_names_and_build_probe(self):
         parts, unheld = self.place("suites", "skein-lib.tests::one\nforgejo-conformance::suite.two\nbuild.temper")
@@ -75,6 +94,7 @@ class MacosTests(unittest.TestCase):
         parts, _ = self.place("all", "temper-box::process.x")
         self.assertEqual(parts["process"]["ids"], ["temper-box::process.x"])
         self.assertEqual(parts["temper"]["ids"], ["temper-box::process.x"])
+        self.assertIn("browser-temper", parts)
         self.assertNotIn("live", parts)
 
     def test_plan_notices_unheld_and_writes_multiline_outputs(self):
@@ -89,13 +109,26 @@ class MacosTests(unittest.TestCase):
         self.assertRegex(values, r"process<<macos_[^\n]+\nfalse\n")
         self.assertRegex(values, r"parts<<macos_[^\n]+\n\[\]\n")
 
+    def test_plan_writes_browser_temper_flag_ids_and_running_parts(self):
+        output = self.file("outputs", "")
+        identifier = "temper-client-browser-world::browser_all.story_a_walks_on_the_built_playground"
+        result = self.cli("plan", "--packages", self.packages, SET="e2e", TESTS=identifier,
+                          GITHUB_OUTPUT=str(output))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        values = output.read_text()
+        self.assertRegex(values, r"browser-temper<<macos_[^\n]+\ntrue\n")
+        self.assertRegex(values, r"browser-temper_ids<<macos_[^\n]+\n" + re.escape(identifier) + r"\n")
+        self.assertRegex(values, r'parts<<macos_[^\n]+\n\["browser-temper"\]\n')
+        self.assertRegex(values, r"browser<<macos_[^\n]+\nfalse\n")
+
     def test_empty_or_blank_lines_run_every_part_whole(self):
         for text in ("", "\n \t \r\n"):
             parts, unheld = self.place("all", text)
             self.assertEqual(unheld, [])
-            self.assertEqual(len(parts), 6)
+            self.assertEqual(len(parts), 7)
             self.assertTrue(all(part["run"] and not part["ids"] for part in parts.values()))
-            self.assertEqual(len(parts["browser"]["pairs"]), 3)
+            self.assertEqual(parts["browser"]["pairs"], ["browser-jig", "browser-skein"])
+            self.assertEqual(parts["browser-temper"]["pairs"], ["browser-temper"])
         parts, _ = self.place("live", "\n temper-box::live.one\r\n \n")
         self.assertEqual(parts["live"]["ids"], ["temper-box::live.one"])
         self.assertEqual(parts["live"]["pairs"], ["live-temper"])
@@ -222,7 +255,9 @@ class MacosTests(unittest.TestCase):
     def test_builds_whole_part_and_tree_binary_prerequisites(self):
         commands = M["build_commands"]("browser", self.table, None)
         self.assertEqual(commands, [["tools/tiers/run", tree, "browser", "--", "--no-run"]
-                                    for tree in ("temper", "jig", "skein")])
+                                    for tree in ("jig", "skein")])
+        self.assertEqual(M["build_commands"]("browser-temper", self.table, None), [
+            ["tools/tiers/run", "temper", "browser", "--", "--no-run"]])
         meta = dict(packages=[dict(name="smith"), dict(name="smith-world"), dict(name="hearth")])
         self.assertEqual(M["build_commands"]("smith", self.table, meta), [
             ["cargo", "build", "-p", "smith-fake-claude", "--bin", "fake-claude"],
@@ -259,7 +294,7 @@ class MacosTests(unittest.TestCase):
         env = dict(PATH=f"{self.root / 'bin'}:{Path(sys.executable).parent}:{os.defpath}",
                    ARTIFACTS=str(self.root / "artifacts"), CALLS=str(calls_path),
                    TEMPER_INTERNAL_BUNDLE="none")
-        for part in ("process", "browser", "live"):
+        for part in ("process", "browser", "browser-temper", "live"):
             commands = [command for command in M["build_commands"](part, self.table, None)
                         if command[0] == "tools/tiers/run"]
             self.assertTrue(commands, part)
@@ -291,19 +326,185 @@ class MacosTests(unittest.TestCase):
 
     def test_prune_removes_workspace_outputs_not_dependencies(self):
         target = self.root / "target"
-        own = ["debug/deps/libsmith-123.rlib", "debug/deps/suite-123", "debug/.fingerprint/smith-123/x",
-               "debug/build/smith-123/x", "debug/smith", "debug/smith.dSYM/x", "nextest/default/junit.xml",
-               "temper-bundle/index.html", "wasm32-unknown-unknown/debug/deps/libsmith-123.rlib",
-               "wasm32-unknown-unknown/web/.fingerprint/smith-123/x",
-               "wasm32-unknown-unknown/web/smith.wasm",
-               "wasm32-unknown-unknown/playground/deps/libsmith-123.rlib"]
-        kept = self.file("target/debug/deps/libserde-123.rlib", "dependency")
-        for name in own:
-            self.file("target/" + name, "own")
-        meta = dict(packages=[dict(name="smith", targets=[dict(name="smith", kind=["bin"]), dict(name="suite", kind=["test"])])])
-        M["prune"](target, meta)
+        digest = "0123456789abcdef"
+        removed = ["tmp/x", "nextest/default/junit.xml", "temper-playground/index.html"]
+        kept = [".rustc_info.json", "CACHEDIR.TAG"]
+        for profile in ("debug", "web", "playground", "wasm32-unknown-unknown/debug",
+                        "wasm32-unknown-unknown/web", "wasm32-unknown-unknown/playground"):
+            kept += [f"{profile}/{entry}" for entry in (
+                f"deps/libserde-{digest}.rlib", f".fingerprint/serde-{digest}/x",
+                f"build/serde-{digest}/out/x", f"deps/libhttp_body-{digest}.rlib",
+                f".fingerprint/http-body-{digest}/x")]
+            removed += [f"{profile}/{entry}" for entry in (
+                f"deps/libsmith-{digest}.rlib", f"deps/http-{digest}",
+                f".fingerprint/smith-{digest}/x", f"build/smith-{digest}/out/x",
+                "deps/libsmith.rlib", "deps/temper_playground_page.wasm",
+                ".fingerprint/smith/x", "build/smith/out/x", "smith", "smith.dSYM/x",
+                "examples/x", "incremental/x", "temper_playground_page.wasm")]
+        for name in kept + removed:
+            self.file("target/" + name, "output")
+        meta = dict(packages=[dict(name="smith", targets=[dict(name="http"), dict(name="temper-playground-page")])])
+        M["prune"](target, meta, {"serde", "http-body"})
+        self.assertEqual(sorted(str(path.relative_to(target)) for path in target.rglob("*") if path.is_file()),
+                         sorted(kept))
+
+    def test_prune_warns_and_keeps_names_shared_with_lock_dependencies(self):
+        kept = self.file("target/debug/deps/liblog-0123456789abcdef.rlib", "dependency")
+        self.file("target/debug/.fingerprint/log-0123456789abcdef/x", "dependency")
+        meta = dict(packages=[dict(name="smith", targets=[dict(name="log")])])
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            M["prune"](self.root / "target", meta, {"log"})
         self.assertTrue(kept.exists())
-        self.assertFalse(any((target / name).exists() for name in own))
+        self.assertEqual(output.getvalue().count("::warning"), 1)
+        self.assertIn("log", output.getvalue())
+        alias = self.file("target/debug/deps/libhttp_body-0123456789abcdef.rlib", "dependency")
+        meta["packages"][0]["targets"] = [dict(name="http_body")]
+        with contextlib.redirect_stdout(io.StringIO()) as output:
+            M["prune"](self.root / "target", meta, {"http-body"})
+        self.assertTrue(alias.exists())
+        self.assertEqual(output.getvalue().count("::warning"), 1)
+        self.assertIn("http-body", output.getvalue())
+
+    def test_prune_reads_only_sourced_dependencies_from_tested_lock(self):
+        own = self.file("target/debug/deps/libsmith-0123456789abcdef.rlib", "own")
+        kept = self.file("target/debug/deps/libserde-0123456789abcdef.rlib", "dependency")
+        self.file("target/debug/.fingerprint/smith-0123456789abcdef/x", "own")
+        self.file("Cargo.lock", '''[[package]]
+name = "smith"
+version = "0.0.0"
+[[package]]
+name = "serde"
+version = "1.0.0"
+source = "registry+https://example.invalid/index"
+''')
+        meta = dict(target_directory=str(self.root / "target"), packages=[dict(name="smith", targets=[])])
+        previous = Path.cwd()
+        self.addCleanup(os.chdir, previous)
+        os.chdir(self.root)
+        with mock.patch.object(sys, "argv", [str(HELPER), "prune"]):
+            with mock.patch.dict(M["main"].__globals__, metadata=lambda: meta):
+                self.assertEqual(M["main"](), 0)
+        self.assertFalse(own.exists())
+        self.assertTrue(kept.exists())
+
+    def prune_env(self, status):
+        env = self.runner_env()
+        env["MACOS_STARTED"] = "0"
+        env["PATH"] = str(self.root / "bin") + os.pathsep + os.environ["PATH"]
+        meta = dict(target_directory=str(self.root / "target"),
+                    packages=[dict(name="smith", targets=[dict(name="smith")])])
+        cargo = self.file("bin/cargo", f'''#!/bin/bash
+printf '%s\\n' "$@" >"{self.root / 'metadata-args'}"
+printf '%s\\n' '{json.dumps(meta)}'
+exit {status}
+''')
+        cargo.chmod(0o700)
+        self.file("Cargo.lock", '''[[package]]
+name = "smith"
+version = "0.0.0"
+[[package]]
+name = "serde"
+version = "1.0.0"
+source = "registry+https://example.invalid/index"
+''')
+        return env
+
+    def test_prune_queries_logged_metadata_in_reserve_after_deadline(self):
+        env = self.prune_env(0)
+        own = self.file("target/debug/deps/libsmith-0123456789abcdef.rlib", "own")
+        kept = self.file("target/debug/deps/libserde-0123456789abcdef.rlib", "dependency")
+        self.file("target/debug/.fingerprint/smith-0123456789abcdef/x", "own")
+        previous = Path.cwd()
+        self.addCleanup(os.chdir, previous)
+        os.chdir(self.root)
+        with mock.patch.dict(os.environ, env):
+            with mock.patch.object(sys, "argv", [str(HELPER), "prune"]):
+                self.assertEqual(M["main"](), 0)
+            self.assertEqual(os.environ["MACOS_STARTED"], "0")
+        self.assertFalse(own.exists())
+        self.assertTrue(kept.exists())
+        self.assertEqual((self.root / "metadata-args").read_text().splitlines(),
+                         ["metadata", "--no-deps", "--format-version", "1"])
+        self.assertIn('"packages"', (self.root / "logs/metadata.log").read_text())
+
+    def test_prune_warns_keeps_dependency_areas_and_succeeds_if_metadata_fails(self):
+        env = self.prune_env(127)
+        kept = ["debug/deps/libsmith-0123456789abcdef.rlib", "debug/deps/libserde-0123456789abcdef.rlib",
+                "debug/.fingerprint/smith-0123456789abcdef/x", "debug/build/smith-0123456789abcdef/out/x",
+                ".rustc_info.json", "CACHEDIR.TAG"]
+        removed = ["debug/smith", "debug/examples/x", "tmp/x", "temper-playground/index.html"]
+        for name in kept + removed:
+            self.file("target/" + name, "output")
+        previous = Path.cwd()
+        self.addCleanup(os.chdir, previous)
+        os.chdir(self.root)
+        with mock.patch.dict(os.environ, env):
+            with mock.patch.object(sys, "argv", [str(HELPER), "prune"]):
+                with contextlib.redirect_stdout(io.StringIO()) as output:
+                    self.assertEqual(M["main"](), 0)
+            self.assertEqual(os.environ["MACOS_STARTED"], "0")
+        self.assertIn("::warning", output.getvalue())
+        self.assertIn("keeping dependency areas whole", output.getvalue())
+        self.assertIn("exit status 127", output.getvalue())
+        self.assertEqual(sorted(str(path.relative_to(self.root / "target"))
+                                for path in (self.root / "target").rglob("*") if path.is_file()), sorted(kept))
+
+    def test_build_counts_dependency_and_workspace_compilations_once_per_command(self):
+        log = self.file("logs/build-browser-temper-0.log", '''   Compiling serde v1.0.0
+   Compiling gitdep v0.1.0 (https://example.invalid/x#0123abcd)
+   Compiling temper-box v0.0.0 (/w/temper/bin/temper-box)
+    Finished profile
+''')
+        envfile = self.file("env", "")
+        with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), GITHUB_ENV=str(envfile), IDS=""):
+            with mock.patch.dict(M["build"].__globals__, package_map=lambda: self.table,
+                                 checked=lambda *_: 0, output=lambda *_: None):
+                with contextlib.redirect_stdout(io.StringIO()) as output:
+                    M["build"]("browser-temper", self.destination)
+        self.assertEqual(output.getvalue().count("::notice"), 1)
+        self.assertIn(log.stem, output.getvalue())
+        self.assertIn("2 dependencies and 1 workspace", output.getvalue())
+        self.assertEqual(envfile.read_text(), "MACOS_BUILT=true\n")
+
+    def test_browser_run_warns_on_compilation_without_changing_verdict(self):
+        previous = Path.cwd()
+        self.addCleanup(os.chdir, previous)
+        os.chdir(self.root)
+        for status in (0, 100, 2):
+            for compiling in (False, True):
+                with self.subTest(status=status, compiling=compiling):
+                    temp = self.root / f"run-{status}-{compiling}"
+                    (temp / "logs").mkdir(parents=True)
+
+                    def command(name, argv):
+                        if name.startswith("list-"):
+                            (temp / "logs" / (name + ".log")).write_text(json.dumps({"rust-suites": {
+                                "a": {"status": "listed", "testcases": {
+                                    "one": {"ignored": False, "filter-match": {"status": "matches"}}
+                                }}
+                            }}))
+                            return 0
+                        (temp / "logs" / (name + ".log")).write_text(
+                            "   Compiling temper-playground v0.0.0 (/w/temper)\n" if compiling else "    Finished profile\n")
+                        failure = "<failure>red</failure>" if status == 100 else ""
+                        self.file("target/nextest/browser-temper/junit.xml", '<testsuites><testsuite>'
+                                  f'<testcase classname="a" name="one">{failure}</testcase>'
+                                  '</testsuite></testsuites>')
+                        return status
+
+                    with mock.patch.dict(os.environ, RUNNER_TEMP=str(temp), IDS="", GIVEN="false"):
+                        with mock.patch.dict(M["run_part"].__globals__, package_map=lambda: self.table, checked=command):
+                            with contextlib.redirect_stdout(io.StringIO()) as output:
+                                if status == 2:
+                                    with self.assertRaisesRegex(ValueError, "exit status 2"):
+                                        M["run_part"]("browser-temper", self.destination)
+                                    self.assertFalse(self.destination.exists())
+                                else:
+                                    M["run_part"]("browser-temper", self.destination)
+                                    self.assertEqual(ET.parse(self.destination).find(".//failure") is not None, status == 100)
+                    self.assertEqual("::warning" in output.getvalue(), compiling)
+                    if compiling:
+                        self.assertIn("temper-playground", output.getvalue())
 
     def test_build_stops_on_compiler_red_or_fault_and_build_probe_skips_runs(self):
         calls = []
@@ -316,19 +517,28 @@ class MacosTests(unittest.TestCase):
             return 2
 
         globals_ = M["build"].__globals__
-        with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), IDS="build.process"):
+        envfile = self.file("env", "")
+        with mock.patch.dict(os.environ, RUNNER_TEMP=str(self.root), IDS="build.process", GITHUB_ENV=str(envfile)):
             with mock.patch.dict(globals_, package_map=lambda: self.table, checked=refusal,
                                  output=lambda name, value: outputs.update({name: value})):
                 M["build"]("process", self.destination)
             self.assertEqual(len(calls), 1)
             self.assertEqual(outputs, dict(build_red="true", run_tests="false"))
             self.assertIsNotNone(ET.parse(self.destination).find(".//failure"))
+            self.assertEqual(envfile.read_text(), "")
+
+            def success(name, command):
+                log.with_name(name + ".log").write_text("")
+                return 0
+
             with mock.patch.dict(globals_, package_map=lambda: self.table,
-                                 checked=lambda name, command: 0,
+                                 checked=success,
                                  output=lambda name, value: outputs.update({name: value})):
                 M["build"]("process", self.destination)
             self.assertFalse(self.destination.exists())
             self.assertEqual(outputs, dict(build_red="false", run_tests="false"))
+            self.assertEqual(envfile.read_text(), "MACOS_BUILT=true\n")
+            envfile.write_text("")
 
             def fault(name, command):
                 log.with_name(name + ".log").write_text("download refused\n")
@@ -338,6 +548,7 @@ class MacosTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "build fault"):
                     M["build"]("process", self.destination)
             self.assertFalse(self.destination.exists())
+            self.assertEqual(envfile.read_text(), "")
 
     def test_later_run_fault_never_publishes_an_earlier_runs_cases(self):
         listing = self.file("logs/unused.log", json.dumps({"rust-suites": {
@@ -353,6 +564,7 @@ class MacosTests(unittest.TestCase):
             if name.startswith("list-"):
                 listing.with_name(name + ".log").write_text(listing.read_text())
                 return 0
+            listing.with_name(name + ".log").write_text("")
             self.file(f"target/nextest/{profile}/junit.xml", '<testsuites><testsuite><testcase classname="a" name="one"><failure>red</failure></testcase></testsuite></testsuites>')
             return 100 if profile == "browser-jig" else 2
 
@@ -385,6 +597,136 @@ class MacosTests(unittest.TestCase):
         self.assertEqual((self.root / "nextest.sha256").read_text(), "a" * 64 + f"  {self.root}/nextest.tar.gz\n")
         self.assertEqual(calls[names.index("nextest-digest")][1],
                          ["shasum", "-a", "256", "-c", self.root / "nextest.sha256"])
+
+    def test_ripgrep_checks_digest_before_unpacking_and_publishing_path(self):
+        fake = f"#!{sys.executable}\n" + '''import hashlib
+import json
+import os
+from pathlib import Path
+import sys
+
+name = Path(sys.argv[0]).name
+args = sys.argv[1:]
+with Path(os.environ["CALLS"]).open("a") as stream:
+    stream.write(json.dumps([name, *args]) + "\\n")
+if name == "curl":
+    assert args[:2] == ["-sSfL", "-o"]
+    Path(args[2]).write_bytes(b"archive fixture\\n")
+elif name == "shasum":
+    assert args[:3] == ["-a", "256", "-c"]
+    digest, archive = Path(args[3]).read_text().strip().split("  ", 1)
+    if hashlib.sha256(Path(archive).read_bytes()).hexdigest() != digest:
+        print("shasum: checksum did NOT match")
+        sys.exit(1)
+elif name == "tar":
+    assert args[0] == "-xzf" and args[2] == "-C"
+    directory = Path(args[3]) / Path(args[1]).name.removesuffix(".tar.gz")
+    directory.mkdir()
+    binary = directory / "rg"
+    binary.write_text(Path(__file__).read_text())
+    binary.chmod(0o700)
+elif name == "rg":
+    assert args == ["--version"]
+    print("ripgrep 14.1.1")
+else:
+    sys.exit("unexpected command: " + name)
+'''
+        for matches in (True, False):
+            with self.subTest(matches=matches):
+                root = self.root / str(matches)
+                root.mkdir()
+                for name in ("curl", "shasum", "tar"):
+                    self.file(f"{matches}/bin/{name}", fake).chmod(0o700)
+                envfile = self.file(f"{matches}/env", "")
+                pathfile = self.file(f"{matches}/path", "/existing/bin\n")
+                calls = root / "calls.jsonl"
+                digest = hashlib.sha256(b"archive fixture\n").hexdigest() if matches else "0" * 64
+                env = dict(RUNNER_TEMP=str(root), GITHUB_ENV=str(envfile), GITHUB_PATH=str(pathfile),
+                           MACOS_HELPER=str(HELPER), RUN=str(root / "run"), CALLS=str(calls),
+                           PATH=f"{root / 'bin'}:{Path(sys.executable).parent}:{os.defpath}",
+                           RIPGREP_VERSION="14.1.1", RIPGREP_SHA256=digest)
+                setup = self.cli("setup-runner", **env)
+                self.assertEqual(setup.returncode, 0, setup.stdout + setup.stderr)
+                result = self.cli("install-ripgrep", **env)
+                commands = [json.loads(line) for line in calls.read_text().splitlines()]
+                archive = root / "ripgrep-14.1.1-aarch64-apple-darwin.tar.gz"
+                self.assertEqual(commands[:2], [
+                    ["curl", "-sSfL", "-o", str(archive),
+                     "https://github.com/BurntSushi/ripgrep/releases/download/14.1.1/ripgrep-14.1.1-aarch64-apple-darwin.tar.gz"],
+                    ["shasum", "-a", "256", "-c", str(root / "ripgrep.sha256")]])
+                self.assertEqual((root / "ripgrep.sha256").read_text(), f"{digest}  {archive}\n")
+                for name in ("rg-download", "rg-digest"):
+                    self.assertTrue((root / f"logs/{name}.log").is_file())
+                if matches:
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertEqual(commands[2:], [["tar", "-xzf", str(archive), "-C", str(root / "ripgrep")],
+                                                    ["rg", "--version"]])
+                    self.assertEqual(pathfile.read_text(), "/existing/bin\n" +
+                                     f"{root}/ripgrep/ripgrep-14.1.1-aarch64-apple-darwin\n")
+                    self.assertIn("ripgrep 14.1.1", (root / "logs/rg-version.log").read_text())
+                    self.assertTrue((root / "logs/rg-unpack.log").is_file())
+                else:
+                    self.assertEqual(result.returncode, M["FAULT"], result.stdout + result.stderr)
+                    self.assertIn("rg-digest: fault", result.stdout)
+                    self.assertIn("checksum did NOT match", result.stdout)
+                    self.assertEqual(len(commands), 2)
+                    self.assertFalse((root / "ripgrep").exists())
+                    self.assertEqual(pathfile.read_text(), "/existing/bin\n")
+
+    def test_fetch_forge_keeps_restored_cache_but_starts_with_fresh_config_and_data(self):
+        globals_ = M["fetch_forge"].__globals__
+        for restored in (True, False):
+            with self.subTest(restored=restored):
+                root = self.root / str(restored)
+                root.mkdir()
+                fetch = root / "fetch"
+                cache = fetch / "cache"
+                if restored:
+                    cache.mkdir(parents=True)
+                    fetch.chmod(0o755)
+                    cache.chmod(0o755)
+                    marker = cache / "restored"
+                    marker.write_text("keep this file\n")
+                (root / "logs").mkdir()
+                envfile = self.file(f"{restored}/env", "EXISTING=kept\n")
+                calls = []
+                binaries = [cache / "forgejo/1/forgejo", cache / "forgejo-runner/1/forgejo-runner"]
+
+                def checked(name, command):
+                    calls.append((name, list(map(str, command))))
+                    if name == "init":
+                        for directory in (fetch, cache, fetch / "config", fetch / "data"):
+                            self.assertEqual(directory.stat().st_mode & 0o777, 0o700)
+                        for directory in (fetch / "config", fetch / "data"):
+                            self.assertEqual(list(directory.iterdir()), [])
+                        self.assertEqual(sorted(path.name for path in cache.iterdir()),
+                                         ["restored"] if restored else [])
+                    elif name == "fetch":
+                        for binary in binaries:
+                            binary.parent.mkdir(parents=True)
+                            binary.write_text("fetched binary\n")
+                    return 0
+
+                def prepare(command, **kwargs):
+                    self.assertEqual(command[:3], ["target/debug/temper-box", "forge", "prepare"])
+                    setup = fetch / "data/forge-1/setup"
+                    setup.parent.mkdir()
+                    setup.write_text("prepared\n")
+                    return subprocess.CompletedProcess(command, 1)
+
+                with mock.patch.dict(os.environ, RUNNER_TEMP=str(root), GITHUB_ENV=str(envfile)):
+                    with mock.patch.dict(globals_, checked=checked):
+                        with mock.patch.object(subprocess, "run", side_effect=prepare):
+                            M["fetch_forge"]()
+                self.assertEqual([name for name, _ in calls], ["init", "fetch", "forgejo-runs", "forgejo-runner-runs"])
+                flags = [arg for name in ("config", "data", "cache") for arg in ("--" + name, str(fetch / name))]
+                self.assertEqual(calls[1][1], ["target/debug/temper-box", "forge", "fetch", *flags, "1"])
+                self.assertEqual([command for _, command in calls[2:]],
+                                 [[str(binary), "--version"] for binary in binaries])
+                self.assertEqual(envfile.read_text(), "EXISTING=kept\n" +
+                                 f"TEMPER_TEST_FORGEJO={binaries[0]}\nTEMPER_TEST_FORGEJO_RUNNER={binaries[1]}\n")
+                if restored:
+                    self.assertEqual(marker.read_text(), "keep this file\n")
 
     def wasm_checks(self, installed, targets="Registered Targets:\n  wasm32 - WebAssembly 32-bit\n"):
         calls = []
@@ -491,17 +833,259 @@ class MacosTests(unittest.TestCase):
                     [f"  {name}: {value}"],
                 )
 
-    def test_workflow_checks_wasm_compiler_only_in_browser_before_build(self):
+    def workflow(self):
         workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
-        jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow)
-        command = 'run: python3 -I -B "$MACOS_HELPER" wasm-compiler'
-        holders = [name for name, body in zip(jobs[1::2], jobs[2::2]) if "wasm-compiler" in body]
-        self.assertEqual(holders, ["browser"])
-        browser = jobs[jobs.index("browser") + 1]
-        self.assertEqual(browser.count(command), 1)
+        jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow.split("\njobs:\n", 1)[1])
+        return workflow, dict(zip(jobs[1::2], jobs[2::2]))
+
+    def test_workflow_checks_wasm_compiler_only_in_browser_before_build(self):
+        workflow, jobs = self.workflow()
+        command = 'run: exec python3 -I -B "$MACOS_HELPER" wasm-compiler'
+        holders = [name for name, body in jobs.items() if "wasm-compiler" in body]
+        self.assertEqual(holders, ["browser", "browser-temper"])
+        browser = jobs["browser"]
         self.assertLess(browser.index("The browser's wasm target, checked installed"), browser.index(command))
         self.assertLess(browser.index("$RUN wasm-installed"), browser.index(command))
-        self.assertLess(browser.index(command), browser.index("- *build"))
+        for part in holders:
+            body = jobs[part]
+            self.assertEqual(body.count(command), 1)
+            self.assertLess(body.index(command), body.index("- *build"))
+            self.assertLess(body.index("- *build"), body.index("- *run-part"))
+        temper = jobs["browser-temper"]
+        self.assertIn("- &wasm-target\n", browser)
+        self.assertIn("- &chrome\n", browser)
+        self.assertLess(temper.index("- *wasm-target"), temper.index(command))
+        self.assertLess(temper.index("- *build"), temper.index("- *chrome"))
+        self.assertLess(temper.index("- *chrome"), temper.index("- *run-part"))
+        self.assertLess(browser.index("- *build"), browser.index("- &chrome"))
+        self.assertIn("CHROME_FOR_TESTING_SHA256", workflow)
+
+    def test_workflow_bounds_cover_every_part_and_match_helper(self):
+        _, jobs = self.workflow()
+        self.assertEqual(set(M["BOUNDS"]), set(M["SETS"]["all"]) | {"live"})
+        for part in (*M["SETS"]["all"], "live"):
+            with self.subTest(part=part):
+                expected = 300 if part in M["SETS"]["suites"] else 60 if part == "live" else 150
+                self.assertEqual(M["BOUNDS"][part], expected)
+                self.assertRegex(jobs[part], rf"(?m)^    timeout-minutes: {M['BOUNDS'][part]}$")
+                self.assertIn(f"      PART: {part}\n", jobs[part])
+
+    def test_workflow_lighter_profiles_are_browser_temper_job_only(self):
+        workflow, jobs = self.workflow()
+        assignments = re.findall(r'(?m)^( *)CARGO_PROFILE_(WEB|PLAYGROUND)_([A-Z_]+): (.+)$', workflow)
+        self.assertEqual(len(assignments), 4)
+        for indent, profile, option, value in assignments:
+            self.assertEqual(indent, " " * 6)
+            self.assertIn(option, ("LTO", "CODEGEN_UNITS"))
+            self.assertEqual(value, '"off"' if option == "LTO" else '"16"')
+            env = jobs["browser-temper"].split("    env:\n", 1)[1].split("    steps:\n", 1)[0]
+            self.assertIn(f"CARGO_PROFILE_{profile}_{option}: {value}\n", env)
+        for profile in ("WEB", "PLAYGROUND"):
+            self.assertIn((" " * 6, profile, "LTO", '"off"'), assignments)
+            self.assertIn((" " * 6, profile, "CODEGEN_UNITS", '"16"'), assignments)
+
+    def test_workflow_wires_browser_temper_outputs_and_report(self):
+        _, jobs = self.workflow()
+        for name in ("browser-temper", "browser-temper_ids"):
+            self.assertIn(f"      {name}: ${{{{ steps.plan.outputs.{name} }}}}\n", jobs["plan"])
+        self.assertIn("if: ${{ needs.plan.outputs.browser-temper == 'true' }}", jobs["browser-temper"])
+        self.assertIn("IDS: ${{ needs.plan.outputs.browser-temper_ids }}", jobs["browser-temper"])
+        needs = re.search(r"    needs: \[([^\]]+)\]", jobs["report"])[1].split(", ")
+        self.assertIn("browser-temper", needs)
+
+    def test_workflow_restores_partial_before_old_lock_and_saves_complete_only_after_build(self):
+        workflow, _ = self.workflow()
+        restore = workflow.split("- &target-restore\n", 1)[1].split("- &build\n", 1)[0]
+        complete = "target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-${{ hashFiles('tested/Cargo.lock') }}"
+        older = "target-macos-26-${{ env.PART }}-rust-${{ hashFiles('tested/rust-toolchain.toml') }}-"
+        self.assertIn("          key: " + complete + "\n", restore)
+        self.assertIn(f"          restore-keys: |\n            {complete}-partial-\n            {older}\n", restore)
+        save = workflow.split("- &target-save\n", 1)[1].split("- &registry-save\n", 1)[0]
+        self.assertIn("steps.target.outputs.cache-hit != 'true'", save)
+        self.assertIn("key: ${{ env.MACOS_BUILT == 'true' && steps.target.outputs.cache-primary-key || "
+                      "format('{0}-partial-{1}-{2}', steps.target.outputs.cache-primary-key, github.run_id, github.run_attempt) }}", save)
+
+    def test_workflow_helper_steps_exec_but_live_stays_a_script(self):
+        workflow, jobs = self.workflow()
+        for command in ("install", "wasm-compiler", 'build "$PART" "$PART.xml"', 'run "$PART" "$PART.xml"'):
+            lines = re.findall(r'(?m)^ *run: (.+"\$MACOS_HELPER" ' + re.escape(command) + r')$', workflow)
+            self.assertTrue(lines, command)
+            self.assertTrue(all(line.startswith("exec python3 -I -B ") for line in lines), lines)
+        live = jobs["live"]
+        self.assertNotRegex(live, r"(?m)^ *exec ")
+        for command in ("install", 'build "$PART" "$PART.xml"', 'run "$PART" "$PART.xml"'):
+            self.assertIn('          python3 -I -B "$MACOS_HELPER" ' + command + "\n", live)
+
+    def runner_env(self):
+        env = dict(RUNNER_TEMP=str(self.root), GITHUB_ENV=str(self.file("env", "")),
+                   GITHUB_OUTPUT=str(self.file("outputs", "")),
+                   MACOS_HELPER=str(HELPER), PART="browser-temper")
+        with mock.patch.dict(os.environ, env):
+            M["setup_runner"]()
+        env["RUN"] = str(self.root / "run")
+        return env
+
+    @staticmethod
+    def kill_group(pid):
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+    def track_commands(self):
+        popen = subprocess.Popen
+
+        def start(*args, **kwargs):
+            child = popen(*args, **kwargs)
+            self.addCleanup(self.kill_group, child.pid)
+            return child
+
+        return mock.patch.object(subprocess, "Popen", side_effect=start)
+
+    def test_deadline_stops_grandchildren_and_is_a_fault_even_after_compiler_diagnostics(self):
+        env = self.runner_env()
+        ticks = self.root / "ticks"
+        script = self.file("writer.sh", f'''echo 'error: could not compile `a` (lib)'
+(while :; do echo tick >>"{ticks}"; sleep 0.02; done) &
+wait
+''')
+        env["MACOS_STARTED"] = str(int(time.time()) - M["BOUNDS"][env["PART"]] * 60 + M["RESERVE"] + 2)
+        started = time.monotonic()
+        globals_ = M["build"].__globals__
+        with mock.patch.dict(os.environ, env), self.track_commands():
+            with mock.patch.dict(globals_, STOP_GRACE=0.2, package_map=lambda: self.table,
+                                 build_commands=lambda *_: [["bash", script]], annotate=mock.Mock()) as patched:
+                with self.assertRaisesRegex(ValueError, "browser-temper: cut short at its deadline, 15 minutes before its 150-minute timeout"):
+                    M["build"]("browser-temper", self.destination)
+                patched["annotate"].assert_called_once_with("build-browser-temper-0", self.root / "logs/build-browser-temper-0.log")
+        self.assertLess(time.monotonic() - started, 5)
+        self.assertFalse(self.destination.exists())
+        self.assertNotIn("MACOS_BUILT", Path(env["GITHUB_ENV"]).read_text())
+        size = ticks.stat().st_size
+        self.assertGreater(size, 0)
+        time.sleep(0.15)
+        self.assertEqual(ticks.stat().st_size, size)
+
+    def test_deadline_kills_a_command_ignoring_sigterm_after_grace(self):
+        env = self.runner_env()
+        ticks = self.root / "ticks"
+        # The command outlives its runner on SIGTERM: killing only the leader is insufficient.
+        script = self.file("stubborn.sh", f'''trap '' TERM
+echo ready
+while :; do echo tick >>"{ticks}"; sleep 0.02; done
+''')
+        env["MACOS_STARTED"] = str(int(time.time()) - M["BOUNDS"][env["PART"]] * 60 + M["RESERVE"] + 2)
+        started = time.monotonic()
+        with mock.patch.dict(os.environ, env), self.track_commands():
+            with mock.patch.dict(M["checked"].__globals__, STOP_GRACE=0.2, annotate=mock.Mock()):
+                with self.assertRaisesRegex(ValueError, "cut short at its deadline"):
+                    M["checked"]("stubborn", ["bash", script])
+        self.assertLess(time.monotonic() - started, 5)
+        deadline = int(env["MACOS_STARTED"]) + M["BOUNDS"][env["PART"]] * 60 - M["RESERVE"]
+        self.assertGreaterEqual(time.time() - deadline, 0.18)
+        size = ticks.stat().st_size
+        self.assertGreater(size, 0)
+        time.sleep(0.15)
+        self.assertEqual(ticks.stat().st_size, size)
+
+    def test_expired_deadline_is_a_fault_even_before_a_log_exists(self):
+        env = self.runner_env()
+        env["MACOS_STARTED"] = "0"
+        runner = self.file("silent-runner", "#!/bin/bash\nexec sleep 5\n")
+        runner.chmod(0o700)
+        env["RUN"] = str(runner)
+        with mock.patch.dict(os.environ, env), self.track_commands():
+            with contextlib.redirect_stdout(io.StringIO()) as output:
+                with self.assertRaisesRegex(ValueError, "cut short at its deadline"):
+                    M["checked"]("not-started", ["unused"])
+        self.assertIn("::error", output.getvalue())
+
+    def test_checked_without_start_has_no_deadline_and_restores_signal_handlers(self):
+        env = self.runner_env()
+        previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+        with mock.patch.dict(os.environ, env):
+            os.environ.pop("MACOS_STARTED", None)
+            self.assertEqual(M["checked"]("no-deadline", [sys.executable, "-I", "-B", "-c",
+                                                       "import time; time.sleep(0.1)"]), 0)
+            self.assertEqual({sig: signal.getsignal(sig) for sig in previous}, previous)
+
+    def test_helper_sigterm_stops_command_group_and_exits_fault(self):
+        env = self.runner_env()
+        ticks = self.root / "ticks"
+        pgid = self.root / "pgid"
+        # Reap the writer on TERM so no orphan zombie can keep the group visible.
+        runner = self.file("signal-runner", f'''#!/bin/bash
+trap 'wait; exit 0' TERM INT
+"{sys.executable}" -I -B -c 'import time
+from pathlib import Path
+while True:
+    with Path("{ticks}").open("a") as stream: stream.write("tick\\n")
+    time.sleep(0.02)' &
+echo $$ >"{pgid}"
+wait
+''')
+        runner.chmod(0o700)
+        env["RUN"] = str(runner)
+        # checked annotates its own stopped command's log.
+        self.file("logs/rustup-version.log", "cancelled\n")
+        with self.file("helper.log", "").open("w") as output:
+            child = subprocess.Popen([sys.executable, "-I", "-B", str(HELPER), "install"],
+                                     env=dict(os.environ, **env), stdin=subprocess.DEVNULL,
+                                     stdout=output, stderr=subprocess.STDOUT)
+            self.addCleanup(child.wait, 5)
+            self.addCleanup(child.kill)
+            until = time.monotonic() + 3
+            while not (pgid.exists() and ticks.exists()) and time.monotonic() < until:
+                time.sleep(0.02)
+            self.assertTrue(pgid.exists())
+            self.addCleanup(self.kill_group, int(pgid.read_text()))
+            self.assertTrue(ticks.exists())
+            child.send_signal(signal.SIGTERM)
+            self.assertEqual(child.wait(timeout=5), M["FAULT"])
+        self.assertIn("cut short by SIGTERM", (self.root / "helper.log").read_text())
+        size = ticks.stat().st_size
+        time.sleep(0.15)
+        self.assertEqual(ticks.stat().st_size, size)
+
+    def test_workflow_fetches_forge_and_installs_ripgrep_only_where_suites_need_them(self):
+        workflow = (HELPER.parents[2] / ".github/workflows/macos.yml").read_text()
+        jobs = re.split(r"(?m)^  ([a-z][a-z-]*):\n", workflow.split("\njobs:\n", 1)[1])
+        parts = dict(zip(jobs[1::2], jobs[2::2]))
+        self.assertEqual([name for name, body in parts.items() if "fetch-forge" in body],
+                         ["process", "temper", "live"])
+        self.assertEqual([name for name, body in parts.items() if "install-ripgrep" in body], ["smith"])
+        env = workflow.split("\nenv:\n", 1)[1].split("\njobs:\n", 1)[0]
+        self.assertRegex(env, r"(?m)^  RIPGREP_VERSION: 14\.1\.1$")
+        self.assertRegex(env, r"(?m)^  RIPGREP_SHA256: [0-9a-f]{64}$")
+        smith = parts["smith"]
+        self.assertLess(smith.index("- *build"), smith.index("install-ripgrep"))
+        self.assertLess(smith.index("install-ripgrep"), smith.index("- *run-part"))
+        self.assertRegex(smith, r"if: \$\{\{ steps\.build\.outputs\.run_tests == 'true' \}\}\n"
+                         r'        run: python3 -I -B "\$MACOS_HELPER" install-ripgrep')
+        temper = parts["temper"]
+        steps = re.split(r"(?m)^      - ", temper)[1:]
+        restore = next(step for step in steps if "uses: actions/cache/restore@" in step)
+        fetch = next(step for step in steps if "fetch-forge" in step)
+        save = next(step for step in steps if "uses: actions/cache/save@" in step)
+        self.assertLess(temper.index("- *build"), temper.index(restore))
+        self.assertLess(temper.index(restore), temper.index(fetch))
+        self.assertLess(temper.index(fetch), temper.index("- *run-part"))
+        self.assertLess(temper.index("- *run-part"), temper.index(save))
+        key = "key: forge-macos-26-${{ hashFiles('tested/skein/crates/skein-forge/src/forgejo/pin.rs', 'tested/temper/crates/temper-forge-setup/src/fetch.rs') }}"
+        for step in (restore, save):
+            self.assertIn("path: ${{ runner.temp }}/fetch/cache", step)
+            self.assertIn(key, step)
+            self.assertIn("@caa296126883cff596d87d8935842f9db880ef25", step)
+        self.assertNotIn("restore-keys:", restore)
+        for step in (restore, fetch):
+            self.assertIn("if: ${{ steps.build.outputs.run_tests == 'true' }}", step)
+        self.assertIn("id: forge-cache", restore)
+        self.assertIn("id: forge-fetch", fetch)
+        self.assertIn("always()", save)
+        self.assertIn("steps.forge-fetch.outcome == 'success'", save)
+        self.assertIn("steps.forge-cache.outcome == 'success'", save)
+        self.assertIn("steps.forge-cache.outputs.cache-hit != 'true'", save)
+        self.assertIn("continue-on-error: true", save)
 
     def test_runner_preserves_status_and_annotates_log_without_shell_splicing(self):
         envfile = self.file("env", "")

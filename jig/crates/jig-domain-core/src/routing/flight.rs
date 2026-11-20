@@ -43,7 +43,7 @@ pub(crate) enum Internal {
     Admission,
     Deletion { project: u32 },
     Delegate,
-    Repair,
+    Repair { number: u64 },
     Acknowledge,
 }
 
@@ -183,6 +183,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::CarvePool { reply_to, .. }
         | tasks::Event::ResizePool { reply_to, .. }
         | tasks::Event::ResizePeriod { reply_to, .. }
+        | tasks::Event::RecordWords { reply_to, .. }
         | tasks::Event::Turn { reply_to, .. }
         | tasks::Event::Make { reply_to, .. }
         | tasks::Event::MakeResultFollowups { reply_to, .. }

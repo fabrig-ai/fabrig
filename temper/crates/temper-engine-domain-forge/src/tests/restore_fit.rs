@@ -59,6 +59,9 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
         }),
         RecordKind::Forge => Stored::Forge(records::record(u16::try_from(number).expect("fixture forge"))),
         RecordKind::Landing => Stored::Landing(LandingRow {
+            last_event: None,
+            turn_since: None,
+            waiting: None,
             flake_reruns: Box::new([]),
             room: None,
             job: None,
@@ -73,6 +76,7 @@ pub(crate) fn row(kind: RecordKind, number: u32) -> Stored {
                 members: Box::new([]),
                 preparation: 0,
                 stale_proofs: 0,
+                last_prepare: None,
                 branch: Box::from(b"main".as_slice()),
             },
             asks: Box::new([]),
@@ -761,6 +765,9 @@ fn landing(members: u32, gates: u32) -> LandingRow {
         landed: None,
     };
     LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -775,6 +782,7 @@ fn landing(members: u32, gates: u32) -> LandingRow {
             members: vec![member; usize::try_from(members).unwrap()].into_boxed_slice(),
             preparation: 0,
             stale_proofs: 0,
+            last_prepare: None,
             branch: Box::from(b"main".as_slice()),
         },
         asks: Box::new([]),

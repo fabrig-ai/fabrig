@@ -5,6 +5,7 @@
 use super::{Machine, Parent, World};
 use skein_fake_machine::{How, Item, Opened};
 use skein_lib::{List, Queue, Reader};
+use smith_channel::Record;
 
 // A coding model's output allowance, as in the standard native coding setup.
 pub(super) const OUTPUT: u32 = 32_768;
@@ -55,12 +56,12 @@ impl World {
 pub(super) fn start(parent: &mut Parent, charter: &[u8]) {
     let frame = crate::start_workspace(charter, 8, true);
     let frame = crate::wire::edit_start(&frame, |parts| {
-        let mut workspace = parts.workspace.take().expect("workspace").into_parts();
+        let mut workspace = parts.workspace.take().expect("workspace");
         let directory = workspace.directories.get_mut(0).expect("coding root");
-        let mut root = directory.clone().into_parts();
+        let mut root = directory.clone();
         root.writable = true;
-        *directory = smith_channel::Directory::new(&smith_channel::CEILINGS, root).expect("writable root");
-        parts.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
+        *directory = root;
+        parts.workspace = Some(workspace);
     });
     parent.peer = crate::host_with_limits(configuration().limits.channel);
     parent.peer.play(frame);
@@ -74,29 +75,15 @@ pub(super) fn answer_delivery(parent: &mut Parent) {
     for frame in calls {
         let limits = &smith_channel::CEILINGS;
         let call = smith_channel::Call::decode(limits, &mut Reader::new(&frame.body)).expect("delivery call");
-        assert!(matches!(call.ask(), smith_channel::Ask::Deliver(_)), "the coding host only receives delivery");
+        assert!(matches!(&call.ask, smith_channel::Ask::Deliver(_)), "the coding host only receives delivery");
         let mut receipts = List::with_capacity(1);
         receipts
-            .push(
-                smith_channel::Receipt::new(
-                    limits,
-                    smith_channel::ReceiptParts { directory: 0, text: b"checked files kept".as_slice().into() },
-                )
-                .expect("receipt"),
-            )
+            .push(smith_channel::Receipt { directory: 0, text: b"checked files kept".as_slice().into() })
             .expect("one writable root");
-        let delivered =
-            smith_channel::Delivered::new(limits, smith_channel::DeliveredParts { receipts }).expect("delivered");
-        let reply = smith_channel::DeliveryReply::new(
-            limits,
-            smith_channel::DeliveryReplyParts { value: smith_channel::Delivery::Delivered(delivered) },
-        )
-        .expect("delivery reply");
-        let answer = smith_channel::HostAnswer::new(
-            limits,
-            smith_channel::HostAnswerParts { name: call.name().clone(), reply: smith_channel::Reply::Delivery(reply) },
-        )
-        .expect("host delivery answer");
+        let delivered = smith_channel::Delivered { receipts };
+        let reply = smith_channel::DeliveryReply { value: smith_channel::Delivery::Delivered(delivered) };
+        let answer =
+            smith_channel::HostAnswer { name: call.name.clone(), reply: smith_channel::Reply::Delivery(reply) };
         parent.peer.play(crate::frame!(0x0102, answer));
         parent.coding_deliveries = Some(parent.coding_deliveries.expect("coding host") + 1);
     }

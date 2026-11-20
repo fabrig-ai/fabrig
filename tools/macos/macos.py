@@ -8,25 +8,32 @@ import os
 from pathlib import Path
 import re
 import shutil
+import signal
 import subprocess
 import sys
+import time
 import tomllib
 import uuid
 import xml.etree.ElementTree as ET
 
 
 SETS = {
-    "e2e": ("process", "browser"),
+    "e2e": ("process", "browser", "browser-temper"),
     "suites": ("skein", "smith", "jig", "temper"),
     "live": ("live",),
 }
 SETS["all"] = SETS["e2e"] + SETS["suites"]
 PAIRS = {
     "process": ("process-temper",),
-    "browser": ("browser-temper", "browser-jig", "browser-skein"),
+    "browser": ("browser-jig", "browser-skein"),
+    "browser-temper": ("browser-temper",),
     "live": ("live-temper", "live-skein"),
 }
 FAULT = 2
+BOUNDS = {"process": 150, "browser": 150, "browser-temper": 150,
+          "skein": 300, "smith": 300, "jig": 300, "temper": 300, "live": 60}
+RESERVE = 15 * 60
+STOP_GRACE = 60
 
 
 def ids(text):
@@ -207,7 +214,8 @@ def report(parts, directory, destination):
 
 
 def annotate(name, path):
-    lines = Path(path).read_text(encoding="utf-8", errors="replace").splitlines()
+    path = Path(path)
+    lines = path.read_text(encoding="utf-8", errors="replace").splitlines() if path.exists() else []
     failed = [line.strip() for line in lines
               if re.match(r"\s+(FAIL|SIGSEGV|SIGABRT|SIGKILL|TIMEOUT|LEAK-FAIL)\s+\[", line)]
     headlines = [line for line in lines if re.match(r"(error(\[E\d+\])?|warning): ", line)]
@@ -240,9 +248,64 @@ exit "$status"
         stream.write(f"RUN={runner}\nMACOS_HELPER={helper}\n")
 
 
+def stop_group(child):
+    """Stop the runner and its descendants, even if the runner has already exited."""
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        signal.signal(sig, signal.SIG_IGN)
+
+    def send(sig):
+        try:
+            os.killpg(child.pid, sig)
+            return True
+        except ProcessLookupError:
+            return False
+
+    send(signal.SIGTERM)
+    until = time.monotonic() + STOP_GRACE
+    while True:
+        child.poll()
+        if not send(0):
+            break
+        if time.monotonic() >= until:
+            send(signal.SIGKILL)
+            break
+        time.sleep(min(0.1, max(0, until - time.monotonic())))
+    child.wait()
+
+
 def checked(name, command):
-    return subprocess.run([os.environ["RUN"], name, *map(str, command)],
-                          stdin=subprocess.DEVNULL, check=False).returncode
+    """Keep the saves' reserve and propagate cancels to the command's group (4.4)."""
+    timeout = None
+    part = os.environ.get("PART")
+    if "MACOS_STARTED" in os.environ:
+        deadline = int(os.environ["MACOS_STARTED"]) + BOUNDS[part] * 60 - RESERVE
+        timeout = max(0, deadline - time.time())
+    child = subprocess.Popen([os.environ["RUN"], name, *map(str, command)],
+                             stdin=subprocess.DEVNULL, start_new_session=True)
+    previous = {sig: signal.getsignal(sig) for sig in (signal.SIGINT, signal.SIGTERM)}
+
+    def cut_short(reason):
+        stop_group(child)
+        annotate(name, Path(os.environ["RUNNER_TEMP"]) / f"logs/{name}.log")
+        raise ValueError(reason)
+
+    def cancelled(sig, _frame):
+        # Unwind Popen.wait's lock before reaping the stopped group.
+        raise InterruptedError(f"{part}: cut short by {signal.Signals(sig).name}")
+
+    try:
+        for sig in previous:
+            signal.signal(sig, cancelled)
+        try:
+            return child.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            cut_short(f"{part}: cut short at its deadline, {RESERVE // 60} minutes "
+                      f"before its {BOUNDS[part]}-minute timeout")
+        except InterruptedError as error:
+            cut_short(str(error))
+    finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
 
 
 def require(name, command):
@@ -302,13 +365,25 @@ def build(part, destination):
     meta = metadata() if part not in PAIRS else None
     for index, command in enumerate(build_commands(part, packages, meta)):
         name = f"build-{part}-{index}"
+        log = Path(os.environ["RUNNER_TEMP"]) / f"logs/{name}.log"
         if checked(name, command):
-            build_case(part, Path(os.environ["RUNNER_TEMP"]) / f"logs/{name}.log", destination)
+            build_case(part, log, destination)
             output("build_red", "true")
             output("run_tests", "false")
             return
+        compiled = compilations(log)
+        workspace = sum(source.startswith("/") for _, source in compiled)
+        annotation("notice", name, f"compiled {len(compiled) - workspace} dependencies "
+                   f"and {workspace} workspace crates")
+    with Path(os.environ["GITHUB_ENV"]).open("a") as stream:
+        stream.write("MACOS_BUILT=true\n")
     output("build_red", "false")
     output("run_tests", str(not ids(os.environ.get("IDS", "")) or bool(filterset(ids(os.environ["IDS"])))).lower())
+
+
+def compilations(log):
+    return [(match[1], match[2] or "") for match in re.finditer(
+        r"^\s+Compiling (\S+) v\S+(?: \((.*)\))?$", Path(log).read_text(encoding="utf-8", errors="replace"), re.M)]
 
 
 def run_arguments(part, selected, packages):
@@ -366,6 +441,11 @@ def run_part(part, destination):
             # tools/tiers/run owns its package selection and prerequisites.
             extra = args[2 * len(packages[profile]):]
             status = checked(f"run-{profile}", ["tools/tiers/run", tree, tier, "--", *extra])
+            if profile.startswith("browser-"):
+                compiled = compilations(Path(os.environ["RUNNER_TEMP"]) / f"logs/run-{profile}.log")
+                if compiled:
+                    annotation("warning", f"run-{profile}: compiled during run",
+                               ", ".join(dict.fromkeys(crate for crate, _ in compiled)))
             check_nextest(listing, path, status, ignored)
         else:
             directory = root / profile
@@ -397,6 +477,28 @@ def install():
     require("rust-version", ["rustc", "--version"])
     require("nextest-version", ["cargo", "nextest", "--version"])
     require("platform", ["uname", "-a"])
+
+
+def install_ripgrep():
+    """Install smith's checked ripgrep pin (temper/docs/design/testing/macos.md, 6)."""
+    root = Path(os.environ["RUNNER_TEMP"])
+    version = os.environ["RIPGREP_VERSION"]
+    release = f"ripgrep-{version}-aarch64-apple-darwin"
+    archive = root / f"{release}.tar.gz"
+    require("rg-download", ["curl", "-sSfL", "-o", archive,
+                            f"https://github.com/BurntSushi/ripgrep/releases/download/{version}/{release}.tar.gz"])
+    checksum = root / "ripgrep.sha256"
+    checksum.write_text(f"{os.environ['RIPGREP_SHA256']}  {archive}\n")
+    require("rg-digest", ["shasum", "-a", "256", "-c", checksum])
+    destination = root / "ripgrep"
+    destination.mkdir()
+    require("rg-unpack", ["tar", "-xzf", archive, "-C", destination])
+    binary = destination / release / "rg"
+    if not binary.is_file():
+        raise ValueError(f"ripgrep: missing {binary}")
+    require("rg-version", [binary, "--version"])
+    with Path(os.environ["GITHUB_PATH"]).open("a") as stream:
+        stream.write(f"{binary.parent}\n")
 
 
 def wasm_compiler():
@@ -433,11 +535,13 @@ def wasm_compiler():
 def fetch_forge():
     # The first prepare's expected refusal is not a failed check (2).
     root = Path(os.environ["RUNNER_TEMP"]) / "fetch"
-    root.mkdir(mode=0o700)
+    root.mkdir(mode=0o700, exist_ok=True)
+    root.chmod(0o700)
     flags = []
     for name in ("config", "data", "cache"):
         directory = root / name
-        directory.mkdir(mode=0o700)
+        directory.mkdir(mode=0o700, exist_ok=name == "cache")
+        directory.chmod(0o700)
         flags += ["--" + name, str(directory)]
     binary = "target/debug/temper-box"
     require("init", [binary, "init", *flags, "--box"])
@@ -463,38 +567,63 @@ def fetch_forge():
             stream.write(f"{variable}={matches[0]}\n")
 
 
-def prune(target, meta):
+def prune(target, meta, dependencies):
     """Keep dependencies alone, including when a target cache was restored (6)."""
     target = Path(target)
     names = {package["name"] for package in meta["packages"]}
     names |= {item["name"] for package in meta["packages"] for item in package["targets"]}
-    names |= {name.replace("-", "_") for name in names}
-    executables = {item["name"] for package in meta["packages"] for item in package["targets"]
-                   if any(kind in ("bin", "test", "bench", "example") for kind in item["kind"])}
-    # Cargo's custom profiles (including the playground's wasm builds) have
-    # the same output layout as debug/release; infer them rather than listing them.
-    directories = {path.parent for area in ("deps", ".fingerprint", "build")
-                   for path in target.rglob(area) if path.is_dir()}
-    for directory in directories:
-        for area in ("deps", ".fingerprint", "build"):
-            folder = directory / area
-            if not folder.is_dir():
-                continue
-            for path in folder.iterdir():
-                name = path.name.removeprefix("lib")
-                if any(name == own or name.startswith(own + "-") or name.startswith(own + ".") for own in names | executables):
-                    remove_path(path)
-        for name in executables:
-            for suffix in ("", ".d", ".dSYM"):
-                remove_path(directory / (name + suffix))
-        remove_path(directory / "examples")
-        remove_path(directory / "incremental")
+
+    def spellings(values):
+        return {form for name in values for form in (name, name.replace("-", "_"), name.replace("_", "-"))}
+
+    names = spellings(names)
+    shared = names & spellings(dependencies)
+    for name in sorted({name.replace("_", "-") for name in shared}):
+        annotation("warning", "prune: dependency shares a workspace name", name)
+    names -= shared
+    patterns = [re.compile(rf"{re.escape(name)}(-[0-9a-f]{{16}})?(\..+)?") for name in names]
+    profiles = {path.parent for path in target.rglob(".fingerprint") if path.is_dir()}
+    ancestors = {parent for profile in profiles for parent in profile.parents
+                 if parent == target or target in parent.parents}
+
+    def clean(directory):
         for path in directory.iterdir():
-            name = path.name.removeprefix("lib")
-            if any(name == own or name.startswith(own + ".") for own in names):
+            if directory in profiles and path.name in ("deps", "build", ".fingerprint"):
+                for entry in path.iterdir():
+                    if any(pattern.fullmatch(entry.name.removeprefix("lib")) for pattern in patterns):
+                        remove_path(entry)
+            elif path in profiles or path in ancestors:
+                clean(path)
+            elif directory == target and path.name in (".rustc_info.json", "CACHEDIR.TAG"):
+                continue
+            else:
                 remove_path(path)
-    for name in ("nextest", "tiers-one-process", "temper-bundle", "temper-playground", "jig-test-bundle", "ui-example-bundle"):
-        remove_path(target / name)
+
+    if target.is_dir():
+        clean(target)
+
+
+def prune_cache():
+    """Prune in the saves' reserve, retaining all dependency areas if names are unavailable."""
+    target = Path("target")
+    try:
+        started = os.environ.pop("MACOS_STARTED", None)
+        try:
+            meta = metadata()
+        finally:
+            if started is not None:
+                os.environ["MACOS_STARTED"] = started
+        target = Path(meta["target_directory"])
+        lock = tomllib.loads(Path("Cargo.lock").read_text())
+        dependencies = {package["name"] for package in lock["package"] if "source" in package}
+    except (ValueError, KeyError, OSError) as error:
+        annotation("warning", "prune: keeping dependency areas whole", error)
+        meta = {"packages": []}
+        dependencies = set()
+    try:
+        prune(target, meta, dependencies)
+    except OSError as error:
+        annotation("warning", "prune: could not remove every output", error)
 
 
 def remove_path(path):
@@ -537,6 +666,7 @@ def main():
         sub.add_argument("part", choices=(*SETS["all"], "live"))
         sub.add_argument("destination", type=Path)
     commands.add_parser("install")
+    commands.add_parser("install-ripgrep")
     commands.add_parser("wasm-compiler")
     commands.add_parser("fetch-forge")
     commands.add_parser("prune")
@@ -575,13 +705,14 @@ def main():
             run_part(args.part, args.destination)
         elif args.command == "install":
             install()
+        elif args.command == "install-ripgrep":
+            install_ripgrep()
         elif args.command == "wasm-compiler":
             wasm_compiler()
         elif args.command == "fetch-forge":
             fetch_forge()
         elif args.command == "prune":
-            meta = metadata()
-            prune(meta["target_directory"], meta)
+            prune_cache()
         elif args.command == "verdict":
             if any(case.find("failure") is not None or case.find("error") is not None
                    for suite in suites(args.destination) for case in suite.iter("testcase")):

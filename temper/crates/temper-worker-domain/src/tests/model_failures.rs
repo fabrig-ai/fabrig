@@ -78,6 +78,7 @@ fn named(kind: host::ModelFailureKind, evidence: host::ModelEvidence, status: Op
         kind,
         evidence,
         status,
+        refusal: None,
     }
 }
 

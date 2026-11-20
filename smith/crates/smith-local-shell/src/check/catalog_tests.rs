@@ -5,10 +5,11 @@ use std::os::unix::fs::PermissionsExt;
 fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Settings {
     let (endpoint, _) = model.split_once('/').expect("fixture model");
     let certificate = crate::fixture::trust();
+    let path = crate::fixture::commands_path();
     let base = format!(
         "model='{model}'\ncredentials='{}'\n[accounts.{endpoint}]\nsource='{source}'\n\
          [endpoints.{endpoint}]\naccount='{endpoint}'\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n\
-         [environment]\ninherit=[]\n[environment.set]\nPATH='/usr/bin:/bin'\n",
+         [environment]\ninherit=[]\n[environment.set]\nPATH='{path}'\n",
         files.path().join("unopened").display(),
         certificate.display()
     );
@@ -24,7 +25,7 @@ fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Sett
             },
         ],
     ));
-    settings.paths.path = Some("/usr/bin:/bin".into());
+    settings.paths.path = Some(crate::fixture::commands_path().into());
     settings.paths.state_home = Some(files.path().join("state").into());
     settings
 }
@@ -34,6 +35,29 @@ fn checked(settings: &Settings) -> Box<Report> {
         Verdict::Ready(report) => report,
         Verdict::Refused(why) => panic!("{}", why.line()),
     }
+}
+
+#[test]
+fn check_names_the_agents_rg_and_refuses_a_path_without_it() {
+    let files = Files::new("smith-check-rg");
+    for (name, target) in [("sh", "/bin/sh"), ("git", "/usr/bin/git")] {
+        std::os::unix::fs::symlink(target, files.path().join(name)).expect("fixture tool");
+    }
+    let rg = files.path().join("rg");
+    std::fs::write(&rg, b"unexecuted rg stand-in\n").expect("rg stand-in");
+    std::fs::set_permissions(&rg, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
+    let extra = format!("[environment.set]\nPATH='{}'\n", files.path().display());
+    let settings = check_settings(&files, "openai/gpt-6-luna", "none", &extra);
+    let report = checked(&settings);
+    assert_eq!(report.tools.get("rg"), Some(&rg), "report names commands' rg");
+    let resolved = crate::fixture::ready(settings::resolve::resolve(&settings));
+    assert_eq!(resolved.agent.service.rg.as_ref(), rg.as_os_str().as_encoded_bytes(), "agent uses the reported rg");
+    std::fs::remove_file(&rg).expect("remove only rg");
+    let Verdict::Refused(why) = super::report(&settings, skein_lib::Wall::EPOCH, &skein_shell::Clock::new()) else {
+        panic!("check must refuse an rg absent from PATH, not use the run's fallback");
+    };
+    assert_eq!(why.key, "tools.rg");
+    assert_eq!(why.problem, Problem::MissingTool);
 }
 
 #[test]
@@ -282,7 +306,7 @@ fn the_report_lists_each_program_a_run_may_use() {
         files.path().to_path_buf(),
         &[settings::Source { layer: settings::Layer::User, path: files.path().join("config.toml"), text }],
     ));
-    settings.paths.path = Some("/usr/bin:/bin".into());
+    settings.paths.path = Some(crate::fixture::commands_path().into());
     let report = match report(&settings, skein_lib::Wall::from_nanos(0), &skein_shell::Clock::new()) {
         Verdict::Ready(report) => report,
         Verdict::Refused(why) => panic!("{}", why.line()),

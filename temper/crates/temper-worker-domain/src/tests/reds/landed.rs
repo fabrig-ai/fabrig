@@ -13,6 +13,7 @@ fn prepared() -> Harness {
         landing: Some(Box::from(b"goal".as_slice())),
         expected: None,
         delivered: None,
+        pin: None,
     };
     let mut h = Harness::new();
     h.env.limits.checkout.conflicts = 1;

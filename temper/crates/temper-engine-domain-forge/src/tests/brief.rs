@@ -2,6 +2,9 @@ use super::*;
 use skein_forge::api::{Answer, Check, JobAttempt, Read, Status, Step};
 use temper_engine_domain_forge_change as change;
 
+#[path = "brief/landing_pin.rs"]
+mod landing_pin;
+
 // temper-service's shipped root.brief.budgets.ci; read_bytes is 4608 and
 // forge.client.answer_bytes exceeds the five-check log share of 819 bytes.
 const SHIPPED_CI: u32 = 4096;
@@ -1290,6 +1293,9 @@ fn kept_landing_failure(d: &mut Domain) {
     let mut round = policy::Round::new(b"temper/1/l61".as_slice().into());
     round.failure = br#"{"failure":"kept round's failed step and log\n"}"#.as_slice().into();
     let row = LandingRow {
+        last_event: None,
+        turn_since: None,
+        waiting: None,
         flake_reruns: Box::new([]),
         room: None,
         job: None,
@@ -1302,6 +1308,7 @@ fn kept_landing_failure(d: &mut Domain) {
             phase: policy::Phase::Cancelled,
             preparation: 1,
             stale_proofs: 0,
+            last_prepare: None,
             branch: b"main".as_slice().into(),
             members: Box::new([policy::Member {
                 round: None,

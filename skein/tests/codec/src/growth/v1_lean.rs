@@ -108,6 +108,15 @@ impl Record for Growth {
         Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.decoded)
     }
 
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Sequence { limit: limits.growth_items.min(CEILINGS.growth_items), minimum: 8, item: field::U64 }, &self.items, limits, out, paths::GROWTH_ITEMS)?;
         Ok(())

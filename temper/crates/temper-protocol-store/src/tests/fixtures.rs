@@ -907,6 +907,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         change: Change {
             ended_held: None,
             early: temper_engine_domain_forge_change::Early::None,
+            landing_ask: None,
             way: temper_engine_domain_forge_change::Way::Queue,
             landing: None,
             task: 1,
@@ -940,6 +941,7 @@ pub fn change_row(state: temper_engine_domain_forge_change::State) -> top::Chang
         delegate: Some((18, Delegate::Gate { number: 19, head: [20; 32] })),
         delegate_status: Status::Passed,
         delegate_flake: false,
+        delegate_no_test: false,
         delegate_head: None,
         verdicts: Box::new([GateReport { number: 21, head: [22; 32], status: Status::Failed }]),
         milestone: None,
@@ -1097,6 +1099,7 @@ pub fn forge_record() -> top::ForgeRecord {
         asked: true,
         first: Some(top::FirstIntent::Empty(top::EmptyIntent {
             playground: true,
+            sample: false,
             org: b"playground".as_slice().into(),
             repository: b"widget".as_slice().into(),
             label: b"playground".as_slice().into(),

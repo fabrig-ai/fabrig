@@ -9,7 +9,7 @@ use skein_ui_screen_terminal::Key;
 use temper_client_tui::{BoxLine, Scheme};
 
 pub(in crate::journey) fn printed_link() -> Box<[u8]> {
-    format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into()
+    format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into()
 }
 
 pub(in crate::journey) fn written(records: &[Line]) -> Box<[u8]> {
@@ -24,6 +24,17 @@ fn body(secret: &[u8]) -> Box<[u8]> {
     let mut bytes = u32::try_from(secret.len()).expect("fake secret length").to_be_bytes().to_vec();
     bytes.extend_from_slice(secret);
     bytes.into()
+}
+
+fn approval_body(secret: &[u8]) -> Box<[u8]> {
+    let record = w::ApprovalSignIn::new(
+        &w::CEILINGS,
+        w::ApprovalSignInParts { secret: skein_lib::Secret::new(secret.into()), grant: None },
+    )
+    .expect("approval take");
+    let mut bytes = Writer::new(usize::try_from(record.measure()).expect("small take"));
+    record.encode(&mut bytes).expect("measured take");
+    bytes.finish()
 }
 
 fn send(message: Sent, credential: Option<Box<[u8]>>) -> Line {
@@ -76,7 +87,7 @@ fn places_with(bytes: &[u8], body: &[u8]) -> Vec<Line> {
 #[test]
 fn web_browse_and_its_wrapped_note_are_redacted_and_prove() {
     let encoded = url_base64(&[0x53; 32]);
-    let url: Box<[u8]> = [b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=".as_slice(), &encoded].concat().into();
+    let url: Box<[u8]> = [b"http://127.0.0.1:8367/sign-in?secret=".as_slice(), &encoded].concat().into();
     let mut world = World::with_front(b"127.0.0.1:8367", true);
     let duties = world.report(Report::Local { link: Some(skein_lib::Secret::new(url.clone())) });
     let exchange = duties
@@ -186,7 +197,7 @@ fn each_original_is_replaced_and_scanned_in_each_field() {
             "approval take",
             Kind::Approval,
             approval.as_slice(),
-            vec![send(Sent::SignInApproval(body(&approval)), None)],
+            vec![send(Sent::SignInApproval(approval_body(&approval)), None)],
             vec![],
         ),
         ("credential start", Kind::Credential, credential.as_ref(), vec![Line::Credential(credential.clone())], vec![]),
@@ -482,18 +493,15 @@ fn redacted_approval_proves_and_replays_to_its_end() {
 
 #[test]
 fn found_links_are_redacted_even_when_never_sent() {
-    let url = printed_link();
+    let url: Box<[u8]> =
+        format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into();
     let mapping = jig_client_protocol_http::Mapping::with_page(b"/jig", temper_client_domain::sign_in::LINK_PAGE)
         .expect("temper mapping");
     let mut failures = Vec::new();
     for (name, source, sent) in [
         ("found never sent", Line::Found(Some(url.clone())), false),
         ("found sent", Line::Found(Some(url.clone())), true),
-        (
-            "page found never sent",
-            Line::Found(Some(format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into())),
-            false,
-        ),
+        ("page found never sent", Line::Found(Some(printed_link())), false),
         ("box-line never sent", Line::BoxLine([b"link ".as_slice(), &url].concat().into()), false),
     ] {
         let mut records = vec![source];

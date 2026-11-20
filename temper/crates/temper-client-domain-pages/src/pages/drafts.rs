@@ -63,7 +63,7 @@ impl Drafts {
                     None => return true,
                 };
                 if let Some(panel) = panel
-                    && panel.project() == self.project
+                    && panel.project == self.project
                 {
                     self.state = State::Shown(Box::new(panel));
                 } else {

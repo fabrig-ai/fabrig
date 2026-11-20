@@ -2,6 +2,7 @@
 use super::{Names, PublicAsk, w};
 use crate::{ChangeRow, Domain, Limits};
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_change as c;
 struct Step {
     kind: w::PublicStep,
@@ -44,27 +45,21 @@ impl Domain {
                 verdict = worse(verdict, c::Status::Pending);
             }
             gates
-                .push(
-                    w::PublicGate::new(
-                        l,
-                        w::PublicGateParts {
-                            number: gate.number,
-                            kind: match gate.kind {
-                                c::GateKind::Agent => w::PublicGateKind::Review,
-                                c::GateKind::Person => w::PublicGateKind::Approval,
-                                c::GateKind::Check | c::GateKind::Follow => w::PublicGateKind::Check,
-                            },
-                            blocks: gate.blocking,
-                            verdict: match verdict {
-                                c::Status::Unknown => w::PublicVerdict::None,
-                                c::Status::Pending => w::PublicVerdict::Pending,
-                                c::Status::Passed => w::PublicVerdict::Approved,
-                                c::Status::Failed => w::PublicVerdict::Changes,
-                            },
-                        },
-                    )
-                    .ok()?,
-                )
+                .push(w::PublicGate {
+                    number: gate.number,
+                    kind: match gate.kind {
+                        c::GateKind::Agent => w::PublicGateKind::Review,
+                        c::GateKind::Person => w::PublicGateKind::Approval,
+                        c::GateKind::Check | c::GateKind::Follow => w::PublicGateKind::Check,
+                    },
+                    blocks: gate.blocking,
+                    verdict: match verdict {
+                        c::Status::Unknown => w::PublicVerdict::None,
+                        c::Status::Pending => w::PublicVerdict::Pending,
+                        c::Status::Passed => w::PublicVerdict::Approved,
+                        c::Status::Failed => w::PublicVerdict::Changes,
+                    },
+                })
                 .ok()?;
         }
         let ci = match if row.terminal() { row.ci.as_ref() } else { self.panel_ci.get(&row.task) } {
@@ -75,9 +70,8 @@ impl Domain {
             Some(landing) => self.public_landing(ask, landing),
             None => false,
         };
-        w::PublicChange::new(
-            l,
-            w::PublicChangeParts {
+        {
+            let value = w::PublicChange {
                 task: names.name(row.task)?,
                 head: row.change.last_head,
                 step: step.kind,
@@ -100,9 +94,10 @@ impl Domain {
                     c::Way::Turn => w::PublicWay::Turn,
                 },
                 in_landing,
-            },
-        )
-        .ok()
+            };
+            value.measure(l).ok()?;
+            Some(value)
+        }
     }
     fn public_step(&self, row: &ChangeRow, state: &c::State) -> Option<Step> {
         let mut repair = None;
@@ -131,13 +126,10 @@ impl Domain {
                     c::Repair::Ci => w::PublicRepair::Ci,
                     c::Repair::Review { .. } => w::PublicRepair::Review,
                     c::Repair::Semantic => w::PublicRepair::Semantic,
-                    c::Repair::Gate(gate) => w::PublicRepair::Gate(
-                        w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: *gate }).ok()?,
-                    ),
-                    c::Repair::LandingAt { gate, .. } | c::Repair::Landing { gate } => w::PublicRepair::Landing(
-                        w::PublicGateNumber::new(&w::CEILINGS, w::PublicGateNumberParts { gate: u64::from(*gate) })
-                            .ok()?,
-                    ),
+                    c::Repair::Gate(gate) => w::PublicRepair::Gate(w::PublicGateNumber { gate: *gate }),
+                    c::Repair::LandingAt { gate, .. } | c::Repair::Landing { gate } => {
+                        w::PublicRepair::Landing(w::PublicGateNumber { gate: u64::from(*gate) })
+                    }
                 });
                 w::PublicStep::Repairing
             }
@@ -172,7 +164,11 @@ impl Domain {
     }
 }
 fn used(used: u32, limit: u32) -> Option<w::PublicUsed> {
-    w::PublicUsed::new(&w::CEILINGS, w::PublicUsedParts { used, limit }).ok()
+    {
+        let value = w::PublicUsed { used, limit };
+        value.measure(&w::CEILINGS).ok()?;
+        Some(value)
+    }
 }
 fn hold_kind(why: c::Hold) -> w::PublicHold {
     match why {
@@ -186,6 +182,7 @@ fn hold_kind(why: c::Hold) -> w::PublicHold {
         c::Hold::Retargeted => w::PublicHold::Retargeted,
         c::Hold::Failed => w::PublicHold::Failed,
         c::Hold::Flake => w::PublicHold::Flake,
+        c::Hold::NoTest => w::PublicHold::NoTest,
         c::Hold::Rejected => w::PublicHold::Rejected,
         c::Hold::Authority(_) => w::PublicHold::Authority,
         c::Hold::Questions => w::PublicHold::Questions,

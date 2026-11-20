@@ -106,7 +106,12 @@ fn out_of_range(current: &Current, defaults: bool, setting: Setting, value: &Val
         || if defaults {
             number > super::STOCK_NUMBERS
         } else {
-            number <= super::STOCK_NUMBERS && current.default_value(setting).is_none()
+            number <= super::STOCK_NUMBERS
+                && current.default_value(setting).is_none()
+                && match current.changes.get(&setting) {
+                    Some(change) => change.value.is_none(),
+                    None => true,
+                }
         }
 }
 
@@ -118,6 +123,33 @@ fn check_ranges(current: &Current, defaults: bool, items: &[Item]) -> Result<(),
         }
     }
     Ok(())
+}
+
+/// Stored values kept at stock numbers without a default, in setting order (domain/engine/settings.md, 7).
+#[must_use]
+pub fn kept(current: &Current) -> Box<[Setting]> {
+    let mut result = skein_lib::List::with_capacity(current.changes.len());
+    for (&setting, change) in &current.changes {
+        let number = match setting {
+            Setting::Charter(number) | Setting::Template(number) | Setting::Policy(number) | Setting::Model(number) => {
+                number
+            }
+            Setting::Rules
+            | Setting::Limits
+            | Setting::Provider(_)
+            | Setting::Worker(_)
+            | Setting::Application { .. }
+            | Setting::ProjectPolicy { .. } => continue,
+        };
+        if number != 0
+            && number <= super::STOCK_NUMBERS
+            && change.value.is_some()
+            && current.default_value(setting).is_none()
+        {
+            result.push(setting).expect("one per held change");
+        }
+    }
+    result.into_boxed()
 }
 
 /// All defaults and offered changes outside their numbers, in setting order (domain/engine/settings.md, 7).
@@ -812,7 +844,9 @@ fn template_fault(
     }
     None
 }
-fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
+/// The template choice check against the deployment catalogue.
+#[must_use]
+pub fn choice_valid(models: &[crate::Model], choice: &tasks::LlmChoice) -> bool {
     if !agents_valid(models, choice.main, &choice.subagents) {
         return false;
     }

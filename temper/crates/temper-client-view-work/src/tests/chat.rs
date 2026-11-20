@@ -1329,6 +1329,7 @@ fn the_request_uses_the_first_timed_line_and_shares_its_day() {
             attempt: ATTEMPT,
             why: jig_client::contract::RunWhy::Made,
             resumed: false,
+            fresh: None,
         },
     );
     let thread = timed_thread(&[(TURN_NOON - 60, began), (TURN_NOON, timed_words())]);

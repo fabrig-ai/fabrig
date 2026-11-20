@@ -336,10 +336,11 @@ pub fn line(source: &domain::Line, limits: &wire::Limits) -> Result<wire::Line, 
             recipient: value::party(recipient, limits)?,
             word: word(message, limits)?,
         }),
-        domain::Line::RunBegan { attempt, why, resumed } => wire::Line::RunBegan(wire::BeganLine {
+        domain::Line::RunBegan { attempt, why, resumed, fresh: cause } => wire::Line::RunBegan(wire::BeganLine {
             attempt: *attempt,
             why: value::why(*why, limits)?,
             resumed: *resumed,
+            fresh: fresh(*cause),
         }),
         domain::Line::RunEnded { attempt, end, spent } => {
             wire::Line::RunEnded(wire::EndedLine { attempt: *attempt, end: end_kind(end, limits)?, spent: *spent })
@@ -396,8 +397,8 @@ pub fn read_line(source: wire::Line, limits: &wire::Limits) -> Result<domain::Li
             domain::Line::Notified { recipient: value::read_party(recipient), word: read_word(word, limits)? }
         }
         wire::Line::RunBegan(source) => {
-            let wire::BeganLine { attempt, why, resumed } = source;
-            domain::Line::RunBegan { attempt, why: value::read_why(why), resumed }
+            let wire::BeganLine { attempt, why, resumed, fresh: cause } = source;
+            domain::Line::RunBegan { attempt, why: value::read_why(why), resumed, fresh: read_fresh(cause) }
         }
         wire::Line::RunEnded(source) => {
             let wire::EndedLine { attempt, end, spent } = source;
@@ -475,5 +476,31 @@ fn read_settings_outcome(value: wire::SettingsOutcome) -> domain::SettingsOutcom
         wire::SettingsOutcome::Accepted(value) => domain::SettingsOutcome::Accepted { revision: value.revision },
         wire::SettingsOutcome::Rejected => domain::SettingsOutcome::Rejected,
         wire::SettingsOutcome::Stale(value) => domain::SettingsOutcome::Stale { newest: value.newest },
+    }
+}
+
+fn fresh(value: Option<domain::Fresh>) -> Option<wire::Fresh> {
+    match value {
+        None => None,
+        Some(value) => Some(match value {
+            domain::Fresh::Moved => wire::Fresh::Moved,
+            domain::Fresh::Closed => wire::Fresh::Closed,
+            domain::Fresh::Cut => wire::Fresh::Cut,
+            domain::Fresh::Limit => wire::Fresh::Limit,
+            domain::Fresh::Session => wire::Fresh::Session,
+        }),
+    }
+}
+
+fn read_fresh(value: Option<wire::Fresh>) -> Option<domain::Fresh> {
+    match value {
+        None => None,
+        Some(value) => Some(match value {
+            wire::Fresh::Moved => domain::Fresh::Moved,
+            wire::Fresh::Closed => domain::Fresh::Closed,
+            wire::Fresh::Cut => domain::Fresh::Cut,
+            wire::Fresh::Limit => domain::Fresh::Limit,
+            wire::Fresh::Session => domain::Fresh::Session,
+        }),
     }
 }

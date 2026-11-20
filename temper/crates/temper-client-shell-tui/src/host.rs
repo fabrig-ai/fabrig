@@ -1333,7 +1333,7 @@ impl Host {
             | jig_client::Event::SignOut
             | jig_client::Event::Authorize { .. }
             | jig_client::Event::AskLink
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }

@@ -97,6 +97,7 @@ pub(crate) fn checked_call(mut body: Call, limits: &Limits) -> Call {
             | Tool::ProposeSettingsNote { .. }
             | Tool::Change { .. }
             | Tool::Delegate { .. }
+            | Tool::MarkRead { .. }
             | Tool::Introduce { .. }
             | Tool::Subscribe { .. }
             | Tool::SubscribeForge { .. }
@@ -142,6 +143,7 @@ fn note_shape(tool: &Tool, limits: &Limits) -> Option<notes::Refusal> {
         | Tool::Change { .. }
         | Tool::Delegate { .. }
         | Tool::Message { .. }
+        | Tool::MarkRead { .. }
         | Tool::Amend { .. }
         | Tool::Cancel { .. }
         | Tool::Release { .. }
@@ -178,55 +180,7 @@ pub(crate) fn relay_call(
 }
 
 pub(crate) fn call_needs_input(tool: &Tool) -> bool {
-    match tool {
-        Tool::Goal { agree, .. } => *agree,
-        Tool::Follow(_)
-        | Tool::Finding(_)
-        | Tool::Red(_)
-        | Tool::Decided(_)
-        | Tool::ReadTask { .. }
-        | Tool::See { .. }
-        | Tool::Document { .. }
-        | Tool::Remember { .. }
-        | Tool::Settings { .. }
-        | Tool::ProposeSettings { .. }
-        | Tool::ProposeSettingsNote { .. }
-        | Tool::Change { .. }
-        | Tool::Unavailable
-        | Tool::Rejected(_)
-        | Tool::RejectedMessage(_)
-        | Tool::RejectedControl(_)
-        | Tool::RejectedProposal(_)
-        | Tool::RejectedNote(_)
-        | Tool::Note { .. }
-        | Tool::NoteLines { .. }
-        | Tool::Recall { .. }
-        | Tool::Message { .. }
-        | Tool::Introduce { .. }
-        | Tool::Subscribe { .. }
-        | Tool::SubscribeForge { .. }
-        | Tool::SubscribeNamedForge { .. }
-        | Tool::ReadBranchFile { .. }
-        | Tool::ReadNamed { .. }
-        | Tool::ReadForge { .. }
-        | Tool::EffectForge { .. }
-        | Tool::Unsubscribe { .. }
-        | Tool::Cancel { .. }
-        | Tool::Release { .. }
-        | Tool::Amend { .. }
-        | Tool::Propose { .. }
-        | Tool::Decide { .. }
-        | Tool::Withdraw { .. }
-        | Tool::DecideEscalation { .. } => false,
-        Tool::Delegate { batch } => {
-            for member in batch {
-                if !member.spec.inputs.is_empty() {
-                    return true;
-                }
-            }
-            false
-        }
-    }
+    call_mode(tool).0
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive tool-shape match keeps bounded admission together")]
@@ -268,6 +222,7 @@ pub(crate) fn call_shape(tool: &Tool, limits: &tasks::Limits) -> Option<tasks::R
         | Tool::Note { .. }
         | Tool::NoteLines { .. }
         | Tool::Recall { .. }
+        | Tool::MarkRead { .. }
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
@@ -396,6 +351,7 @@ pub(crate) fn tool_kind(tool: &Tool) -> Option<jig_domain_core::ToolKind> {
         | Tool::Goal { .. }
         | Tool::Change { .. }
         | Tool::Delegate { .. } => jig_domain_core::ToolKind::Delegate,
+        Tool::MarkRead { .. } => jig_domain_core::ToolKind::MarkRead,
         Tool::Message { target, .. } => jig_domain_core::ToolKind::Message { target: *target },
         Tool::Introduce { left, .. } => jig_domain_core::ToolKind::Message { target: *left },
         Tool::Decided(_) | Tool::Amend { .. } | Tool::Cancel { .. } | Tool::Release { .. } => {
@@ -512,6 +468,7 @@ pub(crate) fn keep_connector_answer(
         | CallAnswer::SubscriptionRepositoryRefused { .. }
         | CallAnswer::ChangeRefused { .. }
         | CallAnswer::DelegationRefused(_)
+        | CallAnswer::WordsRecorded { .. }
         | CallAnswer::NoteWritten { .. }
         | CallAnswer::NoteDeleted { .. }
         | CallAnswer::NoteRecalled { .. }
@@ -531,28 +488,40 @@ pub(crate) fn keep_connector_answer(
 }
 
 pub(crate) fn is_core_read(tool: &Tool) -> bool {
+    call_mode(tool).1
+}
+
+fn call_mode(tool: &Tool) -> (bool, bool) {
     match tool {
         Tool::Follow(call) => match call {
-            crate::FollowCall::List | crate::FollowCall::Show { .. } => true,
-            crate::FollowCall::Act { .. } => false,
+            crate::FollowCall::List | crate::FollowCall::Show { .. } => (false, true),
+            crate::FollowCall::Act { .. } => (false, false),
         },
         Tool::Red(call) => match call {
-            crate::RedCall::List => true,
-            crate::RedCall::Record { .. } | crate::RedCall::End { .. } => false,
+            crate::RedCall::List => (false, true),
+            crate::RedCall::Record { .. } | crate::RedCall::End { .. } => (false, false),
         },
         Tool::Finding(call) => match call {
-            crate::FindingCall::List { .. } | crate::FindingCall::Show { .. } => true,
+            crate::FindingCall::List { .. } | crate::FindingCall::Show { .. } => (false, true),
             crate::FindingCall::File { .. } | crate::FindingCall::Hand { .. } | crate::FindingCall::Triage { .. } => {
-                false
+                (false, false)
             }
         },
-        Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => true,
+        Tool::ReadTask { .. } | Tool::See { .. } | Tool::Settings { .. } => (false, true),
+        Tool::Goal { agree, .. } => (*agree, false),
+        Tool::Delegate { batch } => {
+            for member in batch {
+                if !member.spec.inputs.is_empty() {
+                    return (true, false);
+                }
+            }
+            (false, false)
+        }
         Tool::Document { .. }
         | Tool::Remember { .. }
         | Tool::ProposeSettings { .. }
         | Tool::ProposeSettingsNote { .. }
         | Tool::Decided(_)
-        | Tool::Goal { .. }
         | Tool::Note { .. }
         | Tool::NoteLines { .. }
         | Tool::Recall { .. }
@@ -565,11 +534,11 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
         | Tool::Withdraw { .. }
         | Tool::DecideEscalation { .. }
         | Tool::Change { .. }
-        | Tool::Delegate { .. }
         | Tool::Amend { .. }
         | Tool::Cancel { .. }
         | Tool::Release { .. }
         | Tool::Message { .. }
+        | Tool::MarkRead { .. }
         | Tool::Introduce { .. }
         | Tool::Subscribe { .. }
         | Tool::SubscribeForge { .. }
@@ -580,7 +549,7 @@ pub(crate) fn is_core_read(tool: &Tool) -> bool {
         | Tool::RejectedControl(_)
         | Tool::RejectedProposal(_)
         | Tool::RejectedNote(_)
-        | Tool::Unavailable => false,
+        | Tool::Unavailable => (false, false),
     }
 }
 

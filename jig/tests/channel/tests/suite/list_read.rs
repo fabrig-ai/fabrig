@@ -12,30 +12,30 @@ fn a_worker_reads_a_list_with_its_grant_and_releases_the_value() {
     ] {
         let run = list_read::run(status, scheme, endpoint);
         assert_eq!(run.answers.len(), 1, "{label}: one terminal");
-        match run.answers[0].outcome() {
+        match &run.answers[0].outcome {
             wire::ListOutcome::Listed(rows) => {
                 assert_eq!(status, None, "{label}");
                 assert_eq!(
-                    rows.rows().iter().map(wire::ListRow::name).collect::<Vec<_>>(),
+                    rows.rows.iter().map(|row| row.name.as_ref()).collect::<Vec<_>>(),
                     [b"first-model".as_slice(), b"second-model".as_slice()],
                     "{label}: fake rows cross both halves"
                 );
-                let first = rows.rows().get(0).expect("first listed row");
+                let first = rows.rows.get(0).expect("first listed row");
                 assert_eq!(
-                    first.shown().as_deref(),
+                    first.shown.as_deref(),
                     (endpoint == 2).then_some(b"First model".as_slice()),
                     "{label}: shown"
                 );
-                assert_eq!(*first.window(), (endpoint == 2).then_some(200_000), "{label}: window");
-                assert_eq!(*first.output(), (endpoint == 2).then_some(8192), "{label}: output");
+                assert_eq!(first.window, (endpoint == 2).then_some(200_000), "{label}: window");
+                assert_eq!(first.output, (endpoint == 2).then_some(8192), "{label}: output");
                 assert_eq!(
-                    first.efforts().iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+                    first.efforts.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
                     if endpoint == 2 { vec![b"low".as_slice(), b"high".as_slice()] } else { vec![] },
                     "{label}: efforts"
                 );
             }
             wire::ListOutcome::Failed(failure) => assert!(
-                matches!(failure.value(), wire::ListFailed::Refused(value) if Some(value.status()) == status),
+                matches!(&failure.value, wire::ListFailed::Refused(value) if Some(value.status) == status),
                 "{label}: typed refusal: {failure:?}"
             ),
         }

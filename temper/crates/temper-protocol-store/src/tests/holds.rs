@@ -202,7 +202,6 @@ fn held_refusal_word_reads_the_full_application_fixture() {
         let people::Refusal::Circle(value) = people::Refusal::decode(&people::CEILINGS, &mut reader).unwrap() else {
             panic!("circle fixture")
         };
-        let value = value.into_parts();
         assert_eq!(p::Refusal::Circle { tasks: value.tasks.into_boxed(), cut: value.cut }, expected, "{path}");
         assert!(reader.is_empty(), "held declaration consumes its whole holder");
     }

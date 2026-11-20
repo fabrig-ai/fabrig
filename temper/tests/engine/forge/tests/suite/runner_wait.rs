@@ -49,6 +49,7 @@ fn poll_checking_for(world: &mut World, seconds: u64) {
                 heard: change::Heard {
                     delegate_running: false,
                     flake: false,
+                    no_test: false,
                     delegate_live: false,
                     review_request: None,
                     start_conflict: None,

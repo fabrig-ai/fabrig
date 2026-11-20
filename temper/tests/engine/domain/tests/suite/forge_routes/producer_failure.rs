@@ -548,6 +548,7 @@ fn producer_terminal(world: &mut World, task: u64, child: u64, words: &[u8]) {
         status: temper_engine_domain_forge_change::Status::Failed,
         no_change: false,
         flake: false,
+        no_test: false,
         failed: true,
         cancelled: false,
         words: words.into(),

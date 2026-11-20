@@ -86,6 +86,7 @@ pub(crate) fn identity(op: &git::Op) -> Option<u32> {
         | git::Op::Push { identity, .. } => Some(*identity),
         git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
         | git::Op::Make { .. }
@@ -125,6 +126,7 @@ pub(crate) fn pick(
         }
         git::Op::Reds { .. }
         | git::Op::Reset { .. }
+        | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Clone { .. }
         | git::Op::Make { .. }

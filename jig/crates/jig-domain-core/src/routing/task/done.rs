@@ -20,7 +20,7 @@ pub(crate) fn done(
     match core.land_task(token) {
         Some(flight) => complete(core, env, flight, pending, out),
         None => {
-            if let Some((attempt, _offered, _session_end)) = core.claiming.remove(&token.raw()) {
+            if let Some((attempt, _offered, _session_end, _fresh)) = core.claiming.remove(&token.raw()) {
                 core.claim_done(token.raw(), attempt, out);
             }
         }
@@ -201,6 +201,8 @@ fn call_done(
             return;
         }
         RoutedCall::Message(_)
+        | RoutedCall::MarkRead(_)
+        | RoutedCall::RecordNote { .. }
         | RoutedCall::Decide { .. }
         | RoutedCall::Withdraw { .. }
         | RoutedCall::Escalation { .. } => return,

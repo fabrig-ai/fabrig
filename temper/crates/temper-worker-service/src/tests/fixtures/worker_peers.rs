@@ -615,7 +615,8 @@ pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]
         messages,
     };
     let mut writer = skein_lib::Writer::new(
-        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript")).unwrap(),
+        usize::try_from(turn.measure(&smith_transcript::CEILINGS).expect("bounded transcript"))
+            .expect("record within limits"),
     );
     turn.write(&smith_transcript::CEILINGS, &mut writer).unwrap();
     writer.finish()

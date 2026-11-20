@@ -405,6 +405,8 @@ pub enum RoutedCall {
     Withdraw { key: CallKey, proposal: u64, moved: Option<(u64, people::Moved)> },
     Accepting { key: CallKey, proposer: u64, proposal: u64, message: u64 },
     Message(CallKey),
+    MarkRead(CallKey),
+    RecordNote { key: CallKey, name: u64, revision: u32, change: jig_domain_notes::LineChange },
     Introduce(CallKey),
     Subscribe { key: CallKey, subscription: u64 },
     Unsubscribe(CallKey),

@@ -469,7 +469,7 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
     let link = support::printed_link(&ended.stdout).unwrap_or_else(|| panic!("serve's link: {diagnostic}"));
-    assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "{diagnostic}");
+    assert!(skein_lib::bytes::find(link, b"/sign-in?secret=").is_some(), "{diagnostic}");
     assert!(support::boxed::serve_listening(scratch.path()), "serve listens: {diagnostic}");
     assert!(!diagnostic.contains("application.setup"), "{diagnostic}");
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");

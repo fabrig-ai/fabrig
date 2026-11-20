@@ -1,38 +1,23 @@
 //! Prepared fixtures equal fresh builds (protocol/channel/README.md, 11).
 use jig_engine_workers_world::fixtures::{self, APPLICATION_VERSION, OTHER_VERSION};
 use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::Record;
 use skein_lib::List;
 
 fn fresh_statement(version: u32) -> List<wire::Wire> {
     let mut wires = List::with_capacity(16);
     for spoken in &wire::spoken() {
         wires
-            .push(
-                wire::Wire::new(
-                    &wire::CEILINGS,
-                    wire::WireParts {
-                        name: spoken.name.as_bytes().into(),
-                        lowest: spoken.lowest,
-                        layouts: spoken.layouts.clone(),
-                    },
-                )
-                .expect("wire"),
-            )
+            .push(wire::Wire {
+                name: spoken.name.as_bytes().into(),
+                lowest: spoken.lowest,
+                layouts: spoken.layouts.clone(),
+            })
             .expect("wire slot");
     }
     let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
     wires
-        .push(
-            wire::Wire::new(
-                &wire::CEILINGS,
-                wire::WireParts {
-                    name: current.name.as_bytes().into(),
-                    lowest: current.lowest,
-                    layouts: current.layouts,
-                },
-            )
-            .expect("wire"),
-        )
+        .push(wire::Wire { name: current.name.as_bytes().into(), lowest: current.lowest, layouts: current.layouts })
         .expect("wire slot");
     wires
 }

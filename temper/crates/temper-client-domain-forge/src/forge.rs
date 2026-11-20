@@ -572,8 +572,8 @@ pub fn make_repository(
     request: &temper_client_protocol_wire::v1::MakeRepository,
     limits: &Limits,
 ) -> Option<jig_client::Ask> {
-    let scope = match request.into() {
-        Some(into) => jig_client::contract::Scope::Project(into.project()),
+    let scope = match &request.into {
+        Some(into) => jig_client::contract::Scope::Project(into.project),
         None => jig_client::contract::Scope::Deployment,
     };
     Some(jig_client::Ask::Family { scope, record: family::make_repository(request, &wire_limits(limits)?)? })
