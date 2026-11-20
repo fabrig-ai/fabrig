@@ -34,14 +34,7 @@ pub(crate) fn select<L>(
 }
 
 macro_rules! round_trip {
-    (sealed, $value:ident, $limits:ident, $bytes:ident, $label:ident) => {{
-        let length = usize::try_from($value.measure()).expect("u32 fits usize");
-        assert_eq!(length, $bytes.len(), "{}: measure", $label);
-        let mut writer = skein_lib::Writer::new(length);
-        $value.encode(&mut writer).unwrap_or_else(|why| panic!("{}: encode: {why:?}", $label));
-        assert_eq!(writer.finish().as_ref(), $bytes, "{}: round trip", $label);
-    }};
-    (lean, $value:ident, $limits:ident, $bytes:ident, $label:ident) => {{
+    ($value:ident, $limits:ident, $bytes:ident, $label:ident) => {{
         let length = $value.measure(&$limits).unwrap_or_else(|why| panic!("{}: measure: {why:?}", $label));
         assert_eq!(usize::try_from(length).expect("u32 fits usize"), $bytes.len(), "{}: measure", $label);
         let encoded = $value.encode(&$limits).unwrap_or_else(|why| panic!("{}: encode: {why:?}", $label));
@@ -52,7 +45,7 @@ macro_rules! round_trip {
 /// The type list dispatches every schema root through its generated decoder;
 /// the exhaustive Limits literal makes a newly added limit a compile error.
 macro_rules! family {
-    ($cap:expr, $text:expr, $module:path, $form:ident,
+    ($cap:expr, $text:expr, $module:path,
      limits [$($field:ident),* $(,)?], roots [$($root:ident $(=> $pin:expr)?),+ $(,)?]) => {{
         use $module as codec;
         let schema = &skein_codegen::values($text).schema;
@@ -95,7 +88,7 @@ macro_rules! family {
                             assert!(measured.peak() <= bound,
                                 "{label}: k={k:?}, limits={:?}, peak={}, bound={bound}",
                                 values.as_slice(), measured.peak());
-                            super::codec_memory::round_trip!($form, value, limits, bytes, label);
+                            super::codec_memory::round_trip!(value, limits, bytes, label);
                             measured
                         };
                         assert_eq!(meter.held(), 0, "{label}: decoded allocations released");

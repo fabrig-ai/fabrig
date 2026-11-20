@@ -11,7 +11,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         skein_oauth::SCHEMA,
-        skein_oauth::v3, lean,
+        skein_oauth::v3,
         limits [
             saved_token_access_token,
             saved_token_refresh_token_some,
