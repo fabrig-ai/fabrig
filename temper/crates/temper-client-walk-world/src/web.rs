@@ -53,7 +53,7 @@ pub struct Page {
     surface: skein_ui_web::page::Page<'static>,
     browser: Time,
     pending_input: bool,
-    seed: u64,
+    reload_seeds: skein_lib::Rng,
     ways: temper_client_view::sign_in::Ways,
     mount: Mount,
     signing_in: Option<u32>,
@@ -167,7 +167,7 @@ impl Page {
             surface,
             browser,
             pending_input: false,
-            seed,
+            reload_seeds: skein_lib::Rng::new(seed),
             ways,
             terminal: None,
             tab: None,
@@ -387,8 +387,15 @@ impl Page {
     /// Restart the host, retaining the world's cookies and the page's small store.
     pub fn reload(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
         let (now, wall) = self.memory.clocks(self.browser);
-        self.host =
-            host::Host::new(temper_client_shell_web::limits::client(), self.seed, now, wall, 0, self.ways.clone());
+        // A browser load supplies fresh entropy, including for request keys.
+        self.host = host::Host::new(
+            temper_client_shell_web::limits::client(),
+            self.reload_seeds.next_u64(),
+            now,
+            wall,
+            0,
+            self.ways.clone(),
+        );
         self.surface = host::page(&self.host.bounds.tree, Primary::Control);
         self.memory.navigate(path);
         self.host.start(path, self.store.read_all(&self.memory), None);
