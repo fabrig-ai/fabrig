@@ -1,10 +1,11 @@
 //! The loop's world (qa/landings.md, 6; qa/triage.md, 5; testing/tools.md, 4.3).
 use crate::{Exit, Refusal, refused};
+use sha2::{Digest, Sha256};
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, Write},
+    io::{BufRead, BufReader, Read, Write},
     os::unix::{
         ffi::OsStrExt,
         fs::OpenOptionsExt,
@@ -677,48 +678,45 @@ pub trait BuildFilesFace {
     fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal>;
     fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()>;
 }
-pub struct RealBuildFiles {
-    pub environment: Environment,
-}
-impl RealBuildFiles {
-    fn command(&self, directory: &Path) -> Command {
-        let mut command = Command::new("sha256sum");
-        captured(&mut command, &self.environment);
-        command.current_dir(directory).stdin(Stdio::null());
-        command
+pub struct RealBuildFiles;
+
+fn checksum(path: &Path) -> std::io::Result<String> {
+    let mut file = File::open(path)?;
+    let mut hash = Sha256::new();
+    let mut buffer = vec![0_u8; 65_536].into_boxed_slice();
+    loop {
+        let count = match file.read(&mut buffer) {
+            Ok(0) => break,
+            Ok(count) => count,
+            Err(why) if why.kind() == std::io::ErrorKind::Interrupted => continue,
+            Err(why) => return Err(why),
+        };
+        hash.update(&buffer[..count]);
     }
+    Ok(format!("{:x}", hash.finalize()))
 }
 impl BuildFilesFace for RealBuildFiles {
     fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal> {
-        checked(
-            self.command(directory)
-                .arg("--")
-                .args(files)
-                .output()
-                .map_err(|why| refused(format!("sha256sum: {why}")))?,
-            "sha256sum",
-        )
+        let mut answer = Vec::new();
+        for path in files {
+            let hex = checksum(&directory.join(path))
+                .map_err(|why| refused(format!("checksum: {}: {why}", path.display())))?;
+            answer.extend_from_slice(&crate::manifest::line(&hex, path));
+        }
+        Ok(answer)
     }
     fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal> {
-        let manifest = fs::canonicalize(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
-        let output = self
-            .command(directory)
-            .arg("--check")
-            .arg("--")
-            .arg(manifest)
-            .output()
-            .map_err(|why| refused(format!("sha256sum --check: {why}")))?;
-        if output.status.success() {
-            Ok(())
-        } else {
-            // --check names mismatching files on stdout, with its summary on stderr.
-            Err(refused(format!(
-                "sha256sum --check: {}: {}{}",
-                output.status,
-                String::from_utf8_lossy(&output.stdout),
-                String::from_utf8_lossy(&output.stderr),
-            )))
+        let bytes = fs::read(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
+        let rows = crate::manifest::rows(&bytes).map_err(|why| refused(format!("checksum check: {why}")))?;
+        let mut failures = Vec::new();
+        for (path, expected) in rows {
+            match checksum(&directory.join(&path)) {
+                Ok(hex) if hex == expected => {}
+                Ok(_) => failures.push(format!("{}: FAILED", path.display())),
+                Err(why) => failures.push(format!("{}: {why}", path.display())),
+            }
         }
+        if failures.is_empty() { Ok(()) } else { Err(refused(format!("checksum check: {}", failures.join("; ")))) }
     }
 
     fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()> {

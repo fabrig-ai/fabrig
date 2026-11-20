@@ -333,17 +333,32 @@ fn a_bad_manifest_names_the_path_records_nothing_and_retries_next_tick() {
 
 #[test]
 fn installation_reads_sha256sum_escaped_byte_paths() {
+    installation_reads_path(std::path::Path::new("bundle/weird\\\n\r"), b"bundle/weird\\\\\\n\\r");
+}
+
+// APFS, macOS's file system, holds no file name that is not UTF-8 (temper/docs/design/testing/macos.md, 3).
+#[cfg(target_os = "linux")]
+#[test]
+fn installation_reads_a_non_utf8_manifest_path_as_its_bytes() {
+    use std::{ffi::OsString, os::unix::ffi::OsStringExt, path::PathBuf};
+    installation_reads_path(
+        &PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec())),
+        b"bundle/weird\\\\\\n\\r\xff",
+    );
+}
+
+fn installation_reads_path(name: &std::path::Path, escaped: &[u8]) {
     use sha2::{Digest, Sha256};
-    use std::{ffi::OsString, io::Write, os::unix::ffi::OsStringExt, path::PathBuf};
+    use std::io::Write;
     let world = World::new();
     let mut run = world.start(baseline(), &[Agent::Case, Agent::Never]);
     run.tick();
     land(&mut run, 2, 7);
     let build = world.installable_build(2);
-    let name = PathBuf::from(OsString::from_vec(b"bundle/weird\\\n\r\xff".to_vec()));
-    fs::write(build.join(&name), b"escaped asset").expect("byte path");
-    let mut line = format!("\\{:x}  bundle/weird\\\\\\n\\r", Sha256::digest(b"escaped asset")).into_bytes();
-    line.extend_from_slice(b"\xff\n");
+    fs::write(build.join(name), b"escaped asset").expect("byte path");
+    let mut line = format!("\\{:x}  ", Sha256::digest(b"escaped asset")).into_bytes();
+    line.extend_from_slice(escaped);
+    line.push(b'\n');
     File::options()
         .append(true)
         .open(build.join("manifest"))

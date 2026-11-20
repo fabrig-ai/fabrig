@@ -15,13 +15,7 @@ use std::{
 
 /// Publish a staged build after checking its files and executable versions.
 pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environment) -> Result<String, Refusal> {
-    keep_with(
-        home,
-        commit,
-        directory,
-        environment,
-        &mut crate::faces::RealBuildFiles { environment: environment.to_vec() },
-    )
+    keep_with(home, commit, directory, environment, &mut crate::faces::RealBuildFiles)
 }
 
 /// Publish using the build-file face (qa/builds.md, 3 and 4).
