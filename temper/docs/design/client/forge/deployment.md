@@ -614,6 +614,11 @@ says:
   its forge's kind names, GitHub's results hosts, none for a Forgejo or
   a GitHub the machine names, and a check's failure then shows without
   its log. The same origin is in the engine's log, once a start.
+- **Catching up,** after a restart, while the row's `catching_up` is
+  there (`records.md`): a line under its connection's,
+  "Catching up: 3 fresh reads, 2 uncertain writes", its words
+  `../../domain/forge/catching-up.md`, 5's, whatever its connection
+  says; gone once the forge has caught up.
 - **Its load:** its request budget and what uses it (fresh reads,
   writes, keeping up, the slow pass; `../../domain/forge/keeping-up.md`, 4); a
   pause for its rate, and until when; its outbox, the effects waiting

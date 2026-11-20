@@ -144,21 +144,22 @@ own, never a change's:
   own branch, so its making is conditional (`README.md`, section 4): while the goal
   holds the branch and none of its name exists, it is made, and never
   reset once it exists. A restart's making is two steps, a read and a
-  write, and only the read belongs to the start:
-  - **Its read** is part of reading afresh (`README.md`, section 9): is
+  write, and only the read belongs to the forge's fresh reads as it
+  catches up after the opening (`catching-up.md`, 2):
+  - **Its read** is one of the fresh reads (`README.md`, section 9): is
     the branch there, at which commit, and is a creation entry of its
     own in the outbox. There, it is the goal's; missing, with its
     making's entry restored, that entry settles as its class says, its
     find answering not found sending it again at its commit.
-  - **Its write** comes after the outbox settles. Missing, with no entry
+  - **Its write** waits in the outbox's line. Missing, with no entry
     (the restart cut its making before it committed one), the making
-    takes a place in the outbox's line, behind the places restored with
-    their records (`room.md`, 4), and asks nothing more while the start
-    reads: no entry number, no landing branch's tip. Once the restored
-    outbox has settled, the line asks it in its place's order as room
-    frees, as any making waiting for room: it takes a fresh entry
-    number from the root, reads the landing branch's tip afresh and
-    makes it there.
+    takes a place in the line, behind the places restored with
+    their records (`room.md`, 4), and asks nothing more while it
+    reads: no entry number, no landing branch's tip. The line asks it
+    in its place's order as room frees from the beginning of catching
+    up (`catching-up.md`, 3), as any making waiting for room: it takes
+    a fresh entry number from the root, reads the landing branch's tip
+    afresh and makes it there, its entry sent behind its lane.
 
   So reading afresh ends on reads alone, whatever room the outbox has:
   a full outbox delays a making, never the start. A change into the

@@ -562,10 +562,14 @@
   failed, `MakingFailed`, with its step (`MakeStep`: admin, org,
   repository, file or adoption), its reason (`MakeFailure`: taken, empty,
   timed out, refused with status (u16), not allowed or other) and the
-  forge's words (at most 256 bytes); and its
+  forge's words (at most 256 bytes); its
   offer, the forge domain's (`../../domain/forge/adoption.md`, 1): offered, not
   under the box, or not offered, which is what "Set up a Forgejo here", "Set up again"
-  and the words without the box follow (`deployment.md`). Beside the rows,
+  and the words without the box follow (`deployment.md`); and `catching_up`,
+  none, or while the forge catches up after a restart its `CatchingUp`
+  (`../../domain/forge/catching-up.md`, 5): `fresh`, `gathers`, `ci`,
+  `goal_files`, `lost_writers`, `goal_branches` and `uncertain`, each a
+  u32, delivered again as they change. Beside the rows,
   `linked`, whether the printed link has signed a person in since the
   engine started (jig's `protocol/client/sign-in.md`, `LinkSignedIn`):
   the clients' component's memory alone, as `app` is the forge domain's, so
@@ -686,6 +690,9 @@
   - `more`, the rows past `forge.changes_rows` (32 in `small`), counted
     across the queues, which fill in order; the changes queued are the
     rows listed and `more`;
+  - `catching_up`, none, or while the forge of the project's home
+    repository (`../../domain/forge/adoption.md`, 8), else of its first,
+    catches up after a restart, its `CatchingUp`, as `ForgeRow`'s;
   - `landed`, at most `forge.changes_landed` (8 in `small`), newest first,
     across the project's repositories, a row for each change of each
     landing, each a `ChangesLanded`: `task`, `title` and `at`, the landing

@@ -579,6 +579,7 @@ Design documents:
 - [`domain/forge/adoption.md`](domain/forge/adoption.status.md)
 - [`domain/forge/attention.md`](domain/forge/attention.status.md)
 - [`domain/forge/branches.md`](domain/forge/branches.status.md)
+- [`domain/forge/catching-up.md`](domain/forge/catching-up.status.md)
 - [`domain/forge/change/README.md`](domain/forge/change/README.status.md)
 - [`domain/forge/change/branch-path.md`](domain/forge/change/branch-path.status.md)
 - [`domain/forge/change/gates.md`](domain/forge/change/gates.status.md)
@@ -769,7 +770,7 @@ Drafts:
 - [`draft/real-journeys.md`](draft/real-journeys.status.md)
 - [`draft/real-loop-cancel-kills.md`](draft/real-loop-cancel-kills.status.md)
 - [`draft/real-loop-kill-cause.md`](draft/real-loop-kill-cause.status.md)
-- [`draft/reconciling-start.md`](draft/reconciling-start.status.md) — S1, goal 10905: a start reads and doesn't write; a missing goal branch is made after the settle, in the outbox line's order (`domain/forge/branches.md`, 1).
+- [`draft/reconciling-start.md`](draft/reconciling-start.status.md) — S1: a start reads and doesn't write (`domain/forge/branches.md`, 1). S3: the engine opens, then its forge catches up (`domain/forge/catching-up.md`).
 - [`draft/record-anywhere.md`](draft/record-anywhere.status.md)
 - [`draft/reference-case.md`](draft/reference-case.status.md)
 - [`draft/reference-code-production.md`](draft/reference-code-production.status.md)

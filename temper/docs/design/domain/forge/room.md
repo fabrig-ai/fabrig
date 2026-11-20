@@ -105,9 +105,10 @@ cleanup wait the same way, in the same line.
   `Stalled` for the time it waits.
 - **Restart:** the places restored with their records are the line, a
   place on the record of a task that has ended dropped; makings rejoin
-  it behind them as they meet no room. No ask survives a restart: once
-  the restored outbox has settled (`README.md`, section 9), the forge
-  asks again from the first place as room allows. A restored change
+  it behind them as they meet no room. No ask survives a restart: from
+  the beginning of the forge's catching up, at the engine's opening
+  (`catching-up.md`, 3), the forge asks again from the first place as
+  room allows, the restored entries counting against the room. A restored change
   steps as every restored change does, and waits again in its place
   where the room is not its.
 - **Cancel:** a cancelled change or landing leaves the line as it ends,
