@@ -42,7 +42,6 @@ pub(crate) fn alone_with_programs(
         .into_owned()
     })?;
     let figures = crate::fetch::take(fetch, directories, environment)?;
-    eprint!("{}", figures_line(&part.worker.jig.engine, &figures));
     from_figures(part, figures, &files, directories, owned, environment)
 }
 /// Resolve this worker's machine inputs before asking its engine for figures.
@@ -77,6 +76,8 @@ pub fn from_figures(
 ) -> Result<service::worker_alone::Service, String> {
     let unknown = service::figures::apply(&mut part, figures)
         .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
+    eprint!("{}", figures_line(&part.worker.jig.engine, part.figures.as_ref().expect("applied figures")));
+    eprint!("{}", stop_line(part.worker.jig.stop_bound, part.worker.jig.graces.drain));
     for name in &unknown {
         eprintln!("the engine's figures: unknown limit {}; skipped", String::from_utf8_lossy(name));
     }
@@ -308,4 +309,12 @@ pub fn figures_line(engine: &jig_protocol_config::Address, figures: &jig_protoco
         figures.limits.len(),
         figures.agents.endpoints.len()
     )
+}
+
+/// Startup's stop and drain bounds, rounded up (domain/worker/README.md, 2).
+#[must_use]
+pub fn stop_line(stop_bound: skein_lib::Duration, drain: skein_lib::Duration) -> String {
+    let stop = stop_bound.as_nanos().div_ceil(1_000_000_000);
+    let drain = drain.as_nanos().div_ceil(1_000_000_000);
+    format!("stop bound {stop} s, drain {drain} s\n")
 }

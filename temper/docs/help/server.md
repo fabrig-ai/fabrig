@@ -15,7 +15,7 @@ Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Fo
   scopes `openid`, `email`, `profile`; Web application, one redirect URI
   `https://temper.example.com/sign-in/google/return`.
 - `HEX`: `w1.digest`'s hex, not its path.
-- `COMMIT`: the build's twelve hex digits, the same on both Linux x86-64
+- `COMMIT`: the build's twelve hex digits, same on both Linux x86-64
   hosts. On `engine`, set `binaries='temper-engine temper'` (`temper` is
   ctl's client); on `worker`, `binaries='temper-worker temper-agent'`.
   Each:
@@ -122,8 +122,8 @@ temper-engine forge prepare --config CONFIG --data DATA --cache CACHE 1 --listen
 temper-engine forge run --config CONFIG --data DATA --cache CACHE 1 forgejo
 ```
 
-Wait for `http://127.0.0.1:3000/api/v1/version` before starting the
-engine, which connects kept forges:
+Wait for `http://127.0.0.1:3000/api/v1/version`, then start the engine
+(connects kept forges):
 
 ```
 temper-engine serve --config CONFIG --data DATA --cache CACHE
@@ -194,18 +194,19 @@ name = "w1"   # the name its engine knows it by, if not the host's
 PATH = "/usr/bin:/bin"
 ```
 
-  Secret: data's `secrets/worker.secret`. No worker
-  `limits`, `agent` or configuration `agent.json`: starts fetch engine
-  figures, apply limits, write private `ROOT/agent/agent.json`, and run
-  sibling `temper-agent`. No `claude` member: worker PATH's `claude`, else
-  fetched; `[programs]` can name its absolute path.
-  Step 3 unit: `KillMode=control-group` (no agent or command outlives it),
-  `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
+  Secret: data's `secrets/worker.secret`. No worker `limits`, `agent` or
+  configuration `agent.json`: fetch figures, apply limits, write private
+  `ROOT/agent/agent.json`, run sibling `temper-agent`. No `claude`
+  member: worker PATH's `claude`, else fetched; `[programs]` can name its absolute path.
+  Step 3 unit: `KillMode=mixed` signals only the worker, which drains;
+  past timeout the unit kills the rest, including agents and commands.
+  `TimeoutStopSec=360s`: printed 326-second stop bound plus 34 seconds.
   Raise this timeout with the worker's bound.
   `ReadWritePaths` its home; without `PrivateTmp=yes`, Claude Code fails
   `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
-  `[environment]`: optional table of strings; unique names (temper help box).
-  Absent: the worker's own `HOME` and `PATH`. Otherwise: exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them; no other process variables.
+  `[environment]`: optional string table; unique names (temper help box).
+  Only its entries plus the worker's `HOME` and `PATH` where omitted;
+  absent: those two alone. No other variables.
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
@@ -214,9 +215,10 @@ temper-worker serve --config CONFIG --data DATA --cache CACHE
 ```
 
 Expect: stderr: `figures taken from ENGINE: P places, L limits, E endpoints`,
-then `linked w1` and engine address; Forgejo site administration: runner online.
+then `stop bound 326 s, drain 180 s` (stock),
+then `linked w1` and engine address; Forgejo admin: runner online.
 
-If not: short limits refuse before listening, naming limit, setting and
+If not: short limits refuse before listening; error names limit, setting,
 required size: `core.policy_bytes` in `limits` needs enough bytes for the stock policy;
 raise that setting with `temper ctl settings apply` and restart.
 

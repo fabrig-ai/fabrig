@@ -87,10 +87,9 @@ fn server_walk_gives_the_agents_environment_as_entries() {
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
     let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
     for required in [
-        "`[environment]`: optional table of strings; unique names",
-        "Absent: the worker's own `HOME` and `PATH`",
-        "exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them",
-        "no other process variables",
+        "`[environment]`: optional string table; unique names",
+        "Only its entries plus the worker's `HOME` and `PATH` where omitted",
+        "absent: those two alone. No other variables",
         "`secrets/worker.secret`",
         "No `claude` member",
         "temper help box",
@@ -109,7 +108,7 @@ fn server_walk_gives_the_agents_environment_as_entries() {
 }
 
 #[test]
-fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
+fn server_worker_unit_signals_the_worker_alone_and_outlasts_its_stop_bound() {
     let page = help::answer(&configured(&["help", "server"])).expect("server walk");
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
     let (step, _) = steps.split_once("\n## 6. ").expect("step 6");
@@ -138,11 +137,12 @@ fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
             duration.as_millis() / 1_000
         };
         for required in [
-            "`KillMode=control-group`".to_owned(),
+            "`KillMode=mixed`".to_owned(),
             format!("`TimeoutStopSec={}s`", seconds(timeout)),
             format!("{}-second stop bound", seconds(bound)),
             format!("stop bound plus {} seconds", seconds(timeout) - seconds(bound)),
             "Raise this timeout with the worker's bound".to_owned(),
+            format!("`stop bound {} s, drain {} s`", seconds(bound), seconds(worker.graces.drain)),
         ] {
             assert!(text.contains(&required), "step 5 must explain {required}");
         }
