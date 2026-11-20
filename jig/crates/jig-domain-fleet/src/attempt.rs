@@ -181,7 +181,7 @@ pub(crate) enum State {
     Stray { at: Where, until: Option<Time> },
     /// A stray's answer, kept for its adoption until `until`, as a stray
     /// waits: its worker keeps it, and its slot.
-    Kept { answer: Answer, payload: Token, at: Where, until: Option<Time> },
+    Kept { answer: Answer, payload: Token, worker: Option<u32>, at: Where, until: Option<Time> },
     /// Cancelled for good, replaced or not adopted in time: whatever comes
     /// for it is dropped. It holds its run's next attempt back while a
     /// worker may host it.
@@ -427,7 +427,9 @@ pub(crate) fn adopt(
             &mut domain.facts,
             out,
         ),
-        State::Kept { answer, payload, at, until: _ } => handed(to, answer, payload, at, names, &mut domain.facts, out),
+        State::Kept { answer, payload, worker, at, until: _ } => {
+            handed(to, answer, payload, worker, at, names, &mut domain.facts, out)
+        }
         State::Waiting { .. }
         | State::Adopted { .. }
         | State::Claimed { .. }
@@ -541,7 +543,7 @@ pub(crate) fn cross(
             again(at, false, names, &domain.channels, out);
             State::Crossed { to, at, listed: true, worked }
         }
-        State::Kept { answer: _, payload, at, until: _ } => {
+        State::Kept { answer: _, payload, worker: _, at, until: _ } => {
             let state = forgotten(payload, at, names, &domain.channels, &mut domain.facts, out);
             let _closed = presumed(to, names, &mut domain.facts, out);
             state
@@ -580,7 +582,7 @@ pub(crate) fn cancel(domain: &mut Domain, run: Token, attempt: Token, out: &mut 
         State::Handed { at } => State::Handed { at },
         State::Acknowledged { until } => State::Acknowledged { until },
         State::Stray { at, until: _ } => fenced(at, names, &domain.channels, &mut domain.facts, out),
-        State::Kept { answer: _, payload, at, until: _ } => {
+        State::Kept { answer: _, payload, worker: _, at, until: _ } => {
             forgotten(payload, at, names, &domain.channels, &mut domain.facts, out)
         }
         State::Fenced { at } => State::Fenced { at },
@@ -736,7 +738,7 @@ pub(crate) fn listed(
         State::Handed { at: _ } => State::Handed { at: on },
         State::Acknowledged { until: _ } => acknowledged(channel, names, &domain.channels, out),
         State::Stray { at: _, until } => State::Stray { at: on, until },
-        State::Kept { answer, payload, at: _, until } => State::Kept { answer, payload, at: on, until },
+        State::Kept { answer, payload, worker, at: _, until } => State::Kept { answer, payload, worker, at: on, until },
         State::Fenced { at: _ } => {
             again(on, answered, names, &domain.channels, out);
             State::Fenced { at: on }
@@ -784,6 +786,7 @@ pub(crate) fn answer(
         return;
     };
     let on = Where::On(from);
+    let worker = domain.channels.get(from).expect("answering channel in contact").worker;
     let entry = domain.attempts.get_mut(id).expect("a named attempt is tracked");
     let before = implied(&entry.state);
     let state = mem::replace(&mut entry.state, State::Closed);
@@ -802,7 +805,7 @@ pub(crate) fn answer(
             | Answer::Failed { .. }
             | Answer::Invalid
             | Answer::Version
-            | Answer::Untranslated => handed(to, answer, payload, on, names, &mut domain.facts, out),
+            | Answer::Untranslated => handed(to, answer, payload, worker, on, names, &mut domain.facts, out),
         },
         State::Claimed { claiming, at: _ } => match answer {
             Answer::Busy => {
@@ -815,7 +818,7 @@ pub(crate) fn answer(
             | Answer::Failed { .. }
             | Answer::Invalid
             | Answer::Version
-            | Answer::Untranslated => handed(claiming.to, answer, payload, on, names, &mut domain.facts, out),
+            | Answer::Untranslated => handed(claiming.to, answer, payload, worker, on, names, &mut domain.facts, out),
         },
         State::Cancelled { to, at: _ } => match answer {
             Answer::Busy => {
@@ -827,7 +830,7 @@ pub(crate) fn answer(
             | Answer::Failed { .. }
             | Answer::Invalid
             | Answer::Version
-            | Answer::Untranslated => handed(to, answer, payload, on, names, &mut domain.facts, out),
+            | Answer::Untranslated => handed(to, answer, payload, worker, on, names, &mut domain.facts, out),
         },
         State::Crossed { to, .. } => {
             out.push(Request::Acknowledge { channel, run, attempt });
@@ -838,10 +841,10 @@ pub(crate) fn answer(
             resent(payload, &mut domain.facts, out);
             State::Handed { at }
         }
-        State::Stray { at: _, until } => State::Kept { answer, payload, at: on, until },
-        State::Kept { answer: kept, payload: held, at, until } => {
+        State::Stray { at: _, until } => State::Kept { answer, payload, worker, at: on, until },
+        State::Kept { answer: kept, payload: held, worker, at, until } => {
             resent(payload, &mut domain.facts, out);
-            State::Kept { answer: kept, payload: held, at, until }
+            State::Kept { answer: kept, payload: held, worker, at, until }
         }
         // Acknowledged by the parent, or fenced off: its worker forgets it.
         State::Acknowledged { until: _ } | State::Fenced { at: _ } => {
@@ -879,7 +882,7 @@ pub(crate) fn adrift(domain: &mut Domain, id: Id<Attempt>, channel: Token, until
         State::Crossed { to, at: _, listed, worked } => State::Crossed { to, at, listed, worked },
         State::Handed { at: _ } => State::Handed { at },
         State::Stray { at: _, until } => State::Stray { at, until },
-        State::Kept { answer, payload, at: _, until } => State::Kept { answer, payload, at, until },
+        State::Kept { answer, payload, worker, at: _, until } => State::Kept { answer, payload, worker, at, until },
         State::Fenced { at: _ } => State::Fenced { at },
         State::Waiting { .. } | State::Adopted { .. } | State::Acknowledged { .. } | State::Closed => {
             unreachable!("only an attempt on a worker takes its slot")
@@ -908,7 +911,7 @@ pub(crate) fn expire(domain: &mut Domain, id: Id<Attempt>, out: &mut Queue<Reque
             }
         }
         State::Stray { at, until: Some(_) } => fenced(at, names, &domain.channels, &mut domain.facts, out),
-        State::Kept { answer: _, payload, at, until: Some(_) } => {
+        State::Kept { answer: _, payload, worker: _, at, until: Some(_) } => {
             forgotten(payload, at, names, &domain.channels, &mut domain.facts, out)
         }
         State::Acknowledged { until: _ } | State::Fenced { at: Where::Adrift { .. } } => State::Closed,
@@ -952,8 +955,8 @@ pub(crate) fn loaded(domain: &mut Domain, env: &Env<Limits>) {
         let state = mem::replace(&mut entry.state, State::Closed);
         entry.state = match state {
             State::Stray { at: on, until: _ } => State::Stray { at: on, until: Some(at) },
-            State::Kept { answer, payload, at: on, until: _ } => {
-                State::Kept { answer, payload, at: on, until: Some(at) }
+            State::Kept { answer, payload, worker, at: on, until: _ } => {
+                State::Kept { answer, payload, worker, at: on, until: Some(at) }
             }
             State::Waiting { .. }
             | State::Adopted { .. }
@@ -1206,17 +1209,19 @@ fn refused(payload: Token, facts: &mut Lossy<Fact>, out: &mut Queue<Request>) {
 
 /// The answer goes to the parent, ending its call; its worker keeps it until
 /// the parent acknowledges it, unless it is a refusal, which keeps nothing.
+#[expect(clippy::too_many_arguments, reason = "the terminal carries its answering worker with the retained payload")]
 fn handed(
     to: ReplyTo,
     answer: Answer,
     payload: Token,
+    worker: Option<u32>,
     at: Where,
     names: Names,
     facts: &mut Lossy<Fact>,
     out: &mut Queue<Request>,
 ) -> State {
     facts.push(Fact::Answered { answer });
-    out.push(Request::Answered { to, run: names.run, attempt: names.attempt, answer, payload });
+    out.push(Request::Answered { to, run: names.run, attempt: names.attempt, answer, payload, worker });
     match answer {
         Answer::Invalid | Answer::Version | Answer::Untranslated => State::Closed,
         Answer::Ended | Answer::Parked | Answer::Failed { .. } => State::Handed { at },

@@ -264,8 +264,15 @@ fn hosted(run: Token, attempt: Token, phase: Phase) -> Hosting {
     Hosting { run, attempt, phase }
 }
 
-fn answered(attempt: Token, run: Token, answer: Answer, raw: u64) -> Request {
-    Request::Answered { to: to(attempt), run, attempt, answer, payload: payload(raw) }
+fn answered(channel: Token, attempt: Token, run: Token, answer: Answer, raw: u64) -> Request {
+    Request::Answered {
+        to: to(attempt),
+        run,
+        attempt,
+        answer,
+        payload: payload(raw),
+        worker: Some(u32::try_from(channel.raw()).unwrap().checked_rem(LIMITS.configured_workers).unwrap()),
+    }
 }
 
 fn ack(channel: Token, run: Token, attempt: Token) -> Request {
@@ -431,7 +438,7 @@ fn a_start_waits_for_a_worker_then_for_a_slot() {
     assert_eq!(&*h.hello(C1, 1, &[], &[]), &[]);
     assert_eq!(&*h.settle(), &[assign(C1, R1, A1), placed(R1, A1)]);
     assert_eq!(h.domain.waiting(), 1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     // The worker keeps the answer, and its slot, until the parent has it
     // durably.
     assert!(h.settle().is_empty());
@@ -687,7 +694,7 @@ fn an_invalid_refusal_is_handed_on_and_keeps_no_slot() {
     let mut h = Harness::new(LIMITS);
     h.hello(C1, 1, &[], &[]);
     h.place(R1, A1, 1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Invalid, 1), &[answered(A1, R1, Answer::Invalid, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Invalid, 1), &[answered(C1, A1, R1, Answer::Invalid, 1)]);
     h.start(R2, A2, 2);
     assert_eq!(&*h.settle(), &[assign(C1, R2, A2), placed(R2, A2)]);
     // The parent's acknowledgement changes nothing.
@@ -716,7 +723,7 @@ fn an_answer_is_handed_on_once_and_acknowledged_once_the_parent_has_it() {
     let mut h = Harness::new(LIMITS);
     h.hello(C1, 2, &[], &[]);
     h.place(R1, A1, 1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Parked, 1), &[answered(A1, R1, Answer::Parked, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Parked, 1), &[answered(C1, A1, R1, Answer::Parked, 1)]);
     // Sent again after a hello, before the parent has it durably: dropped,
     // not acknowledged.
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Parked, 2), &[drop(2)]);
@@ -736,7 +743,7 @@ fn an_answer_from_a_channel_not_in_contact_is_dropped_unacknowledged() {
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 2), &[drop(2)]);
     // Still the claim, adrift: the hello brings its answer.
     h.hello(C2, 2, &[], &[hosted(R1, A1, Phase::Answered)]);
-    assert_eq!(&*h.answer(C2, R1, A1, Answer::Ended, 3), &[answered(A1, R1, Answer::Ended, 3)]);
+    assert_eq!(&*h.answer(C2, R1, A1, Answer::Ended, 3), &[answered(C2, A1, R1, Answer::Ended, 3)]);
 }
 
 #[test]
@@ -782,7 +789,7 @@ fn a_cancelled_attempt_is_fenced_but_its_answer_ends_its_call() {
         &[Request::DropCall { call: host_call(Token::new(7), payload(6)) }]
     );
     assert_eq!(&*active_report(&mut h, C1), &[]);
-    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 8), &[answered(A1, R1, FAILED, 8)]);
+    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 8), &[answered(C1, A1, R1, FAILED, 8)]);
     // Answered: a cancel changes nothing.
     assert!(h.step(Event::Cancel { run: R1, attempt: A1 }).is_empty());
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C1, R1, A1)]);
@@ -831,7 +838,7 @@ fn a_waiting_attempt_a_worker_lists_is_not_assigned_again() {
     h.start(R1, A1, 1);
     assert_eq!(&*h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]), &[placed(R1, A1)]);
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
 }
 
 // Relaying.
@@ -1042,7 +1049,7 @@ fn a_worker_back_within_the_grace_keeps_what_is_claimed_and_cancels_the_rest() {
         &*h.step(Event::Inbound { run: R1, attempt: A1, message: message(event) }),
         &[Request::Inbound { channel: C2, run: R1, attempt: A1, message: message(event) }]
     );
-    assert_eq!(&*h.answer(C2, R2, A2, FAILED, 2), &[answered(A2, R2, FAILED, 2)]);
+    assert_eq!(&*h.answer(C2, R2, A2, FAILED, 2), &[answered(C2, A2, R2, FAILED, 2)]);
 }
 
 #[test]
@@ -1057,7 +1064,7 @@ fn an_answer_held_while_the_channel_was_down_follows_the_hello() {
     h.start(R2, A2, 2);
     // Its answer keeps the slot until the parent has it durably.
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.answer(C2, R1, A1, FAILED, 1), &[answered(A1, R1, FAILED, 1)]);
+    assert_eq!(&*h.answer(C2, R1, A1, FAILED, 1), &[answered(C2, A1, R1, FAILED, 1)]);
     assert!(h.settle().is_empty());
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C2, R1, A1)]);
     assert_eq!(&*h.settle(), &[assign(C2, R2, A2), placed(R2, A2)]);
@@ -1136,7 +1143,7 @@ fn an_adopted_claim_a_worker_lists_is_placed() {
     h.adopt(R1, A1);
     assert_eq!(&*h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]), &[placed(R1, A1)]);
     assert!(h.at(30).is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
 }
 
 #[test]
@@ -1161,7 +1168,7 @@ fn a_stray_adopted_within_the_grace_is_the_claim() {
     h.at(5);
     assert_eq!(&*h.adopt(R1, A1), &[placed(R1, A1)]);
     assert!(h.at(30).is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
 }
 
 #[test]
@@ -1172,7 +1179,7 @@ fn a_stray_s_answer_is_kept_unacknowledged_for_its_adoption() {
     assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 2), &[drop(2)]);
     assert!(h.answer(C1, R2, A2, Answer::Parked, 3).is_empty());
     h.loaded();
-    assert_eq!(&*h.adopt(R1, A1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.adopt(R1, A1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C1, R1, A1)]);
     // Not adopted in time: forgotten, by the parent and by its worker.
     assert_eq!(&*h.at(10), &[drop(3), ack(C1, R2, A2)]);
@@ -1190,7 +1197,7 @@ fn a_kept_answer_listed_again_keeps_its_slot() {
     // The worker keeps the answer, so its one slot is taken.
     h.start(R2, A2, 2);
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.adopt(R1, A1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.adopt(R1, A1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     assert_eq!(&*h.acknowledge(R1, A1), &[ack(C2, R1, A1)]);
     assert_eq!(&*h.settle(), &[assign(C2, R2, A2), placed(R2, A2)]);
 }
@@ -1262,7 +1269,7 @@ fn an_adopted_claim_cancelled_is_cancelled_once_found() {
     h.adopt(R1, A1);
     assert!(h.step(Event::Cancel { run: R1, attempt: A1 }).is_empty());
     assert_eq!(&*h.hello(C1, 2, &[], &[hosted(R1, A1, Phase::Active)]), &[cancel(C1, R1, A1)]);
-    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 1), &[answered(A1, R1, FAILED, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, FAILED, 1), &[answered(C1, A1, R1, FAILED, 1)]);
 }
 
 // Facts and memory.
@@ -1500,7 +1507,7 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
     h.step(Event::Hello { worker: 37, channel: C1, hello: hello() });
     assert_eq!(h.place(R1, A1, 1), C1);
     assert_eq!(h.place(R2, A2, 2), C1);
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Version, 1), &[answered(A1, R1, Answer::Version, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Version, 1), &[answered(C1, A1, R1, Answer::Version, 1)]);
     assert!(h.acknowledge(R1, A1).is_empty());
     assert!(h.domain.probe(Kinds::Workers, 1, crate::Version { charter: 1, revision: 1 }, &[], &[]).is_none());
     h.start(R1, A3, 1);
@@ -1516,7 +1523,7 @@ fn a_version_refusal_excludes_runs_and_jobs_until_the_next_channel() {
     });
     assert!(h.settle().is_empty());
     // A hosted run still answers, and freeing it cannot clear the mismatch mark.
-    assert_eq!(&*h.answer(C1, R2, A2, Answer::Ended, 2), &[answered(A2, R2, Answer::Ended, 2)]);
+    assert_eq!(&*h.answer(C1, R2, A2, Answer::Ended, 2), &[answered(C1, A2, R2, Answer::Ended, 2)]);
     h.acknowledge(R2, A2);
     assert!(h.settle().is_empty());
     h.step(Event::Lost { channel: C1 });
@@ -1572,7 +1579,17 @@ fn an_untranslated_task_avoids_only_its_channel_until_loss_for_runs_and_jobs() {
         let placed_first = h.settle();
         let first = if job { Request::AssignJob { channel: C1, run: R1, attempt: A1 } } else { assign(C1, R1, A1) };
         assert_eq!(&*placed_first, &[first, placed(R1, A1)]);
-        assert_eq!(&*h.answer(C1, R1, A1, Answer::Untranslated, 1), &[answered(A1, R1, Answer::Untranslated, 1)]);
+        assert_eq!(
+            &*h.answer(C1, R1, A1, Answer::Untranslated, 1),
+            &[Request::Answered {
+                to: to(A1),
+                run: R1,
+                attempt: A1,
+                answer: Answer::Untranslated,
+                payload: payload(1),
+                worker: Some(1),
+            }]
+        );
         assert!(h.acknowledge(R1, A1).is_empty(), "local refusal never needs acknowledgement");
         h.step(start(A2));
         assert!(h.settle().is_empty(), "the task waits without another channel");
@@ -1623,7 +1640,7 @@ fn a_running_record_mismatch_excludes_placement_while_its_hosted_run_finishes() 
     h.step(Event::Mismatch { channel: C1 });
     h.start(R2, A2, 2);
     assert!(h.settle().is_empty());
-    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(A1, R1, Answer::Ended, 1)]);
+    assert_eq!(&*h.answer(C1, R1, A1, Answer::Ended, 1), &[answered(C1, A1, R1, Answer::Ended, 1)]);
     h.acknowledge(R1, A1);
     assert!(h.settle().is_empty());
     h.hello(C2, 2, &[], &[]);

@@ -140,9 +140,12 @@ fn attempt_ended(domain: &mut Domain, row: &tasks::AttemptRow, answer: Option<An
             Some(tasks::EndKind::Finished) => return,
             Some(tasks::EndKind::Cancelled) => JobOutcome::Cancelled,
             Some(tasks::EndKind::Failed { class: tasks::Class::Lost, .. }) => JobOutcome::Lost,
-            Some(tasks::EndKind::Failed { .. } | tasks::EndKind::Refused | tasks::EndKind::Parked) => {
-                JobOutcome::Failed { class: JobFailure::Unknown }
-            }
+            Some(
+                tasks::EndKind::Failed { .. }
+                | tasks::EndKind::Refused
+                | tasks::EndKind::Suspended { .. }
+                | tasks::EndKind::Parked,
+            ) => JobOutcome::Failed { class: JobFailure::Unknown },
             None => match child.phase {
                 tasks::Phase::Closing(tasks::Closing { ending: tasks::Ending::Cancelled { .. }, .. })
                 | tasks::Phase::Ended(tasks::Ending::Cancelled { .. }) => JobOutcome::Cancelled,

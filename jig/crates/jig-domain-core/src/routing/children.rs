@@ -446,7 +446,7 @@ pub(crate) fn tag_fleet(
             fleet::Request::Answered { payload, .. } if core.stopping => {
                 Request::Now(Box::new(Now::Link(LinkNow::DropPayload { payload })))
             }
-            fleet::Request::Answered { run, attempt, payload, to, answer } => {
+            fleet::Request::Answered { run, attempt, payload, to, answer, worker } => {
                 let _answered = to.into_token();
                 let _: Option<u64> = core.unreported_restored.remove(&run.raw());
                 assert!(core.current_proof(run.raw(), attempt.raw()), "current answer has reserved proof");
@@ -458,7 +458,13 @@ pub(crate) fn tag_fleet(
                         append_account(core, env, run_failed(env.now, turned), &mut out);
                     }
                 }
-                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload { run, attempt, payload })))
+                Request::Now(Box::new(Now::Link(LinkNow::AnswerPayload {
+                    run,
+                    attempt,
+                    payload,
+                    worker,
+                    window: env.limits.fleet.restart_wait,
+                })))
             }
         };
         out.push(request);

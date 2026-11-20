@@ -439,6 +439,10 @@ pub enum LinkNow {
         run: Token,
         attempt: Token,
         payload: Token,
+        /// Answering worker's fleet position, none on the engine.
+        worker: Option<u32>,
+        /// Fleet restart wait at the answer's decision.
+        window: skein_lib::Duration,
     },
     /// Read the root-owned transcript after the task accepts its charge.
     AcceptedTurn {

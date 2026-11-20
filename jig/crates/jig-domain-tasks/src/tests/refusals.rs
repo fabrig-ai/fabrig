@@ -469,6 +469,167 @@ fn a_job_recheck_releases_its_attempt_due_without_spending_a_try() {
     }
 }
 
+/// A suspended job commits its end and window without a failure or refusal (executors.md, 6.2).
+#[test]
+fn a_suspended_job_records_its_worker_without_spending_a_try() {
+    for cause in [crate::Cause::Unpriced, crate::Cause::Priced { cumulative: 0 }] {
+        let mut h = running_job();
+        h.env.wall = Wall::from_nanos(100_000_000_000);
+        let tries = crate::Tries { lost: 1, ..crate::Tries::NONE };
+        crate::domain::task_mut(&mut h.domain, 2).unwrap().record.tries = tries;
+        let end = crate::EndKind::Suspended { worker: 2, why: crate::SuspendWhy::Stopped };
+        let out = h.send(Event::Activation {
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt: 1,
+            cause,
+            saved: None,
+            end: crate::End::Suspended(crate::Suspended {
+                worker: 2,
+                why: crate::SuspendWhy::Stopped,
+                window: skein_lib::Duration::from_secs(30),
+            }),
+        });
+        let row = h.domain.task(2).unwrap();
+        assert_eq!(row.phase, crate::Phase::Active(crate::Active::Due));
+        assert_eq!((row.tries, row.refusals, row.retry_notice.as_ref()), (tries, 0, None));
+        assert_eq!((row.last_answer, row.run_reserved, row.open_attempt.as_ref()), (Some(1), 0, None));
+        assert_eq!(
+            row.suspension,
+            Some(crate::Suspension { worker: 2, since: h.env.wall, until: Wall::from_nanos(130_000_000_000) })
+        );
+        assert_eq!(h.domain.suspension(2), row.suspension);
+        let crate::Stored::Attempt(attempt) = &h.stored[&crate::Key::Attempt { task: 2, attempt: 1 }] else {
+            panic!("closed attempt");
+        };
+        assert_eq!((attempt.ended, attempt.end), (Some(h.env.wall), Some(end)));
+        let mut activity = false;
+        let mut activated = false;
+        for request in &out {
+            if let Request::Save { record: crate::Stored::Activity(line) } = request {
+                activity |= line.at == h.env.wall && line.line == crate::Line::RunEnded { attempt: 1, end, spent: 0 };
+            }
+            if let Request::Activate { context } = request {
+                activated |= context.task == 2;
+            }
+        }
+        assert!(activity);
+        assert!(activated);
+        let record = row.clone();
+        h.restart();
+        assert_eq!(h.domain.task(2), Some(&record));
+    }
+}
+
+/// The gap ends only on leaving due and preparing (executors.md, 6.2).
+#[test]
+fn a_suspension_survives_preparation_and_closes_at_the_next_claim_or_hold() {
+    for held in [false, true] {
+        let mut h = running_job();
+        h.env.wall = Wall::from_nanos(100_000_000_000);
+        h.send(Event::Activation {
+            reply_to: super::revisions::to(),
+            task: 2,
+            attempt: 1,
+            cause: crate::Cause::Unpriced,
+            saved: None,
+            end: crate::End::Suspended(crate::Suspended {
+                worker: 2,
+                why: crate::SuspendWhy::Stopped,
+                window: skein_lib::Duration::from_secs(30),
+            }),
+        });
+        let suspension = h.domain.suspension(2);
+        h.env.wall = Wall::from_nanos(120_000_000_000);
+        h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
+        assert_eq!(h.domain.suspension(2), suspension);
+        h.send(Event::PreparationWaiting { task: 2 });
+        assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Due));
+        assert_eq!(h.domain.suspension(2), suspension);
+        h.env.wall = Wall::from_nanos(160_000_000_000);
+        if held {
+            h.send(Event::Hold { task: 2, why: crate::Hold::Stopped });
+        } else {
+            h.send(Event::Prepare { reply_to: super::revisions::to(), task: 2 });
+            h.send(Event::Claim {
+                reply_to: super::revisions::to(),
+                task: 2,
+                attempt: 2,
+                fresh: None,
+                session_end: None,
+                reasons: crate::Reasons::FIRST,
+                offered: crate::Reasons::ALL,
+                resumed: false,
+                budget: 0,
+                account: None,
+                writes: Box::new([]),
+            });
+            assert_eq!(h.domain.task(2).unwrap().phase, crate::Phase::Active(crate::Active::Claimed { attempt: 2 }));
+        }
+        let row = h.domain.task(2).unwrap();
+        assert_eq!(row.suspension, None);
+        assert_eq!(row.suspended, 60_000_000_000);
+    }
+}
+
+/// Two consecutive missing runs on fresh workers count as lost (executors.md, 6.1).
+#[test]
+fn consecutive_restarted_ends_spend_a_lost_try_but_other_ends_clear_the_mark() {
+    for middle in [
+        None,
+        Some(crate::End::Recheck),
+        Some(crate::End::Suspended(crate::Suspended {
+            worker: 2,
+            why: crate::SuspendWhy::Stopped,
+            window: skein_lib::Duration::from_secs(30),
+        })),
+    ] {
+        let mut h = running_job();
+        let restarted = crate::End::Suspended(crate::Suspended {
+            worker: 2,
+            why: crate::SuspendWhy::Restarted,
+            window: skein_lib::Duration::from_secs(30),
+        });
+        for (index, end) in [Some(restarted.clone()), middle.clone(), Some(restarted)].into_iter().enumerate() {
+            let Some(end) = end else { continue };
+            let attempt = u64::try_from(index).unwrap() + 1;
+            let row = &mut crate::domain::task_mut(&mut h.domain, 2).unwrap().record;
+            row.phase = crate::Phase::Active(crate::Active::Claimed { attempt });
+            row.attempt = attempt;
+            crate::domain::publish(&mut h.domain, &h.env, 2, &mut skein_lib::Queue::uncapped());
+            h.send(Event::Activation {
+                reply_to: super::revisions::to(),
+                task: 2,
+                attempt,
+                end,
+                cause: crate::Cause::Unpriced,
+                saved: None,
+            });
+            let row = h.domain.task(2).unwrap();
+            if index == 0 {
+                assert!(row.restarted);
+                assert_eq!(row.tries.lost, 0);
+            } else if middle.is_none() {
+                assert!(!row.restarted);
+                assert_eq!(row.tries.lost, 1);
+                let crate::Phase::Active(crate::Active::BackingOff { .. }) = row.phase else { panic!("lost backoff") };
+                assert_eq!(row.suspension, None);
+                let crate::Stored::Attempt(attempt) = &h.stored[&crate::Key::Attempt { task: 2, attempt }] else {
+                    panic!("closed attempt")
+                };
+                assert_eq!(
+                    attempt.end,
+                    Some(crate::EndKind::Failed { class: crate::Class::Lost, invalid_result: None })
+                );
+            } else {
+                assert_eq!(row.restarted, index == 2);
+                assert_eq!(row.tries.lost, 0);
+                assert_eq!(row.phase, crate::Phase::Active(crate::Active::Due));
+            }
+        }
+    }
+}
+
 /// Infrastructure owns its allowance, delay and reason (domain/tasks/lifecycle.md, 6).
 #[test]
 fn infrastructure_backs_off_twelve_times_then_holds_with_its_reason() {

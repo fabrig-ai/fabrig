@@ -136,7 +136,14 @@ fn a_failed_answer_carries_the_account_it_turned_on_to_the_parent() {
         let payload = Token::new(9);
         assert_eq!(
             step(&mut domain, Event::Answer { channel: WORKER, run: RUN, attempt: ATTEMPT, answer, payload }),
-            [Request::Answered { to: ReplyTo::new(ATTEMPT), run: RUN, attempt: ATTEMPT, answer, payload }]
+            [Request::Answered {
+                to: ReplyTo::new(ATTEMPT),
+                run: RUN,
+                attempt: ATTEMPT,
+                answer,
+                payload,
+                worker: Some(5)
+            }]
         );
     }
 }

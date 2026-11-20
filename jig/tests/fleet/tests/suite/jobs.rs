@@ -256,7 +256,14 @@ fn an_engine_restart_adopts_a_job_its_worker_still_hosts() {
         assert_eq!(h.at(11).len(), 0);
         assert_eq!(
             h.step(Event::Answer { channel: C1, run: R1, attempt: A1, answer: Answer::Ended, payload: payload(5) }),
-            &[Request::Answered { to: to(A1), run: R1, attempt: A1, answer: Answer::Ended, payload: payload(5) }]
+            &[Request::Answered {
+                to: to(A1),
+                run: R1,
+                attempt: A1,
+                answer: Answer::Ended,
+                payload: payload(5),
+                worker: Some(0)
+            }]
         );
         h.step(Event::Acknowledge { run: R1, attempt: A1 });
         assert_eq!(h.domain.attempts(), 0);

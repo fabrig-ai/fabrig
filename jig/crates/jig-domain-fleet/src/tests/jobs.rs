@@ -45,7 +45,14 @@ fn a_busy_job_is_placed_again_and_its_answer_is_acknowledged() {
         h.step(Event::Answer { channel: C2, run: R1, attempt: A1, answer: Answer::Ended, payload: payload(2) });
     assert_eq!(
         &*result,
-        &[Request::Answered { to: to(A1), run: R1, attempt: A1, answer: Answer::Ended, payload: payload(2) }]
+        &[Request::Answered {
+            to: to(A1),
+            run: R1,
+            attempt: A1,
+            answer: Answer::Ended,
+            payload: payload(2),
+            worker: Some(1)
+        }]
     );
     assert_eq!(
         &*h.step(Event::Acknowledge { run: R1, attempt: A1 }),

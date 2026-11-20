@@ -612,6 +612,8 @@ pub enum Request {
         attempt: Token,
         answer: Answer,
         payload: Token,
+        /// Answering channel's worker position; none for an engine host.
+        worker: Option<u32>,
     },
     /// To the parent, terminal for an engine-hosted adoption with no committed
     /// work, or a crossed claim never listed and not worked at its grace.

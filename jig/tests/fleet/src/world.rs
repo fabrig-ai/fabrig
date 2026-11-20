@@ -1060,7 +1060,7 @@ impl World {
                 }
             }
             Request::Placed { run, attempt } => self.placed(run.raw(), attempt.raw()),
-            Request::Answered { to, run, attempt, answer: _, payload } => {
+            Request::Answered { to, run, attempt, answer: _, payload, worker: _ } => {
                 let said = match self.payloads.end(payload.raw()) {
                     Payload::Answer(said) => said,
                     Payload::Inbound | Payload::Body { .. } | Payload::Reply => {

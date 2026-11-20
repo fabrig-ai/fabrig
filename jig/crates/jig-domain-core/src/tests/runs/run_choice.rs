@@ -204,6 +204,47 @@ fn a_due_agent_s_readiness_is_its_admission_in_every_state() {
     }
 }
 
+/// Claims and jobs check the task's moved deadline, including the open gap (executors.md, 6.3).
+#[test]
+fn run_and_job_checks_move_only_the_suspended_tasks_deadline() {
+    fn minute(value: u64) -> Wall {
+        Wall::from_nanos(Duration::from_secs(value * 60).as_nanos())
+    }
+    for (open, at, held) in [(false, 730, false), (false, 740, false), (false, 741, true), (true, 725, false)] {
+        let (mut core, limits) = ready(false);
+        let mut row = core.tasks.task(TASK).unwrap().clone();
+        row.authority.budget.deadline = Some(minute(720));
+        if open {
+            row.suspension = Some(tasks::Suspension { worker: 2, since: minute(690), until: minute(710) });
+        } else {
+            row.suspended = Duration::from_secs(20 * 60).as_nanos();
+        }
+        let authority = row.authority.clone();
+        let ledger = *core.tasks.funding(row.funder).unwrap();
+        fixtures::restore(&mut core, &limits, Box::new([row]));
+        send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
+        send_task(&mut core, &limits, tasks::Event::Check);
+        send_task(&mut core, &limits, tasks::Event::Restored);
+        let context = core.tasks.run_context(TASK).unwrap();
+        let admission = core.run_admission(&context, minute(at), Box::new([]));
+        let job = crate::routing::run::jobs::admission(&core, &context, minute(at), Box::new([]));
+        if held {
+            assert_eq!(admission, RunAdmission::Hold(tasks::Hold::Deadline));
+            assert_eq!(job, Err(RunAdmission::Hold(tasks::Hold::Deadline)));
+            // A credential wait cannot hide the moved deadline's hold.
+            assert_eq!(core.workspace_credentials.insert(TASK, Box::new([7])), Ok(None));
+            assert_eq!(
+                core.run_admission(&context, minute(at), Box::new([])),
+                RunAdmission::Hold(tasks::Hold::Deadline)
+            );
+        } else {
+            let RunAdmission::Allow(_) = admission else { panic!("{admission:?}") };
+            assert_eq!(job, Ok(()));
+        }
+        assert_eq!(core.tasks.task(TASK).unwrap().authority, authority);
+    }
+}
+
 #[test]
 fn a_lower_numbered_goals_waiting_run_starts_first() {
     // One occupied host slot is freed for the two waiting runs.
@@ -489,6 +530,37 @@ fn claim_account_run(core: &mut Core, env: &Env<Limits>, attempt: u64) {
         },
         &mut out,
     );
+}
+
+/// An answer carries its channel's worker and the fleet's current window to translation (executors.md, 6.1, 6.4).
+#[test]
+fn an_answer_carries_its_worker_and_the_current_restart_window_to_the_link() {
+    let (mut core, mut limits) = ready(false);
+    core.proofs.insert(TASK, RunProof::claimed(TASK, 7, 7, None, fleet::HostKind::Worker)).unwrap();
+    for (worker, window) in [(Some(1), Duration::from_secs(17)), (None, Duration::ZERO)] {
+        limits.fleet.restart_wait = window;
+        let mut child = Queue::uncapped();
+        child.push(fleet::Request::Answered {
+            to: ReplyTo::new(FIRST),
+            run: Token::new(TASK),
+            attempt: Token::new(7),
+            payload: Token::new(99),
+            answer: fleet::Answer::Failed { turned: None },
+            worker,
+        });
+        let mut out = crate::routing::children::tag_fleet(
+            &mut core,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
+            &mut Queue::uncapped(),
+            child,
+        );
+        let Some(Request::Now(now)) = out.pop() else { panic!("link answer") };
+        let Now::Link(LinkNow::AnswerPayload { worker: named, window: length, .. }) = *now else {
+            panic!("link answer")
+        };
+        assert_eq!((named, length), (worker, window));
+        assert!(out.is_empty());
+    }
 }
 
 fn account_run_answer(attempt: u64) -> Event {
