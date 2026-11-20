@@ -513,6 +513,18 @@ tens of MB, so a quarter's headroom over one story cost a repair at
 each milestone's added state, while three times still catches a leak.
 The worker's child domain worlds keep their checks inline.
 
+**Beside the referee, the harness's invariants.** The referee never
+reads a domain's state. What must hold of a component's frozen state, its
+waits and its bounded tables, is a harness invariant: the world reads the
+component through its inspection adapter at its driver's quiet point and
+returns the shared checks' findings as its run's (skein's
+`testing/inspection.md`; `checks.md`, 6.1). A world that injects faults
+records each in its run's fault ledger, draws its workload, faults,
+parties and scheduling from independent streams of its seed, and a sweep
+over its seeds fails when a fault it configures never falls; its only
+exclusions name ignored scenarios (skein's `testing/sweeps.md`;
+`checks.md`, 6.2).
+
 ## 5. Layout
 
 ```

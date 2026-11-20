@@ -368,7 +368,28 @@ more than one world needs them (testing-strategy.md, section 4):
 - **what one package's test binaries share,** a kit too, compiled once for
   them all (`tools/crates/design.md`, 3.2): the reference binary's stories'
   rig, its binary, native person and provider on skein's real ring
-  (`jig-test-kit`).
+  (`jig-test-kit`);
+- **jig's inspection adapter,** `jig/testing/jig-inspect`, of skein's form
+  (`skein/docs/design/testing/inspection.md`, 2;
+  `temper/docs/design/draft/failure-worlds.md`, 3.1 and 3.2), component
+  `jig`, over the children's `pub` reads, each private table gaining a
+  `pub` read documented as its adapter's:
+  - `jig_inspect::tasks(tasks: &jig_domain_tasks::Domain, into: &mut
+    Inspection)` gives each live task's wait, named `task N`: on its
+    requester, standing, on its dependencies or delegates, on a timer or
+    a watch (`tasks/lifecycle.md`), or held, its kind `held: <hold's
+    kind>` (`tasks/holds.md`), each with its wakes and bound; and the
+    tasks' tables: subscriptions, released by the subscriber's end or
+    unsubscribing, and creation reports, released by the batch's answer,
+    pinned while a batch that hasn't answered needs them;
+  - `jig_inspect::core(core: &jig_domain_core::Core, into: &mut
+    Inspection)` adds to `tasks` the people's kept answers to change
+    requests, released by their retention's expiry or eviction
+    (`people/acts.md`), and a sign-in's pending exchanges, released by
+    each request's answer;
+  - the core's world calls `core` at its driver's quiet point, the
+    engine-clients world at its own, and an application's worlds call
+    `tasks` over the arena their root holds, beside their own adapter.
 
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.

@@ -1,6 +1,10 @@
 # testing: status
 
-2026-11-18. Where temper's code lags or departs from [README.md](README.md).
+2026-11-20. Where temper's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 4.2: no world reads a component through its inspection
+  adapter, keeps a fault ledger or sweeps with configured faults
+  (`checks.status.md`, 6.1 and 6.2).
 
 `checks.md`, section 1 has no known gap in the one-process runner's shared-process
 memory-scenario requirement. No test is assigned to `process-of-its-own`.
