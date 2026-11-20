@@ -46,6 +46,13 @@ is converted as it is read, and written at the binary's layout.
   (temper's `draft/store-floor.md`, section 5). A change to one designs
   how the deployment's store reaches it in the same landing; the frame
   patcher and its texts and patches stay (`transcripts.md`, 6).
+- **The deployed store's layouts hold both rules.** Every layout the
+  oldest store a build opens may hold, dev.fabrig.ai's (temper's
+  `draft/store-floor.md`), plans to the binary's as 5.3 does or is a
+  written job's (6); a format outside the registry keeps each
+  declaration's layout at its version, or moves its version with its
+  patch. Temper's guard holds both against the texts of the builds whose
+  layouts that store holds (temper's `protocol/floor.md`, 6).
 - **Held records** of any family the binary holds a text of, registered
   or not, are part of their holder's layout (skein's
   `data/codec/README.md`, 9.4): a core projection that holds a tasks
@@ -406,6 +413,17 @@ values at a written job's layouts to the job, never to a plan
   their order are unchanged: a stored text whose bytes do not give its
   digest, a persisted fingerprint its text does not give, a malformed
   declaration, a held depth past a plan's, each refused as before.
+- **Dev's build's store,** step tests: a store whose registry holds the
+  jig texts of `13efa77461`, the build dev.fabrig.ai runs, kept verbatim
+  as fixtures, with values at those layouts: refused delegations
+  (core's calls, whose `TaskBytes` hold the tasks' `TaskProblem`), ended
+  tasks whose history and ended records are in their task logs, in more
+  than one of skein-kv's log shards (`logs.md`, 1), and an activity frame
+  near the store's page. Opened by the binary's sets, the open registers
+  the binary's layouts in a new generation (5.5); the restore's live and
+  census pages, each task's own rows and its ended record read back with
+  every value at the binary's layout. The source generation is
+  unchanged, and a second open writes nothing and reads the same.
 - **The conversion buffer** (7), measured under skein's counting
   allocator in the store's world: a store whose plans convert holds no
   buffer at open; its first converted read makes one at its value's

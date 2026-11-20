@@ -7,6 +7,7 @@ use skein_codec::{
 };
 use skein_lib::{Buffer, List, Map, Queue};
 mod check;
+pub use check::{HeldLayout, judge_held_layout};
 #[cfg(test)]
 mod counting;
 mod depth;

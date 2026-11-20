@@ -1,20 +1,47 @@
-//! The byte-oriented kept manifest (qa/builds.md, 4).
+//! Writing and reading sha256sum's byte-oriented manifest rows (qa/builds.md, 4).
 use crate::{Refusal, refused};
 use std::{
     collections::BTreeMap,
     ffi::OsString,
-    os::unix::ffi::OsStringExt,
-    path::{Component, PathBuf},
+    os::unix::ffi::{OsStrExt, OsStringExt},
+    path::{Component, Path, PathBuf},
 };
 
-/// The build writer uses sha256sum's escaped, byte-oriented path form.
+/// Write a checksum row, escaping backslashes, newlines and carriage returns.
+pub(crate) fn line(hex: &str, path: &Path) -> Vec<u8> {
+    let name = path.as_os_str().as_bytes();
+    let escaped = name.iter().any(|byte| matches!(byte, b'\\' | b'\n' | b'\r'));
+    let mut line = Vec::new();
+    if escaped {
+        line.push(b'\\');
+    }
+    line.extend_from_slice(hex.as_bytes());
+    line.extend_from_slice(b"  ");
+    for byte in name {
+        match byte {
+            b'\\' => line.extend_from_slice(b"\\\\"),
+            b'\n' => line.extend_from_slice(b"\\n"),
+            b'\r' => line.extend_from_slice(b"\\r"),
+            _ => line.push(*byte),
+        }
+    }
+    line.push(b'\n');
+    line
+}
+
+/// Read a kept manifest with its required commit line.
 pub(crate) fn parse(bytes: &[u8], commit: &str) -> Result<BTreeMap<PathBuf, String>, Refusal> {
-    let mut lines = bytes.split(|byte| *byte == b'\n');
+    let mut lines = bytes.splitn(2, |byte| *byte == b'\n');
     if lines.next() != Some(format!("commit {commit}").as_bytes()) {
         return Err(refused("commit differs from build"));
     }
+    rows(lines.next().unwrap_or_default())
+}
+
+/// Read checksum rows in path order, without a commit line.
+pub(crate) fn rows(bytes: &[u8]) -> Result<BTreeMap<PathBuf, String>, Refusal> {
     let mut files = BTreeMap::new();
-    for line in lines.filter(|line| !line.is_empty()) {
+    for line in bytes.split(|byte| *byte == b'\n').filter(|line| !line.is_empty()) {
         let (escaped, line) = line.strip_prefix(b"\\").map_or((false, line), |rest| (true, rest));
         let (hash, path) = line.split_at_checked(64).ok_or_else(|| refused("invalid checksum line"))?;
         let path = path.strip_prefix(b"  ").ok_or_else(|| refused("invalid checksum line"))?;

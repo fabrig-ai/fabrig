@@ -6492,7 +6492,9 @@ name = "temper-codecs-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
+ "jig-client-view-codec",
  "jig-protocol-config",
+ "jig-protocol-store",
  "skein-codec",
  "skein-codegen",
  "skein-fake-forge-github",
@@ -6509,6 +6511,7 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-forge-vocabulary",
+ "temper-engine-service-vocabulary",
  "temper-protocol-reaches",
  "temper-protocol-records",
  "temper-protocol-records-forge",

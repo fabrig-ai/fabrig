@@ -448,7 +448,11 @@ fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
 fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> String {
     use std::fmt::Write as _;
     let Some(failure) = failure else { return "store load failed".into() };
-    let mut line = format!("{:?}", failure.cause);
+    let mut line = if let jig_protocol_store::restore::Cause::History { task, failure } = failure.cause {
+        format!("task {task} history fetch: {}", history_failure(failure))
+    } else {
+        format!("{:?}", failure.cause)
+    };
     if let Some(row) = &failure.row {
         if let Some(family) = row.family {
             write!(line, ", family {family:?}").expect("format restore family");
@@ -459,6 +463,27 @@ fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> Strin
         }
     }
     line
+}
+
+fn history_failure(failure: jig_protocol_store::restore::HistoryFailure) -> &'static str {
+    use jig_protocol_store::restore::HistoryFailure;
+    match failure {
+        HistoryFailure::LogId => "task has no history log id",
+        HistoryFailure::ExtentMissing => "history extent missing",
+        HistoryFailure::ExtentMalformed => "history extent malformed or unreadable",
+        HistoryFailure::PlaceMissing => "history place missing",
+        HistoryFailure::PlaceMalformed => "history place malformed or unreadable",
+        HistoryFailure::Unread => "generation cannot give the history frame",
+        HistoryFailure::Empty => "history fetch returned no frame",
+        HistoryFailure::FramePosition => "history frame position invalid",
+        HistoryFailure::FramePastExtent => "history frame past the extent",
+        HistoryFailure::FramePastPage => "history frame past the fetch page",
+        HistoryFailure::Record => "history record does not parse",
+        HistoryFailure::RecordTask => "history record names another task",
+        HistoryFailure::Incomplete => "history fetch ended before its extent",
+        HistoryFailure::Continuation => "history fetch continuation disagrees with its frame",
+        HistoryFailure::Arithmetic => "history fetch accounting overflow",
+    }
 }
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive note match keeps the engine vocabulary beside its words")]

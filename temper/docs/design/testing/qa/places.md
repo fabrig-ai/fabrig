@@ -1,6 +1,6 @@
 # Places and copies
 
-Provisional, 2026-11-12, revised 2026-11-16, from
+Provisional, 2026-11-12, revised 2026-11-20, from
 `../../draft/landed-qa.md`, sections 2, 5 and 7, milestones Q3, Q4,
 Q6 and Q7 of `../../draft/landed-qa.execution.md`. Where a pass's boxes and
 deployments run, and what each case starts from: a place, a fixed
@@ -130,11 +130,16 @@ place is free and before any box starts there:
 - **Copies, and across filesystems:** a bundle's file, and a binary
   whose link is refused with a cross-device error, is copied to a private
   temporary file in its directory, its build's mode set and then renamed
-  into place. Once the files are in place, one `sha256sum --check`
-  process checks the installed `bin/` and `bundle/` lines of the manifest
-  from the place's directory. No other
-  link error falls back to copying. A failed check names the file, fails
-  the install and leaves no completed receipt, so the next tick installs again.
+  into place. Once the files are in place, the tool checks the installed
+  `bin/` and `bundle/` lines of the manifest from the place's directory,
+  itself, as `sha256sum --check` would: each line read by the manifest's
+  one reader (`builds.md`, 4), its file hashed in Rust, streamed, and
+  compared, every line checked, with no checksum program run. No other
+  link error falls back to copying. A failed check names each file that
+  failed, in path order, as one refusal, `checksum check: P1: FAILED;
+  P2: WHY`: `PATH: FAILED` for a digest that differs, `PATH: WHY` for a
+  file that does not read. It fails the install and leaves no completed
+  receipt, so the next tick installs again.
 - **Completed:** `setup` removed, so no case runs on a box restored for
   an earlier build until a setup is restored again; then the manifest
   copied to a private temporary file and renamed to the place's
@@ -186,8 +191,10 @@ installs another build.
   removed first (`../../protocol/binaries.md`, 5;
   `../../domain/worker/README.md`, 5). That directory is the build's,
   not the setup's state, so a copy leaves it out: a copy's save never
-  archives it, and a restore never unpacks it, from any copy that holds
-  it. A copy holds the setup's state alone, and every box restored at
+  archives it, and a restore leaves none of it at the place from any
+  copy that holds it, removing it once unpacked and before anything
+  else reads the scratch directory (section 8). A copy holds the
+  setup's state alone, and every box restored at
   the place pins its agent from the place's `bin/` as it starts, the
   pass's build's. The directory, by its path below the scratch
   directory, matched whole and only there, so that a directory of the
@@ -387,10 +394,41 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
   answers its values, and one function reads a setup's chain for both
   (`kinds.md`, 6).
 - **Its world behind faces:** the drive tool, run as a process from the
-  place's `bin/`; the archive, `tar --create` and `tar --extract` run as
-  processes with the captured environment; the holder's socket and its
+  place's `bin/`; the archive (below); the install's checksums, in Rust
+  (section 3; `builds.md`, 3 and 4); the holder's socket and its
   process. The QA tool links none of the drive tool's code: the place's
   build reads its own recipes and speaks its own lines.
+- **The archive** is the system's `tar`, run as a process with the
+  captured environment and closed stdin, given only options GNU tar and
+  macOS's bsdtar both take, so that a place works on either
+  (`../macos.md`): `tar --create --file ARCHIVE --directory SCRATCH
+  config data`, the members present (a box with fake backends may make
+  no `config/`), and `tar --extract --file ARCHIVE --directory SCRATCH`.
+  No `--exclude`: the two tars match its patterns from any `/` of a
+  name and read them as wildcards, and anchoring them takes GNU's
+  `--anchored --no-wildcards`, which bsdtar refuses. So what a start pins
+  (section 4) is left out by the tool, by its path whole:
+  - **at a save,** each left-out path present below SCRATCH is moved
+    aside by a rename into a private directory beside the archive's
+    temporary file, the archive's name with `.left-out` appended
+    (`copies/R/copy.tmp.left-out/`, one entry per left-out path, named
+    for its place in the list from `0`), before `tar --create` runs, and
+    moved back once it has exited, whatever its exit; the directory is
+    then removed. One left by an interrupted save is removed before the
+    next save moves anything, and a successful save of R removes it with
+    `copies/R/`'s other files (section 4), so what it held is lost only
+    to the box's next start, which pins its agent again. A rename that
+    fails refuses the save, naming the path, `PATH: WHY`;
+  - **at a restore,** once `tar --extract` has exited 0, each left-out
+    path present below SCRATCH is removed, a directory with all it holds,
+    before the restore goes on; a removal that fails refuses it, `PATH:
+    WHY`.
+
+  A tar that exits otherwise refuses, `tar --create: STATUS: STDERR` or
+  `tar --extract: STATUS: STDERR`. The archive's format is the one the
+  system's tar writes by default; a copy is restored only at the place
+  that made it (section 2), so by the tar that wrote it. Copies saved before this form hold the same members, those with a
+  pinned `agent/` among them, and restore unchanged.
 - **Focused tests,** with no box and no browser: a fake
   `temper-client-journeys` in a test place's `bin/`, a small script that
   answers `recipe list`, `recipe hash`, `recipe walk` and `drive` as the
@@ -404,6 +442,14 @@ Exit 5 from `pass setup` (section 4) or `pass recipe` (section 6):
     `data/` with it, and a copy holding one restored without it;
   - the install's checksum refused for a file the manifest disagrees
     with;
+  - the real faces, on both systems: the real archive's save leaving out
+    a pinned `agent/` and a restore removing one an older copy holds,
+    with a directory of the same name elsewhere kept, and `copies/R/`
+    and SCRATCH holding nothing set aside once it ends; the real
+    checksums' lines equal to `sha256sum`'s for plain and escaped paths
+    (`builds.md`, 4), and their check naming each file that differs or
+    does not read; a path that is not UTF-8 on Linux alone
+    (`../macos.md`, 3);
   - a holder giving lines and answers through the socket, `pass line`'s
     exits, `pass close`'s kept lines, and the holder ending its session
     once the ledger ends the pass session;
