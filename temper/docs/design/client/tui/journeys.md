@@ -170,6 +170,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
 | `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
+| `listening` | the port, or `none` | a `Listening` report (`pages/sign-in.md`, 4) |
+| `returned` | `get` or `other`, the target as bytes, the `Host` as bytes or `none` | a `Returned` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
@@ -182,6 +184,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `signed` | the origin as `address` has it | the duty `address` |
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
+| `listen`, `unlisten` | none | the duties `listen` and `unlisten` |
+| `answer` | `redirect` and the address as bytes, or `not-found` | the duty `answer` |
 | `quit` | none | the duty `close` |
 | `stop-box` | none | the duty to stop the box (`box.md`, *Quitting*) |
 | `stop-box-again` | none | the duty of the box's second stop (`box.md`, *Quitting*) |
@@ -204,8 +208,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Any other `jig_client::Event`** reaching the host is no native
   shell's, and the recorder refuses it as its defect.
 - **The duties' order:** each request of `asked` in order, then `keep`,
-  `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
-  it.
+  `note`, `signed`, `read`, `browse`, `listen`, `unlisten`, `answer` and
+  `quit`, each when the duty holds it. A recording made before the
+  loopback return holds none of its records, and replays as it stands;
+  the version stays.
 - **The start's facts** are in the table's order, `background` after
   `screen`, `plain` after `background`, `version` after `plain`,
   `local` after `address`, `box` after `local`, `front` after `box`,
@@ -302,7 +308,8 @@ the TUI's lines.
 - **The TUI's originals:**
   - *approval:* the secret of each `send` of kind `sign-in-approval`, as
     jig's wire reads that message's record; the same secret stands in
-    the ask's `reply`;
+    the ask's `reply`; and that record's grant, where it has one, the
+    one a `returned` record's target carries (`pages/sign-in.md`, 4);
   - *credential:* the start's `credential` and each `keep`'s bytes, the
     credential the TUI takes; the same bytes stand in the take's
     `reply`;
@@ -327,7 +334,7 @@ the TUI's lines.
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
   `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
-  `browse`, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
+  `browse`, `returned`'s target and `Host`, `answer`'s address, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
@@ -341,6 +348,10 @@ the TUI's lines.
   encodings of the redacted secret, so the paste and its event, and the
   box's line, still replay. This is the TUI's addition; the browser's
   code and encodings stay as `../web/journey-redaction.md` describes.
+- **A grant's encoding:** likewise, a grant's base64url with no padding
+  in a `returned` record's target, whether or not a take sent it, is
+  replaced by the redacted grant's and scanned, so the request still
+  reads and its take still replays.
 - **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's

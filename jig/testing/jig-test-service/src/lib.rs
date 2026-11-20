@@ -544,6 +544,22 @@ fn route_events(service: &mut Service, now: Time) {
             }
             continue;
         }
+        let error = match &event {
+            io::Event::Failed { error, .. } => Some(*error),
+            io::Event::Listening { .. }
+            | io::Event::Accepted { .. }
+            | io::Event::Connecting { .. }
+            | io::Event::Connected { .. }
+            | io::Event::Stream { .. }
+            | io::Event::Output { .. }
+            | io::Event::Spawned { .. }
+            | io::Event::Exited { .. }
+            | io::Event::Usage { .. }
+            | io::Event::Resized
+            | io::Event::Window { .. }
+            | io::Event::Shutdown { .. }
+            | io::Event::Closed { .. } => None,
+        };
         let mut worker_index = None;
         for (index, worker) in service.workers.iter().enumerate() {
             if worker.accepts(&event) {
@@ -568,14 +584,14 @@ fn route_events(service: &mut Service, now: Time) {
                 if let Some(clients) = &mut engine.clients
                     && !clients.up(event)
                 {
-                    engine.end = Some(End::Stopped(Stop::Listener));
+                    engine.end = Some(End::Stopped(Stop::Listener { component: Some("clients"), error }));
                 }
             } else if let Some(workers) = &mut engine.workers {
                 if !workers.up(now, event, &mut engine.events) {
-                    engine.end = Some(End::Stopped(Stop::Listener));
+                    engine.end = Some(End::Stopped(Stop::Listener { component: Some("workers"), error }));
                 }
             } else {
-                engine.end = Some(End::Stopped(Stop::Listener));
+                engine.end = Some(End::Stopped(Stop::Listener { component: None, error }));
             }
         }
     }

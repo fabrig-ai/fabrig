@@ -25,7 +25,7 @@ fn fixed_facts_set_the_listener_and_reject_bad_scripts() {
     assert_eq!(start.seed, 7);
     assert_eq!(start.wall.as_secs(), 1_767_690_000);
     assert_eq!(start.deployment.document["application"]["clients"]["listener"]["socket"], "127.0.0.1:10001");
-    let mut world = temper_playground::world(facts::start(None).expect("owned start"));
+    let mut world = temper_client_walk_world::world(facts::start(None).expect("owned start"));
     let mut printed = Vec::new();
     for _ in 0..10_000 {
         temper_playground::story::step(&mut world);

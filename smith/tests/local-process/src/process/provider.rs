@@ -2,8 +2,8 @@
 use super::*;
 
 pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocation: Option<bool>) -> Issuer {
-    let host = smith_agent_process_world::fake::loopback();
-    let origin = format!("http://{host}:{port}");
+    let address = smith_agent_process_world::fake::address(port);
+    let origin = format!("http://{address}");
     let mut document = token_limits();
     document.issued_client_bytes = 1024;
     document.subject_bytes = 1024;
@@ -18,7 +18,7 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
     };
     let response = skein_fake_peers::oauth::least_response(&limits).unwrap();
     let mut issuer = Issuer::new(
-        (host, port).into(),
+        address,
         skein_fake_peers::Transport::Plaintext,
         smith_agent_process_world::fake::limits(),
         fake_oauth::Config {
@@ -51,6 +51,9 @@ pub(super) fn issuer(port: u16, subject: &[u8], plan: bool, again: bool, revocat
         skein_http::server::Limits { head: 16384, headers: 32, body: 16384, read: 1024, response, send: 1024 },
     )
     .expect("provider issuer");
+    if let Some((fd, address)) = smith_agent_process_world::fake::take_listener(port) {
+        issuer.adopt_listener(fd, address).expect("provider issuer adopts held listener");
+    }
     let (status, body) = match revocation {
         Some(confirmed) => {
             (if confirmed { 200 } else { 500 }, fake_oauth::Body::Raw(skein_lib::Secret::new(Box::new([]))))

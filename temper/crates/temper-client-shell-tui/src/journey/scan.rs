@@ -1,5 +1,5 @@
 //! The TUI's last scan (temper/docs/design/client/tui/journeys.md, 5).
-use super::redact::link_forms;
+use super::redact::encoded_forms;
 use super::{Line, Originals, Refusal, Replay, What, fields_mut, lines};
 use jig_client::ApprovalCode;
 use skein_lib::bytes::find_from;
@@ -45,7 +45,7 @@ pub fn codes(lines: &[Line]) -> Vec<Box<[u8]>> {
 /// Originals in the whole; shapes in a copy with complete approval codes cut.
 #[must_use]
 pub fn scan_bytes(bytes: &[u8], codes: &[Box<[u8]>], originals: &Originals) -> Option<What> {
-    if original(bytes, originals) || link_forms(originals).iter().any(|form| !form.occurrences(bytes).is_empty()) {
+    if original(bytes, originals) || encoded_forms(originals).iter().any(|form| !form.occurrences(bytes).is_empty()) {
         return Some(What::Original);
     }
     let mut cuts = Vec::new();

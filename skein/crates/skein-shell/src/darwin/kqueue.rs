@@ -6,7 +6,8 @@
 //! use. Kevent borrows initialized change records and exclusive output
 //! records only for the call; udata is null. `EV_RECEIPT` reports each change
 //! without consuming pending events. Wait writes at most the allocated
-//! event capacity and borrows its relative timespec until return.
+//! event capacity and borrows its relative timespec until return. Fstat fills
+//! exclusive local initialized storage and retains no pointer.
 
 #![expect(clippy::disallowed_types, reason = "the poller's descriptor is internal, never adopted by io")]
 use super::{last_errno, retry};
@@ -85,6 +86,19 @@ impl Poller {
         })
     }
     pub(crate) fn interest(&mut self, fd: Fd, _existed: bool, read: bool, write: bool) -> Result<(), i32> {
+        if read || write {
+            // SAFETY: stat is local C output storage, valid when zeroed.
+            let mut stat: libc::stat = unsafe { std::mem::zeroed() };
+            retry(|| {
+                // SAFETY: stat is exclusive and writable for fstat; no pointer is retained.
+                super::status(unsafe { libc::fstat(fd.raw(), ptr::from_mut(&mut stat)) })
+            })?;
+            if stat.st_mode & libc::S_IFMT == libc::S_IFREG {
+                // Kqueue accepts a file but never reports its EOF readable.
+                // Readiness makes the call at once on an unwatchable descriptor.
+                return Err(super::UNWATCHABLE);
+            }
+        }
         let (old_read, old_write) = self.interests.get(&fd).copied().unwrap_or((false, false));
         let side = |filter, add| {
             change(

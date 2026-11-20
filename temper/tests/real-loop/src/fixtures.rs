@@ -454,6 +454,9 @@ pub(crate) fn extend_settings(key: &'static str, workers: &serde_json::Value) ->
 // Move its bounded FILE table into that Caller; no global file state is retained.
 pub(crate) type SettingsFiles = skein_lib::Map<&'static str, Box<[u8]>>;
 thread_local! { static PENDING_SETTINGS: std::cell::RefCell<Option<SettingsFiles>> = const { std::cell::RefCell::new(None) }; }
+pub(crate) fn warm_runtime() {
+    PENDING_SETTINGS.with(|_| {});
+}
 pub(crate) fn take_settings() -> SettingsFiles {
     PENDING_SETTINGS.with(|slot| slot.borrow_mut().take().unwrap_or_else(|| skein_lib::Map::with_capacity(0)))
 }

@@ -7,6 +7,9 @@ pub const MOST: Size = Size { rows: 200, columns: 500 };
 pub const PASTE: u32 = 512;
 pub const BACKGROUND: Duration = Duration::from_millis(200);
 pub const INTERVAL: Duration = Duration::from_millis(20);
+pub const RETURNS: usize = 4;
+pub const RETURN_HEAD: u32 = 16 * 1024;
+pub const RETURN_WAIT: Duration = Duration::from_secs(10);
 
 #[derive(Clone, Debug)]
 pub struct Limits {

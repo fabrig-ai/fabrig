@@ -127,6 +127,38 @@ fn tui_walks_print_frames_and_assets_under_the_tui_root() {
 }
 
 #[test]
+fn an_owned_forge_link_prints_the_same_bytes_twice() {
+    let f = Fixture::new();
+    f.journey(
+        "owned-link",
+        r#"walk 2
+web press link "Set up temper"
+web press link "Run on this machine"
+web press button "Run on this machine"
+web press button "Continue with ChatGPT"
+web press button "Create your project"
+web see "work/hello is in Hello"
+web reload "/projects/1"
+web see "work/hello \xe2\x86\x97"
+web mark
+"#,
+    );
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["owned-link"]));
+    ok(&f.print(&b, &["owned-link"]));
+    let first = bytes(&a);
+    let second = bytes(&b);
+    assert_eq!(first.keys().collect::<Vec<_>>(), second.keys().collect::<Vec<_>>());
+    let page = Path::new(WEB).join("owned-link/01.html");
+    let html = String::from_utf8_lossy(&first[&page]);
+    assert!(html.contains("http://127.0.0.1:10002/user/oauth2/temper?redirect_to=%2Fwork%2Fhello"));
+    for (path, bytes) in first {
+        assert!(second[&path].eq(&bytes), "bytes differ at {}", path.display());
+    }
+}
+
+#[test]
 fn tui_prints_twice_have_identical_bytes() {
     let f = Fixture::new();
     f.tui_journey("t", T);

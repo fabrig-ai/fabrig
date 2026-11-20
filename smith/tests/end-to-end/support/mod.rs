@@ -290,18 +290,18 @@ pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
         [deployment]\nmemory=4294967296\nconversations=2\nllm_pool=134217728\ngroup_stop=1\n\
         [models.'fake/fake']\nwindow=2097152\noutput=65536\nreasoning_item=2048\nhead=60\nidle=30\n\
         input_price=1.25\ncached_price=0.125\noutput_price=10.0\nprice_unit=1000000\n\
-        [endpoints.fake]\npreset='openai'\naccount='fake'\naddress='{}:34443'\nserver_name='skein.test'\n\
+        [endpoints.fake]\npreset='openai'\naccount='fake'\naddress='{}'\nserver_name='skein.test'\n\
         trust.system=false\ntrust.der=['{}']\n\
         [environment]\ninherit=[]\n[trace]\npath='{}'\ncapture='calls'\n",
         scratch.path().join("credentials").display(),
-        smith_real_world::loopback(),
+        smith_real_world::address(34_443),
         scratch.path().join("root.der").display(),
         scratch.path().join("agent-trace.jsonl").display()
     );
     text.push_str("[accounts.anthropic]\nsource='none'\n");
     if scenario.launch.authenticated {
-        write!(text, "[accounts.fake]\nsource='sign_in'\nclient_id='client'\nauthorization_url='http://{host}:34444/authorize'\n\
-            token_url='http://{host}:34444/token'\nredirect_uri='http://127.0.0.1:{redirect}/callback'\nscope='read'\ntoken_format='form'\n", host = smith_real_world::loopback(), redirect = smith_real_world::redirect_port()).expect("fixture string");
+        write!(text, "[accounts.fake]\nsource='sign_in'\nclient_id='client'\nauthorization_url='http://{issuer}/authorize'\n\
+            token_url='http://{issuer}/token'\nredirect_uri='http://127.0.0.1:{redirect}/callback'\nscope='read'\ntoken_format='form'\n", issuer = smith_real_world::address(34_444), redirect = smith_real_world::redirect_port()).expect("fixture string");
     } else {
         text.push_str("[accounts.fake]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n");
     }
@@ -359,13 +359,13 @@ pub fn run_with_provider(
     world.spawn_with_fds(descriptors, || {
         Process::Script(Proc::Terminal(Box::new(Terminal::attached(stream, scenario.commands.clone()))))
     });
-    world.spawn(|| {
+    world.spawn_with_fds(smith_real_world::listener_fds(34_443), || {
         Process::Script(Proc::Peer(Box::new(
             provider.unwrap_or_else(|| scenario.provider_with(skein_llm::Credential::bearer(token.clone()))),
         )))
     });
     if scenario.launch.authenticated {
-        world.spawn(|| {
+        world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
             Process::Script(Proc::Issuer(Box::new(process::IssuerProcess::with_token(
                 skein_fake_peers::Transport::Plaintext,
                 34_444,

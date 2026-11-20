@@ -23,7 +23,13 @@ pub enum Action {
 pub enum Event {
     Push(crate::pages::told::Report),
     /// The native client's ask for an approval (client/README.md, 4.1).
-    AskApproval,
+    AskApproval {
+        port: Option<u16>,
+    },
+    /// The grant returned by the native client's loopback listener (client/README.md, 4.1).
+    Granted {
+        grant: skein_lib::Secret,
+    },
     /// The TUI's reads across projects (client/tui/pages/launchpad.md, 2).
     Launchpad,
     /// Offer the terminal once, keeping its watch for the client's lifetime.

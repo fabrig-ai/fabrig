@@ -533,6 +533,19 @@ Every component's files and processes go through it:
   up (section 6).
 - **Serving a fake on loopback is skein's:** one service shape for any
   fake peer, which smith's worlds configure.
+- **Their addresses on a real host** (2.2 and 2.3) are the test
+  process's own, so that tests running side by side never meet. On
+  Linux, which answers every address of `127.0.0.0/8`, a fake takes
+  `127.1.0.0` plus the test process's id and its fixed port, as it does
+  now. On macOS, whose loopback answers `127.0.0.1` alone unless aliases
+  are made, it takes `127.0.0.1` and a port of its own: a listener bound
+  to `127.0.0.1:0` and held from before the fake starts, the address the
+  kernel gave it written into the settings that reach the fake, and the
+  listener handed to the fake, which serves on it without binding again
+  (skein's fake peers' `adopt_listener`; `temper/docs/design/draft/macos.md`,
+  4.1). The simulated worlds keep `127.0.0.1` and their fixed ports on
+  both. A fake whose listener fails says the address it was given and the
+  error, never only that it must bind.
 
 ## 5. Scenarios and the referee
 

@@ -1,6 +1,6 @@
 # journeys: status
 
-2026-11-19. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-20. Where temper's code lags or departs from [journeys.md](journeys.md).
 
 - **Not yet:** 3.2: no start facts `plain` and `version` [in flight:
   change 3431].

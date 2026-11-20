@@ -222,6 +222,13 @@ impl Host for Kind {
         self.host().operations()
     }
 }
+// Register the world's own destructor-bearing thread-locals before any
+// admission, without replacing settings or a transport a surrounding run kept.
+fn warm_runtime() {
+    fixtures::warm_runtime();
+    crate::git::warm_runtime();
+}
+
 pub(crate) fn run(
     scratch: &skein_scratch::Scratch,
     recipe: impl FnOnce() -> llm::Recipe,
@@ -258,6 +265,7 @@ fn run_with_agent(
     agent: agent::Factory,
     configure: Option<fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value)>,
 ) -> CheckedOutcome<Proc> {
+    warm_runtime();
     let patience = crate::PATIENCE;
     // As the browser tier does, reserve a kernel port before the immutable
     // registration is made. Only this story pays for an issuer.
@@ -412,6 +420,7 @@ pub(crate) fn run_forge(
     recipe: Option<crate::ForgeRecipe>,
     steps: impl FnOnce() -> Vec<crate::calls::Step>,
 ) -> skein_world::real::Outcome<Proc> {
+    warm_runtime();
     let patience = crate::PATIENCE;
     let state = std::rc::Rc::new(std::cell::RefCell::new(None));
     let mut world = World::new_controlled(|controls| Judge {
@@ -1298,6 +1307,7 @@ pub fn cluster_judge(
     forge: Option<std::rc::Rc<std::cell::RefCell<Option<forge::State>>>>,
     patience: skein_lib::Duration,
 ) -> Judge {
+    warm_runtime();
     Judge {
         patience: crate::patience::Patience::new(patience),
         controls,

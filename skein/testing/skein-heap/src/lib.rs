@@ -49,8 +49,9 @@
 //!   to use the system allocator), allocated through this allocator at the
 //!   first one (64 bytes for the first four) and held until the thread ends;
 //!   on Linux through glibc's `__cxa_thread_atexit_impl`, outside it. A meter
-//!   and a span reach one of their own first. The list's growth past its
-//!   first record inside a step is not guarded.
+//!   and a span reach one of their own first. A world reaches each of its own
+//!   destructor-bearing thread-locals during setup, before its first metered
+//!   admission reads a base, so the list's later growth is not charged to a step.
 //! - The standard error's lock: on macOS a `Mutex` is a pthread one, its
 //!   `pthread_mutex_t` (64 bytes) boxed at its first lock, so a process's
 //!   first `eprintln!` in a step would hold 64 bytes that its drop never

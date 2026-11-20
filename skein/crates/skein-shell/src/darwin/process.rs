@@ -28,7 +28,7 @@
 )]
 
 use super::{kqueue, last_errno, retry, signals};
-use crate::posix::process::{action, cpu, cstring};
+use crate::posix::process::{action, cpu, cstring, decode_child_wait};
 pub(crate) use crate::posix::process::{block_sigpipe, map_error, signal_number, usage};
 use skein_io::kernel::{Done, Error, Exit, Fd, Resources, Signal, Spawn, Target, Way};
 use std::{
@@ -63,6 +63,19 @@ struct Child {
     reason = "process-wide child ownership serializes reaping and signalling across hosted loops (runtime/readiness.md, 5)"
 )]
 static CHILDREN: Mutex<BTreeMap<Fd, Child>> = Mutex::new(BTreeMap::new());
+
+/// Makes the process-wide locks and first nodes before a step can use them.
+pub(crate) fn warm_tables() {
+    let mut children = CHILDREN.lock().expect("child table is not poisoned");
+    if children.is_empty() {
+        // No live descriptor can name the sentinel, and it never leaves the lock.
+        let sentinel = Fd::new(-1);
+        let _prior = children.insert(sentinel, Child { pid: -1, reaped: true });
+        let _removed = children.remove(&sentinel);
+    }
+    drop(children);
+    signals::warm_table();
+}
 
 fn fd(raw: i32) -> Result<OwnedFd, i32> {
     if raw < 0 {
@@ -504,7 +517,6 @@ pub(super) fn child_id(handle: Fd) -> Result<u32, Error> {
 // Negative values cannot collide with Darwin errno numbers (runtime/readiness.md, 5).
 const WAIT_REAPED: i32 = -10_001;
 const WAITID_NO_CHILD: i32 = -10_002;
-const WAIT_UNEXPECTED_STATUS: i32 = -10_003;
 
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn poll_child(handle: Fd, reap: bool) -> Result<Option<Exit>, Error> {
@@ -531,27 +543,19 @@ pub(crate) fn poll_child(handle: Fd, reap: bool) -> Result<Option<Exit>, Error> 
     if info.si_pid == 0 {
         return Ok(None);
     }
-    if reap {
-        child.reaped = true;
-    }
     // SAFETY: waitid filled the child-status union when si_pid is nonzero.
     let status = unsafe { info.si_status() };
-    let exit = match info.si_code {
-        libc::CLD_EXITED => Exit::Code(u8::try_from(status).expect("a child exit code fits in a byte")),
-        libc::CLD_KILLED | libc::CLD_DUMPED => Exit::Signal(u32::try_from(status).expect("a signal is positive")),
-        // A stop or a continue is not an exit: a Wait stays pending. macOS run
-        // 40010966195 saw waitid report a stopped child's state that is not
-        // an exit (WAIT_UNEXPECTED_STATUS) though only WEXITED was asked.
-        libc::CLD_STOPPED | libc::CLD_CONTINUED => return Ok(None),
-        _ => {
-            eprintln!(
-                "Darwin poll_child: unexpected waitid status: handle={handle:?}, pid={}, reap={reap}, si_pid={}, si_code={}, si_status={status}",
-                child.pid, info.si_pid, info.si_code,
-            );
-            return Err(Error::Other(WAIT_UNEXPECTED_STATUS));
-        }
-    };
-    Ok(Some(exit))
+    let (result, mark_reaped) = decode_child_wait(reap, info.si_code, status);
+    if mark_reaped {
+        child.reaped = true;
+    }
+    if result.is_err() {
+        eprintln!(
+            "Darwin poll_child: unexpected waitid status: handle={handle:?}, pid={}, reap={reap}, si_pid={}, si_code={}, si_status={status}",
+            child.pid, info.si_pid, info.si_code,
+        );
+    }
+    result
 }
 
 pub(crate) fn signal_child(handle: Fd, signal: Signal, to: Target) -> Result<Done, Error> {
@@ -575,7 +579,7 @@ pub(crate) fn signal_child(handle: Fd, signal: Signal, to: Target) -> Result<Don
                 crate::posix::group::refused_group_signal(errno, || {
                     // The table lock also keeps the leader unreaped during this reading.
                     let group = u32::try_from(child.pid).map_err(|_| Error::InvalidArgument)?;
-                    super::group::group_has_running_member(group)
+                    super::group::group_has_running_member(group, number)
                 })?;
             }
         }
