@@ -28,6 +28,9 @@ use temper_playground::{machine::Machine, programs, programs::Process, story};
 const LOG_BYTES: u32 = 1_048_576;
 // Bound zero-time turns as well as world time when the host keeps asking at once.
 const TURNS_AT_ONE_INSTANT: u32 = 128;
+// Page loads are outside the host's exchange-id sequence, through the same cookie jar.
+const PAGE_EXCHANGE: u32 = u32::MAX;
+const PAGE_BYTES: u32 = 65_536;
 
 /// What enters the page's inbox: the bridge's raises and the page's own.
 pub enum Report {
@@ -52,6 +55,16 @@ pub struct Page {
     pending_input: bool,
     seed: u64,
     ways: temper_client_view::sign_in::Ways,
+    mount: Mount,
+    signing_in: Option<u32>,
+    #[cfg(test)]
+    served: Box<[u8]>,
+}
+
+enum Mount {
+    Absent,
+    Loading(Option<Result<Box<[u8]>, Failed>>),
+    Ready,
 }
 
 /// A bounded driver operation could not finish (journey-walks.md, 3.2).
@@ -65,6 +78,7 @@ pub enum Failed {
     Closed,
     NotBrowsed,
     Asked(&'static str),
+    PageLoad { status: Option<u16> },
 }
 
 /// The person's terminal result.
@@ -79,14 +93,10 @@ impl Page {
     pub fn start(start: story::Start, name: &[u8]) -> Result<Page, Failed> {
         let seed = start.seed;
         let wall = start.wall;
+        let mount =
+            if start.deployment["world_settings"]["page"].is_string() { Mount::Loading(None) } else { Mount::Absent };
         let inbox = Inbox::new();
-        let mut world = story::world_with::<Clients, _>(start, skein_sim_world::Bare);
-        world.host(skein_sim_world::HostedProgram {
-            program: crate::box_peer::PROGRAM.into(),
-            make: crate::box_peer::BoxPeer::program,
-            instances: 1,
-            operations: 16,
-        });
+        let world = crate::world(start);
         let mut memory = Memory::new(
             skein_playground::slices::Slices::new(world, story::reach(), story::SLICE_STEPS, Time::ZERO),
             bridge::Start { story: name.into(), seed, start: wall },
@@ -163,9 +173,21 @@ impl Page {
             tab: None,
             held: Held::default(),
             tui_starts: 0,
+            mount,
+            signing_in: None,
+            #[cfg(test)]
+            served: Box::new([]),
         };
         page.give(host::Report::Start, false);
-        page.turn()?;
+        if matches!(page.mount, Mount::Absent) {
+            page.turn()?;
+        } else {
+            // Spend the printed link before fetching the mount with its session cookie.
+            let within = Duration::from_secs(60);
+            let end = page.now().saturating_add(within);
+            page.until(end, |page| Ok(page.signing_in.is_none().then_some(())))?;
+            page.load(&taken.address, within)?;
+        }
         Ok(page)
     }
 
@@ -371,8 +393,57 @@ impl Page {
         self.memory.navigate(path);
         self.host.start(path, self.store.read_all(&self.memory), None);
         self.give(host::Report::Start, false);
-        self.turn()?;
+        if !matches!(self.mount, Mount::Absent) {
+            self.load(path, within)?;
+        }
         self.wait(&Find::named(Role::Main, b""), None, within).map(|_| ())
+    }
+
+    /// Fetch the engine's mount through the visitor, with its cookies, before drawing.
+    /// Only the forge metas enter the native host; its sign-in ways are unchanged.
+    fn load(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
+        self.mount = Mount::Loading(None);
+        self.memory.send(&fetch::Exchange {
+            id: PAGE_EXCHANGE,
+            path: path.into(),
+            method: "GET".into(),
+            headers: Vec::new(),
+            body: Box::new([]),
+            bound: PAGE_BYTES,
+            pieces: None,
+            cache: fetch::Cache::NoStore,
+            keep: &[],
+        });
+        let end = self.now().saturating_add(within);
+        let loaded = self.until(end, |page| match &mut page.mount {
+            Mount::Loading(answer) => answer.take().transpose(),
+            Mount::Absent | Mount::Ready => unreachable!("waiting for the page load"),
+        });
+        if matches!(loaded, Err(Failed::Bound | Failed::Turns)) {
+            self.memory.abandon(PAGE_EXCHANGE);
+        }
+        let document = loaded?;
+        let mut forges = temper_client_view::forge_sign_in::Forges::new();
+        let text = String::from_utf8_lossy(&document);
+        // The engine writes these attributes in this fixed form, escaping five characters.
+        for meta in text.split("<meta name=\"temper-forge-sign-in\" content=\"").skip(1) {
+            if let Some((content, _)) = meta.split_once('"') {
+                let content = content
+                    .replace("&quot;", "\"")
+                    .replace("&#39;", "'")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&amp;", "&");
+                forges.read(&content);
+            }
+        }
+        self.host.forge_sign_in(forges);
+        #[cfg(test)]
+        {
+            self.served = document;
+        }
+        self.mount = Mount::Ready;
+        self.turn()
     }
 
     /// Walk the script, moving browser time only to the world's, host's or person's next instant.
@@ -467,6 +538,30 @@ impl Page {
         let (now, wall) = self.memory.clocks(self.browser);
         self.host.clocks(now, wall);
         while let Some(report) = self.inbox.next() {
+            match &report {
+                Report::Fetch(fetch::Report::Answered { exchange, .. } | fetch::Report::Failed { exchange })
+                    if Some(*exchange) == self.signing_in =>
+                {
+                    self.signing_in = None;
+                }
+                _ => {}
+            }
+            let report = match report {
+                Report::Fetch(fetch::Report::Answered { exchange: PAGE_EXCHANGE, status, body, .. }) => {
+                    if let Mount::Loading(answer) = &mut self.mount {
+                        *answer =
+                            Some(if status == 200 { Ok(body) } else { Err(Failed::PageLoad { status: Some(status) }) });
+                    }
+                    continue;
+                }
+                Report::Fetch(fetch::Report::Failed { exchange: PAGE_EXCHANGE }) => {
+                    if let Mount::Loading(answer) = &mut self.mount {
+                        *answer = Some(Err(Failed::PageLoad { status: None }));
+                    }
+                    continue;
+                }
+                other => other,
+            };
             let read_on = matches!(
                 &report,
                 Report::Fetch(
@@ -499,7 +594,9 @@ impl Page {
                 self.give_tui(TuiReport::Due)?;
             }
         }
-        self.host.draw(&mut self.surface, &mut Vec::new());
+        if !matches!(self.mount, Mount::Loading(_)) {
+            self.host.draw(&mut self.surface, &mut Vec::new());
+        }
         Ok(())
     }
 
@@ -509,7 +606,7 @@ impl Page {
             Err(Failed::Stopped) => panic!("world stopped during the walk"),
             Err(Failed::World(words)) => panic!("world failed: {}", String::from_utf8_lossy(&words)),
             Err(why @ (Failed::Closed | Failed::NotBrowsed | Failed::Asked(_))) => panic!("terminal failed: {why:?}"),
-            Err(Failed::Bound | Failed::Turns | Failed::NoLink) => {
+            Err(Failed::Bound | Failed::Turns | Failed::NoLink | Failed::PageLoad { .. }) => {
                 unreachable!("turn only reports world or terminal failures")
             }
         }
@@ -568,6 +665,11 @@ impl Page {
             self.memory.navigate(&to);
         }
         self.pending_input |= !requests.exchanges.is_empty() || requests.stream.is_some() || read_on;
+        for exchange in &requests.exchanges {
+            if exchange.path.as_ref() == b"/jig/v1/sign-in/link" {
+                self.signing_in = Some(exchange.id);
+            }
+        }
         let mut reports = Vec::new();
         transport::carry(requests, &mut self.store, &mut self.memory, &mut reports);
         if duties.writes != 0 || !reports.is_empty() {
@@ -587,3 +689,7 @@ impl Page {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "web/tests.rs"]
+mod tests;

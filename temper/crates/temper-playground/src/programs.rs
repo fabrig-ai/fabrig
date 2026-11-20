@@ -26,6 +26,8 @@ pub trait Harness: 'static {
         false
     }
     fn configure(_document: &mut documents::Configuration) {}
+    /// Lay private, seed-derived inputs before admitting the service.
+    fn prepare(_disk: &mut skein_fake_machine::Machine, _document: &documents::Configuration, _seed: u64) {}
     /// Worlds may build typed seed configuration after the document's fixed-member checks.
     fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &documents::Configuration) {
         documents::settings::seed_configuration(engine, document);
@@ -347,6 +349,17 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    if let Some(page) = typed_document["world_settings"]["page"].as_str() {
+        let mut bundle = temper_service::clients::bundle::Bundle {
+            page: page.as_bytes().into(),
+            forge_meta_bytes: 0,
+            etag: Box::new([]),
+            digest: b"0000000000000000".as_slice().into(),
+            files: skein_lib::Map::with_capacity(0),
+        };
+        bundle.fill_sign_in(false).expect("native mount has a head");
+        service.adopt_bundle(bundle);
+    }
     if let Some(sets) = H::owner_sets() {
         service.owner_sets(sets);
     }

@@ -96,6 +96,7 @@ pub fn world_with<H: Harness, N: Meter>(start: Start, meter: N) -> World<Process
     let Start { seed, wall, deployment, fakes, links } = start;
     let mut disk = machine::fresh();
     prepare(&mut disk, &deployment, seed);
+    H::prepare(&mut disk, &deployment, seed);
     let document = deployment.clone();
     let machine = Machine::new(disk);
     let parameters = programs::Parameters {
