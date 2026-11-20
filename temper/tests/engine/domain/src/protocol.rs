@@ -131,6 +131,31 @@ pub fn failed_preparation(channel: Token, task: u64, attempt: u64, preparation: 
     up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
 }
 
+/// A worker's run cut by its shutdown, without an agent outcome or check results.
+#[must_use]
+pub fn shutdown(channel: Token, task: u64, attempt: u64, spent: u64) -> engine::Event {
+    up(
+        channel,
+        host::LinkUp::Answer {
+            run: Token::new(task),
+            attempt: Token::new(attempt),
+            answer: host::RunAnswer {
+                read: None,
+                refused: Box::new([]),
+                turns: 0,
+                spent,
+                ending: host::Ending::Failed {
+                    failure: host::Failure::Cancelled(host::Reason::Shutdown),
+                    detail: Box::new([]),
+                    work: host::Work { left: None, saved: None },
+                    model: None,
+                },
+            },
+        },
+        engine::Parts::none(),
+    )
+}
+
 /// One hub record with no application part.
 #[must_use]
 pub fn up(channel: Token, up: host::LinkUp, parts: engine::Parts) -> engine::Event {
