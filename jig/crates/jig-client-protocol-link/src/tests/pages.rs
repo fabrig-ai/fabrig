@@ -478,7 +478,7 @@ fn a_message_and_an_answer_encode_to_long_text() {
         ] {
             let record = translate::asks::ask(&ask, limits.wire());
             if size == 129 {
-                assert_eq!(record.and_then(|record| record.encode(limits.wire())).unwrap_err().reason, skein_codec::Reason::Bound);
+                assert_eq!(record.unwrap().encode(limits.wire()).unwrap_err().reason, skein_codec::Reason::Bound);
                 continue;
             }
             let record = record.unwrap();
@@ -502,7 +502,7 @@ fn talk_words_take_the_message_bound_and_both_talk_acts_restore() {
             c::Ask::Talk { project: 3, task: 7, words: c::Text::new(skein_lib::bytes::zeroed(size), 129).unwrap() };
         let record = translate::asks::ask(&source, limits.wire());
         if size == 129 {
-            assert_eq!(record.and_then(|record| record.encode(limits.wire())).unwrap_err().reason, skein_codec::Reason::Bound);
+            assert_eq!(record.unwrap().encode(limits.wire()).unwrap_err().reason, skein_codec::Reason::Bound);
         } else {
             assert_eq!(translate::store::restore_ask(record.unwrap(), &limits).unwrap(), source);
         }

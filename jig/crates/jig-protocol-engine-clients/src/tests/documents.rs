@@ -139,7 +139,7 @@ fn a_non_utf8_document_text_fails_translation() {
     for bytes in [&[0xc3_u8][..], &[255_u8, b'/'][..]] {
         let value = jig_domain_core_vocabulary::documents::Text { bytes: bytes.into(), cut: true };
         assert_eq!(
-            translate::owner::text(&value, &limits).and_then(|value| value.encode(&limits)),
+            translate::owner::text(&value, &limits).unwrap().encode(&limits),
             Err(w::Problem { path: w::paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Utf8 })
         );
     }
