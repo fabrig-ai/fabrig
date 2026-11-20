@@ -16,7 +16,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         skein_ui_example_view_codec::SCHEMA,
-        crate::records, lean,
+        crate::records,
         limits [
             note_title,
             note_body,
