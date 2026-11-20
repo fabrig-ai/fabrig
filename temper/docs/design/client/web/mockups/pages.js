@@ -1753,7 +1753,7 @@
       ['A Forgejo elsewhere', null],
     ].map(([heading, f]) => `<h3>${esc(heading)}</h3>${flowSteps(flowCurrent(f))}${flowWrap(f ? flowCard(f) : elsewhereHow(next))}`).join('')}</section>`
       : worldKey === GH_WORLD ? `<section class="mock-variants" id="other-states"><h2>Other states, for reference</h2><p>Not steps of this world: where GitHub’s way can’t go on, temper’s listener answers its own short page in the new tab; and the App of your own’s Details.</p>${[
-      ['Back from GitHub with a request, not an installation: the setup route’s page', githubRefusal('request')],
+      ['The new tab ends with a request, not an installation: the setup route’s page', githubRefusal('request')],
       ['A link that has ended: the manifest’s, the redirect’s or the setup route’s page', githubRefusal('ended')],
       ['An App of your own: its details', githubAppForm(github)],
     ].map(([heading, card]) => `<h3>${esc(heading)}</h3>${flowWrap(card)}`).join('')}</section>` : '';

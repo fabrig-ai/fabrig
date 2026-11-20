@@ -2,9 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [engine.md](engine.md).
 
-- **Not yet:** `back`: the browser's client still names one on a GitHub
-  connect and an install [in flight: change 10579].
-
 - **Not yet:** the FORGE requests' `SetDraft`: the engine neither routes
   nor answers it (`../domain/forge/drafts.md`) [in flight: change 663].
 - **Not yet:** 

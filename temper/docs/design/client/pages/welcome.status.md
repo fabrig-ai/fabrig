@@ -2,11 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [welcome.md](welcome.md).
 
-- **Not yet:** 1, *A forge cut short* and *GitHub's way*: the Forge
-  step's GitHub way leaves in its own tab and comes back, with no note
-  waiting, and the cut-short card draws no last connect's line [in
-  flight: change 10579].
-
 
 - **Not yet:** 1: two endings leave nothing under "Model none yet"
   (`temper-client-view`'s `pages/connect_model.rs`, `welcome_end`), and no
