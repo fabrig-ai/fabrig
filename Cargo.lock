@@ -6123,6 +6123,7 @@ dependencies = [
  "skein-codec",
  "skein-fail-stop",
  "skein-fake-machine",
+ "skein-http",
  "skein-io",
  "skein-lib",
  "skein-scratch",

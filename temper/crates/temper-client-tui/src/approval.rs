@@ -6,19 +6,27 @@ use temper_client_domain::{Domain, asked::State};
 
 /// The approval page's address, from the TUI's own address and code.
 #[must_use]
-pub fn approval_address(origin: &crate::Origin, code: ApprovalCode) -> Box<[u8]> {
-    let code = match origin {
-        crate::Origin::Http(_) => Some(code),
-        crate::Origin::Https { .. } => None,
-    };
+pub fn approval_address(origin: &crate::Origin, code: Option<ApprovalCode>) -> Box<[u8]> {
     crate::origin::page(origin, &temper_client_domain::address::print_approve(code))
+}
+
+/// Whether the one-click ask offers a typed code instead (client/tui/pages/sign-in.md, 3).
+#[must_use]
+pub fn may_type_instead(tui: &Tui, root: &Domain) -> bool {
+    if tui.listener_opening() || root.client().link().state != Link::SignedOut || may_ask_again(tui, root) {
+        return false;
+    }
+    match root.asked() {
+        Some(State::Asked { port: Some(_), .. }) => true,
+        None | Some(State::Asking | State::NotAsked(_) | State::Asked { port: None, .. }) => false,
+    }
 }
 
 /// Whether the sign-in screen can ask for another approval.
 #[must_use]
 pub fn may_ask_again(tui: &Tui, root: &Domain) -> bool {
     let link = root.client().link();
-    if link.state != Link::SignedOut || root.asked() == Some(State::Asking) {
+    if tui.listener_opening() || link.state != Link::SignedOut || root.asked() == Some(State::Asking) {
         return false;
     }
     if tui.pasted() {

@@ -730,19 +730,35 @@ was answered with. A box enables it beside the printed link
 
 - **The root's half,** for a native client, in `temper-client-domain`,
   a module of its own, `asked`:
-  - *Asking:* `Event::AskApproval`, the host's, while the link is signed
-    out; at any other time, or while an ask is in flight, it changes
-    nothing. The root sends `jig-client`'s `AskApproval` and holds
-    `asked::State::Asking`.
+  - *Asking:* `Event::AskApproval { port }`, the host's, while the link
+    is signed out, `port` the ask's loopback return, `Option<u16>`: the
+    port the host's listener on `127.0.0.1` took, for the one click at a
+    name (`tui/pages/sign-in.md`, 3 and 4), or none, on loopback and for
+    a typed code. At any other time, or while an ask is in flight, it
+    changes nothing. The root sends `jig-client`'s `AskApproval { port }`
+    and holds `asked::State::Asking`.
   - *Asked:* on `jig-client`'s `Approval::Asked { secret, code, expires
-    }`, the root signs in at once, `SignIn { with: Approval { secret }
-    }`, and holds `Asked { code, expires }` alone, for its host to draw.
-    The secret goes to `jig-client`, which holds it while the take runs
-    (jig's `client/domain/client/README.md`, section 9), never into the
-    root's state, a print or a log. An unlinked client (jig's
+    }`, the root signs in at once, `SignIn { with: Approval { secret,
+    grant: None } }`, and holds `Asked { code, expires, port }`, `port`
+    its ask's, for its host to draw. The secret goes to `jig-client`,
+    which holds it while the take runs (jig's
+    `client/domain/client/README.md`, section 9), never into
+    `asked::State`, a print or a log. An ask that named a port keeps it
+    in the root too, in a field no reader is given, for the take with
+    the grant (*The grant*, below), until the link leaves signed out or
+    another ask replaces it. An unlinked client (jig's
     `client/domain/client/README.md`, 4.4) leaves the take to its host's link,
     which made the ask and holds the secret: the root holds the code
     and the expiry, and drops the secret it was told.
+  - *The grant:* `Event::Granted { grant }`, the host's, `grant` a
+    `skein_lib::Secret` of the 32 bytes its loopback listener read
+    (`tui/pages/sign-in.md`, 4). While the root holds `Asked` with a port
+    and its secret, and the link is signed out, it signs in again,
+    `SignIn { with: Approval { secret, grant: Some(grant) } }`, whose take
+    replaces the one before; `jig-client` sends it on as that section
+    has it, again without the grant after `not_granted`. At any other
+    time it changes nothing, and the grant is dropped. The root keeps no
+    grant: it is `jig-client`'s while the take runs.
   - *Not asked:* `NotAsked(Refused | NotReady | Busy | Lost)`, held as
     it came, for its host's line.
   - *The take's outcomes are the link's,* in `jig-client`'s `link()`:
@@ -766,19 +782,21 @@ was answered with. A box enables it beside the printed link
     flight is not signed out, so nothing is asked until the engine has
     answered it. On loopback the screen still takes the printed link,
     pasted, as `../draft/tui.md`, 4.1 has it; at a name it holds the
-    approval alone, by a typed code (`tui/pages/sign-in.md`, 3).
+    approval alone, by one click where it can open a browser, else by a
+    typed code (`tui/pages/sign-in.md`, 3).
   - *Asking:* until the engine answers, "Asking temper for a code…",
     dim, under the screen's first line.
   - *The tab's address* is the TUI's own, made from its own parts alone
     by `temper-client-tui`'s `approval_address(origin: &Origin, code:
-    ApprovalCode)`: the origin it was given or kept, printed
-    (`tui/README.md`, 1), then the approval page's printed path. On
-    loopback, `address::print_approve(Some(code))`,
+    Option<ApprovalCode>)`: the origin it was given or kept, printed
+    (`tui/README.md`, 1), then the approval page's printed path,
+    `address::print_approve(code)`. The host gives the code on loopback,
     `http://127.0.0.1:8367/terminal?code=WDJB-MJHT` (`web/README.md`,
-    2.3), the code an `ApprovalCode`, so of the code's alphabet by its
-    type; at a name, `address::print_approve(None)`, no code, so
-    `https://dev.fabrig.ai/terminal`, whose page asks for the code
-    typed (`tui/pages/sign-in.md`, 3). An answer
+    2.3), and for the one click at a name,
+    `https://dev.fabrig.ai/terminal?code=WDJB-MJHT`, the code an
+    `ApprovalCode`, so of the code's alphabet by its type; and none for
+    a typed code's ask at a name, `https://dev.fabrig.ai/terminal`, whose
+    page asks for the code typed (`tui/pages/sign-in.md`, 3). An answer
     whose code is off the alphabet is refused by jig's reader, so
     nothing is opened for it. It opens no address the engine sent.
   - *Opening the tab:* on each ask answered, once, the host's duty
@@ -840,7 +858,7 @@ was answered with. A box enables it beside the printed link
 
     | Outcome | Its line |
     |---|---|
-    | waiting | the screen as drawn |
+    | waiting, or a grant that isn't the approval's (`not_granted`) | the screen as drawn |
     | refused | "The browser refused this sign-in. Press Enter to ask again." |
     | expired | "The code expired before it was approved. Press Enter to ask again." |
     | used | "That code was already used. Press Enter to ask again." |

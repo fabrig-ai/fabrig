@@ -450,15 +450,16 @@ impl World {
     }
 }
 
-pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
-    let mut world = World::at_address(address);
+fn answer_ask(world: &mut World) {
     let exchange = world.exchange(false);
     let mut asked = vec![0];
     asked.extend_from_slice(&body(&[7; 32]));
     asked.extend_from_slice(b"WDJBMJHT");
     asked.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: asked.into() }));
-    world.report(Report::Opened { opened: false });
+}
+
+fn answer_take(world: &mut World) {
     let exchange = world.exchange(true);
     let mut answer = vec![0, 1];
     answer.extend_from_slice(&body(&credential()));
@@ -466,6 +467,13 @@ pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
     answer.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
     world.report(Report::Heard(jig_client::Event::Reply { exchange, message: answer.into() }));
     world.report(Report::Kept { written: true });
+}
+
+pub(in crate::journey) fn approval_recording(address: &[u8]) -> Box<[u8]> {
+    let mut world = World::at_address(address);
+    answer_ask(&mut world);
+    world.report(Report::Opened { opened: false });
+    answer_take(&mut world);
     world.save()
 }
 
@@ -489,6 +497,67 @@ fn redacted_approval_proves_and_replays_to_its_end() {
         marks += 1;
     }
     assert!(marks > 0, "replayed to end");
+}
+
+fn grant_target(grant: &[u8]) -> Box<[u8]> {
+    [b"/approved?grant=".as_slice(), &url_base64(grant)].concat().into()
+}
+
+#[test]
+fn redacted_one_click_proves_with_the_sent_and_unsent_grants_hidden() {
+    use crate::loopback::{Answer, Returned};
+
+    let mut facts = super::super::tests::fixture::facts();
+    facts.address = temper_client_tui::Origin::parse(b"https://dev.fabrig.ai").expect("named origin");
+    facts.size = Size { rows: 16, columns: 100 };
+    let mut world = World::with_facts(&facts);
+    world.report(Report::Listening { port: Some(43210) });
+    answer_ask(&mut world);
+    world.report(Report::Opened { opened: true });
+    let unsent = [0xfb; 32];
+    let sent = [0xff; 32];
+    let duties = world.report(Report::Returned(Returned { get: false, target: grant_target(&unsent), host: None }));
+    assert!(matches!(duties.answer, Some(Answer::NotFound)));
+    assert_eq!(duties.asked.len(), 0, "the rejected grant was never sent");
+    let duties = world.report(Report::Returned(Returned {
+        get: true,
+        target: grant_target(&sent),
+        host: Some(b"127.0.0.1:43210".as_slice().into()),
+    }));
+    assert!(matches!(duties.answer, Some(Answer::Redirect { .. })));
+    answer_take(&mut world);
+    let original = world.save();
+    prove(&original).expect("original duties and frames");
+
+    let redacted = redact(&original, &[]).expect("redact one click");
+    assert_eq!(redacted.originals.count(Kind::Approval), 3, "ask secret and both grants, counted once each");
+    for grant in [&sent, &unsent] {
+        for form in [Box::from(grant.as_slice()), grant_target(grant)] {
+            assert_eq!(scan_bytes(&form, &[], &redacted.originals), Some(crate::journey::What::Original));
+            assert!(find_from(&redacted.recording, &form, 0).is_none());
+        }
+    }
+    let records = lines(&redacted.recording).expect("redacted lines");
+    let targets: Vec<_> = records
+        .iter()
+        .filter_map(|line| if let Line::Returned(returned) = line { Some(returned.target.clone()) } else { None })
+        .collect();
+    assert_eq!(targets, [grant_target(&[b'x'; 32]), grant_target(&[b'x'; 32])]);
+    let take = |line: &Line| {
+        if let Line::Send { message: Sent::SignInApproval(bytes), .. } = line {
+            w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("take record").into_parts().grant
+        } else {
+            None
+        }
+    };
+    assert_eq!(records.iter().filter_map(take).collect::<Vec<_>>(), [skein_lib::Secret::new(Box::new([b'x'; 32]))]);
+    let original_lines = lines(&original).expect("original lines");
+    let send_only = original_lines.iter().find(|line| take(line).is_some()).expect("send with grant");
+    let seen = originals(std::slice::from_ref(send_only), &[]);
+    assert_eq!(scan_bytes(&grant_target(&sent), &[], &seen), Some(crate::journey::What::Original));
+
+    let proved = prove(&redacted.recording).expect("redacted duties and frames");
+    assert_eq!(scan(&proved, &redacted.originals).expect("last scan"), None);
 }
 
 #[test]

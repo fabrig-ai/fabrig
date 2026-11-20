@@ -17,7 +17,8 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
         Event::Lends { terminal } => {
             crate::pages::accounts::terminal_login::offer(&mut Routed { root, out }, env, terminal);
         }
-        Event::AskApproval => crate::asked::ask(root, env, out),
+        Event::AskApproval { port } => crate::asked::ask(root, env, port, out),
+        Event::Granted { grant } => crate::asked::granted(root, env, grant, out),
         Event::Launchpad => {
             let mut requests = Queue::uncapped();
             root.pages.enable_launchpad(&mut requests);
