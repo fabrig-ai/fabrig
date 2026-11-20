@@ -94,7 +94,9 @@ fn task_holds(condition: Condition, task: &c::Task, me: Option<&c::Me>) -> Optio
                 | ChatStatus::Held(_)
                 | ChatStatus::Closing
                 | ChatStatus::Ended { .. } => true,
-                ChatStatus::RunWaiting(facts::RunWaitKind::Credential | facts::RunWaitKind::Host)
+                ChatStatus::RunWaiting(
+                    facts::RunWaitKind::Credential | facts::RunWaitKind::Host | facts::RunWaitKind::Worker { .. },
+                )
                 | ChatStatus::Starting
                 | ChatStatus::Writing
                 | ChatStatus::Tool { .. }

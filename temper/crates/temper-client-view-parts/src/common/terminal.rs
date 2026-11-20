@@ -23,7 +23,13 @@ pub(crate) fn running_words(root: &Domain, w: &Words) -> Option<Box<[u8]>> {
     let delegates = chat.waiting_delegates(root.client());
     let account = match task.run_wait {
         Some(c::TaskRunWait::Account { .. }) => true,
-        Some(c::TaskRunWait::Credential | c::TaskRunWait::Host | c::TaskRunWait::Refused(_)) | None => false,
+        Some(
+            c::TaskRunWait::Credential
+            | c::TaskRunWait::Host
+            | c::TaskRunWait::Worker { .. }
+            | c::TaskRunWait::Refused(_),
+        )
+        | None => false,
     };
     if task.result.is_none()
         && !temper_client_domain::pages::chats::ended(&task.chip)

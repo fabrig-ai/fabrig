@@ -44,6 +44,17 @@ pub(super) fn encode_task(value: &c::Task, out: &mut Encoder, cut: &mut Cut) {
         Some(c::TaskRunWait::Credential) => out.string(b"credential"),
         Some(c::TaskRunWait::Refused(value)) => refused(value, out),
         Some(c::TaskRunWait::Host) => out.string(b"host"),
+        Some(c::TaskRunWait::Worker { worker, until }) => {
+            out.object_start();
+            out.key(b"worker");
+            out.object_start();
+            out.key(b"worker");
+            out.unsigned(u64::from(worker));
+            out.key(b"until");
+            out.unsigned(until.as_nanos());
+            out.object_end();
+            out.object_end();
+        }
         Some(c::TaskRunWait::Account { account, source, why }) => {
             out.object_start();
             out.key(b"account");
@@ -165,6 +176,12 @@ pub(super) fn text_wait(task: &c::Task, limits: &crate::jig::Limits, out: &mut T
             c::TaskRunWait::Credential => out.put(b"credential"),
             c::TaskRunWait::Refused(value) => refused_text(value, out),
             c::TaskRunWait::Host => out.put(b"host"),
+            c::TaskRunWait::Worker { worker, until } => {
+                out.put(b"waiting for worker ");
+                out.number(u64::from(worker));
+                out.put(b" to return, until ");
+                out.number(until.as_nanos());
+            }
             c::TaskRunWait::Account { account, source, why } => {
                 out.put(b"account ");
                 optional_number(account, out);
@@ -193,6 +210,7 @@ fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::L
     match wait {
         W::Credential => out.put(b"\n  it needs a credential from its forge: forge list"),
         W::Host => out.put(b"\n  no host has room, or none is connected; it starts when one does"),
+        W::Worker { .. } => {}
         W::Refused(why) => {
             out.put(b"\n  ");
             refused_explanation(why, out);

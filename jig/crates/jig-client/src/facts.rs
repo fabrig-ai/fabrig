@@ -13,6 +13,7 @@ pub enum RunWaitKind {
     Account,
     Credential,
     Host,
+    Worker { worker: u32, until: Wall },
 }
 
 /// A chat's status, in the precedence of client/domain/client/helpers.md.
@@ -71,6 +72,9 @@ fn run_wait_status(wait: &TaskRunWait) -> ChatStatus {
         TaskRunWait::Refused(why) => ChatStatus::HostRefused(*why),
         TaskRunWait::Credential => ChatStatus::RunWaiting(RunWaitKind::Credential),
         TaskRunWait::Host => ChatStatus::RunWaiting(RunWaitKind::Host),
+        TaskRunWait::Worker { worker, until } => {
+            ChatStatus::RunWaiting(RunWaitKind::Worker { worker: *worker, until: *until })
+        }
         TaskRunWait::Account { why, .. } => match why {
             TaskWaitWhy::Refreshing => ChatStatus::Starting,
             TaskWaitWhy::Source(source) => match source {

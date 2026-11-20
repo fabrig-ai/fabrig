@@ -514,3 +514,19 @@ fn owner_activity_says_why_a_run_began_fresh_after_not_resumed() {
         goldens.check(&tree);
     }
 }
+
+#[test]
+fn suspended_run_lines_name_the_worker_and_the_cause() {
+    for (why, expected) in [
+        (SuspendWhy::Stopped, b"Run 4 suspended: worker 2 stopped".as_slice()),
+        (SuspendWhy::Restarted, b"Run 4 suspended: worker 2 restarted without it"),
+    ] {
+        let tree = build(
+            &activity(Activity::RunEnded { attempt: 4, end: RunEnd::Suspended { worker: 2, why }, spent: 0 }),
+            normal_words(),
+        );
+        assert!(crate::tests::kit::contains(&tree, expected));
+        assert!(!crate::tests::kit::contains(&tree, b"Run ended"));
+        assert!(!crate::tests::kit::contains(&tree, b"Refused"));
+    }
+}

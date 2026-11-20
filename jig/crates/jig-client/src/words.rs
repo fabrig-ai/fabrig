@@ -12,7 +12,7 @@ pub use decision::DecisionWord;
 use skein_lib::List;
 use skein_ui::phrases::{HoleKind, HoleShape, Language, PhraseId, PhraseShape};
 /// Phrase count, for a caller composing a bounded phrasebook.
-pub const PHRASES: u32 = 132;
+pub const PHRASES: u32 = 133;
 /// Owner of jig's public enum vocabulary.
 pub const OWNER: skein_ui::Owner = skein_ui::Owner { number: 65_537 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -109,6 +109,7 @@ pub enum StatusWord {
     WaitingForAccount,
     WaitingForCredential,
     WaitingForHost,
+    WaitingForWorker,
     Starting,
     Writing,
     Tool,
@@ -225,6 +226,7 @@ impl Word {
                 RunWaitKind::Account => StatusWord::WaitingForAccount,
                 RunWaitKind::Credential => StatusWord::WaitingForCredential,
                 RunWaitKind::Host => StatusWord::WaitingForHost,
+                RunWaitKind::Worker { .. } => StatusWord::WaitingForWorker,
             },
             ChatStatus::Starting => StatusWord::Starting,
             ChatStatus::Writing => StatusWord::Writing,
@@ -251,7 +253,7 @@ impl Word {
     }
 }
 /// All public words, for composing phrasebook capacities without allocation.
-pub const ALL: [Word; 132] = [
+pub const ALL: [Word; 133] = [
     Word::Refusal(RefusalWord::Judged),
     Word::Refusal(RefusalWord::Stale),
     Word::Refusal(RefusalWord::Forgotten),
@@ -269,6 +271,7 @@ pub const ALL: [Word; 132] = [
     Word::Status(StatusWord::WaitingForAccount),
     Word::Status(StatusWord::WaitingForCredential),
     Word::Status(StatusWord::WaitingForHost),
+    Word::Status(StatusWord::WaitingForWorker),
     Word::Hold(HoldWord::Circle),
     Word::Refusal(RefusalWord::LiveTasks),
     Word::Refusal(RefusalWord::Circle),

@@ -86,7 +86,14 @@ pub(super) fn end(value: t::EndKind, _limits: &w::Limits) -> Result<w::RunEnd, w
             class: chips::class(class)?,
             invalid_reason: invalid_reason(class, invalid_result),
         }),
-        t::EndKind::Refused | t::EndKind::Suspended { .. } => w::RunEnd::Refused,
+        t::EndKind::Refused => w::RunEnd::Refused,
+        t::EndKind::Suspended { worker, why } => w::RunEnd::Suspended(w::RunEndSuspended {
+            worker,
+            why: match why {
+                t::SuspendWhy::Stopped => w::SuspendWhy::Stopped,
+                t::SuspendWhy::Restarted => w::SuspendWhy::Restarted,
+            },
+        }),
     })
 }
 
