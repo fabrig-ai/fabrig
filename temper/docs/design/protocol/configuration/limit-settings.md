@@ -2,11 +2,13 @@
 
 Provisional, 2026-11-17, from `../../draft/config.md`, 5.3, 6.1 and 6.6
 (`../../draft/config.execution.md`, N2), and its store sized for 100 live
-goals, 2026-11-19, from 5.2 and 5.3 (N9). The limits leave the documents
-and become two kinds of settings, one jig's and one temper's, changed by
-an owner by asking temper, with `temper ctl` or from Needs you. A raise
-of the figures 5 lists is taken at once, every other change at the next
-start. A limit reached names its setting, and its work goes on when room
+goals, 2026-11-19, from 5.2 and 5.3 (N9), and its live figures,
+2026-11-20, from `../../draft/worker-restarts.md`, 8. The limits leave the
+documents and become two kinds of settings, one jig's and one temper's,
+changed by an owner by asking temper, with `temper ctl` or from Needs
+you. A raise of the figures 5.1 lists is taken at once, a change of the
+live figures 5.2 lists is taken by the engine and every worker at the
+next operation that reads it, and every other change at the next start. A limit reached names its setting, and its work goes on when room
 frees or the setting rises. The stock is `limits.md`'s and `derived.md`'s;
 this document says how settings lie over it.
 
@@ -31,11 +33,14 @@ this document says how settings lie over it.
   proposal naming either kind is resolved and checked by the start's own
   checks at entry, in the service, and refused there naming the figure
   and what fails. So an accepted setting is one the next start takes.
-- **At once or at the next start** (section 5): a raise of
+- **At once, live or at the next start** (section 5): a raise of
   `transcript_memory`, `forge.tasks`, `forge.holds`, `forge.entries` or
   `forge.client.entries` is taken at once by everything holding a copy;
-  every other change, and every lowering, at the next start. Each
-  limit's row says which.
+  a change of a live figure, a time bound or a ceiling every holder
+  reads at each use, such as `checkout.remote_timeout_ms`, is taken by
+  the engine and every worker at the next operation that reads it, with
+  no restart; every other change, and every other lowering, at the next
+  start. Each limit's row says which.
 - **A limit reached names its setting** (section 6), and the work it
   held goes on by itself when room frees or the setting rises, and at
   every start.
@@ -286,16 +291,47 @@ this document says how settings lie over it.
   a revision naming either kind is durable, the two kinds' values and
   the revision, and the service checks the next request against those.
 - **What is taken at once:** once that revision is durable, the service
-  resolves the limits again. When every figure the revision moved is in
-  section 5's list and rose, the engine takes the new figures at once
-  (section 5). Otherwise none of them is taken until the next start, and
-  the Limits page shows the change waiting. A lowering is never taken at
-  once.
+  resolves the limits again. When every figure the revision moved
+  against the figures in force is a raise of one of 5.1's or a change of
+  one of 5.2's, the engine takes the new figures at once, whole.
+  Otherwise it takes the revision's live figures alone (below), and none
+  of the others until the next start; the Limits page shows those
+  waiting. A lowering of one of 5.1's figures is never taken at once; a
+  live figure is taken either way.
+- **The lists taken.** Beside the two lists in force, the service keeps
+  the two lists its figures in force resolve from: at a start, the lists
+  it read; after a whole take, the revision's. A take of the live
+  figures alone forms its lists from those taken, with each live name's
+  override, or its absence, from the revision, and resolves them by the
+  start's own function (section 3, steps 1 to 6 of the order). It is
+  taken when they resolve and pass its checks, and every figure their
+  resolution moves against the figures in force is live, the figures
+  that follow others (`derived.md`, 5.2) among them; otherwise nothing
+  is taken until the next start. So the figures in force are always a
+  resolution the start's checks passed.
+- **Example.** The figures in force hold the stock's
+  `checkout.remote_timeout_ms` 60,000; a revision sets `live_goals` to
+  60, which waits for the next start. A later revision sets
+  `checkout.remote_timeout_ms` to 600,000 too: its live figure is taken
+  at once, and `live_goals` still waits. Lowered to 30,000 later, it is
+  taken at once again.
+- **What a take reaches:** the engine composes the workers' figures
+  again and gives them to its workers host (`figures.md`, 2), which
+  sends them to every linked worker, and every worker takes its live
+  figures at the next operation that reads them (`figures.md`, 3.2).
+  When a take moved one of the link's timers the engine's workers host
+  reads, it gives the host them too (5.2). A take moving no figure a
+  worker or the host reads gives neither anything.
 - **jig's kind holds no figure the core reads:** the core's limits are
   the application's to resolve at its start, so jig's kind is taken at
-  the next start, all of it.
+  the next start, all of it but its live figures (5.2), which only the
+  workers and the engine's workers host read.
+- **`limits-held` takes nothing at once:** while it's there, no figure
+  is taken at once or live, as no raise is.
 
-## 5. What takes a raise at once
+## 5. What is taken at once
+
+### 5.1 A raise
 
 | Limit | Kind | What holds a copy and takes the raise |
 |---|---|---|
@@ -311,14 +347,74 @@ this document says how settings lie over it.
   ceiling and the forge client's. A ceiling is raised in place: skein's
   containers take a raise without allocating (`skein/docs/design/runtime/lib.md`, 5).
   Then the work held on a raised limit goes on (section 6).
+
+### 5.2 A live figure
+
+- **What is live:** a time bound or a ceiling that every holder reads
+  at each use, as an operation begins, and that sizes no table, no
+  carrier and nothing a worker's link agrees at its opening or its hello
+  states. A change of one, a raise or a lowering, is taken at once, and
+  each holder's next operation runs under it; one in flight keeps what
+  it began with (`figures.md`, 3.2). No restart is needed, and none of
+  them cuts a run.
+- **The live figures:**
+
+  | Limit | Kind | Read at |
+  |---|---|---|
+  | `checkout.remote_timeout_ms` | temper's | each git operation of a worker's checkout that reaches the forge, its deadline set as it's sent |
+  | `checkout.local_timeout_ms` | temper's | each local git operation of a checkout, likewise |
+  | `checkout.reds_read_ms` | temper's | each read of a check's inherited reds, as it starts |
+  | `checkout.rerun_processes` | temper's | each check's reruns, as they start |
+  | `checkout.preparations` | temper's | each preparation's admission: a raise admits the next one waiting at the next admission |
+  | `checkout.message_bytes` | temper's | each commit message a save or a delivery writes, and each preparation's check of it |
+  | `git_component.stdout_bytes` | temper's | each git process, its captured output sized as it's spawned |
+  | `git_component.stderr_bytes` | temper's | each git process, likewise |
+  | `git_component.read_bytes` | temper's | each read of a workspace's file |
+  | `git_component.sweep_entries` | temper's | each page of a workspace's sweep |
+  | `git_component.sweep_bytes` | temper's | each page of a workspace's sweep |
+  | `link.handshake_ms` | jig's | each handshake, on the worker's dial and at the engine's workers host |
+  | `link.hello_ms` | jig's | the engine's workers host's wait for each opening's hello |
+  | `link.stall_ms` | jig's | each stall deadline, on either side of a link |
+  | `link.backoff_ms` | jig's | a worker's next redial wait |
+  | `link.ceiling_ms` | jig's | a worker's next redial wait |
+  | `link.proved_ms` | jig's | a worker's next proving of its link |
+  | `link.busy_ms` | jig's | a worker's next span of *busy* refusals |
+  | `hub.event_bytes` | jig's | each event of a run at a worker's hub |
+  | `hub.accounts` | jig's | each assignment's accounts at a worker's hub |
+  | `hub.turn_queue_bytes` | jig's | each turn a worker's hub queues |
+
+- **Checked as a start checks them.** The engine's take is checked
+  whole (section 4), and a worker checks the figures it takes by its
+  start's checks with its pinned agent's (`figures.md`, 3.2), since a
+  ceiling such as `checkout.message_bytes` or `hub.event_bytes` must
+  still fit what the agent was built with.
+- **How:** the service sets its figures in force and composes the
+  workers' figures again (`figures.md`, 2). Where the take moved
+  `link.handshake_ms`, `link.hello_ms` or `link.stall_ms`, it gives its
+  workers host the three, `jig_protocol_engine_workers::Timers {
+  handshake, hello, stall }` through `host::Workers::retime`, which its
+  connections read at their next use (jig's
+  `protocol/channel/figures.md`, 3). The engine holds no other copy of a
+  live figure.
+- **Not live, though a time bound:** `link.ping_ms` and
+  `link.silence_ms`, which make the stop bound a worker's hello states
+  and the engine checks against its grace (`../../draft/redeploys.md`,
+  5.3), and which both sides of a link run; and the engine's own time
+  bounds, which its children copy at construction (section 11).
+
+### 5.3 Every other limit
+
 - **Every other limit is taken at the next start,** as
   `../../draft/config.md`, 11's default has it: a child that holds a
   copy and can't take a raise at once makes its limit "at the next
-  start". A later milestone moves a limit to this list once every holder
-  takes its raise.
-- **Each limit's row says which:** temper's names table gives each name
-  `applies`, at once or at the next start; jig's names are all at the
-  next start.
+  start". A later milestone moves a limit to 5.1's list once every
+  holder takes its raise, or to 5.2's once every holder reads it at each
+  use.
+- **Each limit's row says which:** each names table gives each name
+  `applies`, jig's `jig_protocol_config::names::Applies`: `AtOnce` for
+  5.1's, `Live` for 5.2's, `NextStart` for the rest. temper's table
+  names jig's type, since both mean the same thing; jig's rows are
+  `Live` or `NextStart`.
 
 ## 6. A limit reached
 
@@ -355,8 +451,12 @@ this document says how settings lie over it.
 - **The Limits page** (the deployment's, `Address::Limits`) lists every
   limit, jig's and temper's together by name: what it bounds, its unit,
   its stock figure, its setting's figure and reason when one is over it,
-  the figure in force, and "at the next start" when the setting differs
-  from the figure in force. `transcript_memory`'s row shows the bytes
+  the figure in force, when a change applies (`Raises apply at once`,
+  `Changes apply live` or `Raises apply at the next start`, from its
+  row's `applies`, section 5.3), and "at the next start" when the
+  setting differs from the figure in force. A row's `applies` reaches
+  the page as the client wire's `LimitApplies`, which gains `live`, so
+  `temper-client-wire` moves its version (`../wires.md`, 9). `transcript_memory`'s row shows the bytes
   the root holds against it. The settings page links to it. Its rows come
   from one read, `limits`, which the service answers from its names
   tables, the stock it resolved and the settings in force, a page of rows
@@ -379,8 +479,8 @@ this document says how settings lie over it.
 - **`temper ctl settings show`** prints both kinds' lists, and `settings
   apply` takes items of `limits` and `temper-limits`.
 - **The reference pages** `limits` and `limits-engine` give each limit
-  its setting's kind and whether a raise applies at once or at the next
-  start; `settings-fields` gives both kinds' items; `configuration` and
+  its setting's kind and when a change applies, in their Applies column:
+  `at once` for a raise, `live`, or `next start`, from its row; `settings-fields` gives both kinds' items; `configuration` and
   `configuration-engine` give the moved members' rows (`moved.md`).
 
 ## 8. The documents
@@ -418,7 +518,16 @@ Focused and fuzzy, in the crates that hold each piece:
 - **At once:** in a world, a task held on `forge.entries`,
   `forge.holds` or `forge.tasks` goes on once a raise is accepted, with
   no restart; a lowering is taken at the next start; a change moving one
-  figure outside section 5 waits for the next start whole.
+  figure outside 5.1 and 5.2 waits for the next start whole.
+- **Live,** focused, in the engine's service: a durable revision
+  raising or lowering `checkout.remote_timeout_ms` is taken at once,
+  whole, and its figure is in force; one moving it with `live_goals`
+  takes the timeout alone and leaves `live_goals` waiting, and the
+  Limits page shows it so; one whose live take its checks refuse takes
+  nothing; a take moving `link.stall_ms` gives the workers host its
+  timers; with `limits-held`, nothing is taken. The rows: each names
+  table's `Live` rows are 5.2's names, and its `AtOnce` rows 5.1's. A
+  worker's side is `figures.md`, 9.
 - **A limit reached:** the hold's words name the setting; room freeing
   ends the oldest hold; a restart ends them all; the Needs-you card's
   raise is the round figure, and its act sends the list with the
@@ -457,6 +566,20 @@ These names cross changes:
 - temper's names table: the rows `live_goals`, `tool_payload` and
   `transcript_memory`, and each row's `applies`; the root's
   `transcript_memory`, formerly `memory_bytes`.
+- jig's `jig_protocol_config::names::Applies { AtOnce, Live, NextStart }`
+  and its `Name.applies`; temper's `limits::Applies` is jig's, named
+  from it (section 5.3).
+- jig's `jig_protocol_engine_workers::Timers { handshake, hello, stall }`
+  and `host::Workers::retime(&mut self, timers: Timers) -> bool`, and
+  the worker link's `jig_protocol_worker_link::Timers { handshake,
+  stall, backoff, ceiling, proved, busy }` and
+  `Component::retime(&mut self, timers: Timers) -> bool`: each true when
+  taken, false when its limits' check refuses them, leaving it as it
+  was (jig's `protocol/channel/figures.md`, 3 and 4).
+- `temper_engine_service_vocabulary::figures::Composer::take_limits`
+  (`figures.md`, 2).
+- The client wire's `LimitApplies::Live` and the page's word `Changes
+  apply live`.
 - `temper_service_core::derived::STORE_LIVE_GOALS`, 100, a `u32` beside
   `LIVE_GOALS`, and the store's base the start lays the store out over
   (section 3), the one every path that sizes the deployment's store
@@ -473,8 +596,14 @@ These names cross changes:
 - **jig's limits at once.** None of jig's limits takes a raise at once:
   its children size their tables at construction. Default: `tasks.tasks`
   first, with the tasks child's and its readers' tables raised in place.
-- **Time bounds at once.** A time bound copied at construction waits for
-  the next start. Default: each moves to section 5's list once its
-  holders read it from their limits at each use.
+- **The engine's own time bounds.** A time bound the engine's children
+  copy at construction, a forge client's or a sign-in's, waits for the
+  next start; the workers' and the link's are live (5.2). Default: each
+  moves to 5.2's list once its holders read it from their limits at each
+  use.
+- **Ping and silence live.** `link.ping_ms` and `link.silence_ms` wait
+  for the next start, since the stop bound a worker's hello states
+  follows them (5.2). Default: they stay, until a worker can state a new
+  stop bound to its engine without a new opening.
 - **A start that finds what's held past a lowered figure** refuses, as a
   document's lowered limit did. Default: stays, with `limits-held`.
