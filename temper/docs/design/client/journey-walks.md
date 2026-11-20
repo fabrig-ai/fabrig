@@ -408,6 +408,17 @@ service, over HTTP, rather than joined to the engine's root.
   7`, a host of the world's; and the service given its accounts'
   runtime. So the bearer the issuer grants is one the world's model
   takes. Story A's own start holds no issuer and its own providers.
+- **The forge's sign-in through temper, as a box's:** the engine's
+  OpenID provider as `temper-box init --box` writes it
+  (`../protocol/setup/place.md`, 6, *The box's provider*): its signing
+  key, `provider.key` in the data directory, made from `SEED` on the
+  world's disk, private; no client; `addresses` `[1]`. The owned forge's
+  `SetUp` adds the client `forgejo` and the setup file's `sign_in` names
+  it, as on a box, and the peer says the group's `source` step (4.4). So
+  the engine serves the forge's `temper-forge-sign-in` fact, and a page
+  that draws the forge's repository draws its link, `work/hello ↗` to
+  `http://127.0.0.1:10002/user/oauth2/temper?redirect_to=%2Fwork%2Fhello`,
+  as `project-landing`'s does. Story A's own start holds no provider.
 - **A box's bounds:** where story A's configuration
   (`temper_playground::documents::configuration::story_a`) holds a bound
   tighter than a box's, and a step a box takes is refused by it, the
@@ -526,6 +537,12 @@ no group's steps, no listener of its own, no `box.log`, no record under
   | 10 s | `step N prepare` |
   | 12 s | `step N run` |
   | 14 s | the handover laid, then `started N` |
+
+  A group whose setup file names a `sign_in` (4.1) takes the box's
+  `source` step after `run`: `step N source` at 14 s, `source N added`
+  at 16 s, then the handover and `started N` at 18 s
+  (`../protocol/setup/box.md`, 1). A later `start N` for that group says
+  `source N added` again before its `started N`.
 
 - **The handover:** at `started N`'s time, before the line, the peer lays
   what the box's preparation leaves the engine
