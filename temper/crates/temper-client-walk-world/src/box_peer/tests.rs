@@ -49,8 +49,11 @@ fn a_sign_in_adds_the_source_step_before_handover_and_replays_its_result() {
         assert_eq!(last, handover, "handover is only laid at started");
     }
     assert_eq!(answers.deadline(), None);
-    assert_eq!(answers.ask(b"start 1", true, false, began).as_deref(), Some(b"source 1 added\nstarted 1\n".as_slice()),
-        "the ended group remembers its source, not the next ask's setup");
+    assert_eq!(
+        answers.ask(b"start 1", true, false, began).as_deref(),
+        Some(b"source 1 added\nstarted 1\n".as_slice()),
+        "the ended group remembers its source, not the next ask's setup"
+    );
     assert_eq!(answers.ask(b"stop 1", false, false, began).as_deref(), Some(b"stopped 1\n".as_slice()));
     assert_eq!(answers.ask(b"start 1", true, false, began), None);
     assert_eq!(answers.deadline(), Some(began), "stop clears the ended source");

@@ -55,10 +55,16 @@ pub struct Page {
     pending_input: bool,
     seed: u64,
     ways: temper_client_view::sign_in::Ways,
-    loading: bool,
+    mount: Mount,
     signing_in: Option<u32>,
-    document: Option<Result<Box<[u8]>, Failed>>,
+    #[cfg(test)]
     served: Box<[u8]>,
+}
+
+enum Mount {
+    Absent,
+    Loading(Option<Result<Box<[u8]>, Failed>>),
+    Ready,
 }
 
 /// A bounded driver operation could not finish (journey-walks.md, 3.2).
@@ -72,6 +78,7 @@ pub enum Failed {
     Closed,
     NotBrowsed,
     Asked(&'static str),
+    PageLoad { status: Option<u16> },
 }
 
 /// The person's terminal result.
@@ -86,14 +93,10 @@ impl Page {
     pub fn start(start: story::Start, name: &[u8]) -> Result<Page, Failed> {
         let seed = start.seed;
         let wall = start.wall;
+        let mount =
+            if start.deployment["world_settings"]["page"].is_string() { Mount::Loading(None) } else { Mount::Absent };
         let inbox = Inbox::new();
-        let mut world = story::world_with::<Clients, _>(start, skein_sim_world::Bare);
-        world.host(skein_sim_world::HostedProgram {
-            program: crate::box_peer::PROGRAM.into(),
-            make: crate::box_peer::BoxPeer::program,
-            instances: 1,
-            operations: 16,
-        });
+        let world = crate::world(start);
         let mut memory = Memory::new(
             skein_playground::slices::Slices::new(world, story::reach(), story::SLICE_STEPS, Time::ZERO),
             bridge::Start { story: name.into(), seed, start: wall },
@@ -170,16 +173,21 @@ impl Page {
             tab: None,
             held: Held::default(),
             tui_starts: 0,
-            loading: true,
+            mount,
             signing_in: None,
-            document: None,
+            #[cfg(test)]
             served: Box::new([]),
         };
         page.give(host::Report::Start, false);
-        let within = Duration::from_secs(60);
-        let end = page.now().saturating_add(within);
-        page.until(end, |page| Ok(page.signing_in.is_none().then_some(())))?;
-        page.load(&taken.address, within)?;
+        if matches!(page.mount, Mount::Absent) {
+            page.turn()?;
+        } else {
+            // Spend the printed link before fetching the mount with its session cookie.
+            let within = Duration::from_secs(60);
+            let end = page.now().saturating_add(within);
+            page.until(end, |page| Ok(page.signing_in.is_none().then_some(())))?;
+            page.load(&taken.address, within)?;
+        }
         Ok(page)
     }
 
@@ -378,7 +386,6 @@ impl Page {
 
     /// Restart the host, retaining the world's cookies and the page's small store.
     pub fn reload(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
-        self.loading = true;
         let (now, wall) = self.memory.clocks(self.browser);
         self.host =
             host::Host::new(temper_client_shell_web::limits::client(), self.seed, now, wall, 0, self.ways.clone());
@@ -386,15 +393,16 @@ impl Page {
         self.memory.navigate(path);
         self.host.start(path, self.store.read_all(&self.memory), None);
         self.give(host::Report::Start, false);
-        self.load(path, within)?;
+        if !matches!(self.mount, Mount::Absent) {
+            self.load(path, within)?;
+        }
         self.wait(&Find::named(Role::Main, b""), None, within).map(|_| ())
     }
 
     /// Fetch the engine's mount through the visitor, with its cookies, before drawing.
     /// Only the forge metas enter the native host; its sign-in ways are unchanged.
     fn load(&mut self, path: &[u8], within: Duration) -> Result<(), Failed> {
-        self.loading = true;
-        self.document = None;
+        self.mount = Mount::Loading(None);
         self.memory.send(&fetch::Exchange {
             id: PAGE_EXCHANGE,
             path: path.into(),
@@ -407,20 +415,34 @@ impl Page {
             keep: &[],
         });
         let end = self.now().saturating_add(within);
-        let document = self.until(end, |page| page.document.take().transpose())?;
-        self.served = document;
+        let loaded = self.until(end, |page| match &mut page.mount {
+            Mount::Loading(answer) => answer.take().transpose(),
+            Mount::Absent | Mount::Ready => unreachable!("waiting for the page load"),
+        });
+        if matches!(loaded, Err(Failed::Bound | Failed::Turns)) {
+            self.memory.abandon(PAGE_EXCHANGE);
+        }
+        let document = loaded?;
         let mut forges = temper_client_view::forge_sign_in::Forges::new();
-        let text = String::from_utf8_lossy(&self.served);
+        let text = String::from_utf8_lossy(&document);
         // The engine writes these attributes in this fixed form, escaping five characters.
         for meta in text.split("<meta name=\"temper-forge-sign-in\" content=\"").skip(1) {
             if let Some((content, _)) = meta.split_once('"') {
-                let content = content.replace("&quot;", "\"").replace("&#39;", "'")
-                    .replace("&lt;", "<").replace("&gt;", ">").replace("&amp;", "&");
+                let content = content
+                    .replace("&quot;", "\"")
+                    .replace("&#39;", "'")
+                    .replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&amp;", "&");
                 forges.read(&content);
             }
         }
         self.host.forge_sign_in(forges);
-        self.loading = false;
+        #[cfg(test)]
+        {
+            self.served = document;
+        }
+        self.mount = Mount::Ready;
         self.turn()
     }
 
@@ -518,16 +540,24 @@ impl Page {
         while let Some(report) = self.inbox.next() {
             match &report {
                 Report::Fetch(fetch::Report::Answered { exchange, .. } | fetch::Report::Failed { exchange })
-                    if Some(*exchange) == self.signing_in => self.signing_in = None,
+                    if Some(*exchange) == self.signing_in =>
+                {
+                    self.signing_in = None;
+                }
                 _ => {}
             }
             let report = match report {
                 Report::Fetch(fetch::Report::Answered { exchange: PAGE_EXCHANGE, status, body, .. }) => {
-                    self.document = Some(if status == 200 { Ok(body) } else { Err(Failed::Asked("page load refused")) });
+                    if let Mount::Loading(answer) = &mut self.mount {
+                        *answer =
+                            Some(if status == 200 { Ok(body) } else { Err(Failed::PageLoad { status: Some(status) }) });
+                    }
                     continue;
                 }
                 Report::Fetch(fetch::Report::Failed { exchange: PAGE_EXCHANGE }) => {
-                    self.document = Some(Err(Failed::Asked("page load failed")));
+                    if let Mount::Loading(answer) = &mut self.mount {
+                        *answer = Some(Err(Failed::PageLoad { status: None }));
+                    }
                     continue;
                 }
                 other => other,
@@ -564,7 +594,7 @@ impl Page {
                 self.give_tui(TuiReport::Due)?;
             }
         }
-        if !self.loading {
+        if !matches!(self.mount, Mount::Loading(_)) {
             self.host.draw(&mut self.surface, &mut Vec::new());
         }
         Ok(())
@@ -576,7 +606,7 @@ impl Page {
             Err(Failed::Stopped) => panic!("world stopped during the walk"),
             Err(Failed::World(words)) => panic!("world failed: {}", String::from_utf8_lossy(&words)),
             Err(why @ (Failed::Closed | Failed::NotBrowsed | Failed::Asked(_))) => panic!("terminal failed: {why:?}"),
-            Err(Failed::Bound | Failed::Turns | Failed::NoLink) => {
+            Err(Failed::Bound | Failed::Turns | Failed::NoLink | Failed::PageLoad { .. }) => {
                 unreachable!("turn only reports world or terminal failures")
             }
         }

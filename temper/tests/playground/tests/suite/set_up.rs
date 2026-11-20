@@ -2,7 +2,7 @@
 use skein_fake_person::{Find, Target};
 use skein_lib::Duration;
 use skein_ui::{Act, Node, Role};
-use temper_client_walk_world::{Native, box_peer::OWNED, facts, web::Page};
+use temper_client_walk_world::{Native, facts, web::Page};
 use temper_playground::programs::Process;
 
 const WITHIN: Duration = Duration::from_secs(60);
@@ -138,17 +138,18 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
     }
     press(&mut page, Role::Button, "Run on this machine");
     let states = [
-        ("Fetching Forgejo", 0),
-        ("Fetching Forgejo · 25%", 0),
-        ("Fetching Forgejo · 100%", 0),
-        ("Fetching Forgejo · 50%", 0),
-        ("Fetching Forgejo · 100%", 0),
-        ("Preparing Forgejo", 1),
-        ("Starting Forgejo", 2),
-        ("Connecting as temper", 3),
+        (0, "Fetching Forgejo", 0),
+        (2, "Fetching Forgejo · 25%", 0),
+        (4, "Fetching Forgejo · 100%", 0),
+        (6, "Fetching Forgejo · 50%", 0),
+        (8, "Fetching Forgejo · 100%", 0),
+        (10, "Preparing Forgejo", 1),
+        (12, "Starting Forgejo", 2),
+        (14, "Connecting sign-in through temper", 2),
+        (18, "Connecting as temper", 3),
     ];
     let mut began = None;
-    for (index, (line, (words, current))) in OWNED.iter().zip(states).enumerate() {
+    for (index, &(after, words, current)) in states.iter().enumerate() {
         let find = Find::exactly_named(Role::Status, b"under way").within(Box::new([
             Target::ExactRole { role: Role::Complementary, name: b"Forge and model".as_slice().into() },
             Target::ExactRole { role: Role::List, name: b"Each step".as_slice().into() },
@@ -163,9 +164,17 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
                 .expect("owned start read")
         });
         let now = page.now();
-        assert!(now >= start.saturating_add(line.after), "{words} drawn before its pipe line at {now:?}");
-        if let Some(next) = OWNED.get(index + 1) {
-            assert!(now < start.saturating_add(next.after), "{words} drawn after the next pipe line at {now:?}");
+        assert!(
+            now >= start.saturating_add(Duration::from_secs(after)),
+            "{words} drawn before its pipe line at {now:?}"
+        );
+        // `source added` is a line at 16 s, but does not change the visible step.
+        let next = if after == 14 { Some(16) } else { states.get(index + 1).map(|state| state.0) };
+        if let Some(next) = next {
+            assert!(
+                now < start.saturating_add(Duration::from_secs(next)),
+                "{words} drawn after the next pipe line at {now:?}"
+            );
         }
         let drawn = steps(&page);
         assert_eq!(drawn.len(), 5);
@@ -189,7 +198,7 @@ fn owned_setup_draws_every_pipe_step_before_the_next_line() {
         WITHIN,
     )
     .unwrap_or_else(|why| panic!("done: {why:?}\n{}", page.html()));
-    assert!(page.now() >= began.expect("start").saturating_add(Duration::from_secs(14)));
+    assert!(page.now() >= began.expect("start").saturating_add(Duration::from_secs(18)));
     assert_eq!(
         page.world().processes().iter().filter(|p| matches!(p, Process::Other(_))).count(),
         1,

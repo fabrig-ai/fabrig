@@ -13,7 +13,11 @@ pub enum Clients {}
 impl Harness for Clients {
     type Service = Attach;
     type Process = Native;
-    fn prepare(disk: &mut skein_fake_machine::Machine, document: &temper_playground::documents::Configuration, seed: u64) {
+    fn prepare(
+        disk: &mut skein_fake_machine::Machine,
+        document: &temper_playground::documents::Configuration,
+        seed: u64,
+    ) {
         crate::facts::prepare(disk, document, seed);
     }
     fn files() -> temper_service::settings::Files {

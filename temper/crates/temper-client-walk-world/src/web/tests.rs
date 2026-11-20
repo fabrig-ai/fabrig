@@ -18,10 +18,16 @@ fn an_owned_forges_repository_opens_through_tempers_sign_in() {
     page.wait(&Find::text(b"work/hello is in Hello"), None, WITHIN).expect("project created");
     page.reload(b"/projects/1", WITHIN).expect("reload project");
     let served = String::from_utf8_lossy(&page.served);
-    assert!(served.contains("<meta name=\"temper-forge-sign-in\" content=\"1 forgejo http://127.0.0.1:10002 owned\">"), "{served}");
+    assert!(
+        served.contains("<meta name=\"temper-forge-sign-in\" content=\"1 forgejo http://127.0.0.1:10002 owned\">"),
+        "{served}"
+    );
     page.wait(&Find::text("work/hello ↗".as_bytes()), None, WITHIN)
         .unwrap_or_else(|why| panic!("repository link: {why:?}\n{}", page.html()));
     let html = page.html();
     let href = "href=\"http://127.0.0.1:10002/user/oauth2/temper?redirect_to=%2Fwork%2Fhello\"";
-    assert!(html.split("<a ").skip(1).any(|anchor| anchor.split_once('>').is_some_and(|(head, _)| head.contains(href))), "{html}");
+    assert!(
+        html.split("<a ").skip(1).any(|anchor| anchor.split_once('>').is_some_and(|(head, _)| head.contains(href))),
+        "{html}"
+    );
 }

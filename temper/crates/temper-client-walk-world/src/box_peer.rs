@@ -196,9 +196,12 @@ impl BoxPeer {
     fn due(&mut self, now: Time) {
         let Some((forge, line, last)) = self.script.due(now) else { return };
         if last {
-            let directories = jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache")
-                .expect("world directories");
-            let entry = self.setup(forge).expect("owned group's setup").entry(forge, &directories)
+            let directories =
+                jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
+            let entry = self
+                .setup(forge)
+                .expect("owned group's setup")
+                .entry(forge, &directories)
                 .expect("owned group's entry");
             let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
             machine::lay_handover(

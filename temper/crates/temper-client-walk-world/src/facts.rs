@@ -1,8 +1,12 @@
 //! Fixed journey inputs (temper/docs/design/client/journey-walks.md, 3.2).
 
 use rand_chacha::{ChaCha20Rng, rand_core::SeedableRng};
-use rsa::{RsaPrivateKey, pkcs8::{EncodePrivateKey, LineEnding}};
+use rsa::{
+    RsaPrivateKey,
+    pkcs8::{EncodePrivateKey, LineEnding},
+};
 use skein_lib::{Secret, Wall};
+use std::cell::RefCell;
 use temper_fake::{backends, credential, llm, oauth};
 use temper_playground::{documents, stories, story::Start};
 
@@ -59,16 +63,27 @@ pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
     Ok(start)
 }
 
-/// Only walks opt into the box's provider. The key never leaves the simulated disk
-/// and the startup's private-file input; it is not a host credential.
+thread_local! {
+    // Amortize RSA generation across the fixed-seed worlds in a print or test run.
+    static PROVIDER_PEM: RefCell<Option<(u64, Secret)>> = const { RefCell::new(None) };
+}
+
+/// Only walks opt into the box's provider. The key is a synthetic world input,
+/// not a host credential.
 pub(crate) fn prepare(disk: &mut skein_fake_machine::Machine, document: &documents::Configuration, seed: u64) {
     if document["engine"]["clients"]["provider"].is_null() {
         return;
     }
-    let mut rng = ChaCha20Rng::seed_from_u64(seed);
-    let key = RsaPrivateKey::new(&mut rng, 3072).expect("seeded world RSA key");
-    let pem = key.to_pkcs8_pem(LineEnding::LF).expect("world provider PKCS#8");
-    temper_playground::machine::lay_handover(disk, b"/setup/provider.key", pem.as_bytes());
+    PROVIDER_PEM.with_borrow_mut(|cached| {
+        if cached.as_ref().is_none_or(|(held, _)| *held != seed) {
+            let mut rng = ChaCha20Rng::seed_from_u64(seed);
+            let key = RsaPrivateKey::new(&mut rng, 3072).expect("seeded world RSA key");
+            let pem = key.to_pkcs8_pem(LineEnding::LF).expect("world provider PKCS#8");
+            *cached = Some((seed, Secret::new(pem.as_bytes().into())));
+        }
+        let (_, pem) = cached.as_ref().expect("seeded provider PEM");
+        temper_playground::machine::lay_handover(disk, b"/setup/provider.key", pem.expose());
+    });
 }
 
 /// As with the composition's other private files, startup receives the contents
@@ -99,6 +114,19 @@ pub(crate) fn files() -> temper_service::settings::Files {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_the_walk_opts_into_the_provider_and_served_mount() {
+        let walk = start(None).expect("walk start");
+        assert_eq!(
+            walk.deployment["engine"]["clients"]["provider"],
+            serde_json::json!({"key":"provider.key", "clients":[], "addresses":[1]})
+        );
+        assert!(walk.deployment["world_settings"]["page"].is_string());
+        let story = stories::A.start(SEED, WALL);
+        assert!(story.deployment["engine"]["clients"]["provider"].is_null());
+        assert!(story.deployment["world_settings"]["page"].is_null());
+    }
 
     #[test]
     fn walks_lift_draft_goal_bounds_to_deployment_defaults_but_story_a_keeps_its_bounds() {
