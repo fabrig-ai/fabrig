@@ -2,7 +2,7 @@
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::Host;
-use std::{cell::RefCell, collections::BTreeSet, rc::Rc};
+use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 use temper_forge_setup::{
     machine::BoxKind,
     place::{File, Place},
@@ -38,20 +38,36 @@ pub const OWNED: &[Line] = &[
     Line { after: Duration::from_secs(14), verb: "started", rest: "" },
 ];
 
+const SOURCE: &[Line] = &[
+    Line { after: Duration::from_secs(14), verb: "step", rest: " source" },
+    Line { after: Duration::from_secs(16), verb: "source", rest: " added" },
+    Line { after: Duration::from_secs(18), verb: "started", rest: "" },
+];
+
 struct Running {
     forge: u16,
     began: Time,
     next: usize,
+    source: bool,
+}
+impl Running {
+    fn line(&self) -> Option<&'static Line> {
+        if self.source && self.next >= OWNED.len() - 1 {
+            SOURCE.get(self.next - (OWNED.len() - 1))
+        } else {
+            OWNED.get(self.next)
+        }
+    }
 }
 #[derive(Default)]
 struct Answers {
     running: Option<Running>,
-    ended: BTreeSet<u16>,
+    ended: BTreeMap<u16, bool>,
     input: Vec<u8>,
     overflow: bool,
 }
 impl Answers {
-    fn ask(&mut self, line: &[u8], owned: bool, now: Time) -> Option<Box<[u8]>> {
+    fn ask(&mut self, line: &[u8], owned: bool, source: bool, now: Time) -> Option<Box<[u8]>> {
         let line = std::str::from_utf8(line).ok()?;
         let (verb, number) = line.split_once(' ')?;
         let forge = number.parse::<u16>().ok()?;
@@ -60,11 +76,12 @@ impl Answers {
                 if let Some(running) = &self.running {
                     return (running.forge != forge).then(|| format!("failed {forge} busy\n").into_bytes().into());
                 }
-                if self.ended.contains(&forge) {
-                    return Some(format!("started {forge}\n").into_bytes().into());
+                if let Some(source) = self.ended.get(&forge) {
+                    let source = if *source { format!("source {forge} added\n") } else { String::new() };
+                    return Some(format!("{source}started {forge}\n").into_bytes().into());
                 }
                 if owned {
-                    self.running = Some(Running { forge, began: now, next: 0 });
+                    self.running = Some(Running { forge, began: now, next: 0, source });
                 }
                 None
             }
@@ -101,18 +118,18 @@ impl Answers {
         }
         let running = self.running.as_mut().expect("due script");
         let forge = running.forge;
-        let line = OWNED.get(running.next).expect("script line");
+        let line = running.line().expect("script line");
         running.next += 1;
-        let last = running.next == OWNED.len();
+        let last = running.line().is_none();
         if last {
-            self.ended.insert(forge);
+            self.ended.insert(forge, running.source);
             self.running = None;
         }
         Some((forge, line, last))
     }
     fn deadline(&self) -> Option<Time> {
         let running = self.running.as_ref()?;
-        Some(running.began.saturating_add(OWNED.get(running.next)?.after))
+        Some(running.began.saturating_add(running.line()?.after))
     }
 }
 
@@ -161,7 +178,7 @@ impl BoxPeer {
     fn read(&mut self, fd: Fd) {
         self.submit(Op::PipeRead { fd, buf: vec![0; usize::try_from(LINE_BYTES).expect("line bytes")].into() });
     }
-    fn setup(&self, forge: u16) -> Option<temper_forge_setup::setup::Entry> {
+    fn setup(&self, forge: u16) -> Option<setup_file::SetupFile> {
         let directories =
             jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("world directories");
         let path = directories
@@ -169,7 +186,7 @@ impl BoxPeer {
             .expect("setup path");
         let read = temper_service::HandoverRead { forge, run: Token::new(0), path, max: 65536 };
         let bytes = read_handover(&mut self.disk.borrow_mut(), &read).ok()??;
-        setup_file::decode(bytes.expose(), &directories).ok()?.entry(forge, &directories)
+        setup_file::decode(bytes.expose(), &directories).ok()
     }
     /// When the currently running start was read, for checks on the world's time.
     #[must_use]
@@ -179,7 +196,10 @@ impl BoxPeer {
     fn due(&mut self, now: Time) {
         let Some((forge, line, last)) = self.script.due(now) else { return };
         if last {
-            let entry = self.setup(forge).expect("owned group's setup");
+            let directories = jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache")
+                .expect("world directories");
+            let entry = self.setup(forge).expect("owned group's setup").entry(forge, &directories)
+                .expect("owned group's entry");
             let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
             machine::lay_handover(
                 &mut self.disk.borrow_mut(),
@@ -203,12 +223,16 @@ impl Host for BoxPeer {
                     } else {
                         for byte in buf.iter().take(usize::try_from(count).expect("read size")) {
                             if let Some(line) = self.script.byte(*byte) {
-                                let owned = std::str::from_utf8(&line)
+                                let setup = std::str::from_utf8(&line)
                                     .ok()
                                     .and_then(|s| s.strip_prefix("start "))
                                     .and_then(|s| s.parse().ok())
-                                    .is_some_and(|forge| self.setup(forge).is_some());
-                                if let Some(answer) = self.script.ask(&line, owned, now) {
+                                    .and_then(|forge| self.setup(forge));
+                                let source = match &setup {
+                                    Some(setup_file::SetupFile::Owned(machine)) => machine.sign_in.is_some(),
+                                    Some(setup_file::SetupFile::Fake(_)) | None => false,
+                                };
+                                if let Some(answer) = self.script.ask(&line, setup.is_some(), source, now) {
                                     self.output.push_back(answer);
                                 }
                             }
