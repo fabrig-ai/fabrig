@@ -99,37 +99,6 @@ fn defaults_are_explicit_and_former_names_cover_each_named_part() {
 }
 
 #[test]
-fn output_shapes_keep_named_booleans_and_field_helpers() {
-    assert!(!found("record R { a: bool b: bool c: bool }").contains(&Construct::NamedBooleans));
-    let booleans = "record R { a: bool b: bool c: bool d: bool width: fixed 4 }";
-    assert!(found(booleans).contains(&Construct::NamedBooleans));
-    let output = crate::generate(&crate::parse(&format!("family f 1\n{booleans}")).expect("boolean record")).records;
-    assert!(!output.contains("skein_bools"));
-    assert!(!output.contains("[bool;"));
-    assert!(output.contains("pub width: [u8; 4],"));
-    assert_eq!(output.matches("#[expect(clippy::struct_excessive_bools,").count(), 2);
-    for name in ["a", "b", "c", "d"] {
-        assert!(output.contains(&format!("    {name}: bool,")));
-        assert!(output.contains(&format!("    pub {name}: bool,")));
-    }
-    assert!(!found("record R { a: list 4 bool }").contains(&Construct::NamedBooleans));
-    assert!(!found("record R { a: bytes 8 }").contains(&Construct::SplitFunction));
-    let mut source = String::from("record R {");
-    for at in 0_u32..40 {
-        use core::fmt::Write;
-        write!(source, " a{at}: bytes 8").expect("schema string");
-    }
-    source.push('}');
-    assert!(found(&source).contains(&Construct::SplitFunction));
-    let output = crate::generate(&crate::parse(&format!("family f 1\n{source}")).expect("long record")).records;
-    assert!(output.contains("fn encode_a0_field("));
-    assert!(output.contains("fn measure_a39_field("));
-    assert!(!output.contains("Decoded"));
-    crate::tests::check_item_names(&output);
-    crate::tests::check_function_lengths(&output);
-}
-
-#[test]
 fn difference_keeps_encounter_order() {
     let text = "family f 1 record R { a: text 8 b: u8 c: text 8 d: u8 = 0 }";
     let found = constructs(text).expect("valid schema");
@@ -176,20 +145,18 @@ fn construct_slot(construct: Construct) -> usize {
         Construct::SecretPieces => 50,
         Construct::Default => 51,
         Construct::FormerName => 52,
-        Construct::NamedBooleans => 53,
-        Construct::SplitFunction => 54,
     }
 }
 
 #[test]
 fn pin_lists_each_construct_exactly_once() {
-    let mut counts = [0_u32; 55];
+    let mut counts = [0_u32; 53];
     for construct in CONSTRUCTS {
         let count = counts.get_mut(construct_slot(*construct)).expect("construct slot");
         *count = count.checked_add(1).expect("small pin");
         assert_eq!(*count, 1, "duplicate construct: {construct:?}");
     }
-    assert_eq!(counts, [1; 55], "pin lacks a construct at its exhaustive slot");
+    assert_eq!(counts, [1; 53], "pin lacks a construct at its exhaustive slot");
 }
 
 fn edited(text: &str, edits: &[(&str, &str)]) -> String {
@@ -207,12 +174,6 @@ fn without_declaration(text: &str, header: &str) -> String {
     format!("{before}{after}")
 }
 
-fn without_split_functions() -> String {
-    let text = without_declaration(EVERY, "record LongRecord {");
-    // Options' encoder also splits. Keep its kinds in two shorter records.
-    edited(&text, &[("    raw: option bytes 4", "}\n\nrecord MoreOptions {\n    raw: option bytes 4")])
-}
-
 #[test]
 fn missing_reports_removed_field_kinds() {
     for (kind, old, new) in [
@@ -220,6 +181,7 @@ fn missing_reports_removed_field_kinds() {
         (Kind::U16, ": u16\n", ": u8\n"),
         (Kind::U32, ": u32\n", ": u8\n"),
         (Kind::U64, ": u64\n", ": u8\n"),
+        (Kind::Bool, ": bool", ": u8"),
         (Kind::Duration, ": duration\n", ": u8\n"),
         (Kind::Fixed, ": fixed 3\n", ": u8\n"),
         (Kind::Bytes, ": bytes ", ": option bytes "),
@@ -229,13 +191,13 @@ fn missing_reports_removed_field_kinds() {
         (Kind::Option, ": option ", ": list 1 option "),
     ] {
         let text = edited(EVERY, &[(old, new)]);
+        let text = if kind == Kind::Bool { edited(&text, &[(" = false", " = 0")]) } else { text };
         assert_eq!(missing(&text).expect("edited every-v3 valid"), [Construct::Field(kind)], "{kind:?}");
     }
     let text = without_declaration(EVERY, "versioned record Every {");
     assert_eq!(missing(&text).expect("edited every-v3 valid"), [Construct::Field(Kind::Record)]);
     let text = edited(EVERY, &[("    shape: Shape\n", ""), ("    light: Light\n", "")]);
     assert_eq!(missing(&text).expect("edited every-v3 valid"), [Construct::Field(Kind::Enum)]);
-    // Field(Bool) cannot be absent while NamedBooleans is present.
 }
 
 #[test]
@@ -326,25 +288,18 @@ fn missing_reports_removed_modifiers_and_shapes() {
         (Construct::SecretPieces, vec![("secret 64 pieces Numbers", "secret 64")]),
         (Construct::Default, vec![(" = false", "")]),
         (Construct::FormerName, vec![(" was Flags", "")]),
-        (Construct::NamedBooleans, vec![("    bravo: bool\n    charlie: bool\n    delta: bool\n", "")]),
     ] {
         let text = edited(EVERY, &edits);
         assert_eq!(missing(&text).expect("edited every-v3 valid"), [construct], "{construct:?}");
     }
-    let text = without_split_functions();
-    assert_eq!(missing(&text).expect("edited every-v3 valid"), [Construct::SplitFunction]);
     // RecordVariant cannot be absent while BoxedVariant is present.
 }
 
 #[test]
 fn missing_keeps_pin_order_and_empty_text_lacks_the_whole_pin() {
     assert_eq!(missing("family empty 1").expect("empty schema valid"), CONSTRUCTS);
-    let text = without_split_functions();
-    let text = edited(&text, &[(" was Flags", ""), (" = false", "")]);
-    assert_eq!(
-        missing(&text).expect("edited every-v3 valid"),
-        [Construct::Default, Construct::FormerName, Construct::SplitFunction]
-    );
+    let text = edited(EVERY, &[(" was Flags", ""), (" = false", "")]);
+    assert_eq!(missing(&text).expect("edited every-v3 valid"), [Construct::Default, Construct::FormerName]);
 }
 
 #[test]
