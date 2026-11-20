@@ -292,6 +292,7 @@ pub fn lower_configuration_with(tls: bool) -> agent::Config {
         domain: lower.domain.clone(),
         channel_endpoints: lower.channel_endpoints.clone(),
         llm_endpoints: cloned_endpoints(lower),
+        rg: lower.rg.clone(),
         environment: lower.environment.clone(),
         stream_mode: lower.stream_mode,
     }
@@ -337,6 +338,7 @@ fn fixture_launch(tls: bool) -> Launch {
     Launch {
         seed: 7,
         tls,
+        commands_path: None,
         trust_der: tls
             .then(|| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../protocol-llm/fixtures/root.der"))),
         change: false,
@@ -390,6 +392,9 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         "check_timeout":policy.check_timeout.as_millis(),"unacknowledged":policy.unacknowledged,
         "group_stop":policy.group_stop.as_millis(),"exit_grace":policy.exit_grace.as_millis()}},
         "endpoints":[endpoint],"environment":[]});
+    if let Some(path) = &launch.commands_path {
+        document["environment"] = serde_json::json!([{"name":"PATH", "value":path}]);
+    }
     if launch.traced {
         document["trace"] =
             serde_json::json!({"path":launch.root_path.join("events.jsonl.agent"),"capture":"everything"});

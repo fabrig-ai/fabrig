@@ -10,6 +10,7 @@ use crate::{Decision, Domain, Limits, Work};
 mod dependencies;
 mod follows;
 mod landing;
+pub(super) use landing::restored as restored_repairs;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "the forge dispatcher selects only the settings asks")]
 pub(super) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, number: u16, ask: connector::Ask) {

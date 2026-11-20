@@ -1,5 +1,12 @@
 //! The held login returns to its path on every ending of a live story that imports it.
-use std::{fs, os::unix::fs::PermissionsExt, path::Path};
+//! temper/docs/design/testing/macos.md, 3; temper/docs/design/testing/live-tier.md.
+use std::{
+    fs,
+    os::unix::fs::{OpenOptionsExt, PermissionsExt},
+    path::Path,
+};
+
+pub(crate) const LOCK_FD_9: &str = "/usr/bin/python3 -I -B -c 'import fcntl; fcntl.flock(9, fcntl.LOCK_EX)'";
 
 fn quote(path: &Path) -> String {
     format!("'{}'", path.to_str().expect("UTF-8 path").replace('\'', "'\"'\"'"))
@@ -23,17 +30,14 @@ fn write_hook(binary: &Path, store: &Path, client: &Path, account: &Path, recove
         r#"#!/bin/sh
 set -eu
 exec 9>{lock}
-flock -x 9
+{LOCK_FD_9}
 : > {returning}
 if [ "${{1-}}" != --box-ended ]; then : > {terminal}; fi
 if [ ! -e {account} ]; then
   rung_account=$({binary} ctl {client} account list --json </dev/null | jq -er '.accounts.party | map(select(.provider == 1 and .plan == true)) | if length == 1 then .[0].number else error("expected one held ChatGPT plan") end')
   {binary} ctl {client} account export "$rung_account" {account} </dev/null
 fi
-[ "$(LC_ALL=C stat -c %F -- {account})" = 'regular file' ]
-[ "$(stat -c %a -- {account})" = 600 ]
-[ "$(stat -c %s -- {account})" -gt 0 ]
-stat -c 'LOGIN BACK: %F mode=%a bytes=%s owner=%u' -- {account}
+/usr/bin/python3 -I -B -c 'import os,stat,sys; s=os.lstat(sys.argv[1]); ok=stat.S_ISREG(s.st_mode) and stat.S_IMODE(s.st_mode)==0o600 and s.st_size>0; ok and print(f"LOGIN BACK: regular file mode={{stat.S_IMODE(s.st_mode):o}} bytes={{s.st_size}} owner={{s.st_uid}}"); sys.exit(0 if ok else 1)' {account}
 "#,
         account = quote(account),
         binary = quote(binary),
@@ -56,16 +60,23 @@ fn install_hook(store: &Path, hook: &Path, body: &str, recovering: bool) -> Resu
     };
     let reopen = if recovering { "" } else { "rm -f -- \"$1/returning\"" };
     let install = format!("set -eu\n{admission}\nmv -f -- \"$2\" \"$3\"\n{reopen}\n");
-    let installed = std::process::Command::new("flock")
-        .arg("-x")
-        .arg(store.join("login.lock"))
-        .args(["sh", "-c", &install, "sh"])
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(store.join("login.lock"))
+        .expect("open the import lock");
+    lock.lock().expect("take the import lock");
+    let installed = std::process::Command::new("/bin/sh")
+        .args(["-c", &install, "sh"])
         .arg(store)
         .arg(pending)
         .arg(hook)
         .stdin(std::process::Stdio::null())
         .status()
         .expect("install return hook under the import lock");
+    drop(lock);
     if installed.success() { Ok(()) } else { Err("terminal return excludes another import".into()) }
 }
 
@@ -77,7 +88,7 @@ pub fn import_guard(binary: &Path, store: &Path, client: &Path, arguments: &[&st
         r#"#!/bin/sh
 set -eu
 exec 9>{lock}
-flock -x 9
+{LOCK_FD_9}
 test ! -e {returning} || exit 1
 exec {binary} ctl {client} "$@" </dev/null
 "#,

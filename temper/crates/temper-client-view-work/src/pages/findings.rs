@@ -69,12 +69,12 @@ pub(crate) fn title(root: &Domain, card: &Card, words: &Words) -> Box<[u8]> {
             Hole::Name(project),
             Hole::Number(u64::from(card.id.project)),
             Hole::Number(u64::from(card.id.number)),
-            Hole::Name(card.row.title().into()),
+            Hole::Name(card.row.title.clone()),
         ],
     )
 }
 pub(crate) fn from(b: &mut Builder, root: &Domain, card: &Card, words: &Words, times: &mut Times) {
-    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(card.row.at()));
+    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(card.row.at));
     ask::text(b, Role::Text, &words.say(Word::Finding, &[]), look::CHIP);
     ask::text(
         b,
@@ -94,7 +94,7 @@ pub(crate) fn main(
     b.open(Role::Slot);
     b.style(look::ASK);
     from(b, root, card, words, times);
-    ask::text(b, Role::Heading { level: 1 }, card.row.title(), look::FLOW_Q);
+    ask::text(b, Role::Heading { level: 1 }, &card.row.title, look::FLOW_Q);
     facts(b, card, words);
     context(b, card, words);
     reason(b, root, card, words);
@@ -138,8 +138,8 @@ fn acts(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &m
 }
 fn facts(b: &mut Builder, card: &Card, words: &Words) {
     let kind = words.say(kind_word(&card.row), &[]);
-    let severity = words.say(severity_word(card.row.severity()), &[]);
-    let area = match card.row.area() {
+    let severity = words.say(severity_word(&card.row.severity), &[]);
+    let area = match &card.row.area {
         Some(area) => area.clone(),
         None => words.say(Word::FindingNoArea, &[]),
     };
@@ -160,10 +160,10 @@ fn context(b: &mut Builder, card: &Card, words: &Words) {
     }
 }
 fn handed(b: &mut Builder, card: &Card, words: &Words) {
-    if let (Some(why), Some(hander)) = (card.row.why(), card.row.hander()) {
+    if let (Some(why), Some(hander)) = (&card.row.why, &card.row.hander) {
         let (prefix, number) = match hander {
-            w::Filer::Task(task) => (Word::FindingTask, task.number()),
-            w::Filer::Party(party) => (Word::FindingParty, party.number()),
+            w::Filer::Task(task) => (Word::FindingTask, task.number),
+            w::Filer::Party(party) => (Word::FindingParty, party.number),
         };
         let who = bytes::concat(&[&words.say(prefix, &[]), Decimal::of(number).as_bytes()]);
         ask::text(
@@ -209,9 +209,9 @@ fn hand(b: &mut Builder, root: &Domain, card: &Card, words: &Words, bindings: &m
     b.name(&words.say(Word::FindingArea, &[]));
     for area in root.pages().needs().findings().areas(card.id) {
         b.open(Role::Button);
-        b.name(area.name());
-        b.bind(bindings.insert(PageAct::Finding(Act::Area { id: card.id, words: area.name().into() })));
-        if card.area.as_ref() == area.name() {
+        b.name(&area.name);
+        b.bind(bindings.insert(PageAct::Finding(Act::Area { id: card.id, words: area.name.clone() })));
+        if card.area.as_ref() == area.name.as_ref() {
             b.state(State::Selected);
         }
         if card.pending.is_some() {
@@ -264,7 +264,7 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
     match refusal {
         w::FindingRefusal::NoArea(areas) => {
             let mut names = Box::<[u8]>::default();
-            for area in areas.areas() {
+            for area in &areas.areas {
                 names = if names.is_empty() { area.clone() } else { bytes::concat(&[&names, b", ", area]) };
             }
             words.say(
@@ -273,10 +273,10 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
             )
         }
         w::FindingRefusal::NotYours(held) => {
-            let (prefix, number) = match held.holder() {
-                w::Holder::Task(task) => (Word::FindingTask, task.number()),
-                w::Holder::Party(party) => (Word::FindingParty, party.number()),
-                w::Holder::Role(role) => (Word::FindingRole, u64::from(role.number())),
+            let (prefix, number) = match &held.holder {
+                w::Holder::Task(task) => (Word::FindingTask, task.number),
+                w::Holder::Party(party) => (Word::FindingParty, party.number),
+                w::Holder::Role(role) => (Word::FindingRole, u64::from(role.number)),
             };
             let holder = bytes::concat(&[&words.say(prefix, &[]), Decimal::of(number).as_bytes()]);
             words.say(
@@ -296,7 +296,7 @@ fn refused(card: &Card, refusal: &w::FindingRefusal, words: &Words) -> Box<[u8]>
     }
 }
 fn kind_word(row: &w::FindingRow) -> Word {
-    match row.kind() {
+    match &row.kind {
         w::FindingKind::Qa => Word::FindingQa,
         w::FindingKind::Flake => Word::FindingFlake,
         w::FindingKind::Red => Word::FindingRed,
@@ -317,14 +317,14 @@ pub(crate) fn short(card: &Card, words: &Words, times: &mut Times, kind: bool) -
 }
 fn short_row(row: &w::FindingRow, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
     let separator = words.say(Word::ToolSeparator, &[]);
-    let mut text: Box<[u8]> = row.title().into();
+    let mut text: Box<[u8]> = row.title.clone();
     if words.shell == Shell::Terminal {
-        text = bytes::concat(&[&text, &separator, &words.say(severity_word(row.severity()), &[])]);
+        text = bytes::concat(&[&text, &separator, &words.say(severity_word(&row.severity), &[])]);
     }
     bytes::concat(&[&text, &separator, &when(row, words, times, kind)])
 }
 fn when(row: &w::FindingRow, words: &Words, times: &mut Times, kind: bool) -> Box<[u8]> {
-    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(row.at()));
+    let age = times.say(words, TimeForm::Span, skein_lib::Wall::from_nanos(row.at));
     if kind {
         bytes::concat(&[&words.say(kind_word(row), &[]), &words.say(Word::ToolSeparator, &[]), &age])
     } else {
@@ -356,14 +356,14 @@ fn finding_row(
     if words.shell == Shell::Terminal {
         b.text(Run::Plain, &short_row(row, words, times, kind));
     } else {
-        severity(b, words, row.severity().clone());
+        severity(b, words, row.severity.clone());
         b.open(if open.is_some() { Role::Link } else { Role::Text });
         b.style(look::FINDING_TITLE);
-        b.name(row.title());
+        b.name(&row.title);
         if let Some(open) = open {
             b.bind(bindings.insert(PageAct::Finding(open)));
         }
-        b.text(Run::Plain, row.title());
+        b.text(Run::Plain, &row.title);
         b.close();
         ask::text(b, Role::Text, &when(row, words, times, kind), look::FINDING_WHEN);
     }
@@ -416,7 +416,7 @@ pub(crate) fn group_rows(
     let mut kind = false;
     if let Some(first) = group.rows.first() {
         for row in &group.rows {
-            if row.kind() != first.kind() {
+            if row.kind != first.kind {
                 kind = true;
                 break;
             }
@@ -480,9 +480,9 @@ pub(crate) fn preview(
         ask::text(b, Role::Text, &name, look::CHIP);
         b.text(Run::Plain, b" ");
     }
-    chip(b, words, card.row.severity().clone(), &words.say(kind_word(&card.row), &[]));
+    chip(b, words, card.row.severity.clone(), &words.say(kind_word(&card.row), &[]));
     b.text(Run::Plain, b" ");
-    let area = match card.row.area() {
+    let area = match &card.row.area {
         Some(area) => words.say(Word::FindingInArea, &[Hole::Name(area.clone())]),
         None => words.say(Word::FindingNoArea, &[]),
     };

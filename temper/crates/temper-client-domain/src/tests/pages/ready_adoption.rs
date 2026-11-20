@@ -48,15 +48,7 @@ fn tell(root: &mut Domain, outcome: jig_client::Outcome) {
     crate::route::told(root, &f::env(&f::limits()), Told::Answered { key, outcome }, &mut Queue::uncapped());
 }
 fn refused(reason: w::ForgeReason) -> jig_client::Outcome {
-    let answer = w::Answer::new(
-        &w::CEILINGS,
-        w::AnswerParts {
-            outcome: w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let answer = w::Answer { outcome: w::Outcome::ForgeRefused(w::ForgeRefused { reason }) };
     jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
@@ -238,34 +230,24 @@ fn copy_row(number: u16, mode: w::Mode, addresses: &[&[u8]], project: Option<u32
         number,
         w::Kind::Forgejo,
         mode,
-        w::Connection::Connected(
-            w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
-        ),
+        w::Connection::Connected(w::Connected { id: 42, login: b"temper".as_slice().into() }),
         w::Offer::NotOffered,
         None,
     );
-    let mut parts = row.into_parts();
+    let mut parts = row;
     let mut copies = List::with_capacity(wire::FIRST_COPIES);
     for address in addresses {
         copies.push((*address).into()).unwrap();
     }
-    parts.starts_with = w::StartsWith::Copies(
-        w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap(),
-    );
+    parts.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses: copies });
     parts.repositories.clear();
     if let Some(project) = project {
         parts
             .repositories
-            .push(
-                w::Adoption::new(
-                    &w::CEILINGS,
-                    w::AdoptionParts { project, owner: b"work".as_slice().into(), name: b"existing".as_slice().into() },
-                )
-                .unwrap(),
-            )
+            .push(w::Adoption { project, owner: b"work".as_slice().into(), name: b"existing".as_slice().into() })
             .unwrap();
     }
-    w::ForgeRow::new(&w::CEILINGS, parts).unwrap()
+    parts
 }
 fn ready_copies(addresses: &[&[u8]], home: Option<u32>) -> (Domain, skein_lib::Token) {
     let (mut root, me, watch) = super::welcome::ready_default_with_forges();
@@ -278,7 +260,7 @@ fn ready_copies(addresses: &[&[u8]], home: Option<u32>) -> (Domain, skein_lib::T
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).unwrap()),
+                bytes: wire::forges(&w::Forges { forges, linked: false }),
             },
         },
     );
@@ -297,14 +279,14 @@ fn assert_copies(
         let jig_client::Ask::Family { scope, record } = ask else { panic!("copy is a family request") };
         assert_eq!(*scope, c::Scope::Project(project));
         let request = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap();
-        let w::Request::MakeRepository(request) = request.request() else { panic!("only MakeRepository, no adoption") };
-        assert_eq!(request.forge(), COPY_FORGE);
-        assert_eq!(request.org(), *org);
-        assert_eq!(request.name(), *name);
-        let w::MakeFrom::Copy(copy) = request.from() else { panic!("a public copy") };
-        assert_eq!(copy.address(), *address);
-        assert_eq!(request.into().as_ref().unwrap().project(), project);
-        assert_eq!(request.into().as_ref().unwrap().home(), home && *key_name == b"welcome-copy-1");
+        let w::Request::MakeRepository(request) = &request.request else { panic!("only MakeRepository, no adoption") };
+        assert_eq!(request.forge, COPY_FORGE);
+        assert_eq!(request.org.as_ref(), *org);
+        assert_eq!(request.name.as_ref(), *name);
+        let w::MakeFrom::Copy(copy) = &request.from else { panic!("a public copy") };
+        assert_eq!(copy.address.as_ref(), *address);
+        assert_eq!(request.into.as_ref().unwrap().project, project);
+        assert_eq!(request.into.as_ref().unwrap().home, home && *key_name == b"welcome-copy-1");
     }
 }
 const EXPECTED: &[Expected<'_>] = &[
@@ -377,7 +359,7 @@ fn copies_choose_lowest_real_forge_and_offer_its_first_name() {
     let record = jig_client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap()),
+        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
     };
     let mut rows = forge::forges::rows(&record, &f::limits().forge).unwrap();
     rows.reverse();

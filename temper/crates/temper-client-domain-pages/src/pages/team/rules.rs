@@ -71,12 +71,12 @@ impl Reader {
 #[must_use]
 pub fn asked(charter: u32, read: roles::Read<'_>) -> Option<Rules> {
     let roles::Read::Drawn(w::View::Charter(view)) = read else { return None };
-    if view.charter() != charter {
+    if view.charter != charter {
         return None;
     }
-    for fact in view.card().facts() {
-        if fact.label() == b"Asked to" && !fact.value().is_empty() {
-            return Some(Rules { charter, asked: fact.value().into() });
+    for fact in &view.card.facts {
+        if fact.label.as_ref() == b"Asked to" && !fact.value.is_empty() {
+            return Some(Rules { charter, asked: fact.value.clone() });
         }
     }
     None

@@ -3,6 +3,7 @@ use super::{Limits, Request, Served, Side, forges};
 use alloc::boxed::Box;
 use jig_client::{Answered, Ask, Event, Family, Key, Outcome, Told, contract as c};
 use skein_lib::{Queue, Secret};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -100,9 +101,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
     let installing = back.is_some();
     let bounds = super::wire_limits(&limits).expect("checked forge limits");
     let request = if let Some(back) = back {
-        w::Request::Install(
-            w::Install::new(&bounds, w::InstallParts { forge, back: Some(back) }).expect("printed flow address fits"),
-        )
+        w::Request::Install(w::Install { forge, back: Some(back) })
     } else {
         side.app_form.checked = true;
         let Some(id) = side.app_form.number() else {
@@ -123,18 +122,10 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             side.changed();
             return;
         }
-        w::Request::Connect(
-            w::Connect::new(
-                &bounds,
-                w::ConnectParts {
-                    forge: forges::making(side, forge, &bounds, None).expect("valid target"),
-                    how: w::How::GithubApp(
-                        w::GitHubApp::new(&bounds, w::GitHubAppParts { id, read_only: None }).expect("valid App id"),
-                    ),
-                },
-            )
-            .expect("connect fits"),
-        )
+        w::Request::Connect(w::Connect {
+            forge: forges::making(side, forge, &bounds, None).expect("valid target"),
+            how: w::How::GithubApp(w::GitHubApp { id, read_only: None }),
+        })
     };
     dispatch(side, &bounds, forge, request, installing, out);
 }
@@ -151,17 +142,11 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
         return;
     }
     let bounds = super::wire_limits(&limits).expect("checked forge limits");
-    let how = w::How::GithubManifest(
-        w::GitHubManifest::new(&bounds, w::GitHubManifestParts { back: Some(back) })
-            .expect("printed flow address fits"),
-    );
-    let request = w::Request::Connect(
-        w::Connect::new(
-            &bounds,
-            w::ConnectParts { forge: forges::making(side, forge, &bounds, None).expect("valid target"), how },
-        )
-        .expect("connect fits"),
-    );
+    let how = w::How::GithubManifest(w::GitHubManifest { back: Some(back) });
+    let request = w::Request::Connect(w::Connect {
+        forge: forges::making(side, forge, &bounds, None).expect("valid target"),
+        how,
+    });
     dispatch(side, &bounds, forge, request, true, out);
 }
 fn dispatch(
@@ -172,10 +157,14 @@ fn dispatch(
     linking: bool,
     out: &mut Queue<Request>,
 ) {
-    let record = w::Requesting::new(bounds, w::RequestingParts { request }).expect("request fits");
+    let record = w::Requesting { request };
     let request = Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(bounds).expect("request fits"),
+        },
     };
     side.serial = side.serial.checked_add(1).expect("forge keys fit");
     let key = Key { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
@@ -265,13 +254,13 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
             if !reader.is_empty() {
                 return None;
             }
-            match answer.into_parts().outcome {
+            match answer.outcome {
                 w::Outcome::Connecting => Some(Answer::Connecting),
-                w::Outcome::ConnectRefused(refusal) => Some(Answer::Refused(refusal.why().clone())),
-                w::Outcome::Link(link) if linking => Some(Answer::Link(link.into_parts().address)),
+                w::Outcome::ConnectRefused(refusal) => Some(Answer::Refused(refusal.why.clone())),
+                w::Outcome::Link(link) if linking => Some(Answer::Link(link.address)),
                 w::Outcome::Unknown => Some(Answer::Unknown),
                 w::Outcome::Page(page) => Some(Answer::Page(super::family::page(page))),
-                w::Outcome::ForgeRefused(refusal) => match refusal.into_parts().reason {
+                w::Outcome::ForgeRefused(refusal) => match refusal.reason {
                     w::ForgeReason::NoAccess => Some(Answer::NoAccess),
                     w::ForgeReason::NotFound => Some(Answer::NotFound),
                     w::ForgeReason::NoSuchForge

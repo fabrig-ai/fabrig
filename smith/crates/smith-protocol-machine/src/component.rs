@@ -71,13 +71,14 @@ pub struct Component {
     processes: Map<Token, Process>,
     routes: Map<Token, Token>,
     environment: crate::Environment,
+    rg: Box<[u8]>,
     closing: bool,
 }
 
 impl Component {
-    /// Construct with fixed capacity before any request is admitted.
+    /// Construct with fixed capacity and the startup-resolved rg executable before admitting requests.
     #[must_use]
-    pub fn new(limits: &Limits, environment: crate::Environment) -> Component {
+    pub fn new(limits: &Limits, environment: crate::Environment, rg: Box<[u8]>) -> Component {
         assert!(environment.fits(limits), "configured environment fits its machine byte cap");
         Component {
             roots: List::with_capacity(limits.roots),
@@ -86,6 +87,7 @@ impl Component {
             processes: Map::with_capacity(limits.processes),
             routes: Map::with_capacity(limits.processes.checked_mul(2).expect("pipe route count fits")),
             environment,
+            rg,
             closing: false,
         }
     }
@@ -277,6 +279,7 @@ impl Component {
                         max_bytes,
                         deadline,
                         &self.environment,
+                        &self.rg,
                         &env.limits,
                     ),
                     to_domain,
@@ -323,6 +326,7 @@ impl Component {
                         bytes,
                         deadline,
                         &self.environment,
+                        &self.rg,
                         &env.limits,
                     ),
                     to_domain,

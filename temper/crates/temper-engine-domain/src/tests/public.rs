@@ -6,6 +6,7 @@ use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 use temper_client_protocol_wire::public_v1 as w;
+use temper_client_protocol_wire::v1::Record;
 const REPLY: ReplyTo = ReplyTo::new(Token::new(91));
 fn root() -> (Domain, Env<Limits>) {
     let mut limits = resume_fixture::limits();

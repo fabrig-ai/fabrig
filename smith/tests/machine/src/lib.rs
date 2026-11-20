@@ -422,7 +422,7 @@ impl skein_world::Machine for Adapter {
                 };
                 answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(fixture)) });
             }
-            Ask::Spawn { program, .. } if program.as_ref() == b"/usr/bin/rg" => {
+            Ask::Spawn { program, .. } if program.as_ref() == b"/fixture/bin/rg" => {
                 answers.push(Answer { ticket: call.ticket, result: Ok(Reply::Program(Program::Exit(1))) });
             }
             Ask::Spawn { program, .. } if program.as_ref() == b"check-ok" => {
@@ -506,6 +506,7 @@ impl Application {
         let mut component = Component::new(
             &limits,
             smith_protocol_machine::Environment::encode(variables, &limits).expect("configured environment fits"),
+            Box::from(b"/fixture/bin/rg".as_slice()),
         );
         component.workspace(&run::Workspace {
             directories: Box::new([run::Directory {

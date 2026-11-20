@@ -5,6 +5,7 @@ use std::{
     os::unix::{ffi::OsStrExt, fs::PermissionsExt},
 };
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     fs::set_permissions(root, fs::Permissions::from_mode(0o700)).expect("private fixture root");
     let dirs = super::configuration::directories(root);
@@ -35,21 +36,19 @@ fn document(root: &std::path::Path) -> (crate::Directories, serde_json::Value) {
     (dirs, document)
 }
 fn agents(turns: u64) -> w::AgentFigures {
-    let mut parts = temper_service::stock::agents().into_parts();
+    let mut parts = temper_service::stock::agents();
     for row in parts.profile.iter_mut() {
-        if row.name() == b"policy.max_turns" {
-            *row = w::AgentFigure::new(
-                &w::CEILINGS,
-                w::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: turns },
-            )
-            .expect("figure");
+        if row.name.as_ref() == b"policy.max_turns" {
+            *row = w::AgentFigure { name: b"policy.max_turns".as_slice().into(), value: turns };
         }
     }
-    w::AgentFigures::new(&w::CEILINGS, parts).expect("agents")
+    parts
 }
 fn encoded(value: &w::AgentFigures) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured value");
+    let mut writer = skein_lib::Writer::new(skein_lib::usize_of(
+        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+    ));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured value");
     writer.finish()
 }
 fn stock_defaults(bytes: &[u8], dirs: &crate::Directories) -> temper_service::stock::Given {

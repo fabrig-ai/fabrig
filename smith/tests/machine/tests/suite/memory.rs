@@ -44,8 +44,11 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
         (0_u8..64).map(|index| machine::Variable { name: Box::new([b'A' + index]), value: Box::new([]) }).collect();
     let meter = Meter::new();
     meter.start();
-    let mut component =
-        Component::new(&limits, machine::Environment::encode(&variables, &limits).expect("empty environment fits"));
+    let mut component = Component::new(
+        &limits,
+        machine::Environment::encode(&variables, &limits).expect("empty environment fits"),
+        Box::from(b"/usr/bin/rg".as_slice()),
+    );
     component.workspace(&workspace);
     meter.check(meter.end(), SEARCH_CEILING, &"new and workspace");
 
@@ -186,8 +189,11 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
         let mut down = Queue::with_capacity(2);
         let meter = Meter::new();
         meter.start();
-        let mut component =
-            Component::new(&limits, machine::Environment::encode(&variables, &limits).expect("exact byte ceiling"));
+        let mut component = Component::new(
+            &limits,
+            machine::Environment::encode(&variables, &limits).expect("exact byte ceiling"),
+            Box::from(b"/usr/bin/rg".as_slice()),
+        );
         component.workspace(&workspace);
         meter.check(meter.end(), ENVIRONMENT_CEILING, &"maximum environment encoding and retained configuration");
         for check in [false, true] {

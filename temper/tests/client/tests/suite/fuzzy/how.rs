@@ -81,18 +81,12 @@ fn random_rules(rng: &mut Rng) -> List<w::PathRule> {
     let count = u32::try_from(rng.below(10)).expect("up to nine rows");
     let mut rows = List::with_capacity(count);
     for _ in 0..count {
-        rows.push(
-            w::PathRule::new(
-                &w::CEILINGS,
-                w::PathRuleParts {
-                    paths: pattern(rng),
-                    review: if rng.chance(500) { b"an agent".as_slice().into() } else { Box::default() },
-                    sign_off: if rng.chance(500) { b"two of you".as_slice().into() } else { Box::default() },
-                    lands: b"the read's words".as_slice().into(),
-                },
-            )
-            .expect("short rule words"),
-        )
+        rows.push(w::PathRule {
+            paths: pattern(rng),
+            review: if rng.chance(500) { b"an agent".as_slice().into() } else { Box::default() },
+            sign_off: if rng.chance(500) { b"two of you".as_slice().into() } else { Box::default() },
+            lands: b"the read's words".as_slice().into(),
+        })
         .expect("bounded rows");
     }
     rows
@@ -114,7 +108,7 @@ fn check_parts(facts: &Facts, seed: u64, step: u32) {
     assert_eq!(shown.head, head, "seed {seed}, step {step}, {facts:?}: heading follows the read");
     assert_eq!(shown.path, path, "seed {seed}, step {step}, {facts:?}: path follows the read");
     let rules = if path == Path::Shown && !facts.rules.is_empty() {
-        Some(how::Rules { add: shown.ask, review: facts.rules.iter().any(|row| !row.review().is_empty()) })
+        Some(how::Rules { add: shown.ask, review: facts.rules.iter().any(|row| !row.review.is_empty()) })
     } else {
         None
     };
@@ -142,64 +136,46 @@ fn path(rng: &mut Rng, limits: &w::Limits) -> w::BranchPath {
             _ => (w::Actor::Bar, w::PathStep::Branch),
         };
         let words = rng.next_u64().to_string().into_bytes().into_boxed_slice();
-        let card = w::Card::new(
-            limits,
-            w::CardParts { who: Box::new([]), name: words.clone(), facts: List::with_capacity(0) },
-        )
-        .expect("short card within fixture limits");
+        let card = w::Card { who: Box::new([]), name: words.clone(), facts: List::with_capacity(0) };
         stops
-            .push(
-                w::Stop::new(
-                    limits,
-                    w::StopParts {
-                        needed: actor != w::Actor::Bar && index % 2 == 0,
-                        over: if actor == w::Actor::Agent {
-                            b"tests, review".as_slice().into()
-                        } else {
-                            Box::default()
-                        },
-                        actor,
-                        step,
-                        words,
-                        opens: if rng.chance(500) {
-                            w::Opens::Tier(
-                                w::OpensTier::new(limits, w::OpensTierParts { name: b"tier".as_slice().into() })
-                                    .expect("tier"),
-                            )
-                        } else {
-                            w::Opens::Nothing
-                        },
-                        card,
-                    },
-                )
-                .expect("stop within fixture limits"),
-            )
+            .push(w::Stop {
+                needed: actor != w::Actor::Bar && index % 2 == 0,
+                over: if actor == w::Actor::Agent { b"tests, review".as_slice().into() } else { Box::default() },
+                actor,
+                step,
+                words,
+                opens: if rng.chance(500) {
+                    w::Opens::Tier(w::OpensTier { name: b"tier".as_slice().into() })
+                } else {
+                    w::Opens::Nothing
+                },
+                card,
+            })
             .expect("one stop per draw");
     }
-    w::BranchPath::new(limits, w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops })
-        .expect("path within fixture limits")
+    w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops }
 }
 
 fn check_drawing(path: &w::BranchPath, bounds: &skein_ui::Limits, seed: u64, step: u32) {
     let stops: Vec<_> = path
-        .stops()
+        .stops
         .iter()
         .map(|stop| paths::Stop {
-            mark: match stop.actor() {
+            mark: match &stop.actor {
                 w::Actor::Person => paths::Mark::Person,
                 w::Actor::Agent => paths::Mark::Agent,
                 w::Actor::Code => paths::Mark::Code,
                 w::Actor::Bar => paths::Mark::Bar,
             },
-            words: stop.words(),
-            needed: stop.needed(),
-            over: stop.over(),
+            words: &stop.words,
+            needed: stop.needed,
+            over: &stop.over,
         })
         .collect();
     let mut builder = Builder::new(bounds);
     let result = paths::path(&mut builder, b"The way a change goes", &stops, None);
     let tree = builder.finish();
-    if path.stops().is_empty() {
+    if path.stops.is_empty() {
         assert_eq!(result, Err(paths::Problem::Stops));
         assert!(tree.nodes().is_empty(), "seed {seed}, step {step}: empty path has no fallback lines");
         return;
@@ -213,23 +189,23 @@ fn check_drawing(path: &w::BranchPath, bounds: &skein_ui::Limits, seed: u64, ste
         .collect();
     assert_eq!(
         lines.len(),
-        usize::try_from(path.stops().len()).expect("wire stop count"),
+        usize::try_from(path.stops.len()).expect("wire stop count"),
         "seed {seed}, step {step}: every stop exactly once"
     );
-    for (index, (line, stop)) in lines.iter().zip(path.stops()).enumerate() {
-        let actor = match stop.actor() {
+    for (index, (line, stop)) in lines.iter().zip(&path.stops).enumerate() {
+        let actor = match &stop.actor {
             w::Actor::Person => "a person",
             w::Actor::Agent => "an agent",
             w::Actor::Code => "code",
             w::Actor::Bar => "a branch",
         };
-        let needed = if stop.needed() { ", when needed" } else { "" };
-        let over = if stop.over().is_empty() {
+        let needed = if stop.needed { ", when needed" } else { "" };
+        let over = if stop.over.is_empty() {
             String::new()
         } else {
-            format!(" ({})", std::str::from_utf8(stop.over()).expect("small words"))
+            format!(" ({})", std::str::from_utf8(&stop.over).expect("small words"))
         };
-        let expected = format!("{}, {actor}{needed}{over}", std::str::from_utf8(stop.words()).expect("stop words"));
+        let expected = format!("{}, {actor}{needed}{over}", std::str::from_utf8(&stop.words).expect("stop words"));
         assert_eq!(
             *line,
             expected.as_bytes(),
@@ -269,7 +245,7 @@ fn sweep(
     check_parts(&settings, seed, 0);
     check_drawing(&route, bounds, seed, 0);
     combinations.insert(combination(&settings));
-    lengths.insert(route.stops().len());
+    lengths.insert(route.stops.len());
     for step in 1..=MOVES {
         match rng.below(6) {
             0 => {
@@ -289,7 +265,7 @@ fn sweep(
         // An unrelated project's read cannot change this project's parts.
         check_parts(&initial, seed, step);
         combinations.insert(combination(&settings));
-        lengths.insert(route.stops().len());
+        lengths.insert(route.stops.len());
     }
 }
 

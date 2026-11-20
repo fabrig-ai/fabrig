@@ -127,9 +127,7 @@ fn the_widest_directories_fit_the_wire() {
     let dirs = Directories { config: path.clone(), data: path.clone(), cache: path, origins: [Origin::Flag; 3] };
     let words = program_environment(&dirs, &[], WORKING, b"temper");
     assert_eq!(words.len(), WORD_BYTES);
-    let record =
-        w::ProgramEnvironmentAnswer::new(&w::CEILINGS, w::ProgramEnvironmentAnswerParts { environment: words })
-            .expect("widest words fit");
+    let record = w::ProgramEnvironmentAnswer { environment: words };
     assert_eq!(
         wire::decode_program_environment_answer(&wire::program_environment_answer(&record), &w::CEILINGS),
         Some(record)

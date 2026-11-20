@@ -20,6 +20,34 @@ impl Fixture {
         fixture.journey("w", W);
         fixture
     }
+    fn scripted_chain() -> Self {
+        let fixture = Self::new();
+        fixture.journey("a", W);
+        fixture.journey(
+            "b",
+            r#"walk 2
+after a
+web input textbox "What do you want done?" "first question"
+web press button "Send"
+web see "Answer from a."
+web input textbox "Message" "second question"
+web press button "Send"
+web see "Answer from b."
+web mark
+"#,
+        );
+        fs::write(
+            fixture.root().join(WEB).join("a/scripts.json"),
+            r#"{"asked":[{"cue":"first question","turns":["Answer from a."]}],"otherwise":["Otherwise."]}"#,
+        )
+        .expect("a scripts");
+        fs::write(
+            fixture.root().join(WEB).join("b/scripts.json"),
+            r#"{"asked":[{"cue":"second question","turns":["Answer from b."]}]}"#,
+        )
+        .expect("b scripts");
+        fixture
+    }
     fn root(&self) -> &Path {
         self.scratch.path()
     }
@@ -248,6 +276,45 @@ fn two_prints_have_identical_bytes() {
     for (path, bytes) in first {
         assert!(second[&path].eq(&bytes), "bytes differ at {}", path.display());
     }
+}
+
+#[test]
+fn scripts_along_a_chain_answer_both_questions_with_repeatable_pages() {
+    let f = Fixture::scripted_chain();
+    let first = f.root().join("first");
+    let second = f.root().join("second");
+    ok(&f.print(&first, &["b"]));
+    ok(&f.print(&second, &["b"]));
+    assert_eq!(bytes(&first), bytes(&second), "both prints have the same bytes");
+    let pages = bytes(&first.join(WEB).join("b"));
+    assert_eq!(pages.keys().map(|p| p.to_str().expect("name")).collect::<Vec<_>>(), ["01.html"]);
+    let page = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(page.contains("Answer from a."), "{page}");
+    assert!(page.contains("Answer from b."), "{page}");
+    assert!(!first.join(WEB).join("a").exists(), "ancestor marks print nothing");
+}
+
+#[test]
+fn duplicate_script_cues_stop_at_the_child_without_stopping_other_journeys() {
+    let f = Fixture::scripted_chain();
+    fs::write(
+        f.root().join(WEB).join("b/scripts.json"),
+        r#"{"asked":[{"cue":"first question","turns":["Answer from b."]}]}"#,
+    )
+    .expect("duplicate cue");
+    let roots = temper_client_walk_lines::walk::Roots { web: f.root().join(WEB), tui: f.root().join(TUI) };
+    let chain = temper_client_walk_lines::walk::read(&roots, "b").expect("read chain");
+    let stopped = temper_client_walk_world::walk::walk(&chain).err().expect("duplicate scripts stop the walk");
+    assert_eq!(stopped.journey, "b");
+    assert_eq!(stopped.line, 0);
+    assert!(stopped.why.starts_with("scripts.json:"), "{stopped:?}");
+    let out = f.root().join("out");
+    let answer = f.print(&out, &["b", "w"]);
+    assert_eq!(answer.code, 1, "{answer:?}");
+    assert!(answer.stderr.is_empty(), "{answer:?}");
+    assert_eq!(answer.stdout, format!("stopped b: {stopped}\nprinted w\nprinted into {}\n", out.display()));
+    assert!(!out.join(WEB).join("b").exists());
+    assert!(out.join(WEB).join("w/02.html").is_file());
 }
 
 #[test]

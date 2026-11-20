@@ -6,8 +6,8 @@ use jig_protocol_config::names as jig;
 use skein_lib::{List, Map};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_service_vocabulary::limits as own;
+use w::Record;
 
-#[expect(clippy::too_many_lines, reason = "both names tables share one ordered page")]
 pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bounds: &w::Limits) -> Option<Box<[u8]>> {
     let stock = super::resolve_limits(&state.inputs, &[], &[]).ok()?;
     let desired = super::resolve_limits(&state.inputs, &state.jig, &state.temper).ok();
@@ -16,90 +16,78 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
         let setting = setting(&state.jig, name.name.as_bytes(), w::LimitKind::Jig, bounds).ok()?;
         let in_force = (name.value)(&state.in_force.jig);
         let wanted = match &setting {
-            Some(setting) => setting.value(),
+            Some(setting) => setting.value,
             None => match &desired {
                 Some(desired) => (name.value)(&desired.jig),
                 None => (name.value)(&stock.jig),
             },
         };
-        let row = w::LimitRow::new(
-            bounds,
-            w::LimitRowParts {
-                name: name.name.as_bytes().into(),
-                line: name.line.as_bytes().into(),
-                unit: match name.unit {
-                    jig::Unit::Count => w::LimitUnit::Count,
-                    jig::Unit::Bytes => w::LimitUnit::Bytes,
-                    jig::Unit::Milliseconds => w::LimitUnit::Milliseconds,
-                },
-                stock: Some((name.value)(&stock.jig)),
-                setting,
-                in_force: Some(in_force),
-                applies: w::LimitApplies::NextStart,
-                waiting: (state.held && has(&state.jig, name.name.as_bytes())) || wanted != in_force,
-                left_out: false,
-                held: None,
+        let row = w::LimitRow {
+            name: name.name.as_bytes().into(),
+            line: name.line.as_bytes().into(),
+            unit: match name.unit {
+                jig::Unit::Count => w::LimitUnit::Count,
+                jig::Unit::Bytes => w::LimitUnit::Bytes,
+                jig::Unit::Milliseconds => w::LimitUnit::Milliseconds,
             },
-        )
-        .ok()?;
-        rows.insert(row.name().into(), row).ok()?;
+            stock: Some((name.value)(&stock.jig)),
+            setting,
+            in_force: Some(in_force),
+            applies: w::LimitApplies::NextStart,
+            waiting: (state.held && has(&state.jig, name.name.as_bytes())) || wanted != in_force,
+            left_out: false,
+            held: None,
+        };
+        rows.insert(row.name.clone(), row).ok()?;
     }
     for name in &own::NAMES {
         let setting = setting(&state.temper, name.name.as_bytes(), w::LimitKind::Temper, bounds).ok()?;
         let in_force = (name.value)(&state.in_force.temper);
         let wanted = match &setting {
-            Some(setting) => setting.value(),
+            Some(setting) => setting.value,
             None => match &desired {
                 Some(desired) => (name.value)(&desired.temper),
                 None => (name.value)(&stock.temper),
             },
         };
-        let row = w::LimitRow::new(
-            bounds,
-            w::LimitRowParts {
-                name: name.name.as_bytes().into(),
-                line: name.line.as_bytes().into(),
-                unit: match name.unit {
-                    own::Unit::Count => w::LimitUnit::Count,
-                    own::Unit::Bytes => w::LimitUnit::Bytes,
-                    own::Unit::Milliseconds => w::LimitUnit::Milliseconds,
-                },
-                stock: Some((name.value)(&stock.temper)),
-                setting,
-                in_force: Some(in_force),
-                applies: match name.applies {
-                    own::Applies::AtOnce => w::LimitApplies::AtOnce,
-                    own::Applies::NextStart => w::LimitApplies::NextStart,
-                },
-                waiting: (state.held && has(&state.temper, name.name.as_bytes())) || wanted != in_force,
-                left_out: false,
-                held: if name.name == "transcript_memory" { Some(held) } else { None },
+        let row = w::LimitRow {
+            name: name.name.as_bytes().into(),
+            line: name.line.as_bytes().into(),
+            unit: match name.unit {
+                own::Unit::Count => w::LimitUnit::Count,
+                own::Unit::Bytes => w::LimitUnit::Bytes,
+                own::Unit::Milliseconds => w::LimitUnit::Milliseconds,
             },
-        )
-        .ok()?;
-        rows.insert(row.name().into(), row).ok()?;
+            stock: Some((name.value)(&stock.temper)),
+            setting,
+            in_force: Some(in_force),
+            applies: match name.applies {
+                own::Applies::AtOnce => w::LimitApplies::AtOnce,
+                own::Applies::NextStart => w::LimitApplies::NextStart,
+            },
+            waiting: (state.held && has(&state.temper, name.name.as_bytes())) || wanted != in_force,
+            left_out: false,
+            held: if name.name == "transcript_memory" { Some(held) } else { None },
+        };
+        rows.insert(row.name.clone(), row).ok()?;
     }
     for (kind, values) in [(w::LimitKind::Jig, &state.jig), (w::LimitKind::Temper, &state.temper)] {
         for item in values {
             if rows.contains_key(item.name.as_ref()) {
                 continue;
             }
-            let row = w::LimitRow::new(
-                bounds,
-                w::LimitRowParts {
-                    name: item.name.clone(),
-                    line: Box::default(),
-                    unit: w::LimitUnit::Count,
-                    stock: None,
-                    setting: setting(values, &item.name, kind.clone(), bounds).ok()?,
-                    in_force: None,
-                    applies: w::LimitApplies::NextStart,
-                    waiting: state.held,
-                    left_out: true,
-                    held: None,
-                },
-            )
-            .ok()?;
+            let row = w::LimitRow {
+                name: item.name.clone(),
+                line: Box::default(),
+                unit: w::LimitUnit::Count,
+                stock: None,
+                setting: setting(values, &item.name, kind.clone(), bounds).ok()?,
+                in_force: None,
+                applies: w::LimitApplies::NextStart,
+                waiting: state.held,
+                left_out: true,
+                held: None,
+            };
             rows.insert(item.name.clone(), row).ok()?;
         }
     }
@@ -119,8 +107,7 @@ pub(crate) fn answer(state: &LimitSettings, after: Option<&[u8]>, held: u64, bou
         last = Some(name.clone());
         page.push(row.clone()).ok()?;
     }
-    let record =
-        w::LimitsAnswer::new(bounds, w::LimitsAnswerParts { rows: page, next, revision: state.revision }).ok()?;
+    let record = w::LimitsAnswer { rows: page, next, revision: state.revision };
     Some(wire::limits_answer(&record))
 }
 fn has(values: &[Override], name: &[u8]) -> bool {
@@ -139,10 +126,9 @@ fn setting(
 ) -> Result<Option<w::LimitSetting>, w::Problem> {
     for item in values {
         if item.name.as_ref() == name {
-            return Ok(Some(w::LimitSetting::new(
-                bounds,
-                w::LimitSettingParts { kind, value: item.value, reason: item.reason.clone() },
-            )?));
+            let value = w::LimitSetting { kind, value: item.value, reason: item.reason.clone() };
+            value.measure(bounds)?;
+            return Ok(Some(value));
         }
     }
     Ok(None)

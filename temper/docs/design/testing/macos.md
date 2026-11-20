@@ -73,6 +73,15 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   The workflow prints each one's version first, so that a binary that
   does not run shows apart from the stories. The `process` and `live`
   parts each fetch them so.
+- **The `temper` part fetches them too,** the same way and with the same
+  set-up, after its build and before its suites, since temper's suites
+  hold tests that run the pinned Forgejo, the box's owned forge's
+  (`temper-box-kit`'s `owned`) and a real checkout's delivery, and read
+  `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` as Linux's
+  builders give them (`../cli/test-env.md`). Its cache is not empty:
+  it is kept between runs as the part's other downloads are (section 6),
+  since what the suites test is the binaries, and the addresses are
+  `process`'s and `live`'s to show.
 - **Its set-up before the fetch** is what the forge commands ask of a
   host with no box (`../protocol/setup/box.md`, 4), on the scratch
   directories the workflow makes, each empty and private:
@@ -109,6 +118,30 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   `aarch64-apple-darwin`, the members that do not reach rustls, whose
   `ring` crate compiles C against Apple's headers (skein's `runtime/shell.md`,
   section 8); the rest are the workflow's.
+- **What both systems have.** A test, a kit or a script they write runs
+  each program at a path both systems give it: `/bin/sh`, `/bin/kill`,
+  `/bin/sleep`, `/bin/date`, `/bin/cat`, `/bin/ps`, `/usr/bin/true`,
+  `/usr/bin/false`, `/usr/bin/env`, `/usr/bin/git`, `/usr/bin/python3`.
+  Linux's `/usr/bin/kill` and `/usr/bin/date` and macOS's missing
+  `/bin/true` are no such path, and util-linux's `flock`, `setsid` and
+  `unshare`, `/dev/full`, and GNU's `stat -c` and `timeout` are Linux's
+  alone. So:
+  - **its own descriptors** are listed in `/dev/fd`, which on Linux is a
+    link to `/proc/self/fd`, so Linux reads the same list;
+  - **another process's state** (its name, its run state, its
+    descriptors) is read from `/proc` on Linux, unchanged, and on macOS
+    from `/bin/ps` and `/usr/sbin/lsof`, the two behind
+    `cfg(target_os = "linux")` and its negation;
+  - **a lock a script holds across an `exec`** is `flock(2)` taken on a
+    descriptor the script opened, by `/usr/bin/python3 -I -B -c 'import
+    fcntl; fcntl.flock(9, fcntl.LOCK_EX)'`, the same lock as Rust's
+    `File::lock` and util-linux's `flock -x 9`, so the scripts and the
+    kit's own Rust exclude each other as before;
+  - **a file's type, mode and size** a script checks without reading it
+    come from Python's `os.lstat`, not `stat -c`.
+
+  A program that is a test world's hosted name, never run (`/usr/bin/git`
+  in a world's table), is no such site.
 - **Linux's own tests, by name.** A test that only Linux can run is built
   for Linux alone, `cfg(target_os = "linux")` on its test, module or
   binary, with its reason beside it, and listed here. A test that
@@ -129,6 +162,11 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   | `bin/temper-box/tests/fake_backends/deployment.rs`: `a_stopped_deployment_restored_at_its_place_uses_new_files`; `bin/temper-box/tests/fake_backends/newer_build.rs`: `a_stopped_fake_box_starts_with_new_files_at_the_same_paths`; `testing/temper-process-guard/tests/parent.rs`, the whole binary | an executable's observation reads `parent::Guard`'s retained Linux process identities |
   | `bin/temper-box/tests/suite/startup.rs`: `forge_parent_listener_helper`, `forge_run_ignores_its_childs_term_relays_the_listener_and_dies_with_its_status` and `killing_forge_run_alone_kills_its_forgejo_child` | `forge run` stays Forgejo's parent on Linux alone (`../protocol/setup/owned.md`, 4) |
   | `bin/temper-box/tests/process.rs`: `a_forgejo_elsewhere_connected_as_its_admin_makes_the_first_repository_lands_a_chats_change_and_is_found_after_a_restart`, and `testing/temper-box-kit/src/forgejo_elsewhere.rs`; `bin/temper-box/tests/suite/support_tests.rs`: `the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directory` and `elsewhere_settings_follow_the_connected_project`, which reach that module | the capture witness uses Linux's abstract Unix sockets |
+  | `bin/temper-box/tests/process.rs`: `a_default_box_with_a_sign_in_registration_starts_without_dns` | it takes the box's network and name service away with Linux's namespaces (`unshare`) |
+  | `bin/temper-box/tests/process.rs`: `temper_box_restarts_a_killed_forgejo_while_the_engine_serves`; `bin/temper-box/tests/suite/startover.rs`: `owned_setup_cuts_start_over_and_a_removal_cut_finishes_on_restart` | each finds a box's step among its processes by the step's `/proc` executable or command line, and on macOS the box's tree reads empty (section 2) |
+  | `crates/temper-box-shell/src/tests.rs`: `the_standalone_operations_check_retains_no_descriptors` | it names each open descriptor's file by its `/proc/self/fd` link, and macOS's `/dev/fd` holds no links |
+  | `crates/temper-qa-tool/tests/suite/builds.rs`: `a_manifest_keeps_a_non_utf8_path_as_its_bytes`; `crates/temper-qa-tool/tests/suite/build_files.rs`: `real_checksums_keep_a_non_utf8_path_as_its_bytes`; `crates/temper-qa-tool/tests/suite/run_passes.rs`: `installation_reads_a_non_utf8_manifest_path_as_its_bytes`; `crates/temper-qa-tool/tests/suite/place.rs`: `a_new_recipe_reads_a_non_utf8_commit_path_as_its_bytes` | APFS, macOS's file system, holds no file name that is not UTF-8; their plain and escaped UTF-8 halves run on both systems (`qa/builds.md`, 4) |
+  | The cluster's stories, each reading its description through `testing/temper-box-kit`'s `Cluster::read` or `Cluster::read_from`: in `bin/temper-box/tests/process.rs`, `an_engine_alone_prints_its_lines_and_drains_on_a_signal`, `the_cluster_stops_in_reverse_each_exiting_0`, `a_worker_alone_with_the_owned_examples_worker_links_and_drains_on_a_signal`, `a_task_runs_on_each_worker`, `a_task_runs_on_each_worker_of_the_deployments_binaries`, `a_worker_killed_mid_run_is_lost_and_its_run_answered_once_on_another`, `a_worker_hung_past_the_grace_is_fenced_and_links_again`, `a_worker_started_later_takes_the_waiting_task`, `a_worker_restarted_on_its_directories_links_at_its_position`, `an_unexpected_member_exit_is_reported_after_its_client_settles` and the ignored `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace`, with the helpers only they use; its `cluster_turn` module, whole; `bin/temper-box/tests/live_github.rs`, the whole binary | the cluster's members run in skein-world's cgroup trees, which the user's service manager delegates on Linux alone (`../protocol/cluster.md`, 5); macOS has no cgroups |
 
 ## 4. The parts
 
@@ -363,6 +401,29 @@ built by a workflow of its own, which tests nothing (`../release.md`, 5.1).
   Homebrew as a URL alone (`../draft/macos.md`, 4.3).
 - **`process`'s and `live`'s:** Forgejo and its runner, fetched as section
   2 has it.
+- **`temper`'s:** Forgejo and its runner, fetched as section 2 has it,
+  into a fetch cache that `actions/cache` restores before the fetch and
+  saves once per key, as the registry is: its key is
+  `forge-macos-26-`, then the hash of the files that pin the binaries,
+  `skein/crates/skein-forge/src/forgejo/pin.rs` (versions and digests)
+  and `temper/crates/temper-forge-setup/src/fetch.rs` (their addresses),
+  so that a moved pin fetches afresh. The box's fetch holds what it finds
+  in place to the pins' digests and fetches nothing more
+  (`../protocol/setup/owned.md`, 6). The configuration and data
+  directories of the fetch's set-up start empty each run; only the cache
+  is kept.
+- **`smith`'s:** ripgrep 14.1.1, the release Linux's machines carry at
+  `/usr/bin/rg`, from its GitHub release, the `aarch64-apple-darwin`
+  archive. Its version and the archive's SHA-256 are pinned in the
+  workflow, and the archive is checked against the digest before it is
+  unpacked, as Chrome for Testing's is. The directory holding its `rg`
+  goes on the job's `PATH`, so that smith's suites find it on the test
+  process's `PATH`, as smith finds `rg` on the commands' `PATH`
+  (`smith/docs/design/protocol/agent.md`, section 2;
+  `smith/docs/design/testing.md`, 2.2). The workflow prints
+  `rg --version` through the runner of checks first, so that a binary
+  that does not run shows apart from the suites. A download refused or
+  not its digest is a fault (5.4).
 - **Each part's disk and wall time:** a last step, whatever the part ended
   in, prints the disk (`df`, and `du` of `target` and the registry) and the
   job's wall time since its first step.

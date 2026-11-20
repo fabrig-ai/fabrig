@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         temper_client_protocol_wire::CLIENT_SCHEMA,
-        temper_client_protocol_wire::v1, sealed,
+        temper_client_protocol_wire::v1, lean,
         limits [
             adopt_owner,
             adopt_name,
@@ -265,6 +265,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             landing_rule_gates,
             landing_rule_approvals,
             landing_rule_sets,
+            named_model_model,
+            named_model_effort_some,
+            named_later_subagents,
+            named_llm_subagents,
             project_landing_merge_job_some,
             project_landing_close_job_some,
             settings_gate_report_artifact,
@@ -322,7 +326,7 @@ fn largest_roots_stay_within_decoded_bounds() {
             agent_figures_endpoints,
             limit_override_name,
             limit_override_reason,
-            temper_limits_overrides,
+            limit_overrides_overrides,
         ],
         roots [
             Trials,
@@ -376,13 +380,13 @@ fn largest_roots_stay_within_decoded_bounds() {
             Welcome,
             Findings,
             AgentFigures,
-            TemperLimits,
+            LimitOverrides,
         ]
     );
     family!(
         CAP,
         temper_client_protocol_wire::PUBLIC_SCHEMA,
-        temper_client_protocol_wire::public_v1, sealed,
+        temper_client_protocol_wire::public_v1, lean,
         limits [
             public_change_gates,
             public_landing_line_members,
@@ -639,6 +643,10 @@ fn largest_roots_stay_within_decoded_bounds() {
             landing_rule_gates,
             landing_rule_approvals,
             landing_rule_sets,
+            named_model_model,
+            named_model_effort_some,
+            named_later_subagents,
+            named_llm_subagents,
             project_landing_merge_job_some,
             project_landing_close_job_some,
             settings_gate_report_artifact,

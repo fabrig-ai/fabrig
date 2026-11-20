@@ -148,6 +148,8 @@ fn open_without_two_arguments_prints_its_usage() {
 
 pub(crate) mod configuration;
 
+// This check names open files through /proc/self/fd links; macOS's /dev/fd has no links.
+#[cfg(target_os = "linux")]
 #[test]
 #[expect(
     clippy::too_many_lines,
@@ -268,6 +270,8 @@ fn the_standalone_operations_check_retains_no_descriptors() {
     assert!(why.contains(named_file.to_str().expect("named path")), "{why}");
     fs::remove_dir_all(directory).expect("remove operations scratch");
 }
+// Only the Linux descriptor-link check calls this helper.
+#[cfg(target_os = "linux")]
 fn assert_no_descriptors_in(directory: &std::path::Path) {
     for entry in std::fs::read_dir("/proc/self/fd").expect("open descriptor list") {
         let path = entry.expect("descriptor entry").path();

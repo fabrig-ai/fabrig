@@ -29,17 +29,17 @@ const QUEUE_ENTRIES: u32 = OPERATIONS;
 const BOX_HOST: usize = 0;
 const PATIENCE: Duration = Duration::from_secs(2);
 const PROGRAM: &[u8] = b"synthetic-box-child";
-const FIRST: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-first\n";
-const FRESH: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-fresh\n";
+const FIRST: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=test-first\n";
+const FRESH: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=test-fresh\n";
 const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
 const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\nIn a terminal: temper http://127.0.0.1:8367\n";
 const ANNOUNCEMENT: &[u8] = b"\n";
 const FIRST_DIAGNOSTIC: &[u8] = b"diagnostic: between first pieces\n";
 const FRESH_DIAGNOSTIC: &[u8] = b"diagnostic: between fresh pieces\n";
 const SERVE_WRITES: [&[u8]; 4] = [
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=",
+    b"http://127.0.0.1:8367/sign-in?secret=",
     b"test-first\n",
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=",
+    b"http://127.0.0.1:8367/sign-in?secret=",
     b"test-fresh\n",
 ];
 const DIAGNOSTIC_WRITES: [&[u8]; 4] = [b"between first ", b"pieces\n", b"between fresh ", b"pieces\n"];
@@ -683,14 +683,14 @@ fn a_kind_removal_unlinks_its_group_file_and_started_record_on_the_real_ring() {
         wake: None,
     });
     world.spawn_signals(|signals| {
-        // All steps use the box's program; the remover execs the /bin/true stub.
+        // All steps use the box's program; the remover execs the /usr/bin/true stub.
         let script = b"printf 'start 17 fake\n' >&3; IFS= read -r step <&4; IFS= read -r started <&4; [ \"$step\" = 'step 17 run' ] && [ \"$started\" = 'started 17' ] || exit 1; printf 'remove 17\n' >&3; IFS= read -r removed <&4; [ \"$removed\" = 'removed 17' ] || exit 1; printf '%s\n' \"$removed\"; exec /bin/sleep 30";
         let steps = Steps {
             always: Box::new([Step::new(b"serve".as_slice().into(), Box::new([b"-c".as_slice().into(), script.as_slice().into()]), Kind::Long)]),
             asked: Box::new([Group {
                 kind: Some(BoxKind::Fake), forge: 0, label: b"Fake".as_slice().into(), recorded: true, before: 0,
                 steps: Box::new([(Stage::Run, Step::new(b"fake-forge".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/sleep 30".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Long))]),
-                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
+                remover: Some(Step::new(b"remove".as_slice().into(), Box::new([b"-c".as_slice().into(), b"exec /usr/bin/true".as_slice().into(), FORGE_ARGUMENT.into()]), Kind::Once)),
             }]),
         };
         boxed(Service::new(&temper_box_machine::limits::stock(), steps, Settings {

@@ -19,9 +19,9 @@ pub fn compose(engine: &settings::Engine, agents: &s::AgentFigures) -> w::Figure
 /// The agent's call bound, independent of the carriers' `tool_payload` floor.
 #[must_use]
 pub fn tool_payload(agents: &s::AgentFigures) -> u32 {
-    for figure in agents.profile() {
-        if figure.name() == b"declared.tool_payload" {
-            return u32::try_from(figure.value()).expect("judged agent payload fits u32");
+    for figure in &agents.profile {
+        if figure.name.as_ref() == b"declared.tool_payload" {
+            return u32::try_from(figure.value).expect("judged agent payload fits u32");
         }
     }
     temper_service_core::derived::STOCK.payload
@@ -49,17 +49,17 @@ impl Composer {
 
     #[must_use]
     pub fn compose(&self, agents: &s::AgentFigures) -> w::Figures {
-        let mut profile = List::with_capacity(agents.profile().len());
-        for figure in agents.profile() {
-            profile.push(limit(figure.name(), figure.value())).expect("counted profile figures");
+        let mut profile = List::with_capacity(agents.profile.len());
+        for figure in &agents.profile {
+            profile.push(limit(&figure.name, figure.value)).expect("counted profile figures");
         }
         let mut endpoints =
             List::with_capacity(u32::try_from(self.endpoints.len()).expect("configured endpoints").min(ENDPOINTS));
         for endpoint in self.endpoints.iter().take(skein_lib::usize_of(ENDPOINTS)) {
-            let mut limits = agents.fallback();
-            for named in agents.endpoints() {
-                if named.endpoint() == endpoint.name.as_ref() {
-                    limits = named.limits();
+            let mut limits = &agents.fallback;
+            for named in &agents.endpoints {
+                if named.endpoint.as_ref() == endpoint.name.as_ref() {
+                    limits = &named.limits;
                     break;
                 }
             }
@@ -90,12 +90,12 @@ fn endpoint_figure(endpoint: &config::llm::Endpoint, limits: &s::AgentLimits) ->
         headers.push(w::Header { name: header.name.clone(), value: header.value.clone() }).expect("counted headers");
     }
     let limits = w::EndpointLimits {
-        window: limits.window(),
-        output: limits.output(),
-        reasoning_item: limits.reasoning_item(),
-        head: Duration::from_millis(limits.head_ms()),
-        idle: Duration::from_millis(limits.idle_ms()),
-        oversized: match limits.oversized() {
+        window: limits.window,
+        output: limits.output,
+        reasoning_item: limits.reasoning_item,
+        head: Duration::from_millis(limits.head_ms),
+        idle: Duration::from_millis(limits.idle_ms),
+        oversized: match &limits.oversized {
             s::Oversized::Fail => w::Oversized::Fail,
             s::Oversized::Drop => w::Oversized::Drop,
         },

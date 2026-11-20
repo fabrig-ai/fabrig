@@ -286,7 +286,7 @@ impl NativeClient {
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
             | jig_client::Event::AskLink
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }
@@ -342,7 +342,7 @@ impl NativeClient {
             | jig_client::Event::Send { .. }
             | jig_client::Event::Carry { .. }
             | jig_client::Event::AskLink
-            | jig_client::Event::AskApproval
+            | jig_client::Event::AskApproval { .. }
             | jig_client::Event::ReadApproval { .. }
             | jig_client::Event::DecideApproval { .. }
             | jig_client::Event::ApprovalAnswer { .. }

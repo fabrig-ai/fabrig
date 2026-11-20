@@ -26,10 +26,13 @@ approve-approved
 approve-asking
 approve-busy
 approve-expired
+approve-handing
 approve-refused
+approve-returned
 approve-signed-in
 approve-signed-out
 approve-signed-out-google
+approve-typed
 approve-typing
 approve-unknown
 approve-unread

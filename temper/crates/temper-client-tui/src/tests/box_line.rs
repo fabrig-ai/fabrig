@@ -7,7 +7,7 @@ use skein_lib::{
 
 #[test]
 fn each_box_line_reads_and_prints_back() {
-    let printed = b"http://example.invalid/the-printed-link";
+    let printed = b"http://example.invalid/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     let longest = concat(&[b"log ", &[b'x'; BoxLine::MOST - 5]]);
     let too_long = concat(&[&longest, b"x"]);
     let rows: &[(&str, &[u8], Option<BoxLine>)] = &[

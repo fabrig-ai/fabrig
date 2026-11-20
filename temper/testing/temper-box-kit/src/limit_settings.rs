@@ -208,6 +208,7 @@ pub fn apply(directories: &temper_box_shell::directories::Directories, overrides
         Step::Then(next) => Step::Then(Box::new(move |calls| next(calls).in_directory("limit-owner"))),
         _ => unreachable!("limit steps are calls"),
     }));
+    steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
         program: skein_scratch::paths::binary("temper-box").with_file_name(
             match super::read_file_shape(

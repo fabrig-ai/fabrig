@@ -1092,13 +1092,11 @@ fn ready_write_failure_stops_and_keeps_outputs() {
     let scratch = support::Scratch::new("fake_ready_failure");
     let doc = scratch.path().join("llm.json");
     document(&doc, &llm_document(scratch.path(), false));
-    let output = command("llm", &doc)
-        .args(["--ready", ""])
-        .stdout(fs::OpenOptions::new().write(true).open("/dev/full").expect("valid fixture"))
-        .output()
-        .expect("valid fixture");
+    let (reader, writer) = std::io::pipe().expect("ready pipe");
+    drop(reader);
+    let output = command("llm", &doc).args(["--ready", ""]).stdout(writer).output().expect("valid fixture");
     assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper fake llm: stdout: No space left on device (os error 28)\n");
+    assert_eq!(output.stderr, b"temper fake llm: stdout: Broken pipe (os error 32)\n");
     assert!(scratch.path().join("key").exists());
     scratch.remove();
 }

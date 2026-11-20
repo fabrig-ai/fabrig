@@ -58,22 +58,18 @@ fn welcome() -> Host {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .unwrap();
-                if reading.read() == &temper_client_protocol_wire::v1::Read::Deployment { Some(*read) } else { None }
+                if reading.read == temper_client_protocol_wire::v1::Read::Deployment { Some(*read) } else { None }
             } else {
                 None
             }
         })
         .expect("deployment read");
-    let answer = temper_client_protocol_wire::v1::DeploymentAnswer::new(
-        &temper_client_protocol_wire::v1::CEILINGS,
-        temper_client_protocol_wire::v1::DeploymentAnswerParts {
-            push: None,
-            welcome: true,
-            owned: true,
-            program_login: None,
-        },
-    )
-    .unwrap();
+    let answer = temper_client_protocol_wire::v1::DeploymentAnswer {
+        push: None,
+        welcome: true,
+        owned: true,
+        program_login: None,
+    };
     host.client(jig_client::Event::Up {
         up: jig_client::Up::ReadDone {
             read: deployment,

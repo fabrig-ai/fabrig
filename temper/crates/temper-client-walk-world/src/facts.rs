@@ -7,6 +7,7 @@ use temper_playground::{documents, stories, story::Start};
 pub const SEED: u64 = 7;
 pub const WALL: Wall = Wall::from_nanos(1_767_690_000_000_000_000);
 pub const SERVICE: &str = "127.0.0.1:10001";
+pub const FORGE: &str = "127.0.0.1:10002";
 pub const SIZE: skein_ui_screen::Size = skein_ui_screen::Size { columns: 80, rows: 24 };
 pub const VERSION: &[u8] = b"0.0.0 (000000000000)";
 pub const SCHEME: temper_client_tui::Scheme = temper_client_tui::Scheme::Dark;
@@ -19,7 +20,7 @@ pub fn tui_seed(before: u64) -> u64 {
 
 /// Own story A's start with a box's bounds, its listener and optional model scripts.
 pub fn start(scripts: Option<&[u8]>) -> Result<Start, String> {
-    let mut start = stories::A.start(SEED, WALL);
+    let mut start = stories::A.start_at(SEED, WALL, FORGE.parse().expect("fixed forge address"));
     let stock = documents::Configuration::stock(start.deployment.document.clone());
     start.deployment.jig_over("tasks.spec_bytes", stock.jig_value("tasks.spec_bytes"));
     start.deployment.jig_over("people.amendment_bytes", stock.jig_value("people.amendment_bytes"));

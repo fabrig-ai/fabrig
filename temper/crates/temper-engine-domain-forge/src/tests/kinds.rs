@@ -9,6 +9,7 @@ use crate::settings::{
 use core::slice::from_ref;
 use jig_domain_core_vocabulary::settings::application::{Restored, RestoredEdit};
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 
 const GOAL: TemplateGoal = TemplateGoal { design: true, close_out: false };
 
@@ -93,7 +94,12 @@ fn restore(d: &mut Domain, item: &Asked, slot: SettingSlot) {
 
 fn landing_wait(wait: temper_engine_domain_forge_change::Wait) -> SizedValue {
     let value = crate::settings::ProjectLanding { wait, ..crate::settings::ProjectLanding::default() };
-    SizedValue { size: crate::settings::landing_record(&value).measure(), value: Value::Landing(value) }
+    SizedValue {
+        size: crate::settings::landing_record(&value)
+            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings"),
+        value: Value::Landing(value),
+    }
 }
 
 #[test]
@@ -823,7 +829,8 @@ fn project_values() -> [(u32, SizedValue); 6] {
                     temper_protocol_reaches::Way::YouApprove,
                 ))
                 .unwrap()
-                .measure(),
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
             },
         ),
     ]

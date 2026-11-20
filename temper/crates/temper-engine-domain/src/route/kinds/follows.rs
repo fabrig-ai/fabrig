@@ -3,6 +3,7 @@
 use crate::Domain;
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List};
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge::{
     Role,
     settings::{self, FollowOwner},
@@ -25,7 +26,8 @@ pub(super) fn defaults(domain: &Domain, edit: &mut settings::Edit) {
         follow.producer = None;
     }
     if let Some(record) = settings::follow_record(follow) {
-        value.size = record.measure();
+        value.size =
+            record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted follow within ceilings");
     }
 }
 

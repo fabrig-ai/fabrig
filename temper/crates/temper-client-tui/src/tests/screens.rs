@@ -272,7 +272,7 @@ fn the_sign_in_screen_says_each_line() {
         assert_eq!(field.entry, Some(skein_ui::EntryKind::Secret));
         assert!(field.states.as_slice().contains(&skein_ui::State::SubmitsOnEnter));
         assert_eq!(field.focus, Some(if *local == Local::Ended { 2 } else { 1 }));
-        assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…".as_bytes()));
+        assert_eq!(field.placeholder.as_deref(), Some("http://127.0.0.1:8367/sign-in?secret=…".as_bytes()));
         let (left, right) = f::bottom_halves(view.tree());
         assert_eq!(f::text(view.tree(), left).as_ref(), "● Signed out".as_bytes());
         assert_eq!(left.styles.as_slice(), &[look::DOWN]);
@@ -421,7 +421,7 @@ fn the_approval_screen_says_each_line() {
             let id = exchange(f::client(
                 &mut root,
                 jig_client::Event::SignIn {
-                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])) },
+                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])), grant: None },
                 },
             ));
             f::client(&mut root, jig_client::Event::Lost { exchange: id });

@@ -9,6 +9,7 @@ use temper_client_domain::{
     forge::away::AwayRow,
     pages::{Act, all_home, away, home, needs},
 };
+use temper_client_protocol_wire::v1::Record as CodecRecord;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{
     app::{Root, Temper, View},
@@ -1169,14 +1170,13 @@ fn another_partys_home_shows_nothing() {
     story.front.add_dismissal_member(CLIENT, OTHER_PARTY, PROJECT);
     story.start_client(other);
     story.home(other);
-    assert!(story.probes[other.0].decisions.as_ref().expect("the member's Home watch delivered").rows().is_empty());
+    assert!(story.probes[other.0].decisions.as_ref().expect("the member's Home watch delivered").rows.is_empty());
     assert_eq!(story.row(other), None, "the switch belongs to its person");
     assert!(story.facts(other).decided.is_none(), "another member sees no decision form");
     story.probes[other.0].answers.clear();
     let bounds = &w::CEILINGS;
-    let overturn = w::Overturn::new(bounds, w::OverturnParts { project: PROJECT, number: 1 }).expect("overturn");
-    let requesting =
-        w::Requesting::new(bounds, w::RequestingParts { request: w::Request::Overturn(overturn) }).expect("request");
+    let overturn = w::Overturn { project: PROJECT, number: 1 };
+    let requesting = w::Requesting { request: w::Request::Overturn(overturn) };
     story.event(
         other,
         Event::Client {
@@ -1211,8 +1211,8 @@ fn another_partys_home_shows_nothing() {
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let answer = w::Answer::decode(bounds, &mut reader).expect("forge answer");
     assert!(reader.is_empty());
-    let w::Outcome::OverturnRefused(reason) = answer.outcome() else { panic!("overturn refused: {answer:?}") };
-    assert_eq!(reason.reason(), &w::OverturnRefusal::Unknown);
+    let w::Outcome::OverturnRefused(reason) = &answer.outcome else { panic!("overturn refused: {answer:?}") };
+    assert_eq!(&reason.reason, &w::OverturnRefusal::Unknown);
     assert_eq!(story.decisions(), decisions, "the other person changed no decision");
     assert!(story.facts(other).decided.is_none());
     story.event(other, Temper::went(Address::Forges));

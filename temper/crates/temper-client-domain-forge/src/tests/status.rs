@@ -5,36 +5,26 @@ use jig_client::{Ask, Family, Outcome, Watchable, contract as c};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub(super) fn document(landed: u64, seen: u64, brief: Option<u64>) -> w::ProjectStatus {
-    w::ProjectStatus::new(
-        &w::CEILINGS,
-        w::ProjectStatusParts {
-            project: f::PROJECT,
-            landed,
-            last_landed: Some(100),
-            brief: match brief {
-                Some(landed) => Some(
-                    w::StatusBrief::new(
-                        &w::CEILINGS,
-                        w::StatusBriefParts {
-                            sentence: b"A change landed.".as_slice().into(),
-                            lede: b"The change is ready.".as_slice().into(),
-                            at: 100,
-                            landed,
-                        },
-                    )
-                    .unwrap(),
-                ),
-                None => None,
-            },
-            previous: Some(50),
-            seen,
-            queued: 2,
-            red: true,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
+    w::ProjectStatus {
+        project: f::PROJECT,
+        landed,
+        last_landed: Some(100),
+        brief: match brief {
+            Some(landed) => Some(w::StatusBrief {
+                sentence: b"A change landed.".as_slice().into(),
+                lede: b"The change is ready.".as_slice().into(),
+                at: 100,
+                landed,
+            }),
+            None => None,
         },
-    )
-    .unwrap()
+        previous: Some(50),
+        seen,
+        queued: 2,
+        red: true,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+    }
 }
 pub(super) fn record(document: &w::ProjectStatus) -> Family {
     Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::project_status(document) }
@@ -43,7 +33,7 @@ fn answer(outcome: w::Outcome) -> Outcome {
     Outcome::Answered(jig_client::Answered::Family(Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+        bytes: wire::answer(&w::Answer { outcome }),
     }))
 }
 fn trailing(bytes: &[u8]) -> Box<[u8]> {
@@ -61,22 +51,19 @@ fn watch_and_look_name_the_projects_scope() {
         assert_eq!(scope, c::Scope::Project(project));
         assert_eq!(window, c::Window { rows: 0, after: None });
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        let w::Watch::Status(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().into_parts().watch
-        else {
+        let w::Watch::Status(subject) = wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch else {
             panic!("status watch")
         };
-        assert_eq!(subject.project(), project);
+        assert_eq!(subject.project, project);
         let Ask::Family { scope, record } = status::ask(project, &f::limits().forge).unwrap() else {
             panic!("family request")
         };
         assert_eq!(scope, c::Scope::Project(project));
         assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-        let w::Request::Looked(looked) =
-            wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
-        else {
+        let w::Request::Looked(looked) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request else {
             panic!("look request")
         };
-        assert_eq!(looked.project(), project);
+        assert_eq!(looked.project, project);
     }
     let mut limits = f::limits().forge;
     limits.field_bytes = u32::MAX;

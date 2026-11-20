@@ -13,12 +13,19 @@
 use super::{close, count, last_errno, retry, status, status_flags};
 pub(crate) use crate::posix::files::kind_of;
 use crate::posix::files::{kernel_error, private_error, read_opened};
+use crate::posix::links::pass_links;
 use crate::{
     calls::file_error,
     startup::{DirectoryAccess, OutputKind},
 };
 use skein_io::kernel::{Done, Error, Fd, Kind, Op, OpenHow, PERMISSIONS, Stat};
-use std::{ffi::CString, mem, os::unix::ffi::OsStrExt, path::Path, ptr};
+use std::{
+    ffi::{CString, OsString},
+    mem,
+    os::unix::ffi::{OsStrExt, OsStringExt},
+    path::{Path, PathBuf},
+    ptr,
+};
 
 // XNU bsd/sys/fcntl.h's O_RESOLVE_BENEATH value; confirmed on the M4 runner.
 pub(super) const O_RESOLVE_BENEATH: i32 = 0x0000_1000;
@@ -51,10 +58,19 @@ pub(crate) fn open(root: Fd, path: &[u8], how: OpenHow) -> Result<i32, i32> {
     // writer, where Linux's O_PATH opens the entry without opening the FIFO.
     let flags = flags | O_RESOLVE_BENEATH | libc::O_CLOEXEC | libc::O_NONBLOCK;
     let flags = if matches!(how, OpenHow::PathNoFollow) { flags } else { flags | libc::O_NOCTTY };
-    open_once(root, path, flags, mode)
+    let opened = open_once(root, path, flags, mode);
+    let opened = if flags & libc::O_NOFOLLOW_ANY != 0 && opened == Err(libc::ELOOP) {
+        match pass_links(root.raw(), path, 0) {
+            Some(path) => open_once(root, &path, flags, mode),
+            None => opened,
+        }
+    } else {
+        opened
+    };
+    opened.map_err(escape)
 }
 pub(super) fn open_flags(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
-    retry(|| open_once(root, path, flags, mode))
+    retry(|| open_once(root, path, flags, mode)).map_err(escape)
 }
 /// One `openat` beneath `root`: an `EINTR` is returned, not retried (runtime/readiness.md, 4).
 fn open_once(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
@@ -62,7 +78,7 @@ fn open_once(root: Fd, path: &[u8], flags: i32, mode: u32) -> Result<i32, i32> {
     let mode = libc::mode_t::try_from(mode).map_err(|_| libc::EINVAL)?;
     // SAFETY: path is terminated and live; mode is promoted to int for the variadic call.
     let raw = unsafe { libc::openat(root.raw(), path.as_ptr(), flags, i32::from(mode)) };
-    if raw < 0 { Err(escape(last_errno())) } else { Ok(raw) }
+    if raw < 0 { Err(last_errno()) } else { Ok(raw) }
 }
 pub(crate) fn read(fd: Fd, buf: &mut [u8], at: u64) -> Result<u32, i32> {
     let at = libc::off_t::try_from(at).expect("io validates offsets");
@@ -269,9 +285,25 @@ pub(crate) fn read_private_file(path: &Path, max: u32, user: u32) -> Result<Secr
 }
 
 fn open_private(path: &CString, flags: i32) -> Result<i32, i32> {
-    // SAFETY: the terminated path lives across open; O_NOFOLLOW_ANY refuses every link.
-    let fd = unsafe { libc::open(path.as_ptr(), flags | libc::O_NOFOLLOW_ANY) };
-    if fd < 0 { Err(last_errno()) } else { Ok(fd) }
+    let root = Fd::new(libc::AT_FDCWD);
+    let flags = flags | libc::O_NOFOLLOW_ANY;
+    let opened = open_once(root, path.to_bytes(), flags, 0);
+    if opened == Err(libc::ELOOP) {
+        if let Some(path) = pass_links(root.raw(), path.to_bytes(), 0) {
+            return open_once(root, &path, flags, 0);
+        }
+    }
+    opened
+}
+
+/// Passes only the system's own parent links for a caller's own checks
+/// (runtime/shell.md, 6.1). The answer still needs those checks.
+#[must_use]
+pub fn resolve_system_links(path: &Path) -> PathBuf {
+    match pass_links(libc::AT_FDCWD, path.as_os_str().as_bytes(), 0) {
+        Some(path) => PathBuf::from(OsString::from_vec(path.into_vec())),
+        None => path.to_path_buf(),
+    }
 }
 
 fn denied_private(path: &CString, user: u32) -> Unread {

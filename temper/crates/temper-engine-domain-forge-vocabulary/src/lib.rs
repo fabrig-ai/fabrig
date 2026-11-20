@@ -528,6 +528,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 for command in [&value.merge_job, &value.close_job].into_iter().flatten() {
                     held = held.checked_add(bytes(command))?;
                 }
+                if let Some(repairs) = &value.repairs {
+                    held = held.checked_add(settings::repairs_heap(repairs)?)?;
+                }
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::Gates(value), .. }) => {
@@ -575,17 +578,17 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
                 Some(held)
             }
             settings::Edit::Set(settings::SizedValue { value: settings::Value::AgentFigures(value), .. }) => {
-                let mut held = u64::from(value.profile().len())
+                let mut held = u64::from(value.profile.len())
                     .checked_mul(u64::try_from(size_of::<settings::AgentFigure>()).ok()?)?
                     .checked_add(
-                        u64::from(value.endpoints().len())
+                        u64::from(value.endpoints.len())
                             .checked_mul(u64::try_from(size_of::<settings::AgentEndpointLimits>()).ok()?)?,
                     )?;
-                for figure in value.profile() {
-                    held = held.checked_add(bytes(figure.name()))?;
+                for figure in &value.profile {
+                    held = held.checked_add(bytes(&figure.name))?;
                 }
-                for endpoint in value.endpoints() {
-                    held = held.checked_add(bytes(endpoint.endpoint()))?;
+                for endpoint in &value.endpoints {
+                    held = held.checked_add(bytes(&endpoint.endpoint))?;
                 }
                 Some(held)
             }

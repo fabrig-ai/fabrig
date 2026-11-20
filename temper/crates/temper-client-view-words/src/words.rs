@@ -2130,6 +2130,10 @@ pub enum Word {
     ApprovalSizeFiles,
     ProposalOwnedApproval,
     ApproveTitle,
+    ApproveReturnedTitle,
+    ApproveUnknownAddress,
+    ApproveOtherNetwork,
+    ApproveHanding,
     ApproveTyping,
     ApproveUnread,
     ApproveReading,
@@ -2281,7 +2285,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The composer picker replaces fourteen phrases with thirteen (client/pages/README.md).
 // Repository making rows use eight phrases and eighteen segments (client/pages/README.md).
 // Landing searches show the probe, both bounds and blamed prefixes (domain/landing-search.md, 8).
-const PHRASES: u32 = 2840;
+const PHRASES: u32 = 2844;
 // Settings and Needs you include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
 // Overturn adds its button and three toast phrases (client/pages/README.md).
 // Start goal’s asking choice and the goal’s following word: six phrases (5.14, 5.8).
@@ -2308,10 +2312,10 @@ const PHRASES: u32 = 2840;
 // The try adds twenty-three segments and removes one host-check segment (3.5).
 // The command’s Copy adds three literal segments (client/pages/README.md).
 // The composer picker removes the bar and explicit-apply phrase segments (3.5).
-const SEGMENTS: u32 = 5278;
+const SEGMENTS: u32 = 5284;
 // Literal bytes across every English phrase, at the larger shell vocabulary.
-const ENGLISH_BYTES: u32 = 66476;
-const ALL: [Word; 2106] = [
+const ENGLISH_BYTES: u32 = 66629;
+const ALL: [Word; 2110] = [
     Word::WorkMilestoneLede,
     Word::MsGoals,
     Word::MsWhole,
@@ -4343,6 +4347,10 @@ const ALL: [Word; 2106] = [
     Word::ApprovalSizeFiles,
     Word::ProposalOwnedApproval,
     Word::ApproveTitle,
+    Word::ApproveReturnedTitle,
+    Word::ApproveUnknownAddress,
+    Word::ApproveOtherNetwork,
+    Word::ApproveHanding,
     Word::ApproveTyping,
     Word::ApproveUnread,
     Word::ApproveReading,
@@ -4486,6 +4494,10 @@ impl Word {
             Self::ApprovalSizeFiles => 5676,
             Self::ProposalOwnedApproval => 4146,
             Self::ApproveTitle => 4147,
+            Self::ApproveReturnedTitle => 4186,
+            Self::ApproveUnknownAddress => 4187,
+            Self::ApproveOtherNetwork => 4188,
+            Self::ApproveHanding => 4189,
             Self::ApproveTyping => 4148,
             Self::ApproveUnread => 4149,
             Self::ApproveReading => 4150,
@@ -7208,10 +7220,14 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ApprovalSizeFile => (&[b" in 1 file"], &[]),
         Word::ApprovalSizeFiles => (&[b" in ", b" files"], &[Name]),
         Word::ApproveTitle => (&[b"Sign in a terminal?"], &[]),
+        Word::ApproveReturnedTitle => (&[b"Sign in a terminal on this computer?"], &[]),
+        Word::ApproveUnknownAddress => (&[b"an unknown address"], &[]),
+        Word::ApproveOtherNetwork => (&[b"It was asked from another network than this browser's."], &[]),
+        Word::ApproveHanding => (&[b"Handing the sign-in to your terminal\xe2\x80\xa6"], &[]),
         Word::ApproveTyping => (&[b"Type the code your terminal shows."], &[]),
         Word::ApproveUnread => (&[b"That isn\xe2\x80\x99t a terminal\xe2\x80\x99s code. Type the eight letters your terminal shows."], &[]),
         Word::ApproveReading => (&[b"Reading ", b"\xe2\x80\xa6"], &[Name]),
-        Word::ApproveAsked => (&[b"Asked ", b""], &[Name]),
+        Word::ApproveAsked => (&[b"Asked ", b" from ", b""], &[Name, Name]),
         Word::ApproveWarning => (&[b"Approve only a code your own terminal shows."], &[]),
         Word::ApproveApproving => (&[b"Approving\xe2\x80\xa6"], &[]),
         Word::ApproveRefusing => (&[b"Refusing\xe2\x80\xa6"], &[]),

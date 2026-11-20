@@ -618,11 +618,10 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     }
     let Some(limits) = temper_client_domain_forge::forge::wire_limits(&env.limits.domain.forge) else { return };
     let Some(request) = temper_client_protocol_wire::decode_requesting(&record.bytes, &limits) else { return };
-    let intent = match request.into_parts().request {
+    let intent = match request.request {
         temper_client_protocol_wire::v1::Request::SetUp(request) => {
-            let request = request.into_parts();
             let first = match request.first {
-                temper_client_protocol_wire::v1::SetUpFirst::Empty(first) => first.into_parts(),
+                temper_client_protocol_wire::v1::SetUpFirst::Empty(first) => first,
                 temper_client_protocol_wire::v1::SetUpFirst::Copies(_)
                 | temper_client_protocol_wire::v1::SetUpFirst::Nothing => return,
             };
@@ -1520,39 +1519,26 @@ fn first_json(first: &First, out: &mut Encoder) {
 fn making_number(making: &temper_client_protocol_wire::v1::Making) -> u16 {
     use temper_client_protocol_wire::v1::Making;
     match making {
-        Making::Kept(kept) => kept.forge(),
+        Making::Kept(kept) => kept.forge,
         Making::New(_) => 0,
     }
 }
 fn setup_ask(intent: &Intent, limits: &Limits) -> Option<jig_client::Ask> {
     use temper_client_protocol_wire::v1 as w;
-    let bounds = temper_client_domain_forge::forge::wire_limits(&limits.domain.forge)?;
     let forge = if intent.forge == 0 {
-        w::Making::New(w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Owned }).ok()?)
+        w::Making::New(w::NewForge { forge: w::ForgeAsk::Owned })
     } else {
-        w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge: intent.forge }).ok()?)
+        w::Making::Kept(w::Kept { forge: intent.forge })
     };
-    let request = w::Request::SetUp(
-        w::SetUp::new(
-            &bounds,
-            w::SetUpParts {
-                forge,
-                first: w::SetUpFirst::Empty(
-                    w::FirstEmpty::new(
-                        &bounds,
-                        w::FirstEmptyParts {
-                            org: intent.org.clone(),
-                            repository: intent.repository.clone(),
-                            playground: intent.playground,
-                            sample: false,
-                        },
-                    )
-                    .ok()?,
-                ),
-            },
-        )
-        .ok()?,
-    );
+    let request = w::Request::SetUp(w::SetUp {
+        forge,
+        first: w::SetUpFirst::Empty(w::FirstEmpty {
+            org: intent.org.clone(),
+            repository: intent.repository.clone(),
+            playground: intent.playground,
+            sample: false,
+        }),
+    });
     lifecycle::ask(request, limits)
 }
 

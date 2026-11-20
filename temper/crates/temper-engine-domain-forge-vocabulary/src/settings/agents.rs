@@ -48,8 +48,8 @@ pub const PROFILE_FIGURES: &[(&[u8], u64)] = &[
 ];
 
 pub(super) fn judge(value: &AgentFigures) -> Result<(), Refusal> {
-    for (at, figure) in value.profile().iter().enumerate() {
-        let name = figure.name();
+    for (at, figure) in value.profile.iter().enumerate() {
+        let name = figure.name.as_ref();
         let mut maximum = None;
         for &(known, most) in PROFILE_FIGURES {
             if name == known {
@@ -59,32 +59,32 @@ pub(super) fn judge(value: &AgentFigures) -> Result<(), Refusal> {
         let Some(maximum) = maximum else {
             return Err(refuse(name, b"unknown profile figure"));
         };
-        if figure.value() > maximum {
+        if figure.value > maximum {
             return Err(refuse(name, b"past the figure's type"));
         }
-        for prior in value.profile().iter().take(at) {
-            if prior.name() == name {
+        for prior in value.profile.iter().take(at) {
+            if prior.name.as_ref() == name {
                 return Err(refuse(name, b"profile name given twice"));
             }
         }
     }
-    for (at, endpoint) in value.endpoints().iter().enumerate() {
-        for prior in value.endpoints().iter().take(at) {
-            if prior.endpoint() == endpoint.endpoint() {
-                return Err(refuse(endpoint.endpoint(), b"endpoint named twice"));
+    for (at, endpoint) in value.endpoints.iter().enumerate() {
+        for prior in value.endpoints.iter().take(at) {
+            if prior.endpoint == endpoint.endpoint {
+                return Err(refuse(&endpoint.endpoint, b"endpoint named twice"));
             }
         }
-        limits(endpoint.endpoint(), endpoint.limits())?;
+        limits(&endpoint.endpoint, &endpoint.limits)?;
     }
-    limits(b"fallback", value.fallback())
+    limits(b"fallback", &value.fallback)
 }
 fn limits(endpoint: &[u8], value: &AgentLimits) -> Result<(), Refusal> {
     for (name, amount) in [
-        (b"window".as_slice(), u64::from(value.window())),
-        (b"output", u64::from(value.output())),
-        (b"reasoning_item", u64::from(value.reasoning_item())),
-        (b"head_ms", value.head_ms()),
-        (b"idle_ms", value.idle_ms()),
+        (b"window".as_slice(), u64::from(value.window)),
+        (b"output", u64::from(value.output)),
+        (b"reasoning_item", u64::from(value.reasoning_item)),
+        (b"head_ms", value.head_ms),
+        (b"idle_ms", value.idle_ms),
     ] {
         if amount == 0 {
             let mut item = skein_lib::List::uncapped();

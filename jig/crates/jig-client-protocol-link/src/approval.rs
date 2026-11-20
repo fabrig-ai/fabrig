@@ -34,8 +34,9 @@ impl ApprovalKind {
     }
 }
 impl Link {
-    pub(super) fn ask_approval(&mut self, out: &mut Queue<Request>) {
-        let record = w::ApprovalAsk::new(self.limits.wire(), w::ApprovalAskParts {}).expect("empty approval ask");
+    pub(super) fn ask_approval(&mut self, port: Option<u16>, out: &mut Queue<Request>) {
+        let record =
+            w::ApprovalAsk::new(self.limits.wire(), w::ApprovalAskParts { port }).expect("bounded approval ask");
         let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut bytes).expect("measured approval ask");
         self.approval_exchange(ApprovalKind::Ask, Message::ApprovalAsk(bytes.finish()), out);
@@ -125,9 +126,12 @@ impl Link {
             ApprovalKind::Read { code } => {
                 let state = match w::ApprovalState::decode(self.limits.wire(), &mut reader) {
                     Ok(answer) if reader.is_empty() => match answer {
-                        w::ApprovalState::Waiting(value) => {
-                            ApprovalState::Waiting { asked: Wall::from_nanos(value.asked()) }
-                        }
+                        w::ApprovalState::Waiting(value) => ApprovalState::Waiting {
+                            asked: Wall::from_nanos(value.asked()),
+                            kind: value.kind().clone(),
+                            source: address(value.source().as_ref()),
+                            reader: address(value.reader().as_ref()),
+                        },
                         w::ApprovalState::Approved => ApprovalState::Approved,
                         w::ApprovalState::Taken => ApprovalState::Taken,
                         w::ApprovalState::Refused => ApprovalState::Refused,
@@ -145,7 +149,16 @@ impl Link {
             ApprovalKind::Decide { code } => {
                 let decided = match w::ApprovalDecided::decode(self.limits.wire(), &mut reader) {
                     Ok(answer) if reader.is_empty() => match answer {
-                        w::ApprovalDecided::Approved => Decided::Approved,
+                        w::ApprovalDecided::Approved(value) => {
+                            let loopback = match value.into_parts().loopback {
+                                Some(value) => {
+                                    let fields = value.into_parts();
+                                    Some(crate::Loopback { port: fields.port, grant: fields.grant })
+                                }
+                                None => None,
+                            };
+                            Decided::Approved { loopback }
+                        }
                         w::ApprovalDecided::Refused => Decided::Refused,
                         w::ApprovalDecided::Used => Decided::Used,
                         w::ApprovalDecided::Expired => Decided::Expired,
@@ -169,5 +182,12 @@ impl Link {
             Approval::Asked { .. } | Approval::NotAsked(_) | Approval::Read { .. } | Approval::Decided { .. } => {}
         }
         out.push(Request::Approval(answer));
+    }
+}
+
+fn address(octets: Option<&[u8; 16]>) -> Option<core::net::IpAddr> {
+    match octets {
+        Some(octets) => Some(core::net::Ipv6Addr::from(*octets).to_canonical()),
+        None => None,
     }
 }

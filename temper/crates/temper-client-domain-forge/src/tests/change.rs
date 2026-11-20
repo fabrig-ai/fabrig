@@ -7,29 +7,14 @@ use skein_lib::List;
 use skein_ui::phrases::Hole;
 use temper_client_protocol_wire::v1 as w;
 fn repair(reason: w::Reason) -> w::Step {
-    w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).unwrap())
+    w::Step::Repairing(w::Repairing { reason })
 }
 #[test]
 fn each_step_supplies_its_slot_line_and_held_word() {
     let cases = [
-        (
-            w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap()),
-            Some(4),
-            W::ReadyLine,
-            W::HeldReady,
-        ),
-        (
-            w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: None }).unwrap()),
-            Some(4),
-            W::ReadyAloneLine,
-            W::HeldReady,
-        ),
-        (
-            w::Step::Preparing(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap()),
-            Some(4),
-            W::PrepareLine,
-            W::HeldPreparing,
-        ),
+        (w::Step::Ready(w::InLanding { landing: Some(61) }), Some(4), W::ReadyLine, W::HeldReady),
+        (w::Step::Ready(w::InLanding { landing: None }), Some(4), W::ReadyAloneLine, W::HeldReady),
+        (w::Step::Preparing(w::InLanding { landing: Some(61) }), Some(4), W::PrepareLine, W::HeldPreparing),
         (w::Step::Producing, Some(0), W::ProduceLine, W::HeldProducing),
         (w::Step::Opening, Some(1), W::OpenLine, W::HeldOpening),
         (w::Step::Recreating, Some(1), W::RecreateLine, W::HeldRecreating),
@@ -41,21 +26,11 @@ fn each_step_supplies_its_slot_line_and_held_word() {
         (w::Step::Updating, Some(4), W::UpdateLine, W::HeldUpdating),
         (w::Step::Resolving, Some(4), W::ResolveLine, W::HeldResolving),
         (repair(w::Reason::Ci), Some(2), W::RepairCi, W::HeldRepairing),
-        (
-            repair(w::Reason::Gate(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 123 }).unwrap())),
-            Some(3),
-            W::RepairGate,
-            W::HeldRepairing,
-        ),
+        (repair(w::Reason::Gate(w::GateReason { gate: 123 })), Some(3), W::RepairGate, W::HeldRepairing),
         (repair(w::Reason::Semantic), Some(4), W::RepairSemantic, W::HeldRepairing),
         (repair(w::Reason::Review), Some(3), W::RepairReview, W::HeldRepairing),
         (w::Step::Landing, Some(5), W::LandingLine, W::HeldLanding),
-        (
-            w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()),
-            None,
-            W::LandedLine,
-            W::HeldLanded,
-        ),
+        (w::Step::Landed(w::Landed { merge: [0xab; 32] }), None, W::LandedLine, W::HeldLanded),
     ];
     for (step, current, word, held) in cases {
         assert_eq!(change::slot(&step), Slots { current, done: current.unwrap_or(6) });
@@ -75,9 +50,9 @@ fn each_step_supplies_its_slot_line_and_held_word() {
             assert!(found);
         }
         let expected: Box<[Hole]> = if word == W::QueueTh {
-            Box::new([Hole::Number(65), Hole::Name(Box::from(panel.landing()))])
+            Box::new([Hole::Number(65), Hole::Name(panel.landing.clone())])
         } else if word == W::PrepareLine || word == W::FirstLine || word == W::UpdateLine || word == W::ResolveLine {
-            Box::new([Hole::Name(Box::from(panel.landing()))])
+            Box::new([Hole::Name(panel.landing.clone())])
         } else if word == W::ReadyLine {
             Box::new([Hole::Number(61)])
         } else if word == W::RepairGate {
@@ -100,9 +75,9 @@ fn each_step_supplies_its_slot_line_and_held_word() {
 #[test]
 fn a_panel_supplies_its_outbox_wait_phrase() {
     for (wait, expected) in [(Some(w::ChangeWait::OutboxRoom), Some(W::OutboxRoom)), (None, None)] {
-        let mut parts = p::panel(17, w::Step::Opening).into_parts();
+        let mut parts = p::panel(17, w::Step::Opening);
         parts.wait = wait;
-        let state = crate::forge::panel::State::Shown(Box::new(w::ChangePanel::new(&w::CEILINGS, parts).unwrap()));
+        let state = crate::forge::panel::State::Shown(Box::new(parts));
         assert_eq!(change::shown(&state).unwrap().wait(), expected);
     }
     let mut found = false;
@@ -142,7 +117,7 @@ fn queue_names_stay_nearest_first_and_unnamed_counts_saturate() {
         for name in names {
             ahead.push(*name).unwrap();
         }
-        let step = w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead }).unwrap());
+        let step = w::Step::Queued(w::Queued { place, ahead });
         let queue = change::queue(&step).unwrap();
         assert_eq!((queue.place, queue.ahead, queue.unnamed), (place, names, unnamed));
     }
@@ -178,7 +153,7 @@ fn merge_digits_are_lower_case_and_stop_at_seven_nibbles() {
     for (byte, value) in merge.iter_mut().zip([0x01, 0x23, 0xab, 0xcd]) {
         *byte = value;
     }
-    let panel = p::panel(17, w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge }).unwrap()));
+    let panel = p::panel(17, w::Step::Landed(w::Landed { merge }));
     let (_, holes) = change::line(&panel);
     let [Hole::Name(digits)] = holes.as_ref() else { panic!("merge digits") };
     assert_eq!(digits.as_ref(), b"0123abc");
@@ -190,36 +165,18 @@ fn after_landing_steps_keep_the_merge_tiers_and_completed_slots() {
     tiers.push(Box::from(b"fast run 2".as_slice())).unwrap();
     for (step, word, held) in [
         (
-            w::Step::Verifying(
-                w::Verifying::new(&w::CEILINGS, w::VerifyingParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap(),
-            ),
+            w::Step::Verifying(w::Verifying { merge: [0xab; 32], tiers: tiers.clone() }),
             W::VerifyingLine,
             W::HeldVerifying,
         ),
+        (w::Step::Red(w::Red { merge: [0xab; 32], tiers: tiers.clone() }), W::RedLine, W::HeldRed),
         (
-            w::Step::Red(w::Red::new(&w::CEILINGS, w::RedParts { merge: [0xab; 32], tiers: tiers.clone() }).unwrap()),
-            W::RedLine,
-            W::HeldRed,
-        ),
-        (
-            w::Step::Cleared(
-                w::Cleared::new(
-                    &w::CEILINGS,
-                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false },
-                )
-                .unwrap(),
-            ),
+            w::Step::Cleared(w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: false }),
             W::ClearedLine,
             W::HeldCleared,
         ),
         (
-            w::Step::Cleared(
-                w::Cleared::new(
-                    &w::CEILINGS,
-                    w::ClearedParts { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true },
-                )
-                .unwrap(),
-            ),
+            w::Step::Cleared(w::Cleared { merge: [0xab; 32], tiers: tiers.clone(), uncleared: true }),
             W::UnclearedLine,
             W::HeldUncleared,
         ),

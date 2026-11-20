@@ -27,7 +27,10 @@ pub fn moved_hold() -> w::Final {
         w::Refused::new(&wire(), w::RefusedParts { at: None, refusal: hold_refusal(reason) }).expect("refused"),
     )
 }
-pub const SERVICE_ANSWER: [u8; 25] = [1, 0, 0, 0, 0, 38, 0, 0, 0, 15, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0];
+pub const SERVICE_ANSWER: [u8; 25] = {
+    let [v0, v1, v2, v3] = w::VERSION.to_be_bytes();
+    [1, 0, v0, v1, v2, v3, 0, 0, 0, 15, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0]
+};
 pub fn application_answer() -> w::KeyedAnswer {
     let owner = w::Owner::Family(w::Family::new(&wire(), w::FamilyParts { number: 9 }).expect("family"));
     w::KeyedAnswer::FinalAnswer(
