@@ -208,6 +208,11 @@ impl Workers {
         }
         None
     }
+    /// Takes timers for the next operation (protocol/channel/figures.md, 3).
+    #[must_use]
+    pub fn retime(&mut self, timers: crate::Timers) -> bool {
+        self.component.retime(timers)
+    }
     /// Tell each admitted worker the restart wait (protocol/channel/restart.md, 3).
     pub fn restarting(&mut self, wait: Duration) {
         self.component.down(self.now, Event::Restarting { wait }, &mut self.out);

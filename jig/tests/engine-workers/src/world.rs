@@ -38,6 +38,10 @@ impl World {
             chunk: limits.chunk,
         }
     }
+    #[must_use]
+    pub fn retime(&mut self, timers: jig_protocol_engine_workers::Timers) -> bool {
+        self.component.retime(timers)
+    }
     pub fn connect(&mut self, peer: ScriptedPeer) -> Token {
         let connection = Token::new(self.next);
         self.next += 1;

@@ -22,6 +22,13 @@ pub struct Limits {
     pub silence: Duration,
     pub stall: Duration,
 }
+/// Live timers, read when each operation begins (protocol/channel/figures.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Timers {
+    pub handshake: Duration,
+    pub hello: Duration,
+    pub stall: Duration,
+}
 pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
     let codec = sizes::limits(&limits.sizes)?;
     let credential = u32::try_from(wire::Credential::encoded_bound(&codec)?).ok()?;

@@ -139,6 +139,27 @@ impl Component {
             pending_logins: None,
         })
     }
+    /// Takes timers for the next operation without moving an armed deadline
+    /// (protocol/channel/figures.md, 4).
+    #[must_use]
+    pub fn retime(&mut self, timers: crate::Timers) -> bool {
+        let limits = Limits {
+            handshake: timers.handshake,
+            stall: timers.stall,
+            backoff: timers.backoff,
+            ceiling: timers.ceiling,
+            proved: timers.proved,
+            busy: timers.busy,
+            ..self.limits
+        };
+        if !limits::valid_with_schema(&limits, &self.schema) {
+            return false;
+        }
+        self.limits = limits;
+        self.backoff.retime(timers.backoff, timers.ceiling);
+        self.busy.retime(timers.busy);
+        true
+    }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if self.life == Life::Closed {
             return;

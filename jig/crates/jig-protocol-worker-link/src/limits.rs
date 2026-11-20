@@ -24,6 +24,16 @@ pub struct Limits {
     pub grace: Duration,
     pub busy: Duration,
 }
+/// Live timers, read when each operation begins (protocol/channel/figures.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Timers {
+    pub handshake: Duration,
+    pub stall: Duration,
+    pub backoff: Duration,
+    pub ceiling: Duration,
+    pub proved: Duration,
+    pub busy: Duration,
+}
 pub fn channel_limits(limits: &Limits) -> Result<channel::Limits, Unusable> {
     let bodies = sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
     let cap = sizes::worker_cap(&limits.sizes).ok_or(Unusable::Limits)?;

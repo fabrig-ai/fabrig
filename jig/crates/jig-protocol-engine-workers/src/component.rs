@@ -151,6 +151,18 @@ impl Component {
         &self.full_schema
     }
 
+    /// Takes timers for the next operation without moving an armed deadline
+    /// (protocol/channel/figures.md, 3).
+    #[must_use]
+    pub fn retime(&mut self, timers: crate::Timers) -> bool {
+        let limits = Limits { handshake: timers.handshake, hello: timers.hello, stall: timers.stall, ..self.limits };
+        if !crate::limits::valid_with_schema(&limits, &self.full_schema) {
+            return false;
+        }
+        self.limits = limits;
+        true
+    }
+
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         match event {
             Event::Figures { figures } => self.give_figures(now, figures, out),
