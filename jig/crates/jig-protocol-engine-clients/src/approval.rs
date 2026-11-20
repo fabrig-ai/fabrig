@@ -329,14 +329,12 @@ impl Component {
         if let Some(digest) = self.approval.code(code) {
             let approval = self.approval.live.get(&digest).expect("live approval");
             return match approval.decision {
-                Decision::Waiting => w::ApprovalState::Waiting(
-                    w::ApprovalWaiting {
-                            asked: approval.asked.as_nanos(),
-                            kind: approval.kind.clone(),
-                            source: address(approval.source),
-                            reader: address(reader),
-                        },
-                ),
+                Decision::Waiting => w::ApprovalState::Waiting(w::ApprovalWaiting {
+                    asked: approval.asked.as_nanos(),
+                    kind: approval.kind.clone(),
+                    source: address(approval.source),
+                    reader: address(reader),
+                }),
                 Decision::Approved { .. } | Decision::Taking { .. } => w::ApprovalState::Approved,
             };
         }
@@ -357,19 +355,15 @@ impl Component {
                             w::ApprovalKind::Returned => {
                                 let grant = sign_in::draw(&mut self.rng);
                                 approval.grant_digest = Some(sign_in::digest(grant.expose()));
-                                Some(
-                                    w::ApprovalLoopback {
-                                            port: approval.port.expect("returned approval has a port"),
-                                            grant,
-                                        },
-                                )
+                                Some(w::ApprovalLoopback {
+                                    port: approval.port.expect("returned approval has a port"),
+                                    grant,
+                                })
                             }
                             w::ApprovalKind::Listener | w::ApprovalKind::Typed => None,
                         };
                         approval.decision = Decision::Approved { sign_in };
-                        w::ApprovalDecided::Approved(
-                            w::ApprovalApproved { loopback },
-                        )
+                        w::ApprovalDecided::Approved(w::ApprovalApproved { loopback })
                     } else {
                         self.approval.end(&digest, End::Refused);
                         w::ApprovalDecided::Refused

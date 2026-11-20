@@ -45,10 +45,7 @@ fn goal(d: &Decoder<'_>, at: u32) -> Result<w::RepairGoalSettings, Error> {
                 .or(Err(error(b"llm", b"wire value bound")))?
                 .expect("a choice was given");
             let bytes = choice.encode(&d.limits).or(Err(error(b"llm", b"wire value bound")))?;
-            Some(
-                w::NamedLlm::decode(&d.kinds, &mut Reader::new(&bytes))
-                    .or(Err(error(b"llm", b"wire value bound")))?,
-            )
+            Some(w::NamedLlm::decode(&d.kinds, &mut Reader::new(&bytes)).or(Err(error(b"llm", b"wire value bound")))?)
         }
     };
     {

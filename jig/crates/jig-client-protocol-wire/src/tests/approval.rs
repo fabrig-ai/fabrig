@@ -150,11 +150,8 @@ fn approval_records_round_trip_optional_returns_grants_and_sources() {
         let take = ApprovalSignIn { secret: Secret::new(Box::new([7; 32])), grant };
         assert_eq!(take.grant.is_some(), returned);
         round_trip!(ApprovalSignIn, take);
-        let loopback = if returned {
-            Some(ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) })
-        } else {
-            None
-        };
+        let loopback =
+            if returned { Some(ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) }) } else { None };
         let approved = ApprovalApproved { loopback };
         round_trip!(ApprovalDecided, ApprovalDecided::Approved(approved));
     }

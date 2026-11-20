@@ -36,9 +36,10 @@ impl ApprovalKind {
 }
 impl Link {
     pub(super) fn ask_approval(&mut self, port: Option<u16>, out: &mut Queue<Request>) {
-        let record =
-            w::ApprovalAsk { port };
-        let mut bytes = Writer::new(skein_lib::length::usize_of(record.measure(self.limits.wire()).expect("bounded client record")));
+        let record = w::ApprovalAsk { port };
+        let mut bytes = Writer::new(skein_lib::length::usize_of(
+            record.measure(self.limits.wire()).expect("bounded client record"),
+        ));
         record.write(self.limits.wire(), &mut bytes).expect("measured approval ask");
         self.approval_exchange(ApprovalKind::Ask, Message::ApprovalAsk(bytes.finish()), out);
     }

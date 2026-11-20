@@ -128,12 +128,7 @@ fn signed_in(e: &mut Exchange, to: ReplyTo, owner: Token) -> w::SignedIn {
 }
 fn approved(e: &mut Exchange) -> w::ApprovalAsked {
     let value = asked(e);
-    assert_eq!(
-        decide(e, value.code, true),
-        w::ApprovalDecided::Approved(
-            w::ApprovalApproved { loopback: None }
-        )
-    );
+    assert_eq!(decide(e, value.code, true), w::ApprovalDecided::Approved(w::ApprovalApproved { loopback: None }));
     value
 }
 
@@ -428,9 +423,12 @@ fn a_read_says_what_the_approval_is() {
         let a = asked(&mut e);
         let code = a.code;
         let expected = match case {
-            "waiting" => w::ApprovalState::Waiting(
-                w::ApprovalWaiting { asked: 123, kind: w::ApprovalKind::Listener, source: None, reader: None },
-            ),
+            "waiting" => w::ApprovalState::Waiting(w::ApprovalWaiting {
+                asked: 123,
+                kind: w::ApprovalKind::Listener,
+                source: None,
+                reader: None,
+            }),
             "approved" => {
                 decide(&mut e, code, true);
                 w::ApprovalState::Approved
@@ -479,9 +477,7 @@ fn the_first_decision_spends_the_approval() {
         assert_eq!(
             decide(&mut e, a.code, first),
             if first {
-                w::ApprovalDecided::Approved(
-                    w::ApprovalApproved { loopback: None },
-                )
+                w::ApprovalDecided::Approved(w::ApprovalApproved { loopback: None })
             } else {
                 w::ApprovalDecided::Refused
             }
@@ -619,16 +615,14 @@ fn an_approved_take_signs_in_the_approvers_party_once() {
     let a = asked(&mut e);
     assert_eq!(
         read(&mut e, a.code),
-        w::ApprovalState::Waiting(
-            w::ApprovalWaiting { asked: 0, kind: w::ApprovalKind::Listener, source: None, reader: None }
-        )
+        w::ApprovalState::Waiting(w::ApprovalWaiting {
+            asked: 0,
+            kind: w::ApprovalKind::Listener,
+            source: None,
+            reader: None
+        })
     );
-    assert_eq!(
-        decide(&mut e, a.code, true),
-        w::ApprovalDecided::Approved(
-            w::ApprovalApproved { loopback: None }
-        )
-    );
+    assert_eq!(decide(&mut e, a.code, true), w::ApprovalDecided::Approved(w::ApprovalApproved { loopback: None }));
     let owner = e.send(take_message(a.secret.expose()));
     let to = signer(&mut e);
     let first = signed_in(&mut e, to, owner);

@@ -35,8 +35,7 @@ impl Link {
                 self.signing_exchange(ExchangeKind::SignIn, Message::SignInService, Some(credential), None, out);
             }
             With::Approval { secret, grant } => {
-                let Ok(record) = (w::ApprovalSignIn { secret, grant }).encode(self.limits.wire())
-                else {
+                let Ok(record) = (w::ApprovalSignIn { secret, grant }).encode(self.limits.wire()) else {
                     out.push(Request::Signing { signing: Signing::Approval(crate::Taking::Unknown) });
                     return;
                 };

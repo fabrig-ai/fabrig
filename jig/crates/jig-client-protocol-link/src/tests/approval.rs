@@ -37,9 +37,12 @@ fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
     let mut rows = skein_lib::List::with_capacity(10);
     for (record, state) in [
         (
-            w::ApprovalState::Waiting(
-                w::ApprovalWaiting { asked: 100, kind: ApprovalKind::Listener, source: None, reader: None },
-            ),
+            w::ApprovalState::Waiting(w::ApprovalWaiting {
+                asked: 100,
+                kind: ApprovalKind::Listener,
+                source: None,
+                reader: None,
+            }),
             ApprovalState::Waiting {
                 asked: Wall::from_nanos(100),
                 kind: ApprovalKind::Listener,
@@ -64,12 +67,7 @@ fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
 fn decide_rows() -> Box<[(Box<[u8]>, Approval)]> {
     let mut rows = skein_lib::List::with_capacity(9);
     for (record, decided) in [
-        (
-            w::ApprovalDecided::Approved(
-                w::ApprovalApproved { loopback: None },
-            ),
-            Decided::Approved { loopback: None },
-        ),
+        (w::ApprovalDecided::Approved(w::ApprovalApproved { loopback: None }), Decided::Approved { loopback: None }),
         (w::ApprovalDecided::Refused, Decided::Refused),
         (w::ApprovalDecided::Used, Decided::Used),
         (w::ApprovalDecided::Expired, Decided::Expired),
@@ -255,9 +253,12 @@ fn a_waiting_approval_carries_its_kind_and_canonical_sources() {
             ] {
                 let mut h = Harness::new(&limits());
                 let exchange = exchange(&mut h, 1);
-                let body = encoded!(w::ApprovalState::Waiting(
-                    w::ApprovalWaiting { asked: 100, kind: kind.clone(), source, reader }
-                ));
+                let body = encoded!(w::ApprovalState::Waiting(w::ApprovalWaiting {
+                    asked: 100,
+                    kind: kind.clone(),
+                    source,
+                    reader
+                }));
                 h.answer(exchange, &body);
                 assert_eq!(
                     h.out.pop(),
@@ -282,15 +283,11 @@ fn an_approved_decision_carries_its_optional_loopback() {
         let mut h = Harness::new(&limits());
         let exchange = exchange(&mut h, 2);
         let loopback = if returned {
-            Some(
-                w::ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) },
-            )
+            Some(w::ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) })
         } else {
             None
         };
-        let body = encoded!(w::ApprovalDecided::Approved(
-            w::ApprovalApproved { loopback }
-        ));
+        let body = encoded!(w::ApprovalDecided::Approved(w::ApprovalApproved { loopback }));
         h.answer(exchange, &body);
         let loopback =
             if returned { Some(Loopback { port: 43210, grant: Secret::new(Box::new([9; 32])) }) } else { None };
