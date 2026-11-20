@@ -1,8 +1,9 @@
 # config: status
 
-2026-11-19. Where the design lags or departs from [config.md](config.md).
+2026-11-20. Where the design lags or departs from [config.md](config.md).
 
 - **Design lags:**
+  - 8: `../protocol/configuration/moved.md`, 1, refuses every moved member, and no build reads one. From 2026-11-20 a member that moves is read from its old place too, with a warning, until dev.fabrig.ai runs a build that reads the new form; the members that moved before then stay refused.
   - 5.2: jig's stock holds 16 charter versions besides the newest's (`core.settings.versions`), under twice dev.fabrig.ai's 19, so a start over dev's store is refused; N10 sets it to `live_goals`.
   - 5.2: `../protocol/configuration/limits.md`, `forge.changes`, and `../protocol/store.md`, section 4, cap `forge.changes` at 379 by the tier rows' ceiling of 759 and keep a failing test's id within 4 KiB; `forge.tiers.test_id_bytes` is 256.
   - 6.1: `../protocol/configuration/limit-settings.md`, section 5, takes a raise at once of five figures alone, `transcript_memory`, `forge.tasks`, `forge.holds`, `forge.entries` and `forge.client.entries`; every other count and time bound, jig's all among them, takes a raise at the next start, by 11's default, since its holders size their tables or copy it at construction (its section 11).
@@ -28,6 +29,5 @@
   - 6.2: the engine keeps the current LLM providers in its data directory, `providers.setting`, and each start builds from it, the stock's where there is none (`../protocol/configuration/providers.md`, 3), since a start builds its accounts driver, its workers' encodings and its core's provider facts before its store opens, as the box keeps `agents.setting` (6.3). The store stays the providers' home, and a change still applies at the next start. Decided by N4's designer, 2026-11-17.
   - 6.2: the scripted provider's port is chosen at the box's start, not the playground's, and held for the fake LLM until the playground starts (`../protocol/configuration/providers.md`, 4), since the box's worker pins its agents' endpoints at its start (`../protocol/configuration/figures.md`, 4). Its key is made at the playground's start, as this draft has it. Decided by N4's designer, 2026-11-17.
   - 6.2: every box has the scripted provider and configures the playground, whether `temper-box init` wrote it with `--box` or not; the welcome, kind 20, still decides whether it's offered (`../protocol/configuration/providers.md`, 4), since `demo` leaving the file leaves nothing else to tell the two apart. Decided by N4's designer, 2026-11-17.
-  - 8: `upgrades.md`, section 10, has each release read the previous release's configuration members. This draft's builds refuse a member that moved, and dev.fabrig.ai moves by its operators' steps, by the user's word until v0.1.0 has users (`notes.md`, section 21).
 - **Open:**
   - None. 11's questions took their defaults: a raise taken at once, the memory budget's stock and an override's reason in N2's design (`../protocol/configuration/limit-settings.md`, 2.1, 2.3 and 5), and the webhooks' listener, the next port, in N6's (`../protocol/configuration/file.md`, 3.1).
