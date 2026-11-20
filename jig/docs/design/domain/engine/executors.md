@@ -807,7 +807,9 @@ pub enum Request {
   core's checks of a claim and of a job against the task's own deadline
   (../authority.md, 8.3) and the tasks child's alarm at it
   (../tasks/lifecycle.md, 6) read that moved deadline, which
-  `tasks::Domain::deadline(task)` gives. Its authority is not
+  `tasks::Domain::deadline(task, wall) -> Option<Wall>` gives, reading
+  the open suspension's age at the caller's wall, the same wall the
+  check or alarm is made at. Its authority is not
   rewritten: an ancestor's deadline and a project's or deployment's
   ceiling move with nothing of this task's. So a task whose deadline is
   12:00, suspended from 11:30 until its claim at 11:50, is held for its
