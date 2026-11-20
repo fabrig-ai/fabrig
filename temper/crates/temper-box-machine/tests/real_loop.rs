@@ -29,17 +29,17 @@ const QUEUE_ENTRIES: u32 = OPERATIONS;
 const BOX_HOST: usize = 0;
 const PATIENCE: Duration = Duration::from_secs(2);
 const PROGRAM: &[u8] = b"synthetic-box-child";
-const FIRST: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-first\n";
-const FRESH: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=test-fresh\n";
+const FIRST: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=test-first\n";
+const FRESH: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=test-fresh\n";
 const PRELUDE: &[u8] = b"Open this link in a browser on this machine.\n\n";
 const FOOTER: &[u8] = b"\nIt signs you in as this temper's owner, once, within 2 hours.\nOpened after that, it prints a fresh one here.\nIn a terminal: temper http://127.0.0.1:8367\n";
 const ANNOUNCEMENT: &[u8] = b"\n";
 const FIRST_DIAGNOSTIC: &[u8] = b"diagnostic: between first pieces\n";
 const FRESH_DIAGNOSTIC: &[u8] = b"diagnostic: between fresh pieces\n";
 const SERVE_WRITES: [&[u8]; 4] = [
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=",
+    b"http://127.0.0.1:8367/sign-in?secret=",
     b"test-first\n",
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=",
+    b"http://127.0.0.1:8367/sign-in?secret=",
     b"test-fresh\n",
 ];
 const DIAGNOSTIC_WRITES: [&[u8]; 4] = [b"between first ", b"pieces\n", b"between fresh ", b"pieces\n"];

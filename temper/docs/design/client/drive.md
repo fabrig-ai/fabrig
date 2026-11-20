@@ -204,7 +204,7 @@ and its resource's URL, apart from its own (skein's `ui/web/testing.md`,
   its kind as the kit names it, its text, which for a refused resource
   holds its status, and the resource, its URL with the query and the
   fragment dropped, since a link's URL carries its secret
-  (`/jig/v1/sign-in/link?secret=…`) and a link is never in an answer (step
+  (`/sign-in?secret=…`, or at the route as a build before printed it) and a link is never in an answer (step
   2). For example `Log: Failed to load resource: the server responded
   with a status of 404 (Not Found) (http://127.0.0.1:8367/app.js)`. A
   trouble with no URL is `KIND: TEXT`.

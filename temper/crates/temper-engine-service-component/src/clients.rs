@@ -930,7 +930,12 @@ fn http_settings(public: Option<&crate::startup::application::Origin>) -> http::
         Some(origin) => Some(origin.name.clone()),
         None => None,
     };
-    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public }
+    http::Settings {
+        max_age: 0,
+        prefix: Box::from(b"/jig".as_slice()),
+        page: Some(Box::from(temper_client_protocol_wire::LINK_PAGE)),
+        public,
+    }
 }
 
 fn event_owner(event: &io::Event) -> Option<Token> {

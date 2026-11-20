@@ -29,7 +29,7 @@ pub fn printed_link() -> Box<[u8]> {
 
 fn link_url(secret: &[u8]) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
-    let prefix = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=";
+    let prefix = b"http://127.0.0.1:8367/sign-in?secret=";
     let encoded = base64::encoded_len(Alphabet::Url, 32).expect("printed secret size");
     let mut out = skein_lib::Writer::new(prefix.len() + usize::try_from(encoded).expect("short encoding"));
     out.put(prefix).expect("measured prefix");

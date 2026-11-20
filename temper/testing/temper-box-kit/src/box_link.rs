@@ -172,7 +172,7 @@ pub fn address(link: &[u8]) -> SocketAddr {
     let authority = url.strip_prefix("http://").expect("unprefixed HTTP link").split('/').next().expect("authority");
     let address: SocketAddr = authority.parse().expect("literal loopback authority");
     assert!(address.ip().is_loopback(), "only the fixture's loopback listener");
-    assert!(url.contains("/jig/v1/sign-in/link?secret="), "sign-in route");
+    assert!(url.contains("/sign-in?secret=") || url.contains("/jig/v1/sign-in/link?secret="), "sign-in page or route");
     address
 }
 

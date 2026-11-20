@@ -20,6 +20,8 @@ pub use public::public_path;
 #[derive(Debug)]
 pub struct Settings {
     pub prefix: Box<[u8]>,
+    /// The application's link page (protocol/client/default-http.md, 1 and 4).
+    pub page: Option<Box<[u8]>>,
     pub max_age: u32,
     /// The public name a TLS proxy serves the application at, as `Host` names it (protocol/client/default-http.md, 3).
     pub public: Option<Box<[u8]>>,
@@ -325,18 +327,33 @@ pub fn link_path(settings: &Settings, secret: &Secret) -> Box<[u8]> {
         u32::try_from(secret.expose().len()).expect("bounded secret"),
     )
     .expect("bounded base64");
-    let route = b"/v1/sign-in/link?secret=";
+    let (target, query): (&[u8], &[u8]) = match &settings.page {
+        Some(page) => {
+            assert!(
+                page.len() <= 64
+                    && page.starts_with(b"/")
+                    && !page.ends_with(b"/")
+                    && !page.contains(&b'?')
+                    && !page.contains(&b'#'),
+                "application link page"
+            );
+            if let Some(rest) = page.strip_prefix(settings.prefix.as_ref()) {
+                assert!(!rest.is_empty() && !rest.starts_with(b"/"), "link page outside prefix");
+            }
+            (page, b"?secret=")
+        }
+        None => (&settings.prefix, b"/v1/sign-in/link?secret="),
+    };
     let mut path = skein_lib::Writer::new(
-        settings
-            .prefix
+        target
             .len()
-            .checked_add(route.len())
+            .checked_add(query.len())
             .expect("path")
             .checked_add(skein_lib::length::usize_of(encoded))
             .expect("path"),
     );
-    path.put(&settings.prefix).expect("prefix");
-    path.put(route).expect("route");
+    path.put(target).expect("target");
+    path.put(query).expect("query");
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, secret.expose(), &mut path).expect("secret");
     path.finish()
 }
