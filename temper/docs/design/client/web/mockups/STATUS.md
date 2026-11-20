@@ -198,7 +198,7 @@ installation's Configure and Save. GitHub's way opens its own tab;
 temper's page stays and reads its end on the `forges` watch
 (`../../forge/deployment.md`, *GitHub's way, in a new tab*;
 `../../forge/served.md`, 1). The setup route ends the new tab with its
-close-tab sentence, not a link back to temper.
+close-tab sentence, not a "Back to temper" link.
 
 ## 2. Not under the rules yet
 
