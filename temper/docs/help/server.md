@@ -238,8 +238,8 @@ journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*'
 
 Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
-After signing in, even after a store reset, add the worker with step 2's
-`worker add`. Until then it redials with `not-admitted`; no engine restart.
+After sign-in, even after a store reset, use step 2's `worker add`. Until
+then it redials with `not-admitted`; no engine restart.
 
 Connect Forgejo: no record means `forge list` is empty, `forge setup`
 refuses. New store: forge 1:
@@ -262,8 +262,7 @@ Sign-out empties even an engine-refused token; no answer keeps it (exit 1).
 `temper ctl: the sign-in link was refused` distinguishes `it was already
 used`, `it has expired`, and `temper does not know it, as another
 deployment's link or one it no longer remembers`; each asks for a fresh
-link from `temper-box serve`: get one and rerun. Other refusals keep the
-line without a reason.
+`temper-box serve` link: rerun with one. Other refusals keep only the line.
 `connected already` (exit 2): the store keeps its forge; nothing to do.
 Other refusals: temper help forgejo, step 2.
 
