@@ -189,7 +189,7 @@ fn a_page_one_row_past_its_limit_is_refused() {
     let limits = fixtures::limits();
     let rows = fixtures::funding_rows(limits.spend_page_rows.checked_add(1).expect("small bound"));
     assert_eq!(
-        (SpendPage { rows, before: None, after: None, cut: false }).encode(&CEILINGS),
+        (SpendPage { rows, before: None, after: None, cut: false }).encode(&limits),
         Err(Problem { path: paths::SPEND_PAGE_ROWS, reason: skein_codec::Reason::Bound })
     );
 }
@@ -239,7 +239,7 @@ fn a_task_one_byte_past_its_text_bound_is_refused() {
     limits.document_text_bytes -= 1;
     let expected = Err(Problem { path: paths::DOCUMENT_TEXT_BYTES, reason: skein_codec::Reason::Bound });
     assert_eq!(Task::decode(&limits, &mut Reader::new(&bytes)), expected);
-    assert_eq!(Ok(task), expected);
+    assert_eq!(task.encode(&limits).err(), expected.err());
 }
 
 fn a_run_state_without_writing_or_call_round_trips() {

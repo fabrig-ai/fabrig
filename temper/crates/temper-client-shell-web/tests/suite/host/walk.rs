@@ -337,7 +337,7 @@ fn accounts(ended: bool) -> w::DeliveryValue {
     let signing = if ended {
         Box::default()
     } else {
-        signing.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")
+        piece(signing.encode(&w::CEILINGS).expect("bounded fixture encoding"))
     };
     let last_end = ended.then_some({
         w::AccountLastEnd { source: 43, end: w::AccountEnd::Made(w::AccountEndMade { account: 7, declined: false }) }
@@ -471,7 +471,7 @@ fn me_with_openai_key() -> w::DeliveryValue {
     let mut provider = w::ProviderOffer::decode(&w::CEILINGS, &mut reader).expect("provider");
     provider.programs_cut = true;
     let provider = provider;
-    me.providers = provider.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
+    me.providers = piece(provider.encode(&w::CEILINGS).expect("bounded fixture encoding"));
     w::DeliveryValue::Me(me)
 }
 
@@ -489,6 +489,13 @@ fn me_with_openai() -> w::DeliveryValue {
         manage_usage: None,
         key_bytes: 4096,
     };
-    me.providers = provider.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
+    me.providers = piece(provider.encode(&w::CEILINGS).expect("bounded fixture encoding"));
     w::DeliveryValue::Me(me)
+}
+
+fn piece(bytes: Box<[u8]>) -> Box<[u8]> {
+    let mut writer = Writer::new(bytes.len().checked_add(4).expect("fixture piece fits"));
+    writer.put(&u32::try_from(bytes.len()).expect("fixture length fits").to_be_bytes()).expect("piece prefix");
+    writer.put(&bytes).expect("piece body");
+    writer.finish()
 }

@@ -55,7 +55,11 @@ fn linked_at(path: &[u8], records: Vec<skein_ui_web::store::Record>) -> Host {
         manage_usage: None,
         key_bytes: 4096,
     };
-    me.providers = provider.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
+    let bytes = provider.encode(&w::CEILINGS).expect("bounded fixture encoding");
+    let mut writer = skein_lib::Writer::new(bytes.len().checked_add(4).expect("provider piece fits"));
+    writer.put(&u32::try_from(bytes.len()).expect("provider length fits").to_be_bytes()).expect("piece prefix");
+    writer.put(&bytes).expect("piece body");
+    me.providers = writer.finish();
     let value = w::DeliveryValue::Me(me);
     streamed(
         &mut host,

@@ -1,6 +1,7 @@
 //! Program document facts reach their allocated client records.
 use crate::translate::programs;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_fleet as fleet;
 use jig_domain_link::{LoginState, SourceFailure};
@@ -46,7 +47,7 @@ fn program_details_past_the_wire_bound_are_refused() {
         cut: false,
     };
     assert_eq!(
-        programs::login(&row, &w::CEILINGS).err(),
+        programs::login(&row, &w::CEILINGS).and_then(|value| value.encode(&w::CEILINGS)).err(),
         Some(w::Problem { path: w::paths::PROGRAM_FAILED_DETAIL, reason: skein_codec::Reason::Bound })
     );
 }
@@ -54,7 +55,7 @@ fn program_details_past_the_wire_bound_are_refused() {
 fn program_names_past_the_wire_bound_are_refused() {
     let row = d::ProgramLogin { name: Box::from([b'a'; 33]), state: None, sign_out: None, cleanup: false, cut: false };
     assert_eq!(
-        programs::login(&row, &w::CEILINGS).err(),
+        programs::login(&row, &w::CEILINGS).and_then(|value| value.encode(&w::CEILINGS)).err(),
         Some(w::Problem { path: w::paths::PROGRAM_LOGIN_NAME, reason: skein_codec::Reason::Bound })
     );
 }

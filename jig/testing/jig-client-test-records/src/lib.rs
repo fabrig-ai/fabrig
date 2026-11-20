@@ -12,9 +12,8 @@ pub use owner::*;
 #[must_use]
 pub fn opened(hello: w::Hello, me: w::Me) -> w::StreamEvent {
     let value = w::DeliveryValue::Me(me);
-    let mut record = Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture")));
-    value.write(&limits(), &mut record).expect("fixture me fits");
-    let me = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() };
+    let record = value.encode(&w::CEILINGS).expect("fixture me fits");
+    let me = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record };
     w::StreamEvent::Opened(w::Opened { hello, me })
 }
 
