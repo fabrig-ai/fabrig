@@ -2,6 +2,7 @@
 use crate::{Limits, Text, render, view, wire};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader};
 
 #[cfg(test)]
@@ -26,7 +27,7 @@ pub fn ended_proposal_text(value: &w::Ended, limits: &Limits) -> Result<Box<[u8]
 }
 
 fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w::Problem> {
-    let settings = match value.action() {
+    let settings = match &value.action {
         w::ProposalAction::Settings(settings) => settings,
         w::ProposalAction::Batch(_)
         | w::ProposalAction::Effect(_)
@@ -36,18 +37,18 @@ fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w
         | w::ProposalAction::Release(_) => return Err(wire::root_too_large()),
     };
     out.put(b"proposal ");
-    render::proposal_text(wire::answers_proposal_key(value.key(), limits), out);
+    render::proposal_text(wire::answers_proposal_key(&value.key, limits), out);
     out.put(b" of settings, waiting, against revision ");
-    out.number(u64::from(settings.against()));
+    out.number(u64::from(settings.against));
     out.put(b"\n");
-    reason(value.reason(), out);
-    items(settings.items(), limits, out);
-    if let Some(review) = settings.review() {
+    reason(&value.reason, out);
+    items(&settings.items, limits, out);
+    if let Some(review) = &settings.review {
         out.put(b"review at revision ");
-        out.number(u64::from(review.newest()));
+        out.number(u64::from(review.newest));
         out.put(b":\n");
-        let count = wire::settings_item_count(review.items(), limits)?;
-        let mut reader = Reader::new(review.items());
+        let count = wire::settings_item_count(review.items.as_ref(), limits)?;
+        let mut reader = Reader::new(review.items.as_ref());
         for _ in 0..count {
             let piece = match skein_codec::piece::split(&mut reader) {
                 Ok(Some(piece)) => piece,
@@ -56,19 +57,19 @@ fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w
             };
             let item = w::ReviewItem::decode(&limits.settings, &mut Reader::new(&piece))?;
             out.put(b"  ");
-            let setting = wire::settings_restore_setting(item.setting(), limits);
+            let setting = wire::settings_restore_setting(&item.setting, limits);
             render::setting_text(setting, out);
             out.put(b"\n    now:\n");
-            match item.application() {
+            match &item.application {
                 Some(application) => application_review(application, out),
                 None => {
-                    review_value(setting, item.now(), limits, out)?;
+                    review_value(setting, &item.now, limits, out)?;
                     out.put(b"    would be:\n");
-                    review_value(setting, item.would_be(), limits, out)?;
+                    review_value(setting, &item.would_be, limits, out)?;
                 }
             }
         }
-        if review.cut() {
+        if review.cut {
             out.put(b"cut: more not shown\n");
         }
     }
@@ -76,15 +77,15 @@ fn waiting(value: &w::Proposal, limits: &Limits, out: &mut Text) -> Result<(), w
 }
 
 fn decided(value: &w::Ended, limits: &Limits, out: &mut Text) -> Result<(), w::Problem> {
-    let history = match value.value() {
-        w::EndedValue::Proposal(value) => value.value(),
+    let history = match &value.value {
+        w::EndedValue::Proposal(value) => &value.value,
         w::EndedValue::Task(_)
         | w::EndedValue::PersonProposal(_)
         | w::EndedValue::Escalation(_)
         | w::EndedValue::Question(_)
         | w::EndedValue::PersonTask(_) => return Err(wire::root_too_large()),
     };
-    let settings = match history.action() {
+    let settings = match &history.action {
         w::RetainedAction::Settings(settings) => settings,
         w::RetainedAction::Batch(_)
         | w::RetainedAction::Effect(_)
@@ -93,8 +94,8 @@ fn decided(value: &w::Ended, limits: &Limits, out: &mut Text) -> Result<(), w::P
         | w::RetainedAction::Widen(_)
         | w::RetainedAction::Release(_) => return Err(wire::root_too_large()),
     };
-    let key = match value.key() {
-        w::ObjectKey::Proposal(value) => value.value(),
+    let key = match &value.key {
+        w::ObjectKey::Proposal(value) => &value.value,
         w::ObjectKey::Task(_)
         | w::ObjectKey::Escalation(_)
         | w::ObjectKey::Question(_)
@@ -105,33 +106,33 @@ fn decided(value: &w::Ended, limits: &Limits, out: &mut Text) -> Result<(), w::P
     out.put(b"proposal ");
     render::proposal_text(wire::answers_proposal_key(key, limits), out);
     out.put(b" of settings, ");
-    match history.state() {
+    match &history.state {
         w::ProposalHistoryState::Accepted(_) => {
             out.put(b"accepted as revision ");
-            out.number(u64::from(settings.made().ok_or(wire::root_too_large())?));
+            out.number(u64::from(settings.made.ok_or(wire::root_too_large())?));
         }
         w::ProposalHistoryState::Rejected(value) => {
             out.put(b"rejected: ");
-            out.put(value.reason().bytes());
+            out.put(value.reason.bytes.as_ref());
         }
         w::ProposalHistoryState::Withdrawn => out.put(b"withdrawn"),
         w::ProposalHistoryState::Pending(_) => return Err(wire::root_too_large()),
     }
     out.put(b"\n");
-    reason(history.reason(), out);
-    items(settings.items(), limits, out);
+    reason(&history.reason, out);
+    items(&settings.items, limits, out);
     Ok(())
 }
 
 fn reason(value: &w::DocumentText, out: &mut Text) {
     out.put(b"reason:\n");
     let mut from = 0;
-    for (at, byte) in value.bytes().iter().chain(core::iter::once(&b'\n')).enumerate() {
+    for (at, byte) in value.bytes.iter().chain(core::iter::once(&b'\n')).enumerate() {
         if *byte != b'\n' {
             continue;
         }
         out.put(b"  ");
-        out.put(value.bytes().get(from..at).expect("reason line within document"));
+        out.put(value.bytes.get(from..at).expect("reason line within document"));
         out.put(b"\n");
         from = at.checked_add(1).expect("document bound");
     }
@@ -158,7 +159,7 @@ fn review_value(
     out.put(b"      ");
     match value {
         w::ReviewValue::Value(value) => {
-            let value = wire::settings_restore_setting_value(value.value(), limits)?;
+            let value = wire::settings_restore_setting_value(&value.value, limits)?;
             match setting {
                 view::Setting::Application { kind, .. } => application_value(kind, &value, limits, out),
                 view::Setting::Charter(_)
@@ -174,7 +175,7 @@ fn review_value(
         }
         w::ReviewValue::TooLarge(size) => {
             out.put(b"too large, ");
-            out.number(size.bytes());
+            out.number(size.bytes);
             out.put(b" bytes");
         }
         w::ReviewValue::None => out.put(b"none"),
@@ -185,17 +186,17 @@ fn review_value(
 
 fn application_review(value: &w::ApplicationReview, out: &mut Text) {
     out.put(b"      ");
-    match value.now() {
+    match &value.now {
         Some(now) => {
-            out.number(u64::from(now.size()));
+            out.number(u64::from(now.size));
             out.put(b" bytes");
         }
         None => out.put(b"none"),
     }
     out.put(b"\n    would be:\n      ");
-    match value.edit() {
+    match &value.edit {
         w::SizedEdit::Set(size) => {
-            out.number(u64::from(size.size()));
+            out.number(u64::from(size.size));
             out.put(b" bytes");
         }
         w::SizedEdit::Remove => out.put(b"none"),

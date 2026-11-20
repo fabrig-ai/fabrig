@@ -27,18 +27,18 @@ impl Draw<'_> {
         b.style(crate::look::PUBLIC_ROW);
         b.open(Role::Paragraph);
         b.style(crate::look::PUBLIC_LINE);
-        self.task_link(b, line.task(), line.goal());
+        self.task_link(b, line.task, line.goal);
         b.text(Run::Plain, b" ");
-        let title = crate::common::chat::row_title(line.title());
+        let title = crate::common::chat::row_title(line.title.as_ref());
         b.text(Run::Plain, &title);
-        if line.title_cut() && title.as_ref() == line.title() {
+        if line.title_cut && title.as_ref() == line.title.as_ref() {
             self.words.text(b, Word::PublicTitleCut, &[]);
         }
         b.close();
         b.open(Role::Paragraph);
         b.style(crate::look::PUBLIC_FACTS);
         if executor {
-            let executor = match line.executor() {
+            let executor = match &line.executor {
                 PublicExecutor::Agent => Word::PublicAgent,
                 PublicExecutor::Procedure => Word::PublicProcedure,
                 PublicExecutor::Person => Word::PublicPerson,
@@ -47,9 +47,9 @@ impl Draw<'_> {
             self.text(b, executor);
             self.text(b, Word::ToolSeparator);
         }
-        self.text(b, phase(line.phase(), line.goal()));
+        self.text(b, phase(&line.phase, line.goal));
         self.text(b, Word::ToolSeparator);
-        let ended = match line.phase() {
+        let ended = match &line.phase {
             PublicPhase::Done | PublicPhase::Failed | PublicPhase::Cancelled => true,
             PublicPhase::Waiting
             | PublicPhase::Idle
@@ -62,7 +62,7 @@ impl Draw<'_> {
             | PublicPhase::Closing
             | PublicPhase::Held => false,
         };
-        let seconds = if ended { line.ended().unwrap_or(line.changed()) } else { line.changed() };
+        let seconds = if ended { line.ended.unwrap_or(line.changed) } else { line.changed };
         let since = Wall::from_nanos(seconds.saturating_mul(1_000_000_000));
         let duration = self.times.public_time(self.words, if ended { TimeForm::Ago } else { TimeForm::Span }, since);
         if ended {
@@ -70,7 +70,7 @@ impl Draw<'_> {
         } else {
             self.words.text(b, Word::PublicFor, &[Hole::Name(duration)]);
         }
-        if let Some(spent) = line.spent() {
+        if let Some(spent) = &line.spent {
             self.text(b, Word::ToolSeparator);
             self.words.text(b, Word::RowSpent, &[Hole::Number(*spent)]);
         }

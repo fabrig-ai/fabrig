@@ -2,6 +2,7 @@
 use super::*;
 use jig_client::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Token};
 use skein_ui::{EntryKind, Role};
 #[path = "host_tests_approve.rs"]
@@ -122,7 +123,6 @@ fn openings(path: &[u8], body: &[u8]) -> Vec<w::Open> {
     if path == b"/jig/v1/batch" {
         return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
             .expect("batch")
-            .into_parts()
             .members
             .into_boxed()
             .into_vec()
@@ -139,22 +139,27 @@ fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
     let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch");
     host.heard(Heard::Begun { exchange, status: 200 });
     let mut complete = true;
-    for (place, member) in batch.into_parts().members.into_boxed().into_iter().enumerate() {
+    for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
         let reply = match member {
-            w::Member::Open(_) => encoded(w::OpenAnswer::Admitted.measure(), |w| w::OpenAnswer::Admitted.encode(w)),
-            w::Member::Close(_) => encoded(w::CloseAnswer::Closed.measure(), |w| w::CloseAnswer::Closed.encode(w)),
+            w::Member::Open(_) => {
+                w::OpenAnswer::Admitted.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")
+            }
+            w::Member::Close(_) => {
+                w::CloseAnswer::Closed.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")
+            }
             w::Member::Read(_) => {
                 complete = false;
                 continue; // These fixtures leave lone reads unanswered too.
             }
         };
-        let part = w::BatchReply::new(
-            &w::CEILINGS,
-            w::BatchReplyParts { member: u16::try_from(place).expect("member"), reply: Some(reply) },
-        )
-        .expect("part");
-        let bytes = encoded(part.measure(), |w| part.encode(w));
-        let frame = [part.measure().to_be_bytes().as_slice(), bytes.as_ref()].concat().into_boxed_slice();
+        let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
+        let bytes = part.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
+        let frame = [
+            part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes().as_slice(),
+            bytes.as_ref(),
+        ]
+        .concat()
+        .into_boxed_slice();
         host.heard(Heard::Part { exchange, bytes: frame });
     }
     if complete {
@@ -371,20 +376,15 @@ fn the_web_preset_sends_a_whole_suggested_request() {
 }
 
 // Wire fixtures keep the regression on Host's linked root and public transport surface.
-fn encoded(size: u32, write: impl FnOnce(&mut skein_lib::Writer) -> Result<(), skein_lib::Overflow>) -> Box<[u8]> {
-    let mut writer = skein_lib::Writer::new(usize::try_from(size).expect("fixture fits"));
-    write(&mut writer).expect("measured fixture");
-    writer.finish()
-}
+
 fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
     use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
-    w::Owned::new(&w::CEILINGS, w::OwnedParts { owner: w::Owner::Jig, version: VERSION, record })
-        .expect("fixture envelope")
+    w::Owned { owner: w::Owner::Jig, version: VERSION, record }
 }
 fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
     use skein_lib::base64::{self, Alphabet};
-    let bytes = encoded(event.measure(), |writer| event.encode(writer));
+    let bytes = event.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
         .expect("base64 fits");
     let mut writer = skein_lib::Writer::new(usize::try_from(size).expect("fixture fits"));
@@ -395,7 +395,6 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
     host.heard(Heard::Piece { bytes: piece.into_boxed_slice() });
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one wire story delivers sign-in, task activity and me before drawing")]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
     use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
@@ -421,17 +420,11 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
         .expect("first activity read left the host");
     host.heard(Heard::StreamOpened);
     let mut served = List::with_capacity(1);
-    served
-        .push(
-            w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: VERSION, last: VERSION })
-                .expect("served version"),
-        )
-        .expect("one served family");
+    served.push(w::Served { owner: w::Owner::Jig, first: VERSION, last: VERSION }).expect("one served family");
     streamed(
         &mut host,
         &jig_client_test_records::opened(
-            w::Hello::new(&w::CEILINGS, w::HelloParts { stream: [7; 16], served, heartbeat: Duration::from_secs(30) })
-                .expect("hello"),
+            w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
             jig_client_test_records::frame_record(),
         ),
     );
@@ -440,65 +433,49 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     for request in host.requests() {
         let Asked::Exchange { call, .. } = request else { continue };
         for open in openings(&call.path, &call.body) {
-            if open.subject().owner() != &w::Owner::Jig {
+            if open.subject.owner != w::Owner::Jig {
                 continue;
             }
-            let subject = w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject().record())).expect("subject");
+            let subject =
+                w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).expect("subject");
             if matches!(subject, w::Subject::Task(_)) {
-                watch = Some(open.watch());
+                watch = Some(open.watch);
             }
         }
     }
     let watch = watch.expect("task watch");
-    let mut task = jig_client_test_records::task_record().into_parts();
+    let mut task = jig_client_test_records::task_record();
     task.chip = jig_client_test_records::owner_waiting_chip_record();
-    let document = w::DeliveryValue::Task(Box::new(w::Task::new(&w::CEILINGS, task).expect("agent task")));
+    let document = w::DeliveryValue::Task(Box::new(task));
     streamed(
         &mut host,
-        &w::StreamEvent::Delivery(
-            w::Delivery::new(
-                &w::CEILINGS,
-                w::DeliveryParts {
-                    watch,
-                    document: owned(encoded(document.measure(), |writer| document.encode(writer))),
-                },
-            )
-            .expect("task delivery"),
-        ),
+        &w::StreamEvent::Delivery(w::Delivery {
+            watch,
+            document: owned(document.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+        }),
     );
-    let event = w::Activity::RunBegan(
-        w::ActivityRunBegan::new(
-            &w::CEILINGS,
-            w::ActivityRunBeganParts { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None },
-        )
-        .expect("run marker"),
-    );
-    let source = w::ActivityLine::new(&w::CEILINGS, w::ActivityLineParts { task: 7, position: 1, at: 1, line: event })
-        .expect("source row");
-    let line = w::DecodedActivityLine::new(&w::CEILINGS, w::DecodedActivityLineParts { source, decoded: None })
-        .expect("activity row");
+    let event =
+        w::Activity::RunBegan(w::ActivityRunBegan { attempt: RUN, why: w::RunWhy::Made, resumed: true, fresh: None });
+    let source = w::ActivityLine { task: 7, position: 1, at: 1, line: event };
+    let line = w::DecodedActivityLine { source, decoded: None };
     let page = jig_client_test_records::activity_rows(&[line]);
     let value = w::ReadValue::Activity(page);
-    let answer = w::ReadAnswer::Value(owned(encoded(value.measure(), |writer| value.encode(writer))));
+    let answer = w::ReadAnswer::Value(owned(
+        value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
+    ));
     host.heard(Heard::Answered {
         exchange: activity,
         status: 200,
-        body: encoded(answer.measure(), |writer| answer.encode(writer)),
+        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
         headers: Vec::new(),
     });
     let document = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
     streamed(
         &mut host,
-        &w::StreamEvent::Delivery(
-            w::Delivery::new(
-                &w::CEILINGS,
-                w::DeliveryParts {
-                    watch: me,
-                    document: owned(encoded(document.measure(), |writer| document.encode(writer))),
-                },
-            )
-            .expect("me delivery"),
-        ),
+        &w::StreamEvent::Delivery(w::Delivery {
+            watch: me,
+            document: owned(document.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding")),
+        }),
     );
     build(&mut host);
     let shown = host
@@ -711,9 +688,12 @@ fn a_stream_refused_full_reaches_the_client_link() {
         host.start(b"/", Vec::new(), None);
         host.requests();
         host.heard(Heard::StreamRefused { status: 409 });
-        let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound, size: 2 }).expect("full record");
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("fixed refusal"));
-        record.encode(&mut writer).expect("refusal bytes");
+        let record = w::StreamsFull { bound, size: 2 };
+        let mut writer = skein_lib::Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                .expect("fixed refusal"),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("refusal bytes");
         host.heard(Heard::Piece { bytes: writer.finish() });
         host.heard(Heard::StreamEnded);
         assert_eq!(host.root.client().link().streams_full.as_ref().map(|full| full.size), Some(2));

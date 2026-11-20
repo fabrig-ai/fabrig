@@ -6,14 +6,14 @@ use skein_lib::List;
 
 pub(super) fn encode(
     value: Option<&c::AuthorityModels>,
-    limits: &w::Limits,
+    _limits: &w::Limits,
 ) -> Result<Option<w::ModelSet>, w::Problem> {
     Ok(match value {
         None => None,
         Some(c::AuthorityModels::All) => Some(w::ModelSet::All),
         Some(c::AuthorityModels::Named(names)) => {
             validate(names)?;
-            Some(w::ModelSet::Names(w::ModelSetNames::new(limits, w::ModelSetNamesParts { names: names.clone() })?))
+            Some(w::ModelSet::Names(w::ModelSetNames { names: names.clone() }))
         }
     })
 }
@@ -23,14 +23,14 @@ pub(super) fn decode(value: Option<&w::ModelSet>) -> Result<Option<c::AuthorityM
         None => None,
         Some(w::ModelSet::All) => Some(c::AuthorityModels::All),
         Some(w::ModelSet::Names(value)) => {
-            validate(value.names())?;
-            Some(c::AuthorityModels::Named(value.names().clone()))
+            validate(&value.names)?;
+            Some(c::AuthorityModels::Named(value.names.clone()))
         }
     })
 }
 
 fn validate(names: &List<Box<[u8]>>) -> Result<(), w::Problem> {
-    let bad = w::Problem { path: w::Path::ModelSetNamesNames, reason: skein_codec::Reason::Bound };
+    let bad = w::Problem { path: w::paths::MODEL_SET_NAMES_NAMES, reason: skein_codec::Reason::Bound };
     if names.len() > c::AUTHORITY_MODELS {
         return Err(bad);
     }

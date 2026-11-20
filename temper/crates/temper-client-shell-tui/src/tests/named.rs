@@ -19,7 +19,7 @@ fn returned() -> Returned {
 fn listening(host: &mut Host) -> Duties {
     let duties = host.report(Report::Listening { port: Some(PORT) });
     assert!(!duties.unlisten, "keep the listener while the ask is in flight");
-    assert_eq!(*asked_record(&duties).port(), Some(PORT));
+    assert_eq!(asked_record(&duties).port, Some(PORT));
     duties
 }
 
@@ -61,8 +61,8 @@ fn redirected(duties: &Duties) {
     assert!(matches!(&duties.answer, Some(Answer::Redirect { to }) if to.as_ref() == PAGE));
     assert!(!duties.unlisten);
     let record = taken_record(duties);
-    assert_eq!(record.secret().expose(), &[7; 32]);
-    assert_eq!(record.grant().as_ref().expect("grant sent").expose(), &GRANT);
+    assert_eq!(record.secret.expose(), &[7; 32]);
+    assert_eq!(record.grant.as_ref().expect("grant sent").expose(), &GRANT);
 }
 
 fn not_found(duties: &Duties) {
@@ -104,8 +104,11 @@ fn take(duties: &Duties) -> skein_lib::Token {
 }
 
 fn take_answer(host: &mut Host, exchange: skein_lib::Token, answer: &w::ApprovalSignInAnswer) -> Duties {
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer length"));
-    answer.encode(&mut writer).expect("approval answer");
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("answer length"),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("approval answer");
     reply(host, exchange, writer.finish())
 }
 
@@ -126,7 +129,7 @@ fn one_click_waits_for_the_listener_and_opens_the_code_once() {
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
     assert_eq!(duties.open.as_deref(), Some(PAGE));
     assert!(!duties.unlisten);
-    assert!(taken_record(&duties).grant().is_none());
+    assert!(taken_record(&duties).grant.is_none());
     let frame = text(&mut host);
     for line in [
         "A tab opened in your browser: press Approve there.",
@@ -218,7 +221,7 @@ fn typing_a_code_replaces_the_one_click_and_ignores_its_late_opener() {
     assert!(!duties.listen);
     assert!(duties.open.is_none());
     assert_eq!(host.state().browser(), Some(Browser::None));
-    assert!(asked_record(&duties).port().is_none());
+    assert!(asked_record(&duties).port.is_none());
     let exchange = ask(&duties);
     let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
     assert!(duties.open.is_none());
@@ -295,7 +298,7 @@ fn a_named_terminal_asks_and_opens_once_without_a_code() {
         assert!(temper_client_tui::sign_in_drawn(&host.root, host.state()));
         assert!(duties.listen);
         let duties = host.report(Report::Listening { port: None });
-        assert!(asked_record(&duties).port().is_none());
+        assert!(asked_record(&duties).port.is_none());
         assert!(!duties.unlisten);
         let exchange = ask(&duties);
         let duties = reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b""));
@@ -388,8 +391,11 @@ fn named_sign_in_asks_again_only_after_an_outcome_and_refocuses_the_button() {
         assert!(start_name(&mut host, None, None).listen);
         let exchange = ask(&host.report(Report::Listening { port: Some(43210) }));
         if let Some(answer) = answer {
-            let mut writer = Writer::new(usize::try_from(answer.measure()).expect("answer length"));
-            answer.encode(&mut writer).expect("ask answer");
+            let mut writer = Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("answer length"),
+            );
+            answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("ask answer");
             assert!(reply(&mut host, exchange, writer.finish()).unlisten);
         } else {
             assert!(host.report(Report::Heard(jig_client::Event::Lost { exchange })).unlisten);

@@ -5,8 +5,10 @@ use skein_lib::{Secret, Wall, Writer};
 macro_rules! encoded {
     ($record:expr) => {{
         let record = $record;
-        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         bytes.finish()
     }};
 }
@@ -19,17 +21,11 @@ fn asked() -> Approval {
 fn ask_rows() -> Box<[(Box<[u8]>, Approval)]> {
     Box::new([
         (
-            encoded!(w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked::new(
-                    &w::CEILINGS,
-                    w::ApprovalAskedParts {
-                        secret: Secret::new(Box::new([7; 32])),
-                        code: *code().letters(),
-                        expires: 300,
-                    }
-                )
-                .unwrap()
-            )),
+            encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+                secret: Secret::new(Box::new([7; 32])),
+                code: *code().letters(),
+                expires: 300,
+            })),
             asked(),
         ),
         (encoded!(w::ApprovalAskAnswer::Refused), Approval::NotAsked(NotAsked::Refused)),
@@ -41,13 +37,12 @@ fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
     let mut rows = skein_lib::List::with_capacity(10);
     for (record, state) in [
         (
-            w::ApprovalState::Waiting(
-                w::ApprovalWaiting::new(
-                    &w::CEILINGS,
-                    w::ApprovalWaitingParts { asked: 100, kind: ApprovalKind::Listener, source: None, reader: None },
-                )
-                .unwrap(),
-            ),
+            w::ApprovalState::Waiting(w::ApprovalWaiting {
+                asked: 100,
+                kind: ApprovalKind::Listener,
+                source: None,
+                reader: None,
+            }),
             ApprovalState::Waiting {
                 asked: Wall::from_nanos(100),
                 kind: ApprovalKind::Listener,
@@ -72,12 +67,7 @@ fn read_rows() -> Box<[(Box<[u8]>, Approval)]> {
 fn decide_rows() -> Box<[(Box<[u8]>, Approval)]> {
     let mut rows = skein_lib::List::with_capacity(9);
     for (record, decided) in [
-        (
-            w::ApprovalDecided::Approved(
-                w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback: None }).expect("approval"),
-            ),
-            Decided::Approved { loopback: None },
-        ),
+        (w::ApprovalDecided::Approved(w::ApprovalApproved { loopback: None }), Decided::Approved { loopback: None }),
         (w::ApprovalDecided::Refused, Decided::Refused),
         (w::ApprovalDecided::Used, Decided::Used),
         (w::ApprovalDecided::Expired, Decided::Expired),
@@ -115,18 +105,18 @@ fn exchange(h: &mut Harness, kind: u8) -> Token {
     match message {
         Message::ApprovalAsk(body) => {
             assert_eq!(kind, 0);
-            assert_eq!(body, encoded!(w::ApprovalAsk::new(&w::CEILINGS, w::ApprovalAskParts { port: None }).unwrap()));
+            assert_eq!(body, encoded!(w::ApprovalAsk { port: None }));
         }
         Message::ApprovalRead(body) => {
             assert_eq!(kind, 1);
             let record = w::ApprovalRead::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-            assert_eq!(record.code(), code().letters());
+            assert_eq!((&record.code), code().letters());
         }
         Message::ApprovalDecide(body) => {
             assert_eq!(kind, 2);
             let record = w::ApprovalDecide::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-            assert_eq!(record.code(), code().letters());
-            assert!(record.approve());
+            assert_eq!((&record.code), code().letters());
+            assert!(record.approve);
         }
         other @ (Message::LinkAsk(_)
         | Message::Authorize(_)
@@ -224,13 +214,8 @@ fn an_invalid_asked_code_or_secret_is_lost() {
     ] {
         let mut h = Harness::new(&limits());
         let exchange = exchange(&mut h, 0);
-        let body = encoded!(w::ApprovalAskAnswer::Asked(
-            w::ApprovalAsked::new(
-                &w::CEILINGS,
-                w::ApprovalAskedParts { secret: Secret::new(secret), code, expires: 300 }
-            )
-            .unwrap()
-        ));
+        let body =
+            encoded!(w::ApprovalAskAnswer::Asked(w::ApprovalAsked { secret: Secret::new(secret), code, expires: 300 }));
         h.answer(exchange, &body);
         assert_eq!(h.out.pop(), Some(Request::Approval(Approval::NotAsked(NotAsked::Lost))));
     }
@@ -246,7 +231,7 @@ fn an_approval_ask_carries_its_optional_port() {
             panic!("unsigned approval ask")
         };
         let record = w::ApprovalAsk::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-        assert_eq!(record.port(), &port);
+        assert_eq!(record.port, port);
     }
 }
 
@@ -268,13 +253,12 @@ fn a_waiting_approval_carries_its_kind_and_canonical_sources() {
             ] {
                 let mut h = Harness::new(&limits());
                 let exchange = exchange(&mut h, 1);
-                let body = encoded!(w::ApprovalState::Waiting(
-                    w::ApprovalWaiting::new(
-                        &w::CEILINGS,
-                        w::ApprovalWaitingParts { asked: 100, kind: kind.clone(), source, reader },
-                    )
-                    .unwrap()
-                ));
+                let body = encoded!(w::ApprovalState::Waiting(w::ApprovalWaiting {
+                    asked: 100,
+                    kind: kind.clone(),
+                    source,
+                    reader
+                }));
                 h.answer(exchange, &body);
                 assert_eq!(
                     h.out.pop(),
@@ -299,19 +283,11 @@ fn an_approved_decision_carries_its_optional_loopback() {
         let mut h = Harness::new(&limits());
         let exchange = exchange(&mut h, 2);
         let loopback = if returned {
-            Some(
-                w::ApprovalLoopback::new(
-                    &w::CEILINGS,
-                    w::ApprovalLoopbackParts { port: 43210, grant: Secret::new(Box::new([9; 32])) },
-                )
-                .unwrap(),
-            )
+            Some(w::ApprovalLoopback { port: 43210, grant: Secret::new(Box::new([9; 32])) })
         } else {
             None
         };
-        let body = encoded!(w::ApprovalDecided::Approved(
-            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback },).unwrap()
-        ));
+        let body = encoded!(w::ApprovalDecided::Approved(w::ApprovalApproved { loopback }));
         h.answer(exchange, &body);
         let loopback =
             if returned { Some(Loopback { port: 43210, grant: Secret::new(Box::new([9; 32])) }) } else { None };

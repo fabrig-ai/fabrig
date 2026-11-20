@@ -1,4 +1,5 @@
 //! Printed link secrets show only their length (jig/docs/design/protocol/README.md, 8 and 10).
+use crate::Record as _;
 use crate::{CEILINGS, LinkSignIn};
 use alloc::fmt::format;
 use skein_lib::{Reader, Writer};
@@ -20,10 +21,10 @@ fn debug_of_a_link_sign_in_shows_the_secrets_length_never_its_bytes() {
     assert!(!pretty.replace([' ', '\n'], "").contains(&canary_bytes.replace(' ', "")));
     assert_eq!(debug, "LinkSignIn { secret: Secret { len: 13 } }");
 
-    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
-    record.encode(&mut writer).expect("measured link secret");
+    let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(&CEILINGS).expect("bounded fixture")));
+    record.write(&CEILINGS, &mut writer).expect("measured link secret");
     let encoded = writer.finish();
     assert_eq!(encoded, bytes);
     let decoded = LinkSignIn::decode(&CEILINGS, &mut Reader::new(&encoded)).expect("round trip link secret");
-    assert_eq!(decoded.secret().expose(), CANARY);
+    assert_eq!(decoded.secret.expose(), CANARY);
 }

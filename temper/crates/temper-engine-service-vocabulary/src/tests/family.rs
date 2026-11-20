@@ -424,21 +424,11 @@ fn a_core_refusal_uses_jigs_refusal_record() {
         ("unknown", people::Refusal::Unknown, j::Refusal::Unknown),
         ("name taken", people::Refusal::NameTaken, j::Refusal::NameTaken),
         ("not offered", people::Refusal::NotOffered, j::Refusal::NotOffered),
-        (
-            "taken",
-            people::Refusal::Taken { by: 7 },
-            j::Refusal::Taken(j::RefusalTaken::new(&limits, j::RefusalTakenParts { by: 7 }).unwrap()),
-        ),
+        ("taken", people::Refusal::Taken { by: 7 }, j::Refusal::Taken(j::RefusalTaken { by: 7 })),
         (
             "authority",
             people::Refusal::Authority { lacking: people::Lack::Writer, proposable: Some(people::Accepter::Role(1)) },
-            j::Refusal::Authority(
-                j::RefusalAuthority::new(
-                    &limits,
-                    j::RefusalAuthorityParts { lacking: j::Lacking::Writer, proposable: Some(true) },
-                )
-                .unwrap(),
-            ),
+            j::Refusal::Authority(j::RefusalAuthority { lacking: j::Lacking::Writer, proposable: Some(true) }),
         ),
     ] {
         let w::Outcome::CoreRefused(record) = encoded(Some(forge::ApplicationOutcome::CoreRefused(input))) else {
@@ -1323,12 +1313,12 @@ fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
         let j::Refusal::Moved(moved) = j::Refusal::decode(&j::CEILINGS, &mut reader).expect("jig refusal") else {
             panic!("moved")
         };
-        let j::Moved::Hold(hold) = moved.what() else { panic!("hold") };
-        let Some(j::CurrentHold::Reason(reason)) = hold.reason() else { panic!("hold reason") };
-        let j::HoldCategory::Exceeded(exceeded) = reason.value() else { panic!("exceeded") };
-        assert_eq!(exceeded.bound(), &expected);
-        assert_eq!(exceeded.value(), u64::MAX);
-        assert_eq!(moved.now().value(), 7);
+        let j::Moved::Hold(hold) = &moved.what else { panic!("hold") };
+        let Some(j::CurrentHold::Reason(reason)) = &hold.reason else { panic!("hold reason") };
+        let j::HoldCategory::Exceeded(exceeded) = &reason.value else { panic!("exceeded") };
+        assert_eq!((&exceeded.bound), &expected);
+        assert_eq!(exceeded.value, u64::MAX);
+        assert_eq!(moved.now.value, 7);
         assert!(reader.is_empty());
     }
 }
@@ -1651,7 +1641,7 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
 fn embedded_client_refusals_keep_their_bytes_at_current_client_version() {
     // Embedded jig refusal tags keep their bytes at this forge family version.
     let mut after = skein_lib::Writer::new(1);
-    jig_client_protocol_wire::Refusal::Unknown.encode(&mut after).unwrap();
+    jig_client_protocol_wire::Refusal::Unknown.write(&jig_client_protocol_wire::CEILINGS, &mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[9]);
 }
 
@@ -4036,9 +4026,9 @@ fn a_trial_wait_is_carried_as_jigs_current_task_run_wait_record() {
     let wait = jig_client_protocol_wire::TaskRunWait::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
     let jig_client_protocol_wire::TaskRunWait::Account(wait) = wait else { panic!("account wait") };
-    assert_eq!((*wait.account(), *wait.source()), (Some(12), Some(14)));
-    let jig_client_protocol_wire::TaskWaitWhy::Source(source) = wait.why() else { panic!("source wait") };
-    assert_eq!(source.state(), &jig_client_protocol_wire::TaskSourceState::Asking);
+    assert_eq!((wait.account, wait.source), (Some(12), Some(14)));
+    let jig_client_protocol_wire::TaskWaitWhy::Source(source) = &wait.why else { panic!("source wait") };
+    assert_eq!((&source.state), &jig_client_protocol_wire::TaskSourceState::Asking);
 }
 
 #[test]

@@ -5,6 +5,7 @@ use super::{
 use crate::{Reply, Via, exchange::Exchange, routes::Route};
 use alloc::boxed::Box;
 use jig_client_protocol_wire::ApprovalCode;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{CryptoRng, Duration, Map, Reader, Secret, Time, Wall, sha256};
 
 pub(crate) const WAITING: u32 = 4;
@@ -217,7 +218,7 @@ impl Component {
             connection.respond(Reply::NotARecord);
             return;
         }
-        let port = *record.port();
+        let port = record.port;
         let kind = match connection.via {
             Via::Listener => {
                 if port.is_some() {
@@ -269,13 +270,7 @@ impl Component {
                     },
                 )
                 .expect("room for approval");
-            w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked::new(
-                    &env.limits.wire,
-                    w::ApprovalAskedParts { secret, code: *code.letters(), expires: expires.as_nanos() },
-                )
-                .expect("fixed approval fits"),
-            )
+            w::ApprovalAskAnswer::Asked(w::ApprovalAsked { secret, code: *code.letters(), expires: expires.as_nanos() })
         };
         connection.respond(Reply::Record(routes::approval_ask_answer(answer)));
     }
@@ -309,14 +304,14 @@ impl Component {
                         Some(owner) => self.connections.get(&owner).expect("approval exchange owner").source,
                         None => None,
                     };
-                    Some(routes::approval_state(self.approval_read(env, *record.code(), source)))
+                    Some(routes::approval_state(self.approval_read(record.code, source)))
                 }
                 Ok(_) | Err(_) => None,
             }
         } else {
             match w::ApprovalDecide::decode(&env.limits.wire, &mut reader) {
                 Ok(record) if reader.is_empty() => {
-                    Some(routes::approval_decided(self.approval_decide(*record.code(), record.approve(), sign_in)))
+                    Some(routes::approval_decided(self.approval_decide(record.code, record.approve, sign_in)))
                 }
                 Ok(_) | Err(_) => None,
             }
@@ -330,22 +325,16 @@ impl Component {
             }
         }
     }
-    fn approval_read(&self, env: &Env<Limits>, code: [u8; 8], reader: Option<core::net::IpAddr>) -> w::ApprovalState {
+    fn approval_read(&self, code: [u8; 8], reader: Option<core::net::IpAddr>) -> w::ApprovalState {
         if let Some(digest) = self.approval.code(code) {
             let approval = self.approval.live.get(&digest).expect("live approval");
             return match approval.decision {
-                Decision::Waiting => w::ApprovalState::Waiting(
-                    w::ApprovalWaiting::new(
-                        &env.limits.wire,
-                        w::ApprovalWaitingParts {
-                            asked: approval.asked.as_nanos(),
-                            kind: approval.kind.clone(),
-                            source: address(approval.source),
-                            reader: address(reader),
-                        },
-                    )
-                    .expect("fixed waiting fits"),
-                ),
+                Decision::Waiting => w::ApprovalState::Waiting(w::ApprovalWaiting {
+                    asked: approval.asked.as_nanos(),
+                    kind: approval.kind.clone(),
+                    source: address(approval.source),
+                    reader: address(reader),
+                }),
                 Decision::Approved { .. } | Decision::Taking { .. } => w::ApprovalState::Approved,
             };
         }
@@ -366,24 +355,15 @@ impl Component {
                             w::ApprovalKind::Returned => {
                                 let grant = sign_in::draw(&mut self.rng);
                                 approval.grant_digest = Some(sign_in::digest(grant.expose()));
-                                Some(
-                                    w::ApprovalLoopback::new(
-                                        &w::CEILINGS,
-                                        w::ApprovalLoopbackParts {
-                                            port: approval.port.expect("returned approval has a port"),
-                                            grant,
-                                        },
-                                    )
-                                    .expect("fixed loopback fits"),
-                                )
+                                Some(w::ApprovalLoopback {
+                                    port: approval.port.expect("returned approval has a port"),
+                                    grant,
+                                })
                             }
                             w::ApprovalKind::Listener | w::ApprovalKind::Typed => None,
                         };
                         approval.decision = Decision::Approved { sign_in };
-                        w::ApprovalDecided::Approved(
-                            w::ApprovalApproved::new(&w::CEILINGS, w::ApprovalApprovedParts { loopback })
-                                .expect("fixed approval fits"),
-                        )
+                        w::ApprovalDecided::Approved(w::ApprovalApproved { loopback })
                     } else {
                         self.approval.end(&digest, End::Refused);
                         w::ApprovalDecided::Refused
@@ -415,7 +395,7 @@ impl Component {
             return;
         }
         self.approval.sweep(env.now);
-        let digest = sha256::digest(record.secret().expose());
+        let digest = sha256::digest(record.secret.expose());
         let answer = match self.approval.digest(&digest) {
             Some(digest) => {
                 let approval = self.approval.live.get_mut(&digest).expect("live approval");
@@ -425,7 +405,7 @@ impl Component {
                     Decision::Approved { sign_in } => {
                         match approval.kind {
                             w::ApprovalKind::Returned => {
-                                let Some(grant) = record.grant() else {
+                                let Some(grant) = record.grant.as_ref() else {
                                     connection.respond(Reply::Record(routes::approval_sign_in(
                                         w::ApprovalSignInAnswer::Waiting,
                                     )));
@@ -551,13 +531,11 @@ impl Component {
             people::Reply::Again(people::Again::Busy | people::Again::Full { .. }) => w::ApprovalSignInAnswer::Busy,
             people::Reply::Full { sign_ins, earliest } => {
                 let expires = self.approval.live.get(&digest).expect("reserved approval").expires;
-                w::ApprovalSignInAnswer::Full(
-                    w::ApprovalFull::new(
-                        &env.limits.wire,
-                        w::ApprovalFullParts { sign_ins, earliest: earliest.as_nanos(), until: expires.as_nanos() },
-                    )
-                    .expect("fixed full fits"),
-                )
+                w::ApprovalSignInAnswer::Full(w::ApprovalFull {
+                    sign_ins,
+                    earliest: earliest.as_nanos(),
+                    until: expires.as_nanos(),
+                })
             }
             people::Reply::Signer(_)
             | people::Reply::SignedOut

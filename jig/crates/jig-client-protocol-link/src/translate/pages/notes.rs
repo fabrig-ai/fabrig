@@ -1,36 +1,37 @@
 //! Whole pages and single documents (protocol/client/wire.md, 1, and protocol/client/README.md, 4).
 use super::{Limits, List, Reader, Wall, c, cursor_fields, offered_piece, too_large, w};
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
     match value {
-        w::NoteAuthor::Party(row) => c::NoteAuthor::Party { party: row.party() },
-        w::NoteAuthor::Task(row) => c::NoteAuthor::Task { task: row.task(), attempt: row.attempt() },
+        w::NoteAuthor::Party(row) => c::NoteAuthor::Party { party: row.party },
+        w::NoteAuthor::Task(row) => c::NoteAuthor::Task { task: row.task, attempt: row.attempt },
     }
 }
 
 pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w::Problem> {
-    if value.tasks().len() > limits.client().rows {
+    if value.tasks.len() > limits.client().rows {
         return Err(too_large());
     }
-    let mut list0 = List::with_capacity(value.tasks().len());
-    for item in value.tasks() {
+    let mut list0 = List::with_capacity(value.tasks.len());
+    for item in &value.tasks {
         list0.push(*item).expect("reserved supplied list");
     }
-    let opt1 = match value.changed() {
+    let opt1 = match &value.changed {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
     Ok(c::Note {
-        number: value.number(),
-        revision: crate::translate::answers::revision(value.revision()),
-        scope: crate::translate::answers::note_scope(value.scope())?,
-        description: crate::translate::facts::document_text(value.description(), limits)?,
-        body: crate::translate::facts::document_text(value.body(), limits)?,
-        writer: note_author_fields(value.writer()),
+        number: value.number,
+        revision: crate::translate::answers::revision(&value.revision),
+        scope: crate::translate::answers::note_scope(&value.scope)?,
+        description: crate::translate::facts::document_text(&value.description, limits)?,
+        body: crate::translate::facts::document_text(&value.body, limits)?,
+        writer: note_author_fields(&value.writer),
         tasks: list0,
         changed: opt1,
-        acts: offered_piece(value.acts(), limits, c::MAX_OFFERED_ACTS)?,
-        cut: value.cut(),
+        acts: offered_piece(&value.acts, limits, c::MAX_OFFERED_ACTS)?,
+        cut: value.cut,
     })
 }
 
@@ -50,17 +51,17 @@ pub(crate) fn note_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Result<Li
 }
 
 pub(crate) fn note_page_fields(value: &w::NotePage, limits: &Limits) -> Result<c::NotePage, w::Problem> {
-    let opt0 = match value.before() {
+    let opt0 = match &value.before {
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
-    let opt1 = match value.after() {
+    let opt1 = match &value.after {
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
     Ok(c::NotePage {
-        cut: value.cut(),
-        rows: note_piece(value.rows(), limits, limits.client().rows)?,
+        cut: value.cut,
+        rows: note_piece(&value.rows, limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
     })

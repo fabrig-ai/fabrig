@@ -11,12 +11,12 @@ impl Draw<'_> {
         b.text(skein_ui::Run::Plain, &super::forge_text(self.words, word, holes));
     }
     fn task(&mut self, b: &mut Builder, app: &PublicApplication, index: u16, goal: bool) {
-        if let Some(task) = app.tasks().get(u32::from(index)) {
+        if let Some(task) = app.tasks.get(u32::from(index)) {
             self.task_link(b, *task, goal);
         }
     }
     fn landing_link(&mut self, b: &mut Builder, app: &PublicApplication, index: u16) {
-        if let Some(task) = app.tasks().get(u32::from(index)) {
+        if let Some(task) = app.tasks.get(u32::from(index)) {
             self.link(b, &self.identity(*task, false), Public::Landing { project: self.project, task: *task });
         }
     }
@@ -70,7 +70,7 @@ impl Draw<'_> {
             }
             for hash in &landing.landed {
                 if let Some(member) = landing.members.as_slice().first()
-                    && let Some(task) = app.tasks().get(u32::from(*member))
+                    && let Some(task) = app.tasks.get(u32::from(*member))
                 {
                     self.text(b, Word::ToolSeparator);
                     self.link(b, &short(hash), Public::Landing { project: self.project, task: *task });

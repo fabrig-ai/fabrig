@@ -1,5 +1,6 @@
 //! A caller gone releases its connection without cancelling its work (protocol/client/wire.md, 2.2).
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{Event, FromApplication, Served, ToApplication};
 use skein_lib::{Reader, Token, Writer};
@@ -29,13 +30,14 @@ fn signed() -> Peer {
 
 fn request() -> Box<[u8]> {
     let limits = fixtures::limits().wire;
-    let mut keyed = w::Keyed::decode(&limits, &mut Reader::new(&super::requests::carrying_request(b"")))
-        .expect("family request")
-        .into_parts();
+    let mut keyed =
+        w::Keyed::decode(&limits, &mut Reader::new(&super::requests::carrying_request(b""))).expect("family request");
     keyed.value = None;
-    let keyed = w::Keyed::new(&limits, keyed).expect("request without a value");
-    let mut bytes = Writer::new(skein_lib::length::usize_of(keyed.measure()));
-    keyed.encode(&mut bytes).expect("keyed bytes");
+    let keyed = keyed;
+    let mut bytes = Writer::new(skein_lib::length::usize_of(
+        keyed.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    keyed.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("keyed bytes");
     bytes.finish()
 }
 

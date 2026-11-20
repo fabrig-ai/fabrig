@@ -1,6 +1,7 @@
 //! Complete accounts receiving admission and field preservation.
 use super::{c, fixtures, w};
 use crate::{Limits, Undecodable, Unusable, translate::watches};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Wall, Writer, length::len_u64};
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
     List::from_boxed(Box::new(items))
@@ -130,8 +131,10 @@ fn repeated(pieces: &[u8], times: usize) -> Box<[u8]> {
     out.finish()
 }
 fn line_piece(line: &w::AccountLine) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(line.measure()).unwrap());
-    line.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(line.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    line.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     let bytes = out.finish();
     let mut piece = Writer::new(bytes.len().checked_add(4).unwrap());
     skein_codec::piece::write(&mut piece, &bytes).unwrap();
@@ -165,8 +168,10 @@ fn held() -> u64 {
 }
 fn delivery(record: w::Accounts) -> Box<[u8]> {
     let value = w::DeliveryValue::Accounts(record);
-    let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 #[test]
@@ -204,14 +209,12 @@ fn account_uses_keep_their_constant_bound_with_fewer_receiving_rows() {
     // The schema mirrors jig_domain_accounts::USES; receiving rows remain two.
     const USES: usize = 16;
     let limits = fixtures::limits();
-    let mut line = jig_client_test_records::account_line_record().into_parts();
-    line.uses = Some(list([(); USES].map(|()| {
-        w::AccountUse::Party(w::AccountUseParty::new(limits.wire(), w::AccountUsePartyParts { party: 23 }).unwrap())
-    })));
-    let line = w::AccountLine::new(limits.wire(), line).unwrap();
-    let mut record = jig_client_test_records::accounts_record(None).into_parts();
+    let mut line = jig_client_test_records::account_line_record();
+    line.uses = Some(list([(); USES].map(|()| w::AccountUse::Party(w::AccountUseParty { party: 23 }))));
+    let line = line;
+    let mut record = jig_client_test_records::accounts_record(None);
     record.accounts = line_piece(&line);
-    let record = w::Accounts::new(limits.wire(), record).unwrap();
+    let record = record;
     let mut expected = document(None);
     let mut line = expected.accounts.get(0).unwrap().clone();
     line.uses = Some(list([c::AccountUse::Party(23); USES]));
@@ -222,13 +225,13 @@ fn account_uses_keep_their_constant_bound_with_fewer_receiving_rows() {
 fn account_lists_longer_than_the_receiving_rows_are_kept() {
     // Receiving rows are two; the account counts and document room admit these whole lists.
     let limits = fixtures::limits();
-    let mut line = jig_client_test_records::account_line_record().into_parts();
+    let mut line = jig_client_test_records::account_line_record();
     line.sources = repeated(&line.sources, 2);
-    let line = w::AccountLine::new(limits.wire(), line).unwrap();
-    let mut record = jig_client_test_records::accounts_record(None).into_parts();
+    let line = line;
+    let mut record = jig_client_test_records::accounts_record(None);
     record.accounts = repeated(&line_piece(&line), 3);
     record.signing = repeated(&record.signing, 3);
-    let record = w::Accounts::new(limits.wire(), record).unwrap();
+    let record = record;
     let mut expected = document(None);
     let mut line = expected.accounts.get(0).unwrap().clone();
     let [granted, later] = source_rows();
@@ -241,28 +244,24 @@ fn account_lists_longer_than_the_receiving_rows_are_kept() {
 
 fn configured_line() -> c::AccountLine {
     let limits = fixtures::limits();
-    let mut line = jig_client_test_records::account_line_record().into_parts();
-    line.provider_name = Some(
-        w::DocumentText::new(
-            limits.wire(),
-            w::DocumentTextParts { bytes: Box::from(b"Arbitrary provider".as_slice()), cut: true },
-        )
-        .unwrap(),
-    );
+    let mut line = jig_client_test_records::account_line_record();
+    line.provider_name = Some(w::DocumentText { bytes: Box::from(b"Arbitrary provider".as_slice()), cut: true });
     line.manage_usage = Some(Box::from(b"https://usage.example/".as_slice()));
-    let line = w::AccountLine::new(limits.wire(), line).unwrap();
+    let line = line;
     let encoded = {
-        let mut writer = Writer::new(usize::try_from(line.measure()).unwrap());
-        line.encode(&mut writer).unwrap();
+        let mut writer = Writer::new(
+            usize::try_from(line.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        line.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         writer.finish()
     };
-    let mut record = jig_client_test_records::accounts_record(None).into_parts();
+    let mut record = jig_client_test_records::accounts_record(None);
     record.accounts = {
         let mut writer = Writer::new(encoded.len().checked_add(4).unwrap());
         skein_codec::piece::write(&mut writer, &encoded).unwrap();
         writer.finish()
     };
-    let record = w::Accounts::new(limits.wire(), record).unwrap();
+    let record = record;
     let c::Delivery::Accounts(value) = watches::delivery(&delivery(record), &limits).unwrap() else {
         panic!("accounts delivery")
     };
@@ -289,8 +288,10 @@ fn account_capacity_labels_decode_without_account_payloads() {
         (w::PersonCapacityAction::AccountSignOut, c::PersonCapacityAction::AccountSignOut),
         (w::PersonCapacityAction::AccountChange, c::PersonCapacityAction::AccountChange),
     ] {
-        let mut writer = Writer::new(usize::try_from(wire.measure()).unwrap());
-        wire.encode(&mut writer).unwrap();
+        let mut writer = Writer::new(
+            usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        wire.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
         let bytes = writer.finish();
         let decoded = w::PersonCapacityAction::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap();
         assert_eq!(crate::translate::documents::person_capacity_action_fields(&decoded), expected);
@@ -304,12 +305,12 @@ fn unsafe_manage_addresses() -> [&'static [u8]; 5] {
 fn unsafe_manage_addresses_refuse_accounts_frames() {
     let limits = fixtures::limits();
     for address in unsafe_manage_addresses() {
-        let mut line = jig_client_test_records::account_line_record().into_parts();
+        let mut line = jig_client_test_records::account_line_record();
         line.manage_usage = Some(Box::from(address));
-        let line = w::AccountLine::new(limits.wire(), line).unwrap();
-        let mut record = jig_client_test_records::accounts_record(None).into_parts();
+        let line = line;
+        let mut record = jig_client_test_records::accounts_record(None);
         record.accounts = line_piece(&line);
-        let record = w::Accounts::new(limits.wire(), record).unwrap();
+        let record = record;
         assert_eq!(watches::delivery(&delivery(record), &limits), Err(Undecodable::Malformed));
     }
 }
@@ -318,20 +319,24 @@ fn unsafe_manage_addresses_refuse_deployment_frames() {
     let limits = fixtures::limits();
     for address in unsafe_manage_addresses() {
         let record = fixtures::with_account(Some(5));
-        let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.accounts())).unwrap().unwrap();
-        let mut account = w::Account::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
+        let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(record.accounts.as_ref())).unwrap().unwrap();
+        let mut account = w::Account::decode(limits.wire(), &mut skein_lib::Reader::new(&bytes)).unwrap();
         account.manage_usage = Some(Box::from(address));
-        let account = w::Account::new(limits.wire(), account).unwrap();
-        let mut out = Writer::new(usize::try_from(account.measure()).unwrap());
-        account.encode(&mut out).unwrap();
+        let account = account;
+        let mut out = Writer::new(
+            usize::try_from(account.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        account.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         let bytes = out.finish();
         let mut pieces = Writer::new(bytes.len().checked_add(4).unwrap());
         skein_codec::piece::write(&mut pieces, &bytes).unwrap();
-        let mut record = record.into_parts();
+        let mut record = record;
         record.accounts = pieces.finish();
-        let value = w::DeliveryValue::Deployment(w::Deployment::new(limits.wire(), record).unwrap());
-        let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-        value.encode(&mut out).unwrap();
+        let value = w::DeliveryValue::Deployment(record);
+        let mut out = Writer::new(
+            usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
         assert_eq!(watches::delivery(&out.finish(), &limits), Err(Undecodable::Malformed));
     }
 }
@@ -339,23 +344,16 @@ fn unsafe_manage_addresses_refuse_deployment_frames() {
 #[test]
 fn a_refused_worker_position_survives_wire_receipt() {
     let limits = fixtures::limits();
-    let mut record = fixtures::deployment_record().into_parts();
+    let mut record = fixtures::deployment_record();
     let mut expected = fixtures::deployment();
     let position = u32::MAX;
-    record.hello_refusals = list([w::HelloRefusalLine::new(
-        limits.wire(),
-        w::HelloRefusalLineParts {
-            channel: 9,
-            at: 0,
-            slots: 1,
-            stop_bound: Duration::ZERO,
-            why: w::HelloRefusal::Position(
-                w::HelloRefusalPosition::new(limits.wire(), w::HelloRefusalPositionParts { worker: position })
-                    .expect("position record"),
-            ),
-        },
-    )
-    .expect("hello refusal")]);
+    record.hello_refusals = list([w::HelloRefusalLine {
+        channel: 9,
+        at: 0,
+        slots: 1,
+        stop_bound: Duration::ZERO,
+        why: w::HelloRefusal::Position(w::HelloRefusalPosition { worker: position }),
+    }]);
     expected.hello_refusals = list([c::HelloRefusalLine {
         channel: 9,
         at: Wall::EPOCH,
@@ -363,7 +361,7 @@ fn a_refused_worker_position_survives_wire_receipt() {
         stop_bound: Duration::ZERO,
         why: c::HelloRefusal::Position { worker: position },
     }]);
-    let record = w::Deployment::new(limits.wire(), record).expect("deployment");
+    let record = record;
     assert_eq!(crate::translate::documents::deployment(record, &limits), Ok(expected));
 }
 
@@ -384,10 +382,9 @@ fn zero_account_receiving_counts_make_limits_unusable() {
 // The fixture has two accounts and two sources in its first account; repeat its sign-in to two too.
 const ACCOUNT_COUNT: u32 = 2;
 fn counted_accounts() -> Box<[u8]> {
-    let limits = fixtures::limits();
-    let mut record = jig_client_test_records::accounts_record(None).into_parts();
+    let mut record = jig_client_test_records::accounts_record(None);
     record.signing = repeated(&record.signing, usize::try_from(ACCOUNT_COUNT).unwrap());
-    delivery(w::Accounts::new(limits.wire(), record).unwrap())
+    delivery(record)
 }
 fn count_limits() -> Limits {
     let bounds = fixtures::limits();
@@ -426,10 +423,9 @@ fn account_lists_one_past_their_receiving_counts_are_refused() {
 // One more account than receiving rows, within the configured account count.
 const DEPLOYMENT_ACCOUNTS: u32 = 3;
 fn counted_deployment(count: u32) -> w::Deployment {
-    let limits = fixtures::limits();
-    let mut record = fixtures::with_account(Some(5)).into_parts();
+    let mut record = fixtures::with_account(Some(5));
     record.accounts = repeated(&record.accounts, usize::try_from(count).unwrap());
-    w::Deployment::new(limits.wire(), record).unwrap()
+    record
 }
 fn expected_deployment(count: u32) -> c::Deployment {
     let mut expected = fixtures::account_expected(Some(5));
@@ -527,10 +523,10 @@ fn fact_rows() -> List<c::AccountFact> {
 fn wire_deployment_account(facts: List<w::AccountFact>) -> w::Account {
     let limits = fixtures::limits();
     let deployment = fixtures::with_account(None);
-    let bytes = skein_codec::piece::counted(&mut skein_lib::Reader::new(deployment.accounts()));
-    let mut parts = w::Account::decode(limits.receiving(), &mut skein_lib::Reader::new(&bytes)).unwrap().into_parts();
+    let bytes = skein_codec::piece::counted(&mut skein_lib::Reader::new(deployment.accounts.as_ref()));
+    let mut parts = w::Account::decode(limits.receiving(), &mut skein_lib::Reader::new(&bytes)).unwrap();
     parts.facts = facts;
-    w::Account::new(limits.wire(), parts).unwrap()
+    parts
 }
 
 #[test]
@@ -562,7 +558,7 @@ fn account_fact_values_reach_both_client_rows() {
         (
             line_bytes.checked_sub(1).unwrap(),
             account_bytes.checked_sub(1).unwrap(),
-            Err(w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }),
+            Err(w::Problem { path: w::paths::OWNED_RECORD, reason: skein_codec::Reason::Bound }),
         ),
     ] {
         let mut room = line_room;
@@ -581,31 +577,21 @@ fn account_fact_shares_keep_their_basis_point_bound() {
     let limits = fixtures::limits();
     for (basis, refusal) in [(10_000, None), (10_001, Some(skein_codec::Reason::Bound))] {
         for (value, path) in [
+            (w::AccountFactValue::Share(w::AccountFactShare { basis }), w::paths::ACCOUNT_FACT_SHARE_BASIS),
             (
-                w::AccountFactValue::Share(
-                    w::AccountFactShare::new(limits.wire(), w::AccountFactShareParts { basis }).unwrap(),
-                ),
-                w::Path::AccountFactShareBasis,
-            ),
-            (
-                w::AccountFactValue::Window(
-                    w::AccountWindow::new(
-                        limits.wire(),
-                        w::AccountWindowParts { length: None, used: Some(basis), resets: None, state: 1 },
-                    )
-                    .unwrap(),
-                ),
-                w::Path::AccountWindowUsed,
+                w::AccountFactValue::Window(w::AccountWindow {
+                    length: None,
+                    used: Some(basis),
+                    resets: None,
+                    state: 1,
+                }),
+                w::paths::ACCOUNT_WINDOW_USED,
             ),
         ] {
-            let fact = w::AccountFact::new(
-                limits.wire(),
-                w::AccountFactParts { kind: 7, label: Box::new([]), value, seen: 0, source: None, origin: 6 },
-            )
-            .unwrap();
-            let mut parts = jig_client_test_records::account_line_record().into_parts();
+            let fact = w::AccountFact { kind: 7, label: Box::new([]), value, seen: 0, source: None, origin: 6 };
+            let mut parts = jig_client_test_records::account_line_record();
             parts.facts = list([fact.clone()]);
-            let line = w::AccountLine::new(limits.wire(), parts).unwrap();
+            let line = parts;
             let deployment = wire_deployment_account(list([fact]));
             let mut room = u64::MAX;
             for result in [

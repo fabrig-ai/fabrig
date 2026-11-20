@@ -1,6 +1,7 @@
 use super::*;
 use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_http::Method;
 const SOURCE: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
 const IPV6_SOURCE: core::net::IpAddr = core::net::IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1));
@@ -197,8 +198,8 @@ fn a_browser_s_link_sign_in_sets_the_cookie_and_answers_no_token() {
         assert_eq!(status, 200, "{path:?}");
         assert_eq!(fixtures::header(&headers, b"set-cookie"), Some(fixtures::COOKIE_ON_LISTENER), "{path:?}");
         let signed_in = fixtures::signed_in(path, &body);
-        assert_eq!(signed_in.token(), &None, "{path:?}");
-        assert_eq!((signed_in.party(), signed_in.expires()), (fixtures::PARTY, fixtures::IN_A_DAY), "{path:?}");
+        assert_eq!((&signed_in.token), &None, "{path:?}");
+        assert_eq!((signed_in.party, signed_in.expires), (fixtures::PARTY, fixtures::IN_A_DAY), "{path:?}");
     }
 }
 #[test]
@@ -217,7 +218,7 @@ fn a_native_sign_in_answers_its_token_in_the_body() {
         let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
         assert_eq!(status, 200, "{path:?}");
         assert_eq!(fixtures::header(&headers, b"set-cookie"), None, "{path:?}");
-        assert_eq!(fixtures::signed_in(path, &body).token(), &Some(fixtures::credential()), "{path:?}");
+        assert_eq!((&fixtures::signed_in(path, &body).token), &Some(fixtures::credential()), "{path:?}");
     }
 }
 const COOKIE_ROUTES: [(Method, &[u8], bool); 2] =
@@ -642,36 +643,31 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
             message: kit::Message::SignInLink(Box::from(b"link".as_slice())),
         }]
     );
-    let answer = w::SignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: None, party: fixtures::PARTY, expires: fixtures::IN_A_DAY },
-        )
-        .expect("kept sign-in"),
-    );
-    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
-    answer.encode(&mut bytes).expect("answer");
+    let answer =
+        w::SignInAnswer::SignedIn(w::SignedIn { token: None, party: fixtures::PARTY, expires: fixtures::IN_A_DAY });
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(
+        answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("answer");
     fixtures::reply(&mut mount, &mut out, call, kit::Reply::Record(bytes.finish()));
     let (status, body, headers) = fixtures::answered(&mut mount, &mut out, call);
     assert_eq!(status, 200);
     assert_eq!(fixtures::header(&headers, b"set-cookie"), None);
     let answer = fixtures::signed_in(b"/jig/v1/sign-in/link", &body);
-    assert_eq!(answer.token(), &None);
-    assert_eq!((answer.party(), answer.expires()), (fixtures::PARTY, fixtures::IN_A_DAY));
+    assert_eq!((&answer.token), &None);
+    assert_eq!((answer.party, answer.expires), (fixtures::PARTY, fixtures::IN_A_DAY));
 }
 
 #[test]
 fn busy_and_full_answer_200_without_setting_a_cookie() {
-    let full = w::SignInAnswer::Full(
-        w::SignInsFull::new(&w::CEILINGS, w::SignInsFullParts { sign_ins: 2, earliest: 400, link_until: 300 }).unwrap(),
-    );
-    let approval_full = w::ApprovalSignInAnswer::Full(
-        w::ApprovalFull::new(&w::CEILINGS, w::ApprovalFullParts { sign_ins: 2, earliest: 400, until: 300 }).unwrap(),
-    );
+    let full = w::SignInAnswer::Full(w::SignInsFull { sign_ins: 2, earliest: 400, link_until: 300 });
+    let approval_full = w::ApprovalSignInAnswer::Full(w::ApprovalFull { sign_ins: 2, earliest: 400, until: 300 });
     let mut rows = List::uncapped();
     for record in [w::SignInAnswer::Busy, full] {
-        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         let bytes = bytes.finish();
         for path in [b"/jig/v1/sign-in/link".as_slice(), b"/jig/v1/sign-in/deployment"] {
             rows.push((path, bytes.clone())).expect("sign-in row");
@@ -687,8 +683,10 @@ fn busy_and_full_answer_200_without_setting_a_cookie() {
         w::ApprovalSignInAnswer::Unknown,
         w::ApprovalSignInAnswer::NotReady,
     ] {
-        let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-        record.encode(&mut bytes).unwrap();
+        let mut bytes = skein_lib::Writer::new(
+            usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+        );
+        record.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
         rows.push((b"/jig/v1/sign-in/approval".as_slice(), bytes.finish())).expect("approval row");
     }
     for (path, bytes) in &rows {

@@ -8,13 +8,9 @@ const OTHER_PROJECT: u32 = 4;
 const TASK: u64 = 8;
 const FIRST_MESSAGE: u64 = 19;
 fn compound(project: u32, stop_project: u32) -> w::Ask {
-    let limits = f::wire();
     let values = [
-        w::Operation::Message(
-            w::Message::new(&limits, w::MessageParts { project, task: TASK, words: b"words".as_slice().into() })
-                .unwrap(),
-        ),
-        w::Operation::Stop(w::Stop::new(&limits, w::StopParts { project: stop_project, task: TASK }).unwrap()),
+        w::Operation::Message(w::Message { project, task: TASK, words: b"words".as_slice().into() }),
+        w::Operation::Stop(w::Stop { project: stop_project, task: TASK }),
     ];
     f::compound(project, &values)
 }
@@ -33,13 +29,10 @@ fn a_compound_operation_naming_another_project_is_refused_at_its_place() {
     let limits = f::wire();
     let answer = operations::refused(&compound(PROJECT, OTHER_PROJECT), &limits).unwrap().unwrap();
     let w::Final::Refused(value) = f::final_record(answer, &limits) else { panic!("refusal") };
-    assert_eq!(*value.at(), Some(1));
+    assert_eq!(value.at, Some(1));
     assert_eq!(
-        value.refusal(),
-        &w::Refusal::Malformed(
-            w::RefusalMalformed::new(&limits, w::RefusalMalformedParts { at: 1, why: w::Malformed::ProjectMismatch })
-                .unwrap()
-        )
+        (&value.refusal),
+        &w::Refusal::Malformed(w::RefusalMalformed { at: 1, why: w::Malformed::ProjectMismatch })
     );
 }
 #[test]
@@ -50,8 +43,8 @@ fn a_compound_refusal_names_its_first_failing_place() {
     else {
         panic!("refusal")
     };
-    assert_eq!(*value.at(), Some(1));
-    assert_eq!(value.refusal(), &w::Refusal::Unknown);
+    assert_eq!(value.at, Some(1));
+    assert_eq!((&value.refusal), &w::Refusal::Unknown);
 }
 #[test]
 fn a_compound_answer_keeps_its_message_and_operation_count() {
@@ -60,18 +53,13 @@ fn a_compound_answer_keeps_its_message_and_operation_count() {
         &p::Reply::Outcome(p::Outcome::Compound { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE }),
         &limits,
     );
-    let expected = w::DocumentOutcome::Compound(
-        w::OutcomeCompound::new(
-            &limits,
-            w::OutcomeCompoundParts { project: PROJECT, operations: 2, first_message: FIRST_MESSAGE },
-        )
-        .unwrap(),
-    );
+    let expected = w::DocumentOutcome::Compound(w::OutcomeCompound {
+        project: PROJECT,
+        operations: 2,
+        first_message: FIRST_MESSAGE,
+    });
     let w::Final::Done(value) = value else {
         panic!("done");
     };
-    assert_eq!(
-        value.outcome(),
-        &w::Outcome::Document(w::OutcomeDocument::new(&limits, w::OutcomeDocumentParts { value: expected }).unwrap())
-    );
+    assert_eq!((&value.outcome), &w::Outcome::Document(w::OutcomeDocument { value: expected }));
 }

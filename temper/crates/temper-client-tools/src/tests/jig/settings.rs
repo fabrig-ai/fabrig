@@ -156,24 +156,14 @@ fn a_settings_file_charter_names_documents() {
     let bounds = crate::limits::form();
     let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("wire value");
-    let wire = jig_client_protocol_wire::SettingDocument::new(
-        &bounds.settings,
-        jig_client_protocol_wire::SettingDocumentParts {
-            overlay: None,
-            setting: jig_client_protocol_wire::Setting::Charter(
-                jig_client_protocol_wire::SettingNumber::new(
-                    &bounds.settings,
-                    jig_client_protocol_wire::SettingNumberParts { number: 3 },
-                )
-                .expect("number"),
-            ),
-            revision: 5,
-            value: Some(wire_value),
-            application: None,
-            proposed: None,
-        },
-    )
-    .expect("wire document");
+    let wire = jig_client_protocol_wire::SettingDocument {
+        overlay: None,
+        setting: jig_client_protocol_wire::Setting::Charter(jig_client_protocol_wire::SettingNumber { number: 3 }),
+        revision: 5,
+        value: Some(wire_value),
+        application: None,
+        proposed: None,
+    };
     assert_eq!(settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore").value, Some(form));
     let neutral = settings_form::view::ChangeSettings {
         against: 5,
@@ -719,22 +709,18 @@ fn each_whole_setting_json_is_exactly_the_set_value_and_sends_under_its_name() {
     cases.push((setting, c::SettingValue::Template(template)));
     for (setting, value) in cases {
         let bounds = crate::limits::form();
-        let wire = jig_client_protocol_wire::SettingDocument::new(
-            &bounds.settings,
-            jig_client_protocol_wire::SettingDocumentParts {
-                overlay: None,
-                setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
-                    .expect("wire selector"),
-                revision: 5,
-                value: Some(
-                    jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
-                        .expect("wire value"),
-                ),
-                application: None,
-                proposed: None,
-            },
-        )
-        .expect("wire document");
+        let wire = jig_client_protocol_wire::SettingDocument {
+            overlay: None,
+            setting: jig_client_protocol_link::translate::settings::wire_setting(&setting, &bounds.settings)
+                .expect("wire selector"),
+            revision: 5,
+            value: Some(
+                jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
+                    .expect("wire value"),
+            ),
+            application: None,
+            proposed: None,
+        };
         assert_eq!(
             settings_form::wire::restore_setting_document(&wire, &bounds).expect("restore value").value,
             Some(jig::form_setting_value(&value))
@@ -948,7 +934,7 @@ fn settings_values_refuse_each_nonempty_byte_and_list_bound_on_both_sides() {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_policy(&policy, &crate::limits::tools().settings)
             .expect("wire policy");
-    let grant_bytes = u32::try_from(wire.ceiling().grants().len()).expect("grant bytes");
+    let grant_bytes = u32::try_from(wire.ceiling.grants.as_ref().len()).expect("grant bytes");
     for (index, name, length) in [
         (0, "charter_instructions", 23),
         (0, "charter_alternatives", 1),
@@ -1184,7 +1170,7 @@ fn remaining_nested_collections_and_bytes_obey_jigs_bounds() {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_policy(policy, &crate::limits::tools().settings)
             .expect("wire policy");
-    let resource_bytes = u32::try_from(wire.ceiling().note_resources().len()).expect("resource bytes");
+    let resource_bytes = u32::try_from(wire.ceiling.note_resources.as_ref().len()).expect("resource bytes");
     boundary!(setting, value.clone(), authority_note_resources, resource_bytes);
     boundary!(setting, value.clone(), pattern_end_exact_value, 3);
     let c::SettingValue::Policy(mut policy) = value else { panic!("policy") };
@@ -1225,10 +1211,10 @@ fn remaining_nested_collections_and_bytes_obey_jigs_bounds() {
     let jig_client_protocol_wire::SettingValue::Template(wire) = wire else {
         panic!("wire template");
     };
-    let jig_client_protocol_wire::TaskContractDocument::Verdict(verdict) = wire.contract() else {
+    let jig_client_protocol_wire::TaskContractDocument::Verdict(verdict) = &wire.contract else {
         panic!("wire verdict");
     };
-    let choice_bytes = u32::try_from(verdict.choices().len()).expect("choice bytes");
+    let choice_bytes = u32::try_from(verdict.choices.as_ref().len()).expect("choice bytes");
     boundary!(
         setting,
         c::SettingValue::Template(template.clone()),
@@ -1276,7 +1262,7 @@ fn settings_items_check_the_aggregate_wire_byte_bound_and_maximum_count() {
         &limits.settings,
     )
     .expect("wire items");
-    let size = u32::try_from(wire.items().len()).expect("wire bytes");
+    let size = u32::try_from(wire.items.as_ref().len()).expect("wire bytes");
     limits.settings.change_settings_items = size;
     settings_file::decode(file, &limits).expect("at item bytes bound");
     limits.settings.change_settings_items = size - 1;
@@ -2902,7 +2888,9 @@ fn measured_review_value(value: &c::SettingValue) -> c::ReviewValue {
     let wire =
         jig_client_protocol_link::translate::settings::wire_setting_value(value, &crate::limits::tools().settings)
             .expect("wire setting");
-    c::ReviewValue::TooLarge(c::Size { bytes: u64::from(wire.measure()) })
+    c::ReviewValue::TooLarge(c::Size {
+        bytes: u64::from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")),
+    })
 }
 fn policy_review_proposal(values: &[(c::Setting, c::SettingValue, c::SettingValue)]) -> c::ReadValue {
     let mut proposal = review_proposal(Some(c::SettingsReview {
@@ -3159,24 +3147,14 @@ fn settings_show_template_resources_apply_again_unchanged() {
     let bounds = crate::limits::form();
     let wire = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("wire template");
-    let wire = jig_client_protocol_wire::SettingDocument::new(
-        &bounds.settings,
-        jig_client_protocol_wire::SettingDocumentParts {
-            overlay: None,
-            setting: jig_client_protocol_wire::Setting::Template(
-                jig_client_protocol_wire::SettingNumber::new(
-                    &bounds.settings,
-                    jig_client_protocol_wire::SettingNumberParts { number: 4 },
-                )
-                .unwrap(),
-            ),
-            revision: 5,
-            value: Some(wire),
-            application: None,
-            proposed: None,
-        },
-    )
-    .unwrap();
+    let wire = jig_client_protocol_wire::SettingDocument {
+        overlay: None,
+        setting: jig_client_protocol_wire::Setting::Template(jig_client_protocol_wire::SettingNumber { number: 4 }),
+        revision: 5,
+        value: Some(wire),
+        application: None,
+        proposed: None,
+    };
     assert_eq!(
         settings_form::wire::restore_setting_document(&wire, &bounds).unwrap().value,
         Some(jig::form_setting_value(&value))
@@ -3268,20 +3246,14 @@ fn goal_template_wire_round_trip(file: &[u8], change: &c::ChangeSettings, templa
     let value = c::SettingValue::Template(Box::new(template.clone()));
     let wire_value = jig_client_protocol_link::translate::settings::wire_setting_value(&value, &bounds.settings)
         .expect("client wire");
-    let wire = w::SettingDocument::new(
-        &bounds.settings,
-        w::SettingDocumentParts {
-            overlay: None,
-            setting: w::Setting::Template(
-                w::SettingNumber::new(&bounds.settings, w::SettingNumberParts { number: 4 }).expect("template number"),
-            ),
-            revision: 5,
-            value: Some(wire_value),
-            application: None,
-            proposed: None,
-        },
-    )
-    .expect("wire document");
+    let wire = w::SettingDocument {
+        overlay: None,
+        setting: w::Setting::Template(w::SettingNumber { number: 4 }),
+        revision: 5,
+        value: Some(wire_value),
+        application: None,
+        proposed: None,
+    };
     assert_eq!(
         settings_form::wire::restore_setting_document(&wire, &bounds).expect("neutral restore").value,
         Some(jig::form_setting_value(&value))

@@ -10,10 +10,9 @@ const ONE: u32 = 1;
 const OUTPUTS: u32 = 64;
 const EXCHANGES: u32 = 8;
 pub fn task() -> c::Task {
-    use jig_client_protocol_wire as w;
-    let mut record = jig_client_test_records::task_record().into_parts();
+    let mut record = jig_client_test_records::task_record();
     record.chip = jig_client_test_records::owner_waiting_chip_record();
-    let record = w::Task::new(&w::CEILINGS, record).expect("checked task fixture");
+    let record = record;
     let link = jig_client_protocol_link::Limits::new(limits().client.domain, EXCHANGES).expect("link limits");
     let mut task = jig_client_protocol_link::translate::documents::task(record, &link).expect("task document");
     task.chip.task = TASK;

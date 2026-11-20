@@ -447,3 +447,44 @@ document visibility, choices below the box and Ctrl-P's page links.
 Disabling the walker's key-link retention made that test fail on the
 missing Ctrl-P link; restoring it passed. No budget, timeout, nextest
 setting or reference was added or raised.
+
+### The launchpad's delegated question
+
+2026-11-20, change 10882: `launchpad-drawn`'s version-2 walk,
+`after project-landing`, prints five TUI pages in one process: the
+request typed, the chat's reply and delegated question, the launchpad's
+need, the choice prompt and the answered launchpad. Hello uses the
+world's owned `work/hello` and ChatGPT plan. On Linux x86_64, `nproc` = 8,
+CPU model AMD EPYC-Genoa Processor, three warm prints of the built,
+unoptimized `temper-client-walk print --out DIR launchpad-drawn`, each
+DIR fresh and outside the checkout, took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 7.927598 | 7.418535 | 0.437025 | 7.855560 |
+| 2 | 7.755123 | 7.128628 | 0.472711 | 7.601339 |
+| 3 | 7.582927 | 7.073282 | 0.426530 | 7.499812 |
+
+**Median: 7.755123 wall s, 7.601339 CPU s.** Each print ran through
+`TEMPER_INTERNAL_BUNDLE=none cargo run -p temper-client-walk`, with a
+command-local Cargo target runner measuring the binary alone: Python's
+`time.monotonic()` around its child and
+`resource.getrusage(RUSAGE_CHILDREN)` for user plus system CPU. Build
+and Cargo overhead are excluded. A preceding print warmed the binary;
+all four final scratch trees, including assets, were byte-identical.
+An independently idle host was not established. Each frame and its key
+link was checked against the README; all scratch trees were removed.
+
+The focused test `temper-client-walk-tool` / `suite` /
+`a_delegated_question_walks_its_choices_and_prints_repeatably`, run alone
+by exact name with `cargo nextest run`, `TEMPER_INTERNAL_BUNDLE=none`,
+default profile, passed in **8.419 s**, nextest's elapsed time, not CPU
+or build time (reported slow at 6 s). Its own web ancestor enters the
+playground with "Try the playground"; its TUI chat T1 delegates goal T2,
+whose question targets 1. It prints twice, checks identical bytes,
+`n` and Enter links, both choices with the first active, and no need
+after answering. Disabling TUI mark keys made it fail on the missing
+`n` link; restoring them passed. An initial attempt reached the need
+before its chat's read had answered and stopped waiting for Next;
+waiting for `/chats 1` and the named question resolved it. No budget,
+timeout, nextest setting or reference was added or raised.

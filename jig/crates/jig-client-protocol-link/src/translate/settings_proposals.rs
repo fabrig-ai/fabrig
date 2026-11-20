@@ -7,30 +7,28 @@ use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
 pub fn restore_origin_revision(value: &w::OriginRevision) -> Result<c::OriginRevision, w::Problem> {
-    Ok(c::OriginRevision { revision: value.revision() })
+    Ok(c::OriginRevision { revision: value.revision })
 }
 pub fn wire_propose_settings(value: &c::ProposeSettings, limits: &w::Limits) -> Result<w::ProposeSettings, w::Problem> {
-    w::ProposeSettings::new(
-        limits,
-        w::ProposeSettingsParts { against: value.against, items: encode_setting_pieces(&value.items, limits)? },
-    )
+    Ok(w::ProposeSettings { against: value.against, items: encode_setting_pieces(&value.items, limits)? })
 }
 pub fn restore_propose_settings(value: &w::ProposeSettings, limits: &Limits) -> Result<c::ProposeSettings, w::Problem> {
-    Ok(c::ProposeSettings { against: value.against(), items: decode_setting_pieces(value.items(), limits)? })
+    Ok(c::ProposeSettings { against: value.against, items: decode_setting_pieces(&value.items, limits)? })
 }
 pub fn restore_review_item(value: &w::ReviewItem, limits: &Limits) -> Result<c::ReviewItem, w::Problem> {
     Ok(c::ReviewItem {
-        setting: restore_setting(value.setting())?,
-        edit: restore_revision_item_edit(value.edit())?,
-        now: restore_review_value(value.now(), limits)?,
-        origin: restore_setting_origin(value.origin())?,
-        would_be: restore_review_value(value.would_be(), limits)?,
-        application: match value.application() {
+        setting: restore_setting(&value.setting)?,
+        edit: restore_revision_item_edit(&value.edit)?,
+        now: restore_review_value(&value.now, limits)?,
+        origin: restore_setting_origin(&value.origin)?,
+        would_be: restore_review_value(&value.would_be, limits)?,
+        application: match &value.application {
             Some(v) => Some(c::ApplicationReview {
-                edit: super::settings::restore_sized_edit(v.edit()),
-                now: match v.now() {
+                edit: super::settings::restore_sized_edit(&v.edit),
+                now: match &v.now {
                     Some(v) => Some(super::settings::restore_application_state(v)),
                     None => None,
                 },
@@ -41,10 +39,10 @@ pub fn restore_review_item(value: &w::ReviewItem, limits: &Limits) -> Result<c::
 }
 pub fn restore_settings_review(value: &w::SettingsReview, limits: &Limits) -> Result<c::SettingsReview, w::Problem> {
     Ok(c::SettingsReview {
-        key: *value.key(),
-        newest: value.newest(),
-        items: decode_review_pieces(value.items(), limits)?,
-        cut: value.cut(),
+        key: value.key,
+        newest: value.newest,
+        items: decode_review_pieces(&value.items, limits)?,
+        cut: value.cut,
     })
 }
 pub fn restore_owner_proposal_action_settings(
@@ -52,13 +50,13 @@ pub fn restore_owner_proposal_action_settings(
     limits: &Limits,
 ) -> Result<c::ProposalActionSettings, w::Problem> {
     Ok(c::ProposalActionSettings {
-        against: value.against(),
-        items: decode_heads(value.items(), limits.receiving().proposal_action_settings_items)?,
-        review: match value.review() {
+        against: value.against,
+        items: decode_heads(&value.items, limits.receiving().proposal_action_settings_items)?,
+        review: match &value.review {
             Some(item) => Some(restore_settings_review(item, limits)?),
             None => None,
         },
-        made: *value.made(),
+        made: value.made,
     })
 }
 pub fn restore_owner_retained_action_settings(
@@ -66,10 +64,10 @@ pub fn restore_owner_retained_action_settings(
     limits: &Limits,
 ) -> Result<c::RetainedActionSettings, w::Problem> {
     Ok(c::RetainedActionSettings {
-        projects: value.projects().clone(),
-        against: value.against(),
-        items: decode_heads(value.items(), limits.receiving().retained_action_settings_items)?,
-        made: *value.made(),
+        projects: value.projects.clone(),
+        against: value.against,
+        items: decode_heads(&value.items, limits.receiving().retained_action_settings_items)?,
+        made: value.made,
     })
 }
 pub fn restore_setting_origin(value: &w::SettingOrigin) -> Result<c::SettingOrigin, w::Problem> {
@@ -104,7 +102,11 @@ fn encode_setting_pieces(values: &List<c::SettingItem>, limits: &w::Limits) -> R
     let mut size = 0_u32;
     for value in values {
         let row = wire_setting_item(value, limits)?;
-        size = size.checked_add(row.measure()).ok_or(super::too_large())?.checked_add(4).ok_or(super::too_large())?;
+        size = size
+            .checked_add(row.measure(limits)?)
+            .ok_or(super::too_large())?
+            .checked_add(4)
+            .ok_or(super::too_large())?;
         if size > limits.propose_settings_items {
             return Err(super::too_large());
         }
@@ -112,8 +114,8 @@ fn encode_setting_pieces(values: &List<c::SettingItem>, limits: &w::Limits) -> R
     }
     let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
-        writer.put(&row.measure().to_be_bytes()).expect("measured");
-        row.encode(&mut writer).expect("measured");
+        writer.put(&row.measure(limits)?.to_be_bytes()).expect("measured");
+        row.write(limits, &mut writer).expect("measured");
     }
     Ok(writer.finish())
 }

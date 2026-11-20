@@ -195,8 +195,11 @@ fn projected(answer: &reads::Answer, query: &reads::Read) -> c::ReadValue {
         ),
     }
     .expect("client projection");
-    let mut bytes = Writer::new(usize::try_from(wire.measure()).expect("bounded client document"));
-    wire.encode(&mut bytes).expect("measured client document");
+    let mut bytes = Writer::new(
+        usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("bounded client document"),
+    );
+    wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("measured client document");
     let preset = temper_client_tools::limits::client().client;
     let limits =
         jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("client receiving limits");

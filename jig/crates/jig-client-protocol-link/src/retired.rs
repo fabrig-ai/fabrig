@@ -5,6 +5,7 @@ use crate::{
     component::{Attempt, ExchangeKind},
 };
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{Queue, Reader, Token};
 impl Link {
@@ -35,7 +36,7 @@ impl Link {
                 }
                 Ok(w::OpenAnswer::Refused(why)) => {
                     self.retired.remove(&name);
-                    match why.why() {
+                    match &why.why {
                         w::WatchRefusal::SignedOut => {
                             self.end_sign_in(out);
                             out.push(Request::Signing { signing: Signing::SignedOut });

@@ -117,26 +117,18 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     let limits = &engine.clients.env.limits.wire;
     let request =
         w::Requesting { request: w::Request::Reachable(w::Reachable { forge: 1, installation: None, page: 1 }) };
-    let family = j::FamilyRequest::new(
-        limits,
-        j::FamilyRequestParts { scope: j::Scope::Deployment, record: wire::requesting(&request) },
-    )
-    .unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
-    family.encode(&mut bytes).unwrap();
-    let request = j::Keyed::new(
-        limits,
-        j::KeyedParts {
-            key: [90; 16],
-            owner: j::Owner::Family(j::Family::new(limits, j::FamilyParts { number: wire::FORGE }).unwrap()),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: None,
-        },
-    )
-    .unwrap();
-    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure()).unwrap());
-    request.encode(&mut bytes).unwrap();
+    let family = j::FamilyRequest { scope: j::Scope::Deployment, record: wire::requesting(&request) };
+    let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(limits).expect("bounded fixture")).unwrap());
+    family.write(limits, &mut bytes).unwrap();
+    let request = j::Keyed {
+        key: [90; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
+    let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(limits).expect("bounded fixture")).unwrap());
+    request.write(limits, &mut bytes).unwrap();
     let mut client = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);
     client
@@ -153,12 +145,12 @@ fn picker_outcome(service: &crate::Service, client: &fixtures::http::Peer) -> te
         panic!("final answer")
     };
     assert_eq!(
-        answer.version(),
+        answer.version,
         temper_client_protocol_wire::CLIENT_VERSION,
         "core terminal: {:?}",
-        j::Final::decode(&engine.clients.env.limits.wire, &mut skein_lib::Reader::new(answer.record()))
+        j::Final::decode(&engine.clients.env.limits.wire, &mut skein_lib::Reader::new(answer.record.as_ref()))
     );
-    let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(answer.record())).unwrap();
+    let answer = w::Answer::decode(&w::CEILINGS, &mut skein_lib::Reader::new(answer.record.as_ref())).unwrap();
     answer.outcome
 }
 #[test]
@@ -174,7 +166,7 @@ fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_r
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else { panic!("owner sign in") };
-    let bearer = peer::bearer(answer.token().as_ref().unwrap().expose());
+    let bearer = peer::bearer(answer.token.as_ref().unwrap().expose());
     // This small store fixture gives the first link only its project role. Seed
     // its deployment role explicitly, as the root's public-forge fixtures do.
     let mut header = engine.domain.deployment();

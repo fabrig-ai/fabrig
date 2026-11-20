@@ -1,6 +1,7 @@
 use super::*;
 use crate::journey::{Kind, Line};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{
     Reader, Writer,
@@ -50,7 +51,7 @@ fn a_replacement_query_redacts_to_the_hex_of_its_kept_stream_name() {
             panic!("stored name and opening")
         };
         let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(value)).expect("kept name");
-        assert_eq!(kept.record(), HIDDEN);
+        assert_eq!(kept.record.as_ref(), HIDDEN);
         assert_eq!(
             path.as_ref(),
             format!("/jig/v1/stream{prefix}replaces=78787878787878787878787878787878{suffix}").as_bytes()
@@ -66,10 +67,11 @@ fn input(value: &[u8]) -> Line {
     }
 }
 fn kept(record: &[u8]) -> Box<[u8]> {
-    let value = w::Kept::new(&w::CEILINGS, w::KeptParts { store_version: 1, record: record.into() })
-        .expect("bounded fake record");
-    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-    value.encode(&mut writer).expect("measured fake record");
+    let value = w::Kept { store_version: 1, record: record.into() };
+    let mut writer = Writer::new(skein_lib::length::usize_of(
+        value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+    ));
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured fake record");
     writer.finish()
 }
 fn exchange(body: &[u8]) -> Line {
@@ -348,7 +350,7 @@ fn a_stored_value_keeps_its_kept_head() {
         let (Line::Stored { value, .. } | Line::Save { value, .. }) = &output[0] else { panic!("stored or save") };
         let mut reader = Reader::new(value);
         let value = w::Kept::decode(&w::CEILINGS, &mut reader).expect("kept head still decodes");
-        assert!(value.record() == HIDDEN, "sixteen x bytes");
+        assert!(value.record.as_ref() == HIDDEN, "sixteen x bytes");
         assert!(reader.is_empty(), "no trailing bytes");
     }
 }

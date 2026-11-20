@@ -16,8 +16,8 @@ pub(super) fn decode(
     super::documents::charge(&mut room, List::<c::AccountHostFailure>::price(rows.len()))?;
     let mut out = List::with_capacity(rows.len());
     for row in rows {
-        let name = super::programs::name(row.name(), &mut room)?;
-        let why = match row.why() {
+        let name = super::programs::name(&row.name, &mut room)?;
+        let why = match &row.why {
             w::AccountHostWhy::NotInContact => c::AccountHostWhy::NotInContact,
             w::AccountHostWhy::Lost => c::AccountHostWhy::Lost,
             w::AccountHostWhy::Failed => c::AccountHostWhy::Failed,

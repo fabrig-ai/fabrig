@@ -271,6 +271,94 @@ tui mark
 }
 
 #[test]
+fn a_delegated_question_walks_its_choices_and_prints_repeatably() {
+    let f = Fixture::new();
+    f.journey("project", W);
+    f.tui_journey(
+        "question",
+        r#"walk 2
+after project
+tui approve
+tui see "Ask for a change, or ask temper."
+tui key paste "/change Choose a report format"
+tui key enter
+tui see "A report format question waits for you."
+tui see "report-format: text or table?"
+tui key paste "/new"
+tui key enter
+tui see "n to walk"
+tui see "/chats 1"
+tui see "Choose a report format: report-format"
+tui mark
+tui key char "n"
+tui see "Next"
+tui mark
+tui key enter
+tui see "Nothing else needs you."
+tui mark
+"#,
+    );
+    // The playground's first chat is T1; its delegated goal is T2.
+    fs::write(
+        f.root().join(TUI).join("question/scripts.json"),
+        r#"{
+  "asked": [{
+    "cue": "Choose a report format",
+    "turns": [{
+      "lines": [{"call": "goal", "arguments": {"words": "Ask which report format."}}],
+      "finish": "tool_calls", "tokens": 32
+    }, "A report format question waits for you."]
+  }],
+  "cued": [{
+    "cue": "Ask which report format.",
+    "turns": [{
+      "lines": [{"call": "message", "arguments": {
+        "target": 1, "form": "question",
+        "words": "report-format: text or table?\nChoice: Text (recommended)\nChoice: Table"
+      }}], "finish": "tool_calls", "tokens": 32
+    }, {
+      "lines": [{"call": "wait", "arguments": {}}],
+      "finish": "tool_calls", "tokens": 16
+    }, {
+      "lines": [{"call": "finish", "arguments": {
+        "form": "report", "text": "The report format is agreed.", "fields": {}
+      }}], "finish": "tool_calls", "tokens": 16
+    }],
+    "inputs": [{"cue": "Text", "turn": 2}, {"cue": "Table", "turn": 2},
+               {"cue": "Message ", "turn": 1}, {"cue": "", "turn": 0}]
+  }],
+  "otherwise": ["No scripted request matched."]
+}"#,
+    )
+    .expect("question scripts");
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["question"]));
+    ok(&f.print(&b, &["question"]));
+    assert_eq!(bytes(&a), bytes(&b), "both prints have the same bytes, including assets");
+    let pages = bytes(&a.join(TUI).join("question"));
+    assert_eq!(
+        pages.keys().map(|p| p.to_str().expect("name")).collect::<Vec<_>>(),
+        ["01.html", "01.txt", "02.html", "02.txt", "03.html", "03.txt"]
+    );
+    let launchpad = String::from_utf8_lossy(&pages[Path::new("01.txt")]);
+    assert!(launchpad.contains("n to walk"), "{launchpad}");
+    let launchpad_html = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(launchpad_html.contains("data-journey-key=\"n\" data-journey-next=\"02.html\""), "{launchpad_html}");
+    let prompt = String::from_utf8_lossy(&pages[Path::new("02.txt")]);
+    assert!(prompt.contains("report-format: text or table?"), "{prompt}");
+    assert!(prompt.contains("❯ 1. Text"), "the recommended choice is active: {prompt}");
+    assert!(prompt.contains("2. Table"), "{prompt}");
+    let prompt_html = String::from_utf8_lossy(&pages[Path::new("02.html")]);
+    assert!(prompt_html.contains("data-journey-key=\"enter\" data-journey-next=\"03.html\""), "{prompt_html}");
+    let answered = String::from_utf8_lossy(&pages[Path::new("03.txt")]);
+    assert!(answered.contains("Nothing else needs you."), "{answered}");
+    assert!(!answered.contains("Needs you"), "{answered}");
+    assert!(!answered.contains("n to walk"), "{answered}");
+    assert!(!String::from_utf8_lossy(&pages[Path::new("03.html")]).contains("data-journey-key"));
+}
+
+#[test]
 fn a_tui_stop_names_its_line_and_leaves_other_journeys_printable() {
     let f = Fixture::new();
     f.tui_journey("t", "walk 2\ntui mark\ntui see \"Never drawn\"\ntui mark\n");

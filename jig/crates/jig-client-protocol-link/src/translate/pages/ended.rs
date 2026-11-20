@@ -4,15 +4,16 @@ use super::{
     escalation_decision_record_fields, hold_line_fields, object_key_fields, person_proposal_fields, person_task_fields,
     proposal_decision_fields, proposal_history_fields, question_fields, result_fields, task_fields, too_large, w,
 };
+use jig_client_protocol_wire::Record as _;
 
 pub(crate) fn ended_delegate_fields(value: &w::EndedDelegate, limits: &Limits) -> Result<c::EndedDelegate, w::Problem> {
-    let opt0 = match value.at() {
+    let opt0 = match &value.at {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
     Ok(c::EndedDelegate {
-        chip: chip_fields(value.chip(), limits)?,
-        ended: chip_ending_fields(value.ended(), limits)?,
+        chip: chip_fields(&value.chip, limits)?,
+        ended: chip_ending_fields(&value.ended, limits)?,
         at: opt0,
     })
 }
@@ -37,80 +38,80 @@ pub(crate) fn ended_delegate_piece(
 }
 
 pub(crate) fn ended_page_fields(value: &w::EndedPage, limits: &Limits) -> Result<c::EndedPage, w::Problem> {
-    let opt0 = match value.before() {
+    let opt0 = match &value.before {
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
-    let opt1 = match value.after() {
+    let opt1 = match &value.after {
         Some(item) => Some(cursor_fields(item, limits)?),
         None => None,
     };
     Ok(c::EndedPage {
-        rows: ended_delegate_piece(value.rows(), limits, limits.client().rows)?,
+        rows: ended_delegate_piece(&value.rows, limits, limits.client().rows)?,
         before: opt0,
         after: opt1,
-        cut: value.cut(),
+        cut: value.cut,
     })
 }
 
 pub(crate) fn ended_value_fields(value: &w::EndedValue, limits: &Limits) -> Result<c::EndedValue, w::Problem> {
     Ok(match value {
         w::EndedValue::Task(row) => c::EndedValue::Task {
-            document: Box::new(task_fields(row.document(), limits)?),
-            result: Box::new(result_fields(row.result(), limits)?),
+            document: Box::new(task_fields(&row.document, limits)?),
+            result: Box::new(result_fields(&row.result, limits)?),
         },
-        w::EndedValue::Proposal(row) => c::EndedValue::Proposal(proposal_history_fields(row.value(), limits)?),
+        w::EndedValue::Proposal(row) => c::EndedValue::Proposal(proposal_history_fields(&row.value, limits)?),
         w::EndedValue::PersonProposal(row) => {
-            let opt0 = match row.decision() {
+            let opt0 = match &row.decision {
                 Some(item) => Some(proposal_decision_fields(item)),
                 None => None,
             };
             c::EndedValue::PersonProposal {
-                proposal: Box::new(person_proposal_fields(row.proposal(), limits)?),
+                proposal: Box::new(person_proposal_fields(&row.proposal, limits)?),
                 decision: opt0,
             }
         }
         w::EndedValue::Escalation(row) => {
-            let opt0 = match row.hold() {
+            let opt0 = match &row.hold {
                 Some(item) => Some(hold_line_fields(item, limits)?),
                 None => None,
             };
             c::EndedValue::Escalation {
-                task: Box::new(task_fields(row.task(), limits)?),
-                decision: escalation_decision_record_fields(row.decision(), limits)?,
+                task: Box::new(task_fields(&row.task, limits)?),
+                decision: escalation_decision_record_fields(&row.decision, limits)?,
                 hold: opt0,
             }
         }
         w::EndedValue::Question(row) => {
-            let opt0 = match row.answer() {
+            let opt0 = match &row.answer {
                 Some(item) => Some(activity_line_fields(item, limits)?),
                 None => None,
             };
-            let opt1 = match row.ending() {
+            let opt1 = match &row.ending {
                 Some(item) => Some(Box::new(result_fields(item, limits)?)),
                 None => None,
             };
-            c::EndedValue::Question { question: question_fields(row.question(), limits)?, answer: opt0, ending: opt1 }
+            c::EndedValue::Question { question: question_fields(&row.question, limits)?, answer: opt0, ending: opt1 }
         }
         w::EndedValue::PersonTask(row) => c::EndedValue::PersonTask {
-            document: Box::new(person_task_fields(row.document(), limits)?),
-            result: Box::new(result_fields(row.result(), limits)?),
+            document: Box::new(person_task_fields(&row.document, limits)?),
+            result: Box::new(result_fields(&row.result, limits)?),
         },
     })
 }
 
 pub(crate) fn ended_fields(value: &w::Ended, limits: &Limits) -> Result<c::Ended, w::Problem> {
-    let opt0 = match value.at() {
+    let opt0 = match &value.at {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
-    let opt1 = match value.by() {
+    let opt1 = match &value.by {
         Some(item) => Some(crate::translate::facts::requester(item)),
         None => None,
     };
     Ok(c::Ended {
-        key: object_key_fields(value.key()),
-        value: ended_value_fields(value.value(), limits)?,
+        key: object_key_fields(&value.key),
+        value: ended_value_fields(&value.value, limits)?,
         at: opt0,
         by: opt1,
     })

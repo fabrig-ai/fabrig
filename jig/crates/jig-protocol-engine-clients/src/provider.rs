@@ -3,6 +3,7 @@ use super::Component;
 use crate::{Limits, ProviderAnswer, Reply, Request, exchange::Exchange, routes, sign_in::Waiting};
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_people as people;
 use skein_lib::{Decimal, Duration, Env, Map, Queue, Reader, ReplyTo, Secret, Time, Token, Writer, bytes, sha256};
 use skein_oauth_issuer::{Authorization, Email, Person, Refusal, TokenError};
@@ -157,7 +158,7 @@ impl Component {
         }
         let answer = match &self.settings.provider {
             None => Some(refused(&env.limits, w::AuthorizeWhy::NoProvider)),
-            Some(issuer) => match issuer.authorize(record.query()) {
+            Some(issuer) => match issuer.authorize(record.query.as_ref()) {
                 Ok(_) => None,
                 Err(why) => Some(query_refused(&env.limits, why)),
             },
@@ -182,7 +183,7 @@ impl Component {
         }
         let issuer = self.settings.provider.as_ref().expect("provider query checked");
         let record = w::Authorize::decode(&env.limits.wire, &mut Reader::new(body)).expect("checked authorize record");
-        let authorization = match issuer.authorize(record.query()) {
+        let authorization = match issuer.authorize(record.query.as_ref()) {
             Ok(authorization) => authorization,
             Err(why) => {
                 self.respond(exchange, routes::authorize_answer(query_refused(&env.limits, why)));
@@ -314,16 +315,11 @@ fn query_refused(limits: &Limits, why: Refusal) -> w::AuthorizeAnswer {
         Refusal::Back { location } => go(limits, location),
     }
 }
-fn refused(limits: &Limits, why: w::AuthorizeWhy) -> w::AuthorizeAnswer {
-    w::AuthorizeAnswer::Refused(
-        w::AuthorizeRefused::new(&limits.wire, w::AuthorizeRefusedParts { why }).expect("fixed refusal"),
-    )
+fn refused(_limits: &Limits, why: w::AuthorizeWhy) -> w::AuthorizeAnswer {
+    w::AuthorizeAnswer::Refused(w::AuthorizeRefused { why })
 }
-fn go(limits: &Limits, location: Box<[u8]>) -> w::AuthorizeAnswer {
-    w::AuthorizeAnswer::Go(
-        w::AuthorizeGo::new(&limits.wire, w::AuthorizeGoParts { location })
-            .expect("provider location bound checked at startup"),
-    )
+fn go(_limits: &Limits, location: Box<[u8]>) -> w::AuthorizeAnswer {
+    w::AuthorizeAnswer::Go(w::AuthorizeGo { location })
 }
 fn draw(rng: &mut skein_lib::CryptoRng) -> Secret {
     let raw = crate::sign_in::draw(rng);

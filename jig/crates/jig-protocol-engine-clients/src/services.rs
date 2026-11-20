@@ -52,7 +52,7 @@ impl Component {
                             out.push(Request::Minted { exchange, credential, expires });
                         }
                         Answer::Service(value) => {
-                            self.answer(exchange, Ok(value));
+                            self.answer(exchange, Ok(value), &env.limits.wire);
                             self.replayed(env, owner);
                         }
                     }
@@ -273,6 +273,7 @@ impl Component {
             self.answer(
                 exchange,
                 crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
+                &env.limits.wire,
             );
             return;
         }
@@ -290,7 +291,7 @@ impl Component {
                     value: Kept { digest, expires: Wall::from_nanos(u64::MAX) },
                 }));
             }
-            Err(problem) => self.answer(exchange, Err(problem)),
+            Err(problem) => self.answer(exchange, Err(problem), &env.limits.wire),
         }
     }
     fn replayed(&mut self, env: &Env<Limits>, owner: SecretOwner) {
@@ -309,6 +310,7 @@ impl Component {
             self.answer(
                 exchange,
                 crate::translate::answers::service(party, Secret::new(Box::new([])), &env.limits.wire),
+                &env.limits.wire,
             );
         }
     }

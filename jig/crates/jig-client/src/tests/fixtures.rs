@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 pub mod thread;
 use crate::*;
 use alloc::boxed::Box;
@@ -63,15 +64,10 @@ pub fn seen() -> Ask {
     }))
 }
 pub fn hello(version: u32) -> Box<[u8]> {
-    let served =
-        w::Served::new(&w::CEILINGS, w::ServedParts { owner: w::Owner::Jig, first: version, last: version }).unwrap();
+    let served = w::Served { owner: w::Owner::Jig, first: version, last: version };
     let mut rows = List::with_capacity(1);
     rows.push(served).unwrap();
-    let hello = w::Hello::new(
-        &w::CEILINGS,
-        w::HelloParts { stream: [7; 16], served: rows, heartbeat: Duration::from_millis(100) },
-    )
-    .unwrap();
+    let hello = w::Hello { stream: [7; 16], served: rows, heartbeat: Duration::from_millis(100) };
     if version != jig_client_protocol_wire::VERSION {
         return event(&w::StreamEvent::Hello(hello));
     }
@@ -80,27 +76,26 @@ pub fn hello(version: u32) -> Box<[u8]> {
     else {
         unreachable!("me fixture");
     };
-    event(&w::StreamEvent::Opened(
-        w::Opened::new(&w::CEILINGS, w::OpenedParts { hello, me: delivery.into_parts().document }).unwrap(),
-    ))
+    event(&w::StreamEvent::Opened(w::Opened { hello, me: delivery.document }))
 }
 pub fn event(value: &w::StreamEvent) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 pub fn frame(watch: u64) -> Box<[u8]> {
-    let mut parts = jig_client_test_records::frame_record().into_parts();
+    let mut parts = jig_client_test_records::frame_record();
     parts.retention = Duration::from_secs(60);
-    let value = w::DeliveryValue::Me(w::Me::new(&w::CEILINGS, parts).unwrap());
-    let mut bytes = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut bytes).unwrap();
-    let document = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() },
-    )
-    .unwrap();
-    event(&w::StreamEvent::Delivery(w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).unwrap()))
+    let value = w::DeliveryValue::Me(parts);
+    let mut bytes = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
+    let document =
+        w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: bytes.finish() };
+    event(&w::StreamEvent::Delivery(w::Delivery { watch, document }))
 }
 pub struct Client {
     pub machine: crate::Client,
@@ -185,7 +180,7 @@ impl Client {
     pub fn opened_watch(&self) -> u64 {
         for request in &self.requests {
             if let Request::Exchange { message: Message::Watch(bytes), .. } = request {
-                return w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().watch();
+                return w::Open::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).unwrap().watch;
             }
         }
         panic!("one watch opening")
@@ -217,10 +212,11 @@ pub fn unknown_read() -> Box<[u8]> {
     read_none(w::ReadNone::Unknown)
 }
 pub fn read_none(why: w::ReadNone) -> Box<[u8]> {
-    let value =
-        w::ReadAnswer::None(w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: why }).unwrap());
-    let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut out).unwrap();
+    let value = w::ReadAnswer::None(w::ReadAnswerNone { value: why });
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 
@@ -242,17 +238,21 @@ pub fn saved(requests: &[Request]) -> List<Record> {
     records
 }
 pub fn answer(value: &w::KeyedAnswer) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 pub fn other_store_version(record: &mut Record) {
     let value = w::Kept::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&record.bytes)).unwrap();
-    let mut parts = value.into_parts();
+    let mut parts = value;
     parts.store_version = parts.store_version.checked_add(1).unwrap();
-    let value = w::Kept::new(&w::CEILINGS, parts).unwrap();
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let value = parts;
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     record.bytes = writer.finish();
 }
 
@@ -273,25 +273,26 @@ pub fn credential(bytes: &[u8; 40]) -> Secret {
     Secret::new(Box::new(*bytes))
 }
 pub fn signed_in(credential: &[u8; 40]) -> Box<[u8]> {
-    let record = w::SignInAnswer::SignedIn(
-        w::SignedIn::new(
-            &w::CEILINGS,
-            w::SignedInParts { token: Some(self::credential(credential)), party: PARTY, expires: 10 },
-        )
-        .unwrap(),
+    let record =
+        w::SignInAnswer::SignedIn(w::SignedIn { token: Some(self::credential(credential)), party: PARTY, expires: 10 });
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 pub fn sign_in_answer(record: &w::SignInAnswer) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 pub fn sign_out_answer(record: &w::SignOutAnswer) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut out).unwrap();
+    let mut out = Writer::new(
+        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
     out.finish()
 }
 pub fn ended(requests: &[Request]) -> List<(Handle, Why)> {
@@ -339,25 +340,19 @@ impl Client {
             SigningTerminal::Request => (exchanges.request, answer(&w::KeyedAnswer::SignedOut)),
             SigningTerminal::Read => (exchanges.read, read_none(w::ReadNone::SignedOut)),
             SigningTerminal::Watch => {
-                let record = w::OpenAnswer::Refused(
-                    w::OpenAnswerRefused::new(
-                        &w::CEILINGS,
-                        w::OpenAnswerRefusedParts { why: w::WatchRefusal::SignedOut },
-                    )
-                    .unwrap(),
+                let record = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::SignedOut });
+                let mut out = Writer::new(
+                    usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                        .unwrap(),
                 );
-                let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
-                record.encode(&mut out).unwrap();
+                record.write(&jig_client_protocol_wire::CEILINGS, &mut out).unwrap();
                 (exchanges.opening, out.finish())
             }
             SigningTerminal::Stream => {
-                self.stream(event(&w::StreamEvent::Ended(
-                    w::WatchEnded::new(
-                        &w::CEILINGS,
-                        w::WatchEndedParts { watch: exchanges.watch, why: w::WatchEnd::SignedOut },
-                    )
-                    .unwrap(),
-                )));
+                self.stream(event(&w::StreamEvent::Ended(w::WatchEnded {
+                    watch: exchanges.watch,
+                    why: w::WatchEnd::SignedOut,
+                })));
                 return;
             }
             SigningTerminal::SignOut => {
@@ -371,9 +366,9 @@ impl Client {
 
 pub fn facts_task() -> contract::Task {
     let limits = jig_client_protocol_link::Limits::new(domain_limits(), 8).unwrap();
-    let mut parts = jig_client_test_records::task_record().into_parts();
+    let mut parts = jig_client_test_records::task_record();
     parts.chip = jig_client_test_records::owner_waiting_chip_record();
-    let wire = w::Task::new(&w::CEILINGS, parts).unwrap();
+    let wire = parts;
     jig_client_protocol_link::translate::documents::task(wire, &limits).unwrap()
 }
 pub fn me() -> contract::Me {
@@ -516,24 +511,16 @@ pub fn span_goal_me() -> contract::Me {
 }
 
 pub fn seen_answer() -> Box<[u8]> {
-    let seen = w::SeenThrough::Conversation(
-        w::SeenConversation::new(&w::CEILINGS, w::SeenConversationParts { task: SUBJECT_TASK, through: 1 }).unwrap(),
-    );
-    let marked = w::OutcomeMarkedSeen::new(&w::CEILINGS, w::OutcomeMarkedSeenParts { seen }).unwrap();
-    let outcome = w::OutcomeDocument::new(
-        &w::CEILINGS,
-        w::OutcomeDocumentParts { value: w::DocumentOutcome::MarkedSeen(marked) },
-    )
-    .unwrap();
-    let done = w::Done::new(&w::CEILINGS, w::DoneParts { outcome: w::Outcome::Document(outcome) }).unwrap();
+    let seen = w::SeenThrough::Conversation(w::SeenConversation { task: SUBJECT_TASK, through: 1 });
+    let marked = w::OutcomeMarkedSeen { seen };
+    let outcome = w::OutcomeDocument { value: w::DocumentOutcome::MarkedSeen(marked) };
+    let done = w::Done { outcome: w::Outcome::Document(outcome) };
     let value = w::Final::Done(done);
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
-    let owned = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() },
-    )
-    .unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: writer.finish() };
     answer(&w::KeyedAnswer::FinalAnswer(owned))
 }
 pub fn kept_seen(key: Key, name: skein_lib::RequestKey, first_sent: Option<Wall>) -> Record {
@@ -543,14 +530,14 @@ pub fn kept_seen(key: Key, name: skein_lib::RequestKey, first_sent: Option<Wall>
         &limits,
     )
     .unwrap();
-    let mut writer = Writer::new(usize::try_from(table.measure()).unwrap());
-    table.encode(&mut writer).unwrap();
-    let kept = w::Kept::new(
-        &w::CEILINGS,
-        w::KeptParts { store_version: jig_client_domain::TABLE_VERSION, record: writer.finish() },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(kept.measure()).unwrap());
-    kept.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(table.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    table.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
+    let kept = w::Kept { store_version: jig_client_domain::TABLE_VERSION, record: writer.finish() };
+    let mut writer = Writer::new(
+        usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    kept.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     Record { key: Box::from(name), bytes: writer.finish() }
 }

@@ -1,4 +1,5 @@
 use super::{Connection, Received, client, wire};
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Writer, base64};
 
 #[test]
@@ -6,21 +7,19 @@ fn stream_receipts_join_data_lines_and_keep_the_unfinished_event() {
     // The input holds one complete event followed by the unfinished second one.
     const FIRST_EVENT: usize = 1;
     const BOTH_EVENTS: usize = 2;
-    let value = wire::DeliveryValue::Terminal(
-        wire::Terminal::new(&wire::CEILINGS, wire::TerminalParts { login: None }).expect("terminal delivery"),
+    let value = wire::DeliveryValue::Terminal(wire::Terminal { login: None });
+    let mut record = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("record size"),
     );
-    let mut record = Writer::new(usize::try_from(value.measure()).expect("record size"));
-    value.encode(&mut record).expect("delivery record");
-    let document = wire::Owned::new(
-        &wire::CEILINGS,
-        wire::OwnedParts { owner: wire::Owner::Jig, version: wire::VERSION, record: record.finish() },
-    )
-    .expect("delivery document");
-    let event = wire::StreamEvent::Delivery(
-        wire::Delivery::new(&wire::CEILINGS, wire::DeliveryParts { watch: 1, document }).expect("stream delivery"),
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("delivery record");
+    let document = wire::Owned { owner: wire::Owner::Jig, version: wire::VERSION, record: record.finish() };
+    let event = wire::StreamEvent::Delivery(wire::Delivery { watch: 1, document });
+    let mut record = Writer::new(
+        usize::try_from(event.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("event size"),
     );
-    let mut record = Writer::new(usize::try_from(event.measure()).expect("event size"));
-    event.encode(&mut record).expect("stream event");
+    event.write(&jig_client_protocol_wire::CEILINGS, &mut record).expect("stream event");
     let record = record.finish();
     let encoded_length = base64::encoded_len(base64::Alphabet::Standard, u32::try_from(record.len()).expect("size"))
         .expect("base64 length");

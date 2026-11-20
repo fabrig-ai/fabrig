@@ -1,6 +1,7 @@
 //! Real host and view evidence for redaction (temper/docs/design/client/web/journeys.md, 3.3 and temper/docs/design/client/web/journey-redaction.md and temper/docs/design/client/web/journeys.md, 3.7–3.8 and 4).
 use super::{walk, written};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Secret, Writer, bytes::find, sha256::digest};
 use skein_ui::Act;
 use temper_client_shell_web::journey::{
@@ -68,8 +69,11 @@ fn keyed_body(records: &[Line]) -> (usize, &[u8]) {
         .expect("keyed exchange")
 }
 fn encode(value: &w::Keyed) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("keyed size fits"));
-    value.encode(&mut writer).expect("measured keyed request");
+    let mut writer = Writer::new(
+        usize::try_from(value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("keyed size fits"),
+    );
+    value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured keyed request");
     writer.finish()
 }
 fn check_key_walk(byte_at_a_time: bool) {
@@ -79,11 +83,11 @@ fn check_key_walk(byte_at_a_time: bool) {
     let records = lines(&recording).expect("key walk lines");
     let (index, body) = keyed_body(&records);
     let request = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(body)).expect("keyed envelope");
-    assert!(request.value().as_ref().is_some_and(|value| value.expose() == key), "carried value retains the newline");
-    let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(request.request())).expect("typed ask");
+    assert!(request.value.as_ref().is_some_and(|value| value.expose() == key), "carried value retains the newline");
+    let ask = w::Ask::decode(&w::CEILINGS, &mut Reader::new(request.request.as_ref())).expect("typed ask");
     let w::Ask::AccountChange(change) = ask else { panic!("account change") };
-    let w::AccountChange::AddKey(change) = change.change() else { panic!("add key") };
-    assert!(*change.digest() == digest(&key), "typed ask holds the whole value's raw sha-256");
+    let w::AccountChange::AddKey(change) = &change.change else { panic!("add key") };
+    assert!(change.digest == digest(&key), "typed ask holds the whole value's raw sha-256");
     assert!(find(body, trimmed).is_some(), "value carried in keyed exchange");
     assert!(find(body, &digest(&key)).is_some(), "digest carried in keyed exchange");
     let Line::Exchange { id, .. } = &records[index] else { panic!("keyed exchange") };
@@ -122,10 +126,7 @@ fn check_key_walk(byte_at_a_time: bool) {
     let (_, body) = keyed_body(&after);
     let request = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(body)).expect("redacted keyed envelope");
     assert!(
-        request
-            .value()
-            .as_ref()
-            .is_some_and(|value| value.expose() == [vec![b'x'; trimmed.len()], vec![b'\n']].concat()),
+        request.value.as_ref().is_some_and(|value| value.expose() == [vec![b'x'; trimmed.len()], vec![b'\n']].concat()),
         "placeholder carried once"
     );
     assert!(
@@ -140,10 +141,12 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
     let record = skein_ui_web::store::Record {
         key: jig_client::STREAM_KEY.into(),
         value: {
-            let kept = w::Kept::new(&w::CEILINGS, w::KeptParts { store_version: 1, record: vec![8; 16].into() })
-                .expect("bounded stored fixture");
-            let mut writer = Writer::new(usize::try_from(kept.measure()).expect("kept length"));
-            kept.encode(&mut writer).expect("measured kept");
+            let kept = w::Kept { store_version: 1, record: vec![8; 16].into() };
+            let mut writer = Writer::new(
+                usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+                    .expect("kept length"),
+            );
+            kept.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured kept");
             writer.finish()
         },
     };
@@ -208,19 +211,19 @@ fn the_streams_name_goes() {
         {
             saves += 1;
             let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(value)).expect("stream kept");
-            assert!(kept.record() == [b'x'; 16], "saved name is placeholder");
+            assert!(kept.record.as_ref() == [b'x'; 16], "saved name is placeholder");
         }
         if let Line::Exchange { path, body, .. } = &line {
             if path.as_ref() == b"/jig/v1/watch" {
                 watches += 1;
                 let open = w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("watch envelope");
-                assert!(open.stream() == &[b'x'; 16], "watch name is placeholder");
+                assert!(open.stream == [b'x'; 16], "watch name is placeholder");
             } else if path.as_ref() == b"/jig/v1/batch" {
                 let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch envelope");
-                for member in batch.members() {
+                for member in &batch.members {
                     if let w::Member::Open(open) = member {
                         watches += 1;
-                        assert_eq!(open.stream(), &[b'x'; 16], "batch watch name is placeholder");
+                        assert_eq!((&open.stream), &[b'x'; 16], "batch watch name is placeholder");
                     }
                 }
             }
@@ -262,11 +265,11 @@ fn a_stored_stream_replays() {
 fn a_reshaped_value_is_stale_never_kept() {
     let mut records = lines(&walk::keyed(&key(), false)).expect("key walk lines");
     let (index, body) = keyed_body(&records);
-    let mut request = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(body)).expect("keyed envelope").into_parts();
+    let mut request = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(body)).expect("keyed envelope");
     let mut value = request.value.expect("carried key").expose().to_vec();
     value.insert(value.len() / 2, b'\n');
     request.value = Some(Secret::new(value.into()));
-    let request = w::Keyed::new(&w::CEILINGS, request).expect("reshaped envelope");
+    let request = request;
     let Line::Exchange { body, .. } = &mut records[index] else { panic!("keyed exchange") };
     *body = encode(&request);
     let result = redacted(&written(&records));

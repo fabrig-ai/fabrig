@@ -2,6 +2,7 @@
 use super::fixtures;
 use crate::translate;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{acts, documents::PhaseCounts};
 const RELEASES: [(acts::ReleaseEffect, w::ReleaseEffect); 3] = [
     (acts::ReleaseEffect::Judged, w::ReleaseEffect::Judged),
@@ -14,7 +15,7 @@ fn a_release_offer_preserves_each_supplied_consequence() {
     for (source, expected) in RELEASES {
         let value = translate::task::effect(&acts::Effect::Release(source), &limits).unwrap();
         let w::Effect::Release(value) = value else { panic!("release effect") };
-        assert_eq!(value.what(), &expected);
+        assert_eq!((&value.what), &expected);
     }
 }
 #[test]
@@ -42,13 +43,13 @@ fn a_cancel_offer_preserves_its_working_census_runs_and_proposals() {
         effect: Some(effect),
     }]));
     let bytes =
-        translate::task::offered(&fixtures::models(), &rows, &limits, limits.task_acts, w::Path::TaskActs).unwrap();
+        translate::task::offered(&fixtures::models(), &rows, &limits, limits.task_acts, w::paths::TASK_ACTS).unwrap();
     let bytes = skein_codec::piece::split(&mut skein_lib::Reader::new(&bytes)).unwrap().unwrap();
     let value = w::Offered::decode(&limits, &mut skein_lib::Reader::new(&bytes)).unwrap();
-    assert_eq!(value.act(), &w::ActKind::Cancel);
-    let Some(w::Effect::Cancel(value)) = value.effect() else { panic!("cancel effect") };
-    let counts = value.tasks();
-    assert_eq!((counts.ended(), counts.running(), counts.waiting(), counts.held()), (0, 17, 11, 13));
-    assert_eq!((counts.closing(), counts.done(), counts.failed(), counts.cancelled()), (19, 23, 29, 31));
-    assert_eq!((value.live_runs(), value.proposals()), (37, 41));
+    assert_eq!((&value.act), &w::ActKind::Cancel);
+    let Some(w::Effect::Cancel(value)) = &value.effect else { panic!("cancel effect") };
+    let counts = &value.tasks;
+    assert_eq!((counts.ended, counts.running, counts.waiting, counts.held), (0, 17, 11, 13));
+    assert_eq!((counts.closing, counts.done, counts.failed, counts.cancelled), (19, 23, 29, 31));
+    assert_eq!((value.live_runs, value.proposals), (37, 41));
 }
