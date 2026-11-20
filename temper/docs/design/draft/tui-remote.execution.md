@@ -42,7 +42,7 @@ the nearest thing, and says so in the draft's status.
 | | Milestone | Executes (`tui-remote.md`) | Needs | State |
 |---|---|---|---|---|
 | M1 | The TUI at a name | 3, 4, 5.2, 5.5, 6, 7 | | landed |
-| M2 | Approval across the internet | 5.3, 5.4, and 5.1's engine and page | | not started |
+| M2 | Approval across the internet | 5.3, 5.4, and 5.1's engine and page | | landed |
 | M3 | One click | 5.1's terminal | M1, M2 | not started |
 
 ### M1. The TUI at a name
@@ -78,10 +78,13 @@ the nearest thing, and says so in the draft's status.
   engine (the grant answered once, the browser sent to `127.0.0.1` at
   the ask's port).
 - **Design:** jig's `protocol/client/sign-in.md`, *A sign-in approved by
-  a browser*; jig's `protocol/client/default-http.md`, 3; jig's
+  a browser*; jig's `protocol/client/default-http.md`, 3 and 4; jig's
+  `protocol/client/wire.md`, 2.1 and 2.2; jig's
+  `client/domain/client/README.md`, 4.1 and 9; jig's
   `protocol/configuration.md`, 3 and 8; jig's `protocol/client/README.md`,
-  12; `../protocol/sign-in.md`, 2.1 and 2.3; `../client/pages/README.md`,
-  2, *The approval page*; `../client/web/README.md`, 2.3.
+  10 and 12; `../protocol/sign-in.md`, 2.1 and 2.3;
+  `../client/pages/README.md`, 2, *The approval page*;
+  `../client/web/README.md`, 2.3.
 - **Builds:** the engine end's source address, from `X-Forwarded-For`
   by the public name and the peer otherwise; the ask's kind; the
   per-source count; the deciding browser's source beside the ask's; the

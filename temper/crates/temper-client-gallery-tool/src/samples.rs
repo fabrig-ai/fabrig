@@ -134,7 +134,11 @@ impl Sample {
         }
     }
 }
+<<<<<<< HEAD
 pub const N: usize = 451;
+=======
+pub const N: usize = 453;
+>>>>>>> refs/hand8/9200
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -291,6 +295,9 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "approve-typing", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-unread", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-asking", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-returned", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-typed", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
+        Sample { name: "approve-handing", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-approved", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-signed-in", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },
         Sample { name: "approve-refused", world: Bare, address: Address::Inbox { filter: Filter::ALL }, then: Shown },

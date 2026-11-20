@@ -96,10 +96,13 @@ pub(super) fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
     }
     let out = f::client(
         root,
-        jig_client::Event::SignIn { with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])) } },
+        jig_client::Event::SignIn {
+            with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])), grant: None },
+        },
     );
     let id = exchange(out);
     let answer = match why {
+        NotSignedIn::Approval(Taking::NotGranted) => w::ApprovalSignInAnswer::NotGranted,
         NotSignedIn::Approval(Taking::Waiting) => w::ApprovalSignInAnswer::Waiting,
         NotSignedIn::Approval(Taking::Refused) => w::ApprovalSignInAnswer::Refused,
         NotSignedIn::Approval(Taking::Expired) => w::ApprovalSignInAnswer::Expired,

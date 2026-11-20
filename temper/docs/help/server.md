@@ -7,12 +7,12 @@ Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Fo
 ## Before you start
 
 - **WireGuard hosts:** `engine` (public proxy, engine, Forgejo), `worker`
-  (worker, Forgejo runner). On `engine`: user `temper`, home
+  (worker, Forgejo runner). `engine`: user `temper`, home
   `/var/lib/temper` (0700, no login shell); `CONFIG`, `DATA`, `CACHE`:
   its `config/`, `data/`, `cache/`.
-- **Names:** `temper.example.com` for temper, `git.example.com` for Forgejo.
-- **Google client:** OAuth consent in Testing, members its test users,
-  scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
+- **Names:** temper: `temper.example.com`; Forgejo: `git.example.com`.
+- **Google client:** OAuth consent in Testing, members as test users,
+  scopes `openid`, `email`, `profile`; Web application, one redirect URI
   `https://temper.example.com/sign-in/google/return`.
 - `HEX`: `w1.digest`'s hex, not its path.
 - `COMMIT`: the build's twelve hex digits, the same on both Linux x86-64
@@ -32,7 +32,7 @@ for name in $binaries; do cat Linux-x86_64/"$name" | gunzip | sudo tee /usr/loca
 tar -xzf examples.tar.gz --strip-components=3
 ```
 
-Binaries are suffixless gzip; keep the checksum layout. Strip
+Binaries: suffixless gzip; keep checksum layout. Strip
 `temper/docs/examples/` for `owned.json`.
 
 ## 1. Write the engine's configuration
@@ -49,6 +49,7 @@ workers = "127.0.0.1:8369"   # where workers connect, on loopback
 owner = "sam@example.com"   # the first owner, read at the first start alone
 webhooks = "127.0.0.1:8368"
 
+<<<<<<< HEAD
 [sign_in.google]
 client = "CLIENT_ID"
 secret = "secrets/google-client.secret"   # in the data directory, mode 0600
@@ -66,6 +67,15 @@ and `addresses = [3]`; add `[[openid.clients]]` with `id = "forgejo"`,
 `redirect = "https://git.example.com/user/oauth2/temper/callback"`.
 `[[sign_in.forges]]`: `forge = 1`, `client = "forgejo"`.
 Step 3 creates key and secret, prints this command; run once after step 4:
+=======
+For Forgejo sign-in, set
+`engine.clients.provider`: `{"key":"provider.key","clients":[{"id":
+"forgejo","secret":"forgejo-client.secret","redirect_uri":
+"https://git.example.com/user/oauth2/temper/callback"}],"addresses":
+[3]}`, and in `application.sign_in`, `"forges":[{"forge":1,"client":
+"forgejo"}]`. Step 3's forge preparation creates key and secret and prints this command;
+run once after step 4:
+>>>>>>> refs/hand8/9200
 
 ```
 temper-engine forge sign-in --config CONFIG --data DATA --cache CACHE 1
@@ -79,7 +89,11 @@ More runs: `temper ctl DIR worker places w1 PLACES --key KEY`.
 Places are the worker setting's, taken at next opening from engine figures. Engine limits: `limits`; starts name short ones. Each place is an agent
 process, up to `agents`' `declared.memory`.
 
+<<<<<<< HEAD
 Expect: valid TOML; not running.
+=======
+Expect: valid JSON; not running.
+>>>>>>> refs/hand8/9200
 
 If not: step 3 names bad keys.
 
@@ -105,7 +119,6 @@ temper ctl DIR worker add w1 --places 4 --digest HEX --key KEY
 ```
 
 Workers are store settings; `engine.hosts.workers` is refused.
-Places apply at next opening.
 
 Expect: `stat -c '%U %a' FILE` prints `temper 600` for each.
 
@@ -130,8 +143,8 @@ engine, which connects kept forges:
 temper-engine serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `prepare` fetches pinned binaries, printing `fetched BINARY DONE of
-TOTAL bytes`, nothing if present, and exits 0. `run` prints Forgejo's
+Expect: `prepare` exits 0, fetching missing pinned binaries with `fetched
+BINARY DONE of TOTAL bytes`, nothing if present. `run` prints Forgejo's
 output; `serve` prints its sign-in link,
 `https://temper.example.com/sign-in?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
@@ -139,11 +152,10 @@ With `[[sign_in.forges]]` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
-If not: refused start names member, file, address or restore:
+If not: start refusal names member, file, address or restore:
 `temper-engine serve: restore KIND: REASON` or
 `temper-engine serve: restart refused during PHASE: REASON`.
-The reason names store cause, record family and key if available.
-Keep `DATA` unchanged; report it.
+Reason: store cause, record family/key if available. Keep `DATA` unchanged; report it.
 
 ## 4. The TLS proxy
 
@@ -165,7 +177,9 @@ temper.example.com {
 }
 ```
 
-Keep `Host` for cookies' `Secure`; no retries.
+Keep `Host` for cookies' `Secure`; no retries. With no `trusted_proxies`,
+Caddy overwrites client-sent `X-Forwarded-For` with the client's address;
+temper reads its last entry as a terminal's approval source: leave it so.
 
 Expect: `https://temper.example.com/` answers 200;
 `POST /jig/v1/sign-in/link` and `GET /sign-in` answer 403;
@@ -182,6 +196,7 @@ If not: 502: engine down or listening elsewhere; read its journal.
   and `10.88.0.1:3000` to the same ports on 127.0.0.1, with
   `FreeBind=yes`, admitted from `10.88.0.5` alone; on `worker`,
   `127.0.0.1:8369` and `127.0.0.1:3000` to `10.88.0.1`.
+<<<<<<< HEAD
 - Worker `CONFIG/temper.toml` (`temper-worker help config`):
 
 ```toml
@@ -199,13 +214,31 @@ PATH = "/usr/bin:/bin"
   figures, apply limits, write private `ROOT/agent/agent.json`, and run
   sibling `temper-agent`. No `claude` member: worker PATH's `claude`, else
   fetched; `[programs]` can name its absolute path.
+=======
+- `temper-worker serve`: three dirs. Example's `workers[0]`:
+  `engine` `{"socket":"127.0.0.1:8369"}`, `name` `"w1"`,
+  `secret` `"secrets/w1.secret"`; top-level only `workers` and
+  `application`. Remove
+  `application.workers`, worker `limits` and `agent`,
+  `application.limits` and config's `agent.json`: refused as moved.
+  Each start: fetch engine figures, apply limits, write private
+  `ROOT/agent/agent.json`, run sibling `temper-agent`.
+  No `claude` member: worker PATH's `claude`, else fetched.
+>>>>>>> refs/hand8/9200
   Step 3 unit: `KillMode=control-group` (no agent or command outlives it),
   `TimeoutStopSec=360s`: its 326-second stop bound plus 34 seconds.
   Raise this timeout with the worker's bound.
   `ReadWritePaths` its home; without `PrivateTmp=yes`, Claude Code fails
   `EROFS: read-only file system, mkdir '/tmp/claude-UID'`.
+<<<<<<< HEAD
   `[environment]`: optional table of strings; unique names (temper help box).
   Absent: the worker's own `HOME` and `PATH`. Otherwise: exactly its entries, with the worker's own `HOME` and `PATH` added where it omits them; no other process variables.
+=======
+  `application.environment`: optional list, not a map; unique names:
+  `[{"name":"PATH","value":"/usr/bin:/bin"}]` (temper help box).
+  Absent: worker's own `HOME` and `PATH`. A list gives its entries plus
+  worker's `HOME`/`PATH` where omitted; no other process variables.
+>>>>>>> refs/hand8/9200
 - Forgejo runner 13.2.1: separate user, `url` `http://127.0.0.1:3000`,
   `uuid`/secret: `DATA/forge-1/runner/`; rootless podman jobs.
 
@@ -229,8 +262,13 @@ journalctl -u temper -o cat | grep 'task TASK run'
 
 ## 6. Sign in, through a tunnel, and connect the forge
 
+<<<<<<< HEAD
 The proxy refuses the link's public page and route. Give ctl the listener's
 origin, on `engine` as `temper`:
+=======
+The proxy refuses public links; give ctl the listener's origin,
+on `engine` as `temper`:
+>>>>>>> refs/hand8/9200
 
 ```
 journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
@@ -238,12 +276,11 @@ journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*'
 
 Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
-Add the worker with step 2's `worker add` command after signing in,
-including after a store reset. Until its setting exists, the worker
-redials with `not-admitted`; adding it needs no engine restart.
+After signing in, even after a store reset, add the worker with step 2's
+`worker add`. Until then it redials with `not-admitted`; no engine restart.
 
-Connect Forgejo: without a record, `forge list` is empty; `forge setup`
-refuses. A new store's forge is 1:
+Connect Forgejo: no record means `forge list` is empty, `forge setup`
+refuses. New store: forge 1:
 
 ```
 temper ctl DIR forge connect forgejo-admin DATA/forge-1/admin_token --api 127.0.0.1:3000 --git http://127.0.0.1:3000 --web https://git.example.com --key KEY

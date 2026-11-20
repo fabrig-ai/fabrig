@@ -192,7 +192,7 @@ fn approval_line(tui: &Tui, root: &Domain, words: &Words) -> Option<(Box<[u8]>, 
             }
             None
             | Some(
-                NotSignedIn::Approval(Taking::Waiting)
+                NotSignedIn::Approval(Taking::Waiting | Taking::NotGranted)
                 | NotSignedIn::LinkUsed
                 | NotSignedIn::LinkExpired
                 | NotSignedIn::LinkUnknown,

@@ -4,6 +4,9 @@ use skein_http::server;
 use skein_lib::stream::Down;
 
 fn enqueue(clients: &mut Clients, call: Token) {
+    enqueue_peer(clients, call, None);
+}
+fn enqueue_peer(clients: &mut Clients, call: Token, peer: Option<::core::net::IpAddr>) {
     let head = server::Call {
         method: skein_http::Method::Post,
         target: b"/jig/v1/read".as_slice().into(),
@@ -17,7 +20,7 @@ fn enqueue(clients: &mut Clients, call: Token) {
         body: server::Body::Length(1),
         version: skein_http::Version::Http11,
     };
-    clients.server_out.push(crate::server::Routed::Call { call, head });
+    clients.server_out.push(crate::server::Routed::Call { call, head, peer });
     clients.server_requests();
 }
 
@@ -62,6 +65,44 @@ fn a_call_past_the_room_waits_without_reading_and_a_closed_waiter_is_forgotten()
         panic!("the admitted body is now asked for")
     };
     assert_eq!(call, waiting);
+}
+
+#[test]
+fn a_waiting_call_hands_its_peer_to_the_mount() {
+    let mut clients = crate::tests::fixtures::clients();
+    let mut hosts = List::with_capacity(1);
+    hosts.push(Box::from(b"127.0.0.1:7100".as_slice())).expect("one listener");
+    clients.mount.down(&clients.mount_env, http::Event::Listening { hosts });
+    let first = Token::new(1);
+    let second = Token::new(2);
+    let first_peer = Some(::core::net::IpAddr::V4(::core::net::Ipv4Addr::new(203, 0, 113, 7)));
+    let second_peer = Some(::core::net::IpAddr::V6(::core::net::Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1)));
+    enqueue_peer(&mut clients, first, first_peer);
+    enqueue_peer(&mut clients, second, second_peer);
+    assert_eq!(clients.waiting.len(), 2);
+    let mut origins = List::uncapped();
+    for _ in 0_u8..2 {
+        assert!(clients.admit_waiting());
+        while clients.mount.up(&clients.mount_env, &mut clients.mount_out) {}
+        let Some(http::Request::Http { call, request: server::Request::Body(_) }) = clients.mount_out.pop() else {
+            panic!("admitted call asks for its body");
+        };
+        clients.mount.down(
+            &clients.mount_env,
+            http::Event::Http { call, event: server::Event::Body(skein_lib::stream::Up::End) },
+        );
+        while clients.mount.up(&clients.mount_env, &mut clients.mount_out) {}
+        let Some(http::Request::Component(kit::FromTransport::Exchange { exchange, via, source, .. })) =
+            clients.mount_out.pop()
+        else {
+            panic!("admitted exchange");
+        };
+        origins.push((exchange, via, source)).expect("admitted exchange origin");
+    }
+    assert_eq!(
+        origins.into_boxed().as_ref(),
+        &[(first, kit::Via::Listener, first_peer), (second, kit::Via::Listener, second_peer)]
+    );
 }
 
 #[test]

@@ -109,7 +109,11 @@ pub fn call_named(
 ) -> Token {
     mount.down(
         &env(),
-        Event::Call { call: name, head: head(method, target, headers, http::Body::Length(len_u64(body.len()))) },
+        Event::Call {
+            peer: None,
+            call: name,
+            head: head(method, target, headers, http::Body::Length(len_u64(body.len()))),
+        },
     );
     pump(mount, out);
     if !body.is_empty() {

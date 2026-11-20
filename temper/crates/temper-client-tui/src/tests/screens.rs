@@ -421,7 +421,7 @@ fn the_approval_screen_says_each_line() {
             let id = exchange(f::client(
                 &mut root,
                 jig_client::Event::SignIn {
-                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])) },
+                    with: jig_client::With::Approval { secret: Secret::new(Box::new([7; 32])), grant: None },
                 },
             ));
             f::client(&mut root, jig_client::Event::Lost { exchange: id });

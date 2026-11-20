@@ -62,7 +62,7 @@ pub struct Clients {
     mount_env: Env<http::Limits>,
     mount_out: Queue<http::Request>,
     server_out: Queue<crate::server::Routed>,
-    waiting: Map<Token, skein_http::server::Call>,
+    waiting: Map<Token, (skein_http::server::Call, Option<::core::net::IpAddr>)>,
     replies: Map<Token, bundle::Reply>,
     github: Map<Token, github::Reply>,
     pub(crate) google: Option<google::Google>,
@@ -501,15 +501,15 @@ impl Clients {
         for _ in 0..self.server_out.len() {
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
-                crate::server::Routed::Call { call, head } => {
+                crate::server::Routed::Call { call, head, peer } => {
                     // Claims depend on the prefix alone; the mounted mapping checks the Host.
                     let claimed = http::claims(&http_settings(None), &head);
                     if claimed && !head.target.starts_with(b"/jig/v1/public/") && self.stopping.is_none() {
                         // The existing connection and stall bounds hold this head;
                         // its body is not asked for until the mapping has room.
-                        self.waiting.insert(call, head).expect("one waiting head per server connection");
+                        self.waiting.insert(call, (head, peer)).expect("one waiting head per server connection");
                     } else if claimed && self.mount.room_for(&head) > 0 {
-                        self.mount.down(&self.mount_env, http::Event::Call { call, head });
+                        self.mount.down(&self.mount_env, http::Event::Call { call, head, peer });
                     } else if !claimed && provider::claims(&head.target) {
                         self.provider_call(call, head);
                     } else if !claimed && google::claims(&head.target) {
@@ -562,18 +562,18 @@ impl Clients {
     }
     fn admit_waiting(&mut self) -> bool {
         let mut ready = None;
-        for (call, head) in &self.waiting {
+        for (call, (head, _)) in &self.waiting {
             if self.stopping.is_some() || self.mount.room_for(head) > 0 {
                 ready = Some(*call);
                 break;
             }
         }
         let Some(call) = ready else { return false };
-        let head = self.waiting.remove(&call).expect("ready head");
+        let (head, peer) = self.waiting.remove(&call).expect("ready head");
         if self.stopping.is_some() {
             self.serve_call(call, &head, true);
         } else {
-            self.mount.down(&self.mount_env, http::Event::Call { call, head });
+            self.mount.down(&self.mount_env, http::Event::Call { call, head, peer });
         }
         true
     }

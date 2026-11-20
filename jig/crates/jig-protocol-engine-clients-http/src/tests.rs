@@ -1,6 +1,10 @@
 use super::*;
+use core::net::{Ipv4Addr, Ipv6Addr, SocketAddr};
 use jig_client_protocol_wire as w;
 use skein_http::Method;
+const SOURCE: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(203, 0, 113, 7));
+const IPV6_SOURCE: core::net::IpAddr = core::net::IpAddr::V6(Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1));
+const PROXY: core::net::IpAddr = core::net::IpAddr::V4(Ipv4Addr::new(192, 0, 2, 9));
 use skein_lib::stream::{Down, Up};
 mod batch;
 mod fixtures;
@@ -9,7 +13,7 @@ mod fixtures;
 fn a_printed_link_has_the_client_mappings_asked_link_bytes() {
     let mut settings = fixtures::mount().settings;
     let secret = Secret::new(Box::new([7; 32]));
-    let address = core::net::SocketAddr::from(([127, 0, 0, 1], 8080));
+    let address = SocketAddr::from(([127, 0, 0, 1], 8080));
     assert_eq!(
         printed_link(address, &link_path(&settings, &secret)).as_ref(),
         b"http://127.0.0.1:8080/jig/v1/sign-in/link?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
@@ -29,6 +33,8 @@ fn a_read_post_becomes_the_component_s_read_exchange() {
     assert_eq!(
         *fixtures::component(&mut out),
         [kit::FromTransport::Exchange {
+            via: Via::Listener,
+            source: None,
             browser: false,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
@@ -115,6 +121,8 @@ fn the_same_routes_answer_under_another_prefix() {
     assert_eq!(
         *fixtures::component(&mut out),
         [kit::FromTransport::Exchange {
+            via: Via::Listener,
+            source: None,
             browser: false,
             exchange: fixtures::EXCHANGE,
             credential: None,
@@ -147,6 +155,7 @@ fn a_chunked_request_body_read_as_it_arrives_is_the_same_whatever_its_cuts() {
         mount.down(
             &fixtures::env(),
             Event::Call {
+                peer: None,
                 call: fixtures::EXCHANGE,
                 head: fixtures::head(Method::Post, b"/jig/v1/request", &fixtures::bearer(), http::Body::Chunked),
             },
@@ -159,6 +168,8 @@ fn a_chunked_request_body_read_as_it_arrives_is_the_same_whatever_its_cuts() {
         assert_eq!(
             *fixtures::component(&mut out),
             [kit::FromTransport::Exchange {
+                via: Via::Listener,
+                source: None,
                 browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
@@ -226,6 +237,8 @@ fn a_browser_exchange_s_cookie_is_its_credential() {
             }
         } else {
             kit::FromTransport::Exchange {
+                via: Via::Listener,
+                source: None,
                 browser: true,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
@@ -272,6 +285,8 @@ fn the_bearer_wins_when_a_cookie_also_arrives() {
     assert_eq!(
         *fixtures::component(&mut out),
         [kit::FromTransport::Exchange {
+            via: Via::Listener,
+            source: None,
             browser: false,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
@@ -290,6 +305,8 @@ fn the_asked_link_route_reaches_the_component() {
         [kit::FromTransport::Exchange {
             exchange: fixtures::EXCHANGE,
             credential: None,
+            via: Via::Listener,
+            source: None,
             browser: false,
             message: kit::Message::LinkAsk(Box::from(b"ask".as_slice())),
         }]
@@ -319,6 +336,8 @@ fn the_approval_routes_reach_the_component_as_their_messages() {
                 Box::<[kit::FromTransport]>::from([kit::FromTransport::Exchange {
                     exchange: fixtures::EXCHANGE,
                     credential: None,
+                    via: Via::Listener,
+                    source: None,
                     browser: false,
                     message: message(Box::from(b"ask".as_slice())),
                 }]),
@@ -378,6 +397,89 @@ fn an_exchange_is_a_browser_s_only_by_its_cookie() {
     }
     assert_eq!(exchanges.into_boxed(), expected.into_boxed());
 }
+fn exchange_origin(
+    headers: &[skein_http::Header],
+    peer: Option<core::net::IpAddr>,
+) -> (Via, Option<core::net::IpAddr>) {
+    let mut mount = fixtures::public_mount();
+    let mut out = Queue::with_capacity(16);
+    mount.down(
+        &fixtures::env(),
+        Event::Call {
+            call: fixtures::EXCHANGE,
+            head: fixtures::head(Method::Post, b"/jig/v1/approval/ask", headers, http::Body::None),
+            peer,
+        },
+    );
+    fixtures::pump(&mut mount, &mut out);
+    fixtures::event(&mut mount, &mut out, fixtures::EXCHANGE, http::Event::Body(Up::End));
+    let messages = fixtures::component(&mut out);
+    let [kit::FromTransport::Exchange { via, source, message: kit::Message::ApprovalAsk(_), .. }] = messages.as_ref()
+    else {
+        panic!("approval exchange: {messages:?}");
+    };
+    (*via, *source)
+}
+
+#[test]
+fn a_public_exchange_uses_the_last_forwarded_address() {
+    for (fields, address) in [
+        (&[(b"X-Forwarded-For".as_slice(), b"198.51.100.1, 203.0.113.7".as_slice())][..], SOURCE),
+        (
+            &[(b"x-forwarded-for".as_slice(), b"198.51.100.1".as_slice()), (b"X-FoRwArDeD-FoR", b"203.0.113.7")][..],
+            SOURCE,
+        ),
+        (&[(b"x-forwarded-for".as_slice(), b"10.0.0.1, \t ::ffff:203.0.113.7 \t".as_slice())][..], SOURCE),
+        (&[(b"x-forwarded-for".as_slice(), b"2001:db8::1".as_slice())][..], IPV6_SOURCE),
+        (&[(b"x-forwarded-for".as_slice(), b"\xff,203.0.113.7".as_slice())][..], SOURCE),
+    ] {
+        let mut headers = List::uncapped();
+        for header in &fixtures::fields(fields) {
+            headers.push(header.clone()).expect("forwarded field");
+        }
+        headers
+            .push(skein_http::Header { name: b"host".as_slice().into(), value: fixtures::PUBLIC.into() })
+            .expect("public host");
+        let headers = headers.into_boxed();
+        let peer = Some(PROXY);
+        assert_eq!(exchange_origin(&headers, peer), (Via::Public, Some(address)), "{fields:?}");
+    }
+}
+
+#[test]
+fn a_public_exchange_with_no_readable_last_address_has_no_source() {
+    let host = (b"host".as_slice(), fixtures::PUBLIC);
+    assert_eq!(exchange_origin(&fixtures::fields(&[host]), None), (Via::Public, None));
+    for last in [
+        b"203.0.113.7:4711".as_slice(),
+        b"[2001:db8::1]",
+        b"unknown",
+        b"_hidden",
+        b"",
+        b"   ",
+        b" \t ",
+        b"203.0.113.7,",
+        b"203.0.113.7, \t",
+        b"\xff",
+        b"\n203.0.113.7",
+        b"203.0.113.7\r",
+        b"\xc2\xa0203.0.113.7",
+    ] {
+        let headers = fixtures::fields(&[host, (b"x-forwarded-for", b"198.51.100.1"), (b"X-Forwarded-For", last)]);
+        assert_eq!(exchange_origin(&headers, Some(PROXY)), (Via::Public, None), "{last:?}");
+    }
+}
+
+#[test]
+fn a_listener_exchange_uses_only_its_connection_peer() {
+    for peer in [None, Some(SOURCE), Some(IPV6_SOURCE)] {
+        for forwarded in [b"198.51.100.1".as_slice(), b"\xff"] {
+            let headers = fixtures::fields(&[(b"x-forwarded-for", forwarded)]);
+            assert_eq!(exchange_origin(&headers, peer), (Via::Listener, peer));
+        }
+    }
+}
+
 const REFUSED: &[(Method, &[u8], Fields, u16)] = &[
     (
         Method::Post,
@@ -532,6 +634,8 @@ fn a_browser_link_keeps_its_cookie_on_a_tokenless_sign_in() {
     assert_eq!(
         *fixtures::component(&mut out),
         [kit::FromTransport::Exchange {
+            via: Via::Listener,
+            source: None,
             browser: true,
             exchange: fixtures::EXCHANGE,
             credential: Some(fixtures::credential()),
@@ -613,6 +717,8 @@ fn the_public_name_is_admitted_beside_the_listener() {
         assert_eq!(
             *fixtures::component(&mut out),
             [kit::FromTransport::Exchange {
+                via: if host == fixtures::PUBLIC { Via::Public } else { Via::Listener },
+                source: None,
                 browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: None,
@@ -756,6 +862,8 @@ fn authorize_maps_under_the_prefix_and_uses_record_error_statuses() {
         assert_eq!(
             *fixtures::component(&mut out),
             [kit::FromTransport::Exchange {
+                via: Via::Listener,
+                source: None,
                 browser: false,
                 exchange: fixtures::EXCHANGE,
                 credential: Some(fixtures::credential()),
@@ -868,6 +976,53 @@ fn server_response(server: &mut server::Server, out: &mut Queue<server::Routed>,
     );
     server_settle(server, out);
 }
+#[test]
+fn each_routed_call_keeps_its_accepted_peer_even_after_idle_replacement() {
+    for (accepted_peer, expected) in [
+        (
+            skein_io::Addr::Ip(SocketAddr::new(
+                core::net::IpAddr::V6(Ipv4Addr::new(203, 0, 113, 7).to_ipv6_mapped()),
+                4711,
+            )),
+            Some(SOURCE),
+        ),
+        (skein_io::Addr::Ip(SocketAddr::new(IPV6_SOURCE, 4711)), Some(IPV6_SOURCE)),
+        (skein_io::Addr::InProcess(skein_io::Name::EMPTY), None),
+    ] {
+        for replace_idle in [false, true] {
+            let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
+            if replace_idle {
+                let idle = server_connection(&mut server, &mut out, SERVER_FIRST);
+                server.up(
+                    skein_io::Event::Accepted { owner: Token::new(0), socket: SERVER_NEXT, peer: accepted_peer },
+                    &mut out,
+                );
+                out.pop().expect("idle connection closes");
+                server.up(skein_io::Event::Closed { owner: idle }, &mut out);
+            } else {
+                server.up(
+                    skein_io::Event::Accepted { owner: Token::new(0), socket: SERVER_NEXT, peer: accepted_peer },
+                    &mut out,
+                );
+            }
+            let Some(server::Routed::Io(skein_io::Request::Bind { owner, .. })) = out.pop() else {
+                panic!("accepted peer bound")
+            };
+            server_settle(&mut server, &mut out);
+            server.up(skein_io::Event::Stream { owner, up: Up::Room }, &mut out);
+            server_settle(&mut server, &mut out);
+            server_head(&mut server, &mut out, owner, SERVER_HEAD);
+            let mut peers = List::uncapped();
+            while let Some(routed) = out.pop() {
+                if let server::Routed::Call { peer, .. } = routed {
+                    peers.push(peer).expect("routed peer");
+                }
+            }
+            assert_eq!(peers.into_boxed().as_ref(), &[expected], "{accepted_peer:?}, replacement: {replace_idle}");
+        }
+    }
+}
+
 #[test]
 fn a_full_listener_replaces_an_idle_connection_after_its_close() {
     let (mut server, mut out) = listener(SERVER_ONE_CONNECTION);
@@ -1000,7 +1155,7 @@ fn a_call_ended_before_its_reply_says_its_exchange_gone_once() {
         let mut out = Queue::with_capacity(32);
         mount.down(
             &fixtures::env(),
-            Event::Call { call: exchange, head: fixtures::head(method, path, &[], http::Body::None) },
+            Event::Call { peer: None, call: exchange, head: fixtures::head(method, path, &[], http::Body::None) },
         );
         fixtures::pump(&mut mount, &mut out);
         if handed {

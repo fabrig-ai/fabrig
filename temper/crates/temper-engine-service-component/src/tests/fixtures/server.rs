@@ -19,7 +19,7 @@ pub fn server_call(
         while let Some(request) = out.pop() {
             match request {
                 crate::server::Routed::Io(skein_io::Request::Stream { down, .. }) => wire.take(down),
-                crate::server::Routed::Call { call, head } => return (call, head),
+                crate::server::Routed::Call { call, head, .. } => return (call, head),
                 crate::server::Routed::Io(_) | crate::server::Routed::Http { .. } => {
                     panic!("HTTP call or stream request")
                 }

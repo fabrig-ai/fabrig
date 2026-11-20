@@ -190,6 +190,8 @@ fn public_calls_past_their_room_are_503_and_signed_in_calls_are_not() {
     assert_eq!(
         f::component(&mut out).as_ref(),
         &[kit::FromTransport::Exchange {
+            via: Via::Listener,
+            source: None,
             browser: false,
             exchange: Token::new(20),
             credential: Some(f::credential()),
@@ -239,7 +241,10 @@ fn a_declared_public_body_is_404_without_reading_it() {
     for body in [http::Body::Length(1), http::Body::Chunked] {
         let mut mount = mount();
         let mut out = Queue::with_capacity(32);
-        mount.down(&f::env(), Event::Call { call: f::EXCHANGE, head: f::head(Method::Get, PATH, &[], body) });
+        mount.down(
+            &f::env(),
+            Event::Call { peer: None, call: f::EXCHANGE, head: f::head(Method::Get, PATH, &[], body) },
+        );
         f::pump(&mut mount, &mut out);
         for request in &out {
             match request {

@@ -17,7 +17,9 @@ pub struct Limits {
     pub signed_in_token_some: u32,
     pub approval_asked_secret: u32,
     pub link_asked_secret: u32,
+    pub approval_loopback_grant: u32,
     pub approval_sign_in_secret: u32,
+    pub approval_sign_in_grant_some: u32,
     pub document_text_bytes: u32,
     pub chip_phase_waiting_dependencies: u32,
     pub retry_notice_owner_failed_reason_some: u32,
@@ -402,7 +404,9 @@ pub const CEILINGS: Limits = Limits {
     signed_in_token_some: 48,
     approval_asked_secret: 32,
     link_asked_secret: 32,
+    approval_loopback_grant: 32,
     approval_sign_in_secret: 64,
+    approval_sign_in_grant_some: 32,
     document_text_bytes: 65_536,
     chip_phase_waiting_dependencies: 32,
     retry_notice_owner_failed_reason_some: 128,
@@ -787,7 +791,9 @@ pub const LIMIT_NAMES: &[&str] = &[
     "signed_in_token_some",
     "approval_asked_secret",
     "link_asked_secret",
+    "approval_loopback_grant",
     "approval_sign_in_secret",
+    "approval_sign_in_grant_some",
     "document_text_bytes",
     "chip_phase_waiting_dependencies",
     "retry_notice_owner_failed_reason_some",
@@ -1249,6 +1255,8 @@ pub enum Path {
     SignOutTail,
     /// The tag of `SignOutAnswer`.
     SignOutAnswerTag,
+    /// The `port` field of `ApprovalAsk`.
+    ApprovalAskPort,
     /// Bytes after `ApprovalAsk`.
     ApprovalAskTail,
     /// The `secret` field of `ApprovalAsked`.
@@ -1275,8 +1283,16 @@ pub enum Path {
     ApprovalReadCode,
     /// Bytes after `ApprovalRead`.
     ApprovalReadTail,
+    /// The tag of `ApprovalKind`.
+    ApprovalKindTag,
     /// The `asked` field of `ApprovalWaiting`.
     ApprovalWaitingAsked,
+    /// The `kind` field of `ApprovalWaiting`.
+    ApprovalWaitingKind,
+    /// The `source` field of `ApprovalWaiting`.
+    ApprovalWaitingSource,
+    /// The `reader` field of `ApprovalWaiting`.
+    ApprovalWaitingReader,
     /// Bytes after `ApprovalWaiting`.
     ApprovalWaitingTail,
     /// The tag of `ApprovalState`.
@@ -1287,10 +1303,22 @@ pub enum Path {
     ApprovalDecideApprove,
     /// Bytes after `ApprovalDecide`.
     ApprovalDecideTail,
+    /// The `port` field of `ApprovalLoopback`.
+    ApprovalLoopbackPort,
+    /// The `grant` field of `ApprovalLoopback`.
+    ApprovalLoopbackGrant,
+    /// Bytes after `ApprovalLoopback`.
+    ApprovalLoopbackTail,
+    /// The `loopback` field of `ApprovalApproved`.
+    ApprovalApprovedLoopback,
+    /// Bytes after `ApprovalApproved`.
+    ApprovalApprovedTail,
     /// The tag of `ApprovalDecided`.
     ApprovalDecidedTag,
     /// The `secret` field of `ApprovalSignIn`.
     ApprovalSignInSecret,
+    /// The `grant` field of `ApprovalSignIn`.
+    ApprovalSignInGrant,
     /// Bytes after `ApprovalSignIn`.
     ApprovalSignInTail,
     /// The `sign_ins` field of `ApprovalFull`.
@@ -7974,6 +8002,7 @@ impl Path {
             Self::SignInAnswerTag => "SignInAnswer (tag)",
             Self::SignOutTail => "SignOut (tail)",
             Self::SignOutAnswerTag => "SignOutAnswer (tag)",
+            Self::ApprovalAskPort => "ApprovalAsk.port",
             Self::ApprovalAskTail => "ApprovalAsk (tail)",
             Self::ApprovalAskedSecret => "ApprovalAsked.secret",
             Self::ApprovalAskedCode => "ApprovalAsked.code",
@@ -7987,14 +8016,24 @@ impl Path {
             Self::LinkAskAnswerTag => "LinkAskAnswer (tag)",
             Self::ApprovalReadCode => "ApprovalRead.code",
             Self::ApprovalReadTail => "ApprovalRead (tail)",
+            Self::ApprovalKindTag => "ApprovalKind (tag)",
             Self::ApprovalWaitingAsked => "ApprovalWaiting.asked",
+            Self::ApprovalWaitingKind => "ApprovalWaiting.kind",
+            Self::ApprovalWaitingSource => "ApprovalWaiting.source",
+            Self::ApprovalWaitingReader => "ApprovalWaiting.reader",
             Self::ApprovalWaitingTail => "ApprovalWaiting (tail)",
             Self::ApprovalStateTag => "ApprovalState (tag)",
             Self::ApprovalDecideCode => "ApprovalDecide.code",
             Self::ApprovalDecideApprove => "ApprovalDecide.approve",
             Self::ApprovalDecideTail => "ApprovalDecide (tail)",
+            Self::ApprovalLoopbackPort => "ApprovalLoopback.port",
+            Self::ApprovalLoopbackGrant => "ApprovalLoopback.grant",
+            Self::ApprovalLoopbackTail => "ApprovalLoopback (tail)",
+            Self::ApprovalApprovedLoopback => "ApprovalApproved.loopback",
+            Self::ApprovalApprovedTail => "ApprovalApproved (tail)",
             Self::ApprovalDecidedTag => "ApprovalDecided (tag)",
             Self::ApprovalSignInSecret => "ApprovalSignIn.secret",
+            Self::ApprovalSignInGrant => "ApprovalSignIn.grant",
             Self::ApprovalSignInTail => "ApprovalSignIn (tail)",
             Self::ApprovalFullSignIns => "ApprovalFull.sign_ins",
             Self::ApprovalFullEarliest => "ApprovalFull.earliest",
@@ -13036,46 +13075,70 @@ fn sign_out_answer_decoded_bound_family(limits: &Limits, biggest: u64) -> Option
 /// Movable fields of `ApprovalAsk`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovalAskParts {
+    /// The `port` field.
+    pub port: Option<u16>,
 }
 
 /// `ApprovalAsk` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovalAsk {
+    port: Option<u16>,
 }
 
 impl ApprovalAsk {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: ApprovalAskParts) -> Result<Self, Problem> {
-        let ApprovalAskParts {  } = parts;
-        let value = Self {  };
+        let ApprovalAskParts { port } = parts;
+        let value = Self { port };
         Ok(value)
     }
 
+    /// Reads the `port` field.
+    #[must_use]
+    pub fn port(&self) -> &Option<u16> { &self.port }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ApprovalAskParts { ApprovalAskParts {  } }
+    pub fn into_parts(self) -> ApprovalAskParts { ApprovalAskParts { port: self.port } }
 
 }
 
 impl ApprovalAsk {
-    /// Measures this empty record's wire encoding.
+    /// Measures this record's wire encoding.
     #[must_use]
-    pub fn measure(&self) -> u32 { 0_u32 }
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_port = &self.port;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_port.is_some() {
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        }
+        size
+    }
 
     /// Writes into a writer with room for the measured bytes.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        writer.put(&[])
+        let field_port = &self.port;
+        match field_port {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&some_0.to_be_bytes())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
     }
 
     /// Reads a whole record and refuses trailing bytes.
     pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader);
+        let value = Self::decode_from(limits, reader)?;
         if !reader.is_empty() { return Err(Problem { path: Path::ApprovalAskTail, reason: skein_codec::Reason::Trailing }); }
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, _reader: &mut skein_lib::Reader<'_>) -> Self {
-        Self {}
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_port = match reader.u8().ok_or(Problem { path: Path::ApprovalAskPort, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(reader.u16().ok_or(Problem { path: Path::ApprovalAskPort, reason: skein_codec::Reason::Short })?), _ => return Err(Problem { path: Path::ApprovalAskPort, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { port: decoded_port })
     }
 }
 
@@ -13088,7 +13151,8 @@ impl ApprovalAsk {
     }
 
     pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let size = 0_u64;
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(2_u64)?)?;
         size.checked_add(0)
     }
 
@@ -13100,7 +13164,8 @@ impl ApprovalAsk {
     }
 
     pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let heap = 0_u64;
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -13566,13 +13631,13 @@ fn link_asked_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64>
 
 fn check_link_asked_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.link_asked_secret > CEILINGS.link_asked_secret { return Err(Problem { path: Path::LinkAskedSecret, reason: skein_codec::Reason::Bound }); }
-    check_approval_sign_in_record_limits(limits)
+    check_approval_loopback_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_link_asked_record(&self, values: &mut List<u32>) {
         values.push(self.link_asked_secret).expect("room for every named limit");
-        self.values_for_approval_sign_in_record(values);
+        self.values_for_approval_loopback_record(values);
     }
 }
 
@@ -13778,11 +13843,104 @@ impl ApprovalRead {
 
 fn approval_read_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ApprovalRead::encoded_bound_within(limits)?);
-    approval_waiting_encoded_bound_family(limits, biggest)
+    approval_kind_encoded_bound_family(limits, biggest)
 }
 
 fn approval_read_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ApprovalRead::decoded_bound_within(limits)?);
+    approval_kind_decoded_bound_family(limits, biggest)
+}
+
+/// `ApprovalKind` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum ApprovalKind {
+    /// `listener` without a payload.
+    Listener,
+    /// `returned` without a payload.
+    Returned,
+    /// `typed` without a payload.
+    Typed,
+}
+
+impl ApprovalKind {
+    /// Checks the payload against the given limits.
+    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+        Ok(value)
+    }
+
+}
+
+impl ApprovalKind {
+    /// Measures this variant's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        match self {
+            Self::Listener | Self::Returned | Self::Typed => 1,
+        }
+    }
+
+    /// Writes this variant's tag and payload.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        match self {
+            Self::Listener => writer.put(&[0_u8])?,
+            Self::Returned => writer.put(&[1_u8])?,
+            Self::Typed => writer.put(&[2_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole variant and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ApprovalKindTag, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let tag = reader.u8().ok_or(Problem { path: Path::ApprovalKindTag, reason: skein_codec::Reason::Short })?;
+        let value = match tag {
+            0 => Self::Listener,
+            1 => Self::Returned,
+            2 => Self::Typed,
+            _ => return Err(Problem { path: Path::ApprovalKindTag, reason: skein_codec::Reason::Tag }),
+        };
+        Ok(value)
+    }
+}
+
+impl ApprovalKind {
+    /// Maximum encoded bytes among variants.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        1_u64.checked_add(biggest)
+    }
+
+    /// Maximum heap held by any decoded variant.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+        let biggest = 0_u64;
+        biggest.checked_add(0)
+    }
+}
+
+fn approval_kind_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApprovalKind::encoded_bound_within(limits)?);
+    approval_waiting_encoded_bound_family(limits, biggest)
+}
+
+fn approval_kind_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApprovalKind::decoded_bound_within(limits)?);
     approval_waiting_decoded_bound_family(limits, biggest)
 }
 
@@ -13791,19 +13949,28 @@ fn approval_read_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u
 pub struct ApprovalWaitingParts {
     /// The `asked` field.
     pub asked: u64,
+    /// The `kind` field.
+    pub kind: ApprovalKind,
+    /// The `source` field.
+    pub source: Option<[u8; 16]>,
+    /// The `reader` field.
+    pub reader: Option<[u8; 16]>,
 }
 
 /// `ApprovalWaiting` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovalWaiting {
     asked: u64,
+    kind: ApprovalKind,
+    source: Option<[u8; 16]>,
+    reader: Option<[u8; 16]>,
 }
 
 impl ApprovalWaiting {
     /// Makes a value within the given limits.
     pub fn new(_limits: &Limits, parts: ApprovalWaitingParts) -> Result<Self, Problem> {
-        let ApprovalWaitingParts { asked } = parts;
-        let value = Self { asked };
+        let ApprovalWaitingParts { asked, kind, source, reader } = parts;
+        let value = Self { asked, kind, source, reader };
         Ok(value)
     }
 
@@ -13811,9 +13978,21 @@ impl ApprovalWaiting {
     #[must_use]
     pub fn asked(&self) -> u64 { self.asked }
 
+    /// Reads the `kind` field.
+    #[must_use]
+    pub fn kind(&self) -> &ApprovalKind { &self.kind }
+
+    /// Reads the `source` field.
+    #[must_use]
+    pub fn source(&self) -> &Option<[u8; 16]> { &self.source }
+
+    /// Reads the `reader` field.
+    #[must_use]
+    pub fn reader(&self) -> &Option<[u8; 16]> { &self.reader }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ApprovalWaitingParts { ApprovalWaitingParts { asked: self.asked } }
+    pub fn into_parts(self) -> ApprovalWaitingParts { ApprovalWaitingParts { asked: self.asked, kind: self.kind, source: self.source, reader: self.reader } }
 
 }
 
@@ -13823,6 +14002,17 @@ impl ApprovalWaiting {
     pub fn measure(&self) -> u32 {
         let mut size = 0_u32;
         size = size.checked_add(8).expect("schema ceilings fit u32");
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        let field_source = &self.source;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_source.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
+        }
+        let field_reader = &self.reader;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if field_reader.is_some() {
+        size = size.checked_add(16).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -13830,6 +14020,24 @@ impl ApprovalWaiting {
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         let field_asked = &self.asked;
         writer.put(&field_asked.to_be_bytes())?;
+        let field_kind = &self.kind;
+        field_kind.encode(writer)?;
+        let field_source = &self.source;
+        match field_source {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        let field_reader = &self.reader;
+        match field_reader {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(some_0)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -13840,9 +14048,12 @@ impl ApprovalWaiting {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_asked = reader.u64().ok_or(Problem { path: Path::ApprovalWaitingAsked, reason: skein_codec::Reason::Short })?;
-        Ok(Self { asked: decoded_asked })
+        let decoded_kind = ApprovalKind::decode_from(limits, reader)?;
+        let decoded_source = match reader.u8().ok_or(Problem { path: Path::ApprovalWaitingSource, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(16).ok_or(Problem { path: Path::ApprovalWaitingSource, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ApprovalWaitingSource, reason: skein_codec::Reason::Tag }) };
+        let decoded_reader = match reader.u8().ok_or(Problem { path: Path::ApprovalWaitingReader, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some({ let bytes = reader.bytes(16).ok_or(Problem { path: Path::ApprovalWaitingReader, reason: skein_codec::Reason::Short })?; bytes.try_into().expect("fixed length checked") }), _ => return Err(Problem { path: Path::ApprovalWaitingReader, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { asked: decoded_asked, kind: decoded_kind, source: decoded_source, reader: decoded_reader })
     }
 }
 
@@ -13854,9 +14065,10 @@ impl ApprovalWaiting {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(8_u64)?;
+        size = size.checked_add(8_u64)?.checked_add(ApprovalKind::encoded_bound_within(limits)?)?;
+        size = size.checked_add(1_u64.checked_add(u64::from(16_u32))?)?.checked_add(1_u64.checked_add(u64::from(16_u32))?)?;
         size.checked_add(0)
     }
 
@@ -13867,9 +14079,10 @@ impl ApprovalWaiting {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(0_u64)?;
+        heap = heap.checked_add(0_u64)?.checked_add(ApprovalKind::decoded_bound_within(limits)?)?;
+        heap = heap.checked_add(0_u64)?.checked_add(0_u64)?;
         heap.checked_add(0)
     }
 }
@@ -14109,19 +14322,263 @@ impl ApprovalDecide {
 
 fn approval_decide_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ApprovalDecide::encoded_bound_within(limits)?);
-    approval_decided_encoded_bound_family(limits, biggest)
+    approval_loopback_encoded_bound_family(limits, biggest)
 }
 
 fn approval_decide_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
     let biggest = biggest.max(ApprovalDecide::decoded_bound_within(limits)?);
+    approval_loopback_decoded_bound_family(limits, biggest)
+}
+
+/// Movable fields of `ApprovalLoopback`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApprovalLoopbackParts {
+    /// The `port` field.
+    pub port: u16,
+    /// The `grant` field.
+    pub grant: skein_lib::Secret,
+}
+
+/// `ApprovalLoopback` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApprovalLoopback {
+    port: u16,
+    grant: skein_lib::Secret,
+}
+
+impl ApprovalLoopback {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ApprovalLoopbackParts) -> Result<Self, Problem> {
+        let ApprovalLoopbackParts { port, grant } = parts;
+        let value = Self { port, grant };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `port` field.
+    #[must_use]
+    pub fn port(&self) -> u16 { self.port }
+
+    /// Reads the `grant` field.
+    #[must_use]
+    pub fn grant(&self) -> &skein_lib::Secret { &self.grant }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ApprovalLoopbackParts { ApprovalLoopbackParts { port: self.port, grant: self.grant } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if self.grant.len() > usize::try_from(limits.approval_loopback_grant.min(CEILINGS.approval_loopback_grant)).expect("u32 fits usize") { return Err(Problem { path: Path::ApprovalLoopbackGrant, reason: skein_codec::Reason::Bound }); }
+        Ok(())
+    }
+}
+
+impl ApprovalLoopback {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        size = size.checked_add(2).expect("schema ceilings fit u32");
+        let field_grant = &self.grant;
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(field_grant.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_port = &self.port;
+        writer.put(&field_port.to_be_bytes())?;
+        let field_grant = &self.grant;
+        writer.put(&u32::try_from(field_grant.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(field_grant.expose())?;
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ApprovalLoopbackTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_port = reader.u16().ok_or(Problem { path: Path::ApprovalLoopbackPort, reason: skein_codec::Reason::Short })?;
+        let decoded_grant = skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.approval_loopback_grant.min(CEILINGS.approval_loopback_grant)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ApprovalLoopbackGrant, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ApprovalLoopbackGrant, reason: skein_codec::Reason::Short })?) });
+        Ok(Self { port: decoded_port, grant: decoded_grant })
+    }
+}
+
+impl ApprovalLoopback {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(2_u64)?.checked_add(4_u64.checked_add(u64::from(limits.approval_loopback_grant))?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(0_u64)?.checked_add(u64::from(limits.approval_loopback_grant))?;
+        heap.checked_add(0)
+    }
+}
+
+fn approval_loopback_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApprovalLoopback::encoded_bound_within(limits)?);
+    approval_approved_encoded_bound_family(limits, biggest)
+}
+
+fn approval_loopback_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApprovalLoopback::decoded_bound_within(limits)?);
+    approval_approved_decoded_bound_family(limits, biggest)
+}
+
+fn check_approval_loopback_record_limits(limits: &Limits) -> Result<(), Problem> {
+    if limits.approval_loopback_grant > CEILINGS.approval_loopback_grant { return Err(Problem { path: Path::ApprovalLoopbackGrant, reason: skein_codec::Reason::Bound }); }
+    check_approval_sign_in_record_limits(limits)
+}
+
+impl Limits {
+    fn values_for_approval_loopback_record(&self, values: &mut List<u32>) {
+        values.push(self.approval_loopback_grant).expect("room for every named limit");
+        self.values_for_approval_sign_in_record(values);
+    }
+}
+
+/// Movable fields of `ApprovalApproved`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApprovalApprovedParts {
+    /// The `loopback` field.
+    pub loopback: Option<ApprovalLoopback>,
+}
+
+/// `ApprovalApproved` in this codec family.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ApprovalApproved {
+    loopback: Option<ApprovalLoopback>,
+}
+
+impl ApprovalApproved {
+    /// Makes a value within the given limits.
+    pub fn new(limits: &Limits, parts: ApprovalApprovedParts) -> Result<Self, Problem> {
+        let ApprovalApprovedParts { loopback } = parts;
+        let value = Self { loopback };
+        value.check(limits)?;
+        Ok(value)
+    }
+
+    /// Reads the `loopback` field.
+    #[must_use]
+    pub fn loopback(&self) -> &Option<ApprovalLoopback> { &self.loopback }
+
+    /// Moves the fields out without copying.
+    #[must_use]
+    pub fn into_parts(self) -> ApprovalApprovedParts { ApprovalApprovedParts { loopback: self.loopback } }
+
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        if let Some(some_0) = self.loopback.as_ref() {
+        some_0.check(limits)?;
+        }
+        Ok(())
+    }
+}
+
+impl ApprovalApproved {
+    /// Measures this record's wire encoding.
+    #[must_use]
+    pub fn measure(&self) -> u32 {
+        let mut size = 0_u32;
+        let field_loopback = &self.loopback;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_loopback {
+        size = size.checked_add(some_0.measure()).expect("schema ceilings fit u32");
+        }
+        size
+    }
+
+    /// Writes into a writer with room for the measured bytes.
+    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
+        let field_loopback = &self.loopback;
+        match field_loopback {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        some_0.encode(writer)?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
+        Ok(())
+    }
+
+    /// Reads a whole record and refuses trailing bytes.
+    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::decode_from(limits, reader)?;
+        if !reader.is_empty() { return Err(Problem { path: Path::ApprovalApprovedTail, reason: skein_codec::Reason::Trailing }); }
+        Ok(value)
+    }
+
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let decoded_loopback = match reader.u8().ok_or(Problem { path: Path::ApprovalApprovedLoopback, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(ApprovalLoopback::decode_from(limits, reader)?), _ => return Err(Problem { path: Path::ApprovalApprovedLoopback, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { loopback: decoded_loopback })
+    }
+}
+
+impl ApprovalApproved {
+    /// Maximum encoded bytes under these limits.
+    #[must_use]
+    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::encoded_bound_within(limits)
+    }
+
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut size = 0_u64;
+        size = size.checked_add(1_u64.checked_add(ApprovalLoopback::encoded_bound_within(limits)?)?)?;
+        size.checked_add(0)
+    }
+
+    /// Maximum heap held by one decoded value under these limits.
+    #[must_use]
+    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+        if check_limits(limits).is_err() { return None; }
+        Self::decoded_bound_within(limits)
+    }
+
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut heap = 0_u64;
+        heap = heap.checked_add(ApprovalLoopback::decoded_bound_within(limits)?)?;
+        heap.checked_add(0)
+    }
+}
+
+fn approval_approved_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApprovalApproved::encoded_bound_within(limits)?);
+    approval_decided_encoded_bound_family(limits, biggest)
+}
+
+fn approval_approved_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
+    let biggest = biggest.max(ApprovalApproved::decoded_bound_within(limits)?);
     approval_decided_decoded_bound_family(limits, biggest)
 }
 
 /// `ApprovalDecided` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ApprovalDecided {
-    /// `approved` without a payload.
-    Approved,
+    /// `approved` carrying `ApprovalApproved`.
+    Approved(ApprovalApproved),
     /// `refused` without a payload.
     Refused,
     /// `used` without a payload.
@@ -14142,10 +14599,18 @@ pub enum ApprovalDecided {
 
 impl ApprovalDecided {
     /// Checks the payload against the given limits.
-    pub fn new(_limits: &Limits, value: Self) -> Result<Self, Problem> {
+    pub fn new(limits: &Limits, value: Self) -> Result<Self, Problem> {
+        value.check(limits)?;
         Ok(value)
     }
 
+    fn check(&self, limits: &Limits) -> Result<(), Problem> {
+        match self {
+            Self::Approved(record) => ApprovalApproved::check(record, limits),
+            Self::Refused | Self::Used | Self::Expired | Self::Unknown | Self::NotABrowser | Self::SignedOut | Self::NotReady | Self::Busy => Ok(()),
+        }?;
+        Ok(())
+    }
 }
 
 impl ApprovalDecided {
@@ -14153,14 +14618,15 @@ impl ApprovalDecided {
     #[must_use]
     pub fn measure(&self) -> u32 {
         match self {
-            Self::Approved | Self::Refused | Self::Used | Self::Expired | Self::Unknown | Self::NotABrowser | Self::SignedOut | Self::NotReady | Self::Busy => 1,
+            Self::Approved(record) => 1_u32.checked_add(ApprovalApproved::measure(record)).expect("schema ceilings fit u32"),
+            Self::Refused | Self::Used | Self::Expired | Self::Unknown | Self::NotABrowser | Self::SignedOut | Self::NotReady | Self::Busy => 1,
         }
     }
 
     /// Writes this variant's tag and payload.
     pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
         match self {
-            Self::Approved => writer.put(&[0_u8])?,
+            Self::Approved(record) => { writer.put(&[0_u8])?; record.encode(writer)?; }
             Self::Refused => writer.put(&[1_u8])?,
             Self::Used => writer.put(&[2_u8])?,
             Self::Expired => writer.put(&[3_u8])?,
@@ -14180,10 +14646,10 @@ impl ApprovalDecided {
         Ok(value)
     }
 
-    fn decode_from(_limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let tag = reader.u8().ok_or(Problem { path: Path::ApprovalDecidedTag, reason: skein_codec::Reason::Short })?;
         let value = match tag {
-            0 => Self::Approved,
+            0 => Self::Approved(ApprovalApproved::decode_from(limits, reader)?),
             1 => Self::Refused,
             2 => Self::Used,
             3 => Self::Expired,
@@ -14206,8 +14672,9 @@ impl ApprovalDecided {
         Self::encoded_bound_within(limits)
     }
 
-    pub(crate) fn encoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
+    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(ApprovalApproved::encoded_bound_within(limits)?);
         1_u64.checked_add(biggest)
     }
 
@@ -14218,8 +14685,9 @@ impl ApprovalDecided {
         Self::decoded_bound_within(limits)
     }
 
-    pub(crate) fn decoded_bound_within(_limits: &Limits) -> Option<u64> {
-        let biggest = 0_u64;
+    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
+        let mut biggest = 0_u64;
+        biggest = biggest.max(ApprovalApproved::decoded_bound_within(limits)?);
         biggest.checked_add(0)
     }
 }
@@ -14239,19 +14707,22 @@ fn approval_decided_decoded_bound_family(limits: &Limits, biggest: u64) -> Optio
 pub struct ApprovalSignInParts {
     /// The `secret` field.
     pub secret: skein_lib::Secret,
+    /// The `grant` field.
+    pub grant: Option<skein_lib::Secret>,
 }
 
 /// `ApprovalSignIn` in this codec family.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ApprovalSignIn {
     secret: skein_lib::Secret,
+    grant: Option<skein_lib::Secret>,
 }
 
 impl ApprovalSignIn {
     /// Makes a value within the given limits.
     pub fn new(limits: &Limits, parts: ApprovalSignInParts) -> Result<Self, Problem> {
-        let ApprovalSignInParts { secret } = parts;
-        let value = Self { secret };
+        let ApprovalSignInParts { secret, grant } = parts;
+        let value = Self { secret, grant };
         value.check(limits)?;
         Ok(value)
     }
@@ -14260,12 +14731,17 @@ impl ApprovalSignIn {
     #[must_use]
     pub fn secret(&self) -> &skein_lib::Secret { &self.secret }
 
+    /// Reads the `grant` field.
+    #[must_use]
+    pub fn grant(&self) -> &Option<skein_lib::Secret> { &self.grant }
+
     /// Moves the fields out without copying.
     #[must_use]
-    pub fn into_parts(self) -> ApprovalSignInParts { ApprovalSignInParts { secret: self.secret } }
+    pub fn into_parts(self) -> ApprovalSignInParts { ApprovalSignInParts { secret: self.secret, grant: self.grant } }
 
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         if self.secret.len() > usize::try_from(limits.approval_sign_in_secret.min(CEILINGS.approval_sign_in_secret)).expect("u32 fits usize") { return Err(Problem { path: Path::ApprovalSignInSecret, reason: skein_codec::Reason::Bound }); }
+        if let Some(some_0) = self.grant.as_ref() && some_0.len() > usize::try_from(limits.approval_sign_in_grant_some.min(CEILINGS.approval_sign_in_grant_some)).expect("u32 fits usize") { return Err(Problem { path: Path::ApprovalSignInGrant, reason: skein_codec::Reason::Bound }); }
         Ok(())
     }
 }
@@ -14278,6 +14754,12 @@ impl ApprovalSignIn {
         let field_secret = &self.secret;
         size = size.checked_add(4).expect("schema ceilings fit u32");
         size = size.checked_add(u32::try_from(field_secret.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        let field_grant = &self.grant;
+        size = size.checked_add(1).expect("schema ceilings fit u32");
+        if let Some(some_0) = field_grant {
+        size = size.checked_add(4).expect("schema ceilings fit u32");
+        size = size.checked_add(u32::try_from(some_0.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
+        }
         size
     }
 
@@ -14286,6 +14768,15 @@ impl ApprovalSignIn {
         let field_secret = &self.secret;
         writer.put(&u32::try_from(field_secret.len()).expect("field ceiling fits u32").to_be_bytes())?;
         writer.put(field_secret.expose())?;
+        let field_grant = &self.grant;
+        match field_grant {
+            Some(some_0) => {
+                writer.put(&[1_u8])?;
+        writer.put(&u32::try_from(some_0.len()).expect("field ceiling fits u32").to_be_bytes())?;
+        writer.put(some_0.expose())?;
+            }
+            None => writer.put(&[0_u8])?,
+        }
         Ok(())
     }
 
@@ -14298,7 +14789,8 @@ impl ApprovalSignIn {
 
     fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         let decoded_secret = skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.approval_sign_in_secret.min(CEILINGS.approval_sign_in_secret)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ApprovalSignInSecret, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ApprovalSignInSecret, reason: skein_codec::Reason::Short })?) });
-        Ok(Self { secret: decoded_secret })
+        let decoded_grant = match reader.u8().ok_or(Problem { path: Path::ApprovalSignInGrant, reason: skein_codec::Reason::Short })? { 0 => None, 1 => Some(skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.approval_sign_in_grant_some.min(CEILINGS.approval_sign_in_grant_some)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::ApprovalSignInGrant, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::ApprovalSignInGrant, reason: skein_codec::Reason::Short })?) })), _ => return Err(Problem { path: Path::ApprovalSignInGrant, reason: skein_codec::Reason::Tag }) };
+        Ok(Self { secret: decoded_secret, grant: decoded_grant })
     }
 }
 
@@ -14312,7 +14804,7 @@ impl ApprovalSignIn {
 
     pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.approval_sign_in_secret))?)?;
+        size = size.checked_add(4_u64.checked_add(u64::from(limits.approval_sign_in_secret))?)?.checked_add(1_u64.checked_add(4_u64.checked_add(u64::from(limits.approval_sign_in_grant_some))?)?)?;
         size.checked_add(0)
     }
 
@@ -14325,7 +14817,7 @@ impl ApprovalSignIn {
 
     pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
         let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.approval_sign_in_secret))?;
+        heap = heap.checked_add(u64::from(limits.approval_sign_in_secret))?.checked_add(u64::from(limits.approval_sign_in_grant_some))?;
         heap.checked_add(0)
     }
 }
@@ -14342,12 +14834,14 @@ fn approval_sign_in_decoded_bound_family(limits: &Limits, biggest: u64) -> Optio
 
 fn check_approval_sign_in_record_limits(limits: &Limits) -> Result<(), Problem> {
     if limits.approval_sign_in_secret > CEILINGS.approval_sign_in_secret { return Err(Problem { path: Path::ApprovalSignInSecret, reason: skein_codec::Reason::Bound }); }
+    if limits.approval_sign_in_grant_some > CEILINGS.approval_sign_in_grant_some { return Err(Problem { path: Path::ApprovalSignInGrant, reason: skein_codec::Reason::Bound }); }
     check_document_text_record_limits(limits)
 }
 
 impl Limits {
     fn values_for_approval_sign_in_record(&self, values: &mut List<u32>) {
         values.push(self.approval_sign_in_secret).expect("room for every named limit");
+        values.push(self.approval_sign_in_grant_some).expect("room for every named limit");
         self.values_for_document_text_record(values);
     }
 }
@@ -14495,6 +14989,8 @@ pub enum ApprovalSignInAnswer {
     Busy,
     /// `full` carrying `ApprovalFull`.
     Full(ApprovalFull),
+    /// `not_granted` without a payload.
+    NotGranted,
 }
 
 impl ApprovalSignInAnswer {
@@ -14507,7 +15003,7 @@ impl ApprovalSignInAnswer {
     fn check(&self, limits: &Limits) -> Result<(), Problem> {
         match self {
             Self::SignedIn(record) => SignedIn::check(record, limits),
-            Self::Waiting | Self::Refused | Self::Expired | Self::Used | Self::Unknown | Self::NotReady | Self::Busy | Self::Full(_) => Ok(()),
+            Self::Waiting | Self::Refused | Self::Expired | Self::Used | Self::Unknown | Self::NotReady | Self::Busy | Self::Full(_) | Self::NotGranted => Ok(()),
         }?;
         Ok(())
     }
@@ -14520,7 +15016,7 @@ impl ApprovalSignInAnswer {
         match self {
             Self::SignedIn(record) => 1_u32.checked_add(SignedIn::measure(record)).expect("schema ceilings fit u32"),
             Self::Full(record) => 1_u32.checked_add(ApprovalFull::measure(record)).expect("schema ceilings fit u32"),
-            Self::Waiting | Self::Refused | Self::Expired | Self::Used | Self::Unknown | Self::NotReady | Self::Busy => 1,
+            Self::Waiting | Self::Refused | Self::Expired | Self::Used | Self::Unknown | Self::NotReady | Self::Busy | Self::NotGranted => 1,
         }
     }
 
@@ -14536,6 +15032,7 @@ impl ApprovalSignInAnswer {
             Self::NotReady => writer.put(&[6_u8])?,
             Self::Busy => writer.put(&[7_u8])?,
             Self::Full(record) => { writer.put(&[8_u8])?; record.encode(writer)?; }
+            Self::NotGranted => writer.put(&[9_u8])?,
         }
         Ok(())
     }
@@ -14559,6 +15056,7 @@ impl ApprovalSignInAnswer {
             6 => Self::NotReady,
             7 => Self::Busy,
             8 => Self::Full(ApprovalFull::decode_from(limits, reader)?),
+            9 => Self::NotGranted,
             _ => return Err(Problem { path: Path::ApprovalSignInAnswerTag, reason: skein_codec::Reason::Tag }),
         };
         Ok(value)
