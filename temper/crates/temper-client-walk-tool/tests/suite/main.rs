@@ -290,7 +290,7 @@ web press link "Run on this machine"
 web press button "Run on this machine"
 web press button "Continue with ChatGPT"
 web see "Ready"
-web see "ChatGPT plan \xc2\xb7 sam@example.com"
+web see "Everything is connected."
 web mark
 "#);
     let a = f.root().join("a");
