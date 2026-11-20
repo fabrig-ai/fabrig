@@ -140,7 +140,7 @@ mod tests {
         );
         let story = stories::A.start(SEED, WALL);
         let story_engine = documents::settings::configuration(&story.deployment);
-        assert_eq!(story_engine.limits.core.tasks.spec_bytes, 187);
+        assert_eq!(story_engine.limits.core.tasks.spec_bytes, 2048);
         assert_eq!(story_engine.limits.core.people.amendment_bytes, 1218);
     }
 }

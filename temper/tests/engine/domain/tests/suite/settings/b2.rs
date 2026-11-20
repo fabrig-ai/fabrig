@@ -84,7 +84,7 @@ fn limits() -> engine::Limits {
     limits.tasks.references = 4;
     limits.tasks.batch = 2;
     limits.tasks.parameters = 8;
-    limits.tasks.spec_bytes = 512;
+    limits.tasks.spec_bytes = 4096;
     limits.tasks.result_bytes = 512;
     limits.tasks.message_bytes = 4096;
     limits.tasks.inbox_bytes = 8192;

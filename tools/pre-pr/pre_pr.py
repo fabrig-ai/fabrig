@@ -590,7 +590,7 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
         if ledger is not None:
             arguments += ['--ledger', str(ledger), '--gate']
         arguments += [profile] + package_args(packages) + ['--no-tests=warn']
-        code, log = run(arguments, root, env, stdout=True)
+        code, log = run(arguments, root, dict(env, TIERS_PRE_PR_TARGETS='1'), stdout=True)
         if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
             return code, [failure('build' + suffix, 'no tests ran\n' + log)], None
         gated = code == 1 and ledger is not None

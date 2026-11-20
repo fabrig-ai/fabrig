@@ -35,9 +35,9 @@ fn a_follow_check_waits_for_ci_then_for_its_exact_verdict() {
     assert!(matches!(decide(&asked.change, &f, &heard()).decision, Decision::Wait { .. }));
     let mut c = asked.change;
     c.clean = Box::new([BASE]);
-    f.gates = Box::new([GateReport { number: FOLLOW_CHECK_GATE, head: BASE, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: FOLLOW_CHECK_GATE, head: BASE, status: Status::Passed }]);
     assert!(matches!(decide(&c, &f, &heard()).decision, Decision::Wait { .. }), "clean predecessors cannot answer it");
-    f.gates = Box::new([GateReport { number: FOLLOW_CHECK_GATE, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: FOLLOW_CHECK_GATE, head: HEAD, status: Status::Passed }]);
     assert_eq!(decide(&c, &f, &heard()).decision, Decision::Ready);
 }
 #[test]
@@ -45,7 +45,7 @@ fn a_failed_follow_check_repairs_before_joining_a_landing_and_a_new_head_checks_
     for way in [Way::Queue, Way::Turn] {
         let c = follow(State::Gating { head: HEAD, asked: Box::new([FOLLOW_CHECK_GATE]) }, way);
         let mut f = facts();
-        f.gates = Box::new([GateReport { number: FOLLOW_CHECK_GATE, head: HEAD, status: Status::Failed }]);
+        f.gates = Box::new([GateReport { revision: 0, number: FOLLOW_CHECK_GATE, head: HEAD, status: Status::Failed }]);
         assert_eq!(
             decide(&c, &f, &heard()).decision,
             Decision::Delegate(Delegate::Repair(Repair::Gate(FOLLOW_CHECK_GATE)))
@@ -58,7 +58,7 @@ fn a_failed_follow_check_repairs_before_joining_a_landing_and_a_new_head_checks_
             decide(&repaired, &f, &heard()).decision,
             Decision::Delegate(Delegate::Gate { number: FOLLOW_CHECK_GATE, head: NEW })
         );
-        f.gates = Box::new([GateReport { number: FOLLOW_CHECK_GATE, head: NEW, status: Status::Passed }]);
+        f.gates = Box::new([GateReport { revision: 0, number: FOLLOW_CHECK_GATE, head: NEW, status: Status::Passed }]);
         assert_eq!(decide(&repaired, &f, &heard()).decision, Decision::Ready);
     }
 }

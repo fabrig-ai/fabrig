@@ -2,7 +2,10 @@
 use alloc::boxed::Box;
 use skein_lib::{List, Writer, bytes};
 
-use crate::{ANSWERS_KEPT, Answered, Limits, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, Route, Stands};
+use crate::{
+    AMENDMENTS_KEPT, ANSWERS_KEPT, Amended, Answered, Limits, Open, QUESTION_LINE, QUESTIONS_OPEN, Questions, Route,
+    Stands,
+};
 
 /// A question one of the change's own agents asked, taken at this step.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -15,6 +18,11 @@ pub struct Asked<'a> {
 /// What a step heard for the relay.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct RelayHeard<'a> {
+    /// The change task’s spec revision as this step reads it.
+    pub revision: u64,
+    /// Reasons taken at this step, in inbox order, under either route.
+    pub amended: &'a [&'a [u8]],
+    pub message_bytes: usize,
     pub asked: &'a [Asked<'a>],
     /// The requester's answer to the change's question, its words.
     pub answer: Option<&'a [u8]>,
@@ -51,8 +59,9 @@ pub struct Relayed {
 /// Decide the relay purely; `room` bounds this step's `Answer`, `Ask` and `Left` acts.
 #[must_use]
 pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut room: usize) -> Relayed {
+    let amended = keep_amendments(&questions.amended, heard);
     if questions.route == Route::None {
-        return Relayed { questions: questions.clone(), acts: Box::new([]), more: false };
+        return Relayed { questions: Questions { amended, ..questions.clone() }, acts: Box::new([]), more: false };
     }
     let mut acts = List::uncapped();
     let mut more = false;
@@ -68,7 +77,7 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
         if question.stands == Stands::Asked
             && let Some(answer) = heard.answer
         {
-            answered = keep_answer(&answered, question, answer);
+            answered = keep_answer(&answered, question, answer, heard.revision);
             if heard.ended.contains(&question.asker) {
                 if room == 0 {
                     question.stands = Stands::Held { answer: bytes::copy_of(answer) };
@@ -130,20 +139,43 @@ pub fn relay(questions: &Questions, heard: &RelayHeard<'_>, limits: &Limits, mut
     }
     let remaining = open.get(done..).expect("only answered heads leave the open questions");
     Relayed {
-        questions: Questions { taken, open: Box::from(remaining), answered, ..questions.clone() },
+        questions: Questions { taken, open: Box::from(remaining), answered, amended, ..questions.clone() },
         acts: acts.into_boxed(),
         more,
     }
 }
 
+// questions.md, 1, Its amendments, kept for later work: these commit with the step.
+fn keep_amendments(amended: &[Amended], heard: &RelayHeard<'_>) -> Box<[Amended]> {
+    let mut kept = List::with_capacity(u32::try_from(AMENDMENTS_KEPT).expect("amendment bound fits u32"));
+    let skip = amended.len().saturating_add(heard.amended.len()).saturating_sub(AMENDMENTS_KEPT);
+    for previous in amended.get(skip.min(amended.len())..).expect("bounded skip") {
+        kept.push(previous.clone()).expect("new amendment slots reserved");
+    }
+    for reason in heard.amended.get(skip.saturating_sub(amended.len())..).expect("bounded skip") {
+        let reason = if reason.len() <= heard.message_bytes {
+            bytes::copy_of(reason)
+        } else {
+            let mark = "…".as_bytes();
+            let mark = mark.get(..mark.len().min(heard.message_bytes)).expect("bounded marker");
+            // A message bound holds the UTF-8 marker whole.
+            let mark = bytes::utf8_prefix(mark, mark.len());
+            joined(bytes::utf8_prefix(reason, heard.message_bytes.saturating_sub(mark.len())), mark)
+        };
+        kept.push(Amended { revision: heard.revision, reason }).expect("new amendment slots reserved");
+    }
+    kept.into_boxed()
+}
+
 // questions.md, 1, Its answers, kept for later work: taking an Asked answer is the only write.
-fn keep_answer(answered: &[Answered], question: &Open, answer: &[u8]) -> Box<[Answered]> {
+fn keep_answer(answered: &[Answered], question: &Open, answer: &[u8], revision: u64) -> Box<[Answered]> {
     let mut kept = List::with_capacity(u32::try_from(ANSWERS_KEPT).expect("answer bound fits u32"));
     let skip = answered.len().saturating_add(1).saturating_sub(ANSWERS_KEPT);
     for previous in answered.get(skip..).expect("only the oldest answers leave") {
         kept.push(previous.clone()).expect("one answer slot reserved");
     }
     kept.push(Answered {
+        revision,
         asker: question.asker,
         number: question.number,
         line: question.line.clone(),

@@ -57,11 +57,14 @@ fn plan_world_with_pull_room(
         StoryLimits { slots: Some(3), questions: bound, stall: Some(Duration::from_secs(3600)), ..timing.clone() },
     );
     // The question and its contract share the required task section.
-    world.env.limits.brief.budgets.task = 512;
+    world.env.limits.brief.budgets.task = 2048;
     if let Some(bytes) = pull_room {
         world.env.limits.brief.budgets.pull = bytes;
         world.env.limits.brief.read_bytes = world.env.limits.brief.read_bytes.max(bytes);
         world.env.limits.brief.brief_bytes += bytes;
+        world.env.limits.forge.brief_bytes = world.env.limits.forge.brief_bytes.max(world.env.limits.brief.read_bytes);
+        world.env.limits.journal.result_bytes =
+            world.env.limits.journal.result_bytes.max(world.env.limits.brief.brief_bytes);
     }
     let client = world.env.limits.forge.client;
     world = world.with_forge_client(client);

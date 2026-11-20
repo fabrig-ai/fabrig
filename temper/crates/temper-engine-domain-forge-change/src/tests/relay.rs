@@ -17,7 +17,16 @@ const ONE_MORE: u32 = 2;
 const ROOM: usize = 2;
 
 fn heard() -> RelayHeard<'static> {
-    RelayHeard { asked: &[], answer: None, ended: &[], released: false, held: false }
+    RelayHeard {
+        revision: 0,
+        amended: &[],
+        message_bytes: 4096,
+        asked: &[],
+        answer: None,
+        ended: &[],
+        released: false,
+        held: false,
+    }
 }
 
 fn open(asker: u64, number: u64, stands: Stands) -> Open {
@@ -35,7 +44,13 @@ fn head(stands: Stands) -> Questions {
 }
 
 fn answered(words: &[u8]) -> Box<[Answered]> {
-    Box::new([Answered { asker: ASKER, number: NUMBER, line: b"Which path?".as_slice().into(), answer: words.into() }])
+    Box::new([Answered {
+        revision: 0,
+        asker: ASKER,
+        number: NUMBER,
+        line: b"Which path?".as_slice().into(),
+        answer: words.into(),
+    }])
 }
 
 fn answered_head(words: &[u8]) -> Questions {
@@ -66,6 +81,7 @@ fn answers_are_kept_at_the_step_that_takes_them_once() {
     };
     let q = Questions { open: Box::new([question.clone()]), route: Route::Up, ..Questions::default() };
     let expected = Box::new([Answered {
+        revision: 2,
         asker: 7,
         number: 3,
         line: question.line.clone(),
@@ -77,7 +93,7 @@ fn answers_are_kept_at_the_step_that_takes_them_once() {
         let ended_askers: &[u64] = if ended { &[7] } else { &[] };
         let result = relay(
             &q,
-            &RelayHeard { answer: Some(b"keep both lines"), held, ended: ended_askers, ..heard() },
+            &RelayHeard { revision: 2, answer: Some(b"keep both lines"), held, ended: ended_askers, ..heard() },
             &super::LIMITS,
             room,
         );
@@ -376,7 +392,14 @@ fn route_none_relays_nothing() {
     let q = Questions { route: Route::None, ..head(Stands::Asked) };
     let result = relay(
         &q,
-        &RelayHeard { asked: &[asked()], answer: Some(b"Unused"), ended: &[ASKER], released: true, held: true },
+        &RelayHeard {
+            asked: &[asked()],
+            answer: Some(b"Unused"),
+            ended: &[ASKER],
+            released: true,
+            held: true,
+            ..heard()
+        },
         &super::LIMITS,
         ROOM,
     );
@@ -432,4 +455,39 @@ fn a_first_line_at_the_byte_bound_is_kept_whole() {
         ROOM,
     );
     assert_eq!(result.questions.open[1].line, words);
+}
+
+/// questions.md, 1, Its amendments, kept for later work: bounded reasons survive either route.
+#[test]
+fn amendments_keep_the_sixteen_newest_reasons_and_the_steps_revision_under_either_route() {
+    use crate::{AMENDMENTS_KEPT, Amended};
+    for route in [Route::None, Route::Up] {
+        let mut questions = Questions { route, ..Questions::default() };
+        for revision in 1..=u64::try_from(AMENDMENTS_KEPT + 1).unwrap() {
+            questions = relay(
+                &questions,
+                &RelayHeard { revision, amended: &["€€€€".as_bytes()], message_bytes: 10, ..heard() },
+                &super::LIMITS,
+                0,
+            )
+            .questions;
+        }
+        assert_eq!(questions.amended.len(), AMENDMENTS_KEPT);
+        for (index, amendment) in questions.amended.iter().enumerate() {
+            assert_eq!(
+                *amendment,
+                Amended { revision: u64::try_from(index).unwrap() + 2, reason: "€€…".as_bytes().into() }
+            );
+        }
+        let before = questions.clone();
+        assert_eq!(relay(&questions, &heard(), &super::LIMITS, 0).questions, before, "an idle step keeps the record");
+        // A single step can take more than the retention limit, all at the revision it reads.
+        let reasons = [b"latest".as_slice(); AMENDMENTS_KEPT + 1];
+        let result = relay(&questions, &RelayHeard { revision: 30, amended: &reasons, ..heard() }, &super::LIMITS, 0);
+        assert_eq!(result.questions.amended.len(), AMENDMENTS_KEPT);
+        for amendment in &result.questions.amended {
+            assert_eq!(amendment.revision, 30);
+            assert_eq!(amendment.reason.as_ref(), b"latest");
+        }
+    }
 }

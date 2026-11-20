@@ -62,12 +62,13 @@ mod resource_admission;
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
 
-mod asked_now;
+mod delegate_amendment;
 #[path = "forge_routes/producer_amendment.rs"]
 mod producer_amendment;
 mod producer_words;
 #[path = "forge_routes/questions.rs"]
 mod questions;
+mod rulings;
 
 #[path = "forge_routes/goal_closer.rs"]
 pub(crate) mod goal_closer;
@@ -143,6 +144,7 @@ mod repairs;
 #[path = "forge_routes/goal_tier.rs"]
 mod goal_tier;
 
+mod amended_review;
 #[path = "forge_routes/reviews.rs"]
 mod reviews;
 
@@ -942,8 +944,8 @@ fn a_failed_ci_repair_keeps_its_branch_start_without_a_named_pin() {
 #[test]
 fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     let mut brief = World::configured_policy(true, true, false, 0, Gate::default(), None).env.limits.brief;
-    // The longer preservation words leave the runner account and pull identity their room.
-    brief.brief_bytes = 896;
+    // The required change context leaves the runner account and pull identity their room.
+    brief.brief_bytes = 4096;
     let world = World::configured_brief(true, true, false, 0, Gate::default(), None, Some(brief));
     let (mut world, _chat, producer, branch) = change_world_in(world, Change::default());
     fake::set_failing(&mut world.fake, b"org/repo", b"build", raw::Failing::NoStep);

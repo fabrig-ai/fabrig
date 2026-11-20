@@ -424,10 +424,12 @@ service, over HTTP, rather than joined to the engine's root.
   3.3's start: 80 columns by 24 rows, its build `0.0.0
   (000000000000)`, the service's origin, a terminal that answers no
   scheme. A walk that needs it signed in says `tui approve`.
-- **The same bytes every time:** the simulator owns the schedule, and
-  the browser takes `SEED`, each TUI `facts::tui_seed`, and both the
-  world's clocks, so a walk takes the
-  same turns on any host, on any day.
+- **The same bytes every time:** the simulator owns the schedule. The
+  browser's first start takes `SEED`; each reload takes the next seed
+  from a `skein_lib::Rng` started at `SEED`, as a browser load supplies
+  fresh entropy, so its request keys name new acts, not an earlier
+  load's. Each TUI takes `facts::tui_seed`, and both clients the world's
+  clocks, so a walk takes the same turns on any host, on any day.
 
 ### 4.2 Each line
 
@@ -444,8 +446,9 @@ time.
 - **`web reload PATH`:** the page started again at PATH: the world, its
   cookies and the page's small store kept; a new host and its page,
   with the sign-in ways the start had and the store's records, no
-  secret, as a browser's reload builds them
-  (`temper-client-shell-web`'s start); then `wait` for the main region.
+  secret, and a fresh seed from 4.1's sequence, as a browser's reload
+  builds them (`temper-client-shell-web`'s start); then `wait` for the
+  main region.
 - **`web mark`:** in the walked journey, a mark: the page's HTML, its
   heading (`print::heading`), and the tree kept for the link (2.4); in
   an ancestor, nothing.
@@ -760,7 +763,13 @@ its own process.
   playground's project, its own `scripts.json`: a chat, Split, "Write it
   up from this chat" and its scripted document, "Start goal…", the
   sheet's "Start goal", the goal's page with its report and its
-  "Draft" link, and that link back to the chat.
+  "Draft" link, and that link back to the chat. In an owned project,
+  another walk sets up Hello on `work/hello`, signs in with ChatGPT,
+  reloads Home and Chats, then starts a chat answered from an `asked`
+  cue. Its new chat waits for the repository's line before marking;
+  its second turn revises the draft, its goal prints a report and
+  lands, and its Draft link returns to both replies. Printed twice,
+  the same bytes, including after those reloads.
 - **The walker and the program,** simulated, on journeys of the tests'
   own in scratch roots: walked and printed; printed twice, the same
   bytes; a control that never appears stopping the walk by its journey
