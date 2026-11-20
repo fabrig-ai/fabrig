@@ -1,4 +1,4 @@
-//! Due waiting changes leave only their own units out (domain/landing.md, 9).
+//! Due ready changes join in queue order and never hold forming (domain/landing.md, 9).
 use super::super::{Domain, Limits, Work, forge, forge_change as change, tasks};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue};
@@ -130,6 +130,130 @@ pub(super) fn wake(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     assert!(domain.core.tasks.procedure_due(task).is_some());
 }
 
+fn restore_change(domain: &mut Domain, env: &Env<Limits>, row: forge::ChangeRow) {
+    forge::step(
+        &mut domain.forge,
+        &crate::translate::environment_forge(env),
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        &mut Queue::uncapped(),
+    );
+}
+
+fn judge_main(domain: &mut Domain, env: &Env<Limits>) {
+    super::judge_trains(domain, env);
+    let mut live = 0_u32;
+    for task in domain.core.tasks.view_tasks() {
+        if let Some(row) = domain.forge.landing(task.number)
+            && row.landing.branch.as_ref() == b"main"
+            && row.landing.phase != super::super::landing::Phase::Landed
+            && row.landing.phase != super::super::landing::Phase::Cancelled
+        {
+            live = live.checked_add(1).unwrap();
+        }
+    }
+    assert!(live <= 1, "main has {live} live landing rows");
+}
+
+#[test]
+fn a_full_batch_forms_in_queue_order_while_every_step_stays_due() {
+    let changes = [7, 8, 9, 10, 11, 12, 13, 14];
+    let (mut domain, mut env) = ready_changes(&changes, 4);
+    let mut priority = domain.forge.change(12).unwrap().clone();
+    priority.priority = -1_i32;
+    restore_change(&mut domain, &env, priority);
+    for task in changes {
+        wake(&mut domain, &env, task);
+    }
+    judge_main(&mut domain, &env);
+    let first = domain.forge.change(12).unwrap().change.landing;
+    assert!(first.is_some(), "all eight waiting changes are due, but a full batch must form");
+    let first = first.unwrap();
+    assert_eq!(members(&domain, first).as_ref(), [12, 7, 8, 9]);
+    for _ in 0_u8..3 {
+        judge_main(&mut domain, &env);
+        assert!(!domain.forge.train_free(super::adopted(1).provider, b"main"));
+        for task in [10, 11, 13, 14] {
+            assert!(domain.core.tasks.procedure_due(task).is_some());
+            assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
+        }
+    }
+    queue_window(&mut domain, &mut env);
+    judge_main(&mut domain, &env);
+    for task in [10, 11, 13, 14] {
+        settle(&mut domain, &env, task);
+        wake(&mut domain, &env, task);
+        judge_main(&mut domain, &env);
+        assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
+    }
+    cancel_landing(&mut domain, first);
+    judge_main(&mut domain, &env);
+    for task in [10, 11, 13, 14] {
+        assert!(domain.core.tasks.procedure_due(task).is_some(), "the end wakes every waiter");
+    }
+    let next = domain.forge.change(10).unwrap().change.landing.expect("the next four join at once");
+    assert_ne!(first, next);
+    assert_eq!(members(&domain, next).as_ref(), [10, 11, 13, 14]);
+}
+
+#[test]
+fn two_landings_form_within_one_minute_without_turning_main() {
+    let (mut domain, env) = ready_changes(&[7, 8, 9, 10], 3);
+    let repository = super::adopted(1).provider;
+    let main = forge::Name {
+        forge: repository.forge,
+        repository: repository.repository,
+        what: forge::What::Branch(Box::new([b"main".as_slice().into()])),
+    };
+    forge::step(
+        &mut domain.forge,
+        &crate::translate::environment_forge(&env),
+        forge::Event::Restore {
+            record: forge::Stored::BranchHead(forge::BranchHead {
+                name: main.clone(),
+                commit: super::SHA1,
+                owned: false,
+            }),
+        },
+        &mut Queue::uncapped(),
+    );
+    let tip = domain.forge.branch_head(&main);
+    assert_eq!(tip, Some(super::SHA1));
+    let minute = env.wall.as_nanos() / 60_000_000_000;
+    let ready_ten = domain.forge.change(10).unwrap().clone();
+    let mut checking = ready_ten.clone();
+    checking.change.state = change::State::Checking { head: super::SHA1 };
+    restore_change(&mut domain, &env, checking);
+    for task in [8, 9] {
+        wake(&mut domain, &env, task);
+    }
+    judge_main(&mut domain, &env);
+    let first = domain.forge.change(7).unwrap().change.landing.expect("the quiet waiter forms");
+    assert_eq!(members(&domain, first).as_ref(), [7, 8, 9]);
+    assert!(!domain.forge.train_free(repository, b"main"));
+    // The real Ready decision ends a step that joined at the same head while due.
+    ready_answer(&mut domain, 8);
+    judge_main(&mut domain, &env);
+    assert!(domain.core.tasks.procedure_due(8).is_none());
+    assert_eq!(domain.forge.change(8).unwrap().change.landing, Some(first));
+    assert!(!domain.forge.train_free(repository, b"main"));
+    assert_eq!(members(&domain, first).as_ref(), [7, 8, 9]);
+    for member in &domain.forge.landing(first).unwrap().landing.members {
+        assert_eq!(member.left, None);
+    }
+    settle(&mut domain, &env, 9);
+    restore_change(&mut domain, &env, ready_ten);
+    judge_main(&mut domain, &env);
+    assert!(!domain.forge.train_free(super::adopted(1).provider, b"main"));
+    assert_eq!(domain.forge.change(10).unwrap().change.landing, None);
+    cancel_landing(&mut domain, first);
+    judge_main(&mut domain, &env);
+    let next = domain.forge.change(10).unwrap().change.landing.expect("the end's due waiter joins at once");
+    assert_ne!(first, next);
+    assert_eq!(members(&domain, next).as_ref(), [10]);
+    assert_eq!(domain.forge.branch_head(&main), tip, "main never turned");
+    assert_eq!(env.wall.as_nanos() / 60_000_000_000, minute);
+}
+
 #[test]
 fn rotating_due_ready_steps_do_not_starve_a_free_train() {
     let (mut domain, env) = ready_changes(&[7, 8, 9, 10], 3);
@@ -183,106 +307,84 @@ fn stop_member(task: u64) -> tasks::Event {
 }
 
 #[test]
-fn a_freed_train_forms_right_after_the_first_woken_waiter_settles() {
+fn a_freed_train_forms_at_once_with_due_and_quiet_waiters() {
     let (mut domain, env) = ready_changes(&[7, 8, 9, 10, 11], 3);
     for task in [8, 9, 10, 11] {
         wake(&mut domain, &env, task);
     }
     super::judge_trains(&mut domain, &env);
-    let first = domain.forge.change(7).unwrap().change.landing.expect("one settled member");
-    assert_eq!(members(&domain, first).as_ref(), [7]);
+    let first = domain.forge.change(7).unwrap().change.landing.expect("a full batch forms");
+    assert_eq!(members(&domain, first).as_ref(), [7, 8, 9]);
     for task in [8, 9, 10, 11] {
         settle(&mut domain, &env, task);
     }
     let mut previous = None;
-    for task in [8, 9, 10, 11] {
+    for task in [10, 11, 10, 11] {
         wake(&mut domain, &env, task);
         if let Some(previous) = previous {
             settle(&mut domain, &env, previous);
         }
         super::judge_trains(&mut domain, &env);
-        assert_eq!(members(&domain, first).as_ref(), [7]);
-        for waiting in [8, 9, 10, 11] {
+        assert_eq!(members(&domain, first).as_ref(), [7, 8, 9]);
+        for waiting in [10, 11] {
             assert_eq!(domain.forge.change(waiting).unwrap().change.landing, None);
         }
         previous = Some(task);
     }
     cancel_landing(&mut domain, first);
     super::judge_trains(&mut domain, &env);
-    assert!(domain.forge.train_free(super::adopted(1).provider, b"main"));
-    for task in [8, 9, 10, 11] {
-        assert!(domain.core.tasks.procedure_due(task).is_some(), "landing end wakes every waiter");
-        assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
-    }
-    settle(&mut domain, &env, 9);
-    super::judge_trains(&mut domain, &env);
-    let next = domain.forge.change(9).unwrap().change.landing.expect("the first settled waiter forms at once");
+    let next = domain.forge.change(10).unwrap().change.landing.expect("due waiters join immediately at the end");
     assert_ne!(next, first);
-    assert_eq!(members(&domain, next).as_ref(), [9]);
-    for task in [8, 10, 11] {
-        assert!(domain.core.tasks.procedure_due(task).is_some());
-        assert_eq!(domain.forge.change(task).unwrap().change.landing, None);
+    assert_eq!(members(&domain, next).as_ref(), [10, 11]);
+    for task in [10, 11] {
+        assert!(domain.core.tasks.procedure_due(task).is_some(), "landing end wakes every waiter");
     }
 }
 
 #[test]
-fn a_due_middle_waiter_keeps_its_place_and_joins_the_next_landing() {
+fn a_due_middle_waiter_keeps_its_place_and_joins_the_same_landing() {
     let (mut domain, env) = ready_changes(&[7, 8, 9], 3);
     let before = domain.forge.change(8).unwrap().clone();
     wake(&mut domain, &env, 8);
     super::judge_trains(&mut domain, &env);
-    let first = domain.forge.change(7).unwrap().change.landing.expect("the settled units form");
-    assert_eq!(members(&domain, first).as_ref(), [7, 9]);
-    assert_eq!(domain.forge.change(8).unwrap(), &before, "exclusion changes neither queue time nor priority");
+    let first = domain.forge.change(7).unwrap().change.landing.expect("due and quiet units form together");
+    assert_eq!(members(&domain, first).as_ref(), [7, 8, 9]);
+    let mut expected = before;
+    expected.change.landing = Some(first);
+    assert_eq!(domain.forge.change(8).unwrap(), &expected, "joining changes neither queue time nor priority");
     settle(&mut domain, &env, 8);
     super::judge_trains(&mut domain, &env);
-    assert_eq!(domain.forge.change(8).unwrap().change.landing, None, "the train is still held");
-    cancel_landing(&mut domain, first);
-    super::judge_trains(&mut domain, &env);
-    assert!(domain.core.tasks.procedure_due(8).is_some(), "landing end wakes the remaining waiter again");
-    settle(&mut domain, &env, 8);
-    super::judge_trains(&mut domain, &env);
-    let next = domain.forge.change(8).unwrap().change.landing.expect("the excluded waiter joins later");
-    assert_ne!(next, first);
-    assert_eq!(members(&domain, next).as_ref(), [8]);
+    assert_eq!(domain.forge.change(8).unwrap().change.landing, Some(first), "the train is still held");
 }
 
 #[test]
 fn queue_windows_and_landing_end_wakes_keep_forming_until_every_waiter_joins() {
     let changes = [7, 8, 9, 10, 11, 12];
     let (mut domain, mut env) = ready_changes(&changes, 3);
-    queue_window(&mut domain, &mut env);
-    let mut joined = List::with_capacity(6);
     for task in changes {
-        assert!(domain.forge.train_free(super::adopted(1).provider, b"main"));
-        for waiting in changes {
-            if waiting < task {
-                continue;
-            }
-            assert!(domain.core.tasks.procedure_due(waiting).is_some());
-            assert_eq!(domain.forge.change(waiting).unwrap().change.landing, None);
-        }
-        settle(&mut domain, &env, task);
+        wake(&mut domain, &env, task);
+    }
+    let mut joined = List::with_capacity(6);
+    for batch in [[7, 8, 9], [10, 11, 12]] {
         super::judge_trains(&mut domain, &env);
-        let formed =
-            domain.forge.change(task).unwrap().change.landing.expect("a free train forms at its first settled waiter");
-        assert_eq!(members(&domain, formed).as_ref(), [task]);
-        for member in members(&domain, formed).iter().copied() {
+        let formed = domain.forge.change(batch[0]).unwrap().change.landing.expect("three due waiters form together");
+        assert_eq!(members(&domain, formed).as_ref(), batch);
+        for member in batch {
+            assert!(domain.core.tasks.procedure_due(member).is_some());
             joined.push(member).unwrap();
         }
-        // Finish the reads woken by the preceding end, while the train is held.
+        // Finish waiting reads while the landing holds its train.
         for waiting in changes {
-            if waiting <= task {
+            if waiting <= batch[2] {
                 continue;
             }
             settle(&mut domain, &env, waiting);
             super::judge_trains(&mut domain, &env);
             assert_eq!(domain.forge.change(waiting).unwrap().change.landing, None);
         }
-        // Another queue window re-steps the now-idle waiters while the train is held.
         queue_window(&mut domain, &mut env);
         for waiting in changes {
-            if waiting <= task {
+            if waiting <= batch[2] {
                 continue;
             }
             assert!(domain.core.tasks.procedure_due(waiting).is_some(), "the queue window re-steps each waiter");
@@ -292,11 +394,11 @@ fn queue_windows_and_landing_end_wakes_keep_forming_until_every_waiter_joins() {
         }
         end_at_read_boundary(&mut domain, &env, formed);
         for waiting in changes {
-            if waiting <= task {
+            if waiting <= batch[2] {
                 continue;
             }
-            assert!(domain.core.tasks.procedure_due(waiting).is_some(), "the landing end wakes the settled waiter");
-            assert_eq!(domain.forge.change(waiting).unwrap().change.landing, None);
+            assert!(domain.core.tasks.procedure_due(waiting).is_some(), "the landing end wakes each waiter");
+            assert!(domain.forge.change(waiting).unwrap().change.landing.is_some(), "the freed train forms at once");
         }
     }
     assert_eq!(joined.as_slice(), &changes);
@@ -345,7 +447,7 @@ fn end_at_read_boundary(domain: &mut Domain, env: &Env<Limits>, task: u64) {
 }
 
 #[test]
-fn a_step_begun_before_readiness_settles_its_coalesced_wake_before_forming() {
+fn a_step_begun_before_readiness_does_not_hold_forming_once_ready() {
     let (mut domain, env) = ready_changes(&[7, 8], 3);
     let mut row = domain.forge.change(8).unwrap().clone();
     row.change.state = change::State::Gating { head: super::SHA1, asked: Box::new([]) };
@@ -367,11 +469,11 @@ fn a_step_begun_before_readiness_settles_its_coalesced_wake_before_forming() {
     ready_answer(&mut domain, 8);
     super::judge_trains(&mut domain, &env);
     assert!(domain.core.tasks.procedure_due(8).is_some(), "the readiness step has a coalesced wake");
-    assert!(domain.forge.change(7).unwrap().change.landing.is_none(), "the newly ready member still settles");
+    let formed = domain.forge.change(7).unwrap().change.landing.expect("the ready member no longer holds forming");
+    assert_eq!(members(&domain, formed).as_ref(), [7, 8]);
     ready_answer(&mut domain, 8);
     super::judge_trains(&mut domain, &env);
-    let formed = domain.forge.change(7).unwrap().change.landing.expect("both readiness reads settled");
-    assert_eq!(members(&domain, formed).as_ref(), [7, 8]);
+    assert_eq!(domain.forge.change(8).unwrap().change.landing, Some(formed));
 }
 
 fn ready_answer(domain: &mut Domain, task: u64) {
@@ -419,7 +521,19 @@ fn due_ready_and_gating_changes_do_not_hold_another_branchs_train() {
             let formed =
                 domain.forge.change(other).unwrap().change.landing.expect("the other branch forms independently");
             assert_eq!(members(&domain, formed).as_ref(), [other]);
-            assert_eq!(domain.forge.change(due).unwrap().change.landing, None);
+            if gating {
+                assert_eq!(domain.forge.change(due).unwrap().change.landing, None);
+            } else {
+                let own = domain
+                    .forge
+                    .change(due)
+                    .unwrap()
+                    .change
+                    .landing
+                    .expect("ready due changes form on their own train");
+                assert_ne!(own, formed);
+                assert_eq!(members(&domain, own).as_ref(), [due]);
+            }
             assert!(domain.core.tasks.procedure_due(due).is_some());
         }
     }

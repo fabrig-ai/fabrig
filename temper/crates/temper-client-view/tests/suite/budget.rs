@@ -71,7 +71,7 @@ mod tests {
                     use temper_client_protocol_wire::{self as wire, v1 as f};
                     let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(subject.record()))
                         .expect("family scope and window");
-                    match wire::decode_watching(envelope.record(), &f::CEILINGS).expect("watch").watch() {
+                    match &wire::decode_watching(envelope.record(), &f::CEILINGS).expect("watch").watch {
                         f::Watch::Changes(_) => order.push("changes".into()),
                         f::Watch::Drafts(_) => order.push("drafts".into()),
                         _ => {}
@@ -129,13 +129,13 @@ mod tests {
                         contains(&card, "31 spent of 100");
                         contains(&card, "2 of 3 goals done.");
                     }
-                    for queue in project.changes.queues() {
-                        for change in queue.changes() {
-                            contains(&main, change.title());
+                    for queue in &project.changes.queues {
+                        for change in &queue.changes {
+                            contains(&main, &change.title);
                         }
                     }
-                    for (n, landed) in project.changes.landed_default().iter().enumerate() {
-                        contains(&main, landed.title());
+                    for (n, landed) in project.changes.landed_default.iter().enumerate() {
+                        contains(&main, &landed.title);
                         let signers = format!("signed by you and Signer {n}");
                         assert!(
                             tree.nodes()
@@ -150,9 +150,9 @@ mod tests {
                     contains(&main, format!("Draft chat {n}"));
                     contains(&main, format!("draft-document-{n}.md"));
                 }
-                for draft in project.drafts.drafts() {
-                    contains(&main, draft.title());
-                    contains(&main, draft.path());
+                for draft in &project.drafts.drafts {
+                    contains(&main, &draft.title);
+                    contains(&main, &draft.path);
                 }
                 let heading = tree
                     .nodes()
@@ -211,13 +211,13 @@ mod tests {
             Address::Changes { .. } => {
                 contains(&main, "Queue");
                 contains(&main, "on the way to main.");
-                for queue in project.changes.queues() {
-                    for change in queue.changes() {
-                        contains(&main, change.title());
+                for queue in &project.changes.queues {
+                    for change in &queue.changes {
+                        contains(&main, &change.title);
                     }
                 }
-                for change in project.changes.landed() {
-                    contains(&main, change.title());
+                for change in &project.changes.landed {
+                    contains(&main, &change.title);
                 }
             }
             _ => panic!("Work's family only"),

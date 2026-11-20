@@ -138,7 +138,7 @@ impl Chats {
         for lines in [live, closed] {
             for line in lines {
                 let document = match parts::chat(line) {
-                    Some(part) => match part.into_parts().document {
+                    Some(part) => match part.document {
                         Some(document) => {
                             Some(c::DocumentText::complete(Text::new(document, 512).expect("chat part document bound")))
                         }

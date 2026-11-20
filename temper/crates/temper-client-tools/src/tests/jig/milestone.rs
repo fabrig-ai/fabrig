@@ -272,31 +272,19 @@ fn milestone_list_reads_the_offered_label_and_one_group_with_a_cursor() {
     assert_eq!(rows::MILESTONE_LIST.result, b"milestone_list");
 }
 fn totals(ended: bool) -> w::MilestoneResult {
-    w::MilestoneResult::Totals(
-        w::MilestoneTotals::new(
-            &w::CEILINGS,
-            w::MilestoneTotalsParts {
-                task: 812,
-                done: 7,
-                failed: 0,
-                closed: 1,
-                live: u32::from(!ended),
-                ended: if ended { Some(120_000_000_000) } else { None },
-                last_landing: Some(
-                    w::MilestoneLanding::new(
-                        &w::CEILINGS,
-                        w::MilestoneLandingParts { at: 90_000_000_000, goal: 820, change: 821 },
-                    )
-                    .unwrap(),
-                ),
-                spent: 212,
-            },
-        )
-        .unwrap(),
-    )
+    w::MilestoneResult::Totals(w::MilestoneTotals {
+        task: 812,
+        done: 7,
+        failed: 0,
+        closed: 1,
+        live: u32::from(!ended),
+        ended: if ended { Some(120_000_000_000) } else { None },
+        last_landing: Some(w::MilestoneLanding { at: 90_000_000_000, goal: 820, change: 821 }),
+        spent: 212,
+    })
 }
 fn answer(result: w::MilestoneResult) -> jig_client::Readout {
-    let answer = w::MilestoneAnswer::new(&w::CEILINGS, w::MilestoneAnswerParts { result }).unwrap();
+    let answer = w::MilestoneAnswer { result };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::milestone_answer(&answer)) }
 }
 fn show(json: bool, task: c::Task, result: w::MilestoneResult) -> crate::jig::Printed {
@@ -386,9 +374,9 @@ fn milestone_budget_argv_and_totals_share_the_amount() {
     let mut task = milestone();
     task.budget.numbers.budget = 13000;
     let w::MilestoneResult::Totals(totals) = totals(false) else { panic!("totals") };
-    let mut parts = totals.into_parts();
+    let mut parts = totals;
     parts.spent = 0;
-    let result = w::MilestoneResult::Totals(w::MilestoneTotals::new(&w::CEILINGS, parts).unwrap());
+    let result = w::MilestoneResult::Totals(parts);
     let printed = show(false, task, result);
     assert!(skein_lib::bytes::find(&printed.stdout, b"spent: 0.00 of 130.00").is_some());
 }

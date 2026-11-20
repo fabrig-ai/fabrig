@@ -32,8 +32,7 @@ fn web_host(project: bool, printed: bool) -> (Host, u64) {
 
 fn web_linked(host: &mut Host, watch: u64, linked: bool) {
     use temper_client_protocol_wire::{self as wire, v1 as f};
-    let record =
-        wire::forges(&f::Forges::new(&f::CEILINGS, f::ForgesParts { forges: List::with_capacity(0), linked }).unwrap());
+    let record = wire::forges(&f::Forges { forges: List::with_capacity(0), linked });
     let event = w::StreamEvent::Delivery(
         w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document: goal::family(record) }).unwrap(),
     );

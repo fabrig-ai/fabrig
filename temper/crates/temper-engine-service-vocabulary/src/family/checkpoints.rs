@@ -1,29 +1,24 @@
 //! The store's terminal on the client family (temper/docs/design/protocol/checkpoints.md, 3).
 use alloc::boxed::Box;
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain as root;
 
 pub(super) fn answer(value: Result<root::Checkpointed, root::CheckpointWhy>, limits: &w::Limits) -> Option<w::Outcome> {
     Some(match value {
-        Ok(value) => w::Outcome::Checkpointed(
-            w::Checkpointed::new(
-                limits,
-                w::CheckpointedParts {
-                    name: value.name,
-                    store: value.store,
-                    secrets: value.secrets,
-                    linked: value.linked,
-                    copied: value.copied,
-                    bytes: value.bytes,
-                    paused: value.paused,
-                    took: value.took,
-                    held: value.held,
-                    removed: value.removed,
-                    skipped: value.skipped,
-                },
-            )
-            .ok()?,
-        ),
+        Ok(value) => w::Outcome::Checkpointed(w::Checkpointed {
+            name: value.name,
+            store: value.store,
+            secrets: value.secrets,
+            linked: value.linked,
+            copied: value.copied,
+            bytes: value.bytes,
+            paused: value.paused,
+            took: value.took,
+            held: value.held,
+            removed: value.removed,
+            skipped: value.skipped,
+        }),
         Err(why) => {
             let why = match why {
                 root::CheckpointWhy::NotOwner => w::CheckpointWhy::NotOwner,
@@ -34,18 +29,18 @@ pub(super) fn answer(value: Result<root::Checkpointed, root::CheckpointWhy>, lim
                     w::CheckpointWhy::Unrecognized(path_record(path, limits)?)
                 }
                 root::CheckpointWhy::Vanished { path } => w::CheckpointWhy::Vanished(path_record(path, limits)?),
-                root::CheckpointWhy::Failed { path, error } => w::CheckpointWhy::Failed(
-                    w::CheckpointFailed::new(
-                        limits,
-                        w::CheckpointFailedParts { path: path.into(), error: error.into() },
-                    )
-                    .ok()?,
-                ),
+                root::CheckpointWhy::Failed { path, error } => {
+                    w::CheckpointWhy::Failed(w::CheckpointFailed { path: path.into(), error: error.into() })
+                }
             };
-            w::Outcome::CheckpointRefused(w::CheckpointRefused::new(limits, w::CheckpointRefusedParts { why }).ok()?)
+            w::Outcome::CheckpointRefused(w::CheckpointRefused { why })
         }
     })
 }
 fn path_record(path: Box<str>, limits: &w::Limits) -> Option<w::CheckpointPath> {
-    w::CheckpointPath::new(limits, w::CheckpointPathParts { path: path.into() }).ok()
+    {
+        let value = w::CheckpointPath { path: path.into() };
+        value.measure(limits).ok()?;
+        Some(value)
+    }
 }

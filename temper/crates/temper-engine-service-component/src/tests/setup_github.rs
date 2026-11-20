@@ -3,6 +3,7 @@ use super::*;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as clients;
 use skein_lib::{Reader, ReplyTo};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[path = "setup_github_render.rs"]
@@ -81,7 +82,7 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                     let bytes = crate::family::answer(outcome, &w::CEILINGS, &engine.clients.env.limits.wire).unwrap();
                     let record = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
                     assert!(answer.is_none(), "one terminal per family call");
-                    answer = Some(record.into_parts().outcome);
+                    answer = Some(record.outcome);
                 }
                 root::Request::Party(root::PartyRequest::Deliver(root::Delivery::WebReply { reply, .. })) => {
                     match reply {
@@ -152,7 +153,7 @@ fn request(
     scope: people::ApplicationScope,
     request: w::Request,
 ) -> Option<w::Outcome> {
-    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let record = wire::requesting(&w::Requesting { request });
     let engine = service.engine.as_mut().unwrap();
     let event = crate::family::to_root(
         &jig_protocol_config::Directories::working(),
@@ -183,7 +184,7 @@ fn install(service: &mut crate::Service, key: u8) -> w::Outcome {
         service,
         key,
         people::ApplicationScope::Deployment,
-        w::Request::Install(w::Install::new(&w::CEILINGS, w::InstallParts { forge: FORGE, back: None }).unwrap()),
+        w::Request::Install(w::Install { forge: FORGE, back: None }),
     )
     .expect("install answer")
 }
@@ -205,7 +206,7 @@ fn show_connected(service: &mut crate::Service) {
 
 fn link_state(answer: &w::Outcome) -> &[u8] {
     let w::Outcome::Link(link) = answer else { panic!("install link: {answer:?}") };
-    link.address().strip_prefix(b"http://127.0.0.1:3000/apps/app-fixture/installations/new?state=").unwrap()
+    link.address.strip_prefix(b"http://127.0.0.1:3000/apps/app-fixture/installations/new?state=").unwrap()
 }
 
 fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
@@ -220,18 +221,10 @@ fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
 }
 
 fn connect_request_with_policy(app: u64, read_only: Option<bool>) -> w::Request {
-    w::Request::Connect(
-        w::Connect::new(
-            &w::CEILINGS,
-            w::ConnectParts {
-                forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: FORGE }).unwrap()),
-                how: w::How::GithubApp(
-                    w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app, read_only }).unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    )
+    w::Request::Connect(w::Connect {
+        forge: w::Making::Kept(w::Kept { forge: FORGE }),
+        how: w::How::GithubApp(w::GitHubApp { id: app, read_only }),
+    })
 }
 
 fn paste_success(service: &mut crate::Service, face: &mut Face) {
@@ -273,10 +266,7 @@ fn http_paste_with_policy(
     let (_, bundle) = carried_pem();
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
-    let record = wire::requesting(
-        &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request_with_policy(app, read_only) })
-            .unwrap(),
-    );
+    let record = wire::requesting(&w::Requesting { request: connect_request_with_policy(app, read_only) });
     let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
     family.encode(&mut bytes).unwrap();
@@ -302,7 +292,7 @@ fn http_paste_with_policy(
     else {
         panic!("family terminal")
     };
-    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome
+    w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().outcome
 }
 
 #[test]
@@ -494,24 +484,18 @@ fn a_successful_paste_retry_clears_the_rows_readable_failure() {
 }
 
 fn adopt_request(owner: &[u8]) -> w::Request {
-    w::Request::Adopt(
-        w::Adopt::new(
-            &w::CEILINGS,
-            w::AdoptParts {
-                project: 1,
-                home: false,
-                forge: FORGE,
-                owner: owner.into(),
-                name: b"unadopted".as_slice().into(),
-                prefix: b"temper".as_slice().into(),
-                role: w::Role::Adopted,
-                landing: b"main".as_slice().into(),
-                ci: false,
-                checks: List::with_capacity(0),
-            },
-        )
-        .unwrap(),
-    )
+    w::Request::Adopt(w::Adopt {
+        project: 1,
+        home: false,
+        forge: FORGE,
+        owner: owner.into(),
+        name: b"unadopted".as_slice().into(),
+        prefix: b"temper".as_slice().into(),
+        role: w::Role::Adopted,
+        landing: b"main".as_slice().into(),
+        ci: false,
+        checks: List::with_capacity(0),
+    })
 }
 
 fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8]) -> Face {
@@ -589,7 +573,7 @@ fn unaccepted_and_other_account_adoptions_keep_the_wire_reason_gap() {
             )
         };
         // Known gap (client/forge/family.md, 6): NotInstalled projects to NoAccess on the family wire.
-        assert_eq!(refusal.reason(), &w::ForgeReason::NoAccess, "{name}");
+        assert_eq!(&refusal.reason, &w::ForgeReason::NoAccess, "{name}");
         assert!(
             service.engine.as_ref().unwrap().domain.forges().rows[0].repositories.is_empty(),
             "{name}: no adoption"

@@ -348,11 +348,11 @@ fn projects(b: &mut Builder, facts: &all_home::Facts, w: &Words, bindings: &mut 
                 b.text(Run::Plain, &w.say(Word::ToolSeparator, &[]));
             }
             let branch =
-                if status.branch().is_empty() { w.say(Word::ChangesLanding, &[]) } else { status.branch().into() };
-            let branch = if status.red() { w.say(Word::HomeBranchRed, &[Hole::Name(branch)]) } else { branch };
+                if status.branch.is_empty() { w.say(Word::ChangesLanding, &[]) } else { status.branch.clone() };
+            let branch = if status.red { w.say(Word::HomeBranchRed, &[Hole::Name(branch)]) } else { branch };
             b.open(Role::Text);
             b.style(look::CHIP);
-            b.style(if status.red() { look::CHIP_SIGNAL } else { look::CHIP_GOOD });
+            b.style(if status.red { look::CHIP_SIGNAL } else { look::CHIP_GOOD });
             b.text(Run::Plain, &branch);
             b.close();
         }

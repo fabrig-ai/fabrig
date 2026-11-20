@@ -41,7 +41,7 @@ fn debug_of_an_environment_shows_names_never_values() {
     assert_hidden(&debug, &pretty);
     assert_eq!(debug, EXPECTED);
 
-    let component = Component::new(&super::limits(), environment);
+    let component = Component::new(&super::limits(), environment, Box::from(b"/usr/bin/rg".as_slice()));
     let debug = format(format_args!("{component:?}"));
     let pretty = format(format_args!("{component:#?}"));
     assert_hidden(&debug, &pretty);

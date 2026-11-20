@@ -15,6 +15,7 @@ use temper_client_domain::{
     self as d,
     pages::accounts::{Act as A, Operation, Row},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as v};
 
 const ADDRESS: &[u8] = b"https://issuer.example/visit";
@@ -94,21 +95,19 @@ fn trial_root(kind: c::AccountKind) -> (d::Domain, Token, Token) {
 }
 
 fn trial_row(step: v::TrialStep, state: v::TrialState) -> v::TrialRow {
-    v::TrialRow::new(
-        &v::CEILINGS,
-        v::TrialRowParts { run_wait: None, account: TRIED_ACCOUNT, task: Some(TRIAL_TASK), took: None, step, state },
-    )
-    .unwrap()
+    v::TrialRow { run_wait: None, account: TRIED_ACCOUNT, task: Some(TRIAL_TASK), took: None, step, state }
 }
 
 fn trial_failed(why: v::TrialWhy) -> v::TrialState {
-    v::TrialState::Failed(v::TrialFailed::new(&v::CEILINGS, v::TrialFailedParts { why }).unwrap())
+    v::TrialState::Failed(v::TrialFailed { why })
 }
 
 fn trial_rows(root: &mut d::Domain, watch: Token, rows: &[v::TrialRow]) {
-    let doc = v::Trials::new(&v::CEILINGS, v::TrialsParts { rows: List::from_boxed(rows.into()) }).unwrap();
-    let mut writer = skein_lib::Writer::new(usize::try_from(doc.measure()).unwrap());
-    doc.encode(&mut writer).unwrap();
+    let doc = v::Trials { rows: List::from_boxed(rows.into()) };
+    let mut writer = skein_lib::Writer::new(
+        usize::try_from(doc.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings")).unwrap(),
+    );
+    doc.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).unwrap();
     trial_event(
         root,
         d::Event::Client {
@@ -134,8 +133,7 @@ fn account_nodes(tree: &skein_ui::Tree) -> &[skein_ui::Node] {
 #[test]
 #[expect(clippy::too_many_lines, reason = "each trial outcome keeps its expected line, style and steps together")]
 fn a_row_holds_its_trials_line() {
-    let answered =
-        v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap());
+    let answered = v::TrialState::Answered(v::TrialAnswered { seconds: 6 });
     for (kind, step, state, line, style, each_step) in [
         (
             c::AccountKind::Program,
@@ -180,7 +178,7 @@ fn a_row_holds_its_trials_line() {
         (
             c::AccountKind::Program,
             v::TrialStep::Answers,
-            v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 8 }).unwrap()),
+            v::TrialState::Answered(v::TrialAnswered { seconds: 8 }),
             "Signed in through Claude Code · answered in 8 s",
             Some(crate::look::ACCOUNT_CHECK),
             false,
@@ -188,7 +186,7 @@ fn a_row_holds_its_trials_line() {
         (
             c::AccountKind::Key,
             v::TrialStep::Answers,
-            v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap()),
+            v::TrialState::Answered(v::TrialAnswered { seconds: 6 }),
             "Billed to the key’s organization · answered in 6 s",
             Some(crate::look::ACCOUNT_CHECK),
             false,
@@ -256,13 +254,9 @@ fn a_row_answered_for_another_account_says_nothing() {
     other.display = text(b"Other");
     doc.accounts = List::from_boxed(Box::new([doc.accounts.get(0).unwrap().clone(), other]));
     deliver(&mut root, accounts, doc);
-    let mut row = trial_row(
-        v::TrialStep::Answers,
-        v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap()),
-    )
-    .into_parts();
+    let mut row = trial_row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 6 }));
     row.took = Some(OTHER_ACCOUNT);
-    trial_rows(&mut root, trials, &[v::TrialRow::new(&v::CEILINGS, row).unwrap()]);
+    trial_rows(&mut root, trials, &[row]);
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         let tree = fixtures::build(&mut view, &root);
@@ -293,9 +287,7 @@ fn sign_in_again_on_a_row_goes_to_the_ways_page() {
         (c::AccountKind::Key, d::WayKind::Key, false),
     ] {
         let (mut root, trials, _) = trial_root(kind);
-        let why = v::TrialWhy::Ended(
-            v::TrialEnded::new(&v::CEILINGS, v::TrialEndedParts { class: v::TrialClass::Permanent }).unwrap(),
-        );
+        let why = v::TrialWhy::Ended(v::TrialEnded { class: v::TrialClass::Permanent });
         trial_rows(&mut root, trials, &[trial_row(v::TrialStep::Answers, trial_failed(why))]);
         for words in [fixtures::words(), fixtures::browser_words()] {
             let mut view = fixtures::view_of(words);
@@ -788,10 +780,7 @@ fn opened_accounts_name_their_uses_between_check_and_sources() {
     trial_rows(
         &mut root,
         trials,
-        &[trial_row(
-            v::TrialStep::Answers,
-            v::TrialState::Answered(v::TrialAnswered::new(&v::CEILINGS, v::TrialAnsweredParts { seconds: 6 }).unwrap()),
-        )],
+        &[trial_row(v::TrialStep::Answers, v::TrialState::Answered(v::TrialAnswered { seconds: 6 }))],
     );
     for (given, cap, expected) in [
         (doc.accounts.get(0).unwrap().uses.clone(), 8, Some("Pays for Ana, ben, Person 9 and fabrig.")),

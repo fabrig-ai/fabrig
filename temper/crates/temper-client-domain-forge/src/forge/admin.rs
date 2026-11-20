@@ -3,6 +3,7 @@ use super::{Limits, Request, Served, Side, forges, github};
 use alloc::boxed::Box;
 use jig_client::{Ask, Event, Family, Key, Told, contract as c};
 use skein_lib::{Queue, Secret};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -255,12 +256,11 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
     let bounds = super::wire_limits(&limits).expect("checked limits");
     let target = if let Some(place) = place {
         let forges::Managed { host, port, tls, git, web } = place;
-        let provided = w::ManagedForgeParts { host, port, tls, git, web, git_program: None };
-        let value = w::ManagedForge::new(&bounds, provided);
-        let Ok(value) = value else { return };
-        let Ok(new) = w::NewForge::new(&bounds, w::NewForgeParts { forge: w::ForgeAsk::Managed(value) }) else {
+        let provided = w::ManagedForge { host, port, tls, git, web, git_program: None };
+        let new = w::NewForge { forge: w::ForgeAsk::Managed(provided) };
+        if new.encode(&bounds).is_err() {
             return;
-        };
+        }
         forges::new_record(side, forges::Kind::Forgejo, forges::Mode::Managed);
         w::Making::New(new)
     } else {
@@ -268,27 +268,25 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         target
     };
     let draft = &mut side.admin_form;
-    let first = w::FirstAsk::new(
-        &bounds,
-        w::FirstAskParts {
-            org: draft.fields[0].clone(),
-            repository: draft.fields[1].clone(),
-            label: draft.fields[2].clone(),
-        },
-    );
-    let Ok(first) = first else {
+    let first = w::FirstAsk {
+        org: draft.fields[0].clone(),
+        repository: draft.fields[1].clone(),
+        label: draft.fields[2].clone(),
+    };
+    if first.encode(&bounds).is_err() {
         side.changed();
         return;
-    };
-    let how = w::How::ForgejoAdmin(
-        w::ForgejoAdmin::new(&bounds, w::ForgejoAdminParts { first: Some(first) }).expect("first fits"),
-    );
-    let request =
-        w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge: target, how }).expect("connect fits"));
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).expect("request fits");
+    }
+    let how = w::How::ForgejoAdmin(w::ForgejoAdmin { first: Some(first) });
+    let request = w::Request::Connect(w::Connect { forge: target, how });
+    let record = w::Requesting { request };
     let request = Ask::Family {
         scope: c::Scope::Deployment,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: record.encode(&bounds).expect("request fits"),
+        },
     };
     let token = draft.token.take().expect("validated token");
     let value = forges::pasted_admin_token(token.expose()).expect("validated token fits pasted record");
@@ -300,18 +298,12 @@ fn send_target(side: &mut Side, limits: Limits, forge: u16, place: Option<forges
         &crate::key::Name::new(skein_lib::Decimal::of(side.serial).as_bytes()).expect("serial fits"),
     );
     side.set_up = Some(Box::new(forges::SetUp {
-        first: w::SetUpFirst::Empty(
-            w::FirstEmpty::new(
-                &bounds,
-                w::FirstEmptyParts {
-                    playground: false,
-                    sample: false,
-                    org: draft.fields[0].clone(),
-                    repository: draft.fields[1].clone(),
-                },
-            )
-            .expect("validated first repository"),
-        ),
+        first: w::SetUpFirst::Empty(w::FirstEmpty {
+            playground: false,
+            sample: false,
+            org: draft.fields[0].clone(),
+            repository: draft.fields[1].clone(),
+        }),
         forge: if side.setup_form.making.is_some() { None } else { Some(forge) },
         request: skein_lib::Token::new(side.serial),
         progress: None,

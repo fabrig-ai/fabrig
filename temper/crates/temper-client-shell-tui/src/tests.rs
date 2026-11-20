@@ -3160,13 +3160,10 @@ fn background_single(request: &Request) -> Option<Report> {
         && let owned = w::Owned::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("read envelope")
         && owned.owner() != &w::Owner::Jig
         && let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record())).expect("family read")
-        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(temper_client_protocol_wire::v1::Reading::read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind() == 7)
+        && matches!(temper_client_protocol_wire::decode_reading(envelope.record(), &temper_client_protocol_wire::v1::CEILINGS).as_ref().map(|record| &record.read), Some(temper_client_protocol_wire::v1::Read::Setting(setting)) if setting.kind == 7)
     {
         use temper_client_protocol_wire::{self as wire, v1 as f};
-        let record = wire::setting_answer(
-            &f::SettingAnswer::new(&f::CEILINGS, f::SettingAnswerParts { revision: None, value: None })
-                .expect("stock ways"),
-        );
+        let record = wire::setting_answer(&f::SettingAnswer { revision: None, value: None });
         w::ReadAnswer::Value(
             w::Owned::new(
                 &w::CEILINGS,
@@ -3640,7 +3637,7 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
         let Request::Exchange { exchange, message: Message::Request(bytes), .. } = request else { continue };
         let ask = w::Keyed::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("keyed ask");
         if ask.owner() != &w::Owner::Jig {
-            let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome: f::Outcome::Looked }).expect("looked");
+            let answer = f::Answer { outcome: f::Outcome::Looked };
             let document = w::Owned::new(
                 &w::CEILINGS,
                 w::OwnedParts {
@@ -3657,33 +3654,23 @@ fn deliver_brief(host: &mut Host, duties: &mut Duties) {
 
 fn brief_document() -> w::Owned {
     use temper_client_protocol_wire::{self as wire, v1 as f};
-    let status = f::ProjectStatus::new(
-        &f::CEILINGS,
-        f::ProjectStatusParts {
-            project: 3,
+    let status = f::ProjectStatus {
+        project: 3,
+        landed: 1,
+        last_landed: Some(1),
+        previous: Some(0),
+        seen: 0,
+        queued: 0,
+        red: false,
+        branch: b"main".as_slice().into(),
+        unpaid: false,
+        brief: Some(f::StatusBrief {
+            sentence: b"One change landed.".as_slice().into(),
+            lede: b"The CSV export landed.".as_slice().into(),
+            at: 1,
             landed: 1,
-            last_landed: Some(1),
-            previous: Some(0),
-            seen: 0,
-            queued: 0,
-            red: false,
-            branch: b"main".as_slice().into(),
-            unpaid: false,
-            brief: Some(
-                f::StatusBrief::new(
-                    &f::CEILINGS,
-                    f::StatusBriefParts {
-                        sentence: b"One change landed.".as_slice().into(),
-                        lede: b"The CSV export landed.".as_slice().into(),
-                        at: 1,
-                        landed: 1,
-                    },
-                )
-                .expect("brief"),
-            ),
-        },
-    )
-    .expect("project status");
+        }),
+    };
     w::Owned::new(
         &w::CEILINGS,
         w::OwnedParts {

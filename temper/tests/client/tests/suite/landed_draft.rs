@@ -9,6 +9,7 @@ use skein_lib::{Duration, Reader};
 use skein_ui::Role;
 use skein_world::domain::Verdict;
 use temper_client_domain::{Address, WorkFilter, forge::drafts, pages::drafts::State};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_client_world::{app::Temper, fixtures, front::Joint};
 use temper_engine_domain_forge::settings;
@@ -106,13 +107,13 @@ fn set(world: &mut Clients, person: ClientId, key: u8, change: w::DraftChange) -
     let mut reader = Reader::new(&answer.bytes);
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).expect("family answer");
     assert!(reader.is_empty());
-    let w::Outcome::Drafted(row) = answer.into_parts().outcome else { panic!("drafted") };
+    let w::Outcome::Drafted(row) = answer.outcome else { panic!("drafted") };
     row
 }
 fn row(world: &Clients, person: ClientId) -> w::LandedDraft {
     let drafts = world.root(person).person().pages().drafts().expect("Work watches drafts");
     let State::Shown(panel) = drafts.state() else { panic!("drafts panel: {drafts:?}") };
-    let [row] = panel.drafts().as_slice() else { panic!("one draft row: {panel:?}") };
+    let [row] = panel.drafts.as_slice() else { panic!("one draft row: {panel:?}") };
     row.clone()
 }
 fn ready() -> (Clients, ClientId, w::LandedDraft) {
@@ -127,14 +128,14 @@ fn ready() -> (Clients, ClientId, w::LandedDraft) {
     else {
         panic!("main head")
     };
-    let ready = w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: None }).expect("ready change");
+    let ready = w::ReadyDraft { chat: None };
     let answer = set(&mut world, person, 120, w::DraftChange::Ready(ready));
-    assert_eq!(answer.commit(), temper_engine_domain_forge::commit_text(&head).as_ref());
-    assert_eq!(answer.branch(), b"main");
-    assert_eq!(answer.path(), PATH);
-    assert_eq!(answer.title(), TITLE);
-    assert!(answer.ready());
-    assert_eq!(*answer.goal(), None);
+    assert_eq!(answer.commit.as_ref(), temper_engine_domain_forge::commit_text(&head).as_ref());
+    assert_eq!(answer.branch.as_ref(), b"main");
+    assert_eq!(answer.path.as_ref(), PATH);
+    assert_eq!(answer.title.as_ref(), TITLE);
+    assert!(answer.ready);
+    assert_eq!(answer.goal, None);
     run(
         &mut world,
         person,
@@ -184,18 +185,18 @@ fn a_ready_landed_draft_starts_a_goal_and_names_it_in_its_row() {
             gone(Find::exactly_named(Role::Button, START)),
         ],
     );
-    let mut expected = ready.into_parts();
+    let mut expected = ready;
     expected.goal = Some(goal);
-    assert_eq!(row(&world, person).into_parts(), expected, "started keeps the draft and names its goal");
+    assert_eq!(row(&world, person), expected, "started keeps the draft and names its goal");
 }
 
 #[test]
 fn saying_a_ready_draft_is_not_ready_removes_it_from_work() {
     let (mut world, person, ready) = ready();
     let answer = set(&mut world, person, 121, w::DraftChange::NotReady);
-    let mut expected = ready.into_parts();
+    let mut expected = ready;
     expected.ready = false;
-    assert_eq!(answer.into_parts(), expected, "not_ready keeps the rest of the row");
+    assert_eq!(answer, expected, "not_ready keeps the rest of the row");
     run(
         &mut world,
         person,
@@ -207,5 +208,5 @@ fn saying_a_ready_draft_is_not_ready_removes_it_from_work() {
             gone(Find::exactly_named(Role::Button, START)),
         ],
     );
-    assert_eq!(row(&world, person).into_parts(), expected, "the live drafts subject retains the unlisted row");
+    assert_eq!(row(&world, person), expected, "the live drafts subject retains the unlisted row");
 }

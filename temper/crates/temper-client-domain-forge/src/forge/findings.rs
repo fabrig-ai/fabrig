@@ -1,6 +1,7 @@
 //! Findings on the forge family (temper/docs/design/client/forge/records.md).
 use super::{Limits, wire_limits};
 use jig_client::{Ask, Family, Watchable, contract as c};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 /// A finding named across the client's forge and pages.
@@ -19,12 +20,12 @@ pub fn watch(project: u32, limits: &Limits) -> Option<Watchable> {
 #[must_use]
 pub fn watching(project: u32, state: Option<w::FindingState>, mine: bool, limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let subject = w::FindingsSubject::new(&bounds, w::FindingsSubjectParts { project, state, mine }).ok()?;
-    let watching = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Findings(subject) }).ok()?;
+    let subject = w::FindingsSubject { project, state, mine };
+    let watching = w::Watching { watch: w::Watch::Findings(subject) };
     Some(Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&watching) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: watching.encode(&bounds).ok()? },
     })
 }
 
@@ -39,10 +40,10 @@ pub fn document(record: &Family, limits: &Limits) -> Option<w::Findings> {
 #[must_use]
 pub fn request(project: u32, request: w::Request, limits: Limits) -> Option<Ask> {
     let bounds = wire_limits(&limits)?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request }).ok()?;
+    let record = w::Requesting { request };
     Some(Ask::Family {
         scope: c::Scope::Project(project),
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 
@@ -57,5 +58,5 @@ pub fn outcome(outcome: &jig_client::Outcome, limits: Limits) -> Option<w::Outco
     if !reader.is_empty() {
         return None;
     }
-    Some(answer.outcome().clone())
+    Some(answer.outcome.clone())
 }

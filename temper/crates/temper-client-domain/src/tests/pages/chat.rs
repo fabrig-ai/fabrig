@@ -3268,11 +3268,11 @@ fn view_reads(out: &mut Queue<Request>) -> skein_lib::List<(jig_client::Handle, 
             assert_eq!(record.family, wire::FORGE);
             assert_eq!(record.version, wire::CLIENT_VERSION);
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-            let w::Read::View(view) = reading.into_parts().read else { panic!("chat reads a view") };
-            assert_eq!(scope, c::Scope::Project(view.project()));
-            assert_eq!(view.project(), fixtures::PROJECT);
+            let w::Read::View(view) = reading.read else { panic!("chat reads a view") };
+            assert_eq!(scope, c::Scope::Project(view.project));
+            assert_eq!(view.project, fixtures::PROJECT);
             assert_eq!(window, c::Window { rows: 0, after: None });
-            reads.push((handle, view.into_parts().address)).unwrap();
+            reads.push((handle, view.address)).unwrap();
         }
     }
     reads
@@ -3463,13 +3463,11 @@ fn numbered_view_text(number: u64) -> Box<[u8]> {
 
 fn view_value() -> temper_client_protocol_wire::v1::View {
     use temper_client_protocol_wire::v1 as w;
-    w::View::NotDrawn(
-        w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"Not drawn yet".as_slice().into() }).unwrap(),
-    )
+    w::View::NotDrawn(w::NotDrawn { words: b"Not drawn yet".as_slice().into() })
 }
 fn view_page() -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: view_value() }).unwrap();
+    let answer = w::ViewAnswer { view: view_value() };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::view_answer(&answer)) }
 }
 fn settings_watch(client: &mut jig_client::Client) -> skein_lib::Token {

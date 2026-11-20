@@ -1866,7 +1866,7 @@ pub fn forge_connecting(
     use jig_client_protocol_wire as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let record = wire::requesting(&w::Requesting { request });
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
     let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
@@ -1893,7 +1893,7 @@ pub fn forge_connecting(
     else {
         panic!("family terminal")
     };
-    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome;
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
 

@@ -2,6 +2,7 @@
 //!
 //! temper/docs/design/testing/README.md, 5.
 use serde_json::Value;
+use temper_client_protocol_wire::v1::Record;
 
 pub mod providers;
 #[must_use]
@@ -197,29 +198,19 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
             endpoints.push(engine);
         }
         let given = &endpoint["limits"];
-        let limit = w::AgentLimits::new(
-            &w::CEILINGS,
-            w::AgentLimitsParts {
-                window: u32::try_from(given["window"].as_u64().expect("window")).expect("u32"),
-                output: u32::try_from(given["output"].as_u64().expect("output")).expect("u32"),
-                reasoning_item: u32::try_from(given["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
-                head_ms: given["head"].as_u64().expect("head"),
-                idle_ms: given["idle"].as_u64().expect("idle"),
-                oversized: if given["oversized_reasoning"] == "drop" { w::Oversized::Drop } else { w::Oversized::Fail },
-            },
-        )
-        .expect("endpoint limits");
+        let limit = w::AgentLimits {
+            window: u32::try_from(given["window"].as_u64().expect("window")).expect("u32"),
+            output: u32::try_from(given["output"].as_u64().expect("output")).expect("u32"),
+            reasoning_item: u32::try_from(given["reasoning_item"].as_u64().expect("reasoning")).expect("u32"),
+            head_ms: given["head"].as_u64().expect("head"),
+            idle_ms: given["idle"].as_u64().expect("idle"),
+            oversized: if given["oversized_reasoning"] == "drop" { w::Oversized::Drop } else { w::Oversized::Fail },
+        };
         limits
-            .push(
-                w::AgentEndpointLimits::new(
-                    &w::CEILINGS,
-                    w::AgentEndpointLimitsParts {
-                        endpoint: endpoint["name"].as_str().expect("endpoint name").as_bytes().into(),
-                        limits: limit,
-                    },
-                )
-                .expect("endpoint row"),
-            )
+            .push(w::AgentEndpointLimits {
+                endpoint: endpoint["name"].as_str().expect("endpoint name").as_bytes().into(),
+                limits: limit,
+            })
             .expect("uncapped fixture limits");
     }
     let mut profile = List::with_capacity(w::CEILINGS.agent_figures_profile);
@@ -227,31 +218,23 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
         if let Some(values) = agent["profile"][group].as_object() {
             for (name, value) in values {
                 profile
-                    .push(
-                        w::AgentFigure::new(
-                            &w::CEILINGS,
-                            w::AgentFigureParts {
-                                name: format!("{group}.{name}").into_bytes().into(),
-                                value: value.as_u64().expect("scalar"),
-                            },
-                        )
-                        .expect("profile figure"),
-                    )
+                    .push(w::AgentFigure {
+                        name: format!("{group}.{name}").into_bytes().into(),
+                        value: value.as_u64().expect("scalar"),
+                    })
                     .expect("uncapped profile");
             }
         }
     }
-    let value = w::AgentFigures::new(
-        &w::CEILINGS,
-        w::AgentFiguresParts {
-            profile,
-            endpoints: limits,
-            fallback: temper_engine_service_stock::stock::agents().fallback().clone(),
-        },
-    )
-    .expect("agents setting");
-    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(value.measure()));
-    value.encode(&mut bytes).expect("setting bytes");
+    let value = w::AgentFigures {
+        profile,
+        endpoints: limits,
+        fallback: temper_engine_service_stock::stock::agents().fallback.clone(),
+    };
+    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(
+        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+    ));
+    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("setting bytes");
     std::fs::write(directory.join("agents.setting"), bytes.finish()).expect("fixture setting copy");
     providers.retain(|provider| {
         endpoints.iter().any(|endpoint| {

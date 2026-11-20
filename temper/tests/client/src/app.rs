@@ -370,7 +370,7 @@ impl App for Temper {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
                 if record.family == wire::FORGE
                     && let Some(request) = wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    && matches!(request.request(), w::Request::Reachable(_))
+                    && matches!(&request.request, w::Request::Reachable(_))
                 {
                     return None;
                 }

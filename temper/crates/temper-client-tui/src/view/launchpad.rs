@@ -229,15 +229,15 @@ fn home(part: &mut Launchpad, root: &Domain, project: u32, me: &c::Me, words: &W
                     for project in &facts.projects {
                         if project.project == line.project
                             && let home::Status::Shown(document) = &project.status
-                            && let Some(brief) = document.brief()
+                            && let Some(brief) = &document.brief
                         {
                             push(
                                 &mut part.brief,
                                 Role::Paragraph,
-                                &concat(&[&line.name, b": ", brief.sentence()]),
+                                &concat(&[&line.name, b": ", &brief.sentence]),
                                 Some(look::NOTE),
                             );
-                            push(&mut part.brief, Role::Paragraph, brief.lede(), Some(look::NOTE));
+                            push(&mut part.brief, Role::Paragraph, &brief.lede, Some(look::NOTE));
                         }
                     }
                 }

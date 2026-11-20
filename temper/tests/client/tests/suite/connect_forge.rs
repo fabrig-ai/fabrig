@@ -125,7 +125,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
     let setup = root.person().forge().set_up().expect("welcome sent setup");
     let d::forge::forges::SetUpFirst::Empty(first) = &setup.first else { panic!("empty welcome setup") };
     assert_eq!(
-        (first.org(), first.repository(), first.playground(), first.sample()),
+        (first.org.as_ref(), first.repository.as_ref(), first.playground, first.sample),
         (b"work".as_slice(), b"hello".as_slice(), false, true)
     );
     assert_eq!(front.set_ups().iter().map(|(forge, _)| *forge).collect::<Vec<_>>(), [OWNED]);

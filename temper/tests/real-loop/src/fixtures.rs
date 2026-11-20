@@ -9,6 +9,7 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
     path::Path,
 };
+use temper_client_protocol_wire::v1::Record;
 pub use temper_playground::documents::turn_bounds;
 /// A second key the fake LLM peer accepts, for the accounts' stories.
 pub const SECOND_KEY: &[u8] = b"real-loop-second-llm-key";
@@ -635,7 +636,10 @@ pub fn given_and_projects(
             kind: 21,
             scope: 0,
             number: 1,
-            value: SizedValue { size: agents.measure(), value: Value::AgentFigures(agents) },
+            value: SizedValue {
+                size: agents.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+                value: Value::AgentFigures(agents),
+            },
         });
         *forge = values.into_boxed_slice();
     }

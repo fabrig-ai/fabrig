@@ -15,6 +15,7 @@ use alloc::boxed::Box;
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::{Env, List, Map, Queue, Set, Wall};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 pub const PROJECTS: u32 = 4;
 pub const ROWS: u32 = 128;
@@ -34,7 +35,7 @@ impl Group<'_> {
     pub fn severity(&self) -> w::Severity {
         let mut highest = w::Severity::Low;
         for row in &self.rows {
-            match row.severity() {
+            match &row.severity {
                 w::Severity::High => return w::Severity::High,
                 w::Severity::Medium => highest = w::Severity::Medium,
                 w::Severity::Low => {}
@@ -47,8 +48,8 @@ impl Group<'_> {
         let mut oldest = None;
         for row in &self.rows {
             oldest = Some(match oldest {
-                Some(at) => row.at().min(at),
-                None => row.at(),
+                Some(at) => row.at.min(at),
+                None => row.at,
             });
         }
         Wall::from_nanos(oldest.unwrap_or(0))
@@ -151,8 +152,8 @@ impl Store {
                 if id.project != project {
                     continue;
                 }
-                for row in document.rows() {
-                    if row.number() == id.number && *row.state() == w::FindingState::New {
+                for row in &document.rows {
+                    if row.number == id.number && row.state == w::FindingState::New {
                         rows.push(row).expect("named findings bounded");
                         break;
                     }
@@ -203,7 +204,7 @@ impl Store {
             if project.project == id.project
                 && let Some(document) = &project.document
             {
-                return document.areas().as_slice();
+                return document.areas.as_slice();
             }
         }
         &[]
@@ -227,7 +228,7 @@ impl Store {
         for held in &self.projects {
             if (project.is_none() || project == Some(held.project))
                 && let Some(document) = &held.document
-                && document.cut()
+                && document.cut
             {
                 return true;
             }
@@ -274,7 +275,7 @@ impl Store {
                             project.open_ended = true;
                         } else if let Some(Latest::Family(record)) = document.latest
                             && let Some(document) = forge::findings::document(record, &limits)
-                            && document.project() == project.project
+                            && document.project == project.project
                         {
                             project.open_document = Some(document);
                         }
@@ -285,16 +286,16 @@ impl Store {
                     if let Some(document) = client.document(*handle)
                         && let Some(Latest::Family(record)) = document.latest
                         && let Some(document) = forge::findings::document(record, &limits)
-                        && document.project() == project.project
+                        && document.project == project.project
                     {
                         let mut cards = List::with_capacity(ROWS);
-                        for row in document.rows() {
-                            if *row.state() != w::FindingState::New {
+                        for row in &document.rows {
+                            if row.state != w::FindingState::New {
                                 continue;
                             }
                             let mut held = None;
                             for (index, card) in project.cards.iter().enumerate() {
-                                if card.id.number == row.number() {
+                                if card.id.number == row.number {
                                     held = Some(u32::try_from(index).expect("bounded rows"));
                                     break;
                                 }
@@ -307,7 +308,7 @@ impl Store {
                                     card
                                 }
                                 None => Card {
-                                    id: Id { project: project.project, number: row.number() },
+                                    id: Id { project: project.project, number: row.number },
                                     row: row.clone(),
                                     mode: Mode::Closed,
                                     area: Box::default(),
@@ -381,7 +382,7 @@ impl Store {
                     card.pending = None;
                     card.refusal =
                         if let Some(w::Outcome::FindingRefused(refused)) = forge::findings::outcome(outcome, limits) {
-                            Some(refused.reason().clone())
+                            Some(refused.reason.clone())
                         } else {
                             None
                         };
@@ -417,7 +418,7 @@ pub fn why(root: &dyn Root, need: Need<'_>) -> Option<needs::Why> {
         Need::Finding(card) => card,
     };
     let document = root.pages().needs().findings().document(card.id.project)?;
-    let holds = if let Some(name) = card.row.area() {
+    let holds = if let Some(name) = &card.row.area {
         needs::Holds::Area { name: name.clone() }
     } else {
         match super::tell::route(document, None) {
@@ -481,12 +482,12 @@ pub fn counted(store: &Store, open: &[Need<'_>]) -> Counted {
     let mut seen = Set::with_capacity(capacity);
     for need in open {
         match need {
-            Need::Finding(card) => counts.add(&mut seen, card.id, card.row.severity()),
+            Need::Finding(card) => counts.add(&mut seen, card.id, &card.row.severity),
             Need::Row(_) => counts.only = false,
             Need::Existing(_) => match store.group(*need) {
                 Some(group) => {
                     for row in &group.rows {
-                        counts.add(&mut seen, Id { project: group.project, number: row.number() }, row.severity());
+                        counts.add(&mut seen, Id { project: group.project, number: row.number }, &row.severity);
                     }
                 }
                 None => counts.only = false,
@@ -499,7 +500,7 @@ impl Need<'_> {
     #[must_use]
     pub fn severity(self, store: &Store) -> Option<w::Severity> {
         match self {
-            Self::Finding(card) => Some(card.row.severity().clone()),
+            Self::Finding(card) => Some(card.row.severity.clone()),
             Self::Row(_) => None,
             Self::Existing(_) => match store.group(self) {
                 Some(group) => Some(group.severity()),
@@ -538,7 +539,7 @@ impl Need<'_> {
     }
     fn at(self) -> Wall {
         match self {
-            Self::Finding(card) => Wall::from_nanos(card.row.at()),
+            Self::Finding(card) => Wall::from_nanos(card.row.at),
             Self::Row(row) => row.at.unwrap_or(Wall::EPOCH),
             Self::Existing(needs::Need::Approval(row)) => row.since,
             Self::Existing(needs::Need::Card(card)) => match &card.page {
@@ -762,7 +763,7 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
     let mut area_valid = false;
     if let Act::Area { words, .. } = &act {
         for area in pages.needs.findings.areas(id) {
-            area_valid |= area.name() == words.as_ref();
+            area_valid |= area.name.as_ref() == words.as_ref();
         }
     }
     let Some(card) = pages.needs.findings.card_mut(id) else { return };
@@ -803,15 +804,18 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             if !card.can_hand() {
                 return;
             }
-            let Ok(hand) = w::HandFinding::new(
-                &bounds,
-                w::HandFindingParts {
+            let Ok(hand) = ({
+                let value = w::HandFinding {
                     project: id.project,
                     number: id.number,
                     area: card.area.clone(),
                     why: card.why.clone(),
-                },
-            ) else {
+                };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
                 return;
             };
             send(card, w::Request::HandFinding(hand), &mut pages.serial, env, out);
@@ -822,7 +826,15 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
                 return;
             }
             let Some(task) = card.goal else { return };
-            let Ok(route) = w::FindingRoute::new(&bounds, w::FindingRouteParts { task }) else { return };
+            let Ok(route) = ({
+                let value = w::FindingRoute { task };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
+                return;
+            };
             w::Triage::Route(route)
         }
         Act::Backlog { .. } => w::Triage::Backlog,
@@ -830,15 +842,25 @@ pub(super) fn act(pages: &mut Pages, env: &Env<Limits>, act: Act, out: &mut Queu
             if !card.can_drop() {
                 return;
             }
-            let Ok(drop) = w::FindingDrop::new(&bounds, w::FindingDropParts { reason: card.reason.clone() }) else {
+            let Ok(drop) = ({
+                let value = w::FindingDrop { reason: card.reason.clone() };
+                match value.encode(&bounds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }) else {
                 return;
             };
             w::Triage::Drop(drop)
         }
     };
-    let Ok(triage) =
-        w::TriageFinding::new(&bounds, w::TriageFindingParts { project: id.project, number: id.number, act: triage })
-    else {
+    let Ok(triage) = ({
+        let value = w::TriageFinding { project: id.project, number: id.number, act: triage };
+        match value.encode(&bounds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }) else {
         return;
     };
     send(card, w::Request::TriageFinding(triage), &mut pages.serial, env, out);
