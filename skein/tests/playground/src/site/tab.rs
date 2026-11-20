@@ -88,17 +88,16 @@ impl Referee<Process> for Judge<'_> {
                 Process::Server(server) => server.listening(), Process::Browser(_) => true,
             });
         if seen > self.script.requests { return Err(format!("unexpected request {seen}")); }
-        if self.points.is_empty() && browser.is_empty() && now >= self.script.until {
+        if self.points.is_empty() && browser.is_empty() {
             if browser.tab.shown() != self.script.expected.as_ref() {
                 return Err(format!("shown {:?}, expected {:?}", browser.tab.shown(), self.script.expected));
             }
-            self.passed = seen == self.script.requests;
+            self.passed = seen == self.script.requests && now >= self.script.until;
         }
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        if self.passed { None }
-        else if self.wake { Some(self.now) }
+        if self.passed || self.wake { Some(self.now) }
         else if self.script.until > self.now { Some(self.script.until) }
         else { Some(Time::from_nanos(2_000_000_000)) }
     }
