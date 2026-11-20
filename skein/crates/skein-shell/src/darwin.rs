@@ -11,6 +11,8 @@
 //! sockets are closed on configuration failure; the loop also owns spawning,
 //! so no spawn can intervene before close-on-exec is set. Other cases are
 //! documented beside the files, listing, process, signals and terminal calls.
+//! F_GETPATH writes a NUL-terminated path into an exclusive MAXPATHLEN-byte
+//! buffer, borrowed only until fcntl returns.
 
 #![expect(unsafe_code, reason = "Darwin's synchronous calls retain no borrowed buffers (runtime/readiness.md, 5)")]
 
@@ -235,6 +237,16 @@ pub(crate) fn getsockopt(fd: Fd) -> Result<i32, i32> {
         Ok(error)
     })
 }
+pub(crate) fn descriptor_path(fd: Fd) -> Result<Box<[u8]>, i32> {
+    let mut path = [0_u8; 1024]; // Darwin's MAXPATHLEN.
+    retry(|| {
+        // SAFETY: F_GETPATH writes at most MAXPATHLEN bytes to this exclusive buffer;
+        // fcntl retains no pointer, and the buffer lives until the call returns.
+        status(unsafe { libc::fcntl(fd.raw(), libc::F_GETPATH, path.as_mut_ptr().cast::<libc::c_char>()) })
+    })?;
+    Ok(CStr::from_bytes_until_nul(&path).expect("F_GETPATH NUL-terminates its path").to_bytes().into())
+}
+
 pub(crate) fn release() -> Result<Box<[u8]>, i32> {
     // SAFETY: utsname contains only byte arrays, valid when zeroed.
     let mut name: libc::utsname = unsafe { mem::zeroed() };
