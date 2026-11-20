@@ -2,6 +2,7 @@ use super::fixtures;
 use crate::{Domain, Event, Request, asked::State};
 use jig_client::{Approval, ApprovalAct, ApprovalCode, Message, NotAsked};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Reader, Secret, Token, Wall, Writer};
 fn code() -> ApprovalCode {
     ApprovalCode::parse(b"WDJBMJHT").unwrap()
@@ -36,8 +37,10 @@ fn exchange(out: &mut Queue<Request>) -> (Token, Message) {
     found.expect("one exchange")
 }
 fn encoded_ask(answer: &w::ApprovalAskAnswer) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 #[expect(clippy::disallowed_macros, reason = "the test formats root Debug to detect secret bytes")]
@@ -59,7 +62,7 @@ fn an_ask_while_signed_in_or_in_flight_changes_nothing() {
         let (_, message) = exchange(&mut out);
         let Message::ApprovalAsk(body) = message else { panic!("approval ask") };
         let ask = w::ApprovalAsk::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-        assert_eq!(*ask.port(), port);
+        assert_eq!(ask.port, port);
         assert_eq!(root.asked(), Some(State::Asking));
         let shown = crate::shown(&root);
         assert!(step(&mut root, Event::AskApproval { port: Some(12345) }).is_empty());
@@ -79,19 +82,17 @@ fn an_answered_ask_signs_in_with_its_secret_and_keeps_the_code_and_expiry() {
         let (id, message) = exchange(&mut out);
         let Message::SignInApproval(body) = message else { panic!("immediate take") };
         let take = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-        assert_eq!(take.secret().expose(), &[7; 32]);
-        assert!(take.grant().is_none());
+        assert_eq!(take.secret.expose(), &[7; 32]);
+        assert!(take.grant.is_none());
         assert_eq!(root.asked_secret.is_some(), port.is_some());
         no_secret(&root);
-        let answer = w::ApprovalSignInAnswer::SignedIn(
-            w::SignedIn::new(
-                &w::CEILINGS,
-                w::SignedInParts { token: Some(Secret::new(Box::new([9; 40]))), party: 73, expires: 300 },
-            )
-            .unwrap(),
-        );
-        let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-        answer.encode(&mut writer).unwrap();
+        let answer = w::ApprovalSignInAnswer::SignedIn(w::SignedIn {
+            token: Some(Secret::new(Box::new([9; 40]))),
+            party: 73,
+            expires: 300,
+        });
+        let mut writer = Writer::new(usize::try_from(answer.measure(&w::CEILINGS).expect("bounded fixture")).unwrap());
+        answer.write(&w::CEILINGS, &mut writer).unwrap();
         step(&mut root, Event::Client { event: jig_client::Event::Reply { exchange: id, message: writer.finish() } });
         assert_ne!(root.client().link().state, jig_client::Link::SignedOut);
         assert_eq!(root.asked(), None);
@@ -150,13 +151,11 @@ fn answered(root: &mut Domain, port: Option<u16>) -> Queue<Request> {
     reply_ask(root, id)
 }
 fn reply_ask(root: &mut Domain, id: Token) -> Queue<Request> {
-    let answer = w::ApprovalAskAnswer::Asked(
-        w::ApprovalAsked::new(
-            &w::CEILINGS,
-            w::ApprovalAskedParts { secret: Secret::new(Box::new([7; 32])), code: *code().letters(), expires: 300 },
-        )
-        .unwrap(),
-    );
+    let answer = w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+        secret: Secret::new(Box::new([7; 32])),
+        code: *code().letters(),
+        expires: 300,
+    });
     step(root, Event::Client { event: jig_client::Event::Reply { exchange: id, message: encoded_ask(&answer) } })
 }
 fn ignored_grant(root: &mut Domain) {
@@ -182,8 +181,8 @@ fn each_grant_takes_again_with_the_port_asks_own_secret() {
         let (_, message) = exchange(&mut out);
         let Message::SignInApproval(body) = message else { panic!("take with grant") };
         let take = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
-        assert_eq!(take.secret().expose(), &[7; 32]);
-        assert_eq!(take.grant().as_ref().unwrap().expose(), &[byte; 32]);
+        assert_eq!(take.secret.expose(), &[7; 32]);
+        assert_eq!(take.grant.as_ref().unwrap().expose(), &[byte; 32]);
         assert_eq!(root.asked(), asked);
         no_secret(&root);
     }

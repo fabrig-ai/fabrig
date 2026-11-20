@@ -1,6 +1,7 @@
 //! Incremental SSE and canonical base64 framing (protocol/client/wire.md, 2, and protocol/client/README.md, 5).
 use crate::Limits;
 use jig_client_protocol_link::{Heard, Streamed};
+use jig_client_protocol_wire::Record as _;
 use skein_http::sse;
 use skein_lib::base64::{Alphabet, Decoder};
 use skein_lib::stream::{Down, Read, Up};
@@ -64,7 +65,7 @@ impl Stream {
                     jig_client_protocol_wire::StreamsFull::decode(&jig_client_protocol_wire::CEILINGS, &mut reader)
                     && reader.is_empty()
                 {
-                    let bound = match record.bound() {
+                    let bound = match &record.bound {
                         jig_client_protocol_wire::StreamBound::Component => {
                             jig_client_protocol_link::StreamBound::Component
                         }
@@ -73,7 +74,7 @@ impl Stream {
                         }
                     };
                     out.push(Heard::Streamed {
-                        message: Streamed::Full(jig_client_protocol_link::StreamsFull { bound, size: record.size() }),
+                        message: Streamed::Full(jig_client_protocol_link::StreamsFull { bound, size: record.size }),
                     });
                     return;
                 }

@@ -1,5 +1,6 @@
 //! Bounded whole settings input (client/ctl/results.md, 4; jig's client/domain/contract/requests.md, 2).
 use crate::Limits;
+use jig_client_protocol_wire::Record as _;
 #[path = "settings_file_values.rs"]
 pub(crate) mod values;
 use crate::view as c;
@@ -504,8 +505,12 @@ fn decode_root(
             Ok(row) => row,
             Err(problem) => return Err(message(Some(index), wire_error(problem, &limits.settings))),
         };
+        let measured = match row.measure(&limits.settings) {
+            Ok(size) => size,
+            Err(problem) => return Err(message(Some(index), wire_error(problem, &limits.settings))),
+        };
         encoded = encoded
-            .checked_add(row.measure())
+            .checked_add(measured)
             .ok_or(message(Some(index), bound(b"encoded items bytes", limits.settings.change_settings_items)))?;
         encoded = encoded
             .checked_add(4)
@@ -525,7 +530,11 @@ fn decode_root(
     let wire = crate::wire::wire_change_settings(&ask, &limits.settings)
         .or(Err(message(None, bound(b"encoded items bytes", limits.settings.change_settings_items))))?;
     let wire = jig_client_protocol_wire::Ask::ChangeSettings(wire);
-    if u64::from(wire.measure()) > limits.ask_bytes {
+    let measured = match wire.measure(&limits.settings) {
+        Ok(size) => size,
+        Err(problem) => return Err(message(None, wire_error(problem, &limits.settings))),
+    };
+    if u64::from(measured) > limits.ask_bytes {
         return Err(message(
             None,
             bound(b"encoded request bytes", u32::try_from(limits.ask_bytes).unwrap_or(u32::MAX)),
@@ -534,43 +543,62 @@ fn decode_root(
     Ok(ask.items)
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "other wire paths are not settings value bounds")]
 fn wire_error(problem: jig_client_protocol_wire::Problem, limits: &jig_client_protocol_wire::Limits) -> Error {
-    use jig_client_protocol_wire::Path;
+    use jig_client_protocol_wire::paths;
     match problem.path {
-        Path::CharterAlternatives => bound(b"charter_alternatives", limits.charter_alternatives),
-        Path::CharterInstructions => bound(b"charter_instructions", limits.charter_instructions),
-        Path::FieldRuleName => bound(b"field_rule_name", limits.field_rule_name),
-        Path::LlmChoiceSubagents => bound(b"llm_choice_subagents", limits.llm_choice_subagents),
-        Path::ModelEffortEffort => bound(b"model_effort_effort_some", limits.model_effort_effort_some),
-        Path::ModelEffortModel => bound(b"model_effort_model", limits.model_effort_model),
-        Path::ModelSetNamesNames => bound(b"model_set_names_names", limits.model_set_names_names),
-        Path::OwnedRecord => bound(b"owned_record", limits.owned_record),
-        Path::AuthorityGrants => bound(b"authority_grants", limits.authority_grants),
-        Path::AuthorityNoteResources => bound(b"authority_note_resources", limits.authority_note_resources),
-        Path::DelegationKinds => bound(b"delegation_kinds", limits.delegation_kinds),
-        Path::PartKeyPathValue => bound(b"part_key_path_value", limits.part_key_path_value),
-        Path::PatternEndExactValue => bound(b"pattern_end_exact_value", limits.pattern_end_exact_value),
-        Path::PatternEndOpenValue => bound(b"pattern_end_open_value", limits.pattern_end_open_value),
-        Path::PatternSegments => bound(b"pattern_segments", limits.pattern_segments),
-        Path::RulesImplies => bound(b"rules_implies", limits.rules_implies),
-        Path::RulesRequirements => bound(b"rules_requirements", limits.rules_requirements),
-        Path::SettingModelEffort => bound(b"setting_model_effort_some", limits.setting_model_effort_some),
-        Path::SettingModelEfforts => bound(b"setting_model_efforts", limits.setting_model_efforts),
-        Path::SettingModelName => bound(b"setting_model_name", limits.setting_model_name),
-        Path::SettingModelProgram => bound(b"setting_model_program_some", limits.setting_model_program_some),
-        Path::SettingPolicyPermissions => bound(b"setting_policy_permissions", limits.setting_policy_permissions),
-        Path::SettingPolicyProjections => bound(b"setting_policy_projections", limits.setting_policy_projections),
-        Path::SettingPolicyRequirements => bound(b"setting_policy_requirements", limits.setting_policy_requirements),
-        Path::SettingPolicyRoles => bound(b"setting_policy_roles", limits.setting_policy_roles),
-        Path::SettingPolicyTemplates => bound(b"setting_policy_templates", limits.setting_policy_templates),
-        Path::TaskContractDocumentApprovalState => {
+        path if path == paths::CHARTER_ALTERNATIVES => bound(b"charter_alternatives", limits.charter_alternatives),
+        path if path == paths::CHARTER_INSTRUCTIONS => bound(b"charter_instructions", limits.charter_instructions),
+        path if path == paths::FIELD_RULE_NAME => bound(b"field_rule_name", limits.field_rule_name),
+        path if path == paths::LLM_CHOICE_SUBAGENTS => bound(b"llm_choice_subagents", limits.llm_choice_subagents),
+        path if path == paths::MODEL_EFFORT_EFFORT => {
+            bound(b"model_effort_effort_some", limits.model_effort_effort_some)
+        }
+        path if path == paths::MODEL_EFFORT_MODEL => bound(b"model_effort_model", limits.model_effort_model),
+        path if path == paths::MODEL_SET_NAMES_NAMES => bound(b"model_set_names_names", limits.model_set_names_names),
+        path if path == paths::OWNED_RECORD => bound(b"owned_record", limits.owned_record),
+        path if path == paths::AUTHORITY_GRANTS => bound(b"authority_grants", limits.authority_grants),
+        path if path == paths::AUTHORITY_NOTE_RESOURCES => {
+            bound(b"authority_note_resources", limits.authority_note_resources)
+        }
+        path if path == paths::DELEGATION_KINDS => bound(b"delegation_kinds", limits.delegation_kinds),
+        path if path == paths::PART_KEY_PATH_VALUE => bound(b"part_key_path_value", limits.part_key_path_value),
+        path if path == paths::PATTERN_END_EXACT_VALUE => {
+            bound(b"pattern_end_exact_value", limits.pattern_end_exact_value)
+        }
+        path if path == paths::PATTERN_END_OPEN_VALUE => {
+            bound(b"pattern_end_open_value", limits.pattern_end_open_value)
+        }
+        path if path == paths::PATTERN_SEGMENTS => bound(b"pattern_segments", limits.pattern_segments),
+        path if path == paths::RULES_IMPLIES => bound(b"rules_implies", limits.rules_implies),
+        path if path == paths::RULES_REQUIREMENTS => bound(b"rules_requirements", limits.rules_requirements),
+        path if path == paths::SETTING_MODEL_EFFORT => {
+            bound(b"setting_model_effort_some", limits.setting_model_effort_some)
+        }
+        path if path == paths::SETTING_MODEL_EFFORTS => bound(b"setting_model_efforts", limits.setting_model_efforts),
+        path if path == paths::SETTING_MODEL_NAME => bound(b"setting_model_name", limits.setting_model_name),
+        path if path == paths::SETTING_MODEL_PROGRAM => {
+            bound(b"setting_model_program_some", limits.setting_model_program_some)
+        }
+        path if path == paths::SETTING_POLICY_PERMISSIONS => {
+            bound(b"setting_policy_permissions", limits.setting_policy_permissions)
+        }
+        path if path == paths::SETTING_POLICY_PROJECTIONS => {
+            bound(b"setting_policy_projections", limits.setting_policy_projections)
+        }
+        path if path == paths::SETTING_POLICY_REQUIREMENTS => {
+            bound(b"setting_policy_requirements", limits.setting_policy_requirements)
+        }
+        path if path == paths::SETTING_POLICY_ROLES => bound(b"setting_policy_roles", limits.setting_policy_roles),
+        path if path == paths::SETTING_POLICY_TEMPLATES => {
+            bound(b"setting_policy_templates", limits.setting_policy_templates)
+        }
+        path if path == paths::TASK_CONTRACT_DOCUMENT_APPROVAL_STATE => {
             bound(b"task_contract_document_approval_state", limits.task_contract_document_approval_state)
         }
-        Path::TaskContractDocumentVerdictChoices => {
+        path if path == paths::TASK_CONTRACT_DOCUMENT_VERDICT_CHOICES => {
             bound(b"task_contract_document_verdict_choices", limits.task_contract_document_verdict_choices)
         }
-        Path::VerdictChoiceFields => bound(b"verdict_choice_fields", limits.verdict_choice_fields),
+        path if path == paths::VERDICT_CHOICE_FIELDS => bound(b"verdict_choice_fields", limits.verdict_choice_fields),
         _ => error(b"value", b"wire value bound"),
     }
 }
@@ -586,22 +614,27 @@ pub(super) fn verdict_bound(
     for choice in choices {
         let mut fields = List::with_capacity(choice.fields.len());
         for field in &choice.fields {
-            let field = match w::FieldRule::new(limits, w::FieldRuleParts { name: field.name.clone(), max: field.max })
-            {
+            let field = match Ok(w::FieldRule { name: field.name.clone(), max: field.max }) {
                 Ok(field) => field,
                 Err(problem) => return Err(wire_error(problem, limits)),
             };
             fields.push(field).expect("same field count");
         }
-        let row = match w::VerdictChoice::new(
-            limits,
-            w::VerdictChoiceParts { code: choice.code, words: choice.words, followups: choice.followups, fields },
-        ) {
+        let row = match Ok(w::VerdictChoice {
+            code: choice.code,
+            words: choice.words,
+            followups: choice.followups,
+            fields,
+        }) {
             Ok(row) => row,
             Err(problem) => return Err(wire_error(problem, limits)),
         };
+        let measured = match row.measure(limits) {
+            Ok(size) => size,
+            Err(problem) => return Err(wire_error(problem, limits)),
+        };
         size = size
-            .checked_add(row.measure())
+            .checked_add(measured)
             .ok_or(bound(b"task_contract_document_verdict_choices", limits.task_contract_document_verdict_choices))?;
         size = size
             .checked_add(4)
@@ -621,23 +654,22 @@ mod tests {
     use super::{message, wire_error};
     use alloc::boxed::Box;
     use jig_client_protocol_wire as wire;
+    use jig_client_protocol_wire::Record as _;
 
     #[test]
     fn an_unlisted_wire_path_keeps_the_generic_diagnostic_words() {
         let mut limits = wire::CEILINGS;
         limits.keyed_request = 0;
-        let problem = wire::Keyed::new(
-            &limits,
-            wire::KeyedParts {
-                key: [0; 16],
-                owner: wire::Owner::Jig,
-                version: 1,
-                request: Box::from(b"x".as_slice()),
-                value: None,
-            },
-        )
+        let problem = (wire::Keyed {
+            key: [0; 16],
+            owner: wire::Owner::Jig,
+            version: 1,
+            request: Box::from(b"x".as_slice()),
+            value: None,
+        })
+        .encode(&limits)
         .expect_err("one request byte is beyond the zero-byte fixture limit");
-        assert_eq!(problem.path, wire::Path::KeyedRequest);
+        assert_eq!(problem.path, wire::paths::KEYED_REQUEST);
         assert_eq!(message(None, wire_error(problem, &limits)).as_ref(), b"settings file: value: wire value bound");
     }
 }

@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{Event, FromApplication, Request, ToApplication, translate::watches};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary as core;
 use skein_lib::{Reader, Token};
 const ENDED_WATCH: u64 = 17;
@@ -65,9 +66,7 @@ fn a_late_application_document_after_stream_loss_is_acknowledged() {
 }
 #[test]
 fn a_late_run_text_after_stream_loss_is_acknowledged() {
-    let subject = w::Subject::Run(
-        w::SubjectRun::new(&fixtures::wire(), w::SubjectRunParts { task: 7, turn: None, offset: 0 }).expect("run"),
-    );
+    let subject = w::Subject::Run(w::SubjectRun { task: 7, turn: None, offset: 0 });
     let (mut world, watcher) = gone_watch(fixtures::owned_subject(&subject));
     let writing = fixtures::writing();
     world.component.down(
@@ -175,7 +174,7 @@ fn an_application_watch_keeps_its_owner_and_rejects_foreign_deliveries() {
     else {
         panic!("delivery");
     };
-    assert_eq!((value.watch(), value.document().version(), value.document().record()), (17, 2, &[88][..]));
+    assert_eq!((value.watch, value.document.version, value.document.record.as_ref()), (17, 2, &[88][..]));
 }
 #[test]
 fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
@@ -184,10 +183,7 @@ fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
     world.component.down(&world.env, Event::Admitted { watcher: Token::new(999) }, &mut world.out);
     assert!(world.stream().watches.get(&watcher).expect("watch").opening.is_some());
     world.component.down(&world.env, Event::WatchRefused { watcher, why: core::WatchRefusal::Busy }, &mut world.out);
-    let expected = w::OpenAnswer::Refused(
-        w::OpenAnswerRefused::new(&fixtures::wire(), w::OpenAnswerRefusedParts { why: w::WatchRefusal::Busy })
-            .expect("busy"),
-    );
+    let expected = w::OpenAnswer::Refused(w::OpenAnswerRefused { why: w::WatchRefusal::Busy });
     assert_eq!(w::OpenAnswer::decode(&fixtures::wire(), &mut Reader::new(world.response(first).1)), Ok(expected));
     let (second, other) = request_task(&mut world, stream, 18);
     world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
@@ -331,25 +327,16 @@ fn an_ended_watch_closes_once_when_its_ending_leaves() {
 }
 #[test]
 fn a_run_watch_keeps_the_complete_provisional_position() {
-    let limits = fixtures::wire();
     let rows = [
         ("Absent", None, None),
         (
             "Full",
-            Some(
-                w::ProvisionalTurnName::new(
-                    &limits,
-                    w::ProvisionalTurnNameParts { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX },
-                )
-                .expect("turn"),
-            ),
+            Some(w::ProvisionalTurnName { attempt: u64::MAX, number: u32::MAX, retry: u32::MAX }),
             Some(jig_domain_views::TurnName { attempt: u64::MAX, turn: u32::MAX, retry: u32::MAX }),
         ),
     ];
     for (label, turn, expected) in rows {
-        let source = w::Subject::Run(
-            w::SubjectRun::new(&limits, w::SubjectRunParts { task: u64::MAX, turn, offset: u32::MAX }).expect("run"),
-        );
+        let source = w::Subject::Run(w::SubjectRun { task: u64::MAX, turn, offset: u32::MAX });
         let Some(core::Event::WatchRun { watcher, sign_in, task, turn, offset }) =
             watches::watch(Token::new(11), 41, source, 32)
         else {
@@ -400,26 +387,20 @@ fn an_accounts_document_is_watched_but_never_read() {
     let limits = fixtures::wire();
     assert_eq!(
         watches::delivery(&document, 0, 1, &[], &List::with_capacity(0), &limits),
-        Ok(w::DeliveryValue::Accounts(
-            w::Accounts::new(
-                &limits,
-                w::AccountsParts {
-                    lendable: false,
-                    usable: false,
-                    settled: true,
-                    cut: false,
-                    readiness_cut: false,
-                    readiness: Box::new([]),
-                    accounts: Box::from([]),
-                    signing: Box::from([]),
-                    lending: None,
-                    lent_end: None,
-                    last_end: None,
-                    program_hosts: Box::new([]),
-                }
-            )
-            .unwrap()
-        ))
+        Ok(w::DeliveryValue::Accounts(w::Accounts {
+            lendable: false,
+            usable: false,
+            settled: true,
+            cut: false,
+            readiness_cut: false,
+            readiness: Box::new([]),
+            accounts: Box::from([]),
+            signing: Box::from([]),
+            lending: None,
+            lent_end: None,
+            last_end: None,
+            program_hosts: Box::new([]),
+        }))
     );
     assert_eq!(
         crate::translate::objects::document(
@@ -428,7 +409,7 @@ fn an_accounts_document_is_watched_but_never_read() {
             &crate::Private::none(),
             &limits
         ),
-        Err(w::Problem { path: w::Path::ReadValueTag, reason: skein_codec::Reason::Tag })
+        Err(w::Problem { path: w::paths::READ_VALUE_TAG, reason: skein_codec::Reason::Tag })
     );
 }
 
@@ -486,7 +467,8 @@ fn a_stream_queue_includes_the_in_flight_record_at_its_exact_bound() {
         let (mut world, stream) = stream_world();
         let watcher = application_watch(&mut world, stream, 1);
         let packet = watches::application_packet(9, 2, Box::new([77; 128]), 1, &world.env.limits.wire).expect("packet");
-        let exact = world.stream().bytes + packet.measure();
+        let exact =
+            world.stream().bytes + packet.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture");
         world.env.limits.queued_bytes = exact - u32::from(short);
         world.component.down(&world.env, family_delivery(watcher, 128), &mut world.out);
         assert_eq!(world.stream().closing(), short);
@@ -512,7 +494,7 @@ fn an_untranslatable_document_names_its_path_and_closes_only_once() {
     assert_eq!(
         why,
         crate::StreamFailure::Translation(w::Problem {
-            path: w::Path::OwnedRecord,
+            path: w::paths::OWNED_RECORD,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -538,7 +520,7 @@ fn an_untranslatable_me_document_also_names_its_sign_in() {
     assert_eq!(
         why,
         crate::StreamFailure::Translation(w::Problem {
-            path: w::Path::OwnedRecord,
+            path: w::paths::OWNED_RECORD,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -564,7 +546,7 @@ fn a_streams_zero_name_cannot_be_opened_or_closed_by_its_client() {
     else {
         panic!("held name refused");
     };
-    assert_eq!(why.why(), &w::WatchRefusal::Busy);
+    assert_eq!((&why.why), &w::WatchRefusal::Busy);
     assert!(world.out.is_empty(), "held name emits no core opening");
     let exchange = world.unwatch(stream, 0);
     assert_eq!(
@@ -622,7 +604,7 @@ fn a_streams_zero_name_cannot_be_opened_or_closed_by_its_client() {
             else {
                 panic!("delivery");
             };
-            assert_eq!(value.watch(), 0);
+            assert_eq!(value.watch, 0);
             delivered = true;
         }
     }

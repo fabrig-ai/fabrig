@@ -1,5 +1,6 @@
 //! Settings travel through the real restart, store and commit barrier (domain/engine/settings.md, 7).
 
+use jig_client_protocol_wire::Record as _;
 use jig_core_world::client_peer::ClientPeer;
 use jig_core_world::fixtures;
 use jig_core_world::peers;
@@ -1047,12 +1048,12 @@ fn a_revision_item_past_the_single_read_budget_answers_its_encoded_size() {
     else {
         panic!("revision record")
     };
-    let mut pieces = skein_lib::Reader::new(document.items());
+    let mut pieces = skein_lib::Reader::new(document.items.as_ref());
     let length = pieces.u32().expect("item length");
     let bytes = pieces.bytes(length).expect("item bytes");
     let item = w::RevisionItem::decode(&w::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("revision item");
-    let w::RevisionEdit::TooLarge(size) = item.edit() else { panic!("item size") };
-    assert_eq!(size.bytes(), ENCODED_TEMPLATE_BYTES);
+    let w::RevisionEdit::TooLarge(size) = &item.edit else { panic!("item size") };
+    assert_eq!(size.bytes, ENCODED_TEMPLATE_BYTES);
 }
 
 fn held_goal(world: &mut World, signed: u64, request: u8) -> u64 {

@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::translate::watches;
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::{Event, documents as d};
 use jig_domain_tasks as t;
 use skein_lib::Token;
@@ -12,26 +13,19 @@ const QUERY_WATCHER: Token = Token::new(11);
 const QUERY_SIGN_IN: u64 = 41;
 #[test]
 fn a_task_query_subject_reaches_the_core_with_its_keys() {
-    let limits = fixtures::wire();
-    let query = w::TaskQuery::new(
-        &limits,
-        w::TaskQueryParts {
-            parts: skein_lib::List::with_capacity(0),
-            project: Some(QUERY_PROJECT),
-            requester: Some(w::Requester::Person(
-                w::RequesterPerson::new(&limits, w::RequesterPersonParts { value: QUERY_REQUESTER }).unwrap(),
-            )),
-            root: Some(QUERY_ROOT),
-            parent: Some(QUERY_PARENT),
-            label: Some(5),
-            phase: Some(w::PhaseClass::Held),
-            executor: Some(w::ExecutorKind::Person),
-            tracked: Some(true),
-            order: w::QueryOrder::Priority,
-        },
-    )
-    .unwrap();
-    let subject = w::Subject::Tasks(w::SubjectTasks::new(&limits, w::SubjectTasksParts { query, window: 2 }).unwrap());
+    let query = w::TaskQuery {
+        parts: skein_lib::List::with_capacity(0),
+        project: Some(QUERY_PROJECT),
+        requester: Some(w::Requester::Person(w::RequesterPerson { value: QUERY_REQUESTER })),
+        root: Some(QUERY_ROOT),
+        parent: Some(QUERY_PARENT),
+        label: Some(5),
+        phase: Some(w::PhaseClass::Held),
+        executor: Some(w::ExecutorKind::Person),
+        tracked: Some(true),
+        order: w::QueryOrder::Priority,
+    };
+    let subject = w::Subject::Tasks(w::SubjectTasks { query, window: 2 });
     let Some(Event::Watch { watcher, sign_in, subject, window }) =
         watches::watch(QUERY_WATCHER, QUERY_SIGN_IN, subject, 32)
     else {
@@ -64,75 +58,44 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
     let mut wire_asks = List::with_capacity(4);
     for ask in &asks {
         wire_asks
-            .push(
-                w::PartAsk::new(
-                    &limits,
-                    w::PartAskParts {
-                        owner: w::Family::new(&limits, w::FamilyParts { number: ask.owner }).unwrap(),
-                        kind: ask.kind,
-                        version: ask.version,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::PartAsk { owner: w::Family { number: ask.owner }, kind: ask.kind, version: ask.version })
             .unwrap();
     }
-    let query = w::TaskQuery::new(
-        &limits,
-        w::TaskQueryParts {
-            parts: wire_asks,
-            project: expected_query.project,
-            requester: None,
-            root: expected_query.root,
-            parent: expected_query.parent,
-            label: expected_query.label,
-            phase: None,
-            executor: None,
-            tracked: expected_query.tracked,
-            order: w::QueryOrder::Number,
-        },
-    )
-    .unwrap();
-    let value = w::Read::Tasks(
-        w::ReadTasks::new(&limits, w::ReadTasksParts { query: query.clone(), live: None, ended: None }).unwrap(),
-    );
+    let query = w::TaskQuery {
+        parts: wire_asks,
+        project: expected_query.project,
+        requester: None,
+        root: expected_query.root,
+        parent: expected_query.parent,
+        label: expected_query.label,
+        phase: None,
+        executor: None,
+        tracked: expected_query.tracked,
+        order: w::QueryOrder::Number,
+    };
+    let value = w::Read::Tasks(w::ReadTasks { query: query.clone(), live: None, ended: None });
     for (core_parts, expected_parts) in [
         (
             [d::RowPart::Made(Box::from([255, 0, 1])), d::RowPart::Unknown],
             [
-                w::RowPart::Value(
-                    w::Owned::new(
-                        &limits,
-                        w::OwnedParts {
-                            owner: w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 9 }).unwrap()),
-                            version: 2,
-                            record: Box::from([255, 0, 1]),
-                        },
-                    )
-                    .unwrap(),
-                ),
+                w::RowPart::Value(w::Owned {
+                    owner: w::Owner::Family(w::Family { number: 9 }),
+                    version: 2,
+                    record: Box::from([255, 0, 1]),
+                }),
                 w::RowPart::Unknown,
             ],
         ),
         (
             [d::RowPart::Failed(d::PartFailure::Busy), d::RowPart::Failed(d::PartFailure::TooLarge)],
             [
-                w::RowPart::Failed(
-                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::Busy }).unwrap(),
-                ),
-                w::RowPart::Failed(
-                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::TooLarge }).unwrap(),
-                ),
+                w::RowPart::Failed(w::PartFailed { why: w::PartFailure::Busy }),
+                w::RowPart::Failed(w::PartFailed { why: w::PartFailure::TooLarge }),
             ],
         ),
         (
             [d::RowPart::Failed(d::PartFailure::Unreadable), d::RowPart::Unknown],
-            [
-                w::RowPart::Failed(
-                    w::PartFailed::new(&limits, w::PartFailedParts { why: w::PartFailure::Unreadable }).unwrap(),
-                ),
-                w::RowPart::Unknown,
-            ],
+            [w::RowPart::Failed(w::PartFailed { why: w::PartFailure::Unreadable }), w::RowPart::Unknown],
         ),
     ] {
         let mut exchange = fixtures::read_exchange();
@@ -161,52 +124,44 @@ fn task_parts_keep_their_places_across_pages_deliveries_and_continuations() {
             })),
         );
         let w::ReadAnswer::Value(answer) = exchange.read_answer(owner) else { panic!("value") };
-        let w::ReadValue::Tasks(page) = w::ReadValue::decode(&limits, &mut Reader::new(answer.record())).unwrap()
+        let w::ReadValue::Tasks(page) =
+            w::ReadValue::decode(&limits, &mut Reader::new(answer.record.as_ref())).unwrap()
         else {
             panic!("tasks")
         };
-        assert_eq!(page.ended_mark(), 73);
-        let w::EndedGroup::Rows(ended) = page.ended() else { panic!("ended group") };
+        assert_eq!(page.ended_mark, 73);
+        let w::EndedGroup::Rows(ended) = &page.ended else { panic!("ended group") };
         let slots = translate::parts::plan(&asks, &fixtures::settings(), &limits);
         let w::DeliveryValue::Tasks(delivery) =
             watches::delivery(&d::Document::Lines(lines), 0, 2, &[], &slots, &limits).unwrap()
         else {
             panic!("delivery")
         };
-        assert_eq!(delivery.ended_mark(), 73);
-        for bytes in [page.live(), ended.rows(), delivery.rows()] {
+        assert_eq!(delivery.ended_mark, 73);
+        for bytes in [page.live.as_ref(), ended.rows.as_ref(), delivery.rows.as_ref()] {
             let mut reader = Reader::new(bytes);
             let bytes = skein_codec::piece::split(&mut reader).unwrap().unwrap();
             let row = w::TaskLine::decode(&limits, &mut Reader::new(&bytes)).unwrap();
-            let [w::RowPart::NotServed(first), a, b, w::RowPart::NotServed(last)] = row.parts().as_slice() else {
+            let [w::RowPart::NotServed(first), a, b, w::RowPart::NotServed(last)] = row.parts.as_slice() else {
                 panic!("parts in order")
             };
             assert_eq!([a, b], [&expected_parts[0], &expected_parts[1]]);
-            assert_eq!(
-                first.owner(),
-                &w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 99 }).unwrap())
-            );
-            assert_eq!(last.owner(), &w::Owner::Family(w::Family::new(&limits, w::FamilyParts { number: 9 }).unwrap()));
-            let ranges = first.served();
-            assert_eq!(ranges, last.served());
+            assert_eq!((&first.owner), &w::Owner::Family(w::Family { number: 99 }));
+            assert_eq!((&last.owner), &w::Owner::Family(w::Family { number: 9 }));
+            let ranges = &first.served;
+            assert_eq!(ranges, (&last.served));
             assert_eq!(ranges.len(), 2);
             let family = ranges.get(1).unwrap();
-            assert_eq!((family.owner(), family.first(), family.last()), (last.owner(), 2, 2));
+            assert_eq!(((&family.owner), family.first, family.last), ((&last.owner), 2, 2));
         }
-        let continuation = page.live_after().as_ref().unwrap().clone();
+        let continuation = page.live_after.as_ref().unwrap().clone();
         let reads::Cursor::Live { scope: reads::Scope::Tasks { query: held }, .. } =
-            translate::cursor::decode(continuation.value()).unwrap()
+            translate::cursor::decode(continuation.value.as_ref()).unwrap()
         else {
             panic!("query cursor")
         };
         assert_eq!(held.parts, asks);
-        let next = w::Read::Tasks(
-            w::ReadTasks::new(
-                &limits,
-                w::ReadTasksParts { query: query.clone(), live: Some(continuation), ended: None },
-            )
-            .unwrap(),
-        );
+        let next = w::Read::Tasks(w::ReadTasks { query: query.clone(), live: Some(continuation), ended: None });
         let (_, _, read) = exchange.read(&next);
         let reads::Read::Tasks {
             query: next_query,
@@ -242,17 +197,11 @@ fn a_task_document_carries_its_label_flags_activity_and_oldest_waiting_entry() {
     };
     let value = crate::translate::task::document(&source, &[], &limits).unwrap();
     assert_eq!(
-        (
-            value.label(),
-            value.flags().conversation(),
-            value.flags().listed(),
-            value.flags().retention(),
-            value.last_activity()
-        ),
+        (value.label, value.flags.conversation, value.flags.listed, (&value.flags.retention), value.last_activity),
         (5, true, true, &w::Retention::ForgottenOnceRead, 13)
     );
-    let w::WaitsOn::Party(wait) = value.waits_on() else { panic!("party") };
-    let w::Whom::Role(whom) = wait.whom() else { panic!("role") };
-    assert_eq!((whom.project(), whom.role()), (QUERY_PROJECT, WAITING_ROLE));
-    assert_eq!((wait.entries(), wait.task(), wait.kind()), (3, QUERY_ROOT, &w::WaitedFor::Question));
+    let w::WaitsOn::Party(wait) = &value.waits_on else { panic!("party") };
+    let w::Whom::Role(whom) = &wait.whom else { panic!("role") };
+    assert_eq!((whom.project, whom.role), (QUERY_PROJECT, WAITING_ROLE));
+    assert_eq!((wait.entries, wait.task, (&wait.kind)), (3, QUERY_ROOT, &w::WaitedFor::Question));
 }

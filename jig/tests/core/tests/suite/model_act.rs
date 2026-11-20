@@ -129,7 +129,7 @@ fn turning_a_model_off_keeps_the_rest_of_its_value() {
         &jig_client_test_records::limits(),
     )
     .unwrap();
-    assert!(!offer.get(0).unwrap().picker());
+    assert!(!offer.get(0).unwrap().picker);
     assert_eq!(
         act(&mut world, signed, 23, ModelAct::Picker { number: 1, on: false }),
         people::Reply::Outcome(people::Outcome::Refused(people::Refusal::NotWellFormed {
@@ -181,7 +181,7 @@ fn a_committed_picker_change_refreshes_a_live_me_watch() {
                     &jig_client_test_records::limits(),
                 )
                 .unwrap();
-                assert!(!offer.get(0).unwrap().picker(), "the live me translates the changed catalogue");
+                assert!(!offer.get(0).unwrap().picker, "the live me translates the changed catalogue");
             }
             other => panic!("unexpected picker publication: {other:?}"),
         }

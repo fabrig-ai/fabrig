@@ -27,14 +27,8 @@ fn body(secret: &[u8]) -> Box<[u8]> {
 }
 
 fn approval_body(secret: &[u8]) -> Box<[u8]> {
-    let record = w::ApprovalSignIn::new(
-        &w::CEILINGS,
-        w::ApprovalSignInParts { secret: skein_lib::Secret::new(secret.into()), grant: None },
-    )
-    .expect("approval take");
-    let mut bytes = Writer::new(usize::try_from(record.measure()).expect("small take"));
-    record.encode(&mut bytes).expect("measured take");
-    bytes.finish()
+    let record = w::ApprovalSignIn { secret: skein_lib::Secret::new(secret.into()), grant: None };
+    record.encode(&w::CEILINGS).expect("approval take")
 }
 
 fn send(message: Sent, credential: Option<Box<[u8]>>) -> Line {
@@ -545,7 +539,7 @@ fn redacted_one_click_proves_with_the_sent_and_unsent_grants_hidden() {
     assert_eq!(targets, [grant_target(&[b'x'; 32]), grant_target(&[b'x'; 32])]);
     let take = |line: &Line| {
         if let Line::Send { message: Sent::SignInApproval(bytes), .. } = line {
-            w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("take record").into_parts().grant
+            w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)).expect("take record").grant
         } else {
             None
         }

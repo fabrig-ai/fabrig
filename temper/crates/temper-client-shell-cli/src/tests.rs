@@ -1,3 +1,4 @@
+use jig_client_protocol_wire::Record as _;
 mod deadline;
 pub(crate) mod fixtures;
 mod link;
@@ -1527,7 +1528,7 @@ fn a_third_project_keeps_setup_calls_usable() {
     let preset = native.root.domain.client;
     let link = jig_client_protocol_link::Limits::new(preset.domain, preset.exchanges).expect("shipped link limits");
     let frame = fixtures::recovery::project_me(9); // Standard's deployment capacity.
-    let bytes = frame.measure();
+    let bytes = frame.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture");
     let decoded = jig_client_protocol_link::translate::documents::frame(frame, &link).expect("nine memberships");
     assert_eq!(decoded.projects.len(), 9);
     eprintln!(

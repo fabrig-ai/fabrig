@@ -4,7 +4,7 @@
 use crate::MilestoneTotals;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents::TaskLine;
-use skein_lib::{List, Wall, Writer};
+use skein_lib::{List, Wall};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
@@ -68,9 +68,8 @@ pub fn totals(value: &MilestoneTotals, _limits: &w::Limits) -> Option<w::Milesto
 
 fn milestone_goal(line: &TaskLine, headline: Option<Box<[u8]>>) -> Option<w::MilestoneGoal> {
     let line = jig_protocol_engine_clients::translate::task_line(line, &jig_client_protocol_wire::CEILINGS).ok()?;
-    let mut out = Writer::new(skein_lib::usize_of(line.measure()));
-    line.encode(&mut out).ok()?;
-    Some(w::MilestoneGoal { line: out.finish(), headline })
+    let line = line.encode(&jig_client_protocol_wire::CEILINGS).ok()?;
+    Some(w::MilestoneGoal { line, headline })
 }
 
 pub fn milestone(

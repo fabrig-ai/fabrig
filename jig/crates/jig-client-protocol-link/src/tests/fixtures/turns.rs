@@ -121,7 +121,7 @@ const UTF8_TEXTS: [&[u8]; 1] = [b"~\0\x01"];
 pub const MARKER_BYTES: u64 = 8 * 1024 * 1024 + 1;
 
 pub fn turn_pages() -> [(&'static str, w::ActivityPage, c::ActivityPage); 2] {
-    let large = w::TurnTooLarge::new(&w::CEILINGS, w::TurnTooLargeParts { bytes: MARKER_BYTES }).unwrap();
+    let large = w::TurnTooLarge { bytes: MARKER_BYTES };
     [
         (
             "too large",
@@ -140,20 +140,14 @@ pub fn turn_read() -> c::Read {
     c::Read::Turn { task: 7, attempt: 44, turn: 3 }
 }
 pub fn single_turn_record(body: &[u8]) -> w::ArchivedTurn {
-    w::ArchivedTurn::new(
-        &w::CEILINGS,
-        w::ArchivedTurnParts {
-            task: 7,
-            name: w::TurnName::new(&w::CEILINGS, w::TurnNameParts { attempt: 44, number: 3 }).unwrap(),
-            cumulative: 123,
-            read: Some(78),
-            at: 99,
-            turn: w::TurnBytes::Carried(
-                w::TurnCarried::new(&w::CEILINGS, w::TurnCarriedParts { bytes: Box::from(body) }).unwrap(),
-            ),
-        },
-    )
-    .unwrap()
+    w::ArchivedTurn {
+        task: 7,
+        name: w::TurnName { attempt: 44, number: 3 },
+        cumulative: 123,
+        read: Some(78),
+        at: 99,
+        turn: w::TurnBytes::Carried(w::TurnCarried { bytes: Box::from(body) }),
+    }
 }
 pub fn single_turn_value() -> w::ReadValue {
     w::ReadValue::Turn(single_turn_record(&full_turn()))

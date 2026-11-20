@@ -58,27 +58,27 @@ impl Watches {
         limits: &Limits,
         out: &mut Queue<Request>,
     ) -> Result<(), crate::Undecodable> {
-        let Some(watch) = self.named(value.watch()) else { return Ok(()) };
+        let Some(watch) = self.named(value.watch) else { return Ok(()) };
         let opening = self.0.get(&watch).expect("named watch");
         if opening.closing {
             return Ok(());
         }
-        let record = value.into_parts().document;
-        if record.owner() != &opening.owner || record.version() != opening.version {
+        let record = value.document;
+        if record.owner != opening.owner || record.version != opening.version {
             return Err(crate::Undecodable::Version);
         }
-        match record.owner() {
+        match &record.owner {
             w::Owner::Family(owner) => {
-                let family = owner.number();
+                let family = owner.number;
                 self.opened(watch, out);
                 out.push(Request::FamilyDelivery {
                     watch,
-                    record: Family { family, version: record.version(), bytes: record.into_parts().record },
+                    record: Family { family, version: record.version, bytes: record.record },
                 });
                 Ok(())
             }
             w::Owner::Jig => {
-                let value = crate::translate::watches::delivery(record.record(), limits)?;
+                let value = crate::translate::watches::delivery(&record.record, limits)?;
                 if let jig_client_domain::contract::Delivery::Tasks(tasks) = &value {
                     crate::translate::queries::check_rows(&tasks.rows, &opening.parts)?;
                 }

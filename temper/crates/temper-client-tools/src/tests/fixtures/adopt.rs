@@ -195,8 +195,11 @@ pub(crate) fn adoption_prefix_restore() -> List<skein_lib::RequestRecord<client:
 }
 pub(crate) fn core_key_conflict() -> w::Outcome {
     let refusal = jig_client_protocol_wire::Refusal::KeyConflict;
-    let mut bytes = skein_lib::Writer::new(usize::try_from(refusal.measure()).expect("refusal bytes"));
-    refusal.encode(&mut bytes).expect("refusal encoding");
+    let mut bytes = skein_lib::Writer::new(
+        usize::try_from(refusal.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
+            .expect("refusal bytes"),
+    );
+    refusal.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).expect("refusal encoding");
     w::Outcome::CoreRefused(w::CoreRefused { refusal: bytes.finish() })
 }
 pub(crate) fn malformed_adoption_answer() -> client::Outcome {

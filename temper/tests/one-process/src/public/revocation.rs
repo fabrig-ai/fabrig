@@ -2,6 +2,7 @@
 use super::{checks::PROXY, observation::Observer, proxy::Proxy, requests, service_checks, visitor::Visitor};
 use crate::fixtures;
 use jig_client::contract as c;
+use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as p;
 use skein_http::Method;
 use skein_lib::{Reader, Time};
@@ -146,14 +147,14 @@ impl Walk {
                 }
                 let projects = p::PublicProjects::decode(&p::CEILINGS, &mut Reader::new(&answer.body))
                     .map_err(|why| format!("projects record: {why:?}"))?;
-                match (&(projects.projects().len()), &(2)) {
+                match (&(projects.projects.len()), &(2)) {
                     (left, right) if left != right => {
                         let finding = String::from("assertion `left == right` failed");
                         return Err(format!("{finding}\n left: {left:?}\nright: {right:?}"));
                     }
                     _ => {}
                 }
-                self.projects = projects.projects().iter().map(p::PublicProject::project).collect();
+                self.projects = projects.projects.iter().map(|value| value.project).collect();
                 if !(self.projects.contains(&first)) {
                     return Err(format!("assertion failed: {}", stringify!(self.projects.contains(&first))));
                 }

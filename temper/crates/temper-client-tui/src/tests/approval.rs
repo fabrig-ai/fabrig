@@ -2,6 +2,7 @@ use super::fixtures as f;
 use crate::{Told, Tui, approval_address, may_ask_again};
 use jig_client::{ApprovalCode, Link, NotAsked, NotSignedIn, Taking};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Secret, Token, Wall, Writer};
 use temper_client_domain::{Domain, Event, Request, asked::State};
 
@@ -49,17 +50,11 @@ pub(super) fn asked(state: Option<State>) -> Domain {
         let id = exchange(f::event(&mut root, Event::AskApproval { port }));
         let answer = match state {
             State::Asking => None,
-            State::Asked { code, expires, .. } => Some(w::ApprovalAskAnswer::Asked(
-                w::ApprovalAsked::new(
-                    &w::CEILINGS,
-                    w::ApprovalAskedParts {
-                        secret: Secret::new(Box::new([7; 32])),
-                        code: *code.letters(),
-                        expires: expires.as_nanos(),
-                    },
-                )
-                .unwrap(),
-            )),
+            State::Asked { code, expires, .. } => Some(w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+                secret: Secret::new(Box::new([7; 32])),
+                code: *code.letters(),
+                expires: expires.as_nanos(),
+            })),
             State::NotAsked(NotAsked::Refused) => Some(w::ApprovalAskAnswer::Refused),
             State::NotAsked(NotAsked::Busy) => Some(w::ApprovalAskAnswer::Busy),
             State::NotAsked(NotAsked::NotReady) => Some(w::ApprovalAskAnswer::NotReady),
@@ -69,8 +64,10 @@ pub(super) fn asked(state: Option<State>) -> Domain {
             }
         };
         if let Some(answer) = answer {
-            let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-            answer.encode(&mut writer).unwrap();
+            let mut writer = Writer::new(
+                usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+            );
+            answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
             f::client(&mut root, jig_client::Event::Reply { exchange: id, message: writer.finish() });
         }
     }
@@ -112,19 +109,19 @@ pub(super) fn outcome(root: &mut Domain, why: Option<NotSignedIn>) {
         NotSignedIn::Approval(Taking::Expired) => w::ApprovalSignInAnswer::Expired,
         NotSignedIn::Approval(Taking::Used) => w::ApprovalSignInAnswer::Used,
         NotSignedIn::Approval(Taking::Unknown) => w::ApprovalSignInAnswer::Unknown,
-        NotSignedIn::Full { sign_ins, earliest, link_until } => w::ApprovalSignInAnswer::Full(
-            w::ApprovalFull::new(
-                &w::CEILINGS,
-                w::ApprovalFullParts { sign_ins, earliest: earliest.as_nanos(), until: link_until.as_nanos() },
-            )
-            .unwrap(),
-        ),
+        NotSignedIn::Full { sign_ins, earliest, link_until } => w::ApprovalSignInAnswer::Full(w::ApprovalFull {
+            sign_ins,
+            earliest: earliest.as_nanos(),
+            until: link_until.as_nanos(),
+        }),
         NotSignedIn::Busy => w::ApprovalSignInAnswer::Busy,
         NotSignedIn::NotReady => w::ApprovalSignInAnswer::NotReady,
         NotSignedIn::LinkUsed | NotSignedIn::LinkExpired | NotSignedIn::LinkUnknown => unreachable!("link answered"),
     };
-    let mut writer = Writer::new(usize::try_from(answer.measure()).unwrap());
-    answer.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(
+        usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
+    );
+    answer.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
     f::client(root, jig_client::Event::Reply { exchange: id, message: writer.finish() });
 }
 

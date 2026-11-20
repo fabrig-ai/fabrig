@@ -16,11 +16,11 @@ impl Silence {
         self.last_read.saturating_add(self.heartbeat.saturating_mul(2)).saturating_add(Duration::from_nanos(1))
     }
     pub(super) fn hello(&mut self, hello: &w::Hello) -> Result<(), Undecodable> {
-        if self.name.is_some() || hello.heartbeat() == Duration::ZERO {
+        if self.name.is_some() || hello.heartbeat == Duration::ZERO {
             return Err(Undecodable::Malformed);
         }
-        self.name = Some(*hello.stream());
-        self.heartbeat = hello.heartbeat();
+        self.name = Some(hello.stream);
+        self.heartbeat = hello.heartbeat;
         Ok(())
     }
     pub(super) fn progress(&mut self, now: Time) {

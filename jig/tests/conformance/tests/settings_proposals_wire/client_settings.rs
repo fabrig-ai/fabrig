@@ -3,38 +3,34 @@
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};
 use jig_client_protocol_wire as w;
+use jig_client_protocol_wire::Record as _;
 use jig_client_scripted_engine::wire;
 use jig_client_test_records::settings as values;
 use skein_lib::{List, Writer};
 macro_rules! encoded {
     ($value:expr) => {{
         let value = $value;
-        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
-        value.encode(&mut writer).expect("measured fixture");
+        let mut writer = Writer::new(skein_lib::length::usize_of(
+            value.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"),
+        ));
+        value.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("measured fixture");
         writer.finish()
     }};
 }
 fn answer(value: &w::Final, limits: &Limits) -> c::Answer {
     let record = encoded!(value);
-    let owned = w::Owned::new(
-        limits.wire(),
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record },
-    )
-    .expect("owned answer");
+    let owned = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record };
     translate::answers::answer(w::KeyedAnswer::FinalAnswer(owned), limits).expect("public answer")
 }
 fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, ()> {
-    let final_value =
-        w::Final::Done(w::Done::new(limits.wire(), w::DoneParts { outcome: value.clone() }).expect("done"));
+    let final_value = w::Final::Done(w::Done { outcome: value.clone() });
     match answer(&final_value, limits) {
         c::Answer::Done(value) => Ok(value),
         c::Answer::Refused { .. } => Err(()),
     }
 }
 fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal, ()> {
-    let final_value = w::Final::Refused(
-        w::Refused::new(limits.wire(), w::RefusedParts { refusal: value.clone(), at: None }).expect("refused"),
-    );
+    let final_value = w::Final::Refused(w::Refused { refusal: value.clone(), at: None });
     match answer(&final_value, limits) {
         c::Answer::Refused { refusal, .. } => Ok(refusal),
         c::Answer::Done(_) => Err(()),
@@ -62,17 +58,13 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         translate::reads::read(&read, t).expect("read fixture");
     }
     assert_eq!(translate::watches::subject(&c::Subject::Settings, t).expect("settings watch"), w::Subject::Settings);
-    let changed = w::Outcome::SettingsChanged(
-        w::OutcomeSettingsChanged::new(t, w::OutcomeSettingsChangedParts { revision: 6 }).expect("changed"),
-    );
+    let changed = w::Outcome::SettingsChanged(w::OutcomeSettingsChanged { revision: 6 });
     assert_eq!(outcome(&changed, &limits), Ok(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 6 })));
-    let stale = w::Refusal::Stale(w::RefusalStale::new(t, w::RefusalStaleParts { newest: 9 }).expect("stale"));
+    let stale = w::Refusal::Stale(w::RefusalStale { newest: 9 });
     assert_eq!(refusal(&stale, &limits), Ok(c::Refusal::Stale(c::RefusalStale { newest: 9 })));
     let mut tasks = List::with_capacity(1);
     tasks.push(11).expect("one holder");
-    let full = w::Refusal::Full(
-        w::RefusalFull::new(t, w::RefusalFullParts { revision: 2, tasks: tasks.clone(), more: 3 }).expect("full"),
-    );
+    let full = w::Refusal::Full(w::RefusalFull { revision: 2, tasks: tasks.clone(), more: 3 });
     assert_eq!(refusal(&full, &limits), Ok(c::Refusal::Full(c::RefusalFull { revision: 2, tasks, more: 3 })));
     for fault in [
         c::SettingFault::Shape,
@@ -87,22 +79,13 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         c::SettingFault::Range,
     ] {
         let why = c::MalformedSettings { setting: c::Setting::Rules, fault, detail: None };
-        let wire = w::Refusal::Malformed(
-            w::RefusalMalformed::new(
-                t,
-                w::RefusalMalformedParts {
-                    at: 0,
-                    why: w::Malformed::Settings(wire::wire_malformed_settings(&why, t).expect("fault")),
-                },
-            )
-            .expect("refusal"),
-        );
+        let wire = w::Refusal::Malformed(w::RefusalMalformed {
+            at: 0,
+            why: w::Malformed::Settings(wire::wire_malformed_settings(&why, t).expect("fault")),
+        });
         assert_eq!(refusal(&wire, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::Settings(why) }));
     }
-    let unchanged = w::Refusal::Malformed(
-        w::RefusalMalformed::new(t, w::RefusalMalformedParts { at: 0, why: w::Malformed::SettingsUnchanged })
-            .expect("unchanged"),
-    );
+    let unchanged = w::Refusal::Malformed(w::RefusalMalformed { at: 0, why: w::Malformed::SettingsUnchanged });
     assert_eq!(refusal(&unchanged, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::SettingsUnchanged }));
     let document = values::settings_document();
     let settings = wire::wire_settings_document(&document, t).expect("settings");
@@ -129,13 +112,9 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         c::RevisionAnswer::Forgotten(c::RevisionForgotten { oldest: 4 }),
         c::RevisionAnswer::Unknown,
     ] {
-        let bytes = encoded!(&w::ReadValue::Revision(
-            w::ReadRevisionAnswer::new(
-                t,
-                w::ReadRevisionAnswerParts { value: wire::wire_revision_answer(&answer, t).expect("revision") }
-            )
-            .expect("revision answer")
-        ));
+        let bytes = encoded!(&w::ReadValue::Revision(w::ReadRevisionAnswer {
+            value: wire::wire_revision_answer(&answer, t).expect("revision")
+        }));
         assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revision(Box::new(answer))));
     }
     let page = values::settings_page();
@@ -208,11 +187,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
             c::RevisionAnswer::Forgotten(c::RevisionForgotten { oldest: 4 }),
         ),
     ] {
-        let wire = w::ReadRevisionAnswer::new(
-            t,
-            w::ReadRevisionAnswerParts { value: engine::revision(&source, &[], t).expect("engine revision answer") },
-        )
-        .expect("revision answer");
+        let wire = w::ReadRevisionAnswer { value: engine::revision(&source, &[], t).expect("engine revision answer") };
         let bytes = encoded!(&w::ReadValue::Revision(wire));
         assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revision(Box::new(expected))));
     }

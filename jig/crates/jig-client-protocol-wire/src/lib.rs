@@ -14,7 +14,6 @@ pub const PUBLIC_SCHEMA: &str = include_str!("../schema/public-v1.schema");
 mod approval;
 pub use approval::{ApprovalCode, CODE_ALPHABET, CODE_LETTERS, CODE_TYPED_BYTES};
 
-#[expect(clippy::struct_field_names, reason = "The Accounts wire record retains the schema’s accounts field.")]
 #[rustfmt::skip]
 #[path = "generated/client.rs"]
 pub mod v39;

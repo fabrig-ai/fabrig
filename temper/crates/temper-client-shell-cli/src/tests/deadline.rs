@@ -249,11 +249,7 @@ fn a_read_whose_me_is_answered_busy_is_answered_within_a_span_of_its_clearing() 
 #[test]
 fn retry_reasons_survive_an_unanswered_later_attempt() {
     use jig_client_protocol_wire as w;
-    let undecodable = w::Owned::new(
-        &w::CEILINGS,
-        w::OwnedParts { owner: w::Owner::Jig, version: w::VERSION, record: Box::new([255]) },
-    )
-    .expect("bad final record in a valid envelope");
+    let undecodable = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record: Box::new([255]) };
     for (answer, expected) in [
         (w::KeyedAnswer::Busy, Waited::Again(Again::Busy)),
         (w::KeyedAnswer::NotReady, Waited::Again(Again::NotReady)),

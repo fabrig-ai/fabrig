@@ -14,32 +14,24 @@ pub const HEAD: [u8; 32] = [
 ];
 #[must_use]
 pub fn line(goal: bool) -> j::PublicLine {
-    let counts = j::PublicCounts::new(
-        &j::CEILINGS,
-        j::PublicCountsParts { working: 0, waiting: 0, held: 0, closing: 0, ended: 0 },
-    )
-    .expect("counts");
-    j::PublicLine::new(
-        &j::CEILINGS,
-        j::PublicLineParts {
-            task: TASK,
-            title: b"A public goal title".as_slice().into(),
-            title_cut: false,
-            parent: None,
-            goal,
-            priority: None,
-            executor: j::PublicExecutor::Agent,
-            phase: j::PublicPhase::Running,
-            hold: None,
-            made: 0,
-            changed: 0,
-            active: None,
-            ended: None,
-            spent: if goal { Some(12) } else { None },
-            delegates: counts,
-        },
-    )
-    .expect("line")
+    let counts = j::PublicCounts { working: 0, waiting: 0, held: 0, closing: 0, ended: 0 };
+    j::PublicLine {
+        task: TASK,
+        title: b"A public goal title".as_slice().into(),
+        title_cut: false,
+        parent: None,
+        goal,
+        priority: None,
+        executor: j::PublicExecutor::Agent,
+        phase: j::PublicPhase::Running,
+        hold: None,
+        made: 0,
+        changed: 0,
+        active: None,
+        ended: None,
+        spent: if goal { Some(12) } else { None },
+        delegates: counts,
+    }
 }
 #[must_use]
 pub fn card() -> Box<[u8]> {
@@ -47,18 +39,17 @@ pub fn card() -> Box<[u8]> {
 }
 #[must_use]
 pub fn card_line(own: j::PublicLine) -> Box<[u8]> {
-    let card = j::PublicCard::new(
-        &j::CEILINGS,
-        j::PublicCardParts {
-            line: own,
-            lineage: List::from_boxed(Box::new([PROJECT])),
-            delegates: List::from_boxed(Box::new([line(true)])),
-            folded: 0,
-        },
-    )
-    .expect("card");
-    let mut writer = Writer::new(usize::try_from(card.measure()).expect("small card"));
-    card.encode(&mut writer).expect("card");
+    let card = j::PublicCard {
+        line: own,
+        lineage: List::from_boxed(Box::new([PROJECT])),
+        delegates: List::from_boxed(Box::new([line(true)])),
+        folded: 0,
+    };
+    let mut writer = Writer::new(
+        usize::try_from(card.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("small card"),
+    );
+    card.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("card");
     writer.finish()
 }
 #[must_use]
@@ -96,13 +87,12 @@ pub fn change_commits(head: Option<[u8; 32]>, merge: Option<[u8; 32]>) -> Box<[u
 }
 #[must_use]
 pub fn application(record: Box<[u8]>) -> Box<[u8]> {
-    let app = j::PublicApplication::new(
-        &j::CEILINGS,
-        j::PublicApplicationParts { tasks: List::from_boxed(Box::new([TASK, PROJECT])), record },
-    )
-    .expect("application");
-    let mut writer = Writer::new(usize::try_from(app.measure()).expect("small application"));
-    app.encode(&mut writer).expect("application");
+    let app = j::PublicApplication { tasks: List::from_boxed(Box::new([TASK, PROJECT])), record };
+    let mut writer = Writer::new(
+        usize::try_from(app.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("small application"),
+    );
+    app.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("application");
     writer.finish()
 }
 #[must_use]
@@ -244,21 +234,16 @@ pub fn projects() -> Box<[u8]> {
 }
 #[must_use]
 pub fn projects_with(present: bool) -> Box<[u8]> {
-    let project = j::PublicProject::new(
-        &j::CEILINGS,
-        j::PublicProjectParts { project: PROJECT, name: b"A public project".as_slice().into() },
-    )
-    .expect("project");
-    let projects = j::PublicProjects::new(
-        &j::CEILINGS,
-        j::PublicProjectsParts {
-            projects: if present { List::from_boxed(Box::new([project])) } else { List::with_capacity(0) },
-            max_age: 8,
-        },
-    )
-    .expect("projects");
-    let mut writer = Writer::new(usize::try_from(projects.measure()).expect("small projects"));
-    projects.encode(&mut writer).expect("projects");
+    let project = j::PublicProject { project: PROJECT, name: b"A public project".as_slice().into() };
+    let projects = j::PublicProjects {
+        projects: if present { List::from_boxed(Box::new([project])) } else { List::with_capacity(0) },
+        max_age: 8,
+    };
+    let mut writer = Writer::new(
+        usize::try_from(projects.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("small projects"),
+    );
+    projects.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("projects");
     writer.finish()
 }
 
@@ -281,23 +266,18 @@ pub fn answer(reader: &mut Reader, doc: Doc, heard: Heard) {
 #[must_use]
 pub fn board() -> Box<[u8]> {
     let line = line(true);
-    let goal = j::PublicGoal::new(
-        &j::CEILINGS,
-        j::PublicGoalParts { line, tree: List::from_boxed(Box::new([records::line(false)])), folded: 2 },
-    )
-    .expect("goal");
-    let board = j::PublicBoard::new(
-        &j::CEILINGS,
-        j::PublicBoardParts {
-            project: PROJECT,
-            name: b"A public project".as_slice().into(),
-            live: List::from_boxed(Box::new([goal])),
-            live_folded: 0,
-            ended: List::with_capacity(0),
-        },
-    )
-    .expect("board");
-    let mut writer = Writer::new(usize::try_from(board.measure()).expect("small board"));
-    board.encode(&mut writer).expect("board");
+    let goal = j::PublicGoal { line, tree: List::from_boxed(Box::new([records::line(false)])), folded: 2 };
+    let board = j::PublicBoard {
+        project: PROJECT,
+        name: b"A public project".as_slice().into(),
+        live: List::from_boxed(Box::new([goal])),
+        live_folded: 0,
+        ended: List::with_capacity(0),
+    };
+    let mut writer = Writer::new(
+        usize::try_from(board.measure(&jig_client_protocol_wire::public_v1::CEILINGS).expect("bounded fixture"))
+            .expect("small board"),
+    );
+    board.write(&jig_client_protocol_wire::public_v1::CEILINGS, &mut writer).expect("board");
     writer.finish()
 }
