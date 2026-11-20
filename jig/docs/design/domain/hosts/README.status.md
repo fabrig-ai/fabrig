@@ -2,8 +2,6 @@
 
 2026-11-19. Where jig's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 5.1: a run's usage notice relayed by the hub [in flight: change 8987].
-- **Not yet:** 5.1: a usage read run by the source machine, and the root relaying a run's usage notice to the hub [in flight: change 9000].
 
 
 `hub.md`, section 4 has no known gap in turn fences taking only offered messages:

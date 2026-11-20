@@ -2,9 +2,6 @@
 
 2026-11-19. Where smith's code lags or departs from [programs.md](programs.md).
 
-- **Not yet:** 5.6 and 8: every `rate_limit_event` reported as a usage window; only a rejected one is read [in flight: change 8985].
-- **Not yet:** 5.11 and 8: the usage read, `claude -p /usage`, and the fake's usage command [in flight: change 8990].
-- **Not yet:** 5.11 and 8: the usage read's one-line windows, each with its share and its reset read in UTC, the command run with `TZ=UTC`; the read expects a window's share on the line after its heading and reads no reset [in flight: change 9515].
 
 Sections 2 and 5.1 have no known gap in Linux's program-child launch:
 status checks and print runs use the agent's own `--program-child`

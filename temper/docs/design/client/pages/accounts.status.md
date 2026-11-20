@@ -2,7 +2,6 @@
 
 2026-11-19. Where the tree's code lags or departs from [accounts.md](accounts.md).
 
-- **Not yet:** 2, *A Claude subscription's usage*: a window's pace is the view's average since the window opened, not the rate the accounts document serves [in flight: change 8995].
 
 - **Not yet:** 2: an Anthropic key's details read "From Anthropic’s platform" rather than the Claude Console, and the welcome's key panel words OpenAI's key alone [in flight: change 915].
 
