@@ -1201,9 +1201,12 @@ pub enum StoreRequest {
     },
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "worker delivery carries typed settings, including named repair settings"
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "worker delivery carries typed settings, including named repair settings"
+    )
 )]
 pub enum WorkerRequest {
     Settings(Box<[core::settings::WorkerSetting]>),
