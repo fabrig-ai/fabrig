@@ -1,6 +1,6 @@
 //! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
 
-use crate::{Form, generate, generate_as, parse};
+use crate::{generate, parse};
 
 const FIXTURE: &str = "family helper-fixture 7
 record Empty {}
@@ -18,7 +18,7 @@ record Nested {
 #[expect(clippy::disallowed_methods, reason = "reads the fixture rewrite switch SKEIN_CODEGEN_WRITE")]
 fn lean_helper_fixture_has_no_drift() {
     let schema = parse(FIXTURE).expect("helper schema");
-    let output = generate_as(&schema, Form::Lean);
+    let output = generate(&schema);
     let path = skein_scratch::paths::tree().join("crates/skein-codec/src/tests/lean_fixture.rs");
     if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
         std::fs::write(&path, &output.records).expect("write helper fixture");
@@ -30,7 +30,7 @@ fn lean_helper_fixture_has_no_drift() {
 #[test]
 fn lean_secret_fields_need_no_box_import() {
     let schema = parse("family hidden 1 record Row { value: option list 2 secret 8 }").expect("secret schema");
-    let output = generate_as(&schema, Form::Lean).records;
+    let output = generate(&schema).records;
     assert!(output.contains("pub value: Option<List<skein_lib::Secret>>"));
     assert!(!output.contains("use alloc::boxed::Box;"), "secret fields use Secret, not Box");
 }
@@ -38,17 +38,16 @@ fn lean_secret_fields_need_no_box_import() {
 #[test]
 fn lean_roots_have_a_concrete_debug_decode_entry() {
     let schema = parse("family roots 1\nrecord Item { byte: u8 }\nrecord Root { item: Item }\n").expect("root schema");
-    let output = generate_as(&schema, Form::Lean).records;
+    let output = generate(&schema).records;
     let (nested, root) = output.split_once("// Record: Root.").expect("root implementation");
     assert!(!nested.contains("fn decode("), "nested reads use the family's read entry");
     assert!(root.contains("#[cfg(debug_assertions)]\n    fn decode("), "only debug builds override the default entry");
 }
 
 #[test]
-fn lean_surface_is_public_and_sealed_generation_is_unchanged() {
+fn lean_surface_is_public() {
     let schema = parse(FIXTURE).expect("helper schema");
-    assert_eq!(generate_as(&schema, Form::Sealed), generate(&schema));
-    let output = generate_as(&schema, Form::Lean).records;
+    let output = generate(&schema).records;
     for required in [
         "pub words: Box<[u8]>",
         "impl Record for Words",
