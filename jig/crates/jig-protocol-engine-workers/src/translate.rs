@@ -1055,7 +1055,6 @@ fn usage_outcome(outcome: wire::UsageOutcome) -> Option<jig_domain_link::UsageOu
         wire::UsageOutcome::Read(windows) => {
             let mut rows = List::with_capacity(jig_domain_link::USAGE_WINDOWS);
             for row in windows.windows.into_boxed() {
-                
                 rows.push(usage_window(row.label, row.length, row.used, row.resets, row.state)?).ok()?;
             }
             jig_domain_link::UsageOutcome::Read(rows.into_boxed())
@@ -1063,7 +1062,6 @@ fn usage_outcome(outcome: wire::UsageOutcome) -> Option<jig_domain_link::UsageOu
         wire::UsageOutcome::NotSignedIn => jig_domain_link::UsageOutcome::NotSignedIn,
         wire::UsageOutcome::Spent => jig_domain_link::UsageOutcome::Spent,
         wire::UsageOutcome::Failed(failure) => {
-            
             jig_domain_link::UsageOutcome::Failed { reason: source_failure(failure.reason), detail: failure.detail }
         }
     })

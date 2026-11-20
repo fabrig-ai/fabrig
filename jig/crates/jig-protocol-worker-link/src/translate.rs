@@ -71,15 +71,15 @@ pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v19::Limits) -
         host::LinkUp::Usage { run, attempt, account, window } => {
             let resets = reset_nanos(window.window.resets);
             let record = wire::Usage {
-                    task: run.raw(),
-                    attempt: attempt.raw(),
-                    account,
-                    label: window.label,
-                    length: window.window.length,
-                    used: window.window.used,
-                    resets,
-                    state: window.window.state,
-                };
+                task: run.raw(),
+                attempt: attempt.raw(),
+                account,
+                label: window.label,
+                length: window.window.length,
+                used: window.window.used,
+                resets,
+                state: window.window.state,
+            };
             frame(wire::Kind::Usage.number(), record.encode(limits).ok()?)
         }
         host::LinkUp::UsageRead { read, outcome } => usage_read_frame(read, outcome, limits),
@@ -874,15 +874,13 @@ fn usage_read_frame(read: u64, outcome: jig_domain_link::UsageOutcome, limits: &
             let mut rows = List::with_capacity(limits.usage_windows_windows);
             for row in windows {
                 let resets = reset_nanos(row.window.resets);
-                rows.push(
-                    wire::UsageWindow {
-                            label: row.label,
-                            length: row.window.length,
-                            used: row.window.used,
-                            resets,
-                            state: row.window.state,
-                        },
-                )
+                rows.push(wire::UsageWindow {
+                    label: row.label,
+                    length: row.window.length,
+                    used: row.window.used,
+                    resets,
+                    state: row.window.state,
+                })
                 .ok()?;
             }
             wire::UsageOutcome::Read(wire::UsageWindows { windows: rows })

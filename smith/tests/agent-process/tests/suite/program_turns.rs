@@ -173,10 +173,9 @@ fn every_rate_limit_event_reports_usage_before_the_limit() {
         (b"five_hour".as_slice(), 18_000, None, R1, smith_channel::UsageState::Limited),
     ]) {
         let notice = smith_channel::Usage::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.body))
-            .expect("usage notice")
-            .into_parts();
+            .expect("usage notice");
         assert_eq!(notice.account, 0);
-        let window = notice.window.into_parts();
+        let window = notice.window;
         assert_eq!(window.label.as_ref(), label);
         assert_eq!(window.length, Some(skein_lib::Duration::from_secs(seconds)));
         assert_eq!((window.used, window.resets, window.state), (used, Some(resets), state));

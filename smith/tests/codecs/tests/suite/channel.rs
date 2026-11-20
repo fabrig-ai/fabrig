@@ -55,8 +55,7 @@ fn usage_round_trips_present_and_absent_window_fields() {
                 resets: (mask & 4 != 0).then_some(1_781_845_200),
                 state: state.clone(),
             };
-            let record =
-                smith_channel::Usage { account: 7, window };
+            let record = smith_channel::Usage { account: 7, window };
             let frame = smith_channel::frame(smith_channel::Body::Usage(record.clone())).expect("usage frame");
             assert_eq!(frame.kind(), smith_channel::kind::USAGE);
             let body = &frame.bytes()[8..];

@@ -8,7 +8,7 @@ use crate::{
 };
 use jig_domain_host::LinkDown;
 use jig_domain_link::SourceName;
-use jig_protocol_worker_wire as wire;
+use jig_protocol_worker_wire::{self as wire, Record};
 use skein_fake_machine::{How, Item};
 use skein_io::kernel;
 use skein_lib::{Duration, Reader, Time, Token};
@@ -70,9 +70,17 @@ impl skein_world::Referee<Proc> for Judge {
         skein_world::LastWord::LastExpectation
     }
 }
+fn one_login_reported(proc: &Proc) -> bool {
+    let Proc::Worker(worker) = proc else { return false };
+    worker.wire.frames.iter().any(|(_, kind, bytes)| {
+        *kind == wire::Kind::Logins.number()
+            && wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(bytes)).is_ok_and(|rows| rows.logins.len() == 1)
+    })
+}
+
 impl Judge {
     fn check_act(&mut self, now: Time, procs: &mut [Proc]) -> Result<(), String> {
-        let ready = procs.iter().any(|proc| matches!(proc, Proc::Worker(worker) if worker.wire.frames.iter().any(|(_, kind, bytes)| *kind == wire::Kind::Logins.number() && wire::Logins::decode(&wire::CEILINGS, &mut Reader::new(bytes)).is_ok_and(|rows| rows.logins().len() == 1))));
+        let ready = procs.iter().any(one_login_reported);
         for proc in procs.iter_mut() {
             if let Proc::Engine(host) = proc {
                 world::answer_store(host, &mut self.store, &mut self.rules, false, Story::Chat, now)?;

@@ -215,7 +215,7 @@ fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
             if version < 18 && refusal.is_some() {
                 let refused = sent.expect_err("an older engine cannot hold the refusal");
                 assert_eq!(refused.wire.as_ref(), b"jig-worker-wire");
-                assert_eq!(refused.version, 18);
+                assert_eq!(refused.version, channel::VERSION);
                 assert_eq!(refused.halt, Halt::Unheld(Path { decl, part: Part::Field(field) }));
             } else {
                 let down = sent.expect("the engine holds this failure");
@@ -579,39 +579,34 @@ fn current_application_links_keep_no_plans_and_older_parts_reuse_one_bridge() {
 
 fn usage_records() -> [wire::FromWorker; 5] {
     let window = wire::UsageWindow {
-            label: b"five_hour".as_slice().into(),
-            length: Some(skein_lib::Duration::from_secs(18_000)),
-            used: Some(2800),
-            resets: Some(123_456),
-            state: 2,
-        };
+        label: b"five_hour".as_slice().into(),
+        length: Some(skein_lib::Duration::from_secs(18_000)),
+        used: Some(2800),
+        resets: Some(123_456),
+        state: 2,
+    };
     let mut windows = List::with_capacity(8);
     windows.push(window.clone()).unwrap();
     let notice = wire::Usage {
-            task: 7,
-            attempt: 2,
-            account: 3,
-            label: window.label.clone(),
-            length: window.length,
-            used: window.used,
-            resets: window.resets,
-            state: window.state,
-        };
-    let read = |outcome| {
-        wire::FromWorker::UsageRead(
-            wire::UsageRead { read: 42, outcome },
-        )
+        task: 7,
+        attempt: 2,
+        account: 3,
+        label: window.label.clone(),
+        length: window.length,
+        used: window.used,
+        resets: window.resets,
+        state: window.state,
     };
+    let read = |outcome| wire::FromWorker::UsageRead(wire::UsageRead { read: 42, outcome });
     [
         wire::FromWorker::Usage(notice),
-        read(wire::UsageOutcome::Read(
-            wire::UsageWindows { windows },
-        )),
+        read(wire::UsageOutcome::Read(wire::UsageWindows { windows })),
         read(wire::UsageOutcome::NotSignedIn),
         read(wire::UsageOutcome::Spent),
-        read(wire::UsageOutcome::Failed(
-            wire::SourceFailed { reason: wire::SourceFailure::Unconfigured, detail: Box::new([]) },
-        )),
+        read(wire::UsageOutcome::Failed(wire::SourceFailed {
+            reason: wire::SourceFailure::Unconfigured,
+            detail: Box::new([]),
+        })),
     ]
 }
 #[test]
@@ -621,9 +616,7 @@ fn usage_records_round_trip_at_nineteen() {
         let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
         assert_eq!(worker_value(&up), record);
     }
-    let record = wire::FromEngine::ReadUsage(
-        wire::ReadUsage { read: 42, source: b"personal".as_slice().into() },
-    );
+    let record = wire::FromEngine::ReadUsage(wire::ReadUsage { read: 42, source: b"personal".as_slice().into() });
     let frame = opaque().send(engine(&record), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
     let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
     assert_eq!(engine_value(&up), record);
@@ -649,9 +642,7 @@ fn older_notices_and_calls_round_trip_through_seventeen_unchanged() {
     let frame = sender.send(worker(&notice), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
     let up = receiver.receive(frame.kind(), body(&frame), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
     assert_eq!(worker_value(&up), notice);
-    let call = wire::FromEngine::Cancel(
-        wire::Cancel { task: 7, attempt: 2 },
-    );
+    let call = wire::FromEngine::Cancel(wire::Cancel { task: 7, attempt: 2 });
     let frame = sender.send(engine(&call), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
     let up = receiver.receive(frame.kind(), body(&frame), 17, &agreed(17, 5), &wire::CEILINGS).unwrap();
     assert_eq!(engine_value(&up), call);
@@ -659,21 +650,21 @@ fn older_notices_and_calls_round_trip_through_seventeen_unchanged() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the bridge test formats generated fixture names")]
-fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
+fn seventeens_kept_goldens_go_up_to_eighteen_with_no_refusal_and_back() {
     use crate::patches::kept::jig_worker_wire as kept;
     use skein_codegen::{Declaration, snake, values};
-    let mut old = None;
+    let mut seventeen = None;
+    let mut eighteen = None;
     for text in kept::TEXTS {
         if text.starts_with("family jig-worker-wire 17\n") {
-            old = Some(*text);
+            seventeen = Some(*text);
+        } else if text.starts_with("family jig-worker-wire 18\n") {
+            eighteen = Some(*text);
         }
     }
-    let old = values(old.expect("kept 17"));
-    let current = values(
-        kept::TEXTS.iter().find(|text| text.starts_with("family jig-worker-wire 18\n")).expect("kept 18"),
-    );
+    let old = values(seventeen.expect("kept 17"));
     let older = &old.goldens;
-    let newer = &current.goldens;
+    let newer = &values(eighteen.expect("kept 18")).goldens;
     let mut bridge = kept::bridge(Capacity {
         versions: u32::try_from(kept::TEXTS.len()).unwrap(),
         patches: u32::try_from(crate::patches::PATCHES.len() * 2).unwrap(),
@@ -702,7 +693,17 @@ fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
                 let before = fixture_golden(older, &name);
                 let after = fixture_golden(newer, &name);
                 let up = bridge.translate(17, 18, root.as_bytes(), before.clone()).unwrap();
-                assert_eq!(up, after, "{name}.bin");
+                match name.as_str() {
+                    "record_model_failure_full" | "record_failed_full" | "enum_ending_failed_full" => {
+                        // The full v18 fixture ends with a present refusal, which the v17 fixture cannot carry.
+                        let present = b"\x01\x00\x00\x00\x03abc";
+                        assert_eq!(after.strip_suffix(present.as_slice()), Some(before.as_ref()), "{name}.bin");
+                        assert_eq!(up.strip_suffix(&[0]), Some(before.as_ref()), "{name}.bin");
+                        let halt = bridge.translate(18, 17, root.as_bytes(), after).unwrap_err();
+                        let Halt::Unheld(_) = halt else { panic!("{name}.bin: {halt:?}") };
+                    }
+                    _ => assert_eq!(up, after, "{name}.bin"),
+                }
                 let down = bridge.translate(18, 17, root.as_bytes(), up).unwrap();
                 assert_eq!(down, before, "{name}.bin");
             }

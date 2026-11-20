@@ -144,11 +144,11 @@ fn a_program_child_reports_usage_for_its_account() {
     assert_eq!(notices.len(), 1, "only the child emitted a usage event");
     let notice = smith_channel::Usage::decode(&smith_channel::CEILINGS, &mut Reader::new(&notices[0].body))
         .expect("child usage");
-    assert_eq!(notice.account(), 0, "the child uses the granted program account");
-    assert_eq!(notice.window().label(), b"seven_day_opus");
-    assert_eq!(notice.window().state(), &smith_channel::UsageState::Warned);
-    assert_eq!(notice.window().used(), &Some(8100));
-    assert_eq!(notice.window().resets(), &Some(1_781_845_200));
+    assert_eq!(notice.account, 0, "the child uses the granted program account");
+    assert_eq!(notice.window.label.as_ref(), b"seven_day_opus");
+    assert_eq!(notice.window.state, smith_channel::UsageState::Warned);
+    assert_eq!(notice.window.used, Some(8100));
+    assert_eq!(notice.window.resets, Some(1_781_845_200));
 }
 
 #[test]

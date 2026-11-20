@@ -13,8 +13,8 @@ pub(super) fn decode(limits: &smith_channel::Limits, kind: u16, body: &[u8]) -> 
             })
         }
         smith_channel::kind::USAGE => {
-            let notice = smith_channel::Usage::decode(limits, &mut Reader::new(body))?.into_parts();
-            let window = notice.window.into_parts();
+            let notice = smith_channel::Usage::decode(limits, &mut Reader::new(body))?;
+            let window = notice.window;
             let state = match window.state {
                 smith_channel::UsageState::Open => smith_host_domain::UsageState::Open,
                 smith_channel::UsageState::Warned => smith_host_domain::UsageState::Warned,

@@ -815,8 +815,8 @@ fn a_program_grant_needs_no_table_entry() {
 fn program_names_share_the_wire_and_domain_bounds() {
     use jig_protocol_worker_wire::v19;
     // Schema source names and grant names both admit exactly 32 bytes.
-    let bound = skein_lib::length::usize_of(v18::CEILINGS.program_value_name);
-    assert_eq!(v18::CEILINGS.program_value_name, v18::CEILINGS.program_source_name);
+    let bound = skein_lib::length::usize_of(v19::CEILINGS.program_value_name);
+    assert_eq!(v19::CEILINGS.program_value_name, v19::CEILINGS.program_source_name);
     let past = bound.checked_add(1).expect("small name bound");
     let name = [b'a'; 33]; // The schema's 32-byte name plus one byte.
     for (length, admitted) in [(bound, true), (past, false)] {
