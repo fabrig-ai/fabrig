@@ -4,7 +4,8 @@ use crate::pages::{Bound, Stopped};
 use crate::{
     EnvironmentEntry, TABLE,
     table::{
-        ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, NORMALISE, PAGES, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK, REPRINT, TARGET,
+        ADD, AGAIN, CAUTION, CHROMIUM, DRIVE, JOURNEY_WALK, NORMALISE, PAGES, RECIPE_HASH, RECIPE_LIST, RECIPE_WALK,
+        REPRINT, TARGET,
     },
 };
 use crate::{JOURNEYS, Refusal, TUI_JOURNEYS, add_to, named, reprint, tui, tui_again};
@@ -50,6 +51,8 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
                     crate::recipe::Mode::List
                 };
                 return session_exit(crate::recipe::run(mode, rest, &environment));
+            } else if *command == JOURNEY_WALK {
+                return session_exit(crate::journey_walk::run(rest, &environment));
             } else if *command == DRIVE {
                 return drive(rest, &environment);
             } else if *command == ADD {

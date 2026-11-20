@@ -17,6 +17,8 @@ pub(super) fn plan() -> Plan {
             scripts: vec!["/build/one.script".into(), "/build/two.script".into()],
             strict: true,
             ctl: false,
+            journey: false,
+            widths: vec![],
             ports: None,
             files: None,
         },
@@ -24,6 +26,129 @@ pub(super) fn plan() -> Plan {
         OsStr::new("/bin"),
     )
 }
+fn journey_ready() -> Machine {
+    let mut plan = plan();
+    plan.options.journey = true;
+    let (mut m, _) = Machine::start(plan, Time::ZERO);
+    step(
+        &mut m,
+        Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=first\n".as_slice().into() },
+    );
+    step(&mut m, exited(Process::SignIn, 0));
+    step(&mut m, Event::FaceDone(Ok(())));
+    step(
+        &mut m,
+        Event::BoxLine { output: Output::Stdout, line: b"http://127.0.0.1:9/link?secret=fresh\n".as_slice().into() },
+    );
+    assert!(
+        matches!(step(&mut m, Event::FaceDone(Ok(()))).as_slice(), [Action::Find(find)] if *find == Find::named(Role::Main, b""))
+    );
+    assert!(
+        matches!(step(&mut m, Event::Found(Some(NodeId(0)))).as_slice(), [Action::Ready]),
+        "no root load after the fresh link's main region"
+    );
+    m
+}
+
+#[test]
+fn journey_start_keeps_the_fresh_links_page() {
+    let mut m = journey_ready();
+    assert!(
+        matches!(line(&mut m, r#"web see "Welcome""#).as_slice(), [Action::Find(find)] if *find == Find::text(b"Welcome"))
+    );
+    assert_eq!(answer(&step(&mut m, Event::Found(Some(NodeId(1))))).print(), "ok\n");
+}
+
+#[test]
+fn journey_options_refuse_conflicts_and_bad_widths_before_preflight() {
+    let base = ["--bin", "B", "--bundle", "W", "--scratch", "S"];
+    let parse =
+        |tail: &[&str]| Options::parse(&base.iter().chain(tail).map(|word| word.as_bytes().into()).collect::<Vec<_>>());
+    let options = parse(&["--journey", "--widths", "1440,420"]).expect("journey widths");
+    assert!(options.journey);
+    assert_eq!(options.widths, [1440, 420]);
+    assert_eq!(parse(&["--journey", "--widths", "320,3840"]).expect("boundary widths").widths, [320, 3840]);
+    assert_eq!(parse(&["--journey"]).expect("text marks").widths, Vec::<u32>::new());
+    assert!(!parse(&[]).expect("ordinary session").journey);
+    for (tail, expected) in [
+        (vec!["--journey", "--ctl"], "--ctl"),
+        (vec!["--widths", "420"], "--journey"),
+        (vec!["--journey", "--widths"], "--widths"),
+    ] {
+        let why = parse(&tail).expect_err("option refusal");
+        assert!(why.contains(expected), "{why}");
+    }
+    for list in ["", "319", "3841", "420,420", "420,", "420 1440", "420,no", "+420", "4294967296"] {
+        let why = parse(&["--journey", "--widths", list]).expect_err("invalid widths");
+        assert!(why.contains("--widths") && why.contains(list), "{why}");
+    }
+}
+
+#[test]
+fn journey_web_mark_answers_ordered_screenshots_then_text_without_keeping() {
+    let mut m = journey_ready();
+    m.plan.options.widths = vec![1440, 420];
+    let started = Time::from_nanos(1_000_000_000);
+    let first = m.step(Event::Line(b"web mark".as_slice().into()), started);
+    assert!(
+        matches!(first.as_slice(), [Action::Screenshot { width: 1440, path }] if path == Path::new("/scratch/session/looks/0001-1440.png"))
+    );
+    let second = m.step(Event::FaceDone(Ok(())), Time::from_nanos(10_000_000_000));
+    assert!(
+        matches!(second.as_slice(), [Action::Screenshot { width: 420, path }] if path == Path::new("/scratch/session/looks/0001-420.png"))
+    );
+    assert_eq!(m.next_deadline(), Some(Time::from_nanos(20_000_000_000)));
+    assert!(matches!(m.step(Event::FaceDone(Ok(())), Time::from_nanos(19_000_000_000)).as_slice(), [Action::Snapshot]));
+    assert_eq!(m.next_deadline(), Some(Time::from_nanos(29_000_000_000)));
+    let actions = step(&mut m, Event::Snapshot(b"main Welcome\nbutton Start".as_slice().into()));
+    assert!(matches!(actions.as_slice(), [Action::Answer(_)]));
+    assert_eq!(
+        answer(&actions).print(),
+        "| /scratch/session/looks/0001-1440.png\n| /scratch/session/looks/0001-420.png\n| main Welcome\n| button Start\nok\n"
+    );
+    m.plan.options.widths.clear();
+    assert!(matches!(line(&mut m, "web mark").as_slice(), [Action::Snapshot]));
+    assert!(matches!(step(&mut m, Event::Snapshot(b"main".as_slice().into())).as_slice(), [Action::Answer(_)]));
+}
+
+#[test]
+fn journey_textbox_finds_a_text_area_including_on_retry() {
+    use skein_fake_person::{Face, Found, TreeFace};
+    let limits = skein_ui::Limits {
+        nodes: 4,
+        depth: 2,
+        text_per_node: 32,
+        text_bytes: 64,
+        patches: 8,
+        ..skein_ui::Limits::EMPTY
+    };
+    let mut view = skein_ui::View::new(&limits);
+    let mut builder = view.builder();
+    builder.open(Role::Page);
+    builder.open(Role::TextArea);
+    builder.name(b"Reply");
+    builder.close();
+    builder.close();
+    view.finish(builder, 1, &mut skein_lib::Queue::with_capacity(limits.patches));
+    let mut face = TreeFace::new(view.tree());
+    let mut m = journey_ready();
+    let actions = line(&mut m, r#"web input textbox "Reply" "Words""#);
+    let [Action::Find(find)] = actions.as_slice() else { panic!("{actions:?}") };
+    assert_eq!(face.find(find), Found::Node(NodeId(2)));
+    step(&mut m, Event::Found(None));
+    let retry = m.step(Event::Deadline, Time::from_nanos(50_000_000));
+    let [Action::Find(find)] = retry.as_slice() else { panic!("{retry:?}") };
+    assert_eq!(face.find(find), Found::Node(NodeId(2)));
+    assert!(matches!(
+        step(&mut m, Event::Found(Some(NodeId(2)))).as_slice(),
+        [Action::Perform(Doing::Act { node: NodeId(2), act: Act::Input { .. } })]
+    ));
+    let mut ordinary = ready();
+    let actions = line(&mut ordinary, r#"web input textbox "Reply" "Words""#);
+    let [Action::Find(find)] = actions.as_slice() else { panic!("{actions:?}") };
+    assert_eq!(face.find(find), Found::Absent);
+}
+
 #[test]
 fn web_mark_fails_unkept_and_the_session_reads_on() {
     for mut machine in [ready(), ctl_ready()] {
@@ -592,6 +717,8 @@ fn preflight_validates_before_reset_and_preserves_box_directories() {
         scripts: vec![],
         strict: false,
         ctl: false,
+        journey: false,
+        widths: vec![],
         ports: None,
         files: Some(root.join("files")),
     };

@@ -227,12 +227,22 @@ const SESSION: Settings = Settings {
             twin: None,
             notes: "Needs --ports. --ctl selects a ctl session without Chromium; otherwise a full session. --bundle is optional unless a document names {place.bundle}.",
         },
+        WIDTHS,
     ],
+};
+const WIDTHS: Setting = Setting {
+    name: "widths",
+    value: "LIST",
+    about: "Distinct screenshot widths from 320 to 3840, joined by commas, in the given order.",
+    fallback: Fallback::Text(""),
+    set: Set::Internal,
+    twin: None,
+    notes: "Requires --journey. With none, web mark answers text alone.",
 };
 pub(crate) const DRIVE: Command = Command {
     reach: Reach::Words(&["drive"]),
     forms: &[
-        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR]",
+        "--bin DIR [--bundle DIR] --scratch DIR [--scripts FILE]... [--strict] [--ports LIST] [--files DIR] [--ctl] [--deployment DIR] [--journey [--widths LIST]]",
     ],
     line: "Drive a signed-in box or deployment from a given build, one stdin line at a time.",
     settings: &[&SESSION],
@@ -243,6 +253,12 @@ pub(crate) const DRIVE: Command = Command {
             set: Set::Internal,
             line: "Take ctl and forge lines alone, without a browser or TUI.",
             notes: "Needs no SKEIN_TEST_CHROMIUM; the box still takes its bundle.",
+        },
+        Switch {
+            name: "journey",
+            set: Set::Internal,
+            line: "Take journey lines without an implied root load or TUI approval.",
+            notes: "Refuses --ctl. tui approve signs the TUI in; web mark and tui mark answer looks and are not kept.",
         },
     ],
     variables: &[&CHROMIUM, &PATH],
@@ -311,13 +327,42 @@ pub(crate) const RECIPE_WALK: Command = Command {
     ..REPRINT
 };
 
+const JOURNEY_SESSION: Settings = Settings {
+    tool: "temper-client-journeys journey walk",
+    about: "One journey session on a fresh scratch directory; nothing is built.",
+    table: &[
+        SESSION.table[0],
+        SESSION.table[1],
+        SESSION.table[2],
+        SESSION.table[4],
+        SESSION.table[6],
+        Setting { notes: "With none, web mark answers text alone.", ..WIDTHS },
+    ],
+};
+pub(crate) const JOURNEY_WALK: Command = Command {
+    reach: Reach::Words(&["journey", "walk"]),
+    forms: &[
+        "NAME --bin DIR [--bundle DIR] --scratch DIR [--strict] [--ports LIST] [--widths LIST] [--deployment DIR]",
+    ],
+    line: "Walk a journey's chain through one journey session, stopping at its first failed line.",
+    arguments: &[Argument {
+        shown: "NAME",
+        line: "Journey name, [a-z][a-z0-9-]*, under the checkout's web or TUI roots.",
+    }],
+    settings: &[&JOURNEY_SESSION],
+    switches: &[DRIVE.switches[0]],
+    variables: DRIVE.variables,
+    notes: "Refuses config/ or data/ in scratch. Chain scripts and lines go root first, without ancestors' marks or added resets. Answers carry journey and file line. Exit 0: walked NAME; 5: stopped at NAME:N: WHY. Session statuses 3, 4 and 1 pass through. No build.",
+    ..REPRINT
+};
+
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[REPRINT, ADD, NORMALISE, AGAIN, PAGES, DRIVE, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[REPRINT, ADD, NORMALISE, AGAIN, PAGES, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
     settings: &[],
     variables: &[&CHROMIUM, &BUNDLE, &RECORD, &FIXED_START, &PATH, &TARGET],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",
