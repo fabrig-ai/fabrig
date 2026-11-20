@@ -444,7 +444,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             &start.build,
             &directory,
             kind,
-            &mut crate::faces::RealBuildFiles { environment: self.environment.clone() },
+            &mut crate::faces::RealBuildFiles,
         )?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
         pass_files::prepare_files(&self.home, start.pass)?;

@@ -227,6 +227,7 @@ synchronous operations, the error tables, what decodes a `statx` or a
 | Signals to the service | `signalfd` | a kqueue of the service's own, its `EVFILT_SIGNAL`s registered, the signals ignored |
 | The seed | `getrandom` | `getentropy` |
 | Usage's resident size | KiB | bytes |
+| The process's unreaped children | `/proc/self/task/*/children` | `proc_listpids`, `PROC_PPID_ONLY` |
 
 - **A child stays unreaped until io closes it,** on macOS as with
   pidfds, so its pid is never another process's while io can still
@@ -237,6 +238,22 @@ synchronous operations, the error tables, what decodes a `statx` or a
   conformance suite are the same on both systems: a `Wait` waits for its
   handle to be readable, a `Signal` finds the pid its handle names, and
   a `Close` of the handle forgets it.
+- **The process's unreaped children,** read from outside io for a
+  test's settled check (smith's `testing.md`, 6):
+  `unreaped_children() -> Result<Box<[u32]>, i32>`, public from the
+  shell on both systems, answers the pids of the processes whose
+  parent is the calling process and that it has not reaped, a zombie
+  among them, in no order. It takes no handle, reaps nothing and
+  signals no one. Linux reads each of its threads' `children` file
+  under `/proc/self/task`, a thread's file that is gone (`ENOENT`, the
+  thread ended) counting no children. macOS lists by `proc_listpids`
+  with `PROC_PPID_ONLY` (libproc.h's 6) and the caller's pid, a byte
+  estimate first as the group's reading takes it (below); its walk
+  takes the zombies' list after the living's, as the group's reading
+  relies on. A reading that fails answers its error number, and one
+  that may have been cut short (a listing that fills the buffer it was
+  given, or a byte count that is no whole number of pids) answers
+  `ENOBUFS`: never a shorter list.
 - **A child dying with its parent, on macOS, has a watcher**
   (`shell.md`, 3): macOS has no parent-death signal, so the process
   about to exec, the program to be, first forks a watcher that sends

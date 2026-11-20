@@ -1,4 +1,4 @@
-//! Darwin's tree keeper calls (runtime/readiness.md, 5).
+//! Darwin's process observations and tree keeper calls (runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -9,7 +9,7 @@
 
 #![expect(
     unsafe_code,
-    reason = "libproc borrows bounded PID arrays and local status storage (runtime/readiness.md, 5)"
+    reason = "libproc borrows bounded PID arrays and status storage; errno is thread-local (runtime/readiness.md, 5)"
 )]
 
 use crate::posix::group::{GroupListing, GroupMember, GroupRefusal, group_refusal, group_refusal_line, negative_group};
@@ -17,6 +17,52 @@ pub(crate) use crate::posix::group::{group_live, process_live, signal_group};
 use skein_io::kernel::{Error, Fd};
 
 use super::{last_errno, process::map_error};
+
+pub(crate) fn unreaped_children() -> Result<Box<[u32]>, i32> {
+    // libproc.h's PROC_PPID_ONLY is 6. The estimate and listing count bytes,
+    // not entries; the walk includes zombies after the living processes.
+    let parent = super::process_id();
+    // SAFETY: a null buffer with size zero asks only for the byte estimate.
+    let estimate = unsafe { libc::proc_listpids(6, parent, std::ptr::null_mut(), 0) };
+    if estimate <= 0 {
+        let errno = last_errno();
+        return Err(if errno == 0 { libc::ENOBUFS } else { errno });
+    }
+    let bytes = usize::try_from(estimate).map_err(|_| libc::ENOBUFS)?;
+    let pid_size = size_of::<libc::pid_t>();
+    if !bytes.is_multiple_of(pid_size) {
+        return Err(libc::ENOBUFS);
+    }
+    let mut children = vec![0_i32; bytes.checked_div(pid_size).ok_or(libc::ENOBUFS)?];
+    // SAFETY: __error returns this thread's writable errno slot.
+    let errno_slot = unsafe { libc::__error() };
+    // SAFETY: the returned thread-local errno slot is writable.
+    unsafe { errno_slot.write(0) };
+    // SAFETY: children is initialized and writable for exactly estimate bytes.
+    let listed = unsafe { libc::proc_listpids(6, parent, children.as_mut_ptr().cast(), estimate) };
+    if listed == 0 {
+        let errno = last_errno();
+        return if errno == 0 { Ok(Box::new([])) } else { Err(errno) };
+    }
+    if listed < 0 {
+        return Err(last_errno());
+    }
+    if listed >= estimate {
+        return Err(libc::ENOBUFS);
+    }
+    let listed = usize::try_from(listed).map_err(|_| libc::ENOBUFS)?;
+    if !listed.is_multiple_of(pid_size) {
+        return Err(libc::ENOBUFS);
+    }
+    let mut pids = Vec::new();
+    for pid in children.into_iter().take(listed.checked_div(pid_size).ok_or(libc::ENOBUFS)?) {
+        if pid <= 0 {
+            return Err(libc::ENOBUFS);
+        }
+        pids.push(u32::try_from(pid).map_err(|_| libc::ENOBUFS)?);
+    }
+    Ok(pids.into_boxed_slice())
+}
 
 pub(crate) fn child_id(handle: Fd) -> Result<u32, Error> {
     super::process::child_id(handle)

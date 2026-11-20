@@ -83,6 +83,8 @@ pub use drive::{Delegate, Host};
 pub(crate) use linux as system;
 
 #[cfg(unix)]
+pub use group::unreaped_children;
+#[cfg(unix)]
 pub use kernel::{Backend, Chosen, Config, Kernel, OpenError, Wait};
 #[cfg(unix)]
 pub use listeners::{
