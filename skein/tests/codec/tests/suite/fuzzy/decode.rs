@@ -4,7 +4,7 @@
 #[cfg(test)]
 mod tests {
     use skein_codec_tests::{scalars, v1};
-    use skein_lib::{Reader, Rng, Writer};
+    use skein_lib::{Reader, Rng};
     use v1::Record;
 
     fn check_field(bytes: &[u8]) {
@@ -27,17 +27,17 @@ mod tests {
 
     fn check_empty(bytes: &[u8]) {
         if let Ok(value) = scalars::Empty::decode(&scalars::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            let measured = value.measure(&scalars::CEILINGS).expect("decoded value measures");
+            assert_eq!(usize::try_from(measured).expect("measured length"), bytes.len());
+            assert_eq!(value.encode(&scalars::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 
     fn check_scalars(bytes: &[u8]) {
         if let Ok(value) = scalars::Scalars::decode(&scalars::CEILINGS, &mut Reader::new(bytes)) {
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured length"));
-            value.encode(&mut writer).expect("measured room");
-            assert_eq!(writer.finish().as_ref(), bytes);
+            let measured = value.measure(&scalars::CEILINGS).expect("decoded value measures");
+            assert_eq!(usize::try_from(measured).expect("measured length"), bytes.len());
+            assert_eq!(value.encode(&scalars::CEILINGS).expect("decoded value encodes").as_ref(), bytes);
         }
     }
 

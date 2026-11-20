@@ -100,15 +100,15 @@ pub fn families() -> [Family; 7] {
         Family {
             name: "scalars",
             text: skein_codec_tests::SCALARS_SCHEMA,
-            roots: roots!(scalars; Empty, Flag, Scalars),
+            roots: lean_roots!(scalars; Empty, Flag, Scalars),
         },
         Family {
             name: "lint-fixture",
             text: skein_codec_tests::LINTS_SCHEMA,
-            roots: roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
+            roots: lean_roots!(lints; HostTool, Boundless, Payload, OtherPayload, Shared, OneByteItems,
                 OptionalPayload, BoxedChoice, InlineChoice, FixedWidthItems, LongRecord),
         },
-        Family { name: "secrets", text: skein_codec_tests::SECRETS_SCHEMA, roots: roots!(secrets; Credential) },
+        Family { name: "secrets", text: skein_codec_tests::SECRETS_SCHEMA, roots: lean_roots!(secrets; Credential) },
         Family {
             name: "every",
             text: include_str!("../../schema/every-v1.schema"),
