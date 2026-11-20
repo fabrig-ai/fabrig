@@ -22,7 +22,16 @@ pub enum Note {
         repository: Box<[u8]>,
         what: temper_worker_domain::Git,
     },
-    FiguresChanged,
+    /// The three parts of a figures change (configuration/figures.md, 3.2).
+    FiguresTaken {
+        figures: Box<[jig_protocol_worker_wire::Limit]>,
+    },
+    FiguresWaiting {
+        figures: Box<[jig_protocol_worker_wire::Limit]>,
+    },
+    FiguresRefused {
+        problem: Box<[u8]>,
+    },
     Cancelling {
         run: u64,
         attempt: u64,
