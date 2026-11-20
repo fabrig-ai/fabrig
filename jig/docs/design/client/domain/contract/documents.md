@@ -85,7 +85,10 @@
     (unknown stays unknown), or, `Untooled { worker }`, for a source whose
     program started without its tools on that worker, the worker's setting
     number, every other place for it taken or none
-    (`../../../domain/engine/fleet.md`), or a credential or host wait. `Task.run_wait`
+    (`../../../domain/engine/fleet.md`), or a credential or host wait, or,
+    from version 40, `Worker { worker, until }`, a suspended task waiting
+    for its worker, by its setting number, until its window's end in wall
+    nanoseconds (`../../../domain/engine/executors.md`, 6.4). `Task.run_wait`
     also carries `Refused(TaskWaitRefused)`: `Hello { kind, at, why,
     figures }`, the fleet's latest observed allowed-kind refusal,
     suppressed by any admitted connected non-draining allowed-kind host;

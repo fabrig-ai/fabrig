@@ -480,7 +480,8 @@ happens.
 - **Past the grace,** the hub cancels them itself, saving their work
   first, and keeps their turns and answers for the next channel. The
   answer, `Cancelled(Contact)`, is no fault of the run's, and neither is
-  `Cancelled(Shutdown)` (7): the core ends the attempt interrupted,
+  `Cancelled(Shutdown)` (7): the core ends the attempt interrupted, or
+  for `Cancelled(Shutdown)` from a worker suspended (../engine/executors.md, 6),
   with no try spent and no backoff (../tasks/lifecycle.md, 2), and the next attempt
   resumes from its transcript and its saved work (../engine/executors.md, 2).
 - **The stop bound** the worker says at its hello is the longest it may
@@ -526,6 +527,12 @@ hub arms no timers (2):
 2. **The cancel** of every run and job still going, for shutdown: at
    the drain's bound, or at once for a root that does not drain. A run
    whose stop has begun goes on with it.
+
+From the drain's start, or the cancel's where there is no drain, a
+run's agent that exits, faults or says its run was cancelled answers
+`Cancelled(Shutdown)` too, as the stop's own signal may reach the agent
+first, and a run that said how it finished keeps its ending
+(../engine/executors.md, 6.6).
 
 Either step says the hub drains, on its link, before anything its runs
 send after it, and again after each hello while it shuts down, so that
@@ -615,8 +622,11 @@ with no agent:
   for shutdown reaches it only after. The job's delivery is its one
   effect on a system, since the job has no credential: a job that
   cancel stops before its delivery began answers `Cancelled(Shutdown)`,
-  which the core ends interrupted, spending no try
-  (../tasks/lifecycle.md, 2). One whose delivery began lets it settle
+  which the core ends suspended, spending no try
+  (../engine/executors.md, 6), and so does one that fails from the
+  drain's start on, before its delivery began, since the stop's own
+  signal may reach its processes first (../engine/executors.md, 6.6).
+  One whose delivery began lets it settle
   and answers as it ends, finished or failed as the delivery says,
   never cancelled, so `Cancelled(Shutdown)` always means that nothing
   of the job reached a system. A delivery the stop bound cuts (6) is
