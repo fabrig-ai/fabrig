@@ -321,7 +321,7 @@ fn run(case: Case, name: &str) {
     let document: serde_json::Value = serde_json::from_slice(
         &support::read_start(
             &root.join("config").join(temper_config_shell::FILE),
-            temper_config_shell::Shape::EngineAlone,
+            temper_config_shell::Shape::Standalone,
         )
         .document,
     )

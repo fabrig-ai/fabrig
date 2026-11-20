@@ -1,5 +1,6 @@
 //! Stories compiled as data (temper/docs/design/playground.md, 5.1–5.4).
 use crate::{Fakes, Links, Start, documents};
+use core::net::SocketAddr;
 use skein_lib::Wall;
 use temper_fake::{credential, forge, llm};
 
@@ -51,19 +52,41 @@ impl Story {
     /// Decode the compiled documents and build the same peers as `temper fake`.
     #[must_use]
     pub fn start(&self, seed: u64, wall: Wall) -> Start {
+        self.start_at(seed, wall, documents::FORGE)
+    }
+
+    /// Start the composition at the caller's forge address (playground.md, 4).
+    #[must_use]
+    pub fn start_at(&self, seed: u64, wall: Wall, address: SocketAddr) -> Start {
         let seeds = documents::seeds(seed);
         let llm = llm::Document::decode(self.llm).expect("compiled story's LLM document");
         let forge = forge::Document::decode(self.forge).expect("compiled story's forge document");
         let llm = llm::peer(llm::configuration(&llm, documents::KEY, seeds.llm)).expect("story's LLM peer");
         let token = admin_token(seed);
-        let (peer, shared) = forge::peer(&forge, &token, seeds.forge).expect("story's forge peer");
-        let (_, table) = forge.seed(seeds.forge);
-        let forge = temper_fake_git::Typed::new(shared, &table);
+        let (mut peer, shared) = forge::peer(&forge, &token, seeds.forge).expect("story's forge peer");
+        let (_, mut table) = forge.seed(seeds.forge);
+        table.base = format!("http://{address}").into_bytes().into();
+        let transport = temper_fake_git::Typed::new(shared.clone(), &table);
+        if address != forge.listen() {
+            peer = skein_fake_peers::forge::Peer::new(
+                address,
+                temper_fake::limits::peer(),
+                table,
+                forge::git_limits(),
+                shared,
+                seeds.forge,
+            )
+            .expect("story's forge peer at the caller's address")
+            .without_records();
+            forge::setup(peer.setup_mut(), &token);
+        }
+        let mut deployment = self.configuration();
+        deployment.forge = address;
         Start {
             seed,
             wall,
-            deployment: self.configuration(),
-            fakes: Fakes { llm, forge, peer, issuer: None },
+            deployment,
+            fakes: Fakes { llm, forge: transport, peer, issuer: None },
             links: Links::Print,
         }
     }

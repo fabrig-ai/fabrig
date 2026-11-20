@@ -134,9 +134,21 @@ flags a person gives:
   listeners. One the box can't open fails the start, `failed N
   listener PORT taken`, and the set-up has failed (`../forge/engine.md`,
   2).
+- **A group none of whose steps takes it,** the owned forge's on macOS,
+  where `forge run N forgejo` is given no listener and Forgejo binds its
+  port itself (`box.md`, 1; `owned.md`, 4), has its listener opened all
+  the same, at each place this section opens one, so that a port taken
+  still fails the start as above; the box closes it before any of the
+  group's steps starts and holds none for the group, so that Forgejo's
+  own bind finds the port free. Its ready address is the setup file's,
+  as a held one's is. A port another process takes once the box closed
+  it shows as Forgejo not answering, `version unavailable`, which on
+  macOS takes the place of the check a held listener makes. On Linux
+  every group's steps take its listener, so nothing there changes.
 - **A removed group's listener is closed** once its removal succeeds:
   its steps closed and its remover run, its files removed, as the box
-  answers `removed N` (`box.md`, 1). A stopped group keeps its listener,
+  answers `removed N` (`box.md`, 1); a group holding none has none to
+  close. A stopped group keeps its listener,
   and so does one whose removal failed, to be asked again. So the box
   holds a listener for each group it keeps, at most `box.groups`, never
   one for each forge it has ever run; a forge set up again is a new forge

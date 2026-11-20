@@ -15,6 +15,15 @@ pub fn identity() -> temper_worker_protocol_git::Identity {
 /// The hosted git's table.
 #[must_use]
 pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_forgejo::Config {
+    table_at(full, protected, super::FORGE)
+}
+/// The hosted git's table at the start's forge address.
+#[must_use]
+pub fn table_at(
+    full: &[u8],
+    protected: Option<&[u8]>,
+    forge: core::net::SocketAddr,
+) -> skein_fake_forge_forgejo::Config {
     let mut tokens = List::with_capacity(2);
     tokens.push((Secret::new(TOKEN.into()), 1)).expect("two tokens");
     tokens.push((Secret::new(b"fake-git-stranger-token".as_slice().into()), 2)).expect("two tokens");
@@ -26,7 +35,7 @@ pub fn table(full: &[u8], protected: Option<&[u8]>) -> skein_fake_forge_forgejo:
         .push(skein_fake_forge_forgejo::Repository { id: 2, full: full.into(), protected: protected.map(Into::into) })
         .expect("one repository");
     skein_fake_forge_forgejo::Config {
-        base: b"http://127.0.0.1:3000".as_slice().into(),
+        base: format!("http://{forge}").into_bytes().into(),
         tokens,
         users,
         repositories,

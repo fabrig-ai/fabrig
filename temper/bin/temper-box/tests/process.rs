@@ -509,6 +509,8 @@ fn box_terminal_line(line: &str) -> bool {
         || words.starts_with("box: ")
 }
 
+// Finding the box's steps reads their /proc executables; its tree is empty on macOS.
+#[cfg(target_os = "linux")]
 #[test]
 fn temper_box_restarts_a_killed_forgejo_while_the_engine_serves() {
     let scratch = support::Scratch::new("box_kill");
@@ -2451,6 +2453,8 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
     }
 }
 
+// Network and name-service isolation uses Linux's namespaces (unshare).
+#[cfg(target_os = "linux")]
 #[test]
 fn a_default_box_with_a_sign_in_registration_starts_without_dns() {
     use std::{ffi::OsString, fs, os::unix::fs::PermissionsExt};

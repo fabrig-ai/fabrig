@@ -61,6 +61,65 @@ fn a_sign_in_tab_returns_to_the_listener_and_the_welcome_reaches_ready() {
 }
 
 #[test]
+fn owned_setup_connects_and_makes_its_sample_at_the_walks_forge() {
+    let start = facts::start(None).expect("fixed facts");
+    let shared = start.fakes.forge.forge.clone();
+    let mut page = Page::start(start, b"owned forge").expect("page");
+    let forge = page
+        .world()
+        .processes()
+        .iter()
+        .find_map(|process| if let Process::Forge(peer) = process { peer.address() } else { None });
+    assert_eq!(forge, Some(facts::FORGE.parse().expect("fixed forge address")));
+    press(&mut page, Role::Link, "Set up temper");
+    press(&mut page, Role::Link, "Run on this machine");
+    press(&mut page, Role::Button, "Run on this machine");
+    page.wait(
+        &Find::exactly_named(
+            Role::Paragraph,
+            "Forgejo on this machine · connected as temper · work/hello made".as_bytes(),
+        ),
+        None,
+        WITHIN,
+    )
+    .unwrap_or_else(|why| panic!("done: {why:?}\n{}", page.html()));
+    let service = page
+        .world()
+        .processes()
+        .iter()
+        .find_map(|process| if let Process::Service(service) = process { Some(service) } else { None })
+        .expect("service");
+    let engine = service.service.engine_domain().expect("engine");
+    let forges = engine.forges();
+    let [row] = forges.rows.as_ref() else { panic!("one owned forge") };
+    assert_eq!(row.host.as_ref(), facts::FORGE.as_bytes());
+    let record = engine.forge_record(row.number).expect("kept owned forge");
+    assert_eq!(record.place.api.host.as_ref(), b"127.0.0.1");
+    assert_eq!(record.place.api.port, 10002);
+    assert_eq!(record.place.git.as_ref(), b"http://127.0.0.1:10002");
+    if let Some(web) = &record.place.web {
+        assert_eq!(web.as_ref(), b"http://127.0.0.1:10002");
+    }
+    assert!(shared.borrow().domain.metadata(b"work/hello").is_ok(), "the start's shared forge made the sample");
+
+    let directories = jig_protocol_config::Directories::given(b"/config", b"/setup", b"/cache").expect("directories");
+    let path = directories
+        .join(
+            jig_protocol_config::Directory::Data,
+            &temper_forge_setup::setup_file::path(row.number, temper_forge_setup::machine::BoxKind::Owned),
+        )
+        .expect("setup path");
+    let read = temper_service::HandoverRead { forge: row.number, run: skein_lib::Token::new(0), path, max: 65536 };
+    let bytes = temper_playground::service::read_handover(&mut service.parameters.disk.borrow_mut(), &read)
+        .expect("setup read")
+        .expect("setup file");
+    let setup = temper_forge_setup::setup_file::decode(bytes.expose(), &directories).expect("owned setup file");
+    assert_eq!(setup.listen(), facts::FORGE.parse().expect("fixed forge address"));
+    let temper_forge_setup::setup_file::SetupFile::Owned(owned) = setup else { panic!("owned setup") };
+    assert_eq!(owned.remote.as_ref(), b"http://127.0.0.1:10002");
+}
+
+#[test]
 fn owned_setup_draws_every_pipe_step_before_the_next_line() {
     let mut page = Page::start(facts::start(None).expect("fixed facts"), b"owned").expect("page");
     press(&mut page, Role::Link, "Set up temper");

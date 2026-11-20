@@ -137,7 +137,7 @@ impl<H: Harness> Host for ServiceState<H> {
         self.observer.state_digest(&self.service)
     }
     fn drain(&mut self) {
-        place_io(&mut self.service, &mut self.parameters.disk.borrow_mut());
+        place_io(&mut self.service, &mut self.parameters.disk.borrow_mut(), self.parameters.deployment.forge.port());
         while let Some(read) = self.service.take_handover_read() {
             let answer = self
                 .observer
@@ -276,12 +276,12 @@ fn errno(why: skein_fake_machine::Refusal) -> i32 {
     }
 }
 
-fn place_io(service: &mut temper_service::Service, disk: &mut skein_fake_machine::Machine) {
+fn place_io(service: &mut temper_service::Service, disk: &mut skein_fake_machine::Machine, port: u16) {
     use temper_service::PlaceIo;
     let engine = service.engine_component();
     while let Some(io) = engine.take_place_io() {
         match io {
-            PlaceIo::Choose { request } => engine.place_port(request, Some(crate::documents::FORGE.port())),
+            PlaceIo::Choose { request } => engine.place_port(request, Some(port)),
             PlaceIo::Write { forge, setup, directories } => {
                 let path = directories
                     .join(
