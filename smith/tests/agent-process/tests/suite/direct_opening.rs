@@ -17,7 +17,7 @@ pub fn direct(seed: u64, anthropic: bool) -> smith_agent_process_world::World {
     world.check_memory();
     assert!(world.settle());
     assert!(
-        matches!(world.answer().expect("answer").result(), smith_channel::RunResult::Parked),
+        matches!(&world.answer().expect("answer").result, smith_channel::RunResult::Parked),
         "{:?}",
         world.answer()
     );

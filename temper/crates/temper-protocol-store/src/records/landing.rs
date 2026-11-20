@@ -209,7 +209,7 @@ fn decode_operation(op: w::LandingOperation) -> top::Operation {
         w::LandingOperation::Merge => top::Operation::Merge,
     }
 }
-fn encode_ask(ask: change::Ask) -> w::LandingAsk {
+pub(super) fn encode_ask(ask: change::Ask) -> w::LandingAsk {
     match ask {
         change::Ask::Judge(target) => w::LandingAsk::Judge(super::change::encode_judgement(&target)),
         change::Ask::Landed { prefix } => w::LandingAsk::Landed(w::LandingPrefix { prefix }),
@@ -220,7 +220,7 @@ fn encode_ask(ask: change::Ask) -> w::LandingAsk {
         }
     }
 }
-fn decode_ask(ask: w::LandingAsk) -> change::Ask {
+pub(super) fn decode_ask(ask: w::LandingAsk) -> change::Ask {
     match ask {
         w::LandingAsk::Judge(value) => change::Ask::Judge(super::change::decode_judgement(value)),
         w::LandingAsk::Landed(value) => change::Ask::Landed { prefix: value.prefix },
@@ -320,6 +320,7 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
     }
     let landing = w::LandingState {
         searched: encode_searched(row.landing.searched.as_ref()),
+        last_prepare: encode_last_prepare(row.landing.last_prepare.as_ref()),
         task: row.landing.task,
         project: row.landing.project,
         phase: encode_phase(&row.landing.phase),
@@ -382,6 +383,15 @@ pub(super) fn encode(row: &top::LandingRow) -> w::LandingRow {
         job: super::history::encode_job_record(row.job.as_ref()),
         flake_reruns: encode_flake_reruns(&row.flake_reruns),
         room: row.room,
+        last_event: match row.last_event {
+            Some(at) => Some(at.as_nanos()),
+            None => None,
+        },
+        turn_since: match row.turn_since {
+            Some(at) => Some(at.as_nanos()),
+            None => None,
+        },
+        waiting: encode_wait(row.waiting),
     }
 }
 fn encode_flake_reruns(reruns: &[top::FlakeRerun]) -> List<w::LandingFlakeRerun> {
@@ -453,7 +463,7 @@ fn decode_run(run: w::LandingRun) -> top::LandingRun {
     top::LandingRun { id, attempt, ended, clock: super::change::decode_clock(clock) }
 }
 pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undecodable> {
-    let w::LandingRow { landing, asks, entries, job, flake_reruns, room } = row;
+    let w::LandingRow { landing, asks, entries, job, flake_reruns, room, last_event, turn_since, waiting } = row;
     let w::LandingState {
         task,
         project,
@@ -466,6 +476,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
         own_hold,
         last_left,
         searched,
+        last_prepare,
     } = landing;
     if phase.held.is_some() && own_hold.is_some() {
         return Err(super::Undecodable::Malformed);
@@ -502,16 +513,20 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
             .expect(FITS);
     }
     Ok(top::LandingRow {
+        last_event: match last_event {
+            Some(at) => Some(Wall::from_nanos(at)),
+            None => None,
+        },
+        turn_since: match turn_since {
+            Some(at) => Some(Wall::from_nanos(at)),
+            None => None,
+        },
+        waiting: decode_wait(waiting),
         flake_reruns: decode_flake_reruns(flake_reruns),
         room,
         job: super::history::decode_job_record(job),
         landing: d::Landing {
-            searched: match searched {
-                Some(value) => {
-                    Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() })
-                }
-                None => None,
-            },
+            searched: decode_searched(searched),
             last_left,
             task,
             project,
@@ -539,6 +554,7 @@ pub(super) fn decode(row: w::LandingRow) -> Result<top::LandingRow, super::Undec
                 Some(round) => decode_round(round),
                 None => d::Round::new(Box::new([])),
             },
+            last_prepare: decode_last_prepare(last_prepare),
         },
         asks: decoded_asks.into_boxed(),
         entries: decoded_entries.into_boxed(),
@@ -771,4 +787,93 @@ fn encode_searched(searched: Option<&d::Searched>) -> Option<w::LandingSearched>
         changes.push(*change).expect(FITS);
     }
     Some(w::LandingSearched { red: searched.red, green: searched.green, changes })
+}
+
+fn decode_searched(searched: Option<w::LandingSearched>) -> Option<d::Searched> {
+    match searched {
+        Some(value) => Some(d::Searched { red: value.red, green: value.green, changes: value.changes.into_boxed() }),
+        None => None,
+    }
+}
+
+fn encode_last_prepare(last: Option<&d::LastPrepare>) -> Option<w::LandingLastPrepare> {
+    let last = last?;
+    let mut suffix = List::with_capacity(u32::try_from(last.suffix.len()).expect(FITS));
+    for member in &last.suffix {
+        suffix.push(*member).expect(FITS);
+    }
+    Some(w::LandingLastPrepare {
+        member: last.member,
+        head: last.head,
+        main: last.main,
+        suffix,
+        asks: last.asks,
+        again: match last.again {
+            Some(at) => Some(at.as_nanos()),
+            None => None,
+        },
+    })
+}
+
+fn decode_last_prepare(last: Option<w::LandingLastPrepare>) -> Option<d::LastPrepare> {
+    match last {
+        Some(value) => {
+            let w::LandingLastPrepare { member, head, main, suffix, asks, again } = value;
+            Some(d::LastPrepare {
+                member,
+                head,
+                main,
+                suffix: suffix.into_boxed(),
+                asks,
+                again: match again {
+                    Some(at) => Some(Wall::from_nanos(at)),
+                    None => None,
+                },
+            })
+        }
+        None => None,
+    }
+}
+
+fn encode_wait(wait: Option<d::Awaited>) -> Option<w::LandingAwaited> {
+    let wait = wait?;
+    Some(match wait {
+        d::Awaited::Release => w::LandingAwaited::Release,
+        d::Awaited::Turn => w::LandingAwaited::Turn,
+        d::Awaited::Prepare => w::LandingAwaited::Prepare,
+        d::Awaited::Prefixes => w::LandingAwaited::Prefixes,
+        d::Awaited::Open => w::LandingAwaited::Open,
+        d::Awaited::Close => w::LandingAwaited::Close,
+        d::Awaited::Merge => w::LandingAwaited::Merge,
+        d::Awaited::Read => w::LandingAwaited::Read,
+        d::Awaited::Ready { member } => w::LandingAwaited::Ready(w::LandingWaitMember { member }),
+        d::Awaited::Delete { member } => w::LandingAwaited::Delete(w::LandingWaitMember { member }),
+        d::Awaited::Judgement { member } => w::LandingAwaited::Judgement(w::LandingWaitMember { member }),
+        d::Awaited::Record { member } => w::LandingAwaited::Record(w::LandingWaitMember { member }),
+        d::Awaited::Ancestry { member } => w::LandingAwaited::Ancestry(w::LandingWaitMember { member }),
+        d::Awaited::Post { member, gate } => w::LandingAwaited::Post(w::LandingWaitGate { member, gate }),
+        d::Awaited::Run { member, gate } => w::LandingAwaited::Run(w::LandingWaitGate { member, gate }),
+        d::Awaited::Receipt { member, gate } => w::LandingAwaited::Receipt(w::LandingWaitGate { member, gate }),
+    })
+}
+fn decode_wait(wait: Option<w::LandingAwaited>) -> Option<d::Awaited> {
+    let wait = wait?;
+    Some(match wait {
+        w::LandingAwaited::Release => d::Awaited::Release,
+        w::LandingAwaited::Turn => d::Awaited::Turn,
+        w::LandingAwaited::Prepare => d::Awaited::Prepare,
+        w::LandingAwaited::Prefixes => d::Awaited::Prefixes,
+        w::LandingAwaited::Open => d::Awaited::Open,
+        w::LandingAwaited::Close => d::Awaited::Close,
+        w::LandingAwaited::Merge => d::Awaited::Merge,
+        w::LandingAwaited::Read => d::Awaited::Read,
+        w::LandingAwaited::Ready(value) => d::Awaited::Ready { member: value.member },
+        w::LandingAwaited::Delete(value) => d::Awaited::Delete { member: value.member },
+        w::LandingAwaited::Judgement(value) => d::Awaited::Judgement { member: value.member },
+        w::LandingAwaited::Record(value) => d::Awaited::Record { member: value.member },
+        w::LandingAwaited::Ancestry(value) => d::Awaited::Ancestry { member: value.member },
+        w::LandingAwaited::Post(value) => d::Awaited::Post { member: value.member, gate: value.gate },
+        w::LandingAwaited::Run(value) => d::Awaited::Run { member: value.member, gate: value.gate },
+        w::LandingAwaited::Receipt(value) => d::Awaited::Receipt { member: value.member, gate: value.gate },
+    })
 }

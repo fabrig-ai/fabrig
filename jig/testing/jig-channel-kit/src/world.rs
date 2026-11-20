@@ -7,6 +7,7 @@ use crate::{
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_fake_parties as parties;
+use jig_protocol_worker_wire::Record;
 use jig_test_domain as root;
 use jig_test_service::PartyOutput;
 use skein_lib::Duration;
@@ -213,9 +214,9 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         heartbeats: procs.iter().find_map(|proc| if let Proc::Probe(peer) = proc { Some(peer.heartbeats) } else { None }).unwrap_or(0),
         channel_closed: procs.iter().any(|proc| matches!(proc, Proc::Engine(host) if host.wire.closed)),
         windows: u32::try_from(turns.iter().filter(|turn| turn.opens_window).count().saturating_sub(1)).expect("window count"),
-        resumed_turns: assignments.last().map(|assignment| transcript_count(assignment.transcript())),
+        resumed_turns: assignments.last().map(|assignment| transcript_count(assignment.transcript.as_ref())),
         resumed_tries: views.resumed_tries,
-        identity_kept: assignments.last().is_some_and(|next| assignments[0].identity() == next.identity()),
+        identity_kept: assignments.last().is_some_and(|next| assignments[0].identity == next.identity),
         activity_seen: views.activity_seen,
         text_bytes: views.text_bytes,
         text_prefixes: views.reply.prefixes.clone(),
@@ -229,7 +230,7 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         calls_answered: worker.map_or(0, |wire| wire.calls_answered),
         calls_busy: worker.map_or(0, |wire| u32::try_from(wire.frames.iter().filter(|(_, kind, bytes)| {
             *kind == 0x0182 && jig_protocol_worker_wire::Relayed::decode(&jig_protocol_worker_wire::CEILINGS,
-                &mut skein_lib::Reader::new(bytes)).is_ok_and(|relay| matches!(relay.answer(), jig_protocol_worker_wire::RelayAnswer::Busy))
+                &mut skein_lib::Reader::new(bytes)).is_ok_and(|relay| matches!( &relay.answer, jig_protocol_worker_wire::RelayAnswer::Busy))
         }).count()).expect("busy count")),
         named_call_error_observed: procs.iter().any(|proc| {
             let Proc::Peer(peer) = proc else { return false };
@@ -351,24 +352,24 @@ fn answer_refusals(
             &mut skein_lib::Reader::new(bytes),
         )
         .map_err(|why| format!("received terminal: {why:?}"))?;
-        if (answer.task(), answer.attempt()) != (terminal.task, terminal.attempt) {
+        if (answer.task, answer.attempt) != (terminal.task, terminal.attempt) {
             continue;
         }
-        for refused in answer.refused() {
+        for refused in &answer.refused {
             let retained = store.rows.values().any(|row| match row {
                 root::Record::Core(core::Record::Tasks(
                     jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
                 )) => {
                     task.number == terminal.task
                         && task.attempt == terminal.attempt
-                        && task.inbox.iter().any(|word| word.number == refused.name())
+                        && task.inbox.iter().any(|word| word.number == refused.name)
                 }
                 root::Record::Core(_) | root::Record::Connector { .. } => false,
             });
             if !retained {
-                return Err(format!("refused message {} is retained in the durable terminal inbox", refused.name()));
+                return Err(format!("refused message {} is retained in the durable terminal inbox", refused.name));
             }
-            rules.message_refused(terminal.task, terminal.attempt, refused.name());
+            rules.message_refused(terminal.task, terminal.attempt, refused.name);
         }
     }
     Ok(())
@@ -453,7 +454,7 @@ pub(crate) fn check_diagnostics(procs: &[Proc]) -> Result<String, String> {
                             &jig_protocol_worker_wire::CEILINGS,
                             &mut skein_lib::Reader::new(bytes),
                         )
-                        .map(|answer| answer.ending().clone())
+                        .map(|answer| answer.ending.clone())
                         .map_err(|why| format!("answer: {why:?}"))
                     })
                     .collect::<Result<_, _>>()?;
@@ -477,7 +478,7 @@ pub(crate) fn check_diagnostics(procs: &[Proc]) -> Result<String, String> {
                             &jig_protocol_worker_wire::CEILINGS,
                             &mut skein_lib::Reader::new(bytes),
                         )
-                        .map(|t| (t.task(), t.attempt(), t.number(), t.spent(), *t.read(), t.opens_window()))
+                        .map(|t| (t.task, t.attempt, t.number, t.spent, t.read, t.opens_window))
                         .map_err(|why| format!("wire turn: {why:?}"))
                     })
                     .collect::<Result<_, _>>()?;
@@ -772,8 +773,8 @@ fn spawn_channel_side(
 fn cancelled(worker: Option<&processes::Wire>, reason: &jig_protocol_worker_wire::CancelReason) -> bool {
     worker.is_some_and(|wire| wire.frames.iter().any(|(_, kind, bytes)| {
         *kind == 0x0103 && jig_protocol_worker_wire::Answer::decode(&jig_protocol_worker_wire::CEILINGS,
-            &mut skein_lib::Reader::new(bytes)).is_ok_and(|answer| matches!(answer.ending(), jig_protocol_worker_wire::Ending::Failed(failed)
-                if matches!(failed.failure(), jig_protocol_worker_wire::Failure::Cancelled(value) if value.value() == reason)))
+            &mut skein_lib::Reader::new(bytes)).is_ok_and(|answer| matches!( &answer.ending, jig_protocol_worker_wire::Ending::Failed(failed)
+                if matches!( &failed.failure, jig_protocol_worker_wire::Failure::Cancelled(value) if (&value.value) == reason)))
     }))
 }
 
@@ -788,18 +789,18 @@ fn collect_refusals(procs: &[Proc]) -> Vec<jig_protocol_worker_wire::MessageRefu
                 &mut skein_lib::Reader::new(bytes),
             )
             .expect("turn")
-            .refused()
+            .refused
             .iter()
-            .map(|r| r.reason().clone())
+            .map(|r| r.reason.clone())
             .collect::<Vec<_>>(),
             0x0103 => jig_protocol_worker_wire::Answer::decode(
                 &jig_protocol_worker_wire::CEILINGS,
                 &mut skein_lib::Reader::new(bytes),
             )
             .expect("answer")
-            .refused()
+            .refused
             .iter()
-            .map(|r| r.reason().clone())
+            .map(|r| r.reason.clone())
             .collect::<Vec<_>>(),
             _ => Vec::new(),
         })

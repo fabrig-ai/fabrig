@@ -5,6 +5,7 @@ use crate::tests::fixtures;
 use jig_domain_core::{self as core, settings as s};
 use jig_domain_people as people;
 use skein_lib::{Queue, ReplyTo, Token};
+use smith_channel::Record;
 use temper_engine_domain as root;
 use temper_engine_domain_forge::settings as f;
 
@@ -108,20 +109,15 @@ fn names_are_checked_at_entry_even_when_the_start_would_leave_them_out() {
 }
 
 fn call(input: &[u8]) -> root::HostRequest {
-    let name = smith_channel::CallName::new(
-        &smith_channel::CEILINGS,
-        smith_channel::CallNameParts { activation: 1, completion: 2, position: 1 },
-    )
-    .unwrap();
-    let mut writer = skein_lib::Writer::new(16);
-    name.encode(&mut writer).unwrap();
+    let name = smith_channel::CallName { activation: 1, completion: 2, position: 1 };
+    let name = name.encode(&smith_channel::CEILINGS).expect("fixed call name");
     root::HostRequest::Decode {
         to: ReplyTo::new(REPLY),
         task: 1,
         attempt: 1,
         call: jig_domain_fleet::Call {
             contract: 1,
-            name: writer.finish(),
+            name,
             tool: b"propose_settings".as_slice().into(),
             input: input.into(),
             writes: true,

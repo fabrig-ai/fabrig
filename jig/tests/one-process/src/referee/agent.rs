@@ -3,6 +3,7 @@
 use jig_conformance::referee::Observed;
 use skein_io::kernel::{Complete, Done, Op};
 use skein_lib::Reader;
+use smith_channel::Record;
 use std::collections::BTreeMap;
 
 #[derive(Default)]
@@ -55,26 +56,26 @@ impl Wire {
         let limits = crate::fixtures::agent_limits();
         if down && kind == 0x0100 {
             let start = smith_channel::Start::decode(&limits, &mut Reader::new(bytes)).expect("agent Start bytes");
-            assert_eq!(*start.identity(), Some(crate::fixtures::RUN_ID), "logical chat identity");
-            let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(start.charter()))
+            assert_eq!(start.identity, Some(crate::fixtures::RUN_ID), "logical chat identity");
+            let charter = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&start.charter))
                 .expect("agent charter bytes");
-            self.mode = Some(charter.mode().clone());
-            self.attempt = start.activation();
+            self.mode = Some(charter.mode.clone());
+            self.attempt = start.activation;
             self.events.push(Observed::Assigned {
                 task: 1,
                 attempt: self.attempt,
                 conversation: 1,
-                resumed: !start.transcript().is_empty(),
-                budget: charter.budget().spend(),
+                resumed: !start.transcript.is_empty(),
+                budget: charter.budget.spend,
                 // These byte-level scenarios use fixed first-start settings.
                 settings: 1,
             });
         } else if !down && kind == 0x0110 {
             let answer = smith_channel::Answer::decode(&limits, &mut Reader::new(bytes)).expect("agent Answer bytes");
-            self.answers.push(answer.result().clone());
+            self.answers.push(answer.result);
         } else if !down && kind == 0x0109 {
             let turn = smith_channel::Turn::decode(&limits, &mut Reader::new(bytes)).expect("agent Turn bytes");
-            self.events.push(Observed::Completion { task: 1, attempt: self.attempt, cumulative: turn.spent() });
+            self.events.push(Observed::Completion { task: 1, attempt: self.attempt, cumulative: turn.spent });
         }
     }
 }

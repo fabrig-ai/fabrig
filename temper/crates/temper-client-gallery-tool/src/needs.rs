@@ -11,6 +11,7 @@ use temper_client_domain::{
     address::Filter,
     pages::{Act, needs, stop_asking},
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_fixtures::client_documents as documents;
 const FIRST: &str = "Fix the dropped watch in jig’s store, or keep it alive in temper serve?\n\nMakeProject answers after the client’s watch drops. jig’s fix changes a stored record; serve’s fix is local but leaves jig’s behaviour as it is.\n\nSaw: The box test reproduces it every time: the store’s write lands, then the watch closes before the answer comes. The test and its log are on the goal.\nChoice: In jig’s store (recommended)\nChoice: In temper serve";
 const SECOND: &str = "The “connect your deployment” help page isn’t written. Link the server help on GitHub for now, or hide the link until the page exists?\n\nThe welcome’s design names the link a placeholder.\nChoice: Link the GitHub page (recommended)\nChoice: Hide the link";
@@ -161,7 +162,7 @@ pub fn domain(name: &str) -> Domain {
                 crate::samples::account_states(&mut root, name, Some(watch), &mut out);
             }
             jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { record, .. } }
-                if name.starts_with("needs-finding") && matches!(temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS).expect("finding watch").watch(), temper_client_protocol_wire::v1::Watch::Findings(_)) => {
+                if name.starts_with("needs-finding") && matches!(&temper_client_protocol_wire::decode_watching(&record.bytes, &temper_client_protocol_wire::v1::CEILINGS).expect("finding watch").watch, temper_client_protocol_wire::v1::Watch::Findings(_)) => {
                 use temper_client_protocol_wire as wire;
                 driver::step(&mut root, Event::Client { event: jig_client::Event::Up { up: jig_client::Up::FamilyDelivered { watch, record: jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::findings(&finding()) } } } }, &mut out);
             }
@@ -193,7 +194,7 @@ pub fn domain(name: &str) -> Domain {
                         &record.bytes,
                         &temper_client_protocol_wire::v1::CEILINGS,
                     )
-                    .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
+                    .is_some_and(|watching| watching.watch == temper_client_protocol_wire::v1::Watch::Approvals) =>
             {
                 let document = approval(name, me.party.number);
                 driver::step(
@@ -221,7 +222,7 @@ pub fn domain(name: &str) -> Domain {
                             &temper_client_protocol_wire::v1::CEILINGS
                         )
                         .expect("Needs you watch")
-                        .watch(),
+                        .watch,
                         temper_client_protocol_wire::v1::Watch::Decided(_)
                     ) =>
             {
@@ -230,7 +231,7 @@ pub fn domain(name: &str) -> Domain {
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
                 .expect("Needs you decisions");
-                let temper_client_protocol_wire::v1::Watch::Decided(project) = watching.watch() else {
+                let temper_client_protocol_wire::v1::Watch::Decided(project) = &watching.watch else {
                     unreachable!("decisions watch")
                 };
                 driver::step(
@@ -242,7 +243,7 @@ pub fn domain(name: &str) -> Domain {
                                 record: jig_client::Family {
                                     family: temper_client_protocol_wire::FORGE,
                                     version: temper_client_protocol_wire::CLIENT_VERSION,
-                                    bytes: worlds::whole_story::needs_decisions(project.project()),
+                                    bytes: worlds::whole_story::needs_decisions(project.project),
                                 },
                             },
                         },
@@ -264,11 +265,7 @@ pub fn domain(name: &str) -> Domain {
                     && (name == "needs-why" || name.starts_with("needs-stop-asking")) =>
             {
                 use temper_client_protocol_wire::{self as wire, v1 as w};
-                let document = w::Dismissals::new(
-                    &w::CEILINGS,
-                    w::DismissalsParts { dismissed: List::with_capacity(0) },
-                )
-                .expect("empty dismissals");
+                let document = w::Dismissals { dismissed: List::with_capacity(0) };
                 driver::step(
                     &mut root,
                     Event::Client {
@@ -314,7 +311,7 @@ pub fn domain(name: &str) -> Domain {
                         &record.bytes,
                         &temper_client_protocol_wire::v1::CEILINGS,
                     )
-                    .is_some_and(|watching| *watching.watch() == temper_client_protocol_wire::v1::Watch::Approvals) =>
+                    .is_some_and(|watching| watching.watch == temper_client_protocol_wire::v1::Watch::Approvals) =>
             {
                 let document = approval(name, me.party.number);
                 driver::step(
@@ -360,24 +357,16 @@ pub fn domain(name: &str) -> Domain {
                     };
                     asked
                         .push(
-                            w::Asked::new(
-                                &w::CEILINGS,
-                                w::AskedParts {
+                            w::Asked {
                                     number: 1,
                                     task,
                                     at: 0,
                                     reach: temper_protocol_reaches::reach_record(&reach),
                                 },
-                            )
-                            .expect("asked row"),
                         )
                         .expect("one asked row");
                 }
-                let document = w::Decisions::new(
-                    &w::CEILINGS,
-                    w::DecisionsParts { project: 1, rows: List::with_capacity(0), asked, cut: false },
-                )
-                .expect("decided document");
+                let document = w::Decisions { project: 1, rows: List::with_capacity(0), asked, cut: false };
                 driver::step(
                     &mut root,
                     Event::Client {
@@ -400,7 +389,7 @@ pub fn domain(name: &str) -> Domain {
                     &record.bytes,
                     &temper_client_protocol_wire::v1::CEILINGS,
                 )
-                .is_some_and(|reading| matches!(reading.read(), temper_client_protocol_wire::v1::Read::Setting(setting) if setting.kind() == 8)) =>
+                .is_some_and(|reading| matches!(&reading.read, temper_client_protocol_wire::v1::Read::Setting(setting) if setting.kind == 8)) =>
             {
                 classes(&mut root, read, name, &mut out);
             }
@@ -561,66 +550,47 @@ fn approval(name: &str, me: u64) -> temper_client_protocol_wire::v1::Approvals {
     use temper_client_protocol_wire::v1 as w;
     let no_account = name == "needs-approval-no-account";
     let part = name == "needs-sign-off-part";
-    let row = w::ApprovalRow::new(
-        &w::CEILINGS,
-        w::ApprovalRowParts {
-            task: 81,
-            project: 1,
-            goal: None,
-            forge: 3,
-            kind: if no_account || list(name) { w::Kind::Github } else { w::Kind::Forgejo },
-            owner: Box::from(*b"work"),
-            name: Box::from(*b"hello"),
-            pull: 24,
-            address: if no_account || list(name) {
-                Box::from(b"https://github.com/work/hello/pull/24/files".as_slice())
-            } else {
-                Box::from(b"https://forge.example/work/hello/pulls/24/files".as_slice())
-            },
-            title: Box::from(*b"A change"),
-            since: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(240).as_nanos()),
-            scope: u32::from(!no_account),
-            rule: if no_account { 2 } else { 1 },
-            role: if part { 2 } else { u32::from(no_account) },
-            required: if no_account || part { 2 } else { 1 },
-            counted: u32::from(no_account || part),
-            sets: if name == "needs-approval-path" || part {
-                List::from_boxed(Box::new([w::ApprovalSet::new(
-                    &w::CEILINGS,
-                    w::ApprovalSetParts {
-                        number: 1,
-                        name: if part {
-                            b"payments".as_slice().into()
-                        } else {
-                            b"vsr's protocol core".as_slice().into()
-                        },
-                    },
-                )
-                .expect("path set")]))
-            } else {
-                List::with_capacity(0)
-            },
-            whole: true,
-            yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
-            signed: if part { approval_people(&[(2, b"Sam")]) } else { List::with_capacity(0) },
-            can_sign: if part { approval_people(&[(me, b"Ann"), (3, b"Kit")]) } else { List::with_capacity(0) },
-            can_sign_more: 0,
-            size: if name == "needs-approval-first" {
-                Some(
-                    w::ApprovalSize::new(
-                        &w::CEILINGS,
-                        w::ApprovalSizeParts { files: 4, additions: 142, deletions: 18, cut: false },
-                    )
-                    .expect("approval size"),
-                )
-            } else {
-                None
-            },
+    let row = w::ApprovalRow {
+        task: 81,
+        project: 1,
+        goal: None,
+        forge: 3,
+        kind: if no_account || list(name) { w::Kind::Github } else { w::Kind::Forgejo },
+        owner: Box::from(*b"work"),
+        name: Box::from(*b"hello"),
+        pull: 24,
+        address: if no_account || list(name) {
+            Box::from(b"https://github.com/work/hello/pull/24/files".as_slice())
+        } else {
+            Box::from(b"https://forge.example/work/hello/pulls/24/files".as_slice())
         },
-    )
-    .expect("approval fixture");
-    w::Approvals::new(&w::CEILINGS, w::ApprovalsParts { rows: List::from_boxed(Box::new([row])), more: 0 })
-        .expect("approval document")
+        title: Box::from(*b"A change"),
+        since: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(240).as_nanos()),
+        scope: u32::from(!no_account),
+        rule: if no_account { 2 } else { 1 },
+        role: if part { 2 } else { u32::from(no_account) },
+        required: if no_account || part { 2 } else { 1 },
+        counted: u32::from(no_account || part),
+        sets: if name == "needs-approval-path" || part {
+            List::from_boxed(Box::new([w::ApprovalSet {
+                number: 1,
+                name: if part { b"payments".as_slice().into() } else { b"vsr's protocol core".as_slice().into() },
+            }]))
+        } else {
+            List::with_capacity(0)
+        },
+        whole: true,
+        yours: if no_account { w::ApprovalYours::NoAccount } else { w::ApprovalYours::Counts },
+        signed: if part { approval_people(&[(2, b"Sam")]) } else { List::with_capacity(0) },
+        can_sign: if part { approval_people(&[(me, b"Ann"), (3, b"Kit")]) } else { List::with_capacity(0) },
+        can_sign_more: 0,
+        size: if name == "needs-approval-first" {
+            Some(w::ApprovalSize { files: 4, additions: 142, deletions: 18, cut: false })
+        } else {
+            None
+        },
+    };
+    w::Approvals { rows: List::from_boxed(Box::new([row])), more: 0 }
 }
 
 fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queue<Request>) {
@@ -636,13 +606,12 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
         }]);
     }
     let record = classes_record(&classes).expect("gallery classes");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("classes bytes"));
-    record.encode(&mut writer).expect("measured classes");
-    let document = w::SettingAnswer::new(
-        &w::CEILINGS,
-        w::SettingAnswerParts { revision: root.forge().settings_newest(), value: Some(writer.finish()) },
-    )
-    .expect("classes answer");
+    let mut writer = Writer::new(
+        usize::try_from(record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
+            .expect("classes bytes"),
+    );
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured classes");
+    let document = w::SettingAnswer { revision: root.forge().settings_newest(), value: Some(writer.finish()) };
     driver::step(
         root,
         Event::Client {
@@ -662,52 +631,33 @@ fn classes(root: &mut Domain, read: skein_lib::Token, name: &str, out: &mut Queu
 
 fn finding() -> temper_client_protocol_wire::v1::Findings {
     use temper_client_protocol_wire::v1 as w;
-    let b = &w::CEILINGS;
-    let holder = w::Holder::Party(
-        w::HolderParty::new(b, w::HolderPartyParts { number: 1 }).expect("finding sample within wire bounds"),
-    );
-    let row = w::FindingRow::new(
-        b,
-        w::FindingRowParts {
-            number: 7,
-            kind: w::FindingKind::Feedback,
-            severity: w::Severity::High,
-            area: None,
-            state: w::FindingState::New,
-            title: b"The phone card is clipped".as_slice().into(),
-            holder: holder.clone(),
-            at: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(3600).as_nanos()),
-            why: Some(b"Your area owns the view".as_slice().into()),
-            hander: Some(w::Filer::Task(
-                w::HolderTask::new(b, w::HolderTaskParts { number: 55 }).expect("finding sample within wire bounds"),
-            )),
-        },
-    )
-    .expect("finding sample within wire bounds");
-    let area = w::AreaRow::new(
-        b,
-        w::AreaRowParts {
-            name: b"view".as_slice().into(),
-            words: b"What the person sees".as_slice().into(),
-            owner: w::AreaOwner::Party(
-                w::AreaParty::new(b, w::AreaPartyParts { number: 1 }).expect("finding sample within wire bounds"),
-            ),
-            holder: Some(holder.clone()),
-        },
-    )
-    .expect("finding sample within wire bounds");
-    w::Findings::new(
-        b,
-        w::FindingsParts {
-            project: 1,
-            rows: List::from_boxed(Box::new([row])),
-            areas: List::from_boxed(Box::new([area])),
-            triager: None,
-            holder,
-            cut: false,
-        },
-    )
-    .expect("finding sample within wire bounds")
+    let holder = w::Holder::Party(w::HolderParty { number: 1 });
+    let row = w::FindingRow {
+        number: 7,
+        kind: w::FindingKind::Feedback,
+        severity: w::Severity::High,
+        area: None,
+        state: w::FindingState::New,
+        title: b"The phone card is clipped".as_slice().into(),
+        holder: holder.clone(),
+        at: worlds::now(World::Solo).as_nanos().saturating_sub(Duration::from_secs(3600).as_nanos()),
+        why: Some(b"Your area owns the view".as_slice().into()),
+        hander: Some(w::Filer::Task(w::HolderTask { number: 55 })),
+    };
+    let area = w::AreaRow {
+        name: b"view".as_slice().into(),
+        words: b"What the person sees".as_slice().into(),
+        owner: w::AreaOwner::Party(w::AreaParty { number: 1 }),
+        holder: Some(holder.clone()),
+    };
+    w::Findings {
+        project: 1,
+        rows: List::from_boxed(Box::new([row])),
+        areas: List::from_boxed(Box::new([area])),
+        triager: None,
+        holder,
+        cut: false,
+    }
 }
 fn finding_actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
     use temper_client_domain::pages::findings::{Act as F, Id, Mode};
@@ -754,9 +704,7 @@ fn finding_actions(root: &mut Domain, name: &str, out: &mut Queue<Request>) {
             ),
             Some(jig_client::Down::Send { attempt, .. }) if name == "needs-finding-refused" => {
                 use temper_client_protocol_wire::v1 as w;
-                let refused =
-                    w::FindingRefused::new(&w::CEILINGS, w::FindingRefusedParts { reason: w::FindingRefusal::NoGoal })
-                        .expect("finding sample within wire bounds");
+                let refused = w::FindingRefused { reason: w::FindingRefusal::NoGoal };
                 worlds::sample_forge_answer(root, attempt, w::Outcome::FindingRefused(refused), out);
             }
             _ => {}
@@ -768,12 +716,7 @@ fn approval_people(people: &[(u64, &[u8])]) -> List<temper_client_protocol_wire:
     use temper_client_protocol_wire::v1 as w;
     let mut values = List::with_capacity(8);
     for &(person, name) in people {
-        values
-            .push(
-                w::ApprovalPerson::new(&w::CEILINGS, w::ApprovalPersonParts { person, name: name.into() })
-                    .expect("person"),
-            )
-            .expect("eight people");
+        values.push(w::ApprovalPerson { person, name: name.into() }).expect("eight people");
     }
     values
 }

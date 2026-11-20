@@ -9,7 +9,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 // The request's review size; the secret is thirty-two zero bytes, never a credential.
 const FULL: skein_ui_screen::Size = skein_ui_screen::Size { columns: 80, rows: 24 };
-const PRINTED: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const PRINTED: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPEN: &str = "Welcome. Set temper up in your browser: open this link on this machine.";
 const PENDING: &str = "The link comes here once the box has started.";
 const ONCE: &str = "It signs you in as this temper's owner, once, within 2 hours.";
@@ -110,53 +110,41 @@ fn the_welcome_says_each_state() {
     let forgejo = welcome_root(&[row(w::Kind::Forgejo, w::Connection::Connecting)], false, Some(false), None);
     let github_setup = welcome_root(&[row(w::Kind::Github, setting(None))], false, Some(false), None);
     let unaccepted = welcome_root(&[row(w::Kind::Github, self::connected())], false, Some(false), None);
-    let mut making = row(w::Kind::Forgejo, w::Connection::Connecting).into_parts();
-    making.first = Some(
-        w::FirstRepository::new(
-            &w::CEILINGS,
-            w::FirstRepositoryParts {
-                org: b"work".as_slice().into(),
-                repository: b"hello".as_slice().into(),
-                state: w::FirstState::Making,
-                label: Box::new([]),
-                playground: false,
-            },
-        )
-        .unwrap(),
-    );
+    let mut making = row(w::Kind::Forgejo, w::Connection::Connecting);
+    making.first = Some(w::FirstRepository {
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state: w::FirstState::Making,
+        label: Box::new([]),
+        playground: false,
+        sample: false,
+    });
     // A connected Forgejo counts as connected in the domain, including while its first repository is made.
     making.connection = self::connected();
     making.number = 1;
-    let making = welcome_root(&[w::ForgeRow::new(&w::CEILINGS, making).unwrap()], false, Some(false), None);
+    let making = welcome_root(&[making], false, Some(false), None);
     let failed = welcome_root(
         &[row(
             w::Kind::Forgejo,
-            w::Connection::SetUpFailed(
-                w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"stopped".as_slice().into(), at: None })
-                    .unwrap(),
-            ),
+            w::Connection::SetUpFailed(w::SetUpFailed { why: b"stopped".as_slice().into(), at: None }),
         )],
         false,
         Some(false),
         None,
     );
-    let mut fake = row(w::Kind::Forgejo, self::connected()).into_parts();
+    let mut fake = row(w::Kind::Forgejo, self::connected());
     fake.mode = w::Mode::Fake;
     fake.number = 7;
-    let fake = welcome_root(&[w::ForgeRow::new(&w::CEILINGS, fake).unwrap()], true, Some(false), Some(7));
-    let mut skipped = row(w::Kind::Forgejo, w::Connection::Connecting).into_parts();
+    let fake = welcome_root(&[fake], true, Some(false), Some(7));
+    let mut skipped = row(w::Kind::Forgejo, w::Connection::Connecting);
     skipped.number = 1;
-    let skipped = welcome_root(
-        &[w::ForgeRow::new(&w::CEILINGS, skipped).unwrap(), row(w::Kind::Github, w::Connection::Connecting)],
-        false,
-        Some(false),
-        Some(1),
-    );
+    let skipped =
+        welcome_root(&[skipped, row(w::Kind::Github, w::Connection::Connecting)], false, Some(false), Some(1));
     let quiet_first = welcome_root(
         &[row(w::Kind::Forgejo, w::Connection::NotSetUp), {
-            let mut second = row(w::Kind::Github, w::Connection::Connecting).into_parts();
+            let mut second = row(w::Kind::Github, w::Connection::Connecting);
             second.number = 3;
-            w::ForgeRow::new(&w::CEILINGS, second).unwrap()
+            second
         }],
         false,
         Some(false),
@@ -164,27 +152,16 @@ fn the_welcome_says_each_state() {
     );
     let first_failed = welcome_root(
         &[{
-            let mut failed = row(w::Kind::Forgejo, w::Connection::NotSetUp).into_parts();
-            failed.first = Some(
-                w::FirstRepository::new(
-                    &w::CEILINGS,
-                    w::FirstRepositoryParts {
-                        org: b"work".as_slice().into(),
-                        repository: b"hello".as_slice().into(),
-                        state: w::FirstState::Failed(
-                            w::CreateFailed::new(
-                                &w::CEILINGS,
-                                w::CreateFailedParts { step: w::CreateStep::Repository },
-                            )
-                            .unwrap(),
-                        ),
-                        label: Box::new([]),
-                        playground: false,
-                    },
-                )
-                .unwrap(),
-            );
-            w::ForgeRow::new(&w::CEILINGS, failed).unwrap()
+            let mut failed = row(w::Kind::Forgejo, w::Connection::NotSetUp);
+            failed.first = Some(w::FirstRepository {
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                state: w::FirstState::Failed(w::CreateFailed { step: w::CreateStep::Repository }),
+                label: Box::new([]),
+                playground: false,
+                sample: false,
+            });
+            failed
         }],
         false,
         Some(false),
@@ -193,10 +170,10 @@ fn the_welcome_says_each_state() {
     let fake_first = welcome_root(
         &[
             {
-                let mut fake = row(w::Kind::Forgejo, setting(Some(w::SetUpStep::Fetch))).into_parts();
+                let mut fake = row(w::Kind::Forgejo, setting(Some(w::SetUpStep::Fetch)));
                 fake.number = 1;
                 fake.mode = w::Mode::Fake;
-                w::ForgeRow::new(&w::CEILINGS, fake).unwrap()
+                fake
             },
             row(w::Kind::Github, w::Connection::Connecting),
         ],
@@ -873,38 +850,32 @@ fn the_starting_screens_are_their_goldens() {
 }
 
 fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 1, login: b"temper".as_slice().into() }).unwrap(),
-    )
+    w::Connection::Connected(w::Connected { id: 1, login: b"temper".as_slice().into() })
 }
 fn setting(step: Option<w::SetUpStep>) -> w::Connection {
-    w::Connection::SettingUp(w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step, fetched: None }).unwrap())
+    w::Connection::SettingUp(w::SettingUp { step, fetched: None })
 }
 fn row(kind: w::Kind, connection: w::Connection) -> w::ForgeRow {
-    w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
-            number: 2,
-            host: b"git.example".as_slice().into(),
-            kind,
-            mode: w::Mode::Owned,
-            connection,
-            offer: w::Offer::NotOffered,
-            first: None,
-            starts_with: w::StartsWith::Repository,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: None,
-            admin: false,
-            ended_stop: None,
-            read_only: false,
-            makings: List::with_capacity(0),
-        },
-    )
-    .unwrap()
+    w::ForgeRow {
+        number: 2,
+        host: b"git.example".as_slice().into(),
+        kind,
+        mode: w::Mode::Owned,
+        connection,
+        offer: w::Offer::NotOffered,
+        first: None,
+        starts_with: w::StartsWith::Repository,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin: false,
+        ended_stop: None,
+        read_only: false,
+        makings: List::with_capacity(0),
+    }
 }
 fn append(out: &mut Queue<Request>, mut more: Queue<Request>) {
     while let Some(request) = more.pop() {
@@ -1020,42 +991,29 @@ fn welcome_read(rows: &[w::ForgeRow], linked: bool, model: Option<c::Accounts>, 
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(
-                            &w::Forges::new(
-                                &w::CEILINGS,
-                                w::ForgesParts { forges: List::from_boxed(rows.into()), linked },
-                            )
-                            .unwrap(),
-                        ),
+                        bytes: wire::forges(&w::Forges { forges: List::from_boxed(rows.into()), linked }),
                     },
                 }
             }
             jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } } => {
                 let Some(_) = model else { continue };
-                let record = match wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() {
-                    w::Read::Deployment => Some(wire::deployment_answer(
-                        &w::DeploymentAnswer::new(
-                            &w::CEILINGS,
-                            w::DeploymentAnswerParts { push: None, welcome: true, owned: true, program_login: None },
-                        )
-                        .unwrap(),
-                    )),
+                let record = match &wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read {
+                    w::Read::Deployment => Some(wire::deployment_answer(&w::DeploymentAnswer {
+                        push: None,
+                        welcome: true,
+                        owned: true,
+                        program_login: None,
+                    })),
                     w::Read::Playground => match playground {
-                        Some(forge) => Some(wire::playground_answer(
-                            &w::PlaygroundAnswer::new(
-                                &w::CEILINGS,
-                                w::PlaygroundAnswerParts {
-                                    state: w::PlaygroundState::Running,
-                                    project: None,
-                                    forge,
-                                    provider: 17,
-                                    owner: b"demo".as_slice().into(),
-                                    name: b"demo".as_slice().into(),
-                                    cues: List::with_capacity(0),
-                                },
-                            )
-                            .unwrap(),
-                        )),
+                        Some(forge) => Some(wire::playground_answer(&w::PlaygroundAnswer {
+                            state: w::PlaygroundState::Running,
+                            project: None,
+                            forge,
+                            provider: 17,
+                            owner: b"demo".as_slice().into(),
+                            name: b"demo".as_slice().into(),
+                            cues: List::with_capacity(0),
+                        })),
                         None => None,
                     },
                     w::Read::Limits(_)

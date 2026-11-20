@@ -143,6 +143,8 @@ pub struct Repository {
     pub delivered: Option<Commit>,
     /// Landing branch comparison, used by producer merge starts and Branch starts on the push target.
     pub landing: Option<Box<[u8]>>,
+    /// Named commit pinned for this hold's checks (temper/docs/design/domain/worker/checkouts.md, A named pin).
+    pub pin: Option<Commit>,
 }
 
 /// Where a repository starts. Whatever the workspace held, nothing local is

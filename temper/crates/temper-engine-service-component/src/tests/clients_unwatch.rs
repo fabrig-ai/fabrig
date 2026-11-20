@@ -90,6 +90,8 @@ impl Stand {
     }
     fn exchange(&mut self, exchange: Token, message: kit::Message) {
         self.down(kit::Event::Transport(kit::FromTransport::Exchange {
+            via: jig_protocol_engine_clients::Via::Listener,
+            source: None,
             browser: false,
             exchange,
             credential: Some(self.credential.clone()),

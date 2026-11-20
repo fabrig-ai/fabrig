@@ -99,7 +99,7 @@ impl Story {
     }
 
     fn ask(&mut self) -> (Secret, jig_client::ApprovalCode) {
-        let Approval::Asked { secret, code, expires } = self.approval(TERMINAL, ApprovalAct::Ask) else {
+        let Approval::Asked { secret, code, expires } = self.approval(TERMINAL, ApprovalAct::Ask { port: None }) else {
             panic!("an unsigned client can ask an approval");
         };
         assert_eq!(secret.len(), 32);
@@ -135,8 +135,17 @@ fn a_terminals_approval_approved_by_a_browser_signs_it_in_as_the_browsers_party(
     let before = story.front.session.sign_ins();
     let browser_credential = story.front.session.credential(BROWSER).expect("browser signed in").clone();
     let (secret, code) = story.ask();
-    story.read(BROWSER, code, ApprovalState::Waiting { asked: wall(story.now) });
-    story.decide(BROWSER, code, Decided::Approved);
+    story.read(
+        BROWSER,
+        code,
+        ApprovalState::Waiting {
+            asked: wall(story.now),
+            kind: jig_client_protocol_wire::ApprovalKind::Listener,
+            source: None,
+            reader: None,
+        },
+    );
+    story.decide(BROWSER, code, Decided::Approved { loopback: None });
     story.read(BROWSER, code, ApprovalState::Approved);
     assert_eq!(story.front.session.sign_ins(), before, "approving makes no sign-in");
     story.take(&secret, Signing::SignedIn { party: 1 });
@@ -172,7 +181,7 @@ fn a_decision_from_a_client_that_isnt_a_browser_is_refused() {
     assert_eq!(story.front.session.credential(TERMINAL), None);
     assert_eq!(story.clients[&TERMINAL].link().state, Link::SignedOut);
     assert_eq!(story.front.session.sign_ins(), before);
-    story.decide(BROWSER, code, Decided::Approved);
+    story.decide(BROWSER, code, Decided::Approved { loopback: None });
     story.take(&secret, Signing::SignedIn { party: 1 });
     story.assert_me(TERMINAL, 1);
 }
@@ -182,7 +191,7 @@ fn an_approval_never_taken_makes_no_sign_in() {
     let mut story = Story::new();
     let before = story.front.session.sign_ins();
     let (secret, code) = story.ask();
-    story.decide(BROWSER, code, Decided::Approved);
+    story.decide(BROWSER, code, Decided::Approved { loopback: None });
     assert_eq!(story.front.session.sign_ins(), before);
     story.now = story.now.saturating_add(SPAN).saturating_add(Duration::from_nanos(1));
     story.settle();

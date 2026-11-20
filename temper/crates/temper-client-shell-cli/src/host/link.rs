@@ -49,7 +49,9 @@ impl OneShot {
                 let file = self.link_file.as_mut().expect("link output");
                 file.retry = None;
                 file.last = None;
-                let mapping = jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping");
+                let mapping = jig_client_protocol_http::Mapping::with_page(
+                    b"/jig", temper_client_domain_forge::sign_in::LINK_PAGE,
+                ).expect("mapping");
                 let host = self.directory.address.as_deref().expect("signed-in address")
                     .strip_prefix(b"http://").expect("loopback HTTP address");
                 let mut bytes = jig_client_protocol_http::link_url(&mapping, host, &secret).into_vec();

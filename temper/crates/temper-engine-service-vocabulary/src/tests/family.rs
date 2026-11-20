@@ -3,6 +3,7 @@ use crate::family;
 use jig_domain_people as people;
 use jig_protocol_engine_clients as kit;
 use skein_lib::{List, Reader, ReplyTo, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain as root;
 use temper_engine_domain::ways;
@@ -14,34 +15,20 @@ const WATCHER: Token = Token::new(7);
 #[test]
 fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
     for (budget, expected_budget) in [
-        (
-            w::OpenBudget::Amount(w::OpenAmount::new(&w::CEILINGS, w::OpenAmountParts { amount: 500 }).unwrap()),
-            forge::OpenBudget::Amount(500),
-        ),
+        (w::OpenBudget::Amount(w::OpenAmount { amount: 500 }), forge::OpenBudget::Amount(500)),
         (w::OpenBudget::AsAllowed, forge::OpenBudget::AsAllowed),
     ] {
-        let input = w::OpenChange::new(
-            &w::CEILINGS,
-            w::OpenChangeParts {
-                project: 7,
-                repository: Some(
-                    w::DraftRepository::new(
-                        &w::CEILINGS,
-                        w::DraftRepositoryParts { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
-                    )
-                    .unwrap(),
-                ),
-                branch: b"docs/x".as_slice().into(),
-                at: Some(Box::new([b'a'; 40])),
-                into: Some(b"release".as_slice().into()),
-                title: b"Fix the docs".as_slice().into(),
-                body: Some(b"Keep examples.".as_slice().into()),
-                budget,
-            },
-        )
-        .unwrap();
-        let record =
-            w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::OpenChange(input) }).unwrap();
+        let input = w::OpenChange {
+            project: 7,
+            repository: Some(w::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() }),
+            branch: b"docs/x".as_slice().into(),
+            at: Some(Box::new([b'a'; 40])),
+            into: Some(b"release".as_slice().into()),
+            title: b"Fix the docs".as_slice().into(),
+            body: Some(b"Keep examples.".as_slice().into()),
+            budget,
+        };
+        let record = w::Requesting { request: w::Request::OpenChange(input) };
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -76,7 +63,7 @@ fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
     }
     assert_eq!(
         encoded(Some(forge::ApplicationOutcome::Opened { task: 81 })),
-        w::Outcome::Opened(w::Opened::new(&w::CEILINGS, w::OpenedParts { task: 81 }).unwrap())
+        w::Outcome::Opened(w::Opened { task: 81 })
     );
     let w::Outcome::OpenRefused(answer) =
         encoded(Some(forge::ApplicationOutcome::OpenRefused(forge::OpenRefusal::UnderPrefix {
@@ -87,8 +74,11 @@ fn opening_wire_preserves_the_request_and_its_typed_outcomes() {
     else {
         panic!("open refusal")
     };
-    let w::OpenRefusal::UnderPrefix(why) = answer.reason() else { panic!("under prefix") };
-    assert_eq!((why.owner(), why.name(), why.prefix()), (b"org".as_slice(), b"repo".as_slice(), b"temper/".as_slice()));
+    let w::OpenRefusal::UnderPrefix(why) = &answer.reason else { panic!("under prefix") };
+    assert_eq!(
+        (why.owner.as_ref(), why.name.as_ref(), why.prefix.as_ref()),
+        (b"org".as_slice(), b"repo".as_slice(), b"temper/".as_slice())
+    );
 }
 
 #[test]
@@ -100,36 +90,19 @@ fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
     afters.push(after).unwrap();
     afters.push(next).unwrap();
     for (act, expected) in [
-        (w::FollowAct::Start(w::FollowAt::new(&w::CEILINGS, w::FollowAtParts { after }).unwrap()), A::Start { after }),
+        (w::FollowAct::Start(w::FollowAt { after }), A::Start { after }),
         (
-            w::FollowAct::Hold(
-                w::FollowReasonAct::new(
-                    &w::CEILINGS,
-                    w::FollowReasonActParts { after, reason: b"waits".as_slice().into() },
-                )
-                .unwrap(),
-            ),
+            w::FollowAct::Hold(w::FollowReasonAct { after, reason: b"waits".as_slice().into() }),
             A::Hold { after, reason: b"waits".as_slice().into() },
         ),
         (
-            w::FollowAct::Skip(
-                w::FollowReasonAct::new(
-                    &w::CEILINGS,
-                    w::FollowReasonActParts { after, reason: b"build only".as_slice().into() },
-                )
-                .unwrap(),
-            ),
+            w::FollowAct::Skip(w::FollowReasonAct { after, reason: b"build only".as_slice().into() }),
             A::Skip { after, reason: b"build only".as_slice().into() },
         ),
-        (
-            w::FollowAct::Merge(w::FollowMergeAct::new(&w::CEILINGS, w::FollowMergeActParts { afters }).unwrap()),
-            A::Merge { afters: Box::new([after, next]) },
-        ),
+        (w::FollowAct::Merge(w::FollowMergeAct { afters }), A::Merge { afters: Box::new([after, next]) }),
     ] {
-        let request =
-            w::FollowActRequest::new(&w::CEILINGS, w::FollowActRequestParts { project: 2, follow: 1, act }).unwrap();
-        let record =
-            w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::FollowAct(request) }).unwrap();
+        let request = w::FollowActRequest { project: 2, follow: 1, act };
+        let record = w::Requesting { request: w::Request::FollowAct(request) };
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -153,8 +126,8 @@ fn follow_acts_preserve_the_keyed_envelope_commits_reasons_and_answer() {
         let jig = jig_protocol_config_fixtures::small().clients.wire;
         let bytes = family::answer(Some(root::ApplicationAnswer::Follow(refusal.clone())), &w::CEILINGS, &jig).unwrap();
         let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-        let w::Outcome::Follow(answer) = answer.into_parts().outcome else { panic!("follow outcome") };
-        assert_eq!(answer.into_parts().refusal, refusal);
+        let w::Outcome::Follow(answer) = answer.outcome else { panic!("follow outcome") };
+        assert_eq!(answer.refusal, refusal);
     }
 }
 fn configured(git: &[u8]) -> Box<[crate::settings::Forge]> {
@@ -166,22 +139,18 @@ fn adopt() -> w::Adopt {
     let mut checks = List::with_capacity(2);
     checks.push(2).unwrap();
     checks.push(3).unwrap();
-    w::Adopt::new(
-        &w::CEILINGS,
-        w::AdoptParts {
-            project: 7,
-            home: true,
-            forge: 1,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            prefix: b"repo".as_slice().into(),
-            role: w::Role::Adopted,
-            landing: b"main".as_slice().into(),
-            ci: true,
-            checks,
-        },
-    )
-    .unwrap()
+    w::Adopt {
+        project: 7,
+        home: true,
+        forge: 1,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        prefix: b"repo".as_slice().into(),
+        role: w::Role::Adopted,
+        landing: b"main".as_slice().into(),
+        ci: true,
+        checks,
+    }
 }
 fn exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplication {
     kit::ToApplication::Request {
@@ -222,8 +191,8 @@ fn forge_list_encodes_the_repository_resource_host() {
     .unwrap();
     let bytes = family::forges(domain.forges(), false, &w::CEILINGS).unwrap();
     let rows = wire::decode_forges(&bytes, &w::CEILINGS).expect("forge rows");
-    assert_eq!(rows.forges().get(0).unwrap().host(), b"git.example:3000", "resource host missing from wire");
-    assert_eq!(rows.forges().get(0).unwrap().host(), family::host(b"https://git.example:3000/git").as_ref());
+    assert_eq!(rows.forges.get(0).unwrap().host.as_ref(), b"git.example:3000", "resource host missing from wire");
+    assert_eq!(rows.forges.get(0).unwrap().host.as_ref(), family::host(b"https://git.example:3000/git").as_ref());
 }
 
 #[test]
@@ -326,7 +295,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             "demo, unconfigured",
             wire::FORGE,
             wire::CLIENT_VERSION,
-            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
+            wire::reading(&w::Reading { read: w::Read::Playground }),
             people::ApplicationScope::Deployment,
             (REPLY, wire::FORGE, None),
         ),
@@ -363,7 +332,7 @@ fn read_input(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
+        record: wire::reading(&w::Reading { read: w::Read::Playground }),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }
@@ -420,7 +389,7 @@ fn encoded(outcome: Option<forge::ApplicationOutcome>) -> w::Outcome {
     let mut reader = Reader::new(&bytes);
     let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
-    answer.into_parts().outcome
+    answer.outcome
 }
 #[test]
 fn each_outcome_is_encoded_as_the_forge_familys_answer() {
@@ -440,7 +409,7 @@ fn each_outcome_is_encoded_as_the_forge_familys_answer() {
         let w::Outcome::ForgeRefused(answer) = encoded(Some(forge::ApplicationOutcome::ForgeRefused(input))) else {
             panic!("{row}: forge refusal")
         };
-        assert_eq!(answer.into_parts().reason, expected, "{row}");
+        assert_eq!(answer.reason, expected, "{row}");
     }
 }
 #[test]
@@ -475,7 +444,7 @@ fn a_core_refusal_uses_jigs_refusal_record() {
         let w::Outcome::CoreRefused(record) = encoded(Some(forge::ApplicationOutcome::CoreRefused(input))) else {
             panic!("{row}: core refusal")
         };
-        let mut reader = Reader::new(record.refusal());
+        let mut reader = Reader::new(&record.refusal);
         assert_eq!(j::Refusal::decode(&limits, &mut reader).unwrap(), expected, "{row}");
         assert!(reader.is_empty(), "{row}");
     }
@@ -505,13 +474,13 @@ fn adopted(protection: forge::Protection) -> forge::ApplicationOutcome {
 #[test]
 fn an_adopted_repository_keeps_its_facts_in_the_answer() {
     let w::Outcome::Adopted(record) = encoded(Some(adopted(forge::Protection::Absent))) else { panic!("adopted") };
-    let a = record.into_parts();
+    let a = record;
     assert_eq!((a.forge, a.repository, a.home, a.role), (1, 42, true, w::Role::Fork));
     assert_eq!((a.owner.as_ref(), a.name.as_ref()), (b"acme".as_slice(), b"shop".as_slice()));
     assert_eq!(a.landing.as_ref(), b"staging");
     let k = a.kinds;
     assert_eq!(
-        [k.read(), k.push(), k.open(), k.land(), k.review(), k.status(), k.comment(), k.issue(), k.branch()],
+        [k.read, k.push, k.open, k.land, k.review, k.status, k.comment, k.issue, k.branch],
         [true, false, true, false, true, false, true, false, true]
     );
     assert_eq!(a.protection, w::Protection::Absent);
@@ -527,7 +496,7 @@ fn an_adopted_landing_past_the_client_bound_is_empty_not_cut() {
             panic!("adopted answer")
         };
         let expected = if length == 1024 { [b'a'; 1024].as_slice() } else { &[] };
-        assert_eq!(record.landing(), expected, "landing length {length}");
+        assert_eq!(record.landing.as_ref(), expected, "landing length {length}");
     }
 }
 #[test]
@@ -545,8 +514,8 @@ fn an_adopted_repository_keeps_its_protection_rule() {
         dismiss_stale: true,
     }));
     let w::Outcome::Adopted(record) = encoded(Some(outcome)) else { panic!("adopted") };
-    let w::Protection::Rule(rule) = record.into_parts().protection else { panic!("rule") };
-    let rule = rule.into_parts();
+    let w::Protection::Rule(rule) = record.protection else { panic!("rule") };
+
     assert_eq!(rule.branch.as_ref(), b"main");
     assert_eq!(rule.contexts.as_slice(), &[b"ci/build".as_slice().into()]);
     assert_eq!((rule.approvals, rule.dismiss_stale), (2, true));
@@ -583,7 +552,7 @@ fn refusal_bytes(refusal: people::Refusal) -> Box<[u8]> {
     let w::Outcome::CoreRefused(record) = encoded(Some(forge::ApplicationOutcome::CoreRefused(refusal))) else {
         panic!("core refusal")
     };
-    record.into_parts().refusal
+    record.refusal
 }
 #[test]
 fn a_core_refusal_is_carried_as_jigs_refusal_record() {
@@ -630,20 +599,12 @@ fn not_installed_projects_to_no_access_until_temper_07_adds_its_wire_reason() {
     else {
         panic!("forge refusal")
     };
-    assert_eq!(answer.reason(), &w::ForgeReason::NoAccess);
+    assert_eq!(&answer.reason, &w::ForgeReason::NoAccess);
 }
 
 const CHANGE_TASK: u64 = 51;
 fn watching(task: u64) -> Box<[u8]> {
-    wire::watching(
-        &w::Watching::new(
-            &w::CEILINGS,
-            w::WatchingParts {
-                watch: w::Watch::Change(w::ChangeSubject::new(&w::CEILINGS, w::ChangeSubjectParts { task }).unwrap()),
-            },
-        )
-        .unwrap(),
-    )
+    wire::watching(&w::Watching { watch: w::Watch::Change(w::ChangeSubject { task }) })
 }
 fn watch_exchange(family: u16, version: u32, record: Box<[u8]>) -> kit::ToApplication {
     kit::ToApplication::Watch {
@@ -778,7 +739,7 @@ fn a_panel_encodes_its_outbox_wait_or_none() {
     for (wait, expected) in [(Some(forge::PanelWait::OutboxRoom), Some(w::ChangeWait::OutboxRoom)), (None, None)] {
         let mut value = panel();
         value.wait = wait;
-        assert_eq!(*decoded_panel(value, &fixtures::forge_table(&[])).wait(), expected);
+        assert_eq!(decoded_panel(value, &fixtures::forge_table(&[])).wait, expected);
     }
 }
 fn queued(place: u32, tasks: &[u64]) -> w::Step {
@@ -786,7 +747,7 @@ fn queued(place: u32, tasks: &[u64]) -> w::Step {
     for task in tasks {
         ahead.push(*task).unwrap();
     }
-    w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead }).unwrap())
+    w::Step::Queued(w::Queued { place, ahead })
 }
 #[test]
 fn a_panel_encodes_and_decodes_back_whole() {
@@ -797,46 +758,38 @@ fn a_panel_encodes_and_decodes_back_whole() {
         (3, w::GateKind::Check, false, w::Verdict::Pending),
         (4, w::GateKind::Check, true, w::Verdict::None),
     ] {
-        gates.push(w::Gate::new(&w::CEILINGS, w::GateParts { number, kind, blocks, verdict }).unwrap()).unwrap();
+        gates.push(w::Gate { number, kind, blocks, verdict }).unwrap();
     }
-    let expected = w::ChangePanel::new(
-        &w::CEILINGS,
-        w::ChangePanelParts {
-            wait: None,
-            source: None,
-            way: w::Way::Queue,
-            in_landing: None,
-            task: CHANGE_TASK,
-            forge: 1,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            branch: b"temper/51".as_slice().into(),
-            landing: b"main".as_slice().into(),
-            head: Some([4; 32]),
-            pull: Some(w::Pull::new(&w::CEILINGS, w::PullParts { number: 123, address: Box::new([]) }).unwrap()),
-            step: queued(3, &[49, 47]),
-            hold: Some(w::Hold::Updates),
-            runs: Some(81),
-            ci_required: true,
-            ci: w::Ci::Pending,
-            gates,
-            approvals: List::with_capacity(0),
-            unmapped_reviews: List::with_capacity(0),
-            repairs: w::Used::new(&w::CEILINGS, w::UsedParts { used: 1, limit: 3 }).unwrap(),
-            resolutions: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
-            updates: w::Used::new(&w::CEILINGS, w::UsedParts { used: 3, limit: 5 }).unwrap(),
-            questions: w::Questions::new(
-                &w::CEILINGS,
-                w::QuestionsParts {
-                    route: w::Route::None,
-                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 0, limit: 4 }).expect("question limit"),
-                    open: List::with_capacity(0),
-                },
-            )
-            .expect("no questions"),
+    let expected = w::ChangePanel {
+        wait: None,
+        source: None,
+        way: w::Way::Queue,
+        in_landing: None,
+        task: CHANGE_TASK,
+        forge: 1,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        branch: b"temper/51".as_slice().into(),
+        landing: b"main".as_slice().into(),
+        head: Some([4; 32]),
+        pull: Some(w::Pull { number: 123, address: Box::new([]) }),
+        step: queued(3, &[49, 47]),
+        hold: Some(w::Hold::Updates),
+        runs: Some(81),
+        ci_required: true,
+        ci: w::Ci::Pending,
+        gates,
+        approvals: List::with_capacity(0),
+        unmapped_reviews: List::with_capacity(0),
+        repairs: w::Used { used: 1, limit: 3 },
+        resolutions: w::Used { used: 2, limit: 4 },
+        updates: w::Used { used: 3, limit: 5 },
+        questions: w::Questions {
+            route: w::Route::None,
+            taken: w::Used { used: 0, limit: 4 },
+            open: List::with_capacity(0),
         },
-    )
-    .unwrap();
+    };
     assert_eq!(decoded_panel(panel(), &fixtures::forge_table(&[])), expected);
 }
 fn landing_repair_panel(reason: change::Repair, gate: u16) {
@@ -847,15 +800,10 @@ fn landing_repair_panel(reason: change::Repair, gate: u16) {
     value.runs = Some(15);
     value.step = forge::PanelStep::Repairing(reason);
     let decoded = decoded_panel(value, &fixtures::forge_table(&[]));
-    assert_eq!(decoded.task(), 4);
-    assert_eq!(*decoded.runs(), Some(15));
-    assert_eq!(*decoded.in_landing(), Some(13));
-    assert_eq!(
-        *decoded.step(),
-        repairing(w::Reason::Landing(
-            w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::from(gate) }).unwrap()
-        ))
-    );
+    assert_eq!(decoded.task, 4);
+    assert_eq!(decoded.runs, Some(15));
+    assert_eq!(decoded.in_landing, Some(13));
+    assert_eq!(decoded.step, repairing(w::Reason::Landing(w::GateReason { gate: u64::from(gate) })));
 }
 #[test]
 fn a_blamed_landing_repair_panel_keeps_its_gate_and_delegate() {
@@ -878,24 +826,15 @@ fn a_candidate_landing_repair_panel_keeps_its_gate_and_delegate() {
     landing_repair_panel(change::Repair::Landing { gate: u16::MAX }, u16::MAX);
 }
 fn repairing(reason: w::Reason) -> w::Step {
-    w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).unwrap())
+    w::Step::Repairing(w::Repairing { reason })
 }
 #[test]
 fn every_panel_step_keeps_its_payload_on_the_wire() {
     for (input, expected) in [
         (forge::PanelStep::Ended, w::Step::Ended),
-        (
-            forge::PanelStep::Ready { landing: Some(61) },
-            w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap()),
-        ),
-        (
-            forge::PanelStep::Ready { landing: None },
-            w::Step::Ready(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: None }).unwrap()),
-        ),
-        (
-            forge::PanelStep::Preparing { landing: Some(61) },
-            w::Step::Preparing(w::InLanding::new(&w::CEILINGS, w::InLandingParts { landing: Some(61) }).unwrap()),
-        ),
+        (forge::PanelStep::Ready { landing: Some(61) }, w::Step::Ready(w::InLanding { landing: Some(61) })),
+        (forge::PanelStep::Ready { landing: None }, w::Step::Ready(w::InLanding { landing: None })),
+        (forge::PanelStep::Preparing { landing: Some(61) }, w::Step::Preparing(w::InLanding { landing: Some(61) })),
         (forge::PanelStep::Producing, w::Step::Producing),
         (forge::PanelStep::Opening, w::Step::Opening),
         (forge::PanelStep::Recreating, w::Step::Recreating),
@@ -907,17 +846,11 @@ fn every_panel_step_keeps_its_payload_on_the_wire() {
         (forge::PanelStep::Updating, w::Step::Updating),
         (forge::PanelStep::Resolving, w::Step::Resolving),
         (forge::PanelStep::Repairing(change::Repair::Ci), repairing(w::Reason::Ci)),
-        (
-            forge::PanelStep::Repairing(change::Repair::Gate(9)),
-            repairing(w::Reason::Gate(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 9 }).unwrap())),
-        ),
+        (forge::PanelStep::Repairing(change::Repair::Gate(9)), repairing(w::Reason::Gate(w::GateReason { gate: 9 }))),
         (forge::PanelStep::Repairing(change::Repair::Semantic), repairing(w::Reason::Semantic)),
         (forge::PanelStep::Repairing(change::Repair::Review { head: [7; 32] }), repairing(w::Reason::Review)),
         (forge::PanelStep::Landing, w::Step::Landing),
-        (
-            forge::PanelStep::Landed { merge: [8; 32] },
-            w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [8; 32] }).unwrap()),
-        ),
+        (forge::PanelStep::Landed { merge: [8; 32] }, w::Step::Landed(w::Landed { merge: [8; 32] })),
     ] {
         let mut value = panel();
         for (way, expected_way) in [(change::Way::Queue, w::Way::Queue), (change::Way::Turn, w::Way::Turn)] {
@@ -926,9 +859,9 @@ fn every_panel_step_keeps_its_payload_on_the_wire() {
                 value.way = way;
                 value.in_landing = landing;
                 let got = decoded_panel(value.clone(), &fixtures::forge_table(&[]));
-                assert_eq!(*got.step(), expected);
-                assert_eq!(*got.way(), expected_way);
-                assert_eq!(*got.in_landing(), landing);
+                assert_eq!(got.step, expected);
+                assert_eq!(got.way, expected_way);
+                assert_eq!(got.in_landing, landing);
             }
         }
     }
@@ -951,7 +884,7 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
     ] {
         let mut value = panel();
         value.hold = input;
-        assert_eq!(*decoded_panel(value, &fixtures::forge_table(&[])).hold(), expected);
+        assert_eq!(decoded_panel(value, &fixtures::forge_table(&[])).hold, expected);
     }
     for (input, expected) in [
         (change::Status::Unknown, w::Ci::Unknown),
@@ -965,8 +898,8 @@ fn every_hold_and_ci_verdict_keeps_its_meaning_on_the_wire() {
             value.ci = input;
             value.ci_required = required;
             let decoded = decoded_panel(value, &fixtures::forge_table(&[]));
-            assert_eq!(*decoded.ci(), expected);
-            assert_eq!(decoded.ci_required(), required);
+            assert_eq!(decoded.ci, expected);
+            assert_eq!(decoded.ci_required, required);
         }
     }
 }
@@ -1019,9 +952,9 @@ fn a_panels_pull_address_uses_its_configured_forge_kind_and_base() {
             Some(web) => Some(web.into()),
             None => None,
         };
-        let got = decoded_panel(panel(), &fixtures::forge_table(&forges)).into_parts().pull.unwrap();
-        assert_eq!(got.number(), 123, "{row}");
-        assert_eq!(got.address(), expected, "{row}");
+        let got = decoded_panel(panel(), &fixtures::forge_table(&forges)).pull.unwrap();
+        assert_eq!(got.number, 123, "{row}");
+        assert_eq!(got.address.as_ref(), expected, "{row}");
     }
 }
 #[test]
@@ -1048,14 +981,14 @@ fn a_panels_pull_address_past_its_bound_is_left_out_and_the_panel_still_delivere
             value.owner = owner.clone();
             value.name = name.clone();
             let decoded = decoded_panel(value, &fixtures::forge_table(&forges));
-            assert_eq!(decoded.owner(), &*owner, "{row}");
-            assert_eq!(decoded.name(), &*name, "{row}");
-            let pull = decoded.into_parts().pull.unwrap();
-            assert_eq!(pull.number(), 123, "{row}");
+            assert_eq!(decoded.owner.as_ref(), &*owner, "{row}");
+            assert_eq!(decoded.name.as_ref(), &*name, "{row}");
+            let pull = decoded.pull.unwrap();
+            assert_eq!(pull.number, 123, "{row}");
             if shown {
-                assert_eq!(pull.address(), [web, b"/", &owner, b"/", &name, route, b"123"].concat(), "{row}");
+                assert_eq!(pull.address.as_ref(), [web, b"/", &owner, b"/", &name, route, b"123"].concat(), "{row}");
             } else {
-                assert_eq!(pull.address(), b"", "{row}");
+                assert_eq!(pull.address.as_ref(), b"", "{row}");
             }
         }
     }
@@ -1070,7 +1003,7 @@ fn a_panel_before_the_first_head_has_no_pull_or_running_delegate() {
     value.step = forge::PanelStep::Producing;
     value.ci = change::Status::Unknown;
     value.gates = Box::new([]);
-    let got = decoded_panel(value, &fixtures::forge_table(&fixtures::forges())).into_parts();
+    let got = decoded_panel(value, &fixtures::forge_table(&fixtures::forges()));
     assert_eq!((got.head, got.pull, got.runs, got.hold), (None, None, None, None));
     assert_eq!(got.step, w::Step::Producing);
     assert_eq!(got.ci, w::Ci::Unknown);
@@ -1078,37 +1011,22 @@ fn a_panel_before_the_first_head_has_no_pull_or_running_delegate() {
 }
 
 fn requesting() -> w::Requesting {
-    w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::Adopt(adopt()) }).unwrap()
+    w::Requesting { request: w::Request::Adopt(adopt()) }
 }
 
 #[test]
 fn setup_requests_preserve_the_keyed_envelope_and_forge() {
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let request = w::Requesting {
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge: 3 }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                sample: false,
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+            }),
+        }),
+    };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1134,6 +1052,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                 forge: forge::Making::Kept(3),
                 first: forge::SetUpFirst::Empty {
                     playground: false,
+                    sample: false,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into()
                 }
@@ -1144,7 +1063,7 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
 
 #[test]
 fn forges_watches_name_the_deployment_subject() {
-    let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Forges }).unwrap();
+    let watching = w::Watching { watch: w::Watch::Forges };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
@@ -1177,22 +1096,15 @@ fn setup_outcomes_use_the_family_answer_including_unknown() {
         (Some(forge::SetUpAnswer::SettingUp), w::Outcome::SettingUp),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::NotOffered)),
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotOffered }),
         ),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::NotUnderTheBox)),
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox })
-                    .unwrap(),
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::NotUnderTheBox }),
         ),
         (
             Some(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Busy)),
-            w::Outcome::SetUpRefused(
-                w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
-            ),
+            w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Busy }),
         ),
     ] {
         let outcome = match outcome {
@@ -1200,7 +1112,7 @@ fn setup_outcomes_use_the_family_answer_including_unknown() {
             None => None,
         };
         let bytes = family::answer(outcome, &w::CEILINGS, &jig).unwrap();
-        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
     }
 }
 fn forge_row(
@@ -1305,15 +1217,9 @@ fn a_row_s_fetched_reaches_the_wire() {
         row.fetched = Some(forge::SetUpFetched { binary, done: 10, total });
         let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
-        let w::Connection::SettingUp(setup) = rows.forges().get(0).unwrap().connection() else { panic!("setting up") };
-        assert_eq!(setup.step(), &Some(w::SetUpStep::Fetch));
-        assert_eq!(
-            setup.fetched(),
-            &Some(
-                w::SetUpFetched::new(&w::CEILINGS, w::SetUpFetchedParts { binary: expected_binary, done: 10, total })
-                    .unwrap()
-            )
-        );
+        let w::Connection::SettingUp(setup) = &rows.forges.get(0).unwrap().connection else { panic!("setting up") };
+        assert_eq!(&setup.step, &Some(w::SetUpStep::Fetch));
+        assert_eq!(&setup.fetched, &Some(w::SetUpFetched { binary: expected_binary, done: 10, total }));
     }
 }
 
@@ -1331,22 +1237,19 @@ fn forges_encode_the_domains_rows_without_settings() {
         failure.rows[0].connection = forge::Connection::SetUpFailed { why: b"stopped".as_slice().into() };
         failure.rows[0].failed = failed;
         let bytes = family::forges(failure, false, &w::CEILINGS).unwrap();
-        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
-        let w::Connection::SetUpFailed(failure) = rows.get(0).unwrap().connection() else { panic!("setup failure") };
-        assert_eq!(failure.at(), &expected);
-        assert_eq!(failure.why(), b"stopped");
+        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
+        let w::Connection::SetUpFailed(failure) = &rows.get(0).unwrap().connection else { panic!("setup failure") };
+        assert_eq!(&failure.at, &expected);
+        assert_eq!(failure.why.as_ref(), b"stopped");
     }
     let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
-    let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
+    let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
     let expected = [
         (
             1,
             w::Kind::Forgejo,
             w::Mode::Owned,
-            w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(w::SetUpStep::Prepare), fetched: None })
-                    .unwrap(),
-            ),
+            w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Prepare), fetched: None }),
             w::Offer::Offered,
         ),
         (2, w::Kind::Github, w::Mode::Connected, w::Connection::NotConnected, w::Offer::NotOffered),
@@ -1366,44 +1269,34 @@ fn expected_forge_row(
     connection: w::Connection,
     offer: w::Offer,
 ) -> w::ForgeRow {
-    w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
-            starts_with: w::StartsWith::Repository,
-            makings: List::with_capacity(0),
-            host: b"git.example:3000".as_slice().into(),
-            number,
-            kind,
-            mode,
-            connection,
-            offer,
-            first: None,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: if number == 1 {
-                Some(
-                    w::OwnedForge::new(
-                        &w::CEILINGS,
-                        w::OwnedForgeParts {
-                            forgejo: b"17.0.0".as_slice().into(),
-                            runner: Some(b"13.2.0".as_slice().into()),
-                            password: b"/fake/forge/person_password".as_slice().into(),
-                        },
-                    )
-                    .unwrap(),
-                )
-            } else {
-                None
-            },
-            admin: false,
-            read_only: false,
-            ended_stop: None,
+    w::ForgeRow {
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number,
+        kind,
+        mode,
+        connection,
+        offer,
+        first: None,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: if number == 1 {
+            Some(w::OwnedForge {
+                forgejo: b"17.0.0".as_slice().into(),
+                runner: Some(b"13.2.0".as_slice().into()),
+                password: b"/fake/forge/person_password".as_slice().into(),
+            })
+        } else {
+            None
         },
-    )
-    .unwrap()
+        admin: false,
+        read_only: false,
+        ended_stop: None,
+    }
 }
 
 #[test]
@@ -1442,32 +1335,17 @@ fn an_exceeded_hold_refusal_keeps_each_bound_and_its_configured_value() {
 
 #[test]
 fn setup_and_first_repository_states_translate_without_losing_fields() {
-    let record = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        first: w::SetUpFirst::Empty(
-                            w::FirstEmpty::new(
-                                &w::CEILINGS,
-                                w::FirstEmptyParts {
-                                    playground: false,
-                                    org: b"team".as_slice().into(),
-                                    repository: b"widget".as_slice().into(),
-                                },
-                            )
-                            .expect("setup names fit wire ceilings"),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let record = w::Requesting {
+        request: w::Request::SetUp(w::SetUp {
+            forge: w::Making::Kept(w::Kept { forge: 3 }),
+            first: w::SetUpFirst::Empty(w::FirstEmpty {
+                playground: false,
+                sample: true,
+                org: b"team".as_slice().into(),
+                repository: b"widget".as_slice().into(),
+            }),
+        }),
+    };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -1485,6 +1363,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
             forge: forge::Making::Kept(3),
             first: forge::SetUpFirst::Empty {
                 playground: false,
+                sample: true,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into()
             }
@@ -1500,6 +1379,7 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
     ] {
         let first = forge::First {
             playground: false,
+            sample: true,
             org: b"team".as_slice().into(),
             repository: b"widget".as_slice().into(),
             state,
@@ -1515,14 +1395,15 @@ fn setup_and_first_repository_states_translate_without_losing_fields() {
         row.first = Some(first);
         let value = forge::Forges { rows: Box::new([row]) };
         let bytes = family::forges(value, false, &w::CEILINGS).unwrap();
-        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
-        let first = rows.get(0).unwrap().first().as_ref().unwrap();
-        assert_eq!((first.org(), first.repository()), (b"team".as_slice(), b"widget".as_slice()));
-        match (state, first.state()) {
+        let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
+        let first = rows.get(0).unwrap().first.as_ref().unwrap();
+        assert_eq!((first.org.as_ref(), first.repository.as_ref()), (b"team".as_slice(), b"widget".as_slice()));
+        assert!(first.sample);
+        match (state, &first.state) {
             (forge::FirstState::Making, w::FirstState::Making) => {}
-            (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id()),
+            (forge::FirstState::Made { id }, w::FirstState::Made(value)) => assert_eq!(id, value.id),
             (forge::FirstState::Failed { step }, w::FirstState::Failed(value)) => assert_eq!(
-                value.step(),
+                &value.step,
                 &match step {
                     forge::CreateStep::Admin => w::CreateStep::Admin,
                     forge::CreateStep::Org => w::CreateStep::Org,
@@ -1543,53 +1424,41 @@ fn invalid_setup_refusals_translate_to_the_wire() {
         &jig,
     )
     .unwrap();
-    let w::Outcome::SetUpRefused(value) =
-        w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
+    let w::Outcome::SetUpRefused(value) = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome
     else {
         panic!("refusal")
     };
-    assert_eq!(value.why(), &w::SetUpRefusal::Invalid);
+    assert_eq!(&value.why, &w::SetUpRefusal::Invalid);
 }
 
 #[test]
 fn playground_start_outcomes_encode_every_failure_and_unknown() {
     let jig = jig_protocol_config_fixtures::small().clients.wire;
-    let group = w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: b"prepare 1 exited 1".as_slice().into() })
-        .unwrap();
+    let group = w::GroupFailed { why: b"prepare 1 exited 1".as_slice().into() };
     for (answer, expected) in [
         (None, w::Outcome::Unknown),
         (Some(forge::StartAnswer::Running), w::Outcome::Running),
         (
             Some(forge::StartAnswer::NotOffered),
-            w::Outcome::StartRefused(
-                w::StartRefused::new(&w::CEILINGS, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap(),
-            ),
+            w::Outcome::StartRefused(w::StartRefused { why: w::StartRefusal::NotOffered }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::Account)),
-            w::Outcome::StartFailed(
-                w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::Adoption)),
-            w::Outcome::StartFailed(
-                w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Adoption }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Adoption }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::NotConnected)),
-            w::Outcome::StartFailed(
-                w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::NotConnected }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::NotConnected }),
         ),
         (
             Some(forge::StartAnswer::Failed(forge::StartFailure::Group {
                 why: b"prepare 1 exited 1".as_slice().into(),
             })),
-            w::Outcome::StartFailed(
-                w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Group(group) }).unwrap(),
-            ),
+            w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Group(group) }),
         ),
     ] {
         let (first, playground) = match answer {
@@ -1601,10 +1470,7 @@ fn playground_start_outcomes_encode_every_failure_and_unknown() {
         };
         for answer in [first, playground] {
             let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
-            assert_eq!(
-                w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome,
-                expected
-            );
+            assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
         }
     }
 }
@@ -1637,27 +1503,13 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
         // Oversized values cannot pass the wire's own bound; all other rows also cross decode.
         if path.len() <= 512 {
             for request in [
-                w::Request::Install(
-                    w::Install::new(&w::CEILINGS, w::InstallParts { forge: 1, back: Some(path.into()) }).unwrap(),
-                ),
-                w::Request::Connect(
-                    w::Connect::new(
-                        &w::CEILINGS,
-                        w::ConnectParts {
-                            forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 1 }).unwrap()),
-                            how: w::How::GithubManifest(
-                                w::GitHubManifest::new(
-                                    &w::CEILINGS,
-                                    w::GitHubManifestParts { back: Some(path.into()) },
-                                )
-                                .unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                ),
+                w::Request::Install(w::Install { forge: 1, back: Some(path.into()) }),
+                w::Request::Connect(w::Connect {
+                    forge: w::Making::Kept(w::Kept { forge: 1 }),
+                    how: w::How::GithubManifest(w::GitHubManifest { back: Some(path.into()) }),
+                }),
             ] {
-                let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+                let request = w::Requesting { request };
                 let result = family::to_root(
                     &jig_protocol_config::Directories::working(),
                     exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1715,15 +1567,7 @@ fn install_and_manifest_paths_are_bounded_visible_paths_on_this_listener() {
 
 #[test]
 fn install_without_a_back_is_admitted() {
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::Install(
-                w::Install::new(&w::CEILINGS, w::InstallParts { forge: 1, back: None }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let request = w::Requesting { request: w::Request::Install(w::Install { forge: 1, back: None }) };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1784,26 +1628,23 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
         &w::CEILINGS,
     )
     .unwrap();
-    let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
+    let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().forges;
     let row = rows.get(0).unwrap();
-    assert!(row.admin());
+    assert!(row.admin);
     assert_eq!(
-        row.ended_stop(),
-        &Some(w::AdminStop::Refused(
-            w::AdminRefused::new(&w::CEILINGS, w::AdminRefusedParts { status: 403, stage: w::SetupStage::Token })
-                .unwrap()
-        ))
+        &row.ended_stop,
+        &Some(w::AdminStop::Refused(w::AdminRefused { status: 403, stage: w::SetupStage::Token }))
     );
-    let installation = row.installations().get(0).unwrap();
-    assert_eq!((installation.id(), installation.suspended(), installation.stray()), (11, true, false));
-    let account = installation.account().as_ref().unwrap();
-    assert_eq!((account.id(), account.login()), (111, b"acme".as_slice()));
-    let installation = row.installations().get(1).unwrap();
+    let installation = row.installations.get(0).unwrap();
+    assert_eq!((installation.id, installation.suspended, installation.stray), (11, true, false));
+    let account = installation.account.as_ref().unwrap();
+    assert_eq!((account.id, account.login.as_ref()), (111, b"acme".as_slice()));
+    let installation = row.installations.get(1).unwrap();
     assert_eq!(
-        (installation.id(), installation.account(), installation.suspended(), installation.stray()),
+        (installation.id, &installation.account, installation.suspended, installation.stray),
         (22, &None, false, true)
     );
-    assert_eq!(row.ended().as_ref().unwrap().why(), b"the pasted value changed");
+    assert_eq!(row.ended.as_ref().unwrap().why.as_ref(), b"the pasted value changed");
 }
 
 #[test]
@@ -1856,19 +1697,19 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         };
         let bytes = family::forges(value, false, &w::CEILINGS).expect("the row is still available");
         let rows = temper_client_protocol_wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(rows.forges().len(), 1);
-        let owned = rows.forges().as_slice()[0].owned();
+        assert_eq!(rows.forges.len(), 1);
+        let owned = &rows.forges.as_slice()[0].owned;
         assert_eq!(owned.is_some(), kept);
         if let Some(owned) = owned {
-            assert_eq!(owned.forgejo().len(), forgejo);
+            assert_eq!(owned.forgejo.len(), forgejo);
             assert_eq!(
-                match owned.runner() {
+                match &owned.runner {
                     Some(runner) => Some(runner.len()),
                     None => None,
                 },
                 runner
             );
-            assert_eq!(owned.password().len(), password);
+            assert_eq!(owned.password.len(), password);
         }
     }
 }
@@ -1876,15 +1717,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
 #[test]
 fn accept_decodes_only_a_nonzero_installation_and_keeps_its_id() {
     for installation in [0, 22, u64::MAX] {
-        let request = w::Requesting::new(
-            &w::CEILINGS,
-            w::RequestingParts {
-                request: w::Request::Accept(
-                    w::Accept::new(&w::CEILINGS, w::AcceptParts { forge: 1, installation }).unwrap(),
-                ),
-            },
-        )
-        .unwrap();
+        let request = w::Requesting { request: w::Request::Accept(w::Accept { forge: 1, installation }) };
         let result = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -1914,25 +1747,19 @@ fn accept_answers_use_the_appended_success_and_existing_refusals() {
     for (answer, expected) in [
         (
             forge::AcceptAnswer::Accepted { installation: 22 },
-            w::Outcome::Accepted(
-                w::AcceptedInstallation::new(&w::CEILINGS, w::AcceptedInstallationParts { installation: 22 }).unwrap(),
-            ),
+            w::Outcome::Accepted(w::AcceptedInstallation { installation: 22 }),
         ),
         (
             forge::AcceptAnswer::Refused(forge::ForgeRefusal::Role),
-            w::Outcome::ConnectRefused(
-                w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::Role }).unwrap(),
-            ),
+            w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::Role }),
         ),
         (
             forge::AcceptAnswer::ForgeRefused(forge::AdoptionRefusal::NotFound),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::NotFound }).unwrap(),
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::NotFound }),
         ),
     ] {
         let bytes = family::answer(Some(root::ApplicationAnswer::Accept(answer)), &w::CEILINGS, &jig).unwrap();
-        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
     }
 }
 
@@ -1941,9 +1768,9 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
     for mode in [forge::Mode::Fake, forge::Mode::Owned, forge::Mode::Connected] {
         let mut forges = configured(b"http://forge.example");
         forges[0].mode = mode;
-        let got = decoded_panel(panel(), &fixtures::forge_table(&forges)).into_parts().pull.unwrap();
+        let got = decoded_panel(panel(), &fixtures::forge_table(&forges)).pull.unwrap();
         assert_eq!(
-            got.address(),
+            got.address.as_ref(),
             if mode == forge::Mode::Fake {
                 b"".as_slice()
             } else {
@@ -1955,6 +1782,13 @@ fn a_fake_forges_panel_has_no_address_and_real_forgejos_keep_theirs() {
 
 fn landing_view() -> forge::LandingView {
     forge::LandingView {
+        waits: Some(forge::LandingWait {
+            on: forge::LandingWaitFor::Run,
+            change: Some(51),
+            gate: Some(b"tests".as_slice().into()),
+            run: Some(412),
+            landing: None,
+        }),
         probe: None,
         train: Some(forge::LandingTrain {
             repository: skein_forge::api::Repository { forge: 1, repository: 9 },
@@ -2024,9 +1858,9 @@ fn a_first_round_search_uses_its_members_base_at_boundary_zero() {
     let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
         .expect("the original round's search has a base");
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-    let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
-    assert_eq!((search.green().member(), search.green().prefix()), (0, &[0x22; 32]));
-    assert_eq!((search.red().member(), search.red().prefix()), (1, &[0x33; 32]));
+    let search = got.round.as_ref().unwrap().search.as_ref().unwrap();
+    assert_eq!((search.green.member, &search.green.prefix), (0, &[0x22; 32]));
+    assert_eq!((search.red.member, &search.red.prefix), (1, &[0x33; 32]));
 }
 
 #[test]
@@ -2056,9 +1890,9 @@ fn a_later_search_keeps_its_base_after_a_prior_turn_and_a_cut() {
         let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
             .expect("later search maps");
         let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-        let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
-        assert_eq!(search.green().prefix(), &[0x22; 32]);
-        assert_eq!(search.red().prefix(), &[0x33; 32]);
+        let search = got.round.as_ref().unwrap().search.as_ref().unwrap();
+        assert_eq!(&search.green.prefix, &[0x22; 32]);
+        assert_eq!(&search.red.prefix, &[0x33; 32]);
     }
 }
 
@@ -2079,12 +1913,12 @@ fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     let bytes =
         family::document(forge::Document::Landing(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-    let round = got.round().as_ref().unwrap();
-    assert_eq!(round.step(), &w::LandingStep::Probing);
-    let search = round.search().as_ref().expect("search in the client panel");
-    assert_eq!((search.green().member(), search.green().prefix()), (0, &[0x22; 32]));
-    assert_eq!((search.red().member(), search.red().prefix()), (2, &[0x33; 32]));
-    assert_eq!(search.probe(), &Some([0x11; 32]));
+    let round = got.round.as_ref().unwrap();
+    assert_eq!(&round.step, &w::LandingStep::Probing);
+    let search = round.search.as_ref().expect("search in the client panel");
+    assert_eq!((search.green.member, &search.green.prefix), (0, &[0x22; 32]));
+    assert_eq!((search.red.member, &search.red.prefix), (2, &[0x33; 32]));
+    assert_eq!(&search.probe, &Some([0x11; 32]));
     value.step = forge::LandingStep::Proving;
     value.probe = None;
     value.round.search = Some(forge::LandingSearch { tests: forge::LandingSearchTests::Whole, green: 1, red: 2 });
@@ -2093,12 +1927,12 @@ fn a_searching_landing_encodes_numbered_bounds_probe_and_blame() {
     let bytes = family::document(forge::Document::Landing(value), &fixtures::forge_table(&[]), &w::CEILINGS)
         .expect("cut search still maps");
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-    let search = got.round().as_ref().unwrap().search().as_ref().unwrap();
-    assert_eq!((search.green().member(), search.green().prefix()), (1, &[0x11; 32]));
-    assert_eq!(search.red().prefix(), &[0x33; 32]);
-    assert_eq!(search.probe(), &None);
-    let Some(w::LandingLeave::Blamed(blamed)) = got.members().get(1).unwrap().left() else { panic!("blamed member") };
-    assert_eq!((blamed.gate(), blamed.run(), blamed.red(), blamed.green()), (2, 7, &[0x33; 32], &[0x11; 32]));
+    let search = got.round.as_ref().unwrap().search.as_ref().unwrap();
+    assert_eq!((search.green.member, &search.green.prefix), (1, &[0x11; 32]));
+    assert_eq!(&search.red.prefix, &[0x33; 32]);
+    assert_eq!(&search.probe, &None);
+    let Some(w::LandingLeave::Blamed(blamed)) = &got.members.get(1).unwrap().left else { panic!("blamed member") };
+    assert_eq!((blamed.gate, blamed.run, &blamed.red, &blamed.green), (2, 7, &[0x33; 32], &[0x11; 32]));
 }
 
 #[test]
@@ -2133,27 +1967,27 @@ fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
     let bytes =
         family::document(forge::Document::Landing(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-    let round = got.round().as_ref().unwrap();
-    assert_eq!(round.step(), &w::LandingStep::ProbingByTest);
-    let search = round.search().as_ref().unwrap();
-    assert_eq!(search.probe(), &Some([0x11; 32]));
-    let w::SearchTests::ByTest(tests) = search.tests() else { panic!("by test") };
-    assert_eq!(tests.gates().len(), 2);
-    let unit = tests.gates().get(0).unwrap();
-    assert_eq!((unit.gate(), unit.name(), unit.count()), (0, b"unit".as_slice(), 2));
-    assert_eq!(unit.ids().as_slice(), &[Box::<[u8]>::from(b"crate.a".as_slice()), b"crate.b".as_slice().into()]);
-    let lint = tests.gates().get(1).unwrap();
-    assert_eq!((lint.gate(), lint.name(), lint.count()), (1, b"lint".as_slice(), 4));
+    let round = got.round.as_ref().unwrap();
+    assert_eq!(&round.step, &w::LandingStep::ProbingByTest);
+    let search = round.search.as_ref().unwrap();
+    assert_eq!(&search.probe, &Some([0x11; 32]));
+    let w::SearchTests::ByTest(tests) = &search.tests else { panic!("by test") };
+    assert_eq!(tests.gates.len(), 2);
+    let unit = tests.gates.get(0).unwrap();
+    assert_eq!((unit.gate, unit.name.as_ref(), unit.count), (0, b"unit".as_slice(), 2));
+    assert_eq!(unit.ids.as_slice(), &[Box::<[u8]>::from(b"crate.a".as_slice()), b"crate.b".as_slice().into()]);
+    let lint = tests.gates.get(1).unwrap();
+    assert_eq!((lint.gate, lint.name.as_ref(), lint.count), (1, b"lint".as_slice(), 4));
     assert_eq!(
-        lint.ids().as_slice(),
+        lint.ids.as_slice(),
         &[Box::<[u8]>::from(b"a".as_slice()), b"b".as_slice().into(), b"c".as_slice().into()]
     );
-    let passes = tests.passes();
+    let passes = &tests.passes;
     assert_eq!(passes.len(), 2);
     for (gate, name, run) in [(0, b"unit".as_slice(), 7), (1, b"lint".as_slice(), 8)] {
         let pass = passes.get(gate).unwrap();
         assert_eq!(
-            (pass.member(), pass.prefix(), pass.gate(), pass.name(), pass.run()),
+            (pass.member, &pass.prefix, pass.gate, pass.name.as_ref(), pass.run),
             (1, &[0x11; 32], u16::try_from(gate).unwrap(), name, run)
         );
     }
@@ -2166,7 +2000,7 @@ fn a_search_by_test_encodes_selections_passes_and_the_probe_kind() {
             family::document(forge::Document::Landing(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS)
                 .unwrap();
         let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(got.round().as_ref().unwrap().search().as_ref().unwrap().tests(), &expected);
+        assert_eq!(&got.round.as_ref().unwrap().search.as_ref().unwrap().tests, &expected);
     }
 }
 
@@ -2180,51 +2014,60 @@ fn a_landing_view_encodes_to_its_panel() {
         family::document(forge::Document::Landing(landing_view()), &fixtures::forge_table(&forges), &w::CEILINGS)
             .unwrap();
     let got = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
+    let wait = got.waits.as_ref().unwrap();
     assert_eq!(
-        (got.task(), got.project(), got.phase(), got.preparation(), got.stale_proofs(), got.turn()),
+        (&wait.on, &wait.change, wait.gate.as_deref(), &wait.run, &wait.landing),
+        (&w::LandingWaitFor::Run, &Some(51), Some(b"tests".as_slice()), &Some(412), &None)
+    );
+    assert_eq!(
+        (got.task, got.project, &got.phase, got.preparation, got.stale_proofs, &got.turn),
         (61, 7, &w::LandingPhase::Proving, 2, 3, &Some(62))
     );
-    let train = got.train().as_ref().unwrap();
+    let train = got.train.as_ref().unwrap();
     assert_eq!(
-        (train.forge(), train.repository(), train.owner(), train.name(), train.branch()),
+        (train.forge, train.repository, train.owner.as_ref(), train.name.as_ref(), train.branch.as_ref()),
         (1, 9, b"acme".as_slice(), b"shop".as_slice(), b"main".as_slice())
     );
-    let round = got.round().as_ref().unwrap();
+    let round = got.round.as_ref().unwrap();
     assert_eq!(
-        (round.number(), round.branch(), round.combined(), round.step()),
+        (round.number, round.branch.as_ref(), &round.combined, &round.step),
         (2, b"temper/61/2".as_slice(), &Some(w::Combined::Squash), &w::LandingStep::Judging)
     );
-    assert_eq!(round.pull().as_ref().unwrap().number(), 7);
-    assert_eq!(round.pull().as_ref().unwrap().address(), b"https://git.example/acme/shop/pulls/7");
-    let member = got.members().get(0).unwrap();
+    assert_eq!(round.pull.as_ref().unwrap().number, 7);
+    assert_eq!(round.pull.as_ref().unwrap().address.as_ref(), b"https://git.example/acme/shop/pulls/7");
+    let member = got.members.get(0).unwrap();
     assert_eq!(
-        (member.change(), member.forge(), member.base(), member.candidate(), member.landed()),
+        (member.change, member.forge, &member.base, &member.candidate, &member.landed),
         (51, 1, &Some([2; 32]), &Some([3; 32]), &None)
     );
-    assert_eq!(member.head(), &Some([1; 32]));
-    let w::LandingLeave::Refused(refused) = member.left().as_ref().unwrap() else { panic!("refused judgement") };
-    assert_eq!(refused.gate(), 4);
-    let judgement = member.judgement().as_ref().unwrap();
-    assert_eq!((judgement.prefix(), judgement.verdict()), (&[3; 32], &w::Ci::Failed));
-    assert_eq!(judgement.gates().get(0).unwrap().number(), 4);
-    assert_eq!(member.owner(), b"acme");
-    assert_eq!(member.name(), b"shop");
-    assert_eq!(member.branch(), b"temper/51");
-    assert_eq!(member.landing(), b"main");
-    assert_eq!(member.pull().as_ref().unwrap().address(), b"https://git.example/acme/shop/pulls/123");
-    let gate = member.gates().get(0).unwrap();
-    assert_eq!(gate.key(), &Some([4; 32]));
-    assert!(gate.blocking());
-    assert_eq!(gate.faults(), 1);
-    let w::Proof::Passed(run) = gate.proof() else { panic!("receipt") };
-    assert_eq!((run.run(), run.number(), run.address()), (7, 3, b"https://forge.example/run/7".as_slice()));
+    assert_eq!(&member.head, &Some([1; 32]));
+    let w::LandingLeave::Refused(refused) = member.left.as_ref().unwrap() else { panic!("refused judgement") };
+    assert_eq!(refused.gate, 4);
+    let judgement = member.judgement.as_ref().unwrap();
+    assert_eq!((&judgement.prefix, &judgement.verdict), (&[3; 32], &w::Ci::Failed));
+    assert_eq!(judgement.gates.get(0).unwrap().number, 4);
+    assert_eq!(member.owner.as_ref(), b"acme");
+    assert_eq!(member.name.as_ref(), b"shop");
+    assert_eq!(member.branch.as_ref(), b"temper/51");
+    assert_eq!(member.landing.as_ref(), b"main");
+    assert_eq!(member.pull.as_ref().unwrap().address.as_ref(), b"https://git.example/acme/shop/pulls/123");
+    let gate = member.gates.get(0).unwrap();
+    assert_eq!(&gate.key, &Some([4; 32]));
+    assert!(gate.blocking);
+    assert_eq!(gate.faults, 1);
+    let w::Proof::Passed(run) = &gate.proof else { panic!("receipt") };
+    assert_eq!((run.run, run.number, run.address.as_ref()), (7, 3, b"https://forge.example/run/7".as_slice()));
 }
 #[test]
 fn a_landings_view_encodes_to_its_list() {
     let value = forge::LandingsView {
+        now: skein_lib::Wall::from_nanos(100),
+        turn_since: Some(skein_lib::Wall::from_nanos(40)),
         project: 7,
         turn: Some(61),
         landings: Box::new([forge::LandingLine {
+            step: Some(forge::LandingStep::Turn),
+            last_event: Some(skein_lib::Wall::from_nanos(80)),
             train: None,
             task: 61,
             phase: forge::LandingPhase::Turn { at: skein_lib::Wall::EPOCH },
@@ -2235,29 +2078,22 @@ fn a_landings_view_encodes_to_its_list() {
     };
     let bytes = family::document(forge::Document::Landings(value), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_landings_panel(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!((got.project(), got.turn()), (7, &Some(61)));
-    assert_eq!(got.landings().len(), 1);
-    let row = got.landings().get(0).unwrap();
-    assert_eq!((row.task(), row.phase()), (61, &w::LandingPhase::Turn));
-    assert_eq!(row.changes().as_slice(), &[51]);
-    assert_eq!(row.repositories().as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);
-    assert_eq!(row.landed().as_slice(), &[[3; 32]]);
+    assert_eq!((got.project, &got.turn), (7, &Some(61)));
+    assert_eq!((got.now, &got.turn_since), (100, &Some(40)));
+    assert_eq!(got.landings.len(), 1);
+    let row = got.landings.get(0).unwrap();
+    assert_eq!((row.task, &row.phase), (61, &w::LandingPhase::Turn));
+    assert_eq!((&row.step, &row.last_event), (&Some(w::LandingStep::Turn), &Some(80)));
+    assert_eq!(row.changes.as_slice(), &[51]);
+    assert_eq!(row.repositories.as_slice(), &[Box::<[u8]>::from(b"acme/shop".as_slice())]);
+    assert_eq!(row.landed.as_slice(), &[[3; 32]]);
 }
 #[test]
 fn the_landings_subject_names_no_task() {
     for project in [0, 7, u32::MAX] {
         for ended in [false, true] {
-            let record = wire::watching(
-                &w::Watching::new(
-                    &w::CEILINGS,
-                    w::WatchingParts {
-                        watch: w::Watch::Landings(
-                            w::LandingsSubject::new(&w::CEILINGS, w::LandingsSubjectParts { project, ended }).unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            );
+            let record =
+                wire::watching(&w::Watching { watch: w::Watch::Landings(w::LandingsSubject { project, ended }) });
             let got = family::to_root(
                 &jig_protocol_config::Directories::working(),
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -2279,17 +2115,7 @@ fn the_landings_subject_names_no_task() {
             assert!(subject.raw() >= (1_u64 << 62_u32));
         }
     }
-    let record = wire::watching(
-        &w::Watching::new(
-            &w::CEILINGS,
-            w::WatchingParts {
-                watch: w::Watch::Landing(
-                    w::LandingSubject::new(&w::CEILINGS, w::LandingSubjectParts { task: 61 }).unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    );
+    let record = wire::watching(&w::Watching { watch: w::Watch::Landing(w::LandingSubject { task: 61 }) });
     let got = family::to_root(
         &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -2309,17 +2135,7 @@ fn the_landings_subject_names_no_task() {
             subject: Token::new(61)
         }
     );
-    let record = wire::watching(
-        &w::Watching::new(
-            &w::CEILINGS,
-            w::WatchingParts {
-                watch: w::Watch::Landing(
-                    w::LandingSubject::new(&w::CEILINGS, w::LandingSubjectParts { task: 0 }).unwrap(),
-                ),
-            },
-        )
-        .unwrap(),
-    );
+    let record = wire::watching(&w::Watching { watch: w::Watch::Landing(w::LandingSubject { task: 0 }) });
     let Err(refused) = family::to_root(
         &jig_protocol_config::Directories::working(),
         watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -2339,41 +2155,19 @@ fn the_landings_subject_names_no_task() {
 fn forge_removal_and_playground_requests_keep_their_envelopes() {
     for (request, expected) in [
         (
-            w::Request::Dismiss(
-                w::Dismiss::new(
-                    &w::CEILINGS,
-                    w::DismissParts {
-                        what: w::PersonFact::ToBegin(
-                            w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: 2 }).unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
+            w::Request::Dismiss(w::Dismiss { what: w::PersonFact::ToBegin(w::ToBegin { project: 2 }) }),
             root::Application::Dismiss { what: forge::PersonFact::ToBegin { project: 2 } },
         ),
         (
-            w::Request::Dismiss(
-                w::Dismiss::new(
-                    &w::CEILINGS,
-                    w::DismissParts {
-                        what: w::PersonFact::KeepAsking(
-                            w::KeepAsking::new(
-                                &w::CEILINGS,
-                                w::KeepAskingParts {
-                                    project: 2,
-                                    subject: temper_protocol_reaches::subject_record(
-                                        temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
-                                    ),
-                                    at: 17,
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
+            w::Request::Dismiss(w::Dismiss {
+                what: w::PersonFact::KeepAsking(w::KeepAsking {
+                    project: 2,
+                    subject: temper_protocol_reaches::subject_record(temper_protocol_reaches::Subject::Kind(
+                        temper_protocol_reaches::Kind::Tests,
+                    )),
+                    at: 17,
+                }),
+            }),
             root::Application::Dismiss {
                 what: forge::PersonFact::KeepAsking {
                     project: 2,
@@ -2383,13 +2177,13 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
             },
         ),
         (
-            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 9 }).unwrap()),
+            w::Request::RemoveForge(w::RemoveForge { forge: 9 }),
             root::Application::Forge(forge::Ask::RemoveForge { forge: 9 }),
         ),
         (w::Request::StartPlayground, root::Application::Forge(forge::Ask::StartPlayground)),
         (w::Request::EndPlayground, root::Application::Forge(forge::Ask::EndPlayground)),
     ] {
-        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let record = w::Requesting { request };
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -2414,22 +2208,15 @@ fn forge_removal_and_playground_requests_keep_their_envelopes() {
     }
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table checks both public acts across every forge place")]
 fn new_forge_places_reach_both_setup_and_connect_whole() {
-    let managed = w::ForgeAsk::Managed(
-        w::ManagedForge::new(
-            &w::CEILINGS,
-            w::ManagedForgeParts {
-                git_program: Some(b"bin/git".as_slice().into()),
-                host: b"forge.example".as_slice().into(),
-                port: 8443,
-                tls: Some(b"forge.example".as_slice().into()),
-                git: b"https://forge.example/git".as_slice().into(),
-                web: Some(b"https://forge.example".as_slice().into()),
-            },
-        )
-        .unwrap(),
-    );
+    let managed = w::ForgeAsk::Managed(w::ManagedForge {
+        git_program: Some(b"bin/git".as_slice().into()),
+        host: b"forge.example".as_slice().into(),
+        port: 8443,
+        tls: Some(b"forge.example".as_slice().into()),
+        git: b"https://forge.example/git".as_slice().into(),
+        web: Some(b"https://forge.example".as_slice().into()),
+    });
     let place = forge::Place {
         api: forge::Address {
             host: b"forge.example".as_slice().into(),
@@ -2451,58 +2238,40 @@ fn new_forge_places_reach_both_setup_and_connect_whole() {
         ),
         (managed, forge::ForgeAsk::Managed { place, git_program: Some(b"/data/bin/git".as_slice().into()) }),
     ] {
-        let making = w::Making::New(w::NewForge::new(&w::CEILINGS, w::NewForgeParts { forge: asked }).unwrap());
+        let making = w::Making::New(w::NewForge { forge: asked });
         for (request, expected) in [
             (
-                w::Request::SetUp(
-                    w::SetUp::new(
-                        &w::CEILINGS,
-                        w::SetUpParts {
-                            forge: making.clone(),
-                            first: w::SetUpFirst::Empty(
-                                w::FirstEmpty::new(
-                                    &w::CEILINGS,
-                                    w::FirstEmptyParts {
-                                        org: b"work".as_slice().into(),
-                                        repository: b"hello".as_slice().into(),
-                                        playground: false,
-                                    },
-                                )
-                                .expect("setup names fit wire ceilings"),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                ),
+                w::Request::SetUp(w::SetUp {
+                    forge: making.clone(),
+                    first: w::SetUpFirst::Empty(w::FirstEmpty {
+                        org: b"work".as_slice().into(),
+                        repository: b"hello".as_slice().into(),
+                        playground: false,
+                        sample: false,
+                    }),
+                }),
                 forge::Ask::SetUp {
                     forge: forge::Making::New(expected.clone()),
                     first: forge::SetUpFirst::Empty {
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         playground: false,
+                        sample: false,
                     },
                 },
             ),
             (
-                w::Request::Connect(
-                    w::Connect::new(
-                        &w::CEILINGS,
-                        w::ConnectParts {
-                            forge: making,
-                            how: w::How::ForgejoAdmin(
-                                w::ForgejoAdmin::new(&w::CEILINGS, w::ForgejoAdminParts { first: None }).unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                ),
+                w::Request::Connect(w::Connect {
+                    forge: making,
+                    how: w::How::ForgejoAdmin(w::ForgejoAdmin { first: None }),
+                }),
                 forge::Ask::Connect {
                     forge: forge::Making::New(expected),
                     how: forge::How::ForgejoAdmin { first: None },
                 },
             ),
         ] {
-            let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+            let record = w::Requesting { request };
             let event = family::to_root(
                 &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -2529,28 +2298,22 @@ fn removal_and_playground_answers_use_their_own_outcomes() {
         (root::ApplicationAnswer::Dismiss(forge::DismissAnswer::Dismissed), w::Outcome::Dismissed),
         (
             root::ApplicationAnswer::Dismiss(forge::DismissAnswer::TooLarge),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         ),
         (root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed), w::Outcome::Removed),
         (
             root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::ForgeRefusal::Role)),
-            w::Outcome::RemoveRefused(
-                w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: w::ForgeRefusal::Role }).unwrap(),
-            ),
+            w::Outcome::RemoveRefused(w::RemoveRefused { why: w::ForgeRefusal::Role }),
         ),
         (root::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running), w::Outcome::Running),
         (root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset), w::Outcome::Reset),
         (
             root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered),
-            w::Outcome::EndRefused(
-                w::EndRefused::new(&w::CEILINGS, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).unwrap(),
-            ),
+            w::Outcome::EndRefused(w::EndRefused { why: w::EndRefusal::NotOffered }),
         ),
     ] {
         let bytes = family::answer(Some(answer), &w::CEILINGS, &jig).unwrap();
-        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
     }
 }
 
@@ -2560,10 +2323,7 @@ fn end_playground_answers_reset() {
     let bytes =
         family::answer(Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)), &w::CEILINGS, &jig)
             .unwrap();
-    assert_eq!(
-        w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome,
-        w::Outcome::Reset
-    );
+    assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, w::Outcome::Reset);
 }
 
 #[test]
@@ -2578,19 +2338,19 @@ fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
         let mut value = panel();
         value.step = input.clone();
         let got = decoded_panel(value, &fixtures::forge_table(&[]));
-        match (input, got.step()) {
+        match (input, &got.step) {
             (forge::PanelStep::Verifying { merge, tiers }, w::Step::Verifying(value)) => {
-                assert_eq!(*value.merge(), merge);
-                assert_eq!(value.tiers().as_slice(), tiers.as_ref());
+                assert_eq!(value.merge, merge);
+                assert_eq!(value.tiers.as_slice(), tiers.as_ref());
             }
             (forge::PanelStep::Red { merge, tiers }, w::Step::Red(value)) => {
-                assert_eq!(*value.merge(), merge);
-                assert_eq!(value.tiers().as_slice(), tiers.as_ref());
+                assert_eq!(value.merge, merge);
+                assert_eq!(value.tiers.as_slice(), tiers.as_ref());
             }
             (forge::PanelStep::Cleared { merge, tiers, uncleared }, w::Step::Cleared(value)) => {
-                assert_eq!(*value.merge(), merge);
-                assert_eq!(value.tiers().as_slice(), tiers.as_ref());
-                assert_eq!(value.uncleared(), uncleared);
+                assert_eq!(value.merge, merge);
+                assert_eq!(value.tiers.as_slice(), tiers.as_ref());
+                assert_eq!(value.uncleared, uncleared);
             }
             _ => panic!("step preserved"),
         }
@@ -2601,26 +2361,15 @@ fn after_landing_steps_translate_all_tier_lines_and_uncleared() {
 fn tokens_connect_and_replace_keep_their_carried_values_and_envelopes() {
     for (request, expected) in [
         (
-            w::Request::Connect(
-                w::Connect::new(
-                    &w::CEILINGS,
-                    w::ConnectParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 9 }).unwrap()),
-                        how: w::How::ForgejoTokens(
-                            w::ForgejoTokens::new(&w::CEILINGS, w::ForgejoTokensParts {}).unwrap(),
-                        ),
-                    },
-                )
-                .unwrap(),
-            ),
+            w::Request::Connect(w::Connect {
+                forge: w::Making::Kept(w::Kept { forge: 9 }),
+                how: w::How::ForgejoTokens(w::ForgejoTokens {}),
+            }),
             forge::Ask::Connect { forge: forge::Making::Kept(9), how: forge::How::ForgejoTokens },
         ),
-        (
-            w::Request::Replace(w::Replace::new(&w::CEILINGS, w::ReplaceParts { forge: 9 }).unwrap()),
-            forge::Ask::Replace { forge: 9 },
-        ),
+        (w::Request::Replace(w::Replace { forge: 9 }), forge::Ask::Replace { forge: 9 }),
     ] {
-        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let record = w::Requesting { request };
         let carried = Some(jig_domain_core::Carried { number: 27, digest: [8; 32] });
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
@@ -2669,15 +2418,12 @@ fn connect_and_replace_answers_share_the_connect_outcomes() {
         (Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Connecting)), w::Outcome::Connecting),
         (
             Some(root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(forge::ForgeRefusal::NotTaken))),
-            w::Outcome::ConnectRefused(
-                w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NotTaken })
-                    .unwrap(),
-            ),
+            w::Outcome::ConnectRefused(w::ConnectRefused { why: w::ForgeRefusal::NotTaken }),
         ),
         (None, w::Outcome::Unknown),
     ] {
         let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
-        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
     }
 }
 
@@ -2685,32 +2431,22 @@ fn connect_and_replace_answers_share_the_connect_outcomes() {
 fn forge_settings_reads_reach_the_root_with_their_authorization_envelope() {
     for (read, query, expected_scope) in [
         (
-            w::Read::Setting(
-                w::SettingRead::new(&w::CEILINGS, w::SettingReadParts { kind: 2, scope: 7, number: 3 }).unwrap(),
-            ),
+            w::Read::Setting(w::SettingRead { kind: 2, scope: 7, number: 3 }),
             root::ForgeRead::Setting { kind: 2, scope: 7, number: 3 },
             people::ApplicationScope::Deployment,
         ),
         (
-            w::Read::ProposalItems(
-                w::ProposalItemsRead::new(&w::CEILINGS, w::ProposalItemsReadParts { key: u64::MAX }).unwrap(),
-            ),
+            w::Read::ProposalItems(w::ProposalItemsRead { key: u64::MAX }),
             root::ForgeRead::ProposalItems { key: u64::MAX },
             people::ApplicationScope::Deployment,
         ),
         (
-            w::Read::View(
-                w::ViewRead::new(
-                    &w::CEILINGS,
-                    w::ViewReadParts { project: 7, address: b"proposal t12/3".as_slice().into() },
-                )
-                .unwrap(),
-            ),
+            w::Read::View(w::ViewRead { project: 7, address: b"proposal t12/3".as_slice().into() }),
             root::ForgeRead::View { project: 7, address: b"proposal t12/3".as_slice().into() },
             people::ApplicationScope::Project(7),
         ),
     ] {
-        let record = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap());
+        let record = wire::reading(&w::Reading { read });
         let exchange = kit::ToApplication::Read {
             reply: REPLY,
             sign_in: 3,
@@ -2746,16 +2482,16 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
     )
     .unwrap();
     assert_eq!(
-        wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().value().as_deref(),
+        wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().value.as_deref(),
         Some(temper_engine_smith::kinds::encode(&value.value).as_ref())
     );
-    assert_eq!(wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().revision(), &Some(4));
+    assert_eq!(&wire::decode_setting_answer(&record, &w::CEILINGS).unwrap().revision, &Some(4));
     for revision in [Some(5), None] {
         let empty =
             family::forge_read(root::ForgeReadAnswer::Setting { value: None, revision }, &[], &w::CEILINGS).unwrap();
         let answer = wire::decode_setting_answer(&empty, &w::CEILINGS).unwrap();
-        assert!(answer.value().is_none());
-        assert_eq!(answer.revision(), &revision);
+        assert!(answer.value.is_none());
+        assert_eq!(&answer.revision, &revision);
     }
     let items = Box::new([
         (SettingKey { kind: 3, scope: 0, number: 1, slot: SettingSlot::Proposal(7) }, Edit::Set(value.clone())),
@@ -2766,15 +2502,15 @@ fn forge_settings_answers_use_the_kinds_codec_and_preserve_proposal_edits() {
         family::forge_read(root::ForgeReadAnswer::ProposalItems { items, owned_approval: true }, &[], &w::CEILINGS)
             .unwrap();
     let decoded = wire::decode_proposal_items_answer(&record, &w::CEILINGS).unwrap();
-    assert_eq!(decoded.items().len(), 3);
-    assert!(decoded.owned_approval());
-    for (item, (kind, scope, number)) in decoded.items().iter().zip([(3, 0, 1), (2, 9, 2), (1, 0, 3)]) {
-        assert_eq!((item.kind(), item.scope(), item.number()), (kind, scope, number));
+    assert_eq!(decoded.items.len(), 3);
+    assert!(decoded.owned_approval);
+    for (item, (kind, scope, number)) in decoded.items.iter().zip([(3, 0, 1), (2, 9, 2), (1, 0, 3)]) {
+        assert_eq!((item.kind, item.scope, item.number), (kind, scope, number));
     }
-    let w::SettingEdit::Set(set) = decoded.items().as_slice()[0].edit() else { panic!("set value") };
-    assert_eq!(set.value(), temper_engine_smith::kinds::encode(&value.value).as_ref());
-    assert_eq!(*decoded.items().as_slice()[1].edit(), w::SettingEdit::Removed);
-    assert_eq!(*decoded.items().as_slice()[2].edit(), w::SettingEdit::Reset);
+    let w::SettingEdit::Set(set) = &decoded.items.as_slice()[0].edit else { panic!("set value") };
+    assert_eq!(set.value.as_ref(), temper_engine_smith::kinds::encode(&value.value).as_ref());
+    assert_eq!(decoded.items.as_slice()[1].edit, w::SettingEdit::Removed);
+    assert_eq!(decoded.items.as_slice()[2].edit, w::SettingEdit::Reset);
 }
 
 #[test]
@@ -2795,58 +2531,28 @@ fn a_panels_questions_map_field_for_field() {
             let number = 1_u64.checked_add(u64::try_from(index).unwrap()).unwrap();
             let line = b"Which branch?".as_slice();
             open.push(forge::PanelQuestion { asker, number, line: Box::from(line), stands }).unwrap();
-            expected
-                .push(
-                    w::Question::new(
-                        &w::CEILINGS,
-                        w::QuestionParts { asker, number, line: Box::from(line), stands: wire },
-                    )
-                    .unwrap(),
-                )
-                .unwrap();
+            expected.push(w::Question { asker, number, line: Box::from(line), stands: wire }).unwrap();
         }
         value.questions =
             forge::PanelQuestions { route, taken: forge::PanelUsed { used: 2, limit: 4 }, open: open.into_boxed() };
         let got = decoded_panel(value, &fixtures::forge_table(&[]));
         assert_eq!(
-            got.questions(),
-            &w::Questions::new(
-                &w::CEILINGS,
-                w::QuestionsParts {
-                    route: expected_route,
-                    taken: w::Used::new(&w::CEILINGS, w::UsedParts { used: 2, limit: 4 }).unwrap(),
-                    open: expected
-                }
-            )
-            .unwrap()
+            &got.questions,
+            &w::Questions { route: expected_route, taken: w::Used { used: 2, limit: 4 }, open: expected }
         );
     }
 }
 
 fn make_request(from: w::MakeFrom, into: bool) -> w::Requesting {
-    w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::MakeRepository(
-                w::MakeRepository::new(
-                    &w::CEILINGS,
-                    w::MakeRepositoryParts {
-                        forge: 1,
-                        org: b"work".as_slice().into(),
-                        name: b"copied".as_slice().into(),
-                        from,
-                        into: if into {
-                            Some(w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: 7, home: true }).unwrap())
-                        } else {
-                            None
-                        },
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap()
+    w::Requesting {
+        request: w::Request::MakeRepository(w::MakeRepository {
+            forge: 1,
+            org: b"work".as_slice().into(),
+            name: b"copied".as_slice().into(),
+            from,
+            into: if into { Some(w::MakeInto { project: 7, home: true }) } else { None },
+        }),
+    }
 }
 #[test]
 fn make_repository_reaches_the_root_with_its_host_and_kept_source() {
@@ -2854,13 +2560,7 @@ fn make_repository_reaches_the_root_with_its_host_and_kept_source() {
     for (from, expected, into) in [
         (w::MakeFrom::Empty, forge::MakeFrom::Empty, false),
         (
-            w::MakeFrom::Copy(
-                w::MakeCopy::new(
-                    &w::CEILINGS,
-                    w::MakeCopyParts { address: b"source.invalid/upstream/starter.git".as_slice().into() },
-                )
-                .unwrap(),
-            ),
+            w::MakeFrom::Copy(w::MakeCopy { address: b"source.invalid/upstream/starter.git".as_slice().into() }),
             forge::MakeFrom::Copy { address: b"https://source.invalid/upstream/starter".as_slice().into() },
             true,
         ),
@@ -2925,10 +2625,7 @@ fn make_repository_without_a_configured_forge_has_no_host() {
 #[test]
 fn make_repository_refuses_a_source_the_parser_rejects() {
     for address in [b"ssh://source.invalid/upstream/starter".as_slice(), b"source.invalid/too/many/segments"] {
-        let request = make_request(
-            w::MakeFrom::Copy(w::MakeCopy::new(&w::CEILINGS, w::MakeCopyParts { address: address.into() }).unwrap()),
-            false,
-        );
+        let request = make_request(w::MakeFrom::Copy(w::MakeCopy { address: address.into() }), false);
         let answer = family::to_root(
             &jig_protocol_config::Directories::working(),
             exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -2958,18 +2655,17 @@ fn make_repository_answers_encode_every_outcome() {
         (forge::MakeAnswer::Refused(forge::MakeRefusal::Full), make_refused(w::MakeRefusal::Full)),
     ] {
         let bytes = family::answer(Some(root::ApplicationAnswer::Make(answer)), &w::CEILINGS, &jig).unwrap();
-        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
     }
 }
 fn make_refused(why: w::MakeRefusal) -> w::Outcome {
-    w::Outcome::MakeRefused(w::MakeRefused::new(&w::CEILINGS, w::MakeRefusedParts { why }).unwrap())
+    w::Outcome::MakeRefused(w::MakeRefused { why })
 }
 #[test]
 fn forge_rows_encode_the_makings_and_all_their_states() {
     // Four live states and five steps with six failure reasons.
     const STATES: u32 = 34;
-    let made =
-        w::MakingMade::new(&w::CEILINGS, w::MakingMadeParts { id: 23, branch: b"trunk".as_slice().into() }).unwrap();
+    let made = w::MakingMade { id: 23, branch: b"trunk".as_slice().into() };
     let mut states = List::with_capacity(STATES);
     for state in [
         (forge::MakingState::Waiting, w::MakingState::Waiting),
@@ -2990,10 +2686,7 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
             (forge::MakeFailure::Taken, w::MakeFailure::Taken),
             (forge::MakeFailure::Empty, w::MakeFailure::Empty),
             (forge::MakeFailure::TimedOut, w::MakeFailure::TimedOut),
-            (
-                forge::MakeFailure::Refused { status: 422 },
-                w::MakeFailure::Refused(w::Refused::new(&w::CEILINGS, w::RefusedParts { status: 422 }).unwrap()),
-            ),
+            (forge::MakeFailure::Refused { status: 422 }, w::MakeFailure::Refused(w::Refused { status: 422 })),
             (forge::MakeFailure::NotAllowed, w::MakeFailure::NotAllowed),
             (forge::MakeFailure::Other, w::MakeFailure::Other),
         ] {
@@ -3004,17 +2697,11 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
                         reason,
                         words: b"stopped".as_slice().into(),
                     }),
-                    w::MakingState::Failed(
-                        w::MakingFailed::new(
-                            &w::CEILINGS,
-                            w::MakingFailedParts {
-                                step: expected_step.clone(),
-                                reason: expected_reason,
-                                words: b"stopped".as_slice().into(),
-                            },
-                        )
-                        .unwrap(),
-                    ),
+                    w::MakingState::Failed(w::MakingFailed {
+                        step: expected_step.clone(),
+                        reason: expected_reason,
+                        words: b"stopped".as_slice().into(),
+                    }),
                 ))
                 .unwrap();
         }
@@ -3037,21 +2724,15 @@ fn forge_rows_encode_the_makings_and_all_their_states() {
         }]);
         let bytes = family::forges(forge::Forges { rows: Box::new([row]) }, false, &w::CEILINGS).unwrap();
         let forges = wire::decode_forges(&bytes, &w::CEILINGS).unwrap();
-        let making = forges.forges().get(0).unwrap().makings().get(0).unwrap();
-        assert_eq!((making.org(), making.name()), (b"work".as_slice(), b"copied".as_slice()));
+        let making = forges.forges.get(0).unwrap().makings.get(0).unwrap();
+        assert_eq!((making.org.as_ref(), making.name.as_ref()), (b"work".as_slice(), b"copied".as_slice()));
         assert_eq!(
-            making.from(),
-            &w::MakeFrom::Copy(
-                w::MakeCopy::new(
-                    &w::CEILINGS,
-                    w::MakeCopyParts { address: b"https://source.invalid/upstream/starter".as_slice().into() }
-                )
-                .unwrap()
-            )
+            &making.from,
+            &w::MakeFrom::Copy(w::MakeCopy { address: b"https://source.invalid/upstream/starter".as_slice().into() })
         );
-        let into = making.into().as_ref().unwrap();
-        assert_eq!((into.project(), into.home()), (7, true));
-        assert_eq!(making.state(), &expected);
+        let into = making.into.as_ref().unwrap();
+        assert_eq!((into.project, into.home), (7, true));
+        assert_eq!(&making.state, &expected);
     }
 }
 
@@ -3062,7 +2743,7 @@ fn dismissed_and_trials_watches_name_the_partys_own_subjects() {
         (w::Watch::Trials, root::TRIALS_SUBJECT),
         (w::Watch::Approvals, root::APPROVALS_SUBJECT),
     ] {
-        let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap();
+        let watching = w::Watching { watch };
         let event = family::to_root(
             &jig_protocol_config::Directories::working(),
             watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)),
@@ -3103,13 +2784,9 @@ fn dismissals_encode_the_partys_rows() {
         let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
         let mut expected = List::with_capacity(wire::DISMISSED);
         for project in projects {
-            expected
-                .push(w::PersonFact::ToBegin(
-                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
-                ))
-                .unwrap();
+            expected.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
         }
-        assert_eq!(got, w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed: expected }).unwrap());
+        assert_eq!(got, w::Dismissals { dismissed: expected });
     }
     for subject in [
         temper_protocol_reaches::Subject::Kind(temper_protocol_reaches::Kind::Tests),
@@ -3120,20 +2797,14 @@ fn dismissals_encode_the_partys_rows() {
             family::document(forge::Document::Dismissals(Box::new([what])), &fixtures::forge_table(&[]), &w::CEILINGS)
                 .unwrap();
         let got = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(got.dismissed().len(), 1);
+        assert_eq!(got.dismissed.len(), 1);
         assert_eq!(
-            got.dismissed().iter().next(),
-            Some(&w::PersonFact::KeepAsking(
-                w::KeepAsking::new(
-                    &w::CEILINGS,
-                    w::KeepAskingParts {
-                        project: 2,
-                        subject: temper_protocol_reaches::subject_record(subject),
-                        at: u64::MAX,
-                    }
-                )
-                .unwrap()
-            ))
+            got.dismissed.iter().next(),
+            Some(&w::PersonFact::KeepAsking(w::KeepAsking {
+                project: 2,
+                subject: temper_protocol_reaches::subject_record(subject),
+                at: u64::MAX,
+            }))
         );
     }
 }
@@ -3142,24 +2813,9 @@ fn dismissals_encode_the_partys_rows() {
 fn setup_copy_addresses_are_canonicalised_before_admission() {
     let mut addresses = List::with_capacity(1);
     addresses.push(Box::from(b"source.example/owner/repo.git".as_slice())).unwrap();
-    let first =
-        w::SetUpFirst::Copies(w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses }).unwrap());
-    let request = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::SetUp(
-                w::SetUp::new(
-                    &w::CEILINGS,
-                    w::SetUpParts {
-                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()),
-                        first,
-                    },
-                )
-                .unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let first = w::SetUpFirst::Copies(w::CopyAddresses { addresses });
+    let request =
+        w::Requesting { request: w::Request::SetUp(w::SetUp { forge: w::Making::Kept(w::Kept { forge: 3 }), first }) };
     let event = family::to_root(
         &jig_protocol_config::Directories::working(),
         exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&request)),
@@ -3187,9 +2843,7 @@ fn setup_copy_addresses_are_canonicalised_before_admission() {
 #[expect(clippy::too_many_lines, reason = "one whole document pins queue, flight and history fields")]
 fn changes_document_encodes_and_decodes() {
     let from = Some(forge::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
-    let expected = Some(
-        w::ChangeFrom::new(&w::CEILINGS, w::ChangeFromParts { task: 23, title: b"Origin".as_slice().into() }).unwrap(),
-    );
+    let expected = Some(w::ChangeFrom { task: 23, title: b"Origin".as_slice().into() });
     let mut value = forge::ChangesView {
         landed_default: Box::new([forge::ChangesLanded {
             goal: None,
@@ -3279,21 +2933,24 @@ fn changes_document_encodes_and_decodes() {
     let bytes =
         family::document(forge::Document::Changes(value.clone()), &fixtures::forge_table(&[]), &w::CEILINGS).unwrap();
     let got = wire::decode_changes_panel(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!((got.project(), got.landing(), got.more(), got.landed_more()), (7, b"main".as_slice(), 3, 4));
-    assert_eq!(got.queues().len(), 1);
-    let queue = got.queues().get(0).unwrap();
-    assert_eq!((queue.repository(), queue.branch(), queue.red()), (b"acme/shop".as_slice(), b"main".as_slice(), true));
-    let flight = queue.in_flight().as_ref().expect("train's landing");
+    assert_eq!((got.project, got.landing.as_ref(), got.more, got.landed_more), (7, b"main".as_slice(), 3, 4));
+    assert_eq!(got.queues.len(), 1);
+    let queue = got.queues.get(0).unwrap();
     assert_eq!(
-        (flight.task(), flight.member(), flight.round(), flight.step(), flight.probe()),
+        (queue.repository.as_ref(), queue.branch.as_ref(), queue.red),
+        (b"acme/shop".as_slice(), b"main".as_slice(), true)
+    );
+    let flight = queue.in_flight.as_ref().expect("train's landing");
+    assert_eq!(
+        (flight.task, flight.member, flight.round, &flight.step, &flight.probe),
         (61, 51, 2, &w::LandingStep::Probing, &Some([0x33; 32]))
     );
-    assert_eq!((flight.goal(), flight.chat(), flight.milestone()), (&expected, &expected, &expected));
-    assert_eq!(queue.changes().len(), 2);
-    for (wire, domain) in queue.changes().iter().zip(value.queues[0].changes.iter()) {
-        assert_eq!((wire.goal(), wire.chat(), wire.milestone()), (&expected, &expected, &expected));
+    assert_eq!((&flight.goal, &flight.chat, &flight.milestone), (&expected, &expected, &expected));
+    assert_eq!(queue.changes.len(), 2);
+    for (wire, domain) in queue.changes.iter().zip(value.queues[0].changes.iter()) {
+        assert_eq!((&wire.goal, &wire.chat, &wire.milestone), (&expected, &expected, &expected));
         assert_eq!(
-            (wire.task(), wire.title(), wire.ready_since(), *wire.checks_since()),
+            (wire.task, wire.title.as_ref(), wire.ready_since, wire.checks_since),
             (
                 domain.task,
                 domain.title.as_ref(),
@@ -3305,19 +2962,19 @@ fn changes_document_encodes_and_decodes() {
             )
         );
     }
-    assert_eq!(got.landed().len(), 1);
-    let landed = got.landed().get(0).unwrap();
-    assert_eq!((landed.task(), landed.title(), landed.at()), (50, b"Landed".as_slice(), 987));
-    assert_eq!(*landed.commit(), [0xab; 32]);
-    assert!(landed.default_branch());
-    assert_eq!((landed.goal(), landed.chat(), landed.milestone()), (&expected, &expected, &expected));
-    assert_eq!(got.landed_default_more(), 2);
-    assert_eq!(got.landed_default().len(), 1);
-    let default = got.landed_default().get(0).unwrap();
-    assert_eq!((default.task(), default.title(), default.at()), (49, b"Default landing".as_slice(), 900));
-    assert_eq!(*default.commit(), [0xcd; 32]);
-    assert!(default.default_branch());
-    assert_eq!((default.goal(), default.chat(), default.milestone()), (&expected, &expected, &expected));
+    assert_eq!(got.landed.len(), 1);
+    let landed = got.landed.get(0).unwrap();
+    assert_eq!((landed.task, landed.title.as_ref(), landed.at), (50, b"Landed".as_slice(), 987));
+    assert_eq!(landed.commit, [0xab; 32]);
+    assert!(landed.default_branch);
+    assert_eq!((&landed.goal, &landed.chat, &landed.milestone), (&expected, &expected, &expected));
+    assert_eq!(got.landed_default_more, 2);
+    assert_eq!(got.landed_default.len(), 1);
+    let default = got.landed_default.get(0).unwrap();
+    assert_eq!((default.task, default.title.as_ref(), default.at), (49, b"Default landing".as_slice(), 900));
+    assert_eq!(default.commit, [0xcd; 32]);
+    assert!(default.default_branch);
+    assert_eq!((&default.goal, &default.chat, &default.milestone), (&expected, &expected, &expected));
 }
 #[expect(clippy::too_many_lines, reason = "one row table pairs engine and wire stops, including their annotations")]
 fn ways_path() -> (ways::Path, w::BranchPath) {
@@ -3330,16 +2987,9 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
     let card = ways::Card { who: b"an agent".as_slice().into(), name: b"the coder".as_slice().into(), facts };
     let mut wire_facts = List::with_capacity(4);
     for fact in &card.facts {
-        wire_facts
-            .push(
-                w::Fact::new(&w::CEILINGS, w::FactParts { label: fact.label.clone(), value: fact.value.clone() })
-                    .unwrap(),
-            )
-            .unwrap();
+        wire_facts.push(w::Fact { label: fact.label.clone(), value: fact.value.clone() }).unwrap();
     }
-    let wire_card =
-        w::Card::new(&w::CEILINGS, w::CardParts { who: card.who.clone(), name: card.name.clone(), facts: wire_facts })
-            .unwrap();
+    let wire_card = w::Card { who: card.who.clone(), name: card.name.clone(), facts: wire_facts };
     let mut stops = List::uncapped();
     let mut wire_stops = List::with_capacity(7);
     for (actor, step, words, opens, wire_actor, wire_step, wire_opens, needed, over) in [
@@ -3361,7 +3011,7 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             ways::Opens::Charter(3),
             w::Actor::Agent,
             w::PathStep::Produce,
-            w::Opens::Charter(w::OpensCharter::new(&w::CEILINGS, w::OpensCharterParts { charter: 3 }).unwrap()),
+            w::Opens::Charter(w::OpensCharter { charter: 3 }),
             false,
             b"".as_slice(),
         ),
@@ -3425,28 +3075,22 @@ fn ways_path() -> (ways::Path, w::BranchPath) {
             .push(ways::Stop { needed, over: over.into(), actor, step, words: words.into(), opens, card: card.clone() })
             .unwrap();
         wire_stops
-            .push(
-                w::Stop::new(
-                    &w::CEILINGS,
-                    w::StopParts {
-                        needed,
-                        over: over.into(),
-                        actor: wire_actor,
-                        step: wire_step,
-                        words: words.into(),
-                        opens: wire_opens,
-                        card: wire_card.clone(),
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::Stop {
+                needed,
+                over: over.into(),
+                actor: wire_actor,
+                step: wire_step,
+                words: words.into(),
+                opens: wire_opens,
+                card: wire_card.clone(),
+            })
             .unwrap();
     }
     let repository = Some(Box::from(b"acme/shop".as_slice()));
     let branch: Box<[u8]> = Box::from(b"main".as_slice());
     (
         ways::Path { repository: repository.clone(), branch: branch.clone(), stops: stops.into_boxed() },
-        w::BranchPath::new(&w::CEILINGS, w::BranchPathParts { repository, branch, stops: wire_stops }).unwrap(),
+        w::BranchPath { repository, branch, stops: wire_stops },
     )
 }
 
@@ -3507,43 +3151,46 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let document = ways_document(&path);
     let record = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
     let panel = wire::decode_ways_panel(&record, &w::CEILINGS).unwrap();
-    assert_eq!((panel.project(), *panel.current(), panel.may_change()), (7, Some(1), true));
-    assert_eq!(panel.own(), &expected);
+    assert_eq!((panel.project, panel.current, panel.may_change), (7, Some(1), true));
+    assert_eq!(&panel.own, &expected);
     let words = document.words.as_ref().unwrap();
-    let panel_words = panel.words().as_ref().expect("the project's words are sent");
-    assert_eq!((panel_words.headline(), panel_words.lede()), (words.headline.as_ref(), words.lede.as_ref()));
+    let panel_words = panel.words.as_ref().expect("the project's words are sent");
+    assert_eq!(
+        (panel_words.headline.as_ref(), panel_words.lede.as_ref()),
+        (words.headline.as_ref(), words.lede.as_ref())
+    );
     let mut without_words = document.clone();
     without_words.words = None;
     let record = family::ways_panel(without_words, &w::CEILINGS).unwrap();
-    assert!(wire::decode_ways_panel(&record, &w::CEILINGS).unwrap().words().is_none());
-    assert_eq!(panel.ways().len(), 3);
-    for (got, entry) in panel.ways().iter().zip(document.ways.iter()) {
+    assert!(wire::decode_ways_panel(&record, &w::CEILINGS).unwrap().words.is_none());
+    assert_eq!(panel.ways.len(), 3);
+    for (got, entry) in panel.ways.iter().zip(document.ways.iter()) {
         assert_eq!(
-            (got.name(), got.headline(), got.line(), got.delegation()),
+            (got.name.as_ref(), got.headline.as_ref(), got.line.as_ref(), got.delegation),
             (entry.name.as_ref(), entry.headline.as_ref(), entry.line.as_ref(), entry.delegation)
         );
-        assert_eq!(got.roles().len(), 1);
-        let role = got.roles().get(0).unwrap();
+        assert_eq!(got.roles.len(), 1);
+        let role = got.roles.get(0).unwrap();
         assert_eq!(
-            (role.charter(), role.words(), role.budget(), role.running()),
+            (role.charter, role.words.as_ref(), role.budget, role.running),
             (14, b"Route findings".as_slice(), 25_000, entry.delegation)
         );
-        assert_eq!(got.path(), &expected);
-        assert_eq!(got.items().len(), 3);
-        let set = got.items().get(0).unwrap();
-        assert_eq!((set.kind(), set.scope(), set.number()), (3, 7, 1));
-        let w::SettingEdit::Set(value) = set.edit() else { panic!("set item") };
-        assert_eq!(value.value(), temper_engine_smith::kinds::encode(&forge::settings::Value::Charter(3)).as_ref());
-        let removed = got.items().get(1).unwrap();
+        assert_eq!(&got.path, &expected);
+        assert_eq!(got.items.len(), 3);
+        let set = got.items.get(0).unwrap();
+        assert_eq!((set.kind, set.scope, set.number), (3, 7, 1));
+        let w::SettingEdit::Set(value) = &set.edit else { panic!("set item") };
         assert_eq!(
-            (removed.kind(), removed.scope(), removed.number(), removed.edit()),
-            (2, 7, 4, &w::SettingEdit::Removed)
+            value.value.as_ref(),
+            temper_engine_smith::kinds::encode(&forge::settings::Value::Charter(3)).as_ref()
         );
-        let classes = got.items().get(2).unwrap();
-        assert_eq!((classes.kind(), classes.scope(), classes.number()), (8, 7, 1));
-        let w::SettingEdit::Set(value) = classes.edit() else { panic!("classes item") };
+        let removed = got.items.get(1).unwrap();
+        assert_eq!((removed.kind, removed.scope, removed.number, &removed.edit), (2, 7, 4, &w::SettingEdit::Removed));
+        let classes = got.items.get(2).unwrap();
+        assert_eq!((classes.kind, classes.scope, classes.number), (8, 7, 1));
+        let w::SettingEdit::Set(value) = &classes.edit else { panic!("classes item") };
         assert_eq!(
-            value.value(),
+            value.value.as_ref(),
             temper_engine_smith::kinds::encode(&forge::settings::Value::Classes(
                 temper_protocol_reaches::Classes::stock(temper_protocol_reaches::Way::AgentsReview),
             ))
@@ -3553,12 +3200,12 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
     let mut after = path.clone();
     after.repository = None;
     after.branch = b"next".as_slice().into();
-    let mut expected_after = expected.clone().into_parts();
+    let mut expected_after = expected.clone();
     expected_after.repository = None;
     expected_after.branch = b"next".as_slice().into();
-    let expected_after = w::BranchPath::new(&w::CEILINGS, expected_after).unwrap();
+    let expected_after = expected_after;
     let card = path.stops[1].card.clone();
-    let expected_card = expected.stops().get(1).unwrap().card().clone();
+    let expected_card = expected.stops.get(1).unwrap().card.clone();
     let mut roles = List::uncapped();
     let mut expected_roles = List::with_capacity(3);
     for (number, name, who) in [
@@ -3570,23 +3217,17 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
         role.name = name.into();
         role.who = who.into();
         roles.push((number, role)).unwrap();
-        let mut parts = expected_card.clone().into_parts();
+        let mut parts = expected_card.clone();
         parts.name = name.into();
         parts.who = who.into();
-        expected_roles.push(w::CharterView::new(&w::CEILINGS, w::CharterViewParts {
-            charter: number, card: w::Card::new(&w::CEILINGS, parts).unwrap(),
-        }).unwrap()).unwrap();
+        expected_roles.push(w::CharterView {
+            charter: number, card: parts,
+        }).unwrap();
     }
     for (view, expected_view) in [
         (
             ways::View::Proposal { before: path.clone(), after },
-            w::View::Proposal(
-                w::ProposalView::new(
-                    &w::CEILINGS,
-                    w::ProposalViewParts { before: expected.clone(), after: expected_after },
-                )
-                .unwrap(),
-            ),
+            w::View::Proposal(w::ProposalView { before: expected.clone(), after: expected_after }),
         ),
         (ways::View::Path(path.clone()), w::View::Path(expected.clone())),
         (
@@ -3596,40 +3237,25 @@ fn ways_and_view_answers_preserve_paths_cards_and_items() {
                 path: path.clone(),
                 current: true,
             },
-            w::View::Way(
-                w::WayView::new(
-                    &w::CEILINGS,
-                    w::WayViewParts {
-                        name: b"Ask first".as_slice().into(),
-                        line: b"How it lands".as_slice().into(),
-                        path: expected.clone(),
-                        current: true,
-                    },
-                )
-                .unwrap(),
-            ),
+            w::View::Way(w::WayView {
+                name: b"Ask first".as_slice().into(),
+                line: b"How it lands".as_slice().into(),
+                path: expected.clone(),
+                current: true,
+            }),
         ),
         (
             ways::View::Charter { charter: 3, card: card.clone() },
-            w::View::Charter(
-                w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 3, card: expected_card.clone() })
-                    .unwrap(),
-            ),
+            w::View::Charter(w::CharterView { charter: 3, card: expected_card.clone() }),
         ),
-        (
-            ways::View::Roles(roles.into_boxed()),
-            w::View::Roles(w::RolesView::new(&w::CEILINGS, w::RolesViewParts { roles: expected_roles }).unwrap()),
-        ),
+        (ways::View::Roles(roles.into_boxed()), w::View::Roles(w::RolesView { roles: expected_roles })),
         (
             ways::View::NotDrawn(b"No such charter".as_slice().into()),
-            w::View::NotDrawn(
-                w::NotDrawn::new(&w::CEILINGS, w::NotDrawnParts { words: b"No such charter".as_slice().into() })
-                    .unwrap(),
-            ),
+            w::View::NotDrawn(w::NotDrawn { words: b"No such charter".as_slice().into() }),
         ),
     ] {
         let record = family::forge_read(root::ForgeReadAnswer::View(Box::new(view)), &[], &w::CEILINGS).unwrap();
-        assert_eq!(wire::decode_view_answer(&record, &w::CEILINGS).unwrap().view(), &expected_view);
+        assert_eq!(&wire::decode_view_answer(&record, &w::CEILINGS).unwrap().view, &expected_view);
     }
 }
 
@@ -3679,19 +3305,13 @@ fn view_reads_refuse_scopes_other_than_the_named_project() {
     for scope in
         [people::ApplicationScope::Deployment, people::ApplicationScope::Own, people::ApplicationScope::Project(8)]
     {
-        let read = w::Read::View(
-            w::ViewRead::new(
-                &w::CEILINGS,
-                w::ViewReadParts { project: 7, address: b"proposal t12/3".as_slice().into() },
-            )
-            .unwrap(),
-        );
+        let read = w::Read::View(w::ViewRead { project: 7, address: b"proposal t12/3".as_slice().into() });
         let exchange = kit::ToApplication::Read {
             reply: REPLY,
             sign_in: 3,
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).unwrap()),
+            record: wire::reading(&w::Reading { read }),
             scope,
             window: jig_domain_core::documents::Window { rows: 1, after: None },
         };
@@ -3717,17 +3337,17 @@ fn the_changes_watch_names_its_project_subject() {
     for project in [0, 7, u32::MAX] {
         for (watch, expected_subject, expected_scope) in [
             (
-                w::Watch::Changes(w::ChangesSubject::new(&w::CEILINGS, w::ChangesSubjectParts { project }).unwrap()),
+                w::Watch::Changes(w::ChangesSubject { project }),
                 forge::changes_subject(project),
                 people::ApplicationScope::Project(7),
             ),
             (
-                w::Watch::Ways(w::WaysSubject::new(&w::CEILINGS, w::WaysSubjectParts { project }).unwrap()),
+                w::Watch::Ways(w::WaysSubject { project }),
                 ways::subject(project),
                 people::ApplicationScope::Project(project),
             ),
         ] {
-            let record = wire::watching(&w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap());
+            let record = wire::watching(&w::Watching { watch });
             let got = family::to_root(
                 &jig_protocol_config::Directories::working(),
                 watch_exchange(wire::FORGE, wire::CLIENT_VERSION, record),
@@ -3755,22 +3375,8 @@ fn the_changes_watch_names_its_project_subject() {
 #[expect(clippy::too_many_lines, reason = "the family test covers Looked and its status document in both directions")]
 fn looked_and_status_translate_both_ways() {
     const PROJECT: u32 = 7;
-    let requesting = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts {
-            request: w::Request::Looked(w::Looked::new(&w::CEILINGS, w::LookedParts { project: PROJECT }).unwrap()),
-        },
-    )
-    .unwrap();
-    let watching = w::Watching::new(
-        &w::CEILINGS,
-        w::WatchingParts {
-            watch: w::Watch::Status(
-                w::StatusSubject::new(&w::CEILINGS, w::StatusSubjectParts { project: PROJECT }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let requesting = w::Requesting { request: w::Request::Looked(w::Looked { project: PROJECT }) };
+    let watching = w::Watching { watch: w::Watch::Status(w::StatusSubject { project: PROJECT }) };
     let forges = fixtures::forge_table(&[]);
     let mut carried_request = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting));
     let carried = jig_domain_core::Carried { number: 2, digest: [9; 32] };
@@ -3835,14 +3441,12 @@ fn looked_and_status_translate_both_ways() {
         (Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::Looked)), w::Outcome::Looked),
         (
             Some(root::ApplicationAnswer::Looked(forge::LookedAnswer::TooLarge)),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         ),
         (None, w::Outcome::Unknown),
     ] {
         let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
-        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome, expected);
     }
     for (last_landed, brief, previous, unpaid) in [
         (None, None, None, true),
@@ -3873,40 +3477,34 @@ fn looked_and_status_translate_both_ways() {
         };
         let bytes = family::document(forge::Document::Status(value), &forges, &w::CEILINGS).unwrap();
         let got = wire::decode_project_status(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(got.unpaid(), unpaid);
+        assert_eq!(got.unpaid, unpaid);
         assert_eq!(
-            (got.project(), got.landed(), got.seen(), got.queued(), got.red(), got.branch()),
+            (got.project, got.landed, got.seen, got.queued, got.red, got.branch.as_ref()),
             (PROJECT, 6, 2, 3, true, b"main".as_slice())
         );
         assert_eq!(
-            *got.last_landed(),
+            got.last_landed,
             match last_landed {
                 Some(at) => Some(at.as_nanos()),
                 None => None,
             }
         );
         assert_eq!(
-            *got.previous(),
+            got.previous,
             match previous {
                 Some(at) => Some(at.as_nanos()),
                 None => None,
             }
         );
         assert_eq!(
-            *got.brief(),
+            got.brief,
             match brief {
-                Some(brief) => Some(
-                    w::StatusBrief::new(
-                        &w::CEILINGS,
-                        w::StatusBriefParts {
-                            sentence: brief.sentence,
-                            lede: brief.lede,
-                            at: brief.at.as_nanos(),
-                            landed: brief.landed,
-                        }
-                    )
-                    .unwrap()
-                ),
+                Some(brief) => Some(w::StatusBrief {
+                    sentence: brief.sentence,
+                    lede: brief.lede,
+                    at: brief.at.as_nanos(),
+                    landed: brief.landed,
+                }),
                 None => None,
             }
         );
@@ -4063,8 +3661,8 @@ fn the_worst_small_ways_document_fits_its_decision() {
     };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
     let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!(panel.rules().rows().len(), w::CEILINGS.path_rules_rows);
-    assert_eq!(panel.rules().note().len(), usize::try_from(w::CEILINGS.path_rules_note).unwrap());
+    assert_eq!(panel.rules.rows.len(), w::CEILINGS.path_rules_rows);
+    assert_eq!(panel.rules.note.len(), usize::try_from(w::CEILINGS.path_rules_note).unwrap());
     assert_eq!(wire::decode_ways_panel(&bytes, &w::CEILINGS), Some(panel));
     let mut journal = root::Journal::uncapped(1, 0);
     let mut decision = root::Decision::decide(&mut journal, &limits.root.journal);
@@ -4114,10 +3712,10 @@ fn a_whole_party_document_fits_the_wire() {
         family::document(forge::Document::Dismissals(rows.into_boxed()), &fixtures::forge_table(&[]), &w::CEILINGS)
             .unwrap();
     let document = wire::decode_dismissals(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!(document.dismissed().len(), wire::DISMISSED);
-    for (goal, fact) in document.dismissed().iter().enumerate() {
+    assert_eq!(document.dismissed.len(), wire::DISMISSED);
+    for (goal, fact) in document.dismissed.iter().enumerate() {
         let w::PersonFact::GoalFrom(value) = fact else { panic!("goal fact") };
-        assert_eq!((value.project(), value.chat(), value.goal()), (1, 7, u64::try_from(goal).unwrap()));
+        assert_eq!((value.project, value.chat, value.goal), (1, 7, u64::try_from(goal).unwrap()));
     }
 }
 fn away_family(exchange: kit::ToApplication) -> root::Event {
@@ -4133,7 +3731,7 @@ fn away_family(exchange: kit::ToApplication) -> root::Event {
     .unwrap()
 }
 fn away_request(request: w::Request) -> root::Application {
-    let requesting = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+    let requesting = w::Requesting { request };
     let root::Event::Party(root::PartyInput::Application { scope, reply_to, sign_in, key, digest, carried, request }) =
         away_family(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting)))
     else {
@@ -4156,16 +3754,14 @@ fn away_wall(nanos: Option<u64>) -> Option<skein_lib::Wall> {
 fn away_answer(answer: Option<root::ApplicationAnswer>) -> w::Outcome {
     let jig = jig_protocol_config_fixtures::small().clients.wire;
     let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
-    w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome
+    w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().outcome
 }
 #[test]
 fn set_away_reads_as_the_forges_event() {
     const PROJECT: u32 = 9; // Deliberately differs from the envelope's project 7.
     for (on, until) in [(true, Some(123)), (false, None)] {
         assert_eq!(
-            away_request(w::Request::SetAway(
-                w::SetAway::new(&w::CEILINGS, w::SetAwayParts { project: PROJECT, on, until },).unwrap()
-            )),
+            away_request(w::Request::SetAway(w::SetAway { project: PROJECT, on, until })),
             root::Application::SetAway { project: PROJECT, on, until: away_wall(until) }
         );
     }
@@ -4173,9 +3769,7 @@ fn set_away_reads_as_the_forges_event() {
         (Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::Away)), w::Outcome::Away),
         (
             Some(root::ApplicationAnswer::SetAway(forge::SetAwayAnswer::TooLarge)),
-            w::Outcome::ForgeRefused(
-                w::ForgeRefused::new(&w::CEILINGS, w::ForgeRefusedParts { reason: w::ForgeReason::TooLarge }).unwrap(),
-            ),
+            w::Outcome::ForgeRefused(w::ForgeRefused { reason: w::ForgeReason::TooLarge }),
         ),
         (None, w::Outcome::Unknown),
     ] {
@@ -4187,26 +3781,18 @@ fn overturn_reads_as_the_forges_event() {
     const PROJECT: u32 = 9;
     const NUMBER: u32 = 12;
     assert_eq!(
-        away_request(w::Request::Overturn(
-            w::Overturn::new(&w::CEILINGS, w::OverturnParts { project: PROJECT, number: NUMBER },).unwrap()
-        )),
+        away_request(w::Request::Overturn(w::Overturn { project: PROJECT, number: NUMBER })),
         root::Application::Overturn { project: PROJECT, number: NUMBER }
     );
     for (answer, expected) in [
         (Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Overturned)), w::Outcome::Overturned),
         (
             Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Already)),
-            w::Outcome::OverturnRefused(
-                w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Already })
-                    .unwrap(),
-            ),
+            w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Already }),
         ),
         (
             Some(root::ApplicationAnswer::Overturn(forge::OverturnAnswer::Unknown)),
-            w::Outcome::OverturnRefused(
-                w::OverturnRefused::new(&w::CEILINGS, w::OverturnRefusedParts { reason: w::OverturnRefusal::Unknown })
-                    .unwrap(),
-            ),
+            w::Outcome::OverturnRefused(w::OverturnRefused { reason: w::OverturnRefusal::Unknown }),
         ),
         (None, w::Outcome::Unknown),
     ] {
@@ -4219,14 +3805,12 @@ fn away_and_decided_subjects_are_scoped() {
     for (watch, scope, subject) in [
         (w::Watch::Away, people::ApplicationScope::Own, forge::AWAY_SUBJECT),
         (
-            w::Watch::Decided(
-                w::DecidedSubject::new(&w::CEILINGS, w::DecidedSubjectParts { project: PROJECT }).unwrap(),
-            ),
+            w::Watch::Decided(w::DecidedSubject { project: PROJECT }),
             people::ApplicationScope::Project(PROJECT),
             forge::decided_subject(PROJECT),
         ),
     ] {
-        let watching = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch }).unwrap();
+        let watching = w::Watching { watch };
         let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject: got, window }) =
             away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
         else {
@@ -4265,12 +3849,8 @@ fn their_documents_encode() {
             &w::CEILINGS,
         )
         .unwrap();
-        let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap().into_parts();
-        assert_eq!(
-            got.rows.as_slice(),
-            &[w::AwayRow::new(&w::CEILINGS, w::AwayRowParts { project: PROJECT, since: 11, until, landed: 4, off })
-                .unwrap()]
-        );
+        let got = wire::decode_aways(&bytes, &w::CEILINGS).unwrap();
+        assert_eq!(got.rows.as_slice(), &[w::AwayRow { project: PROJECT, since: 11, until, landed: 4, off }]);
     }
     for overturned in [false, true] {
         let row = forge::DecisionView {
@@ -4315,16 +3895,16 @@ fn their_documents_encode() {
             &w::CEILINGS,
         )
         .unwrap();
-        let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap().into_parts();
+        let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap();
         assert_eq!(got.project, PROJECT);
         assert_eq!(got.cut, overturned);
         assert_eq!(got.asked.len(), 1);
         assert_eq!(
-            (got.asked.as_slice()[0].number(), got.asked.as_slice()[0].task(), got.asked.as_slice()[0].at()),
+            (got.asked.as_slice()[0].number, got.asked.as_slice()[0].task, got.asked.as_slice()[0].at),
             (13, 52, 45)
         );
         assert_eq!(
-            got.asked.as_slice()[0].reach(),
+            &got.asked.as_slice()[0].reach,
             &temper_protocol_reaches::reach_record(&temper_protocol_reaches::Reach {
                 kind: temper_protocol_reaches::Kind::Wording,
                 class: temper_protocol_reaches::Class::Decide,
@@ -4337,39 +3917,31 @@ fn their_documents_encode() {
         );
         assert_eq!(
             got.rows.as_slice(),
-            &[w::Decision::new(
-                &w::CEILINGS,
-                w::DecisionParts {
-                    number: 12,
-                    task: 51,
-                    at: 44,
-                    question: b"Which?".as_slice().into(),
-                    took: b"First".as_slice().into(),
-                    why: b"Fits".as_slice().into(),
-                    overturned,
-                    reach: w::Reach::new(
-                        &w::CEILINGS,
-                        w::ReachParts {
-                            kind: w::ReachKind::Wording,
-                            class: w::ReachClass::Decide,
-                            reason: w::ReachReason::Kind,
-                            under: 0,
-                            sets: 0,
-                            matched: 0,
-                            away: false
-                        }
-                    )
-                    .unwrap(),
-                }
-            )
-            .unwrap()]
+            &[w::Decision {
+                number: 12,
+                task: 51,
+                at: 44,
+                question: b"Which?".as_slice().into(),
+                took: b"First".as_slice().into(),
+                why: b"Fits".as_slice().into(),
+                overturned,
+                reach: w::Reach {
+                    kind: w::ReachKind::Wording,
+                    class: w::ReachClass::Decide,
+                    reason: w::ReachReason::Kind,
+                    under: 0,
+                    sets: 0,
+                    matched: 0,
+                    away: false
+                },
+            }]
         );
     }
     let forges = fixtures::forge_table(&[]);
     let bytes =
         family::document(forge::Document::Aways(forge::AwaysView { rows: Box::new([]) }), &forges, &w::CEILINGS)
             .unwrap();
-    assert!(wire::decode_aways(&bytes, &w::CEILINGS).unwrap().rows().is_empty());
+    assert!(wire::decode_aways(&bytes, &w::CEILINGS).unwrap().rows.is_empty());
     let bytes = family::document(
         forge::Document::Decisions(forge::DecisionsView {
             project: PROJECT,
@@ -4382,16 +3954,14 @@ fn their_documents_encode() {
     )
     .unwrap();
     let got = wire::decode_decisions(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!(got.project(), PROJECT);
-    assert!(got.rows().is_empty());
+    assert_eq!(got.project, PROJECT);
+    assert!(got.rows.is_empty());
 }
 #[test]
 fn the_program_environment_read_goes_to_the_party() {
     let mut input = read_input(people::ApplicationScope::Deployment);
     if let kit::ToApplication::Read { record, sign_in, .. } = &mut input {
-        *record = wire::reading(
-            &w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::ProgramEnvironment }).unwrap(),
-        );
+        *record = wire::reading(&w::Reading { read: w::Read::ProgramEnvironment });
         *sign_in = 3;
     }
     let event = family::to_root(
@@ -4416,21 +3986,13 @@ fn the_program_environment_read_goes_to_the_party() {
 fn forge_read_encodes_the_environment() {
     let words = b"TEMPER_CONFIG='/config' TEMPER_DATA='/data' TEMPER_CACHE='/cache'";
     let bytes = family::forge_read(root::ForgeReadAnswer::ProgramEnvironment, words, &w::CEILINGS).unwrap();
-    assert_eq!(wire::decode_program_environment_answer(&bytes, &w::CEILINGS).unwrap().environment(), words);
+    assert_eq!(wire::decode_program_environment_answer(&bytes, &w::CEILINGS).unwrap().environment.as_ref(), words);
 }
 
 #[test]
 fn trying_an_account_preserves_its_fields_and_uses_own_scope() {
     for again in [false, true] {
-        let record = w::Requesting::new(
-            &w::CEILINGS,
-            w::RequestingParts {
-                request: w::Request::TryAccount(
-                    w::TryAccount::new(&w::CEILINGS, w::TryAccountParts { account: u32::MAX, again }).unwrap(),
-                ),
-            },
-        )
-        .unwrap();
+        let record = w::Requesting { request: w::Request::TryAccount(w::TryAccount { account: u32::MAX, again }) };
         let event = away_family(exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)));
         let root::Event::Party(root::PartyInput::Application {
             reply_to,
@@ -4469,7 +4031,7 @@ fn a_trial_wait_is_carried_as_jigs_current_task_run_wait_record() {
     }]);
     let bytes = family::trials(rows, &w::CEILINGS).unwrap();
     let document = w::Trials::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-    let bytes = document.rows().get(0).unwrap().run_wait().as_ref().unwrap();
+    let bytes = document.rows.get(0).unwrap().run_wait.as_ref().unwrap();
     let mut reader = Reader::new(bytes);
     let wait = jig_client_protocol_wire::TaskRunWait::decode(&jig_client_protocol_wire::CEILINGS, &mut reader).unwrap();
     assert!(reader.is_empty());
@@ -4500,13 +4062,9 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
     ];
     let expected = [
         w::TrialState::Running,
-        w::TrialState::Answered(w::TrialAnswered::new(&w::CEILINGS, w::TrialAnsweredParts { seconds: 3 }).unwrap()),
-        w::TrialState::Failed(
-            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Refused }).unwrap(),
-        ),
-        w::TrialState::Failed(
-            w::TrialFailed::new(&w::CEILINGS, w::TrialFailedParts { why: w::TrialWhy::Waited }).unwrap(),
-        ),
+        w::TrialState::Answered(w::TrialAnswered { seconds: 3 }),
+        w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Refused }),
+        w::TrialState::Failed(w::TrialFailed { why: w::TrialWhy::Waited }),
     ];
     for (index, state) in states.into_iter().enumerate() {
         let rows = Box::new([
@@ -4517,23 +4075,23 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
         let mut reader = Reader::new(&bytes);
         let document = w::Trials::decode(&w::CEILINGS, &mut reader).unwrap();
         assert!(reader.is_empty());
-        let rows = document.into_parts().rows.into_boxed();
+        let rows = document.rows.into_boxed();
         assert_eq!(rows.len(), 2);
-        assert_eq!(rows[0].run_wait(), &None);
-        assert_eq!(rows[1].run_wait(), &None);
-        assert_eq!(rows[0].account(), 12);
-        assert_eq!(*rows[0].task(), Some(31));
-        assert_eq!(*rows[0].took(), Some(14));
-        assert_eq!(*rows[0].step(), w::TrialStep::Answers);
-        assert_eq!(rows[1].account(), 11);
-        assert_eq!(*rows[1].task(), None);
-        assert_eq!(*rows[1].took(), None);
-        assert_eq!(*rows[1].step(), w::TrialStep::Starts);
+        assert_eq!(&rows[0].run_wait, &None);
+        assert_eq!(&rows[1].run_wait, &None);
+        assert_eq!(rows[0].account, 12);
+        assert_eq!(rows[0].task, Some(31));
+        assert_eq!(rows[0].took, Some(14));
+        assert_eq!(rows[0].step, w::TrialStep::Answers);
+        assert_eq!(rows[1].account, 11);
+        assert_eq!(rows[1].task, None);
+        assert_eq!(rows[1].took, None);
+        assert_eq!(rows[1].step, w::TrialStep::Starts);
         if index < expected.len() {
-            assert_eq!(rows[0].state(), &expected[index]);
+            assert_eq!(&rows[0].state, &expected[index]);
         } else {
-            let w::TrialState::Failed(failed) = rows[0].state() else { panic!("failed row") };
-            let w::TrialWhy::Ended(ended) = failed.why() else { panic!("run ending") };
+            let w::TrialState::Failed(failed) = &rows[0].state else { panic!("failed row") };
+            let w::TrialWhy::Ended(ended) = &failed.why else { panic!("run ending") };
             let classes = [
                 w::TrialClass::Transient,
                 w::TrialClass::Infrastructure,
@@ -4544,7 +4102,7 @@ fn trials_encode_the_whole_document_in_its_order_and_with_its_bounds() {
                 w::TrialClass::Invalid,
                 w::TrialClass::Refused,
             ];
-            assert_eq!(*ended.class(), classes[index - expected.len()]);
+            assert_eq!(ended.class, classes[index - expected.len()]);
         }
         let bounds = w::Limits { trials_rows: 0, ..w::CEILINGS };
         assert!(
@@ -4623,38 +4181,38 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
     let document = root::Approvals { rows, more: 6 };
     let bytes = family::approvals(document.clone(), &forges, &w::CEILINGS).unwrap();
     let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!(decoded.more(), 6);
-    assert_eq!(decoded.rows().len(), 4);
-    for ((actual, row), (_, _, kind, yours, address)) in decoded.rows().iter().zip(document.rows.iter()).zip(&cases) {
-        assert_eq!(actual.task(), row.task);
-        assert_eq!(actual.project(), row.project);
-        assert_eq!(*actual.goal(), row.goal);
-        assert_eq!(actual.forge(), row.forge);
-        assert_eq!(actual.kind(), kind);
-        assert_eq!(actual.owner(), row.owner.as_ref());
-        assert_eq!(actual.name(), row.name.as_ref());
-        assert_eq!(actual.pull(), row.pull);
-        assert_eq!(actual.address(), *address);
-        assert_eq!(actual.title(), row.title.as_ref());
-        assert_eq!(actual.since(), row.since.as_nanos());
-        assert_eq!((actual.scope(), actual.rule(), actual.role()), (row.scope, row.rule, row.role));
-        assert_eq!((actual.required(), actual.counted()), (row.required, row.counted));
-        assert_eq!(actual.sets().len(), 1);
-        assert_eq!(actual.sets().as_slice()[0].number(), row.sets[0].number);
-        assert_eq!(actual.sets().as_slice()[0].name(), row.sets[0].name.as_ref());
-        assert_eq!(actual.whole(), row.whole);
-        assert_eq!(actual.yours(), yours);
-        assert_eq!(actual.signed().as_slice()[0].person(), 2);
-        assert_eq!(actual.signed().as_slice()[0].name(), b"Sam");
-        assert_eq!(actual.can_sign().as_slice()[0].person(), 1);
-        assert_eq!(actual.can_sign().as_slice()[0].name(), b"Ann");
-        assert_eq!(actual.can_sign_more(), 3);
-        let size = match actual.size() {
+    assert_eq!(decoded.more, 6);
+    assert_eq!(decoded.rows.len(), 4);
+    for ((actual, row), (_, _, kind, yours, address)) in decoded.rows.iter().zip(document.rows.iter()).zip(&cases) {
+        assert_eq!(actual.task, row.task);
+        assert_eq!(actual.project, row.project);
+        assert_eq!(actual.goal, row.goal);
+        assert_eq!(actual.forge, row.forge);
+        assert_eq!(&actual.kind, kind);
+        assert_eq!(actual.owner.as_ref(), row.owner.as_ref());
+        assert_eq!(actual.name.as_ref(), row.name.as_ref());
+        assert_eq!(actual.pull, row.pull);
+        assert_eq!(actual.address.as_ref(), *address);
+        assert_eq!(actual.title.as_ref(), row.title.as_ref());
+        assert_eq!(actual.since, row.since.as_nanos());
+        assert_eq!((actual.scope, actual.rule, actual.role), (row.scope, row.rule, row.role));
+        assert_eq!((actual.required, actual.counted), (row.required, row.counted));
+        assert_eq!(actual.sets.len(), 1);
+        assert_eq!(actual.sets.as_slice()[0].number, row.sets[0].number);
+        assert_eq!(actual.sets.as_slice()[0].name.as_ref(), row.sets[0].name.as_ref());
+        assert_eq!(actual.whole, row.whole);
+        assert_eq!(&actual.yours, yours);
+        assert_eq!(actual.signed.as_slice()[0].person, 2);
+        assert_eq!(actual.signed.as_slice()[0].name.as_ref(), b"Sam");
+        assert_eq!(actual.can_sign.as_slice()[0].person, 1);
+        assert_eq!(actual.can_sign.as_slice()[0].name.as_ref(), b"Ann");
+        assert_eq!(actual.can_sign_more, 3);
+        let size = match &actual.size {
             Some(size) => Some(root::ApprovalSize {
-                files: size.files(),
-                additions: size.additions(),
-                deletions: size.deletions(),
-                cut: size.cut(),
+                files: size.files,
+                additions: size.additions,
+                deletions: size.deletions,
+                cut: size.cut,
             }),
             None => None,
         };
@@ -4675,13 +4233,12 @@ fn approvals_encode_each_row_with_its_kind_and_files_address() {
         forges.get_mut(1).unwrap().git = base.finish();
         let bytes = family::approvals(document.clone(), &forges, &w::CEILINGS).unwrap();
         let decoded = wire::decode_approvals(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(decoded.rows().as_slice()[0].address().len(), expected);
+        assert_eq!(decoded.rows.as_slice()[0].address.len(), expected);
     }
 }
 
 #[test]
 fn findings_requests_keep_their_fields_and_admission_envelopes() {
-    let limits = &w::CEILINGS;
     for (kind, expected_kind) in [
         (w::FindingKind::Qa, forge::FindingKind::Qa),
         (w::FindingKind::Flake, forge::FindingKind::Flake),
@@ -4696,20 +4253,14 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
         ] {
             for area in [None, Some(b"tests".as_slice().into())] {
                 assert_eq!(
-                    away_request(w::Request::FileFinding(
-                        w::FileFinding::new(
-                            limits,
-                            w::FileFindingParts {
-                                project: 3,
-                                kind: kind.clone(),
-                                severity: severity.clone(),
-                                area: area.clone(),
-                                title: b"Flaky boot".as_slice().into(),
-                                body: b"boot timed out".as_slice().into()
-                            }
-                        )
-                        .unwrap()
-                    )),
+                    away_request(w::Request::FileFinding(w::FileFinding {
+                        project: 3,
+                        kind: kind.clone(),
+                        severity: severity.clone(),
+                        area: area.clone(),
+                        title: b"Flaky boot".as_slice().into(),
+                        body: b"boot timed out".as_slice().into()
+                    })),
                     root::Application::FileFinding(forge::FileFinding {
                         project: 3,
                         kind: expected_kind,
@@ -4723,18 +4274,12 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
         }
     }
     assert_eq!(
-        away_request(w::Request::HandFinding(
-            w::HandFinding::new(
-                limits,
-                w::HandFindingParts {
-                    project: 3,
-                    number: 27,
-                    area: b"tests".as_slice().into(),
-                    why: b"owns the boot".as_slice().into()
-                }
-            )
-            .unwrap()
-        )),
+        away_request(w::Request::HandFinding(w::HandFinding {
+            project: 3,
+            number: 27,
+            area: b"tests".as_slice().into(),
+            why: b"owns the boot".as_slice().into()
+        })),
         root::Application::HandFinding(forge::HandFinding {
             project: 3,
             number: 27,
@@ -4743,23 +4288,15 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
         })
     );
     for (act, expected) in [
-        (
-            w::Triage::Route(w::FindingRoute::new(limits, w::FindingRouteParts { task: u64::MAX }).unwrap()),
-            forge::Triage::Route(u64::MAX),
-        ),
+        (w::Triage::Route(w::FindingRoute { task: u64::MAX }), forge::Triage::Route(u64::MAX)),
         (w::Triage::Backlog, forge::Triage::Backlog),
         (
-            w::Triage::Drop(
-                w::FindingDrop::new(limits, w::FindingDropParts { reason: b"not reproducible".as_slice().into() })
-                    .unwrap(),
-            ),
+            w::Triage::Drop(w::FindingDrop { reason: b"not reproducible".as_slice().into() }),
             forge::Triage::Drop(b"not reproducible".as_slice().into()),
         ),
     ] {
         assert_eq!(
-            away_request(w::Request::TriageFinding(
-                w::TriageFinding::new(limits, w::TriageFindingParts { project: 3, number: 27, act }).unwrap()
-            )),
+            away_request(w::Request::TriageFinding(w::TriageFinding { project: 3, number: 27, act })),
             root::Application::TriageFinding(forge::TriageFinding { project: 3, number: 27, act: expected })
         );
     }
@@ -4767,27 +4304,17 @@ fn findings_requests_keep_their_fields_and_admission_envelopes() {
 
 fn finding_holders() -> [(forge::Holder, w::Holder); 3] {
     [
-        (
-            forge::Holder::Task(u64::MAX),
-            w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: u64::MAX }).unwrap()),
-        ),
-        (
-            forge::Holder::Party(19),
-            w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap()),
-        ),
-        (
-            forge::Holder::Role(5),
-            w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 5 }).unwrap()),
-        ),
+        (forge::Holder::Task(u64::MAX), w::Holder::Task(w::HolderTask { number: u64::MAX })),
+        (forge::Holder::Party(19), w::Holder::Party(w::HolderParty { number: 19 })),
+        (forge::Holder::Role(5), w::Holder::Role(w::HolderRole { number: 5 })),
     ]
 }
 #[test]
 fn findings_answers_preserve_each_refusal_and_its_owner() {
-    let limits = &w::CEILINGS;
     for (answer, expected) in [
         (
             root::ApplicationAnswer::FileFinding(forge::FileFindingAnswer::Filed { number: 27 }),
-            w::Outcome::Filed(w::Filed::new(limits, w::FiledParts { number: 27 }).unwrap()),
+            w::Outcome::Filed(w::Filed { number: 27 }),
         ),
         (root::ApplicationAnswer::HandFinding(forge::HandFindingAnswer::Handed), w::Outcome::Handed),
         (root::ApplicationAnswer::TriageFinding(forge::TriageFindingAnswer::Triaged), w::Outcome::Triaged),
@@ -4802,20 +4329,15 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
     for (reason, expected) in [
         (
             forge::FindingRefusal::NoArea(names.clone().into_boxed()),
-            w::FindingRefusal::NoArea(w::FindingAreas::new(limits, w::FindingAreasParts { areas: names }).unwrap()),
+            w::FindingRefusal::NoArea(w::FindingAreas { areas: names }),
         ),
-        (
-            forge::FindingRefusal::Full(128),
-            w::FindingRefusal::Full(w::FindingsFull::new(limits, w::FindingsFullParts { count: 128 }).unwrap()),
-        ),
+        (forge::FindingRefusal::Full(128), w::FindingRefusal::Full(w::FindingsFull { count: 128 })),
         (forge::FindingRefusal::NoFinding, w::FindingRefusal::NoFinding),
         (forge::FindingRefusal::NoGoal, w::FindingRefusal::NoGoal),
         (forge::FindingRefusal::Ended, w::FindingRefusal::Ended),
         (
             forge::FindingRefusal::Words(b"title".as_slice().into()),
-            w::FindingRefusal::Words(
-                w::FindingWords::new(limits, w::FindingWordsParts { field: b"title".as_slice().into() }).unwrap(),
-            ),
+            w::FindingRefusal::Words(w::FindingWords { field: b"title".as_slice().into() }),
         ),
     ] {
         refusals.push((reason, expected)).unwrap();
@@ -4824,9 +4346,7 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
         refusals
             .push((
                 forge::FindingRefusal::NotYours(holder),
-                w::FindingRefusal::NotYours(
-                    w::FindingNotYours::new(limits, w::FindingNotYoursParts { holder: expected }).unwrap(),
-                ),
+                w::FindingRefusal::NotYours(w::FindingNotYours { holder: expected }),
             ))
             .unwrap();
     }
@@ -4838,9 +4358,7 @@ fn findings_answers_preserve_each_refusal_and_its_owner() {
         ] {
             assert_eq!(
                 away_answer(Some(answer)),
-                w::Outcome::FindingRefused(
-                    w::FindingRefused::new(limits, w::FindingRefusedParts { reason: expected.clone() }).unwrap()
-                )
+                w::Outcome::FindingRefused(w::FindingRefused { reason: expected.clone() })
             );
         }
     }
@@ -4862,24 +4380,18 @@ fn finding_row_pair() -> (forge::FindingRow, w::FindingRow) {
             why: Some(b"owns boot".as_slice().into()),
             hander: Some(forge::Filer::Task(42)),
         },
-        w::FindingRow::new(
-            &w::CEILINGS,
-            w::FindingRowParts {
-                number: 27,
-                kind: w::FindingKind::Red,
-                severity: w::Severity::Medium,
-                area: Some(b"tests".as_slice().into()),
-                state: w::FindingState::New,
-                title: b"Flaky boot".as_slice().into(),
-                holder: wire_holder,
-                at: 91,
-                why: Some(b"owns boot".as_slice().into()),
-                hander: Some(w::Filer::Task(
-                    w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 42 }).unwrap(),
-                )),
-            },
-        )
-        .unwrap(),
+        w::FindingRow {
+            number: 27,
+            kind: w::FindingKind::Red,
+            severity: w::Severity::Medium,
+            area: Some(b"tests".as_slice().into()),
+            state: w::FindingState::New,
+            title: b"Flaky boot".as_slice().into(),
+            holder: wire_holder,
+            at: 91,
+            why: Some(b"owns boot".as_slice().into()),
+            hander: Some(w::Filer::Task(w::HolderTask { number: 42 })),
+        },
     )
 }
 #[test]
@@ -4892,19 +4404,9 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
         (Some(w::FindingState::Dropped), Some(forge::FindingState::Dropped)),
     ] {
         for mine in [false, true] {
-            let watching = w::Watching::new(
-                &w::CEILINGS,
-                w::WatchingParts {
-                    watch: w::Watch::Findings(
-                        w::FindingsSubject::new(
-                            &w::CEILINGS,
-                            w::FindingsSubjectParts { project: 3, state: state.clone(), mine },
-                        )
-                        .unwrap(),
-                    ),
-                },
-            )
-            .unwrap();
+            let watching = w::Watching {
+                watch: w::Watch::Findings(w::FindingsSubject { project: 3, state: state.clone(), mine }),
+            };
             let root::Event::Party(root::PartyInput::Watch { watcher, sign_in, subject, window }) =
                 away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&watching)))
             else {
@@ -4942,25 +4444,16 @@ fn findings_watches_are_project_scoped_and_documents_keep_the_rows() {
         family::document(forge::Document::Findings(document.clone()), &fixtures::forge_table(&[]), &w::CEILINGS)
             .unwrap();
     let got = wire::decode_findings(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!(got.project(), 3);
-    assert_eq!(got.rows().as_slice(), &[expected_row]);
-    assert!(got.cut());
-    assert_eq!(
-        got.holder(),
-        &w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap())
-    );
-    assert_eq!(
-        got.triager(),
-        &Some(w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: 19 }).unwrap()))
-    );
-    let area = got.areas().iter().next().unwrap();
-    assert_eq!(area.name(), repeated(b'a', 32).as_ref());
-    assert_eq!(area.words(), repeated(b'w', 480).as_ref());
-    assert_eq!(
-        area.owner(),
-        &w::AreaOwner::Charter(w::AreaCharter::new(&w::CEILINGS, w::AreaCharterParts { number: 6 }).unwrap())
-    );
-    assert_eq!(area.holder(), &None);
+    assert_eq!(got.project, 3);
+    assert_eq!(got.rows.as_slice(), &[expected_row]);
+    assert!(got.cut);
+    assert_eq!(&got.holder, &w::Holder::Party(w::HolderParty { number: 19 }));
+    assert_eq!(&got.triager, &Some(w::AreaOwner::Party(w::AreaParty { number: 19 })));
+    let area = got.areas.iter().next().unwrap();
+    assert_eq!(area.name.as_ref(), repeated(b'a', 32).as_ref());
+    assert_eq!(area.words.as_ref(), repeated(b'w', 480).as_ref());
+    assert_eq!(&area.owner, &w::AreaOwner::Charter(w::AreaCharter { number: 6 }));
+    assert_eq!(&area.holder, &None);
     assert!(
         family::document(
             forge::Document::Findings(document),
@@ -4976,15 +4469,7 @@ mod milestones;
 
 #[test]
 fn finding_reads_keep_their_scope_detail_and_absence() {
-    let reading = w::Reading::new(
-        &w::CEILINGS,
-        w::ReadingParts {
-            read: w::Read::Finding(
-                w::FindingRead::new(&w::CEILINGS, w::FindingReadParts { project: 7, number: 27 }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let reading = w::Reading { read: w::Read::Finding(w::FindingRead { project: 7, number: 27 }) };
     let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
         away_family(kit::ToApplication::Read {
             reply: REPLY,
@@ -5003,14 +4488,8 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
         (REPLY, 3, people::ApplicationScope::Project(7), root::ForgeRead::Finding { project: 7, number: 27 })
     );
     for (filer, expected) in [
-        (
-            forge::Filer::Task(51),
-            w::Filer::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 51 }).unwrap()),
-        ),
-        (
-            forge::Filer::Party(19),
-            w::Filer::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: 19 }).unwrap()),
-        ),
+        (forge::Filer::Task(51), w::Filer::Task(w::HolderTask { number: 51 })),
+        (forge::Filer::Party(19), w::Filer::Party(w::HolderParty { number: 19 })),
     ] {
         for (goal, reason) in [(None, None), (Some(51), Some(repeated(b'r', 400)))] {
             let (row, expected_row) = finding_row_pair();
@@ -5027,31 +4506,22 @@ fn finding_reads_keep_their_scope_detail_and_absence() {
             )
             .unwrap();
             let answer = wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap();
-            let w::FindingResult::Finding(detail) = answer.result() else { panic!("finding detail") };
-            assert_eq!(detail.goal(), &goal);
+            let w::FindingResult::Finding(detail) = &answer.result else { panic!("finding detail") };
+            assert_eq!(&detail.goal, &goal);
             assert_eq!(
-                answer.into_parts().result,
-                w::FindingResult::Finding(
-                    w::FindingDetail::new(
-                        &w::CEILINGS,
-                        w::FindingDetailParts {
-                            row: expected_row,
-                            body: repeated(b'b', 4096),
-                            filer: expected.clone(),
-                            goal,
-                            reason
-                        }
-                    )
-                    .unwrap()
-                )
+                answer.result,
+                w::FindingResult::Finding(w::FindingDetail {
+                    row: expected_row,
+                    body: repeated(b'b', 4096),
+                    filer: expected.clone(),
+                    goal,
+                    reason
+                })
             );
         }
     }
     let bytes = family::forge_read(root::ForgeReadAnswer::Finding(None), b"", &w::CEILINGS).unwrap();
-    assert_eq!(
-        wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result,
-        w::FindingResult::NoFinding
-    );
+    assert_eq!(wire::decode_finding_answer(&bytes, &w::CEILINGS).unwrap().result, w::FindingResult::NoFinding);
     let result = family::to_root(
         &jig_protocol_config::Directories::working(),
         kit::ToApplication::Read {
@@ -5112,12 +4582,12 @@ fn landed_sign_offs_reach_the_clients_typed_changes_rows() {
         temper_client_domain_forge::forge::Limits { field_bytes: 256, checks: 8 },
     )
     .unwrap();
-    for rows in [got.landed(), got.landed_default()] {
+    for rows in [&got.landed, &got.landed_default] {
         let row = rows.get(0).unwrap();
-        assert_eq!(row.signed().len(), 1);
-        let sign = row.signed().get(0).unwrap();
-        assert_eq!((sign.party(), *sign.head(), sign.at()), (signed.person, signed.head, signed.at.as_nanos()));
-        assert_eq!(sign.name(), &signed.name);
+        assert_eq!(row.signed.len(), 1);
+        let sign = row.signed.get(0).unwrap();
+        assert_eq!((sign.party, sign.head, sign.at), (signed.person, signed.head, signed.at.as_nanos()));
+        assert_eq!(&sign.name, &signed.name);
     }
 }
 
@@ -5136,14 +4606,14 @@ fn ways_rows_and_note_cross_the_wire_only_within_their_bounds() {
     };
     let bytes = family::ways_panel(document.clone(), &w::CEILINGS).unwrap();
     let panel = wire::decode_ways_panel(&bytes, &w::CEILINGS).unwrap();
-    let rows = panel.rules().rows();
+    let rows = &panel.rules.rows;
     assert_eq!(rows.len(), 1);
     let row = rows.as_slice().first().unwrap();
     assert_eq!(
-        (row.paths(), row.review(), row.sign_off(), row.lands()),
+        (row.paths.as_ref(), row.review.as_ref(), row.sign_off.as_ref(), row.lands.as_ref()),
         (b"protocol/**".as_slice(), b"an agent".as_slice(), b"you".as_slice(), b"once you sign off".as_slice())
     );
-    assert_eq!(panel.rules().note(), document.rules.note.as_ref());
+    assert_eq!(panel.rules.note.as_ref(), document.rules.note.as_ref());
     for limits in [
         w::Limits { path_rules_rows: 0, ..w::CEILINGS },
         w::Limits { path_rule_paths: 10, ..w::CEILINGS },
@@ -5159,38 +4629,18 @@ fn ways_rows_and_note_cross_the_wire_only_within_their_bounds() {
 #[test]
 fn set_draft_maps_every_change_and_repository() {
     for (change, expected) in [
-        (
-            w::DraftChange::Ready(w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: Some(7) }).unwrap()),
-            forge::DraftChange::Ready { chat: Some(7) },
-        ),
+        (w::DraftChange::Ready(w::ReadyDraft { chat: Some(7) }), forge::DraftChange::Ready { chat: Some(7) }),
         (w::DraftChange::NotReady, forge::DraftChange::NotReady),
-        (
-            w::DraftChange::Started(w::StartedDraft::new(&w::CEILINGS, w::StartedDraftParts { goal: 40 }).unwrap()),
-            forge::DraftChange::Started { goal: 40 },
-        ),
+        (w::DraftChange::Started(w::StartedDraft { goal: 40 }), forge::DraftChange::Started { goal: 40 }),
     ] {
         for named in [false, true] {
             let repository = if named {
-                Some(
-                    w::DraftRepository::new(
-                        &w::CEILINGS,
-                        w::DraftRepositoryParts { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() },
-                    )
-                    .unwrap(),
-                )
+                Some(w::DraftRepository { owner: b"org".as_slice().into(), name: b"repo".as_slice().into() })
             } else {
                 None
             };
-            let request = w::SetDraft::new(
-                &w::CEILINGS,
-                w::SetDraftParts {
-                    project: 9,
-                    repository,
-                    path: b"draft.md".as_slice().into(),
-                    change: change.clone(),
-                },
-            )
-            .unwrap();
+            let request =
+                w::SetDraft { project: 9, repository, path: b"draft.md".as_slice().into(), change: change.clone() };
             assert_eq!(
                 away_request(w::Request::SetDraft(request)),
                 root::Application::Forge(forge::Ask::SetDraft(forge::SetDraft {
@@ -5212,8 +4662,8 @@ fn set_draft_maps_every_change_and_repository() {
 }
 #[test]
 fn drafts_watch_names_its_project_subject() {
-    let subject = w::DraftsSubject::new(&w::CEILINGS, w::DraftsSubjectParts { project: 9 }).unwrap();
-    let record = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Drafts(subject) }).unwrap();
+    let subject = w::DraftsSubject { project: 9 };
+    let record = w::Watching { watch: w::Watch::Drafts(subject) };
     let root::Event::Party(root::PartyInput::Watch { watcher, subject, .. }) =
         away_family(watch_exchange(wire::FORGE, wire::CLIENT_VERSION, wire::watching(&record)))
     else {
@@ -5257,8 +4707,8 @@ fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
         panic!("drafted")
     };
     assert_eq!(
-        row.into_parts(),
-        w::LandedDraftParts {
+        row,
+        w::LandedDraft {
             forge: 2,
             owner: b"org".as_slice().into(),
             name: b"repo".as_slice().into(),
@@ -5280,11 +4730,11 @@ fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
     )
     .unwrap();
     let panel = wire::decode_drafts_panel(&bytes, &w::CEILINGS).unwrap();
-    assert_eq!(panel.project(), 9);
-    assert_eq!(panel.drafts().len(), 1);
+    assert_eq!(panel.project, 9);
+    assert_eq!(panel.drafts.len(), 1);
     assert_eq!(
         away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Kept(view)))),
-        w::Outcome::Drafted(panel.drafts().get(0).unwrap().clone())
+        w::Outcome::Drafted(panel.drafts.get(0).unwrap().clone())
     );
     for (why, expected) in [
         (forge::DraftRefusal::NoRepository, w::DraftRefusal::NoRepository),
@@ -5297,9 +4747,7 @@ fn draft_answers_and_documents_preserve_the_whole_row_and_each_refusal() {
     ] {
         assert_eq!(
             away_answer(Some(root::ApplicationAnswer::SetDraft(forge::SetDraftAnswer::Refused(why)))),
-            w::Outcome::DraftRefused(
-                w::DraftRefused::new(&w::CEILINGS, w::DraftRefusedParts { reason: expected }).unwrap()
-            )
+            w::Outcome::DraftRefused(w::DraftRefused { reason: expected })
         );
     }
     assert_eq!(away_answer(None), w::Outcome::Unknown);
@@ -5315,9 +4763,9 @@ fn a_single_landing_panel_has_no_train_or_round() {
     let bytes = family::document(forge::Document::Landing(view), &fixtures::forge_table(&[]), &w::CEILINGS)
         .expect("single landing panel");
     let panel = wire::decode_landing_panel(&bytes, &w::CEILINGS).expect("single landing panel");
-    assert!(panel.round().is_none());
-    assert!(panel.train().is_none());
-    assert_eq!(panel.members().len(), 1);
+    assert!(panel.round.is_none());
+    assert!(panel.train.is_none());
+    assert_eq!(panel.members.len(), 1);
 }
 
 #[test]
@@ -5334,8 +4782,8 @@ fn a_batch_panel_keeps_its_members_when_round_diagnostics_pass_the_wire_bound() 
         assert!(bytes.is_some(), "diagnostic extra {extra} does not erase the landing");
         let bytes = bytes.unwrap();
         let panel = wire::decode_landing_panel(&bytes, &w::CEILINGS).unwrap();
-        assert_eq!(panel.members().len(), 2);
-        let failure = panel.round().as_ref().unwrap().failure();
+        assert_eq!(panel.members.len(), 2);
+        let failure = &panel.round.as_ref().unwrap().failure;
         assert_eq!(failure.len(), bound);
         assert_eq!(failure.ends_with(b"..."), extra == 1);
     }
@@ -5350,28 +4798,18 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     let bytes: [u8; 17] = cursor.encode().as_ref().try_into().unwrap();
     for (of, expected) in [
         (w::HistoryOf::Project, h::Of::Project),
-        (
-            w::HistoryOf::Change(w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task: 51 }).unwrap()),
-            h::Of::Change(51),
-        ),
-        (
-            w::HistoryOf::Landing(w::HistoryTask::new(&w::CEILINGS, w::HistoryTaskParts { task: 61 }).unwrap()),
-            h::Of::Landing(61),
-        ),
+        (w::HistoryOf::Change(w::HistoryTask { task: 51 }), h::Of::Change(51)),
+        (w::HistoryOf::Landing(w::HistoryTask { task: 61 }), h::Of::Landing(61)),
     ] {
-        let reading = w::Reading::new(
-            &w::CEILINGS,
-            w::ReadingParts {
-                read: w::Read::History(
-                    w::HistoryRead::new(
-                        &w::CEILINGS,
-                        w::HistoryReadParts { project: 7, of, since: Some(5), until: Some(9), after: Some(bytes) },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap();
+        let reading = w::Reading {
+            read: w::Read::History(w::HistoryRead {
+                project: 7,
+                of,
+                since: Some(5),
+                until: Some(9),
+                after: Some(bytes),
+            }),
+        };
         let root::Event::Party(root::PartyInput::ForgeRead { reply, sign_in, scope, query }) =
             away_family(kit::ToApplication::Read {
                 reply: REPLY,
@@ -5404,25 +4842,15 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     for (scope, after) in
         [(people::ApplicationScope::Project(8), bytes), (people::ApplicationScope::Project(7), [0; 17])]
     {
-        let reading = w::Reading::new(
-            &w::CEILINGS,
-            w::ReadingParts {
-                read: w::Read::History(
-                    w::HistoryRead::new(
-                        &w::CEILINGS,
-                        w::HistoryReadParts {
-                            project: 7,
-                            of: w::HistoryOf::Project,
-                            since: None,
-                            until: None,
-                            after: Some(after),
-                        },
-                    )
-                    .unwrap(),
-                ),
-            },
-        )
-        .unwrap();
+        let reading = w::Reading {
+            read: w::Read::History(w::HistoryRead {
+                project: 7,
+                of: w::HistoryOf::Project,
+                since: None,
+                until: None,
+                after: Some(after),
+            }),
+        };
         let result = family::to_root(
             &jig_protocol_config::Directories::working(),
             kit::ToApplication::Read {
@@ -5472,8 +4900,8 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
     )
     .unwrap();
     let answer = wire::decode_history_answer(&encoded, &w::CEILINGS).unwrap();
-    let w::HistoryReply::Page(page) = answer.result() else { panic!("page") };
-    assert_eq!((page.upper(), page.after(), page.whole_since()), (40, &Some(bytes), &Some(3)));
+    let w::HistoryReply::Page(page) = &answer.result else { panic!("page") };
+    assert_eq!((page.upper, &page.after, &page.whole_since), (40, &Some(bytes), &Some(3)));
     let mut outcomes = List::uncapped();
     for pair in [
         (h::JobOutcome::Done, w::HistoryJobOutcome::Done),
@@ -5495,9 +4923,7 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
         outcomes
             .push((
                 h::JobOutcome::Failed { class },
-                w::HistoryJobOutcome::Failed(
-                    w::HistoryJobFailed::new(&w::CEILINGS, w::HistoryJobFailedParts { class: expected }).unwrap(),
-                ),
+                w::HistoryJobOutcome::Failed(w::HistoryJobFailed { class: expected }),
             ))
             .unwrap();
     }
@@ -5517,48 +4943,33 @@ fn history_reads_and_replies_keep_the_project_query_events_and_refusals() {
         )
         .unwrap();
         let reply = wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap();
-        let w::HistoryReply::Page(page) = reply.result() else { panic!("job history page") };
-        let w::HistoryWhat::JobEnded(ended) = page.events().get(0).unwrap().what() else { panic!("job end") };
-        assert_eq!(ended.outcome(), &expected);
+        let w::HistoryReply::Page(page) = &reply.result else { panic!("job history page") };
+        let w::HistoryWhat::JobEnded(ended) = &page.events.get(0).unwrap().what else { panic!("job end") };
+        assert_eq!(&ended.outcome, &expected);
     }
-    let event = page.events().get(0).unwrap();
+    let event = page.events.get(0).unwrap();
     assert_eq!(
-        (
-            event.project(),
-            event.number(),
-            event.change(),
-            event.at(),
-            *event.source_at(),
-            event.operation(),
-            event.attempt()
-        ),
+        (event.project, event.number, event.change, event.at, event.source_at, event.operation, event.attempt),
         (7, 33, 51, 6, Some(4), 99, 3)
     );
-    assert_eq!((event.repository().forge(), event.repository().repository()), (2, 3));
-    assert_eq!((*event.head(), *event.base()), (Some([1; 32]), Some([2; 32])));
-    let landing = event.landing().as_ref().unwrap();
-    assert_eq!((landing.task(), landing.round(), landing.unit()), (61, 2, 1));
-    let w::HistoryWhat::Formed(formed) = event.what() else { panic!("formed fields") };
-    assert_eq!((formed.place(), formed.members().len()), (1, 1));
-    let member = formed.members().get(0).unwrap();
-    assert_eq!((member.change(), member.unit(), *member.head()), (51, 1, [1; 32]));
+    assert_eq!((event.repository.forge, event.repository.repository), (2, 3));
+    assert_eq!((event.head, event.base), (Some([1; 32]), Some([2; 32])));
+    let landing = event.landing.as_ref().unwrap();
+    assert_eq!((landing.task, landing.round, landing.unit), (61, 2, 1));
+    let w::HistoryWhat::Formed(formed) = &event.what else { panic!("formed fields") };
+    assert_eq!((formed.place, formed.members.len()), (1, 1));
+    let member = formed.members.get(0).unwrap();
+    assert_eq!((member.change, member.unit, member.head), (51, 1, [1; 32]));
     for (reply, expected) in [
         (
             h::Reply::Gone { from: 32, first: Some(35) },
-            w::HistoryReply::Gone(
-                w::HistoryGone::new(&w::CEILINGS, w::HistoryGoneParts { from: 32, first: Some(35) }).unwrap(),
-            ),
+            w::HistoryReply::Gone(w::HistoryGone { from: 32, first: Some(35) }),
         ),
-        (
-            h::Reply::Gone { from: 40, first: None },
-            w::HistoryReply::Gone(
-                w::HistoryGone::new(&w::CEILINGS, w::HistoryGoneParts { from: 40, first: None }).unwrap(),
-            ),
-        ),
+        (h::Reply::Gone { from: 40, first: None }, w::HistoryReply::Gone(w::HistoryGone { from: 40, first: None })),
         (h::Reply::Busy, w::HistoryReply::Busy),
     ] {
         let bytes = family::forge_read(root::ForgeReadAnswer::History(reply), b"", &w::CEILINGS).unwrap();
-        assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().into_parts().result, expected);
+        assert_eq!(wire::decode_history_answer(&bytes, &w::CEILINGS).unwrap().result, expected);
     }
 }
 
@@ -5578,49 +4989,31 @@ fn a_landing_repair_keeps_its_change_panel_readable() {
         value.in_landing = Some(61);
         value.runs = Some(88);
         let got = decoded_panel(value, &fixtures::forge_table(&[]));
-        assert_eq!(
-            *got.step(),
-            repairing(w::Reason::Landing(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: 0 }).unwrap()))
-        );
-        assert_eq!(*got.in_landing(), Some(61));
-        assert_eq!(*got.runs(), Some(88));
+        assert_eq!(got.step, repairing(w::Reason::Landing(w::GateReason { gate: 0 })));
+        assert_eq!(got.in_landing, Some(61));
+        assert_eq!(got.runs, Some(88));
     }
 }
 
 #[test]
 fn tier_acts_translate_the_repository_reason_and_each_outcome() {
-    for repository in [
-        None,
-        Some(
-            w::DraftRepository::new(
-                &w::CEILINGS,
-                w::DraftRepositoryParts { owner: b"acme".as_slice().into(), name: b"site".as_slice().into() },
-            )
-            .unwrap(),
-        ),
-    ] {
+    for repository in
+        [None, Some(w::DraftRepository { owner: b"acme".as_slice().into(), name: b"site".as_slice().into() })]
+    {
         for (act, expected) in [
             (
-                w::TierAct::Hold(
-                    w::TierHoldAct::new(&w::CEILINGS, w::TierHoldActParts { reason: b"maintenance".as_slice().into() })
-                        .unwrap(),
-                ),
+                w::TierAct::Hold(w::TierHoldAct { reason: b"maintenance".as_slice().into() }),
                 forge::TierAct::Hold { reason: b"maintenance".as_slice().into() },
             ),
             (w::TierAct::Release, forge::TierAct::Release),
         ] {
-            let request = w::TierActRequest::new(
-                &w::CEILINGS,
-                w::TierActRequestParts {
-                    project: 2,
-                    repository: repository.clone(),
-                    tier: b"browser".as_slice().into(),
-                    act,
-                },
-            )
-            .unwrap();
-            let record =
-                w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::TierAct(request) }).unwrap();
+            let request = w::TierActRequest {
+                project: 2,
+                repository: repository.clone(),
+                tier: b"browser".as_slice().into(),
+                act,
+            };
+            let record = w::Requesting { request: w::Request::TierAct(request) };
             let event = family::to_root(
                 &jig_protocol_config::Directories::working(),
                 exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
@@ -5650,7 +5043,7 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
                     project: 2,
                     repository: match repository.clone() {
                         Some(value) => {
-                            let p = value.into_parts();
+                            let p = value;
                             Some(forge::DraftRepository { owner: p.owner, name: p.name })
                         }
                         None => None,
@@ -5667,13 +5060,7 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         (Err(forge::TierRefusal::NoTier), Some(w::TierRefusal::NoTier)),
         (
             Err(forge::TierRefusal::Held { party: 19, reason: b"maintenance".as_slice().into() }),
-            Some(w::TierRefusal::Held(
-                w::TierHeldBy::new(
-                    &w::CEILINGS,
-                    w::TierHeldByParts { party: 19, reason: b"maintenance".as_slice().into() },
-                )
-                .unwrap(),
-            )),
+            Some(w::TierRefusal::Held(w::TierHeldBy { party: 19, reason: b"maintenance".as_slice().into() })),
         ),
         (Err(forge::TierRefusal::NotHeld), Some(w::TierRefusal::NotHeld)),
         (Err(forge::TierRefusal::Words), Some(w::TierRefusal::Words)),
@@ -5681,8 +5068,8 @@ fn tier_acts_translate_the_repository_reason_and_each_outcome() {
         let jig = jig_protocol_config_fixtures::small().clients.wire;
         let bytes = family::answer(Some(root::ApplicationAnswer::Tier(value)), &w::CEILINGS, &jig).unwrap();
         let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
-        let w::Outcome::Tier(answer) = answer.into_parts().outcome else { panic!("tier outcome") };
-        assert_eq!(answer.into_parts().refusal, expected);
+        let w::Outcome::Tier(answer) = answer.outcome else { panic!("tier outcome") };
+        assert_eq!(answer.refusal, expected);
     }
 }
 
@@ -5696,13 +5083,13 @@ fn an_opened_panel_carries_its_source_and_taking_step() {
                 value.step = step.clone();
                 value.source = Some(forge::PanelSource { branch: b"docs/x".as_slice().into(), at, kept });
                 let got = decoded_panel(value, &crate::forges::Forges::with_capacity(0));
-                assert_eq!(got.step(), &expected);
-                let source = got.source().as_ref().expect("opened source");
-                assert_eq!(source.branch(), b"docs/x");
-                assert_eq!(*source.at(), at);
-                assert_eq!(*source.kept(), kept);
+                assert_eq!(&got.step, &expected);
+                let source = got.source.as_ref().expect("opened source");
+                assert_eq!(source.branch.as_ref(), b"docs/x");
+                assert_eq!(source.at, at);
+                assert_eq!(source.kept, kept);
             }
         }
     }
-    assert_eq!(*decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source(), None);
+    assert_eq!(decoded_panel(panel(), &crate::forges::Forges::with_capacity(0)).source, None);
 }

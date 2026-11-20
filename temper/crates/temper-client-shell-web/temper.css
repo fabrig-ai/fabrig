@@ -3196,7 +3196,7 @@ html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-us
 #app > .temper-session .temper-way-pick,
 #app > .temper-settings .temper-way-pick { position: relative; }
 #app > .temper-session .temper-way-pick > button[aria-haspopup=menu],
-#app > .temper-settings .temper-way-pick > button[aria-haspopup=menu] { min-height: 34px; padding: 4px 12px 4px 14px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: 500 13.5px/1.6 var(--gf-sans); white-space: nowrap; cursor: pointer; box-shadow: none; display: inline-flex; align-items: center; gap: 10px; color: var(--gf-ink-2); }
+#app > .temper-settings .temper-way-pick > button[aria-haspopup=menu] { min-height: 34px; padding: 4px 12px 4px 14px; border: 1px solid var(--gf-line-2); border-radius: 8px; background: var(--gf-surface); font: 500 13.5px/1.6 var(--gf-sans); white-space: nowrap; cursor: pointer; box-shadow: none; display: inline-flex; align-items: center; gap: 10px; color: var(--gf-ink); }
 #app > .temper-session .temper-way-pick > button[aria-haspopup=menu]::after,
 #app > .temper-settings .temper-way-pick > button[aria-haspopup=menu]::after { content: '' / ''; width: 6px; height: 6px; margin-top: -3px; border: solid var(--gf-muted); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
 #app > .temper-session .temper-way-pick > button[aria-haspopup=menu][aria-expanded=true],
@@ -3218,6 +3218,24 @@ html:root[data-night] #app > .temper-settings .temper-way-acts > .temper-ways-us
 @media (max-width: 760px) {
   #app > .temper-session .temper-way-acts,
   #app > .temper-settings .temper-way-acts { margin-left: 0; }
+}
+
+/* ways-shown */
+#app > .temper-session .temper-way-menu [role=menuitem] > [id^="skein-ui-description-"],
+#app > .temper-settings .temper-way-menu [role=menuitem] > [id^="skein-ui-description-"] { margin-left: auto; color: var(--gf-faint); font-size: 12.5px; }
+#app > .temper-session .temper-way-menu [role=menuitem][aria-selected=true]:has(> [id^="skein-ui-description-"])::after,
+#app > .temper-settings .temper-way-menu [role=menuitem][aria-selected=true]:has(> [id^="skein-ui-description-"])::after { margin-left: 10px; }
+#app > .temper-session .temper-starter:has(> .temper-ways) { position: relative; }
+#app > .temper-session .temper-starter:has(> .temper-ways) > .temper-ways-lede { padding-right: 260px; }
+#app > .temper-session .temper-starter > .temper-ways .temper-way-acts { position: absolute; top: -3px; right: 0; margin: 0; }
+#app > .temper-settings .temper-settings-section:has(> .temper-way-head) { position: relative; }
+#app > .temper-settings .temper-settings-section:has(> .temper-way-head) > .temper-settings-section-head { padding-right: 260px; }
+#app > .temper-settings .temper-settings-section > .temper-way-head > .temper-way-acts { position: absolute; top: -6px; right: 0; margin: 0; }
+@media (max-width: 760px) {
+  #app > .temper-session .temper-starter:has(> .temper-ways) > .temper-ways-lede,
+  #app > .temper-settings .temper-settings-section:has(> .temper-way-head) > .temper-settings-section-head { padding-right: 0; }
+  #app > .temper-session .temper-starter > .temper-ways .temper-way-acts,
+  #app > .temper-settings .temper-settings-section > .temper-way-head > .temper-way-acts { position: static; }
 }
 
 /* ==== ui: how ==== */

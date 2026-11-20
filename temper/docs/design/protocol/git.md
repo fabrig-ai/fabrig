@@ -1,6 +1,6 @@
 # The checkout's io: git
 
-Provisional, 2026-10-14, revised 2026-10-20. How the worker's protocol
+Provisional, 2026-10-14, revised 2026-11-19. How the worker's protocol
 layer runs the checkout's operations (`../domain/worker/checkouts.md`):
 the git component, `temper-worker-protocol-git`. For each operation of
 `temper-worker-domain-checkout`'s `git::Op`, the fixed sequence of git
@@ -9,7 +9,7 @@ read from what git says, and how its failures are classified; then the
 processes, deadlines and cancel, the limits, and how it is tested. The
 mechanics are skein's `programming-model.md` (sections 4 and 9) and io's
 processes (skein's `runtime/io/processes.md`). The credentials it hands git are
-credentials.md's (`credentials.md`, section 4). What is open is listed in `git.md`, section 10.
+credentials.md's (`credentials.md`, section 4). What is open is listed in `git-later.md`, section 1.
 
 ## 1. In one page
 
@@ -77,6 +77,9 @@ credentials.md's (`credentials.md`, section 4). What is open is listed in `git.m
   checkout or merge with `origin` as a promisor remote, so git fetches the
   contents it lacks into the checkout, within the operation and under its
   remote deadline (4.5, 4.6).
+- **Kept packed.** Each such fetch leaves a pack, and git repacks nothing
+  itself here (section 3), so a prepare's `Pack` repacks a store or a
+  repository past 50 packs, keeping every object (4.14).
 - **A deadline or a cancel kills the invocation's process group,** and
   the operation ends only once its process has closed, so nothing of it
   touches the workspace afterwards.
@@ -173,14 +176,16 @@ pipes      stdin (written, then closed), stdout, stderr
 `CheckOut`'s `git checkout` and `Merge`'s `git merge` add one more, after
 these: `-c remote.origin.promisor=true`, which makes `origin` a promisor
 remote for that invocation alone, so git fetches from it the file contents
-the blob-less store lacks (4.5). No other invocation names it: one that
+the blob-less store lacks (4.5). `Pack`'s `git repack` names it too, so
+that git repacks the forge's packs apart and keeps their objects (4.14). No
+other invocation names it: one that
 finds an object missing fails, and a push's thin pack skips a delta base it
 lacks rather than fetching it.
 
 - **Command-line settings win** over the worker's directory's own
   configuration for the keys they name. The rest is that directory's own,
   which `Clone` wrote and no run's git writes (4.13); a run's writing it
-  directly is confinement's to close (section 10).
+  directly is confinement's to close (`git-later.md`, section 1).
 - **Named, never found.** Every invocation runs at the worker's root,
   never `-C`, and names its repository after the settings, by paths
   beneath the root: in a checkout `--git-dir=gitdirs/<token>/<repository>`
@@ -251,6 +256,7 @@ lacks rather than fetching it.
 | `IsAncestor` | 1 | `IsAncestor { contains }` |
 | `Store` | 1, a clone, and two or three file operations | `Succeeded` |
 | `Point` | 1 | `Succeeded` |
+| `Pack` | 1 to 4 | `Succeeded` |
 
 Each may also end failed, with the fault of section 6. Below, `<url>` is
 the operation's `remote`, `<dir>` its repository's name, and ids are as
@@ -383,7 +389,9 @@ workspace's last fetches under its own token.
   under the workspace's token and in the repository, and is moved freely by
   the next fetch.
 - **`refs/temper/landing`** is the landing pin: the landing branch's tip as
-  prepare fetched it, or, for a writable item that names no landing branch,
+  prepare fetched it; or, for a writable item that names a pin, that commit
+  (`../domain/worker/checkouts.md`, *A named pin*), fetched by its full id
+  where the prepare has not; or, for a writable item that names neither,
   the head its push branch had (or its start's commit, where that branch
   does not exist yet), which the project's checks take their base from
   (`tools/pre-pr/design.md`, section 2). Only prepare's one pin writes it,
@@ -789,9 +797,9 @@ two `Store`s of one store at once, which the cache never starts
   on the command line (section 3). Its `refs/heads/<default>` stays where
   the clone put it. Nothing of a workspace's reaches it but objects the
   forge sent and references under the workspace's token.
-- **Never maintained:** `gc.auto=0` and `maintenance.auto=false` hold for
-  it as for every repository, so nothing prunes an object a checkout may
-  borrow (`../domain/worker/checkouts.md`, section 2).
+- **Repacked, never pruned:** `gc.auto=0` and `maintenance.auto=false`
+  hold for it as for every repository, so nothing prunes an object a
+  checkout may borrow; `Pack` repacks it, keeping every object (4.14).
 
 ### 4.12 Point
 
@@ -845,6 +853,56 @@ writes into it, never reading what is there, and makes it:
   run's it reads, as bytes, without following a link, never through git
   (`../domain/forge/reds.md`, 5.5).
 
+### 4.14 Pack
+
+`Pack { at, store }`: the store `stores/<store>`, where `store` names one,
+then the worker's git directory of the repository (section 3), each
+repacked once it holds more than 50 packs, the bound git's own
+`gc.autoPackLimit` keeps. Local; it names no identity.
+git keeps each fetch from a promisor remote as a pack of its own, a store's
+fetch (4.3) and a check out's or merge's fetch of contents (4.5, 4.6)
+alike, and section 3's settings leave no git to repack them, so a prepare
+asks a `Pack` for a repository once enough of those have gone into its
+store or into it (`../domain/worker/checkouts.md`). For each place, with
+its git directory named as in section 3:
+
+1. The count:
+   ```
+   git count-objects -v
+   ```
+   whose stdout's one `packs: <n>` line, in decimal, counts its packs; a
+   stdout without exactly one is `Broken`.
+2. Only where `<n>` is above 50:
+   ```
+   git -c remote.origin.promisor=true repack -A -d -l -q --no-write-bitmap-index
+   ```
+
+- **Exit 0 from each it ran:** `Succeeded`; any other exit is `Broken`.
+  git puts the new pack in place before it deletes the old ones, so a
+  repack killed or failed at any point leaves every object where some pack
+  holds it.
+- **Every object kept.** With the promisor setting, git repacks the packs
+  fetched from the forge apart, into one pack that keeps every object they
+  held, reachable or not, so whatever a checkout borrows stays; `-A` turns
+  any other unreachable object loose rather than dropping it, and nothing
+  prunes. `-l` keeps a repository's pack to its own objects, not its
+  store's. On git 2.47.3 (2026-11-19), a store's 9 packs became 1 and a
+  checkout's 11 lazily fetched packs 2, with no object lost and nothing
+  fetched.
+- **Not geometric.** git 2.47's `repack --geometric` refuses a repository
+  with a promisor remote, which every blob-less store and checkout is
+  (`fatal: cannot use internal rev list with --stdin-packs`).
+- **A store's lock,** the component's, so that a repack never runs beside
+  another repack or a fetch in the same store (the user, 2026-11-19).
+  Fetch's store fetch (4.3) shares it with other fetches; a `Pack`'s count
+  and repack in the store hold it alone. An operation that cannot take it
+  waits, with no invocation, behind those that came before it, under its
+  own deadline (section 7), and takes it once those ahead of it have it or
+  are gone. A repository needs none: it runs one operation at a time.
+  Other readers of the store, a check out's and a merge's, take no lock.
+- **Under the local deadline** (section 7): a repack it kills leaves its
+  temporary files in `objects/pack` (`git-later.md`, section 1).
+
 ## 5. Credentials and environment
 
 The environment is given whole: what is below, and nothing else. No
@@ -880,7 +938,7 @@ variable of the worker's own process reaches git.
   tail a run sees (section 6) holds none.
 - **What standalone accepts:** an agent run as the same user could read a
   git process's environment while it runs (credentials.md, section 8).
-  Contained trees close it (section 10).
+  Contained trees close it (`git-later.md`, section 1).
 
 ## 6. Output and failures
 
@@ -957,7 +1015,7 @@ variable of the worker's own process reaches git.
 
 - **One invocation at a time per operation,** each spawned in a process
   group of its own (skein's `runtime/io/processes.md`); contained process trees
-  are for hosts apart (jig's `protocol/README.md`, section 10; `git.md`, section 10
+  are for hosts apart (jig's `protocol/README.md`, section 10; `git-later.md`, section 1
   ). git's own children (its remote helper, `index-pack`,
   `pack-objects`) stay in that group. The settings of `git.md`, section 3 leave
   git nothing that would leave the group: no detached maintenance, no
@@ -1035,8 +1093,12 @@ checks this document's contract:
     an identity appears in an argument; the
     message's bytes; both alternates files' bytes; that every invocation
     runs at the root and names its directories (section 3); the view's
-    files, its removals and its making again (4.13);
-  - **the parsers:** fetch's porcelain line, push's status lines, NUL
+    files, its removals and its making again (4.13); a `Pack`'s count and
+    repack in the store and then the repository, each repack only past 50
+    packs, and the store's lock: a fetch and a `Pack`'s store part never
+    run together in one store, nor two `Pack`s, and waiters take it in
+    order;
+  - **the parsers:** count-objects' `packs:` line, fetch's porcelain line, push's status lines, NUL
     lists, ids of 40 and 64 digits and malformed ones, the conversions
     both ways, and the classifier of section 6, each against transcripts
     and against their mutations;
@@ -1092,46 +1154,4 @@ checks this document's contract:
 
 ## 10. Open questions
 
-- **Containment.** No git metadata a run writes in its `.git` reaches an
-  invocation (section 3, 4.13), but git and agents still run as one user:
-  an agent's command could read a running git's environment, or write the
-  worker's directory or a store directly, beside its workspace. Default:
-  accepted until confinement's fence keeps a run's commands out of both
-  (`../draft/confinement.md`, 5.2 and 6.3); the command-line settings of
-  section 3 and the URL on the command line cover what they name. An
-  agent's program surviving a forced stop also needs containment on one
-  person's machine; git's configured helpers stay in its group (`git.md`,
-  section 7; setup/README.md, section 9).
-- **A nested repository** in a work tree, a directory holding its own
-  `.git`, is staged by `add --all` as git stages one, by the commit its
-  HEAD names, which git reads without running anything it configures; a
-  `clean` removes it (4.5). Default: so, the run's delivery being its own.
-- **A stray file of another name** (4.7): `git add` still takes it, a new
-  file being indistinguishable from a run's new work, unless the repository
-  ignores it. Default: the repository's `.gitignore` is where such a name goes.
-  A hidden log in conflict in a merge stays unmerged, so `write-tree` ends
-  `Broken`; no story makes one.
-- **HEAD after saving unfinished work.** Default: a commit without a delivery snapshot
-  does not move HEAD (section 4.7). Preparation follows each clean producer
-  merge or merged head's commit with `CheckOut`, moving HEAD and clearing
-  the merge's state before the run (`../domain/worker/checkouts.md`).
-  A saved-work commit retains its domain-named parents; an unchecked save
-  and checked delivery read and advance HEAD.
-- **A forge whose certificate needs its own trust for git.** Default: the
-  machine's roots, for git as for the forge's API, whose record names
-  its TLS name alone (forge/engine.md, 1). Between hosts, the trust would
-  come with the workspace's items.
-- **Git LFS.** Default: not supported; no filter is configured, so a
-  repository's large files stay pointer files in its working tree.
-- **Another git's messages.** Default: classified against 2.47's, from
-  2.41 on; a version that words a failure otherwise reads `Broken` until
-  its transcripts are captured.
-- **A dirty checkout's transcripts.** 4.5's clearing of staged files and a
-  merge's state rests on one run by hand, and no transcript records it, since
-  capturing again takes a pinned Forgejo and rewrites every case. Default: so,
-  until an invocation changes or git moves (section 9).
-- **A clone that outlives its workstream.** Section 3 turns off automatic
-  garbage collection and maintenance, which costs little while a new
-  workstream makes its workspace again. A clone kept past one
-  (`../domain/worker/checkouts.status.md`) gathers old objects until a make, and a
-  store gathers every fetch's for the worker's life (`../domain/worker/checkouts.md`, 2). Default: nothing collects them.
+See [The checkout’s git: open questions](git-later.md).

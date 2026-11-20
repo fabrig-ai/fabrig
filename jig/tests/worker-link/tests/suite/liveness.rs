@@ -1,5 +1,6 @@
 use jig_domain_host as host;
 use jig_protocol_worker_link::{Event, Loss, Request};
+use jig_protocol_worker_wire::Record;
 use jig_worker_link_world::{World, fixtures};
 use skein_lib::Duration;
 fn world() -> World {
@@ -147,10 +148,10 @@ fn a_piece_goes_up_as_a_fact_with_every_field() {
     let record = &records[0][1];
     assert_eq!(record.kind, wire::Kind::Fact.number());
     let fact = wire::Fact::decode(&fixtures::codec(), &mut skein_lib::Reader::new(&record.body)).expect("piece fact");
-    assert_eq!((fact.task(), fact.attempt()), (7, 2));
-    let wire::FactValue::Piece(piece) = fact.value() else { panic!("piece") };
+    assert_eq!((fact.task, fact.attempt), (7, 2));
+    let wire::FactValue::Piece(piece) = &fact.value else { panic!("piece") };
     assert_eq!(
-        (piece.turn(), piece.retry(), piece.kind(), piece.offset(), piece.bytes()),
+        (piece.turn, piece.retry, (&piece.kind), piece.offset, piece.bytes.as_ref()),
         (1, 2, &wire::LiveKind::Text, u64::from(u32::MAX) + 9, b"words".as_slice())
     );
     assert_eq!(lost(&world), 0);
@@ -181,12 +182,8 @@ fn fill_busy_table(world: &mut World) {
     // One key per configured slot and retained turn, then one beyond room.
     let room = fixtures::SIZES.slots * fixtures::SIZES.turns;
     for number in 1..=room + 1 {
-        let busy = wire::TurnBusy::new(
-            &fixtures::codec(),
-            wire::TurnBusyParts { task: fixtures::RUN_SEVEN.raw(), attempt: fixtures::ATTEMPT_TWO.raw(), number },
-        )
-        .expect("busy");
-        world.play(fixtures::frame(0x0184, &fixtures::encoded(busy.measure(), |writer| busy.encode(writer))));
+        let busy = wire::TurnBusy { task: fixtures::RUN_SEVEN.raw(), attempt: fixtures::ATTEMPT_TWO.raw(), number };
+        world.play(fixtures::frame(0x0184, &fixtures::encoded(&busy)));
     }
 }
 #[test]

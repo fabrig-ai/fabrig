@@ -737,6 +737,7 @@ impl World {
                 launch: Launch {
                     seed,
                     tls: false,
+                    commands_path: None,
                     trust_der: None,
                     change,
                     tools: false,

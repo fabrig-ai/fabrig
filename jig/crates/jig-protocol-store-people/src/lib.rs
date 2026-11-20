@@ -4,6 +4,5 @@
 extern crate alloc;
 
 #[rustfmt::skip]
-#[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
 #[path = "generated/people.rs"]
 pub mod people_v17;

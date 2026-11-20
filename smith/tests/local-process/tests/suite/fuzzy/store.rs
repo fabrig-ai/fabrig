@@ -265,20 +265,14 @@ fn initial_files(initial: Initial) -> Vec<skein_fake_machine::Item> {
                 Item::file(&delivery().name, &delivery().bytes),
             ];
             if !matches!(initial, Initial::Unrecorded) {
-                let mut layouts = smith_local_protocol::format::layouts().into_parts();
+                let mut layouts = smith_local_protocol::format::layouts();
                 match initial {
                     Initial::StoreLayout => layouts.store[0] ^= 1,
                     Initial::TranscriptLayout => layouts.transcript[0] ^= 1,
                     Initial::Current | Initial::Window | Initial::Empty | Initial::Unrecorded => unreachable!(),
                 }
-                let record = smith_local_protocol::local_store_v1::Layouts::new(
-                    &smith_local_protocol::local_store_v1::CEILINGS,
-                    layouts,
-                )
-                .unwrap();
-                let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
-                record.encode(&mut writer).unwrap();
-                items.push(Item::file(b"format", &writer.finish()));
+                let marker = smith_local_protocol::format::file(&layouts);
+                items.push(Item::file(b"format", &marker.bytes));
             }
             items
         }

@@ -7,38 +7,29 @@ pub(super) fn encode(
     let mut result = List::with_capacity(values.len());
     for value in values {
         let translated = match value {
-            domain::Operation::Cancel { task, reason, grace } => wire::Operation::Cancel(wire::OperationCancel::new(
-                limits,
-                wire::OperationCancelParts { task: *task, reason: reason.clone(), grace: encode_grace(*grace) },
-            )?),
-            domain::Operation::Move { task, reason } => wire::Operation::MoveTask(wire::OperationMove::new(
-                limits,
-                wire::OperationMoveParts { task: *task, reason: reason.clone() },
-            )?),
+            domain::Operation::Cancel { task, reason, grace } => wire::Operation::Cancel(wire::OperationCancel {
+                task: *task,
+                reason: reason.clone(),
+                grace: encode_grace(*grace),
+            }),
+            domain::Operation::Move { task, reason } => {
+                wire::Operation::MoveTask(wire::OperationMove { task: *task, reason: reason.clone() })
+            }
             domain::Operation::Amend { task, revision, amendment, release } => {
-                wire::Operation::Amend(Box::new(wire::OperationAmend::new(
-                    limits,
-                    wire::OperationAmendParts {
-                        task: *task,
-                        revision: *revision,
-                        amendment: super::encode_amendment(amendment, limits)?,
-                        release: *release,
-                    },
-                )?))
+                wire::Operation::Amend(Box::new(wire::OperationAmend {
+                    task: *task,
+                    revision: *revision,
+                    amendment: super::encode_amendment(amendment, limits)?,
+                    release: *release,
+                }))
             }
             domain::Operation::Release { task, revision, again } => {
-                wire::Operation::Release(wire::OperationRelease::new(
-                    limits,
-                    wire::OperationReleaseParts { task: *task, revision: *revision, again: *again },
-                )?)
+                wire::Operation::Release(wire::OperationRelease { task: *task, revision: *revision, again: *again })
             }
-            domain::Operation::Message { task, words } => wire::Operation::Message(wire::OperationMessage::new(
-                limits,
-                wire::OperationMessageParts { task: *task, words: words.clone() },
-            )?),
-            domain::Operation::Stop { task } => {
-                wire::Operation::Stop(wire::OperationStop::new(limits, wire::OperationStopParts { task: *task })?)
+            domain::Operation::Message { task, words } => {
+                wire::Operation::Message(wire::OperationMessage { task: *task, words: words.clone() })
             }
+            domain::Operation::Stop { task } => wire::Operation::Stop(wire::OperationStop { task: *task }),
         };
         result.push(translated).expect("same operation count");
     }
@@ -52,15 +43,15 @@ pub(super) fn decode(
     for value in values.into_boxed() {
         let translated = match value {
             wire::Operation::Cancel(value) => {
-                let wire::OperationCancelParts { task, reason, grace } = value.into_parts();
+                let wire::OperationCancel { task, reason, grace } = value;
                 domain::Operation::Cancel { task, reason, grace: decode_grace(grace) }
             }
             wire::Operation::MoveTask(value) => {
-                let wire::OperationMoveParts { task, reason } = value.into_parts();
+                let wire::OperationMove { task, reason } = value;
                 domain::Operation::Move { task, reason }
             }
             wire::Operation::Amend(value) => {
-                let wire::OperationAmendParts { task, revision, amendment, release } = (*value).into_parts();
+                let wire::OperationAmend { task, revision, amendment, release } = *value;
                 domain::Operation::Amend {
                     task,
                     revision,
@@ -69,15 +60,15 @@ pub(super) fn decode(
                 }
             }
             wire::Operation::Release(value) => {
-                let wire::OperationReleaseParts { task, revision, again } = value.into_parts();
+                let wire::OperationRelease { task, revision, again } = value;
                 domain::Operation::Release { task, revision, again }
             }
             wire::Operation::Message(value) => {
-                let wire::OperationMessageParts { task, words } = value.into_parts();
+                let wire::OperationMessage { task, words } = value;
                 domain::Operation::Message { task, words }
             }
             wire::Operation::Stop(value) => {
-                let wire::OperationStopParts { task } = value.into_parts();
+                let wire::OperationStop { task } = value;
                 domain::Operation::Stop { task }
             }
         };

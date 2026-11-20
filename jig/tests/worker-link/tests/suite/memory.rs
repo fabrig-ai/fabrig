@@ -14,12 +14,8 @@ fn full_call(run: u64, name: u8) -> jig_domain_host::LinkUp {
     }
 }
 fn busy_frame(run: u64, turn: u32) -> skein_channel::Frame {
-    let record = jig_protocol_worker_wire::TurnBusy::new(
-        &fixtures::codec(),
-        jig_protocol_worker_wire::TurnBusyParts { task: run, attempt: 2, number: turn },
-    )
-    .expect("busy");
-    fixtures::frame(0x0184, &fixtures::encoded(record.measure(), |writer| record.encode(writer)))
+    let record = jig_protocol_worker_wire::TurnBusy { task: run, attempt: 2, number: turn };
+    fixtures::frame(0x0184, &fixtures::encoded(&record))
 }
 #[test]
 fn relays_and_busy_turns_at_their_limits_are_retried() {

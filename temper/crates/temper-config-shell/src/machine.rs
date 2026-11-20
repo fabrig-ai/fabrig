@@ -31,10 +31,8 @@ pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
 }
 pub fn facts(directories: &Directories) -> Result<Facts, Refusal> {
     let login = login(skein_shell::effective_user()).map_err(Refusal::one)?;
-    let hostname = skein_shell::read_file(Path::new("/proc/sys/kernel/hostname"), 4096)
-        .map_err(|why| Refusal::one(format!("hostname: {}", unread(why))))?;
-    let hostname = hostname.strip_suffix(b"\n").unwrap_or(&hostname);
-    let hostname = std::str::from_utf8(hostname).map_err(|why| Refusal::one(format!("hostname: {why}")))?.to_owned();
+    let hostname = skein_shell::host_name().map_err(|errno| Refusal::one(format!("hostname: errno {errno}")))?;
+    let hostname = std::str::from_utf8(&hostname).map_err(|why| Refusal::one(format!("hostname: {why}")))?.to_owned();
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     let provider_key = match std::fs::symlink_metadata(data.join("provider.key")) {
         Ok(_) => true,

@@ -257,6 +257,24 @@ impl engine::Engine {
             jig_protocol_store::host::Adoption::Rehearse { scratch, reach },
         )
     }
+    /// Rehearse over a copy its shell opened at the stock's figures. `settings` are the limits a
+    /// start takes from the copy, which sized this engine (configuration/limit-settings.md, 3);
+    /// none when the copy didn't open and its store keeps the terminal for the report. The
+    /// rehearsal counts from `began`.
+    pub fn rehearse_opened(
+        &mut self,
+        store: store::Store,
+        settings: Option<crate::limit_settings::LimitSettings>,
+        began: Time,
+    ) {
+        let engine = self;
+        engine.domain.rehearse();
+        crate::upgrade::prepare_opened(engine, began);
+        match settings {
+            Some(settings) => engine.take_limit_store(store, settings),
+            None => engine.replace_store(store),
+        }
+    }
     /// Ask jig to make the previous generation active, with the deployment stopped.
     pub fn back_store(&mut self, directory: Fd, user: u32) -> Result<(), Fd> {
         let engine = self;

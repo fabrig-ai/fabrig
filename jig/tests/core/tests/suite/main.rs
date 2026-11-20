@@ -62,6 +62,7 @@ mod projections;
 mod projects;
 mod read_filters;
 mod reads;
+mod record_words;
 mod refusals;
 mod restart;
 mod restore_pages;

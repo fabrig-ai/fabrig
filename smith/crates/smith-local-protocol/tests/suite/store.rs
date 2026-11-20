@@ -5,6 +5,7 @@ mod tests {
     use super::disk;
     use disk::{Disk, Kind, snapshot};
     use smith_local_domain::{self as local, Older, StoreFamily};
+    use smith_local_protocol::local_store_v1::Record;
     use smith_local_protocol::{History, StoreRequest, format, local_store_v1 as wire};
     use std::{fs, os::unix::fs::MetadataExt};
 
@@ -23,17 +24,15 @@ mod tests {
         assert!(deliveries.is_empty());
     }
     fn marker(store: bool, transcript: bool, position: usize) -> Box<[u8]> {
-        let mut parts = format::layouts().into_parts();
+        let mut parts = format::layouts();
         if store {
             parts.store[position] ^= 1;
         }
         if transcript {
             parts.transcript[position] ^= 1;
         }
-        let value = wire::Layouts::new(&wire::CEILINGS, parts).unwrap();
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured bytes fit usize"));
-        value.encode(&mut writer).unwrap();
-        writer.finish()
+        let value = parts;
+        value.encode(&wire::CEILINGS).expect("layouts have no variable bounds")
     }
     fn refused(disk: &mut Disk, why: Option<Older>) {
         let before = snapshot(disk.path());

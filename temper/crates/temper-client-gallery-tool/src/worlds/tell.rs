@@ -90,7 +90,7 @@ fn fill(root: &mut Domain, reader: u64, out: &mut Queue<temper_client_domain::Re
             }
             Down::Open { watch, subject: Watchable::Family { record, .. } }
                 if wire::decode_watching(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|watching| matches!(watching.watch(), w::Watch::Findings(_))) =>
+                    .is_some_and(|watching| matches!(&watching.watch, w::Watch::Findings(_))) =>
             {
                 step(
                     root,
@@ -117,38 +117,20 @@ fn document() -> w::Findings {
     let mut areas = List::with_capacity(2);
     for (name, number) in [("docs", 40), ("tests", 52)] {
         areas
-            .push(
-                w::AreaRow::new(
-                    &w::CEILINGS,
-                    w::AreaRowParts {
-                        name: name.as_bytes().into(),
-                        words: doc(name).bytes().into(),
-                        owner: w::AreaOwner::Task(
-                            w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).expect("owner"),
-                        ),
-                        holder: Some(w::Holder::Task(
-                            w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).expect("holder"),
-                        )),
-                    },
-                )
-                .expect("area"),
-            )
+            .push(w::AreaRow {
+                name: name.as_bytes().into(),
+                words: doc(name).bytes().into(),
+                owner: w::AreaOwner::Task(w::AreaTask { number }),
+                holder: Some(w::Holder::Task(w::HolderTask { number })),
+            })
             .expect("two areas");
     }
-    w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project: 1,
-            rows: List::with_capacity(0),
-            areas,
-            cut: false,
-            triager: Some(w::AreaOwner::Task(
-                w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number: 52 }).expect("triager"),
-            )),
-            holder: w::Holder::Task(
-                w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number: 52 }).expect("holder"),
-            ),
-        },
-    )
-    .expect("Tell's findings")
+    w::Findings {
+        project: 1,
+        rows: List::with_capacity(0),
+        areas,
+        cut: false,
+        triager: Some(w::AreaOwner::Task(w::AreaTask { number: 52 })),
+        holder: w::Holder::Task(w::HolderTask { number: 52 }),
+    }
 }

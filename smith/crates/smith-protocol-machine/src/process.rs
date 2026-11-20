@@ -492,6 +492,7 @@ pub(crate) fn search(
     bytes: u32,
     deadline: Time,
     environment: &crate::Environment,
+    rg: &[u8],
     limits: &Limits,
 ) -> Option<(Process, Below)> {
     if hits > limits.search_hits || bytes > limits.search_bytes || pattern.contains(&0) {
@@ -522,7 +523,7 @@ pub(crate) fn search(
     args.push(Box::from(&b"--"[..])).ok()?;
     args.push(crate::files::io_path(at.path)).ok()?;
     let spawn = Spawn {
-        program: Box::from(&b"/usr/bin/rg"[..]),
+        program: Box::from(rg),
         args: args.into_boxed(),
         env: environment.for_process(Purpose::Search),
         dir: crate::files::io_path(Box::new([])),
@@ -590,6 +591,7 @@ pub(crate) fn list(
     bytes: u64,
     deadline: Time,
     environment: &crate::Environment,
+    rg: &[u8],
     limits: &Limits,
 ) -> Option<(Process, Below)> {
     if maximum > limits.entries || bytes > limits.entry_bytes {
@@ -623,7 +625,7 @@ pub(crate) fn list(
     args.push(Box::from(b"--".as_slice())).ok()?;
     args.push(Box::from(b".".as_slice())).ok()?;
     let spawn = Spawn {
-        program: Box::from(b"/usr/bin/rg".as_slice()),
+        program: Box::from(rg),
         args: args.into_boxed(),
         env: environment.for_process(Purpose::List),
         dir: crate::files::io_path(at.path),

@@ -17,55 +17,55 @@ A `setting`; exactly one `set`/`edit`/`overlay`.
 - remove:bool;true instead of set/edit/overlay; withdraw.
 - reset:bool;true instead of set/edit/overlay; follow default.
 - set:the value for `setting.kind`;Whole replacement.
-- edit:choice;edit instead of a value. `removed`: No longer offered, its default included; the rules cannot be removed. `reset`: Erase its change; follow its default again.
+- edit:choice;edit instead of a value. `removed`: Withdraw, default included; rules cannot be removed. `reset`: Erase change; follow default.
 
 ## setting
 Kind and number, or project for project settings.
 - kind:`model|worker|provider|charter|template|policy|project-policy|rules|landing-rule|forge-charter|template-goal|follow|dependency|project-ways|project-questions|project-classes|charter-words|project-words|project-landing|project-gates|project-areas|project-triager|agents|welcome|limits|temper-limits`;setting's kind. `project-policy`: Project policy: `set` only, once per file alongside other settings. `project-landing`: Next start. `project-gates`: Next start.
-- number:u32;Setting number, from 1; omit for rules, welcome and limit kinds, and unnumbered project settings.
+- number:u32;Number >=1; omit for rules/welcome/limit kinds and unnumbered project settings.
 - project:u32;! project settings/follow/dependency. Absent: charter-words/welcome/agents/limit kinds. Landing rule: >=1; absent: deployment-wide.
 
 ## charter
-Run policy from the task's creation revision.
+Task-creation revision's run policy.
 - rest:bool;Offer remaining catalogue models after named choices; default false.
 - number:u32;Same as `setting.number`.
-- instructions:t[1048576];Agent's first read, before the task's brief.
-- waiting:ns;Idle run's wait for words or news before parking.
-- resume:bool;Resume the task's transcript if any, rather than start afresh.
+- instructions:t[1048576];Agent's first read, before task brief.
+- waiting:ns;Idle wait for words/news before parking.
+- resume:bool;Resume any task transcript instead of starting afresh.
 - turns:u32;Most model turns; more than `reserve_turns`, else `budget` refusal.
 - time:ns;Run cancellation time; more than `reserve_time`, else `budget` refusal.
-- reserve_turns:u32;Of `turns`, reserve to finish and report.
-- reserve_time:ns;Of `time`, reserve to finish and report. With `modify`: >= check_timeout ms in each applicable current or held charter, else worker admission refuses. Settings help covers held-revision recovery.
-- model:model;Default model: first payable choice among `model` and `alternatives`.
-- alternatives:[32] model;Models after `model`, each once; also available to sub-agents.
-- inspect:bool;May the agent read, list and search its workspace?
-- modify:bool;May the agent write, edit and remove workspace files?
-- shell:bool;May the agent run workspace commands?
-- agents:bool;May the agent open sub-agents with no more tools than its own?
+- reserve_turns:u32;Of `turns`, finish/report reserve.
+- reserve_time:ns;Of `time`, finish/report reserve. With `modify`: >= check_timeout ms in each applicable current or held charter, else worker admission refuses. Held-revision recovery: settings help.
+- model:model;Default: first payable of `model`/`alternatives`.
+- alternatives:[32] model;After `model`, each once; sub-agents may use them.
+- inspect:bool;May read/list/search workspace?
+- modify:bool;May write/edit/remove workspace files?
+- shell:bool;May run workspace commands?
+- agents:bool;May open sub-agents with at most its own tools?
 - call_timeout:ns;Longest call to temper's tools.
 - tools:u64;Host families need charter/task leave. Asking (2048): see/document; with settings (1024), propose_settings too. Without asking, 1024 grants settings tools. Default 1023 excludes both.
 - hosts:choice;Run hosts. `workers`: Deployment workers only. `engine`: The engine's own slots alone. `both`: Either.
-- spend:u64;>= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, half where the task may delegate, capped by rules.maximum_run_spend.
-- wake:wake|null;Wake policy for tasks made under this charter whose batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
+- spend:u64;>= (reserve_turns + 1) costliest default-model completions, else budget refusal. Runs get task funds left, half if delegation is allowed; <=rules.maximum_run_spend.
+- wake:wake|null;Wake for tasks made under this charter if batch names none. Null/absent: jig's default, all rules `"immediate"`, `results` `"last_or_failure"`, questions, answers and timers waking.
 - documents:[8] document;Brief documents; at most `tasks.charter_documents`, else `shape` refusal.
 - parts:[8] charter-part;Ordered parts by run reasons; <=tasks.charter_parts; default [].
 
 ## overlay
-Optional default replacements and added text: charters or literal instructions/parts, never both.
+Optional default replacements/added text: charters or literal instructions/parts, not both.
 As `charter`'s fields, replacing the default whole: `rest`, `waiting`, `resume`, `turns`, `time`, `reserve_turns`, `reserve_time`, `model`, `alternatives`, `inspect`, `modify`, `shell`, `agents`, `call_timeout`, `tools`, `hosts`, `spend`, `documents`.
 
 - instructions:t[1048576];Optional added text, empty when absent; not beside charters.
 - parts:[8] charter-part;Optional added text, empty when absent; not beside charters.
-- charters:[4294967295] t[4294967295];Optional nonempty directories relative to settings file, replacing instructions/parts; only charters 5/2. Markdown counts toward file bound.
+- charters:[4294967295] t[4294967295];Optional nonempty settings-file-relative directories replace instructions/parts; charters 5/2 only. Markdown counts in file bound.
 
 ## charter-part
 Instructions after shared text, read when run reasons meet `on`.
 - on:[14] `first|question|question_answered|question_ended|question_owed|escalation|proposal|person_stalled|result|notice|nothing_awaited|news|timer|words`;Nonempty unique names; refuses those offered to every run.
-- instructions:t[1048576];Text appended after the shared instructions when this part is chosen.
+- instructions:t[1048576];Append after shared instructions when chosen.
 
 ## document
 Brief file at preparation branch head.
-- forge:t[32768];Resource `host` with port from `see settings`' `project repositories` or `temper ctl DIR forge list`; never forge number/web address.
+- forge:t[32768];Resource `host` with port: `see settings`/`project repositories` or `temper ctl DIR forge list`; not forge number/web address.
 - repository:t[65537];OWNER/NAME; if no project adopts it, the section says so.
 - branch:t[131075];Branch head to read; segments joined by `/`.
 - path:t[256];file's path in the repository, at most 256 bytes.
@@ -92,7 +92,7 @@ Sources optional; {}=none. Programs unique: 1..32 lowercase ASCII letters/digits
 - sign_in:provider-registration;?
 
 ## provider-registration
-Public sign-in; no secret. issuer/client/authorization/token/keys nonempty. redirect_path: no leading /, query, fragment. TLS needs server_name; plaintext no server_name/trust.
+Public sign-in, no secret. issuer/client/authorization/token/keys nonempty. redirect_path: no leading /, query or fragment. TLS needs server_name; plaintext omits server_name/trust.
 - issuer:t[4096];!
 - client:t[4096];!
 - authorization:t[4096];!
@@ -154,7 +154,7 @@ Numbered runtime model; display facts.
 - estimated:bool;Whether its prices are provider defaults.
 
 ## model
-Whole runtime model. Charter fields except `effort` must match configuration, else `reference` refusal.
+Whole runtime model; charter fields except `effort` match config, else `reference` refusal.
 - provider:u32;configured LLM provider that serves it; 1 when absent.
 - dialect:u32;Configured model protocol.
 - endpoint:u32;Configured serving endpoint's number.
@@ -185,7 +185,7 @@ Wake by message kind: a word or one-member object.
 - `never`:It waits for the task's next run.
 - `immediate`:It wakes the task at once.
 - batch:wake_batch;Once enough arrive or the oldest waits long enough.
-- paced:ns;At most once per span since last run's start; first after quiet wakes at once. Positive, else `shape` refusal.
+- paced:ns;At most once per span from last run start; first after quiet wakes now. Positive, else `shape` refusal.
 
 ## wake_batch
 Message batch waking a task once.
@@ -194,7 +194,7 @@ Message batch waking a task once.
 
 ## template
 Executor and defaults for new tasks.
-- resources:[32] symbol;Optional, default []: distinct resource-symbol pairs resolved for the new task. Forge connector 1, symbol 1: its own goal branch.
+- resources:[32] symbol;Optional, default []: distinct resource-symbol pairs resolved for new task. Forge connector 1, symbol 1: its own goal branch.
 - number:u32;Template number matching `setting.number`; chat: 1, goal: 2.
 - name:text;name, as clients show it.
 - executor:executor;Who runs the task.
@@ -206,11 +206,11 @@ Executor and defaults for new tasks.
 - flags:flags;How the task behaves and is kept.
 - label:u32;Number grouping ended tasks in lists; temper reads nothing else from it.
 - grace:ns|null;Chat closing time/null; unfinished runs cancel then. Beyond deployment limit: `grace` refusal.
-- llm:llm|null;models the task asks for, or null for its charter's default.
+- llm:llm|null;Asked models; null: charter's default.
 
 ## symbol
 Resource resolved at creation.
-- connector:u16;connector that resolves the symbol; 1 is the forge.
+- connector:u16;Symbol resolver; 1: forge.
 - symbol:u16;connector's resource symbol; the forge's 1 is its own goal branch.
 
 ## text
@@ -293,7 +293,7 @@ Task end time.
 Task behavior and retention.
 - conversation:bool;Conversation: requester words are turns; next run uses newest revision.
 - listed:bool;List by project and label once ended?
-- retention:choice;How long it is kept. `kept`: Until the deployment's retention horizon. `forgotten_once_read`: Until its requester has read it and no live task names it.
+- retention:choice;Retention. `kept`: Deployment retention horizon. `forgotten_once_read`: Until read by requester and named by no live task.
 - ended_by:ended_by;What ends it.
 
 ## ended_by
@@ -359,7 +359,7 @@ Forge collaborator permission and its project role at adoption.
 - role:u32;role it gives, one of the policy's `roles`.
 
 ## rules
-Deployment ceilings, reread per decision. Narrowing affects existing tasks; widening never widens them.
+Deployment ceilings read each decision; narrow existing tasks, never widen them.
 - ceiling:authority;most any project may have.
 - period_spend:u64;most a project's period spend may be.
 - minimum_run_spend:u64;run starts only with more than this to spend.
@@ -449,7 +449,7 @@ Requirement judged from facts read before the effect.
 
 ## landing-rule
 Criteria for every covered landing.
-- pattern:landing-pattern;`forge`, host, owner, repository, `branch`, branch segments. Project rules may start at `branch`, matching that branch in every project repository.
+- pattern:landing-pattern;`forge`/host/owner/repository/`branch`/branch segments. Project rules may start at `branch`, matching it in every project repository.
 - enforce:bool;True: criteria for every covered landing. False: change procedure alone checks.
 - ci:bool;CI must have passed at the change's head.
 - up_to_date:bool;change's head must contain its base's tip.
@@ -461,13 +461,13 @@ Criteria for every covered landing.
 Each change needs agent review, or a repository check without CI.
 - number:u32;agent review's or repository check's gate number.
 - blocking:bool;Whether this gate must pass before the change lands.
-- freshness:choice;At which later heads a verdict still counts. `exact`: Verdict counts at its given head. `clean`: Verdict also counts at later heads from cleanly merged updates.
+- freshness:choice;Heads where a verdict counts. `exact`: Given head only. `clean`: Also later heads from cleanly merged updates.
 
 ## landing-approval
 Distinct project role holders approve by forge reviews.
 - role:u32;role in the project's policy whose people approve the change.
 - people:u32;Distinct role holders required to approve the change.
-- freshness:choice;At which later heads an approval still counts. `exact`: Verdict counts at its given head. `clean`: Verdict also counts at later heads from cleanly merged updates.
+- freshness:choice;Heads where an approval counts. `exact`: Given head only. `clean`: Also later heads from cleanly merged updates.
 
 ## landing-pattern
 Base segments and final segment/prefix. Project rules may start at `branch` across their repositories.
@@ -555,7 +555,7 @@ Repository-relative path patterns, uniquely numbered 1 to 6.
 - patterns:[6] t[80];Nonempty repository-relative patterns: * within segments, ** for a whole segment.
 
 ## charter-words
-Purpose by charter number: 1 to 120 UTF-8 bytes, no controls; default instructions' first sentence.
+Purpose by charter number: 1-120 UTF-8 bytes, no controls; default: instructions' first sentence.
 
 ## project-words
 How work runs headline and lede; absent uses the way's words.
@@ -576,6 +576,21 @@ Landing at the next start.
 - verification_bound_ms:u64;? milliseconds; default 7200000.
 - merge_job:t[4096];? relative, no NUL or .. segments; see merge command in configuration.
 - close_job:t[4096];? relative, no NUL or .. segments.
+- repairs:repairs;? default none; at the next start; needs wait landed.
+
+## repairs
+Repair goals.
+- repair_goals:u8;? 1 to 16; default 2.
+- repair_attempts:u8;? 1 to 8; default 2.
+- repair_deadline_ms:u64;? 3600000 to 604800000; default 86400000 (24 hours).
+- goal:repair-goal;!
+
+## repair-goal
+Agent goal.
+- charter:u32;! deployment agent charter.
+- llm:llm|null;? template llm; null/absent: charter's default.
+- priority:u32;! tracked priority.
+- budget:u64;! above rules.minimum_run_spend.
 
 ## project-gates
 Project repository gates and tiers; next start.

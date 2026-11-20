@@ -374,7 +374,7 @@ pub fn setup_small() -> skein_forge_setup::limits::Limits {
     skein_forge_setup::limits::Limits {
         orgs: temper_forge_setup::limits::ORGS,
         reachable: 8, // Legacy command default; checked startup supplies picker.page.
-        files: 2,
+        files: 3,
         file_bytes: 4096,
         repositories,
         deadline: Duration::from_secs(120),

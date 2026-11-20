@@ -816,7 +816,19 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::gathering::settle(domain, env, task, out);
         }
         Event::Prepare { reply_to, task } => crate::run::prepare(domain, env, reply_to, task, out),
-        Event::Claim { reply_to, task, attempt, resumed, budget, account, writes, reasons, offered, session_end } => {
+        Event::Claim {
+            reply_to,
+            task,
+            attempt,
+            resumed,
+            fresh,
+            budget,
+            account,
+            writes,
+            reasons,
+            offered,
+            session_end,
+        } => {
             crate::run::claim(
                 domain,
                 env,
@@ -825,6 +837,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                     number: task,
                     attempt,
                     resumed,
+                    fresh,
                     budget,
                     account,
                     writes,
@@ -841,6 +854,9 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             crate::writers::effect_in_flight(domain, env, reply_to, task, resource, entry, out);
         }
         Event::EffectSettled { resource, entry } => crate::writers::effect_settled(domain, env, &resource, entry, out),
+        Event::RecordWords { reply_to, task, messages } => {
+            crate::words::record(domain, env, reply_to, task, &messages, out);
+        }
         Event::Turn { reply_to, task, attempt, turn, read, refused, offered, outstanding, cumulative } => {
             crate::admission::turn(
                 domain,
@@ -1181,10 +1197,15 @@ impl Domain {
         Some(Box::new(crate::RunContext {
             session_wake: task.flags.ended_by == crate::EndedBy::Standing && !task.activation_open,
             session_kinds: crate::wake::session_kinds(domain, number, inbox.as_slice()),
-            reasons: if self.open_questions(number).is_empty() {
-                crate::wake::reasons(domain, number, inbox.as_slice())
-            } else {
-                crate::wake::reasons(domain, number, inbox.as_slice()).union(crate::Reasons::QUESTION)
+            reasons: {
+                let mut reasons = crate::wake::reasons(domain, number, inbox.as_slice());
+                if !self.open_questions(number).is_empty() {
+                    reasons = reasons.union(crate::Reasons::QUESTION);
+                }
+                if !task.unrecorded.is_empty() {
+                    reasons = reasons.union(crate::Reasons::WORDS);
+                }
+                reasons
             },
             ended_by: task.flags.ended_by,
             llm: task.llm.clone(),
@@ -1611,6 +1632,8 @@ pub(crate) fn make_admitted(
             offered: crate::Reasons::ALL,
             asked_requester: false,
             question_woken: 0,
+            words_woken: 0,
+            unrecorded: Box::new([]),
             open_attempt: None,
             placed: None,
             settings: crate::SettingsRevision { task: domain.newest, run: None },

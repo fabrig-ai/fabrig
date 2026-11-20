@@ -1,4 +1,5 @@
 use crate::joined_world as joined;
+use jig_protocol_worker_wire::Record;
 mod joined_story {
     use super::joined::{Joined, application, credential, received, sent, values};
     use jig_domain_host as host;
@@ -286,6 +287,10 @@ fn largest_worker_frame(sizes: &jig_protocol_worker_wire::sizes::Sizes) -> u32 {
 }
 
 #[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "the room refusal, live pings and following assignment form one link scenario"
+)]
 fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
     use jig_domain_host as host;
     use jig_protocol_engine_workers as engine;
@@ -299,7 +304,12 @@ fn an_assignment_past_the_engines_room_keeps_the_link_and_fails_its_run() {
         sizes: jig_protocol_worker_wire::sizes::Sizes { charter, detail: 128, ..fixtures::SIZES },
         ..fixtures::joined_limits()
     };
-    let bytes = fixtures::assignment_record(fixtures::window()).measure() + 8 + charter - 7
+    let bytes = fixtures::assignment_record(fixtures::window())
+        .measure(&jig_protocol_worker_wire::CEILINGS)
+        .expect("record within limits")
+        + 8
+        + charter
+        - 7
         + u32::try_from(fixtures::TOKEN_TWO.len() - fixtures::TOKEN_ONE.len()).expect("fixture grant length");
     let room = bytes - 1;
     let mut world = joined::Joined::with_engine_room(&jig_protocol_worker_link::Limits { room, ..limits }, 1, room);

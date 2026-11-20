@@ -9,6 +9,7 @@ fn claim(h: &mut Harness, attempt: u64, at: u64) -> Vec<Request> {
     h.send(Event::Prepare { reply_to: to(), task: 1 });
     h.env.wall = Wall::from_nanos(at);
     h.send(Event::Claim {
+        fresh: None,
         session_end: None,
         offered: crate::Reasons::ALL,
         reasons: crate::Reasons::FIRST,

@@ -34,14 +34,9 @@ fn playground_answer(root: &mut Domain, present: bool) {
         panic!("playground read")
     };
     let page = if present {
-        let mut parts = wire::decode_playground_answer(&playground::answer(b"Change the title"), &w::CEILINGS)
-            .unwrap()
-            .into_parts();
+        let mut parts = wire::decode_playground_answer(&playground::answer(b"Change the title"), &w::CEILINGS).unwrap();
         parts.state = w::PlaygroundState::Starting;
-        Readout::Family {
-            family: wire::FORGE,
-            record: Some(wire::playground_answer(&w::PlaygroundAnswer::new(&w::CEILINGS, parts).unwrap())),
-        }
+        Readout::Family { family: wire::FORGE, record: Some(wire::playground_answer(&parts)) }
     } else {
         Readout::NotServed { family: Some(wire::FORGE), served: None }
     };
@@ -104,69 +99,48 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
     forge_rows(root, watch, Some(number), true)
 }
 fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: bool) -> Queue<Request> {
-    let limits = forge::wire_limits(&f::limits().forge).unwrap();
     let mut forges = List::with_capacity(1);
     if let Some(number) = number {
         forges
-            .push(
-                w::ForgeRow::new(
-                    &limits,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        makings: List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number,
-                        kind: w::Kind::Forgejo,
-                        mode: if number == wire::FORGE { w::Mode::Fake } else { w::Mode::Connected },
-                        connection: w::Connection::Connected(
-                            w::Connected::new(&limits, w::ConnectedParts { id: 42, login: b"bot".as_slice().into() })
-                                .unwrap(),
-                        ),
-                        offer: w::Offer::NotOffered,
-                        first: Some(
-                            w::FirstRepository::new(
-                                &limits,
-                                w::FirstRepositoryParts {
-                                    org: b"work".as_slice().into(),
-                                    repository: b"hello".as_slice().into(),
-                                    state: w::FirstState::Made(w::Made::new(&limits, w::MadeParts { id: 1 }).unwrap()),
-                                    label: Box::new([]),
-                                    playground: false,
-                                },
-                            )
-                            .unwrap(),
-                        ),
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: {
-                            let mut repositories = List::with_capacity(1);
-                            if adopted {
-                                repositories
-                                    .push(
-                                        w::Adoption::new(
-                                            &limits,
-                                            w::AdoptionParts {
-                                                owner: b"work".as_slice().into(),
-                                                name: b"hello".as_slice().into(),
-                                                project: f::PROJECT,
-                                            },
-                                        )
-                                        .unwrap(),
-                                    )
-                                    .unwrap();
-                            }
-                            repositories
-                        },
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number,
+                kind: w::Kind::Forgejo,
+                mode: if number == wire::FORGE { w::Mode::Fake } else { w::Mode::Connected },
+                connection: w::Connection::Connected(w::Connected { id: 42, login: b"bot".as_slice().into() }),
+                offer: w::Offer::NotOffered,
+                first: Some(w::FirstRepository {
+                    org: b"work".as_slice().into(),
+                    repository: b"hello".as_slice().into(),
+                    state: w::FirstState::Made(w::Made { id: 1 }),
+                    label: Box::new([]),
+                    playground: false,
+                    sample: false,
+                }),
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: {
+                    let mut repositories = List::with_capacity(1);
+                    if adopted {
+                        repositories
+                            .push(w::Adoption {
+                                owner: b"work".as_slice().into(),
+                                name: b"hello".as_slice().into(),
+                                project: f::PROJECT,
+                            })
+                            .unwrap();
+                    }
+                    repositories
+                },
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .unwrap();
     }
     up(
@@ -176,7 +150,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, linked: false }).unwrap()),
+                bytes: wire::forges(&w::Forges { forges, linked: false }),
             },
         },
     )
@@ -409,21 +383,9 @@ fn retry_playground_requires_a_failure_and_retries_the_start() {
             outcome: jig_client::Outcome::Answered(jig_client::Answered::Family(jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::answer(
-                    &w::Answer::new(
-                        &w::CEILINGS,
-                        w::AnswerParts {
-                            outcome: w::Outcome::StartFailed(
-                                w::StartFailed::new(
-                                    &w::CEILINGS,
-                                    w::StartFailedParts { why: w::StartFailure::Account },
-                                )
-                                .unwrap(),
-                            ),
-                        },
-                    )
-                    .unwrap(),
-                ),
+                bytes: wire::answer(&w::Answer {
+                    outcome: w::Outcome::StartFailed(w::StartFailed { why: w::StartFailure::Account }),
+                }),
             })),
         },
         &mut Queue::uncapped(),
@@ -518,32 +480,26 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
     let mut forges = List::with_capacity(1);
     if let Some(connection) = connection {
         forges
-            .push(
-                w::ForgeRow::new(
-                    &w::CEILINGS,
-                    w::ForgeRowParts {
-                        starts_with: w::StartsWith::Repository,
-                        makings: List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: 3,
-                        kind: w::Kind::Forgejo,
-                        mode: w::Mode::Owned,
-                        connection,
-                        offer: w::Offer::Offered,
-                        first: None,
-                        installations: List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .unwrap(),
-            )
+            .push(w::ForgeRow {
+                starts_with: w::StartsWith::Repository,
+                makings: List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: 3,
+                kind: w::Kind::Forgejo,
+                mode: w::Mode::Owned,
+                connection,
+                offer: w::Offer::Offered,
+                first: None,
+                installations: List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .unwrap();
     }
     up(
@@ -553,7 +509,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, linked: false }).unwrap()),
+                bytes: wire::forges(&w::Forges { forges, linked: false }),
             },
         },
     );
@@ -609,9 +565,7 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
     strip_forges(
         &mut root,
         watch,
-        Some(w::Connection::Connected(
-            w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
-        )),
+        Some(w::Connection::Connected(w::Connected { id: 42, login: b"temper".as_slice().into() })),
     );
     assert_eq!(welcome::decision(&root), Some(FirstRun::Whole));
     rows(&mut root, watch, 3);
@@ -1284,14 +1238,11 @@ fn signed_in_reads_linked_the_decision_and_me() {
             let modes: &[w::Mode] = if kept { &[w::Mode::Connected] } else { &[] };
             let mut record = crate::tests::forges::forges_document(modes, linked);
             if project && kept && model {
-                let mut parts = wire::decode_forges(&record.bytes, &w::CEILINGS).unwrap().into_parts();
-                let mut forge = parts.forges.get(0).unwrap().clone().into_parts();
-                forge.connection = w::Connection::Connected(
-                    w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"bot".as_slice().into() })
-                        .unwrap(),
-                );
-                *parts.forges.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, forge).unwrap();
-                record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, parts).unwrap());
+                let mut parts = wire::decode_forges(&record.bytes, &w::CEILINGS).unwrap();
+                let mut forge = parts.forges.get(0).unwrap().clone();
+                forge.connection = w::Connection::Connected(w::Connected { id: 42, login: b"bot".as_slice().into() });
+                *parts.forges.get_mut(0).unwrap() = forge;
+                record.bytes = wire::forges(&parts);
             }
             up(&mut root, Up::FamilyDelivered { watch: watch.unwrap(), record });
         }

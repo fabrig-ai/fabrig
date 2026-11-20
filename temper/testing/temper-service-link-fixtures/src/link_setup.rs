@@ -184,6 +184,8 @@ pub fn task_record(number: u64) -> jig_domain_tasks::TaskRecord {
         reasons: jig_domain_tasks::Reasons::FIRST,
         asked_requester: false,
         question_woken: 0,
+        words_woken: 0,
+        unrecorded: Box::new([]),
         open_attempt: None,
         settings: tasks::SettingsRevision { task: 1, run: None },
         added: Box::new([]),
@@ -302,6 +304,7 @@ pub fn repository(repository: u32, owner: &[u8], name: &[u8]) -> temper_engine_d
         push: Some(b"temper/task-7".as_slice().into()),
         landing: None,
         delivered: None,
+        pin: None,
         identity: 1,
     }
 }

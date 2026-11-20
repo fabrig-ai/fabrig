@@ -345,7 +345,9 @@ fn is_printed_link(line: &[u8]) -> bool {
     let Some(line) = line.strip_suffix(b"\n") else { return false };
     let Ok(line) = std::str::from_utf8(line) else { return false };
     (line.starts_with("http://") || line.starts_with("https://"))
-        && line.split_once("/jig/v1/sign-in/link?secret=").is_some_and(|(_, secret)| !secret.is_empty())
+        && ["/sign-in?secret=", "/jig/v1/sign-in/link?secret="]
+            .iter()
+            .any(|path| line.split_once(path).is_some_and(|(_, secret)| !secret.is_empty()))
         && !line.bytes().any(|byte| byte.is_ascii_whitespace())
 }
 /// A box's stdout holds its links alone, one to a line (temper/docs/design/testing/process-tier.md).
@@ -378,7 +380,7 @@ pub fn assert_one_printed_link(run: &str, stdout: &[u8], stderr: &[u8]) {
 
 pub mod printed_link_tests {
     pub fn printed_links_count_and_fail_without_disclosing_secrets() {
-        const LINK: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private";
+        const LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=fixture-private";
         let one = [LINK, b"\n"].concat();
         let two = [one.as_slice(), one.as_slice()].concat();
         let mixed = [one.as_slice(), b"not a link\n"].concat();
@@ -386,6 +388,14 @@ pub mod printed_link_tests {
         let unfinished = [one.as_slice(), LINK].concat();
         for (name, stdout, stderr, count, valid, diagnostic) in [
             ("one", one.as_slice(), b"ready\n".as_slice(), 1, true, "ready\n"),
+            (
+                "route",
+                b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture-private\n",
+                b"ready\n",
+                1,
+                true,
+                "ready\n",
+            ),
             ("two", two.as_slice(), b"Restarting\n", 2, false, "Restarting\n"),
             ("none", b"", b"serve exited\n", 0, false, "serve exited\n"),
             (

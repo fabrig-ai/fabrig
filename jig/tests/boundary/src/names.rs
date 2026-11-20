@@ -276,7 +276,17 @@ pub(super) fn scan(path: &Path, source: &str, words: &[String], names: bool) -> 
             let approval_input_bound = name == "CODE_TYPED_BYTES"
                 && (path.ends_with("crates/jig-client-protocol-wire/src/approval.rs")
                     || path.ends_with("crates/jig-client-protocol-wire/src/lib.rs"));
+            // ApprovalKind's code-entry kind is fixed by protocol/client/sign-in.md.
+            let approval_kind = (name == "Typed"
+                && source[..start].strip_suffix("ApprovalKind::").is_some_and(|prefix| {
+                    prefix.chars().next_back().is_none_or(|ch| !(ch.is_alphanumeric() || ch == '_'))
+                }))
+                || (name == "typed"
+                    && path.ends_with("crates/jig-client-protocol-wire/schema/client-v39.schema")
+                    && source[..start].ends_with("enum ApprovalKind { listener, returned, ")
+                    && source[index..].starts_with(" }"));
             if !foreign_ip
+                && !approval_kind
                 && !approval_input_bound
                 && forbidden_name(name, false)
                 && (!codec_module(name) || forbidden_name(name, true))
@@ -337,6 +347,23 @@ fn approval_input_bound_keeps_its_contract_name_only_in_the_wire_module() {
         let source = format!("use crate::{name};");
         let expected = if rejected { vec![format!("{}:1: identifier {name}", path.display())] } else { Vec::new() };
         assert_eq!(breaches(&path, &source), expected, "{site}: {name}");
+    }
+}
+
+#[test]
+fn approval_kind_keeps_only_its_contract_member_name() {
+    let schema = "crates/jig-client-protocol-wire/schema/client-v39.schema";
+    let declaration = "enum ApprovalKind { listener, returned, typed }";
+    for (site, source, rejected) in [
+        ("fixture/source.rs", "ApprovalKind::Typed", false),
+        ("fixture/source.rs", "OtherApprovalKind::Typed", true),
+        ("fixture/source.rs", "Other::Typed", true),
+        (schema, declaration, false),
+        ("fixture/other.schema", declaration, true),
+        (schema, "enum Other { typed }", true),
+    ] {
+        let failures = breaches(Path::new(site), source);
+        assert_eq!(!failures.is_empty(), rejected, "{site}: {source}: {failures:?}");
     }
 }
 

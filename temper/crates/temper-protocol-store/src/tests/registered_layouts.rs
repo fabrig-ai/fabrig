@@ -68,6 +68,13 @@ fn a_registered_layout_defaults_an_added_list() {
 
 #[test]
 fn a_landing_layout_without_wait_defaults_it_to_cleared() {
+    landing_layout_defaults(" wait: SettingsLandingWait = cleared");
+}
+#[test]
+fn a_landing_layout_without_repairs_defaults_it_to_none() {
+    landing_layout_defaults(" repairs: option RepairSettings = none");
+}
+fn landing_layout_defaults(field: &str) {
     use super::fixtures;
     use crate::records;
     use skein_codec::{
@@ -76,8 +83,8 @@ fn a_landing_layout_without_wait_defaults_it_to_cleared() {
     };
     use temper_engine_domain_forge_vocabulary::{Stored, settings as d};
     let family = crate::OWNER_SET.families.iter().find(|family| family.name == "temper-store").unwrap();
-    let before = family.current.replacen(" wait: SettingsLandingWait = cleared", "", 1);
-    assert_ne!(before, family.current, "the earlier landing omits wait");
+    let before = family.current.replacen(field, "", 1);
+    assert_ne!(before, family.current, "the earlier landing omits the added field");
     let old = schema::parse(before.as_bytes()).unwrap();
     let new = schema::parse(family.current.as_bytes()).unwrap();
     let old_root = old.root(b"Row", Some(b"setting")).unwrap();
@@ -95,7 +102,7 @@ fn a_landing_layout_without_wait_defaults_it_to_cleared() {
     let mut earlier = skein_lib::Buffer::with_capacity(4096);
     write_old.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
     let read_old =
-        Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an added wait defaults stored kind 4 values");
+        Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("an added field defaults stored kind 4 values");
     assert!(work.fit(&read_old));
     let mut current = skein_lib::Buffer::with_capacity(4096);
     read_old.convert(earlier.as_slice(), &mut current, &mut work).unwrap();

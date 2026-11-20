@@ -150,6 +150,11 @@ impl Classes {
                     own(Kind::Dependency, Class::Ask),
                     own(Kind::Departure, Class::Ask),
                     own(Kind::Findings, Class::Ask),
+                    Item {
+                        subject: Subject::Kind(Kind::Findings),
+                        words: b"a repair goal for a routine red after landing".as_slice().into(),
+                        class: Class::Decide,
+                    },
                 ]),
                 sets: Box::default(),
             },

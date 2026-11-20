@@ -69,7 +69,7 @@ impl Changes {
                     None => return true,
                 };
                 match panel {
-                    Some(panel) if panel.project() == self.project => {
+                    Some(panel) if panel.project == self.project => {
                         self.state = State::Shown(Box::new(panel));
                     }
                     Some(_) | None => self.end(out),
@@ -103,37 +103,37 @@ impl Changes {
     /// The goal named by a listed change's row.
     #[must_use]
     pub fn goal(&self, task: u64) -> Option<u64> {
-        Some(self.origins(task).0?.task())
+        Some(self.origins(task).0?.task)
     }
     /// Where a listed change's row says it came from.
     #[must_use]
     pub fn from(&self, task: u64) -> Option<From<'_>> {
         let (goal, chat) = self.origins(task);
         if let Some(goal) = goal {
-            return Some(From::Goal(goal.title()));
+            return Some(From::Goal(&goal.title));
         }
-        Some(From::Chat(chat?.task()))
+        Some(From::Chat(chat?.task))
     }
     fn origins(&self, task: u64) -> (Option<&w::ChangeFrom>, Option<&w::ChangeFrom>) {
         let panel = match &self.state {
             State::Shown(panel) => panel,
             State::Loading | State::Ended => return (None, None),
         };
-        for queue in panel.queues() {
-            if let Some(flight) = queue.in_flight()
-                && flight.member() == task
+        for queue in &panel.queues {
+            if let Some(flight) = &queue.in_flight
+                && flight.member == task
             {
-                return (flight.goal().as_ref(), flight.chat().as_ref());
+                return (flight.goal.as_ref(), flight.chat.as_ref());
             }
-            for row in queue.changes() {
-                if row.task() == task {
-                    return (row.goal().as_ref(), row.chat().as_ref());
+            for row in &queue.changes {
+                if row.task == task {
+                    return (row.goal.as_ref(), row.chat.as_ref());
                 }
             }
         }
-        for row in panel.landed().iter().chain(panel.landed_default().iter()) {
-            if row.task() == task {
-                return (row.goal().as_ref(), row.chat().as_ref());
+        for row in panel.landed.iter().chain(panel.landed_default.iter()) {
+            if row.task == task {
+                return (row.goal.as_ref(), row.chat.as_ref());
             }
         }
         (None, None)

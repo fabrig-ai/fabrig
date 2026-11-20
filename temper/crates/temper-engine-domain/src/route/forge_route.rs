@@ -11,7 +11,7 @@ use crate::commit_text;
 use forge::change_words::REPAIR_PRESERVATION;
 use forge::change_words::{
     asked_now, landing_words, news_words, parameter_word_room, produce_words, producer_amendment_words, repair_flake,
-    repair_words, resolution_words, review_words, started_from,
+    repair_no_test, repair_words, resolution_words, review_words, started_from,
 };
 
 use alloc::boxed::Box;
@@ -40,7 +40,7 @@ pub(crate) use forge::routing::{
     write_holding,
 };
 
-mod change_llm;
+use temper_engine_domain_translate::change_llm;
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
@@ -54,10 +54,12 @@ use tier_route::{describe_tier_effect, start_tier_run, tier_decision};
 
 pub(super) mod job_history;
 mod landing_route;
-pub(crate) use landing_route::form_landings;
 #[cfg(test)]
 use landing_route::start_landing;
 pub(crate) use landing_route::start_landing_step;
+pub(crate) use landing_route::{
+    admission as landing_admission, form_landings, refusal_deadline as landing_refusal_deadline,
+};
 use landing_route::{describe_landing_effect, landing_decision};
 pub(super) mod reds;
 pub(crate) use reds::landed_for_run;
@@ -949,6 +951,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             Work::GoalSubscribe(_)
             | Work::ForgeRestored
+            | Work::LandingAdmission { .. }
             | Work::ForgeLimitHold { .. }
             | Work::ForgeLimitRelease { .. }
             | Work::StatusAccount { .. }
@@ -1689,7 +1692,6 @@ pub(crate) fn step_core(
         }
     }
     let mut requests = jig_domain_core::step(&mut domain.core, &super::environment_core(env), event);
-    landing_route::settled_steps(domain, env);
     let mut routed = Queue::uncapped();
     while let Some(request) = requests.pop() {
         if let jig_domain_core::Request::Write(jig_domain_core::Write::Save(jig_domain_core::Record::Tasks(
@@ -1777,6 +1779,8 @@ fn retry_change_names(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     domain.work.push(Work::Forge(forge::Event::Names { task, resources }));
 }
 
+// Every live pushing child counts, even after a gate takes the current delegate slot
+// (temper/docs/design/domain/forge/change/repairs.md). Jig keeps these through their terminals.
 fn change_delegate_live(domain: &Domain, task: u64) -> bool {
     let Some(owner) = domain.core.tasks.task(task) else { return false };
     for child in &owner.delegates {
@@ -1860,6 +1864,9 @@ fn drop_settled_change(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<f
     }
 }
 
+/// Register the connector's procedure beside the task's first due step.
+/// Parameter 1 names a project-unique repository tag, 2 the base,
+/// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     start_recovered_change(domain, env, context, None)
 }
@@ -2053,6 +2060,7 @@ pub(super) fn start_recovered_change(
                 change: forge_change::Change {
                     ended_held: None,
                     early: forge_change::Early::None,
+                    landing_ask: None,
                     way: forge_change::Way::Queue,
                     landing: None,
                     task,
@@ -2086,6 +2094,7 @@ pub(super) fn start_recovered_change(
                 delegate: None,
                 delegate_status: forge_change::Status::Unknown,
                 delegate_flake: false,
+                delegate_no_test: false,
                 delegate_head: None,
                 verdicts: Box::new([]),
                 goal,
@@ -2190,15 +2199,6 @@ pub(super) fn start_recovered_change(
         let release = forge::TaskRelease { revision: record.revisions.hold, at: record.phase_since };
         domain.work.push(Work::Forge(forge::Event::ReleaseChange { task, release: Some(release) }));
     }
-    if let Some(row) = domain.forge.change(task)
-        && row.change.way == forge_change::Way::Turn
-        && row.change.landing.is_none()
-    {
-        if let forge_change::State::Ready { .. } = row.change.state {
-        } else {
-            domain.forge_settling.insert(task).expect("one settling step per bounded change");
-        }
-    }
     let step = change_step(domain, env, task, entry, provider, &base, false);
     domain.work.push(Work::Forge(step));
     true
@@ -2216,8 +2216,11 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
         let closing = domain.forge.change(task).expect("registered change").delegate
             == Some((child, forge_change::Delegate::Close));
         let held = closing && close::failed(domain, child, &word.kind);
-        let status =
-            if held { Some((forge_change::Status::Failed, true, false)) } else { change_delegate_status(&word.kind) };
+        let status = if held {
+            Some((forge_change::Status::Failed, true, false))
+        } else {
+            change_delegate_status(&word.kind, kind)
+        };
         if let Some((status, failed, cancelled)) = status {
             domain.work.push(Work::Forge(forge::Event::DelegateResult {
                 ended_at: match recovered {
@@ -2229,7 +2232,12 @@ fn change_results(domain: &mut Domain, context: &tasks::RunContext, recovered: O
                 status,
                 no_change: word.kind == tasks::MessageKind::Result(tasks::ResultKind::NoChange),
                 flake: if let tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) = word.kind {
-                    repair_verdict(kind, code)
+                    code == forge::REPAIR_FLAKE && repair_verdict(kind, code)
+                } else {
+                    false
+                },
+                no_test: if let tasks::MessageKind::Result(tasks::ResultKind::Verdict { code, .. }) = word.kind {
+                    code == forge::REPAIR_NO_TEST && repair_verdict(kind, code)
                 } else {
                     false
                 },
@@ -2275,6 +2283,7 @@ fn change_step(
             delegate: forge_change::Status::Unknown,
             delegate_running: change_delegate_running(domain, task),
             flake: false,
+            no_test: false,
             delegate_live: change_delegate_live(domain, task),
             effect: forge_change::EffectResult::None,
             // A held read is no release, even if a past release remains the task's due reason.
@@ -3190,6 +3199,15 @@ fn change_delegate(
             followups: 0,
             fields: Box::new([]),
         }])
+    } else if let forge_change::Delegate::Repair(why) = kind
+        && repair_no_test(why, failure.as_ref())
+    {
+        Box::from([tasks::Verdict {
+            code: forge::REPAIR_NO_TEST,
+            words: env.limits.tasks.result_bytes,
+            followups: 0,
+            fields: Box::new([]),
+        }])
     } else {
         Box::new([])
     };
@@ -3646,7 +3664,8 @@ fn hold_change_decision(
         | forge_change::Hold::Resolutions
         | forge_change::Hold::Updates
         | forge_change::Hold::Questions
-        | forge_change::Hold::Flake => tasks::Hold::Procedure,
+        | forge_change::Hold::Flake
+        | forge_change::Hold::NoTest => tasks::Hold::Procedure,
         forge_change::Hold::Failed | forge_change::Hold::Rejected => tasks::Hold::EffectFailed,
     };
     let end = if let Some(words) = account
@@ -4113,8 +4132,7 @@ pub(crate) fn outputs(
     decision: &mut Decision,
     out: &mut Queue<forge::Request>,
 ) {
-    for _ in 0..out.len() {
-        let request = out.pop().expect("connector output count");
+    while let Some(request) = out.pop() {
         match request {
             forge::Request::LoadHistory { load, range, after, most } => {
                 match domain.archive_reads.insert(Some(crate::boundary::Read::History { load, most })) {
@@ -4135,6 +4153,12 @@ pub(crate) fn outputs(
             }
             forge::Request::HistoryPage { read, answer } => {
                 super::kinds::history_answer(domain, env, decision, read, answer);
+            }
+            forge::Request::LandingUnmade { task, repository, branch, changes } => {
+                super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
+            }
+            forge::Request::HoldDropped { name, task } => {
+                super::diagnostics::emit(domain, crate::Fact::HoldDropped { name, task });
             }
             forge::Request::LinkNoted { forge, note } => {
                 super::diagnostics::emit(domain, crate::Fact::ForgeLink { forge, note });
@@ -4808,9 +4832,17 @@ pub(crate) fn outputs(
                     tier_decision(domain, env, task, choice, projection);
                 }
             }
+            forge::Request::LandingReady { task } => {
+                let due = match domain.core.tasks.procedure_due(task) {
+                    Some((connector, code, _)) => connector == domain.config.forge_connector && code == LANDING_CODE,
+                    None => false,
+                };
+                domain.forge.decide_landing(&super::environment_forge(env), task, due, out);
+            }
             forge::Request::LandingDecision { task, decision: choice, entry, evidence } => {
                 if let Some(entry) = entry {
-                    let Some((_, _, step)) = domain.core.tasks.procedure_due(task) else { continue };
+                    let (_, _, step) =
+                        domain.core.tasks.procedure_due(task).expect("landing decision admitted before commit");
                     if let Some(description) = describe_landing_effect(domain, env, task, entry) {
                         let owner = effect_owner(domain);
                         domain
@@ -5076,6 +5108,7 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
         | jig_domain_core::CallPart::Delegated(_)
         | jig_domain_core::CallPart::DelegationDenied { .. }
         | jig_domain_core::CallPart::DelegationRefused(_)
+        | jig_domain_core::CallPart::WordsRecorded { .. }
         | jig_domain_core::CallPart::NoteWritten { .. }
         | jig_domain_core::CallPart::NoteDeleted { .. }
         | jig_domain_core::CallPart::NoteRecalled { .. }

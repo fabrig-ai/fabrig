@@ -352,12 +352,14 @@ temper-box
   written, and nothing precedes them on either stream. What the start says
   of its logs or records while they are moved waits behind them. The link's
   address is what serve's would be: the configured public origin, or else
-  the clients' listener, and the link route.
+  the clients' listener, and the link's page, `/sign-in`
+  (`../../client/README.md`, section 4); a link at the route, as a build
+  before printed it, still signs in.
 
   ```
   Open this link in a browser on this machine.
 
-  http://127.0.0.1:8367/jig/v1/sign-in/link?secret=...
+  http://127.0.0.1:8367/sign-in?secret=...
 
   It signs you in as this temper's owner, once, within 2 hours.
   Opened after that, it prints a fresh one here.

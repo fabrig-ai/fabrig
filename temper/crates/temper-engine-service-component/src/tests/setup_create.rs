@@ -282,6 +282,7 @@ fn ask_copy(service: &mut crate::Service, number: u64, playground: bool) {
         number,
         domain::SetUpFirst::Empty {
             playground,
+            sample: false,
             org: if playground { b"playground".as_slice().into() } else { b"work".as_slice().into() },
             repository: if playground { b"widget".as_slice().into() } else { b"hello".as_slice().into() },
         },
@@ -476,6 +477,89 @@ fn playground_create_copies_the_fake_source_beside_the_starter_and_keeps_forgejo
         temper_forge_setup::PLAYGROUND_MAIN
     );
     assert!(object.tree.get(b".forgejo/workflows/check.yml".as_slice()).is_none());
+}
+
+#[test]
+fn sample_create_commits_hello_tests_and_workflow_in_order_after_forgejos_readme() {
+    let mut forge = Forge::new(false);
+    let mut service = configured(&forge);
+    ask_first(
+        &mut service,
+        91,
+        domain::SetUpFirst::Empty {
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            playground: false,
+            sample: true,
+        },
+    );
+    forge.settle(&mut service);
+    let engine = service.engine.as_ref().unwrap();
+    assert!(connected(engine), "{:?}", engine.domain.forge_connection(1));
+    let first = engine.domain.forges().rows[0].first.clone().unwrap();
+    assert_eq!(first.state, domain::FirstState::Made { id: 1 });
+    assert!(first.sample);
+    let head = forge.git.branch(b"work/hello", b"main").unwrap();
+    let object = forge.git.object(head).unwrap();
+    assert_eq!(object.tree.len(), 4);
+    assert_eq!(object.tree.get(b"README.md".as_slice()).unwrap().as_ref(), b"# hello\n");
+    assert_eq!(
+        object.tree.get(temper_forge_setup::SAMPLE_HELLO_PATH).unwrap().as_ref(),
+        temper_forge_setup::SAMPLE_HELLO
+    );
+    assert_eq!(
+        object.tree.get(temper_forge_setup::SAMPLE_TEST_PATH).unwrap().as_ref(),
+        temper_forge_setup::SAMPLE_TEST
+    );
+    assert_eq!(
+        object.tree.get(temper_forge_setup::STARTER_PATH).unwrap().as_ref(),
+        temper_forge_setup::sample_workflow(b"temper-host").unwrap().as_ref()
+    );
+    assert!(object.tree.get(b"src/main.rs".as_slice()).is_none());
+    let mut commit = head;
+    for message in [b"Add .forgejo/workflows/ci.yml".as_slice(), b"Add test.sh", b"Add hello"] {
+        let object = forge.git.object(commit).unwrap();
+        assert_eq!(object.message.as_ref(), message);
+        assert_eq!(object.author.as_ref().unwrap().name.as_ref(), b"temper");
+        assert_eq!(object.author, object.committer);
+        commit = object.parent.unwrap();
+    }
+    let readme = forge.git.object(commit).unwrap();
+    assert_eq!(readme.tree.len(), 1);
+    assert_eq!(readme.tree.get(b"README.md".as_slice()).unwrap().as_ref(), b"# hello\n");
+}
+
+#[test]
+fn playground_takes_precedence_over_sample_in_create() {
+    let mut forge = Forge::new(false);
+    let mut service = configured(&forge);
+    ask_first(
+        &mut service,
+        91,
+        domain::SetUpFirst::Empty {
+            org: b"playground".as_slice().into(),
+            repository: b"widget".as_slice().into(),
+            playground: true,
+            sample: true,
+        },
+    );
+    forge.settle(&mut service);
+    let engine = service.engine.as_ref().unwrap();
+    assert!(connected(engine), "{:?}", engine.domain.forge_connection(1));
+    let head = forge.git.branch(b"playground/widget", b"main").unwrap();
+    let object = forge.git.object(head).unwrap();
+    assert_eq!(object.tree.len(), 3);
+    assert_eq!(object.tree.get(b"README.md".as_slice()).unwrap().as_ref(), b"# widget\n");
+    assert_eq!(
+        object.tree.get(temper_forge_setup::STARTER_PATH).unwrap().as_ref(),
+        temper_forge_setup::starter_workflow(b"temper-host").unwrap().as_ref()
+    );
+    assert_eq!(
+        object.tree.get(temper_forge_setup::PLAYGROUND_PATH).unwrap().as_ref(),
+        temper_forge_setup::PLAYGROUND_MAIN
+    );
+    assert!(object.tree.get(temper_forge_setup::SAMPLE_HELLO_PATH).is_none());
+    assert!(object.tree.get(temper_forge_setup::SAMPLE_TEST_PATH).is_none());
 }
 
 #[path = "setup_making.rs"]
@@ -685,6 +769,7 @@ fn start_owned(service: &mut crate::Service, forge: &Forge) {
             forge: domain::Making::New(domain::ForgeAsk::Owned),
             first: domain::SetUpFirst::Empty {
                 playground: false,
+                sample: false,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
             },

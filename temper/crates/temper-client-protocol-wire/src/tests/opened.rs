@@ -1,6 +1,7 @@
 //! The person's act's bounds, beside the generated codecs' round trips
 //! (temper/docs/design/client/forge/records.md, `OpenChange`).
 use crate::v1 as w;
+use crate::v1::Record;
 
 fn repeated(byte: u8, length: u32) -> Box<[u8]> {
     let mut bytes = skein_lib::List::with_capacity(length);
@@ -10,8 +11,8 @@ fn repeated(byte: u8, length: u32) -> Box<[u8]> {
     bytes.into_boxed()
 }
 
-fn parts() -> w::OpenChangeParts {
-    w::OpenChangeParts {
+fn parts() -> w::OpenChange {
+    w::OpenChange {
         project: 1,
         repository: None,
         branch: b"docs/x".as_slice().into(),
@@ -22,12 +23,8 @@ fn parts() -> w::OpenChangeParts {
         budget: w::OpenBudget::AsAllowed,
     }
 }
-fn decoded(parts: w::OpenChangeParts) -> Option<w::Requesting> {
-    let record = w::Requesting::new(
-        &w::CEILINGS,
-        w::RequestingParts { request: w::Request::OpenChange(w::OpenChange::new(&w::CEILINGS, parts).unwrap()) },
-    )
-    .unwrap();
+fn decoded(parts: w::OpenChange) -> Option<w::Requesting> {
+    let record = w::Requesting { request: w::Request::OpenChange(parts) };
     crate::decode_requesting(&crate::requesting(&record), &w::CEILINGS)
 }
 #[test]
@@ -63,6 +60,6 @@ fn opening_fields_keep_their_minima_and_commit_text_is_exact() {
             4 => parts.at = Some(repeated(b'a', 65)),
             _ => unreachable!(),
         }
-        assert!(w::OpenChange::new(&w::CEILINGS, parts).is_err(), "case {case}");
+        assert!((parts).encode(&w::CEILINGS).is_err(), "case {case}");
     }
 }

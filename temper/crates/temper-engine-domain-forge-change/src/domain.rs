@@ -376,7 +376,7 @@ fn advance_phase(
         }
         State::Checking { head } => checking(next, *head, facts, standing, now, limits),
         State::Gating { head, asked } => gating(next, *head, asked, facts, now, limits),
-        State::Judging { .. } => judging(next, facts, now, limits),
+        State::Judging { .. } => judging(next, facts, standing, now, limits),
         State::Ready { head, ready_since } => ready(next, *head, *ready_since, facts, standing, now, limits),
         State::Preparing { from, main, ready_since } => {
             preparing(next, *from, *main, *ready_since, facts, standing, now, limits)
@@ -456,7 +456,8 @@ pub fn held_on_ci(state: &State) -> bool {
         | Hold::Updates
         | Hold::Rejected
         | Hold::Questions
-        | Hold::Flake => false,
+        | Hold::Flake
+        | Hold::NoTest => false,
     }
 }
 
@@ -608,9 +609,10 @@ fn release(mut change: Change, was: &State, why: Hold, facts: &Facts) -> Stepped
         | Hold::Updates
         | Hold::Failed
         | Hold::Flake
+        | Hold::NoTest
         | Hold::Rejected
         | Hold::Authority(_) => {
-            if why == Hold::Flake {
+            if why == Hold::Flake || why == Hold::NoTest {
                 change.clean = Box::new([]);
                 change.last_head = facts.branch.or(change.last_head);
             }
@@ -626,7 +628,7 @@ fn released_state(change: &Change, was: &State, why: Hold, pull: Pull) -> State 
         Pull::Missing | Pull::Closed | Pull::Merged { .. } => false,
     };
     match was {
-        State::Repairing { .. } if why == Hold::Flake => {
+        State::Repairing { .. } if (why == Hold::Flake || why == Hold::NoTest) => {
             let Some(head) = change.last_head else { return State::Opening { requested: false } };
             match pull {
                 Pull::Open { .. } => pushed(change, head),
@@ -1786,11 +1788,11 @@ fn delegated(
     match standing.delegate {
         Status::Passed => {
             let Some(head) = facts.branch else { return waiting_on_agent(change, facts, standing, now, limits) };
-            if standing.flake
+            if (standing.flake || standing.no_test)
                 && Some(head) == change.last_head
                 && let Delegate::Repair(Repair::Landing { .. } | Repair::LandingAt { .. }) = delegate
             {
-                return hold(change, Hold::Flake);
+                return hold(change, if standing.no_test { Hold::NoTest } else { Hold::Flake });
             }
             take_pushed_head(change, head, now)
         }
@@ -2157,7 +2159,7 @@ pub fn prefix_verdict(
     result
 }
 
-fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Stepped {
+fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limits: &Limits) -> Stepped {
     let State::Judging { head, ready_since, target, asked } = change.state.clone() else { unreachable!("judging") };
     let Some(branch) = facts.branch else {
         return hold(change, Hold::BranchMissing);
@@ -2175,9 +2177,8 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
         }
         return repair_due(change, Repair::LandingAt { gate, candidate, below }, facts, now, limits);
     }
-    if change.landing != Some(target.landing) {
-        change.state = State::Ready { head, ready_since };
-        return Stepped { change, decision: Decision::Wait { until: None } };
+    if let Some(Ask::Resolve { base }) = facts.ask {
+        return conflict_due(change, base, Some(head), facts, standing, now, limits);
     }
     for failure in &change.gate_failures {
         if failure.count >= 2 {
@@ -2192,7 +2193,11 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
         match prefix_verdict(&change, *gate, &facts.gates, head, target.prefix) {
             Status::Failed => return repair_due(change, Repair::Gate(gate.number), facts, now, limits),
             Status::Passed => {}
-            Status::Unknown if !asked.contains(&gate.number) && facts.live_gate.is_none() => {
+            Status::Unknown
+                if change.landing == Some(target.landing)
+                    && !asked.contains(&gate.number)
+                    && facts.live_gate.is_none() =>
+            {
                 let mut collected = List::with_capacity(limits.gates);
                 for number in &asked {
                     collected.push(*number).expect("bounded gates");
@@ -2208,6 +2213,10 @@ fn judging(mut change: Change, facts: &Facts, now: Wall, limits: &Limits) -> Ste
             }
             Status::Unknown | Status::Pending => waiting_gate = true,
         }
+    }
+    if change.landing != Some(target.landing) {
+        change.state = State::Ready { head, ready_since };
+        return Stepped { change, decision: Decision::Wait { until: None } };
     }
     if waiting_gate {
         return waiting(change, facts, now, limits);

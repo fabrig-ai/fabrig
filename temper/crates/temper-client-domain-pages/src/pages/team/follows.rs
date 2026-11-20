@@ -28,25 +28,25 @@ pub struct Follow {
 pub fn gather(panel: Option<&w::FollowsPanel>) -> List<Follow> {
     let mut follows = List::uncapped();
     if let Some(panel) = panel {
-        for row in panel.follows() {
-            let owner = match row.setting().owner() {
-                w::FollowOwner::Person(person) => Owner::Person(person.person()),
-                w::FollowOwner::Task(task) => Owner::Task(task.task()),
+        for row in &panel.follows {
+            let owner = match &row.setting.owner {
+                w::FollowOwner::Person(person) => Owner::Person(person.person),
+                w::FollowOwner::Task(task) => Owner::Task(task.task),
             };
-            let status = if row.stopped().is_some() {
+            let status = if row.stopped.is_some() {
                 Box::from(b"stopped".as_slice())
             } else {
                 concat(&[
-                    &crate::forge::follows::lag(row.lag()),
+                    &crate::forge::follows::lag(row.lag),
                     b" \xc2\xb7 ",
-                    &crate::forge::follows::parity(row.parity().as_ref()),
+                    &crate::forge::follows::parity(row.parity.as_ref()),
                 ])
             };
             let mut entries = List::uncapped();
-            for entry in row.entries() {
+            for entry in &row.entries {
                 entries
                     .push(Entry {
-                        after: crate::forge::follows::after12(entry.after()),
+                        after: crate::forge::follows::after12(&entry.after),
                         state: crate::forge::follows::state(entry),
                     })
                     .expect("entries grow");
@@ -54,8 +54,8 @@ pub fn gather(panel: Option<&w::FollowsPanel>) -> List<Follow> {
             follows
                 .push(Follow {
                     owner,
-                    source: row.source().into(),
-                    line: concat(&[b"Follows ", row.source(), b" \xc2\xb7 ", &status]),
+                    source: row.source.clone(),
+                    line: concat(&[b"Follows ", &row.source, b" \xc2\xb7 ", &status]),
                     status,
                     entries,
                     more: 0,

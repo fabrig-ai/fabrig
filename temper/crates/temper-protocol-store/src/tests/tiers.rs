@@ -516,6 +516,61 @@ fn a_missing_workflow_kind_round_trips_in_the_flight_and_hold() {
     assert_eq!(records::encode(&d::Stored::Tier(decoded)), bytes);
 }
 #[test]
+fn an_unreported_fault_round_trips_in_the_flight_and_hold() {
+    use temper_engine_domain_forge_landing::Fault;
+    let mut row = fixtures::tier_row();
+    row.held = Some(Fault::Unreported);
+    row.flight.as_mut().unwrap().fault = Some(Fault::Unreported);
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let bytes = records::encode(&d::Stored::Tier(row.clone()));
+    let d::Stored::Tier(decoded) = records::decode(&bytes, &bounds).unwrap() else { panic!("tier record") };
+    assert_eq!(decoded.held, Some(Fault::Unreported));
+    assert_eq!(decoded.flight.as_ref().unwrap().fault, Some(Fault::Unreported));
+    round_trip(d::Stored::Tier(row), 28);
+}
+
+#[test]
+fn rows_before_the_unreported_arm_keep_their_encoding_and_decode_unchanged() {
+    use temper_engine_domain_forge_landing::Fault;
+    let mut text = None;
+    for family in crate::OWNER_SET.families {
+        if family.name == "temper-store" {
+            text = Some(family.current);
+        }
+    }
+    let text = text.expect("registered application family");
+    let old_text = text.replace(", unreported", "");
+    assert_ne!(old_text, text);
+    let old = skein_codec::schema::parse(old_text.as_bytes()).unwrap();
+    let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
+    let root = b"TierRow";
+    let before = skein_codec::layout::Plan::derive_dropping(
+        &new,
+        new.root(root, None).unwrap(),
+        &[],
+        &old,
+        old.root(root, None).unwrap(),
+        &[],
+    )
+    .unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for fault in [Fault::SetUp, Fault::MissingWorkflow] {
+        let mut row = fixtures::tier_row();
+        row.held = Some(fault);
+        row.flight.as_mut().unwrap().fault = Some(fault);
+        let row = d::Stored::Tier(row);
+        let bytes = records::encode(&row);
+        let mut workspace = skein_codec::layout::Workspace::new();
+        assert!(workspace.fit(&before));
+        let mut old_bytes = skein_lib::Buffer::with_capacity(131_072);
+        before.convert(&bytes[3..], &mut old_bytes, &mut workspace).unwrap();
+        let old_row = skein_lib::bytes::concat(&[&bytes[..3], old_bytes.as_slice()]);
+        assert!(old_row == bytes, "appending a fault arm preserves earlier tags");
+        assert_eq!(records::decode(&old_row, &bounds), Ok(row));
+    }
+}
+
+#[test]
 fn tier_operation_lists_refuse_one_past_their_configured_bounds() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     for pending_tips in [true, false] {

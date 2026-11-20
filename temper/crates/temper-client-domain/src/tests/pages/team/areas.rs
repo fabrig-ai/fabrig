@@ -3,13 +3,13 @@ use super::*;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn task(number: u64) -> w::Holder {
-    w::Holder::Task(w::HolderTask::new(&w::CEILINGS, w::HolderTaskParts { number }).unwrap())
+    w::Holder::Task(w::HolderTask { number })
 }
 fn owner(number: u64) -> w::AreaOwner {
-    w::AreaOwner::Task(w::AreaTask::new(&w::CEILINGS, w::AreaTaskParts { number }).unwrap())
+    w::AreaOwner::Task(w::AreaTask { number })
 }
 fn owners() -> w::Holder {
-    w::Holder::Role(w::HolderRole::new(&w::CEILINGS, w::HolderRoleParts { number: 0 }).unwrap())
+    w::Holder::Role(w::HolderRole { number: 0 })
 }
 fn areas() -> team::Areas {
     team::Areas {
@@ -54,7 +54,7 @@ fn areas_parts_follow_holders_and_offered_talk() {
     assert!(parts.talk);
     facts.card.as_mut().unwrap().talk = false;
     assert!(!team::parts(&facts).talk);
-    let person = w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: YOU }).unwrap());
+    let person = w::Holder::Party(w::HolderParty { number: YOU });
     let area = facts.areas.as_mut().unwrap();
     area.rows.get_mut(0).unwrap().holder = Some(person.clone());
     area.holder = person;
@@ -85,27 +85,16 @@ pub(super) fn send(f: &mut Reads, areas: team::Areas) {
     let (handle, watch, subject) = f.findings.last().unwrap().clone();
     let mut rows = List::with_capacity(areas.rows.len());
     for area in areas.rows.into_boxed() {
-        rows.push(
-            w::AreaRow::new(
-                &w::CEILINGS,
-                w::AreaRowParts { name: area.name, words: area.words, owner: area.owner, holder: area.holder },
-            )
-            .unwrap(),
-        )
-        .unwrap();
+        rows.push(w::AreaRow { name: area.name, words: area.words, owner: area.owner, holder: area.holder }).unwrap();
     }
-    let document = w::Findings::new(
-        &w::CEILINGS,
-        w::FindingsParts {
-            project: subject.project(),
-            rows: List::with_capacity(0),
-            areas: rows,
-            triager: areas.triager,
-            holder: areas.holder,
-            cut: false,
-        },
-    )
-    .unwrap();
+    let document = w::Findings {
+        project: subject.project,
+        rows: List::with_capacity(0),
+        areas: rows,
+        triager: areas.triager,
+        holder: areas.holder,
+        cut: false,
+    };
     client(
         f,
         jig_client::Event::Up {
@@ -161,8 +150,8 @@ fn team_watches_areas_redraws_and_closes_without_retrying_refusals() {
     rows.push(team::Area {
         name: b"core".as_slice().into(),
         words: b"The protocol".as_slice().into(),
-        owner: w::AreaOwner::Party(w::AreaParty::new(&w::CEILINGS, w::AreaPartyParts { number: YOU }).unwrap()),
-        holder: Some(w::Holder::Party(w::HolderParty::new(&w::CEILINGS, w::HolderPartyParts { number: YOU }).unwrap())),
+        owner: w::AreaOwner::Party(w::AreaParty { number: YOU }),
+        holder: Some(w::Holder::Party(w::HolderParty { number: YOU })),
     })
     .unwrap();
     document.rows = rows;
@@ -196,6 +185,6 @@ fn team_watches_areas_redraws_and_closes_without_retrying_refusals() {
     page(&mut f, Event::Went { address: Address::Team { project: OTHER_PROJECT, role: None } });
     assert!(f.closed.as_slice().contains(&second), "switching project closes the old watch");
     assert_eq!(f.findings.len(), 3);
-    assert_eq!(f.findings.last().unwrap().2.project(), OTHER_PROJECT);
+    assert_eq!(f.findings.last().unwrap().2.project, OTHER_PROJECT);
     assert_eq!(team::shown(&f.root, OTHER_PROJECT), team::Shown::Reading);
 }

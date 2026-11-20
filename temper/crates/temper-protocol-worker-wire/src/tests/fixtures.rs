@@ -22,8 +22,13 @@ pub fn limits() -> v1::Limits {
 
 pub fn repository(tag: u64, remote: Box<[u8]>) -> v1::Repository {
     let branch = v1::Branch { branch: Box::from(&b"main"[..]) };
-    let writable =
-        v1::Writable { push: Box::from(&b"temper/work"[..]), expected: None, landing: None, delivered: None };
+    let writable = v1::Writable {
+        push: Box::from(&b"temper/work"[..]),
+        expected: None,
+        landing: None,
+        delivered: None,
+        pin: None,
+    };
     v1::Repository {
         save: None,
         tag,

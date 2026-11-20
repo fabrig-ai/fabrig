@@ -512,6 +512,14 @@ fn a_batch_of_four_narrows_its_breaking_member_with_deployment_limits() {
         "every review ended before readiness is released: {:?}",
         changes.iter().map(|number| (number, goal_landing::row(&world, *number).delegate)).collect::<Vec<_>>()
     );
+    // Queue priority, not the concurrent readiness gathers' finish order, puts the red member second
+    // (domain/forge/queues.md, 1).
+    for (index, change) in changes.iter().enumerate() {
+        world.send(engine::Event::Forge(Box::new(forge_top::Event::Priority {
+            task: *change,
+            priority: i32::try_from(index).expect("four changes"),
+        })));
+    }
     let latch_run = world.assigned.iter().find(|run| run.task == latch).expect("latch run").clone();
     goal_landing::finish_run(
         &mut world,

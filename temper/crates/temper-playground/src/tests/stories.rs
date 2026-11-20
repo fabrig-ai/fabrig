@@ -401,7 +401,7 @@ fn story_a_starts_and_prints_its_link() {
     assert_eq!(line.process.as_ref(), b"temper serve");
     assert_eq!(line.stream, skein_sim_world::Stream::Output);
     let url = std::str::from_utf8(&line.line).expect("sign-in URL");
-    let prefix = format!("http://{}/jig/v1/sign-in/link?secret=", documents::CLIENTS);
+    let prefix = format!("http://{}/sign-in?secret=", documents::CLIENTS);
     let secret = url.strip_prefix(&prefix).expect("service's sign-in URL");
     assert!(!secret.is_empty() && !secret.contains(['\r', '\n']));
     assert!(

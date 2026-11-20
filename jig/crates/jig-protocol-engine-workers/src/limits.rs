@@ -1,4 +1,5 @@
 //! Checked channel capacity (protocol/channel/README.md, section 10).
+use jig_protocol_worker_wire::Record;
 use jig_protocol_worker_wire::{
     self as wire,
     sizes::{self, Sizes},
@@ -92,5 +93,5 @@ pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
     }
     limits.workers.checked_add(limits.opening).is_some()
         && skein_channel::valid(schema, Role::Responder, &channel)
-        && wire::v17::decoded_bound(&codec).is_some()
+        && wire::v18::decoded_bound(&codec).is_some()
 }

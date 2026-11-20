@@ -16,6 +16,7 @@ use jig_client::{
 };
 use skein_lib::{Env, Queue};
 use temper_client_domain_forge::{forge, owner::Owner};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
@@ -97,9 +98,7 @@ pub(crate) fn ready(state: &mut Findings, client: &Client, env: &Env<Limits>, ou
             Act::Show => read(state, handle, pending, out),
             Act::File | Act::Hand | Act::Route | Act::Backlog | Act::Drop => {
                 let key = jig::key::local(Owner::Forge.asker(), number);
-                let request =
-                    w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: request.expect("act request") })
-                        .expect("request");
+                let request = w::Requesting { request: request.expect("act request") };
                 let name = Some(crate::key::engine(
                     pending.called.as_ref().expect("live call").call.key.as_ref().expect("keyed act"),
                 ));
@@ -109,7 +108,7 @@ pub(crate) fn ready(state: &mut Findings, client: &Client, env: &Env<Limits>, ou
                         name,
                         request: Ask::Family {
                             scope: c::Scope::Project(project),
-                            record: family(wire::requesting(&request)),
+                            record: family(request.encode(&w::CEILINGS).expect("request")),
                         },
                     },
                 });
@@ -169,17 +168,20 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
             if title.is_empty() {
                 return Err(b"finding title must not be empty");
             }
-            let file = w::FileFinding::new(
-                &w::CEILINGS,
-                w::FileFindingParts {
+            let file = {
+                let value = w::FileFinding {
                     project,
                     kind,
                     severity,
                     area: area.clone(),
                     title: title.into(),
                     body: text(call, 5)?.into(),
-                },
-            )
+                };
+                match value.encode(&w::CEILINGS) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             .or(Err(b"finding words past their bounds".as_slice()))?;
             (Act::File, Some(w::Request::FileFinding(file)))
         }
@@ -189,25 +191,21 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
             if why.is_empty() {
                 return Err(b"hand-off why must not be empty");
             }
-            let hand = w::HandFinding::new(
-                &w::CEILINGS,
-                w::HandFindingParts { project, number, area: text(call, 1)?.into(), why: why.into() },
-            )
+            let hand = {
+                let value = w::HandFinding { project, number, area: text(call, 1)?.into(), why: why.into() };
+                match value.encode(&w::CEILINGS) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
             .or(Err(b"hand-off words past their bounds".as_slice()))?;
             (Act::Hand, Some(w::Request::HandFinding(hand)))
         }
         rows::FINDING_ROUTE_AT | rows::FINDING_BACKLOG_AT | rows::FINDING_DROP_AT => {
             let (act, triage) = match call.tool {
-                rows::FINDING_ROUTE_AT => (
-                    Act::Route,
-                    w::Triage::Route(
-                        w::FindingRoute::new(
-                            &w::CEILINGS,
-                            w::FindingRouteParts { task: jig::call::number(call, 1).expect("goal") },
-                        )
-                        .expect("scalar goal"),
-                    ),
-                ),
+                rows::FINDING_ROUTE_AT => {
+                    (Act::Route, w::Triage::Route(w::FindingRoute { task: jig::call::number(call, 1).expect("goal") }))
+                }
                 rows::FINDING_BACKLOG_AT => (Act::Backlog, w::Triage::Backlog),
                 _ => {
                     let reason = text(call, 1)?;
@@ -217,19 +215,19 @@ fn prepare(call: &Call, me: &c::Me) -> Result<(u32, u32, Option<Box<[u8]>>, Act,
                     (
                         Act::Drop,
                         w::Triage::Drop(
-                            w::FindingDrop::new(&w::CEILINGS, w::FindingDropParts { reason: reason.into() })
-                                .or(Err(b"drop reason past 400 bytes".as_slice()))?,
+                            {
+                                let value = w::FindingDrop { reason: reason.into() };
+                                match value.encode(&w::CEILINGS) {
+                                    Ok(_) => Ok(value),
+                                    Err(problem) => Err(problem),
+                                }
+                            }
+                            .or(Err(b"drop reason past 400 bytes".as_slice()))?,
                         ),
                     )
                 }
             };
-            (
-                act,
-                Some(w::Request::TriageFinding(
-                    w::TriageFinding::new(&w::CEILINGS, w::TriageFindingParts { project, number, act: triage })
-                        .expect("triage"),
-                )),
-            )
+            (act, Some(w::Request::TriageFinding(w::TriageFinding { project, number, act: triage })))
         }
         _ => unreachable!("finding tool"),
     };
@@ -253,14 +251,12 @@ fn reference(call: &Call, me: &c::Me) -> Result<(u32, u32), &'static [u8]> {
     }
 }
 pub(crate) fn subject(project: u32, state: Option<w::FindingState>, mine: bool) -> Watchable {
-    let subject =
-        w::FindingsSubject::new(&w::CEILINGS, w::FindingsSubjectParts { project, state, mine }).expect("subject");
-    let watching =
-        w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Findings(subject) }).expect("watch");
+    let subject = w::FindingsSubject { project, state, mine };
+    let watching = w::Watching { watch: w::Watch::Findings(subject) };
     Watchable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
-        record: family(wire::watching(&watching)),
+        record: family(watching.encode(&w::CEILINGS).expect("watch")),
     }
 }
 fn watch(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue<Out>) {
@@ -282,18 +278,15 @@ fn watch(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue
     state.views.insert(handle, pending);
 }
 fn read(state: &mut Findings, handle: Handle, pending: Pending, out: &mut Queue<Out>) {
-    let read = w::Read::Finding(
-        w::FindingRead::new(&w::CEILINGS, w::FindingReadParts { project: pending.project, number: pending.number })
-            .expect("scalar read"),
-    );
-    let reading = w::Reading::new(&w::CEILINGS, w::ReadingParts { read }).expect("read");
+    let read = w::Read::Finding(w::FindingRead { project: pending.project, number: pending.number });
+    let reading = w::Reading { read };
     out.push(Out::Client {
         event: Event::Read {
             handle,
             read: Readable::Family {
                 window: c::Window { rows: 0, after: None },
                 scope: c::Scope::Project(pending.project),
-                record: family(wire::reading(&reading)),
+                record: family(reading.encode(&w::CEILINGS).expect("read")),
             },
         },
     });
@@ -337,7 +330,7 @@ pub(crate) fn told(state: &mut Findings, client: &Client, env: &Env<Limits>, tol
                 _ => None,
             };
             let printed = match findings {
-                Some(findings) if findings.project() == pending.project => match pending.act {
+                Some(findings) if findings.project == pending.project => match pending.act {
                     Act::List => render::list(&findings, pending.json, &env.limits),
                     Act::File | Act::Hand | Act::Show | Act::Route | Act::Backlog | Act::Drop => {
                         unreachable!("finding watch context")
@@ -359,10 +352,10 @@ pub(crate) fn told(state: &mut Findings, client: &Client, env: &Env<Limits>, tol
                 Readout::Limit | Readout::NotServed { .. } | Readout::Jig(_) | Readout::Family { .. } => None,
             };
             let printed = match answer {
-                Some(answer) => match answer.result() {
-                    w::FindingResult::Finding(detail) if detail.row().number() == pending.number => match pending.act {
+                Some(answer) => match &answer.result {
+                    w::FindingResult::Finding(detail) if detail.row.number == pending.number => match pending.act {
                         Act::Show => render::show(pending.project, detail, pending.json, &env.limits),
-                        Act::File | Act::Hand => render::acted(&pending, Some(detail.row().holder()), &env.limits),
+                        Act::File | Act::Hand => render::acted(&pending, Some(&detail.row.holder), &env.limits),
                         Act::List | Act::Route | Act::Backlog | Act::Drop => unreachable!("finding read context"),
                     },
                     w::FindingResult::NoFinding => jig::render::failure(b"no finding", pending.json, 2),
@@ -438,9 +431,9 @@ fn answered(
         finish(pending, printed, out);
         return;
     };
-    match answer.outcome() {
+    match &answer.outcome {
         w::Outcome::Filed(filed) => {
-            pending.number = filed.number();
+            pending.number = filed.number;
         }
         w::Outcome::Handed => {}
         w::Outcome::Triaged => {
@@ -449,7 +442,7 @@ fn answered(
             return;
         }
         w::Outcome::FindingRefused(why) => {
-            let printed = render::refused(&pending, why.reason());
+            let printed = render::refused(&pending, &why.reason);
             finish(pending, printed, out);
             return;
         }
@@ -505,22 +498,22 @@ fn restored(ask: &Ask, json: bool) -> Option<Pending> {
         return None;
     }
     let request = wire::decode_requesting(&record.bytes, &w::CEILINGS)?;
-    let (project, number, area, act) = match request.request() {
+    let (project, number, area, act) = match &request.request {
         w::Request::FileFinding(file) => (
-            file.project(),
+            file.project,
             0,
-            match file.area() {
+            match &file.area {
                 Some(area) => Some(area.clone()),
                 None => None,
             },
             Act::File,
         ),
-        w::Request::HandFinding(hand) => (hand.project(), hand.number(), Some(hand.area().into()), Act::Hand),
+        w::Request::HandFinding(hand) => (hand.project, hand.number, Some(hand.area.clone()), Act::Hand),
         w::Request::TriageFinding(triage) => (
-            triage.project(),
-            triage.number(),
+            triage.project,
+            triage.number,
             None,
-            match triage.act() {
+            match &triage.act {
                 w::Triage::Route(_) => Act::Route,
                 w::Triage::Backlog => Act::Backlog,
                 w::Triage::Drop(_) => Act::Drop,

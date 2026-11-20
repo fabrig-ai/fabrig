@@ -272,6 +272,19 @@ login = "sam"
 }
 
 #[test]
+fn machine_facts_take_the_host_name_from_the_shell() {
+    let scratch = skein_scratch::Scratch::new("config-machine-facts");
+    let found = machine::facts(&directories(scratch.path())).expect("machine facts");
+    let hostname = skein_shell::host_name().expect("kernel host name");
+    assert_eq!(found.hostname.as_bytes(), hostname.as_ref());
+    #[cfg(target_os = "linux")]
+    {
+        let proc = std::fs::read("/proc/sys/kernel/hostname").expect("Linux host name");
+        assert_eq!(found.hostname.as_bytes(), proc.strip_suffix(b"\n").expect("proc's final line feed"));
+    }
+}
+
+#[test]
 fn read_refuses_the_former_file_before_reading_and_uses_machine_facts() {
     let scratch = skein_scratch::Scratch::new("config-reader");
     let dirs = directories(scratch.path());

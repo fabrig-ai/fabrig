@@ -318,7 +318,7 @@ first rows at 150 by 39, dark; and 02, after):
 
  Welcome. Set temper up in your browser: open this link on this machine.
 
- http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…
+ http://127.0.0.1:8367/sign-in?secret=…
 
  It signs you in as this temper's owner, once, within 2 hours.
 
@@ -712,7 +712,7 @@ and `/web`'s note, with no opener):
 
  Open this link in a browser that reaches temper:
 
- http://127.0.0.1:8367/jig/v1/sign-in/link?secret=…
+ http://127.0.0.1:8367/sign-in?secret=…
 
  It signs you in as this temper's owner, once, within 2 hours.
  Opened after that, temper makes a fresh one: /web again opens the fresh one.

@@ -107,7 +107,8 @@ fake person. What waits is in section 15, and what is open in section
 - **A menu** is a named group of the acts a node or a page offers past
   the few it shows: its children are menu items, each bound as a button
   is, always in the tree; a shell may show them behind the menu's name,
-  opened and closed with no step. A menu among the children of an item,
+  or behind its button's words where it has a button (3.2), opened and
+  closed with no step. A menu among the children of an item,
   a row or a tree item is that node's menu: on a phone, its swipe
   actions, long-press menu and accessibility custom actions (`shells.md`, 2, 3
   ); in a browser, a menu button.
@@ -234,6 +235,7 @@ ignores it.
 | a description | any node | words describing it beyond its name (a field's help, why it is invalid), counted in its text bytes |
 | a placeholder | text field, text area | words shown in it while it holds no value, a hint of what to write ("Message T6…"); never its name, which stays its label; counted in its text bytes |
 | a hint | any node | words a shell with a pointer shows on hover, as a scene's mark's hint (`scenes.md`, 2), never needed to decide: the whole of words its text shows cut, a long title's; never its name, which stays its accessible name; counted in its text bytes |
+| a button | menu | the words the button a shell shows it behind reads, and that button's name, where they are not the menu's own: a drop-down showing its choice, its button reading "You approve" and named "Way shown: You approve", over a menu named "Stock ways"; with none, the button reads and is named by the menu's name; never on a menu with *options*, which has no button; a shell that lays a menu's items in place, as the text shell, ignores it (text.md, 5); its words and name counted in its text bytes |
 | an entry kind | text field | text (the default), number, email, telephone, url, date, time or secret (3.4) |
 | a value | text field, text area | its text, and its owner's count of writes (3.4) |
 | a focus request | any node | a count its owner moves when it asks the focus for this node; at most one per tree (section 7) |
@@ -249,7 +251,9 @@ ignores it.
 
 Each but completed and an order is found in the semantic or
 accessibility APIs of two platforms (4.1), a hint as HTML's `title` and
-Android's tooltip text; `shells.md` maps each onto the
+Android's tooltip text, a menu's button as ARIA's menu button, its own
+text and name beside the menu's, and iOS's `UIButton` holding a
+`UIMenu`, its title and label its own; `shells.md` maps each onto the
 web, iOS and Android. A log's *continues* and its end request say what a
 shell does with its view, as *folds away* and *shown folded* do, and no
 platform has them.
@@ -407,7 +411,7 @@ platform tells them apart: ARIA's `meter`, the desktops' level indicator
 ## 5. Building
 
 - **The builder** owns the tree it builds: open, close, text and runs, a
-  name, a description, a placeholder, a hint, a state, a style token, a region name, a value
+  name, a description, a placeholder, a hint, a menu's button, a state, a style token, a region name, a value
   and its entry kind, a focus request, a count, an order, a position, spans, a
   sort, a fraction, an address, a key, a binding, a shortcut, a source,
   a drawing, a slot; one node a call, no macros. Each call changes the
@@ -763,7 +767,7 @@ builder asserts each before it allocates.
 |---|---|
 | `nodes` | a tree's nodes, fallbacks and spliced fragments included |
 | `depth` | its nesting, fragments included |
-| `text_per_node` | a node's name, description, placeholder, hint, image address, runs, value and external target together |
+| `text_per_node` | a node's name, description, placeholder, hint, a menu's button's words and name, image address, runs, value and external target together |
 | `text_bytes` | the same, across the tree |
 | `drawing_bytes` | a drawing's data, an act on a drawing, and a flow's data, past which its block stays code (`markdown.md`, 1) |
 | `styles_per_node` | a node's style tokens, and a mark's with its fade's stops' |

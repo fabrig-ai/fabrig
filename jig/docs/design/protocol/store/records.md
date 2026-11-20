@@ -201,6 +201,18 @@ follow from the limits that bound each kind (4).
   and `question_woken`, a `u64`: the newest question number that has
   woken it once at a park while it held a timer or a task watch, 0 for
   none, never lowered (`../../domain/tasks/lifecycle.md`, 2).
+- **Unrecorded words are kept with the inbox.** The tasks family keeps a
+  task's unrecorded words (`../../domain/tasks/messages.md`, 2), each a
+  whole `Word` as the inbox keeps one, oldest first, and `words_woken`, a
+  `u64`, 0 for none, never lowered, wherever `question_woken` is kept
+  (`../../domain/tasks/lifecycle.md`, 2). An added `InboxItem` variant
+  holds the words; `words_woken` is an added field with default 0: no
+  version moves and no patch is written (`layouts.md`). Since
+  unrecorded words count in the inbox's bound, the encoded inbox's worst
+  case does not grow: inbox words and unrecorded words together are
+  within the inbox's messages and bytes. The watermark adds one `u64`
+  to the record; each decoded `InboxItem` includes the variant's
+  discriminant, eight more inline bytes per slot on a 64-bit target.
 - **Fixed-rule values** built in memory from each family's current schema,
   not stored codec bytes (skein's `data/codec/README.md`, section 6);
   hand-written tests may use constructors. A fuzz target per family's

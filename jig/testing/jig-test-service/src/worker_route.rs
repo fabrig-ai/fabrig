@@ -55,11 +55,7 @@ mod tests {
     const OFFSET: u64 = 1_u64 << 32;
 
     fn call() -> smith_channel::LiveCall {
-        smith_channel::LiveCall::new(
-            &smith_channel::CEILINGS,
-            smith_channel::LiveCallParts { id: b"provider-call".as_slice().into(), tool: b"tool".as_slice().into() },
-        )
-        .expect("bounded call")
+        smith_channel::LiveCall { id: b"provider-call".as_slice().into(), tool: b"tool".as_slice().into() }
     }
 
     fn live(kind: smith_channel::LiveKind, call: Option<smith_channel::LiveCall>) -> ProcessEvent {

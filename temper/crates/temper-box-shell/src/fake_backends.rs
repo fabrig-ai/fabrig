@@ -210,6 +210,7 @@ fn bytes(path: &Path) -> Box<[u8]> {
 }
 fn public_path(path: &Path) -> Result<(), String> {
     // Public imports must not turn a link into an accidental source-secret copy.
+    let path = skein_shell::resolve_system_links(path);
     let mut prefix = PathBuf::new();
     for component in path.components() {
         prefix.push(component.as_os_str());
@@ -218,7 +219,7 @@ fn public_path(path: &Path) -> Result<(), String> {
             return Err(format!("{}: public documents must not be reached through links", prefix.display()));
         }
     }
-    let metadata = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
+    let metadata = fs::symlink_metadata(&path).map_err(|why| format!("{}: {why}", path.display()))?;
     if !metadata.is_file() || metadata.nlink() != 1 {
         return Err(format!("{}: expected a regular public document with one link", path.display()));
     }

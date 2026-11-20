@@ -88,7 +88,7 @@ fn the_world_starts_calm_and_prints_its_sign_in_link() {
         assert_eq!(lines[0].process.as_ref(), b"temper serve");
         assert_eq!(lines[0].stream, skein_sim_world::Stream::Output);
         let link = std::str::from_utf8(&lines[0].line).expect("sign-in URL");
-        let prefix = format!("http://{}/jig/v1/sign-in/link?secret=", documents::CLIENTS);
+        let prefix = format!("http://{}/sign-in?secret=", documents::CLIENTS);
         let secret = link.strip_prefix(&prefix).expect("serve's link form");
         assert!(!secret.is_empty() && !secret.contains(['\r', '\n']), "one whole link line");
         assert!(

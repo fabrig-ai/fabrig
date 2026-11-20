@@ -5,25 +5,19 @@ use skein_lib::{Duration, Time};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 fn outcome() -> w::Outcome {
-    w::Outcome::Checkpointed(
-        w::Checkpointed::new(
-            &w::CEILINGS,
-            w::CheckpointedParts {
-                name: b"00000000000000000042-00000000000000ab".as_slice().into(),
-                store: 42,
-                secrets: 7,
-                linked: 5,
-                copied: 2,
-                bytes: 91,
-                paused: 1_234_567,
-                took: 9_876_543,
-                held: 123,
-                removed: 1,
-                skipped: 3,
-            },
-        )
-        .unwrap(),
-    )
+    w::Outcome::Checkpointed(w::Checkpointed {
+        name: b"00000000000000000042-00000000000000ab".as_slice().into(),
+        store: 42,
+        secrets: 7,
+        linked: 5,
+        copied: 2,
+        bytes: 91,
+        paused: 1_234_567,
+        took: 9_876_543,
+        held: 123,
+        removed: 1,
+        skipped: 3,
+    })
 }
 #[test]
 fn checkpoint_parses_an_optional_key_and_timeout_and_prints_the_stores_fields() {
@@ -37,7 +31,7 @@ fn checkpoint_parses_an_optional_key_and_timeout_and_prints_the_stores_fields() 
         let number = root.submit_prepared(call, json, None);
         let jig_client::Ask::Family { scope, record } = root.adoption_bytes(number) else { panic!("family act") };
         assert_eq!(*scope, jig_client::contract::Scope::Deployment);
-        assert_eq!(*wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request(), w::Request::Checkpoint);
+        assert_eq!(wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request, w::Request::Checkpoint);
         assert!(root.answer(number).is_none(), "wait for the store");
         root.adoption_answer(number, outcome());
         let printed = root.answer(number).unwrap();
@@ -48,8 +42,7 @@ fn checkpoint_parses_an_optional_key_and_timeout_and_prints_the_stores_fields() 
 }
 #[test]
 fn checkpoint_refusals_exit_two_with_the_store_words_or_not_owner() {
-    let path = w::CheckpointPath::new(&w::CEILINGS, w::CheckpointPathParts { path: b"store/log-1".as_slice().into() })
-        .unwrap();
+    let path = w::CheckpointPath { path: b"store/log-1".as_slice().into() };
     for (why, expected) in [
         (w::CheckpointWhy::NotOwner, "only an owner of the deployment takes a checkpoint"),
         (w::CheckpointWhy::InProgress, "checkpoint in progress"),
@@ -58,27 +51,16 @@ fn checkpoint_refusals_exit_two_with_the_store_words_or_not_owner() {
         (w::CheckpointWhy::Unrecognized(path.clone()), "an unrecognized file, store/log-1"),
         (w::CheckpointWhy::Vanished(path), "a selected file vanished, store/log-1"),
         (
-            w::CheckpointWhy::Failed(
-                w::CheckpointFailed::new(
-                    &w::CEILINGS,
-                    w::CheckpointFailedParts {
-                        path: b"store/log-1".as_slice().into(),
-                        error: b"Permission".as_slice().into(),
-                    },
-                )
-                .unwrap(),
-            ),
+            w::CheckpointWhy::Failed(w::CheckpointFailed {
+                path: b"store/log-1".as_slice().into(),
+                error: b"Permission".as_slice().into(),
+            }),
             "a file failed, store/log-1: Permission",
         ),
     ] {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit(&["deployment", "checkpoint"]);
-        root.adoption_answer(
-            call,
-            w::Outcome::CheckpointRefused(
-                w::CheckpointRefused::new(&w::CEILINGS, w::CheckpointRefusedParts { why }).unwrap(),
-            ),
-        );
+        root.adoption_answer(call, w::Outcome::CheckpointRefused(w::CheckpointRefused { why }));
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
         assert_eq!(

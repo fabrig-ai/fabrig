@@ -7,7 +7,7 @@ const OUT: Token = Token::new(11);
 const ERR: Token = Token::new(12);
 const HANDED: Token = Token::new(13);
 const LINES: Token = Token::new(14);
-const URL: &[u8] = b"http://[::1]:9400/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const URL: &[u8] = b"http://[::1]:9400/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 fn child() -> Child {
     Child::new(Front {

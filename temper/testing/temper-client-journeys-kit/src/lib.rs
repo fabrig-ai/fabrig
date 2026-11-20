@@ -134,7 +134,7 @@ impl TuiWorld {
         let mut world = Self::with_facts(&facts);
         world.report(Report::Local {
             link: Some(skein_lib::Secret::new(
-                format!("http://127.0.0.1:8367/jig/v1/sign-in/link?secret={}", "A".repeat(43)).into_bytes().into(),
+                format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43)).into_bytes().into(),
             )),
         });
         world.report(Report::Stage(temper_client_tui::BoxStage::Running));

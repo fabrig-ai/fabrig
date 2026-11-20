@@ -2397,6 +2397,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-protocol-store-records",
  "jig-tasks-kit",
  "skein-lib",
  "skein-world",
@@ -5181,6 +5182,7 @@ dependencies = [
  "skein-shell",
  "skein-sim",
  "skein-world",
+ "smith-agent-document",
  "smith-domain",
  "smith-protocol-machine",
  "smith-protocol-machine-fixtures",
@@ -5290,6 +5292,8 @@ dependencies = [
  "skein-world",
  "smith-agent-service",
  "smith-agent-world",
+ "smith-channel",
+ "smith-charter",
  "smith-domain",
  "smith-domain-session",
  "smith-domain-session-fixtures",
@@ -5378,6 +5382,7 @@ dependencies = [
  "skein-shell",
  "skein-tls-kit",
  "skein-world",
+ "smith-agent-document",
  "smith-agent-process-world",
  "smith-local-domain",
  "smith-local-process-world",
@@ -5415,10 +5420,13 @@ dependencies = [
  "skein-llm",
  "skein-llm-kit",
  "skein-world",
+ "smith-domain",
  "smith-domain-session",
  "smith-domain-session-fixtures",
  "smith-domain-tools",
  "smith-domain-tools-fixtures",
+ "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
  "smith-tools-world",
 ]
 
@@ -6610,6 +6618,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-brief",
  "jig-domain-core",
+ "jig-domain-core-vocabulary",
  "jig-domain-fleet",
  "jig-domain-host",
  "jig-domain-hub-link",
@@ -6641,6 +6650,7 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-room",
  "temper-engine-domain-store",
+ "temper-engine-domain-translate",
  "temper-engine-domain-trials",
  "temper-engine-domain-ways",
  "temper-protocol-brief",
@@ -6765,6 +6775,23 @@ dependencies = [
  "skein-lib",
  "temper-engine-domain-forge",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-engine-domain-translate"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-host",
+ "jig-domain-notes",
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-lib",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-room",
+ "temper-engine-domain-store",
 ]
 
 [[package]]
@@ -7931,6 +7958,7 @@ dependencies = [
  "temper-fake-git",
  "temper-fake-git-hosted",
  "temper-fixtures",
+ "temper-forge-setup",
  "temper-github-app",
  "temper-limits-fixtures",
  "temper-playground",

@@ -1,0 +1,5 @@
+patch 1
+owner jig 8
+
+family jig-worker-wire 17 to 18
+add ModelFailure.refusal option text 24 none

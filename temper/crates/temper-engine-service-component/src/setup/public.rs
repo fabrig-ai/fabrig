@@ -90,6 +90,7 @@ pub(crate) fn admin_connect(
     let first = match first {
         Some(first) => Some(super::lifecycle::Intent {
             playground: false,
+            sample: false,
             org: first.org,
             repository: first.repository,
             label: first.label,

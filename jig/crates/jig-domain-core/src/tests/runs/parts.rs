@@ -179,6 +179,7 @@ fn preparing_parts(parts: bool, questions: bool) -> (Core, Limits) {
         &mut core,
         &limits,
         tasks::Event::Claim {
+            fresh: None,
             session_end: None,
             reply_to: ReplyTo::new(Token::new(2)),
             task: 2,

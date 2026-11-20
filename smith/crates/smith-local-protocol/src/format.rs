@@ -1,8 +1,9 @@
 //! Per-chat layout marker (domain/host.md, section 8; protocol/host.md, 5.3).
 //! `layouts` computes fingerprints from embedded texts for the store to retain.
 //! `file` and `check` reuse that value; no schema parser is retained.
+use crate::local_store_v1::Record;
 use crate::{File, local_store_v1 as wire};
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 use smith_local_domain::{Older, StoreFamily};
 
 const TEXT: &str = crate::SCHEMA;
@@ -22,26 +23,24 @@ pub fn layouts() -> wire::Layouts {
         schema.fingerprints().family().digest()
     };
     let transcript = smith_transcript::wire::layout();
-    wire::Layouts::new(&wire::CEILINGS, wire::LayoutsParts { store, transcript }).expect("fixed layouts fit")
+    wire::Layouts { store, transcript }
 }
 
 /// The no-replace marker written only in an admitted empty directory.
 #[must_use]
 pub fn file(value: &wire::Layouts) -> File {
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured bytes fit usize"));
-    value.encode(&mut writer).expect("measured layouts");
-    File { name: b"format".as_slice().into(), bytes: writer.finish() }
+    let bytes = value.encode(&wire::CEILINGS).expect("layouts have no variable bounds");
+    File { name: b"format".as_slice().into(), bytes }
 }
 
 /// Check store first, then transcript; malformed records are store-layout refusals.
 pub fn check(bytes: &[u8], current: &wire::Layouts) -> Result<(), Older> {
-    let value = wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(bytes))
-        .or(Err(Older::Layout(StoreFamily::Store)))?
-        .into_parts();
-    if value.store != *current.store() {
+    let value =
+        wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(bytes)).or(Err(Older::Layout(StoreFamily::Store)))?;
+    if value.store != current.store {
         return Err(Older::Layout(StoreFamily::Store));
     }
-    if value.transcript != *current.transcript() {
+    if value.transcript != current.transcript {
         return Err(Older::Layout(StoreFamily::Transcript));
     }
     Ok(())
@@ -62,12 +61,9 @@ mod tests {
 
     #[test]
     fn marker_operations_reuse_the_supplied_layouts() {
-        let current = wire::Layouts::new(&wire::CEILINGS, wire::LayoutsParts { store: [1; 32], transcript: [2; 32] })
-            .expect("fixed layouts fit");
+        let current = wire::Layouts { store: [1; 32], transcript: [2; 32] };
         let marker = file(&current);
-        let written = wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(&marker.bytes))
-            .expect("written layouts")
-            .into_parts();
+        let written = wire::Layouts::decode(&wire::CEILINGS, &mut Reader::new(&marker.bytes)).expect("written layouts");
         assert_eq!(written.store, [1; 32]);
         assert_eq!(written.transcript, [2; 32]);
         assert_eq!(check(&marker.bytes, &current), Ok(()));

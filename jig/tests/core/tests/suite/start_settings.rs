@@ -50,6 +50,72 @@ impl Harness {
 }
 
 #[test]
+fn a_live_task_from_a_kept_template_keeps_its_charter_and_revision() {
+    use jig_domain_tasks as tasks;
+    let mut world = support::start(64);
+    let signed = support::sign_in(&mut world);
+    let request = jig_core_world::fixtures::chat(&world, 1, b"kept task".as_slice().into());
+    assert!(matches!(
+        support::ask(&mut world, signed, 1, request),
+        people::Reply::Outcome(people::Outcome::Created { .. })
+    ));
+    let mut kept = Vec::new();
+    for number in [17, 19] {
+        let mut charter = world.domain.settings().charter(1).unwrap().clone();
+        charter.number = number;
+        kept.push((settings::Setting::Charter(number), settings::Value::Charter(Box::new(charter))));
+    }
+    for (number, charter) in [(9, 19), (16, 17)] {
+        let mut template = world.domain.settings().template(1).unwrap().clone();
+        template.number = number;
+        template.executor = people::TemplateExecutor::Charter(charter);
+        kept.push((settings::Setting::Template(number), settings::Value::Template(Box::new(template))));
+    }
+    let template = kept
+        .iter()
+        .find_map(
+            |(setting, value)| {
+                if *setting == settings::Setting::Template(16) { value.as_template() } else { None }
+            },
+        )
+        .unwrap();
+    let people::TemplateExecutor::Charter(charter) = template.executor else { panic!("charter template") };
+    // A client's filled task stores its executor and settings revision, not its template number.
+    let mut row = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) => Some(row.clone()),
+            _ => None,
+        })
+        .unwrap();
+    row.executor = tasks::Executor::Agent { charter };
+    let task = row.number;
+    let revision = row.settings;
+    let mut rows = Vec::new();
+    for (setting, value) in kept {
+        let record = root::Record::Core(core::Record::Core(core::CoreRecord::Settings(settings::Record::Changed {
+            setting,
+            changed: settings::Changed { value: Some(value), revision: 1 },
+        })));
+        rows.push(record.clone());
+    }
+    let mut seeded = rows.clone();
+    seeded.push(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))));
+    world.seed(seeded.into_boxed_slice());
+    support::restart(&mut world, support::configuration().0);
+    for record in rows {
+        assert_eq!(world.store.rows.get(&record.key()), Some(&record));
+    }
+    let row = jig_core_world::fixtures::live_row(&world, task);
+    assert_eq!(row.executor, tasks::Executor::Agent { charter: 17 });
+    assert_eq!(row.settings, revision);
+    assert!(world.domain.settings().charter(17).is_some());
+    assert_eq!(world.domain.settings().changes.get(&settings::Setting::Charter(17)).unwrap().revision, revision.task);
+}
+
+#[test]
 fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
     for pending in [false, true] {
         let mut h = Harness::stored(true, pending);

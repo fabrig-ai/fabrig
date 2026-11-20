@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 use forge::dismissed::{self, PersonFact};
 use jig_client::{Client, Handle, Key, Latest, Told, contract as c};
 use skein_lib::{Env, List, Queue, Wall, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{source, v1 as w};
 
 #[derive(Debug)]
@@ -116,7 +117,7 @@ impl Home {
                     Some(document) if document.state == jig_client::State::Ended => None,
                     Some(document) => match document.latest {
                         Some(Latest::Family(record)) => match forge::status::document(record, limits) {
-                            Some(document) if document.project() == self.project => Some(Box::new(document)),
+                            Some(document) if document.project == self.project => Some(Box::new(document)),
                             Some(_) | None => None,
                         },
                         Some(Latest::Jig(_)) | None => None,
@@ -273,8 +274,7 @@ impl AddSheet {
                 if org.is_empty() || name.is_empty() {
                     return Err(AddRefused::Blank);
                 }
-                let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: true })
-                    .expect("project into fits");
+                let into = w::MakeInto { project, home: true };
                 let request = match making::ask(forge, org, name, None, Some(into)) {
                     Ok(request) => request,
                     Err(why) => return Err(AddRefused::Invalid(why)),
@@ -288,8 +288,7 @@ impl AddSheet {
                 };
                 for address in &addresses {
                     let Some((org, name)) = making::target(address) else { return Err(AddRefused::Unknown) };
-                    let into = w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project, home: requests.is_empty() })
-                        .expect("project into fits");
+                    let into = w::MakeInto { project, home: requests.is_empty() };
                     let request = match making::ask(forge, &org, &name, Some(address), Some(into)) {
                         Ok(request) => request,
                         Err(why) => return Err(AddRefused::Invalid(why)),
@@ -297,7 +296,7 @@ impl AddSheet {
                     requests.push(request).expect("admitted copies");
                 }
             }
-            Start::Nothing => return Err(AddRefused::Unknown),
+            Start::Sample | Start::Nothing => return Err(AddRefused::Unknown),
         }
         Ok(requests)
     }
@@ -313,11 +312,11 @@ fn add_answer(outcome: &jig_client::Outcome, limits: forge::Limits) -> Result<()
         if let Ok(answer) = w::Answer::decode(&bounds, &mut reader)
             && reader.is_empty()
         {
-            if answer.outcome() == &w::Outcome::MakeKept {
+            if answer.outcome == w::Outcome::MakeKept {
                 return Ok(());
             }
-            if let w::Outcome::MakeRefused(refused) = answer.outcome() {
-                return Err(AddRefused::Make(refused.why().clone()));
+            if let w::Outcome::MakeRefused(refused) = &answer.outcome {
+                return Err(AddRefused::Make(refused.why.clone()));
             }
         }
     }
@@ -437,7 +436,7 @@ impl Facts {
     #[must_use]
     pub fn landed_since(&self) -> u64 {
         match &self.status {
-            Status::Shown(document) => document.landed().saturating_sub(document.seen()),
+            Status::Shown(document) => document.landed.saturating_sub(document.seen),
             Status::Unknown => 0,
         }
     }
@@ -445,11 +444,11 @@ impl Facts {
     #[must_use]
     pub fn brief(&self) -> Option<&w::StatusBrief> {
         match &self.status {
-            Status::Shown(document) => match document.brief() {
+            Status::Shown(document) => match &document.brief {
                 Some(brief)
-                    if brief.landed() > document.seen()
-                        || match document.previous() {
-                            Some(previous) => brief.at() > *previous,
+                    if brief.landed > document.seen
+                        || match &document.previous {
+                            Some(previous) => brief.at > *previous,
                             None => false,
                         } =>
                 {
@@ -465,7 +464,7 @@ impl Facts {
     #[must_use]
     pub fn unpaid(&self) -> bool {
         match &self.status {
-            Status::Shown(document) => document.unpaid(),
+            Status::Shown(document) => document.unpaid,
             Status::Unknown => false,
         }
     }
@@ -474,7 +473,7 @@ impl Facts {
     #[must_use]
     pub fn last_landed(&self) -> Option<Wall> {
         match &self.status {
-            Status::Shown(document) if document.landed() > 0 => match document.last_landed() {
+            Status::Shown(document) if document.landed > 0 => match &document.last_landed {
                 Some(at) => Some(Wall::from_nanos(*at)),
                 None => None,
             },
@@ -566,7 +565,7 @@ pub fn facts(root: &dyn Root, project: u32, wall: Wall) -> Facts {
             if recent {
                 let landed = match home {
                     Some(home) => match &home.document {
-                        Some(status) => Some(status.landed().saturating_sub(row.landed)),
+                        Some(status) => Some(status.landed.saturating_sub(row.landed)),
                         None => None,
                     },
                     None => None,
@@ -691,7 +690,7 @@ fn copy_repository(state: &forge::forges::State, playground: Option<u16>, projec
                     if making::is_target(making, address) {
                         found = true;
                         if let Some(into) = &making.into
-                            && into.project() == project
+                            && into.project == project
                         {
                             active = true;
                             lines.push(copy_line(making)).expect("admitted making rows");
@@ -725,7 +724,7 @@ fn copy_repository(state: &forge::forges::State, playground: Option<u16>, projec
     for row in &rows {
         for making in &row.makings {
             let Some(into) = &making.into else { continue };
-            if into.project() != project {
+            if into.project != project {
                 continue;
             }
             let mut intended = false;
@@ -779,7 +778,7 @@ fn copy_line(making: &forge::making::Making) -> CopyLine {
         },
         w::MakingState::Making => {
             let host = match &making.from {
-                w::MakeFrom::Copy(copy) => match source::parse(copy.address()) {
+                w::MakeFrom::Copy(copy) => match source::parse(&copy.address) {
                     Ok(source) => source.host.into(),
                     Err(_) => b"?".as_slice().into(),
                 },

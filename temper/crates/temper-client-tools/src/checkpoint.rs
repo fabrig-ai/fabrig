@@ -45,9 +45,9 @@ pub(crate) fn print(answer: w::Outcome, json: bool, limits: &crate::root::Limits
         w::Outcome::Checkpointed(value) => success(&value, json, limits),
         w::Outcome::CheckpointRefused(value) => {
             let mut measure = render::Text::measure();
-            refused(value.why(), &mut measure);
+            refused(&value.why, &mut measure);
             let mut out = render::Text::writing_exact(measure);
-            refused(value.why(), &mut out);
+            refused(&value.why, &mut out);
             jig::Printed { file: jig::FileEnd::Keep, status: 2, stdout: Box::default(), stderr: out.finish() }
         }
         w::Outcome::Removed
@@ -105,17 +105,17 @@ fn refused(why: &w::CheckpointWhy, out: &mut render::Text) {
         w::CheckpointWhy::Files => out.put(b"more than 65536 files to take"),
         w::CheckpointWhy::Unrecognized(value) => {
             out.put(b"an unrecognized file, ");
-            out.put(value.path());
+            out.put(&value.path);
         }
         w::CheckpointWhy::Vanished(value) => {
             out.put(b"a selected file vanished, ");
-            out.put(value.path());
+            out.put(&value.path);
         }
         w::CheckpointWhy::Failed(value) => {
             out.put(b"a file failed, ");
-            out.put(value.path());
+            out.put(&value.path);
             out.put(b": ");
-            out.put(value.error());
+            out.put(&value.error);
         }
     }
     out.put(b"\n");
@@ -140,18 +140,18 @@ fn success(value: &w::Checkpointed, json: bool, limits: &crate::root::Limits) ->
 }
 fn text(value: &w::Checkpointed, out: &mut render::Text) {
     out.put(b"checkpoint ");
-    out.put(value.name());
+    out.put(&value.name);
     for (words, figure) in [
-        (b" at commit ".as_slice(), value.store()),
-        (b", secrets at ", value.secrets()),
-        (b": ", u64::from(value.linked())),
-        (b" files linked, ", u64::from(value.copied())),
-        (b" copied (", value.bytes()),
-        (b" bytes); paused ", value.paused().checked_div(1_000_000).expect("nonzero divisor")),
-        (b" ms, took ", value.took().checked_div(1_000_000).expect("nonzero divisor")),
-        (b" ms; ", value.held()),
-        (b" bytes held; ", u64::from(value.removed())),
-        (b" older removed, ", u64::from(value.skipped())),
+        (b" at commit ".as_slice(), value.store),
+        (b", secrets at ", value.secrets),
+        (b": ", u64::from(value.linked)),
+        (b" files linked, ", u64::from(value.copied)),
+        (b" copied (", value.bytes),
+        (b" bytes); paused ", value.paused.checked_div(1_000_000).expect("nonzero divisor")),
+        (b" ms, took ", value.took.checked_div(1_000_000).expect("nonzero divisor")),
+        (b" ms; ", value.held),
+        (b" bytes held; ", u64::from(value.removed)),
+        (b" older removed, ", u64::from(value.skipped)),
     ] {
         out.put(words);
         out.number(figure);
@@ -161,18 +161,18 @@ fn text(value: &w::Checkpointed, out: &mut render::Text) {
 fn encode(value: &w::Checkpointed, out: &mut skein_json::writer::Encoder) {
     out.object_start();
     out.key(b"name");
-    out.string(value.name());
+    out.string(&value.name);
     for (name, number) in [
-        (b"store".as_slice(), value.store()),
-        (b"secrets", value.secrets()),
-        (b"linked", u64::from(value.linked())),
-        (b"copied", u64::from(value.copied())),
-        (b"bytes", value.bytes()),
-        (b"paused", value.paused()),
-        (b"took", value.took()),
-        (b"held", value.held()),
-        (b"removed", u64::from(value.removed())),
-        (b"skipped", u64::from(value.skipped())),
+        (b"store".as_slice(), value.store),
+        (b"secrets", value.secrets),
+        (b"linked", u64::from(value.linked)),
+        (b"copied", u64::from(value.copied)),
+        (b"bytes", value.bytes),
+        (b"paused", value.paused),
+        (b"took", value.took),
+        (b"held", value.held),
+        (b"removed", u64::from(value.removed)),
+        (b"skipped", u64::from(value.skipped)),
     ] {
         out.key(name);
         out.number(skein_lib::Decimal::of(number).as_bytes());

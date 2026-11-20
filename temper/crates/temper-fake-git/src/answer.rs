@@ -94,6 +94,11 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             write_index(checkout, at, transport.tree(count(*commit)));
             Answer::success(Vec::new())
         }
+        Command::CountObjects { .. } => Answer::success(
+            b"count: 0\nsize: 0\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0\n"
+                .to_vec(),
+        ),
+        Command::Repack { .. } => Answer::success(Vec::new()),
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
             let directory = path(&checked.root, directory);

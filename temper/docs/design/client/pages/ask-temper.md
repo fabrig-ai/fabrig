@@ -41,29 +41,36 @@
     its watch ends, it says, muted, "The ways can't be read now.". It shows
     one way at a time, with no tabs (the look request `ways-current`, the
     person's words of 2026-11-16): the way the project runs, or a stock way
-    chosen from "Stock ways", which way is shown being the page's state, in
+    chosen from the head's drop-down, which way is shown being the page's state, in
     no address. In this order:
     - *the lede,* in ink, "How a change is produced and lands in PROJECT.",
       PROJECT the project's name;
     - *the ways,* a region named "How work runs", 18 pixels under the
       lede, holding the head, the path and the last line;
-    - *the head,* one row: at its left, the shown way in one line, 15 px
-      in ink-2: a stock way's `line` from the read ("An agent makes each
+    - *the head:* the shown way in one line, 15 px in ink-2, the column
+      to itself: a stock way's `line` from the read ("An agent makes each
       change, another reviews it, and code lands it."); on a way of the
       project's own, the `lede` of the project's words, kind 10's
       `ProjectWords`, which the read carries and Ask temper writes with
       the proposal that moves the project off a stock way; where they are
       absent or their `lede` empty, "PROJECT runs settings of its own.".
-      At its right, in this order: the way's act (below); "Back" while a
-      way the project doesn't run is shown, outlined, which shows the way
-      the project runs again; and "Stock ways", a menu so named: its
-      button "Stock ways", outlined, with a chevron, and a plain menu of
-      the read's stock ways by name, in its order ("You approve", "Agents
-      review", "Draft first"), in the model menu's look, the way the
-      project runs ticked where it is a stock one. Choosing a stock way
-      shows it in place, its line, its path and its act, as a tab showed
-      one; choosing the way the project runs shows it again, as "Back"
-      does. Either closes an open stop's card;
+      Its acts, in this order: the way's act (below), and a drop-down
+      naming the way shown, as a plain drop-down does (the look request
+      `ways-shown`, the person's words of 2026-11-19): its button,
+      outlined, in ink, with a chevron, reads the shown way's name
+      ("Agents review", "You approve") or, on a way of the project's own,
+      "PROJECT's own", and is named "Way shown: NAME"; its menu, named
+      "Stock ways", in the model menu's look, lists "PROJECT's own" first
+      where the project runs a way of its own, then the read's stock ways
+      by name, in its order ("You approve", "Agents review", "Draft
+      first"), the way shown ticked, and the way the project runs saying
+      "current", faint, at its right. Choosing a way shows it in place,
+      its line, its path and its act, as a tab showed one; choosing the
+      way the project runs shows it again. There is no "Back". Either
+      closes an open stop's card. The acts sit at the lede's right, the
+      lede leaving them room, so that each stock way's line fits on one
+      line in the 720 px column and switching ways moves nothing; a long
+      project name wraps the lede under itself, never under the acts;
     - *its path,* a group named "How work runs" while the way the project
       runs is shown, else by the shown way's name: temper's drawing of the
       way (`chat/conversation.md`, 3), named "The way a change goes", its
@@ -74,7 +81,7 @@
       and "no merge tool above", each after its mark, and "How does temper
       work?" alone at its right, so that the foot is the same height in
       every state;
-    - *its act,* at the head's right, as `settings.md`, 2, *A way's acts*,
+    - *its act,* before the drop-down, as `settings.md`, 2, *A way's acts*,
       says: "Use this" on a stock way the project doesn't run, filled in
       ink (the signal's orange at night), or "Keep it" on the way it runs
       while To begin's first step is left, filled likewise; none on a way
@@ -113,17 +120,20 @@
       "Asked to"; a person's role and what they decide; code's checks,
       the queue or the turn). A bar opens no card.
 
-    On a phone the head wraps: the line first, then the act, "Back" and
-    "Stock ways" from the left, the menu opening under its button; the
+    On a phone the lede takes the width and the head wraps as one row: the
+    line first, then the act and the drop-down from the left, the menu
+    opening under its button; the
     path runs down the page (`chat/conversation.md`, 3); the card has no
     caret and its facts stack, each label over its value. At 1366 by 745
     the opening fits the conversation with no scrolling, the menu open or
     closed. The terminal has no style to tell them apart: the line; the
     path its fallback, a stop a line, its actor in words; the card its
     heading, line, link and facts; the legend and "How does temper
-    work?"; the act and "Back" where shown; then "Stock ways:" and the
-    three names, a line each, the way the project runs "NAME, now" where
-    it is a stock one, its tick in words; then the last line. The
+    work?"; the act where shown; then "Stock ways:" and its names, a line
+    each, "PROJECT's own" first where the project runs a way of its own,
+    then the three, the way the project runs "NAME, now", its "current"
+    in words, choosing one showing it as the browser's menu does; then
+    the last line. The
     opening goes after a first message, as the chat it starts opens in
     its place.
   - *The composer,* a form named "Ask temper", at the
@@ -216,12 +226,28 @@
   compares the look request `ways-current`'s pages with main at 1440,
   1000 and 420 px (`../web/look-requests.md`, 4): the head on Agents
   review with "Keep it", on a way of the project's own, its line from
-  the project's words and without them, "Stock ways" open on each, a
-  stock way chosen with "Use this" and "Back", a stop's card and a
+  the project's words and without them, the menu open on each, a
+  stock way chosen with "Use this" (its "Back" gone with `ways-shown`), a stop's card and a
   refusal under the head's new place, the head wrapping on a phone with
   its menu under its button, the foot's one height in every state, and
   the terminal's print. Owner: temper/ui. Default: each difference a
   finding filed back under the request's trailer.
+- **Ask temper's drop-down after landing** (1, *the head*; `settings.md`,
+  2, *The path of a change*): temper/ui compares the look request
+  `ways-shown`'s hand-made pages (`../web/journeys/ways-shown/`, from its
+  own commit, under its overlay) with the gallery's states drawn on main
+  (`../web/gallery.md`: `ask-first-run`, `ask-ways-menu`,
+  `ask-ways-approve`, `ask-ways-approve-menu`) at 1440, 1000 and 420 px
+  (`../web/look-requests.md`, 4): the button naming the way shown, the
+  menu 179 px wide ticking it, "current" faint at the running way's
+  right, the head 23 px high with the menu open or closed and the
+  drawing at one height on every way; and the states its message names
+  in words: "PROJECT's own" on a way of the project's own
+  (`ask-ways-yours`, `ask-ways-yours-menu`), a long project name
+  wrapping the lede under itself, the phone's head wrapping as before,
+  and How work runs' head (`how`, `how-menu`, `how-yours`). Owner:
+  temper/ui. Default: each difference a finding filed back under the
+  request's trailer.
 - **A way of the project's own, its words** (1, *Ask temper's page*,
   *the head*): Ask temper's charter already asks for project words with
   a proposal that leaves the project on, or moves it to, a way of its own

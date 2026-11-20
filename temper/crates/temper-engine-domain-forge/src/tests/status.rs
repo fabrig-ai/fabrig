@@ -111,6 +111,7 @@ fn observe_pull(d: &mut Domain) {
         paths_whole: false,
         woken: false,
         retry_at: None,
+        read: None,
     };
     decide_step(d, &env(), pending, &mut Queue::uncapped());
 }
