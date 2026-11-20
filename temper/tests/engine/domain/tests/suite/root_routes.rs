@@ -120,6 +120,8 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::Relayed { .. }
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | host::LinkDown::Pause { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Asked { .. }

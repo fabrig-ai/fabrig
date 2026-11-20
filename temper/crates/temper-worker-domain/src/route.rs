@@ -298,6 +298,8 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         }
                         up @ (host::LinkUp::Piece { .. }
                         | host::LinkUp::ListRead { .. }
+                        // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+                        | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }

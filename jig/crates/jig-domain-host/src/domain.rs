@@ -376,6 +376,8 @@ pub fn step(domain: &mut Hub, env: &Env<Limits>, event: Event, out: &mut Queue<R
             LinkDown::Assign { assignment } => hosted::assign(domain, env, assignment, out),
             LinkDown::TurnKept { run, attempt, turn } => hosted::acknowledge_turn(domain, env, run, attempt, turn, out),
             LinkDown::Grant { run, attempt, grant } => hosted::grant(domain, run, attempt, grant, out),
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link builds this step.
+            LinkDown::Pause { .. } => {}
             LinkDown::Cancel { run, attempt } => hosted::cancel(domain, env, run, attempt, out),
             LinkDown::Relayed { run, attempt, call, answer } => {
                 hosted::relayed(domain, run, attempt, &call, answer, out);

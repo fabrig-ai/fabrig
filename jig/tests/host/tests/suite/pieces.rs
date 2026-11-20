@@ -25,6 +25,8 @@ fn pieces(world: &World) -> Vec<(Token, Token, Piece)> {
         .filter_map(|record| match record {
             LinkUp::Piece { run, attempt, piece } => Some((*run, *attempt, piece.clone())),
             LinkUp::ListRead { .. }
+            // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            | LinkUp::Paused { .. }
             | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }

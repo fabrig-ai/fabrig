@@ -7413,6 +7413,7 @@ dependencies = [
  "jig-channel-kit",
  "jig-domain-core",
  "jig-domain-host",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",

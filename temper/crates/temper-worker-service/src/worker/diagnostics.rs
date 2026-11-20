@@ -49,7 +49,8 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
             hub::LinkDown::Cancel { run, attempt } => {
                 Some(crate::worker_alone::Note::Cancelling { run: run.raw(), attempt: attempt.raw() })
             }
-            hub::LinkDown::Asked { .. }
+            hub::LinkDown::Pause { .. }
+            | hub::LinkDown::Asked { .. }
             | hub::LinkDown::ReadList { .. }
             | hub::LinkDown::Sources { .. }
             | hub::LinkDown::Check { .. }
@@ -90,6 +91,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::SourceAnswered { .. } | root::Event::ListRead { .. } => WorkerEvent::SourceAnswered,
         root::Event::Assign { .. } | root::Event::AssignJob { .. } => WorkerEvent::Assign,
         root::Event::Link(link) => match link {
+            hub::LinkDown::Pause { .. } => WorkerEvent::Link(LinkEvent::Pause),
             hub::LinkDown::Asked { .. } => WorkerEvent::Link(LinkEvent::Asked),
             hub::LinkDown::ReadList { .. } => WorkerEvent::Link(LinkEvent::ReadList),
             hub::LinkDown::Sources { .. } => WorkerEvent::Link(LinkEvent::Sources),

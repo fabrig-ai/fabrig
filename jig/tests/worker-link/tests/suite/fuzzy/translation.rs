@@ -125,6 +125,16 @@ fn exercise(world: &mut Joined, seed: u64, version: u16) {
             world.run();
         }
     }
+    // Pause notices are optional below 19 (protocol/channel/pause.md, 3 and 4).
+    if version >= 19 {
+        world.engine_down(
+            host::LinkDown::Pause { mode: jig_domain_link::PauseMode::Pause },
+            Box::new([]),
+            Box::new([]),
+        );
+        world.worker_up(host::LinkUp::Paused { state: jig_domain_link::PauseState::Paused }, Box::new([]));
+        world.run();
+    }
     world.figures(fixtures::figures());
     world.run();
     world.engine_busy();

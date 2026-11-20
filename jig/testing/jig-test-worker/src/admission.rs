@@ -30,6 +30,7 @@ pub fn class(event: &Event) -> Class {
             | LinkDown::Relayed { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
+            | LinkDown::Pause { .. }
             | LinkDown::Cancel { .. }
             | LinkDown::Grant { .. } => Class::Admitted,
         },
@@ -146,6 +147,7 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | LinkDown::Relayed { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
+            | LinkDown::Pause { .. }
             | LinkDown::Cancel { .. }
             | LinkDown::Grant { .. },
         )
@@ -172,7 +174,9 @@ fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
         | LinkDown::TurnKept { run, attempt, .. }
         | LinkDown::Acknowledge { run, attempt }
         | LinkDown::Grant { run, attempt, .. } => Some((*run, *attempt)),
-        LinkDown::ReadList { .. }
+        // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+        LinkDown::Pause { .. }
+        | LinkDown::ReadList { .. }
         | LinkDown::Sources { .. }
         | LinkDown::Check { .. }
         | LinkDown::SignOut { .. }

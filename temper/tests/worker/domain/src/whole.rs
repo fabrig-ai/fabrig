@@ -235,7 +235,8 @@ impl World {
 
     fn link(&mut self, up: host::LinkUp) {
         match up {
-            host::LinkUp::Draining => {}
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            host::LinkUp::Paused { .. } | host::LinkUp::Draining => {}
             host::LinkUp::Turn { run, attempt, turn } => {
                 assert_eq!((run, attempt, turn.turn), (RUN, self.attempt, 1));
             }

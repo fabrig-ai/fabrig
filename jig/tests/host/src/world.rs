@@ -670,6 +670,8 @@ impl World {
                 | LinkDown::SignOut { .. }
                 | LinkDown::Message { .. }
                 | LinkDown::Grant { .. }
+                // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+                | LinkDown::Pause { .. }
                 | LinkDown::Cancel { .. }
                 | LinkDown::Asked { .. }
                 | LinkDown::Relayed { .. }
@@ -790,6 +792,8 @@ impl World {
             }
             Request::Up(
                 LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }
@@ -857,6 +861,8 @@ impl World {
             }
             Request::Up(
                 LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }

@@ -639,6 +639,8 @@ impl World {
                 | LinkUp::Limited { .. }
                 | LinkUp::AccountRefused { .. }
                 | LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }

@@ -697,6 +697,8 @@ fn assert_releases_durable(driver: &Driver, assignment: &engine::Assignment) {
             | host::LinkDown::Assign { .. }
             | host::LinkDown::Message { .. }
             | host::LinkDown::Relayed { .. }
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | host::LinkDown::Pause { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Asked { .. }

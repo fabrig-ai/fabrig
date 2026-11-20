@@ -10,6 +10,8 @@ fn assert_activity(record: LinkUp) {
     match record {
         LinkUp::Activity { .. } => {}
         other @ (LinkUp::Ask { .. }
+        // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+        | LinkUp::Paused { .. }
         | LinkUp::Draining
         | LinkUp::Piece { .. }
         | LinkUp::ListRead { .. }

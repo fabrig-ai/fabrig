@@ -292,7 +292,8 @@ impl World {
             | Request::AgentSignalled { .. }
             | Request::AgentStopped { .. }
             | Request::Unprepared { .. }
-            | Request::Link(host::LinkUp::Draining) => {}
+            // jig/docs/design/domain/hosts/hub.md, 7, Paused over the link.
+            | Request::Link(host::LinkUp::Paused { .. } | host::LinkUp::Draining) => {}
             Request::Link(up) => panic!("unscripted link record: {up:?}"),
             Request::Answer { run, attempt, answer, work, preparation } => {
                 assert_eq!((run, attempt, preparation), (RUN, ATTEMPT, None));

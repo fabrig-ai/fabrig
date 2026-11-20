@@ -1,18 +1,18 @@
 use super::fixtures;
-use crate::v18::Record;
+use crate::v19::Record;
 use crate::{Hello, Reason};
 use alloc::boxed::Box;
 use skein_channel::{Direction, Role, Term};
 use skein_lib::{Duration, List, Reader};
 
 // Hello151 + endpoint count4 + 64 identities of4 + jobs count4 + two bounds of20.
-const HELLO_MAX: u32 = 151 + 4 + crate::v18::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
+const HELLO_MAX: u32 = 151 + 4 + crate::v19::CEILINGS.bounds_program_endpoints * 4 + 4 + 2 * 20;
 fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
 
 fn hello_terms(largest: u32) -> List<Term> {
-    let mut terms = List::with_capacity(14);
+    let mut terms = List::with_capacity(15);
     terms.push(Term { kind: 0x0100, largest }).expect("hello term slot");
     // Hand-counted bounds for Turn, Call, Answer, Fact and the three notices:
     // a refusal's code and reason each take a length and sixteen bytes.
@@ -31,6 +31,7 @@ fn hello_terms(largest: u32) -> List<Term> {
         (0x010b, 0),
         (0x010c, 102),
         (0x010d, 24 + 4 + 4),
+        (0x010e, 1),
     ] {
         terms.push(Term { kind, largest }).expect("one term per up kind");
     }
@@ -38,7 +39,7 @@ fn hello_terms(largest: u32) -> List<Term> {
 }
 
 fn down_terms() -> List<Term> {
-    let mut terms = List::with_capacity(17);
+    let mut terms = List::with_capacity(18);
     // Independently summed from field widths and the fixture limits.
     for (kind, largest) in [
         (0x0180, 567),
@@ -58,6 +59,7 @@ fn down_terms() -> List<Term> {
         (0x018e, 24 + 1 + 4 + 4),
         (0x018f, 8),
         (0x0190, 10_062_736),
+        (0x0191, 1),
     ] {
         terms.push(Term { kind, largest }).expect("one term per down kind");
     }
@@ -75,7 +77,7 @@ fn hello_through_bytes(hello: &Hello) -> Hello {
 
 #[test]
 fn assignment_charter_path_names_the_schema_field() {
-    let name: Option<&str> = crate::v18::name(crate::v18::paths::ASSIGNMENT_CHARTER);
+    let name: Option<&str> = crate::v19::name(crate::v19::paths::ASSIGNMENT_CHARTER);
     assert_eq!(name, Some("Assignment.charter"));
 }
 
@@ -189,8 +191,8 @@ fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
         (at_cap, Ok(ENDPOINT_CAP)),
         (
             past_cap,
-            Err(crate::v18::Problem {
-                path: crate::v18::paths::BOUNDS_PROGRAM_ENDPOINTS,
+            Err(crate::v19::Problem {
+                path: crate::v19::paths::BOUNDS_PROGRAM_ENDPOINTS,
                 reason: skein_codec::Reason::Bound,
             }),
         ),
@@ -230,7 +232,7 @@ fn the_schema_lists_the_hello_from_the_initiator() {
     let schema = hello_schema();
     let version = schema.version(crate::VERSION).expect("one version");
     assert_eq!(schema.magic, *b"jigw");
-    assert_eq!(version.kinds.len(), 31);
+    assert_eq!(version.kinds.len(), 33);
     assert_eq!(
         version.kind(0x0100),
         Some(skein_channel::Kind { kind: 0x0100, direction: Direction::FromInitiator, largest: HELLO_MAX })
@@ -368,7 +370,7 @@ fn a_failed_answer_keeps_the_limited_or_refused_account_it_turned_on() {
     assert_eq!(refused.account, 7);
 }
 
-pub(super) fn through_bytes<T: Record<Limits = crate::v18::Limits>>(value: &T) -> T {
+pub(super) fn through_bytes<T: Record<Limits = crate::v19::Limits>>(value: &T) -> T {
     let bytes = value.encode(&fixtures::LIMITS).expect("notice within limits");
     T::decode(&fixtures::LIMITS, &mut Reader::new(&bytes)).expect("notice within limits")
 }
@@ -575,7 +577,7 @@ fn an_assignment_past_its_grant_bound_is_refused() {
 fn the_schema_lists_every_down_kind_from_the_responder() {
     let schema = hello_schema();
     let version = schema.version(crate::VERSION).expect("one version");
-    assert_eq!(version.kinds.len(), 31);
+    assert_eq!(version.kinds.len(), 33);
     for term in &down_terms() {
         assert_eq!(
             version.kind(term.kind),

@@ -1,7 +1,7 @@
 //! The shared component bridge machine (jig/docs/design/protocol/channel/bridges.md, 5 and 9).
 use crate::translation::Translation;
-use crate::v18::Record;
-use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v18 as wire};
+use crate::v19::Record;
+use crate::{self as channel, Agreed, Application, Carried, Kept, Root, Spoken, v19 as wire};
 use skein_channel::{Frame, frame_writer};
 use skein_codec::{
     bridge::Bridge,
@@ -129,6 +129,36 @@ fn failed_answer(failure: wire::RunFailure) -> wire::FromWorker {
 }
 
 #[test]
+fn pause_notices_are_unheld_below_nineteen() {
+    let mut translation = opaque();
+    for version in crate::wire::FLOOR..19 {
+        for record in [
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Resume }),
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Pause }),
+            wire::FromEngine::Pause(wire::Pause { mode: wire::PauseMode::Drain }),
+        ] {
+            let refusal = translation
+                .send(engine(&record), version, &agreed(version, 5), &wire::CEILINGS)
+                .expect_err("pause not held");
+            let Halt::Unheld(_) = refusal.halt else { panic!("new notice is unheld: {refusal:?}") };
+        }
+        for state in
+            [wire::PauseState::Taking, wire::PauseState::Paused, wire::PauseState::Draining, wire::PauseState::Drained]
+        {
+            let refusal = translation
+                .send(
+                    worker(&wire::FromWorker::Paused(wire::Paused { state })),
+                    version,
+                    &agreed(version, 5),
+                    &wire::CEILINGS,
+                )
+                .expect_err("paused not held");
+            let Halt::Unheld(_) = refusal.halt else { panic!("new notice is unheld: {refusal:?}") };
+        }
+    }
+}
+
+#[test]
 fn an_untooled_answer_is_unheld_below_seventeen() {
     let record = failed_answer(wire::RunFailure::Untooled);
     let refusal = opaque().send(worker(&record), 16, &agreed(16, 5), &wire::CEILINGS).unwrap_err();
@@ -212,7 +242,7 @@ fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
             if version < 18 && refusal.is_some() {
                 let refused = sent.expect_err("an older engine cannot hold the refusal");
                 assert_eq!(refused.wire.as_ref(), b"jig-worker-wire");
-                assert_eq!(refused.version, 18);
+                assert_eq!(refused.version, channel::VERSION);
                 assert_eq!(refused.halt, Halt::Unheld(Path { decl, part: Part::Field(field) }));
             } else {
                 let down = sent.expect("the engine holds this failure");

@@ -663,6 +663,7 @@ impl Event {
                 | crate::LinkDown::Relayed { .. }
                 | crate::LinkDown::TurnKept { .. }
                 | crate::LinkDown::Acknowledge { .. }
+                | crate::LinkDown::Pause { .. }
                 | crate::LinkDown::Cancel { .. }
                 | crate::LinkDown::Grant { .. } => false,
             },

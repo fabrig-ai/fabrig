@@ -63,6 +63,8 @@ pub(crate) fn pop_activity(domain: &mut Hub) -> Option<LinkUp> {
             LinkUp::Activity { .. }
             | LinkUp::ListRead { .. }
             | LinkUp::Ask { .. }
+            // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            | LinkUp::Paused { .. }
             | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }

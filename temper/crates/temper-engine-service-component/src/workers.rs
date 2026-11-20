@@ -239,6 +239,9 @@ impl Workers {
     }
     pub(crate) fn route(&mut self, output: kit::host::Output, events: &mut Queue<root::Event>) {
         match output {
+            kit::host::Output::Unpaused { worker, version, mode } => {
+                self.notes.push(crate::Note::WorkerUnpaused { worker, version, mode });
+            }
             kit::host::Output::Told { worker, version, wait } => {
                 self.notes.push(crate::Note::WorkerTold { worker, version, wait });
             }
@@ -300,6 +303,8 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::JobAnswer
                         | jig_protocol_worker_wire::Kind::Ask
                         | jig_protocol_worker_wire::Kind::Figures
+                        | jig_protocol_worker_wire::Kind::Pause
+                        | jig_protocol_worker_wire::Kind::Paused
                         | jig_protocol_worker_wire::Kind::Restarting
                         | jig_protocol_worker_wire::Kind::Asked
                         | jig_protocol_worker_wire::Kind::Wires => events
@@ -396,6 +401,8 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
             host::Ending::Refused(_) => (None, None),
         },
         host::LinkUp::ListRead { .. }
+        // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+        | host::LinkUp::Paused { .. }
         | host::LinkUp::Draining
         | host::LinkUp::Logins { .. }
         | host::LinkUp::SignedOut { .. }

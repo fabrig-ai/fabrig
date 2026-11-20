@@ -437,6 +437,8 @@ impl Joined {
                     | host::LinkUp::Unauthorized { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::ListRead { .. }
+                    // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                    | host::LinkUp::Paused { .. }
                     | host::LinkUp::Draining
                     | host::LinkUp::Logins { .. }
                     | host::LinkUp::SignedOut { .. }
@@ -454,7 +456,8 @@ impl Joined {
             engine::Request::FiguresTaken { .. } | engine::Request::Opened { .. } | engine::Request::Refused { .. } => {
                 self.engine_openings.push(request);
             }
-            engine::Request::Told { .. }
+            engine::Request::Unpaused { .. }
+            | engine::Request::Told { .. }
             | engine::Request::Unsent { .. }
             | engine::Request::Lost { .. }
             | engine::Request::Closed => {
@@ -544,6 +547,7 @@ impl Joined {
                 | engine::Request::Abort { .. }
                 | engine::Request::Up { .. }
                 | engine::Request::FiguresTaken { .. }
+                | engine::Request::Unpaused { .. }
                 | engine::Request::Told { .. }
                 | engine::Request::Opened { .. }
                 | engine::Request::Refused { .. }

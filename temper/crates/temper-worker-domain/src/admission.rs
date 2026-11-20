@@ -26,6 +26,7 @@ pub fn is_new_work(event: &Event) -> bool {
             | host::LinkDown::Relayed { .. }
             | host::LinkDown::TurnKept { .. }
             | host::LinkDown::Acknowledge { .. }
+            | host::LinkDown::Pause { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::Grant { .. },
         )
@@ -74,6 +75,7 @@ pub fn passes(event: &Event) -> bool {
             | host::LinkDown::SignOut { .. }
             | host::LinkDown::ReadList { .. }
             | host::LinkDown::Sources { .. }
+            | host::LinkDown::Pause { .. }
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::Grant { .. },
         )

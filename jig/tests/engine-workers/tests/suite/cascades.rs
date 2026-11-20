@@ -76,6 +76,8 @@ fn jobs_mixed_with_runs_keep_their_order() {
                         host::LinkUp::JobAnswer { .. } => 1,
                         host::LinkUp::Answer { .. } => 2,
                         host::LinkUp::ListRead { .. }
+                        // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                        | host::LinkUp::Paused { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }

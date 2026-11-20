@@ -41,6 +41,7 @@ pub enum WorkerEvent {
 
 #[derive(Debug)]
 pub enum LinkEvent {
+    Pause,
     Asked,
     ReadList,
     Sources,

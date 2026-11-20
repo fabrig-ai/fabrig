@@ -250,7 +250,9 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
                     why: words.as_bytes().into()
                 }))
             ),
-            other @ (hub::LinkUp::Draining
+            // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            other @ (hub::LinkUp::Paused { .. }
+            | hub::LinkUp::Draining
             | hub::LinkUp::ListRead { .. }
             | hub::LinkUp::Piece { .. }
             | hub::LinkUp::Logins { .. }

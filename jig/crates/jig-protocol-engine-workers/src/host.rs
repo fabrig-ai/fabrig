@@ -26,6 +26,12 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
+    /// A pause ask the channel's version cannot carry (protocol/channel/pause.md, 3).
+    Unpaused {
+        worker: Box<[u8]>,
+        version: u16,
+        mode: jig_domain_link::PauseMode,
+    },
     Told {
         worker: Box<[u8]>,
         version: u16,
@@ -280,6 +286,7 @@ impl Workers {
     /// Takes one request, doing itself what needs no owner.
     pub fn output(&mut self) -> Option<Output> {
         match self.out.pop()? {
+            Request::Unpaused { worker, version, mode } => return Some(Output::Unpaused { worker, version, mode }),
             Request::Told { worker, version, wait } => return Some(Output::Told { worker, version, wait }),
             Request::Take { connection } => self.io.push(io::Request::Bind {
                 socket: *self.sockets.get(&connection).expect("accepted socket"),
@@ -425,7 +432,8 @@ pub fn grants(down: &hub::LinkDown) -> &[Grant] {
         hub::LinkDown::AssignJob { job } => &job.grants,
         hub::LinkDown::Assign { assignment } => &assignment.assignment.grants,
         hub::LinkDown::ReadList { grant, .. } | hub::LinkDown::Grant { grant, .. } => ::core::slice::from_ref(grant),
-        hub::LinkDown::Sources { .. }
+        hub::LinkDown::Pause { .. }
+        | hub::LinkDown::Sources { .. }
         | hub::LinkDown::Check { .. }
         | hub::LinkDown::SignOut { .. }
         | hub::LinkDown::Message { .. }

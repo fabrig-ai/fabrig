@@ -98,7 +98,8 @@ impl Opening {
                     Request::Close { .. } | Request::Abort { .. } => {
                         self.component.down(now, Event::Gone { connection: CONNECTION }, &mut self.out);
                     }
-                    Request::Told { .. }
+                    Request::Unpaused { .. }
+                    | Request::Told { .. }
                     | Request::Take { .. }
                     | Request::TurnAway { .. }
                     | Request::Opened { .. }

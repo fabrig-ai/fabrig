@@ -319,6 +319,8 @@ impl Parent {
             Request::Agent(ToAgent::Grant { .. } | ToAgent::Renewals { .. }) => Vec::new(),
             Request::Up(
                 LinkUp::ListRead { .. }
+                // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                | LinkUp::Paused { .. }
                 | LinkUp::Draining
                 | LinkUp::Logins { .. }
                 | LinkUp::SignedOut { .. }

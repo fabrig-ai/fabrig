@@ -12,7 +12,7 @@ use jig_protocol_worker_wire::{self as wire, Part, Record};
 use skein_channel::{Frame, frame_writer};
 use skein_lib::{List, Queue, Reader, Time, Token, bytes};
 
-pub(crate) fn hello(hello: Hello, limits: &wire::v18::Limits) -> Option<Frame> {
+pub(crate) fn hello(hello: Hello, limits: &wire::v19::Limits) -> Option<Frame> {
     let bounds = hello.bounds;
     if !valid_program_endpoints(&bounds.program_endpoints) {
         return None;
@@ -58,11 +58,21 @@ pub(crate) fn hello(hello: Hello, limits: &wire::v18::Limits) -> Option<Frame> {
     frame(0x0100, record.encode(limits).ok()?)
 }
 
-pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v18::Limits) -> Option<Frame> {
+pub(crate) fn up(up: host::LinkUp, parts: &[Part], limits: &wire::v19::Limits) -> Option<Frame> {
     match up {
         host::LinkUp::Ask { run, attempt, number, bytes } => {
             let record = wire::Ask { run: run.raw(), attempt: attempt.raw(), number, bytes };
             frame(wire::Kind::Ask.number(), record.encode(limits).ok()?)
+        }
+        host::LinkUp::Paused { state } => {
+            let state = match state {
+                jig_domain_link::PauseState::Taking => wire::PauseState::Taking,
+                jig_domain_link::PauseState::Paused => wire::PauseState::Paused,
+                jig_domain_link::PauseState::Draining => wire::PauseState::Draining,
+                jig_domain_link::PauseState::Drained => wire::PauseState::Drained,
+            };
+            let record = wire::Paused { state };
+            frame(wire::Kind::Paused.number(), record.encode(limits).ok()?)
         }
         host::LinkUp::Draining => {
             let record = wire::Draining {};
@@ -135,7 +145,7 @@ fn job_answer_frame(
     attempt: Token,
     answer: host::JobEnding,
     parts: &[Part],
-    limits: &wire::v18::Limits,
+    limits: &wire::v19::Limits,
 ) -> Option<Frame> {
     let record = wire::JobAnswer { task: run.raw(), attempt: attempt.raw(), ending: job_ending(answer, parts)? };
     frame(wire::Kind::JobAnswer.number(), record.encode(limits).ok()?)
@@ -148,7 +158,7 @@ fn piece_record(piece: host::Piece) -> wire::Piece {
     };
     wire::Piece { turn: piece.turn, retry: piece.retry, kind, offset: piece.offset, bytes: piece.bytes }
 }
-fn fact_frame(run: Token, attempt: Token, value: wire::FactValue, limits: &wire::v18::Limits) -> Option<Frame> {
+fn fact_frame(run: Token, attempt: Token, value: wire::FactValue, limits: &wire::v19::Limits) -> Option<Frame> {
     let record = wire::Fact { task: run.raw(), attempt: attempt.raw(), value };
     frame(wire::Kind::Fact.number(), record.encode(limits).ok()?)
 }
@@ -172,7 +182,7 @@ fn name(token: Option<Token>) -> Option<u64> {
 fn work(work: host::Work, parts: &[Part]) -> Option<wire::Work> {
     Some(wire::Work { left: part(work.left, parts).ok()?, saved: part(work.saved, parts).ok()? })
 }
-fn refused(items: Box<[host::Refused]>, limits: &wire::v18::Limits) -> Option<List<wire::Refused>> {
+fn refused(items: Box<[host::Refused]>, limits: &wire::v19::Limits) -> Option<List<wire::Refused>> {
     let mut list = List::with_capacity(limits.turn_refused);
     for item in items {
         let reason = match item.reason {
@@ -457,7 +467,7 @@ fn count_kind(value: CountKind) -> wire::CountKind {
 pub(crate) fn down(
     kind: u16,
     body: &[u8],
-    limits: &wire::v18::Limits,
+    limits: &wire::v19::Limits,
     now: Time,
     parts: &mut Queue<Part>,
     next: &mut u64,
@@ -471,6 +481,15 @@ pub(crate) fn down(
         }
     }
     let down = match known? {
+        wire::Kind::Pause => {
+            let record = wire::Pause::decode(limits, &mut reader).ok()?;
+            let mode = match record.mode {
+                wire::PauseMode::Resume => jig_domain_link::PauseMode::Resume,
+                wire::PauseMode::Pause => jig_domain_link::PauseMode::Pause,
+                wire::PauseMode::Drain => jig_domain_link::PauseMode::Drain,
+            };
+            host::LinkDown::Pause { mode }
+        }
         wire::Kind::Asked => {
             let record = wire::Asked::decode(limits, &mut reader).ok()?;
             let answer = match record.answer {
@@ -568,7 +587,8 @@ pub(crate) fn down(
             }
         }
         // TurnBusy is decoded below the hub by the component; up kinds are invalid here.
-        wire::Kind::Draining
+        wire::Kind::Paused
+        | wire::Kind::Draining
         | wire::Kind::ListRead
         | wire::Kind::JobAnswer
         | wire::Kind::Logins
@@ -762,7 +782,7 @@ fn source_failed(reason: SourceFailure, detail: Box<[u8]>) -> wire::SourceFailed
     wire::SourceFailed { reason, detail }
 }
 
-fn logins_frame(logins: Box<[Login]>, limits: &wire::v18::Limits) -> Option<Frame> {
+fn logins_frame(logins: Box<[Login]>, limits: &wire::v19::Limits) -> Option<Frame> {
     let mut rows = List::<wire::Login>::with_capacity(limits.logins_logins);
     for login in logins {
         for row in &rows {
@@ -780,7 +800,7 @@ fn logins_frame(logins: Box<[Login]>, limits: &wire::v18::Limits) -> Option<Fram
     let record = wire::Logins { logins: rows };
     frame(wire::Kind::Logins.number(), record.encode(limits).ok()?)
 }
-fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v18::Limits) -> Option<Frame> {
+fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v19::Limits) -> Option<Frame> {
     let result = match result {
         SignOutResult::SignedOut => wire::SignOutResult::SignedOut,
         SignOutResult::Failed { reason, detail } => wire::SignOutResult::Failed(source_failed(reason, detail)),
@@ -789,7 +809,7 @@ fn signed_out_frame(name: SourceName, result: SignOutResult, limits: &wire::v18:
     frame(wire::Kind::SignedOut.number(), record.encode(limits).ok()?)
 }
 
-fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v18::Limits) -> Option<Frame> {
+fn list_read_frame(read: u64, outcome: jig_domain_link::ListOutcome, limits: &wire::v19::Limits) -> Option<Frame> {
     use jig_domain_link::{ListFailure, ListOutcome};
     let outcome = match outcome {
         ListOutcome::Listed(rows) => {
@@ -832,7 +852,7 @@ pub(crate) fn send(
     frame: Frame,
     version: u16,
     agreed: &[wire::Agreed],
-    limits: &wire::v18::Limits,
+    limits: &wire::v19::Limits,
 ) -> Result<Frame, wire::translation::Untranslated> {
     machine.send(frame, version, agreed, limits)
 }
@@ -842,7 +862,7 @@ pub(crate) fn receive(
     body: &[u8],
     version: u16,
     agreed: &[wire::Agreed],
-    limits: &wire::v18::Limits,
+    limits: &wire::v19::Limits,
 ) -> Result<Frame, wire::translation::Untranslated> {
     machine.receive(kind, body, version, agreed, limits)
 }

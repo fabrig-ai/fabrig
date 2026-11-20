@@ -109,6 +109,8 @@ impl Measured {
                 | Request::SourceFault => unreachable!("source scheduling has its own world"),
                 Request::Up(
                     LinkUp::ListRead { .. }
+                    // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+                    | LinkUp::Paused { .. }
                     | LinkUp::Draining
                     | LinkUp::Logins { .. }
                     | LinkUp::SignedOut { .. }
@@ -579,6 +581,8 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             }
             LinkUp::Activity { .. } => activity += 1,
             other @ (LinkUp::ListRead { .. }
+            // jig/docs/design/domain/engine/fleet.md, A paused worker leaves placement too.
+            | LinkUp::Paused { .. }
             | LinkUp::Draining
             | LinkUp::Logins { .. }
             | LinkUp::SignedOut { .. }

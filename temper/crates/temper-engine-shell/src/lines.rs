@@ -647,6 +647,17 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {
             format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
         }
+        temper_engine_service::Note::WorkerUnpaused { worker, version, mode } => {
+            let worker = String::from_utf8_lossy(&worker);
+            let mode = match mode {
+                jig_domain_link::PauseMode::Resume => "resume",
+                jig_domain_link::PauseMode::Pause => "pause",
+                jig_domain_link::PauseMode::Drain => "drain",
+            };
+            format!(
+                "{binary} serve: worker {worker} not told to {mode}: jig-worker-wire {version}; the engine's placement follows the ask\n"
+            )
+        }
         temper_engine_service::Note::WorkerTold { worker, version, wait } => {
             let worker = String::from_utf8_lossy(&worker);
             match wait {
@@ -721,6 +732,8 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Figures => "figures",
                 Kind::Wires => "wires",
                 Kind::Ask => "ask",
+                Kind::Pause => "pause",
+                Kind::Paused => "paused",
                 Kind::Restarting => "restarting",
                 Kind::Asked => "asked",
             };
