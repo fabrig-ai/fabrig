@@ -271,12 +271,12 @@ fn http_paste_with_policy(
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(limits).expect("bounded fixture")).unwrap());
     family.write(limits, &mut bytes).unwrap();
     let request = j::Keyed {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: Some(bundle),
-        };
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: Some(bundle),
+    };
     let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(limits).expect("bounded fixture")).unwrap());
     request.write(limits, &mut bytes).unwrap();
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));

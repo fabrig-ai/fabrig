@@ -487,12 +487,12 @@ fn box_setup(
     let mut bytes = Writer::new(usize::try_from(family.measure(limits).expect("bounded fixture")).unwrap());
     family.write(limits, &mut bytes).unwrap();
     let request = j::Keyed {
-            key: [key; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: None,
-        };
+        key: [key; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
     let mut bytes = Writer::new(usize::try_from(request.measure(limits).expect("bounded fixture")).unwrap());
     request.write(limits, &mut bytes).unwrap();
     let mut client = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));

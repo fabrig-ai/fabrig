@@ -31,7 +31,8 @@ pub(super) fn forges_watch(duties: &Duties) -> u64 {
             if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let envelope =
+                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             let watch = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
             (watch.watch == f::Watch::Forges).then_some(open.watch)
         })

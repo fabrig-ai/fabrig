@@ -214,7 +214,6 @@ impl Wire {
         self.received_with(event, crate::fixtures::link_limits())
     }
     /// Decode the same public bytes under the application's declared receiving profile.
-    #[expect(clippy::too_many_lines, reason = "batch parts and standalone replies share the native wire observer")]
     pub fn received_with(&mut self, event: &Event, limits: jig_client_protocol_link::Limits) -> Vec<Received> {
         let reply;
         let event = if let Event::Part { exchange, message } = event {

@@ -93,7 +93,8 @@ fn one(
             }
         } else {
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap();
-            if let f::Read::Setting(setting) = &wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap().read
+            if let f::Read::Setting(setting) =
+                &wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap().read
                 && setting.kind == 7
             {
                 let value = f::ProjectWays { drafts: true, goals: true, changes: false, way: 4 };

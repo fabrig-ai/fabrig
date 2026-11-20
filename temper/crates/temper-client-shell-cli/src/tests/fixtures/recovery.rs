@@ -282,12 +282,10 @@ impl Frame {
             },
         };
         let owned = w::Owned {
-                owner: w::Owner::Family(
-                    w::Family { number: wire::FORGE },
-                ),
-                version: wire::CLIENT_VERSION,
-                record: wire::answer(&answer),
-            };
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            version: wire::CLIENT_VERSION,
+            record: wire::answer(&answer),
+        };
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(owned)));
     }
 }

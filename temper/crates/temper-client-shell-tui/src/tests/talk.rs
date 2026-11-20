@@ -309,7 +309,8 @@ fn telling_on_a_roles_talk_files_in_its_area() {
             if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let envelope =
+                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             let reading = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
             matches!(&reading.watch, f::Watch::Findings(subject) if subject.project == 3).then_some(open.watch)
         })
@@ -329,13 +330,11 @@ fn telling_on_a_roles_talk_files_in_its_area() {
         cut: false,
     };
     let document = w::Owned {
-            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            record: wire::findings(&document),
-        };
-    let event = w::StreamEvent::Delivery(
-        w::Delivery { watch: watched, document },
-    );
+        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        record: wire::findings(&document),
+    };
+    let event = w::StreamEvent::Delivery(w::Delivery { watch: watched, document });
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));

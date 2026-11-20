@@ -2,7 +2,6 @@
 //! (temper/docs/design/domain/agent/ask-temper.md, 4; jig/docs/design/domain/engine/briefs.md, 2.1).
 use super::*;
 use jig_client::contract as c;
-use jig_client_protocol_wire::Record as _;
 use jig_domain_core::reads;
 use jig_domain_notes as notes;
 use serde_json::json;

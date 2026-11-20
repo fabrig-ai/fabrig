@@ -4,7 +4,7 @@
 use crate::MilestoneTotals;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::documents::TaskLine;
-use skein_lib::{List, Wall, Writer};
+use skein_lib::{List, Wall};
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 

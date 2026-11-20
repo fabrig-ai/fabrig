@@ -118,9 +118,7 @@ impl Frame {
             })
             .expect("valid setup fixture");
         let document = owned(wire::forges(&f::Forges { forges, linked: false }));
-        let event = w::StreamEvent::Delivery(
-            w::Delivery { watch: self.wait_task.expect("forge watch"), document },
-        );
+        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("forge watch"), document });
         self.sockets.get_mut(&self.stream.expect("stream")).expect("valid setup fixture").reply.extend(sse(&event));
     }
 }

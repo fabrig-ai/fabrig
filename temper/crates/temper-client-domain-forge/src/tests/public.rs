@@ -180,7 +180,8 @@ fn landings() -> Box<[u8]> {
         Writer::new(usize::try_from(record.measure(&forge::CEILINGS).expect("within ceilings")).expect("small record"));
     record.write(&forge::CEILINGS, &mut writer).expect("record");
     let record = jig::PublicApplication { tasks: List::with_capacity(0), record: writer.finish() };
-    let mut writer = Writer::new(usize::try_from(record.measure(&jig::CEILINGS).expect("bounded fixture")).expect("small record"));
+    let mut writer =
+        Writer::new(usize::try_from(record.measure(&jig::CEILINGS).expect("bounded fixture")).expect("small record"));
     record.write(&jig::CEILINGS, &mut writer).expect("envelope");
     writer.finish()
 }

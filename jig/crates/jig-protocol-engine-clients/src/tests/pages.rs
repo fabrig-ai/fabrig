@@ -492,7 +492,10 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         at: Wall::EPOCH,
         line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 513]) },
     };
-    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path, w::paths::ACTIVITY_STOOD_WORDS);
+    assert_eq!(
+        crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path,
+        w::paths::ACTIVITY_STOOD_WORDS
+    );
     let line = t::ActivityLine {
         task: 7,
         position: 13,
@@ -600,7 +603,10 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
         w::paths::ACTIVITY_NOW_WRITTEN_LINE
     );
     let line = t::ActivityLine { line: t::Line::NowWritten { attempt: 3, line: Box::from([b'n'; 513]) }, ..line };
-    assert_eq!(crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path, w::paths::ACTIVITY_NOW_WRITTEN_LINE);
+    assert_eq!(
+        crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path,
+        w::paths::ACTIVITY_NOW_WRITTEN_LINE
+    );
 }
 
 #[test]

@@ -573,7 +573,10 @@ fn settings_inventory_round_trips_beyond_a_page_and_at_its_ceiling() {
 fn settings_inventory_refuses_one_line_past_the_wire_and_receiving_limits() {
     let limits = fixtures::limits();
     let problem = w::Problem { path: w::paths::SETTINGS_DOCUMENT_SETTINGS, reason: skein_codec::Reason::Bound };
-    assert_eq!(e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()).unwrap().encode(limits.wire()), Err(problem));
+    assert_eq!(
+        e::wire_settings_document(&settings_inventory(MAX_SETTINGS + 1), limits.wire()).unwrap().encode(limits.wire()),
+        Err(problem)
+    );
     let mut narrow = *limits.wire();
     narrow.settings_document_settings = STANDARD_SETTINGS - 1;
     let wire = e::wire_settings_document(&settings_inventory(STANDARD_SETTINGS), limits.wire()).unwrap();
@@ -668,13 +671,22 @@ fn charter_documents_and_parts_use_the_clients_row_and_name_bounds() {
     wire_limits.charter_document_name_item = 8;
     t::wire_charter(&value, &wire_limits).unwrap();
     *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"123456789".as_slice());
-    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path, w::paths::CHARTER_DOCUMENT_NAME);
+    assert_eq!(
+        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
+        w::paths::CHARTER_DOCUMENT_NAME
+    );
     *value.documents.get_mut(0).unwrap().name.get_mut(0).unwrap() = Box::from(b"resource".as_slice());
     wire_limits.charter_document_name = 1;
-    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path, w::paths::CHARTER_DOCUMENT_NAME);
+    assert_eq!(
+        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
+        w::paths::CHARTER_DOCUMENT_NAME
+    );
     wire_limits.charter_document_name = 2;
     wire_limits.charter_documents = 1;
-    assert_eq!(t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path, w::paths::CHARTER_DOCUMENTS);
+    assert_eq!(
+        t::wire_charter(&value, &wire_limits).unwrap().encode(&wire_limits).unwrap_err().path,
+        w::paths::CHARTER_DOCUMENTS
+    );
 }
 
 #[test]
@@ -735,7 +747,11 @@ fn overlays_round_trip_whole_and_obey_each_list_and_text_bound() {
                 }
             };
             *bound.0 = bound.1 - u32::from(past);
-            assert_eq!(t::wire_overlay(&overlay, &wire_limits).unwrap().encode(&wire_limits).is_ok(), !past, "encode field {field}");
+            assert_eq!(
+                t::wire_overlay(&overlay, &wire_limits).unwrap().encode(&wire_limits).is_ok(),
+                !past,
+                "encode field {field}"
+            );
             assert_eq!(
                 w::Overlay::decode(&wire_limits, &mut Reader::new(&bytes)).is_ok(),
                 !past,

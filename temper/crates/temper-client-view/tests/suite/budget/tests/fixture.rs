@@ -4,7 +4,7 @@ use jig_client::contract as c;
 use jig_client_test_records as records;
 use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as f};
-use temper_client_view_kit::engine::{encoded, owned};
+use temper_client_view_kit::engine::owned;
 
 pub const PROJECT: u32 = 1;
 pub const PARTY: u64 = 73;

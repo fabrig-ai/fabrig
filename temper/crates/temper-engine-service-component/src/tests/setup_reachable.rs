@@ -121,12 +121,12 @@ fn picker_client(service: &mut crate::Service, bearer: &[u8]) -> fixtures::http:
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure(limits).expect("bounded fixture")).unwrap());
     family.write(limits, &mut bytes).unwrap();
     let request = j::Keyed {
-            key: [90; 16],
-            owner: j::Owner::Family(j::Family { number: wire::FORGE }),
-            version: wire::CLIENT_VERSION,
-            request: bytes.finish(),
-            value: None,
-        };
+        key: [90; 16],
+        owner: j::Owner::Family(j::Family { number: wire::FORGE }),
+        version: wire::CLIENT_VERSION,
+        request: bytes.finish(),
+        value: None,
+    };
     let mut bytes = skein_lib::Writer::new(usize::try_from(request.measure(limits).expect("bounded fixture")).unwrap());
     request.write(limits, &mut bytes).unwrap();
     let mut client = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
