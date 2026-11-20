@@ -568,19 +568,27 @@ pub trait ArchiveFace {
     fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal>;
     fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal>;
 }
+/// The system's tar, with pinned paths set aside for saves and removed after restores
+/// (qa/places.md, 4 and 8).
 pub struct RealArchive {
     pub environment: Environment,
 }
 impl RealArchive {
-    fn command(&self, operation: &str, scratch: &Path, archive: &Path, left_out: &[&str]) -> Command {
+    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
         let mut command = Command::new("tar");
         captured(&mut command, &self.environment);
         command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
-        command.args(["--anchored", "--no-wildcards"]);
-        for path in left_out {
-            command.arg(format!("--exclude={path}"));
-        }
         command
+    }
+
+    fn remove(path: &Path) -> Result<(), Refusal> {
+        match fs::symlink_metadata(path) {
+            Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(path),
+            Ok(_) => fs::remove_file(path),
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(why) => Err(why),
+        }
+        .map_err(|why| refused(format!("{}: {why}", path.display())))
     }
 }
 /// A copy's members present in `scratch`: a box run with fake backends keeps its configuration under
@@ -595,22 +603,59 @@ pub fn copy_members(scratch: &Path) -> Result<Vec<&'static str>, Refusal> {
 impl ArchiveFace for RealArchive {
     fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         let members = copy_members(scratch)?;
-        checked(
-            self.command("--create", scratch, archive, left_out)
-                .args(members)
-                .output()
-                .map_err(|why| refused(format!("tar: {why}")))?,
-            "tar --create",
-        )?;
-        Ok(())
+        let mut aside = archive.as_os_str().to_owned();
+        aside.push(".left-out");
+        let aside = PathBuf::from(aside);
+        Self::remove(&aside)?;
+        let mut moved = Vec::new();
+        let result = (|| {
+            for (index, path) in left_out.iter().enumerate() {
+                let path = scratch.join(path);
+                match fs::symlink_metadata(&path) {
+                    Ok(_) => {}
+                    Err(why) if why.kind() == std::io::ErrorKind::NotFound => continue,
+                    Err(why) => return Err(refused(format!("{}: {why}", path.display()))),
+                }
+                if moved.is_empty() {
+                    crate::private::directory(&aside)?;
+                }
+                let saved = aside.join(index.to_string());
+                fs::rename(&path, &saved).map_err(|why| refused(format!("{}: {why}", path.display())))?;
+                moved.push((path, saved));
+            }
+            checked(
+                self.command("--create", scratch, archive)
+                    .args(members)
+                    .output()
+                    .map_err(|why| refused(format!("tar: {why}")))?,
+                "tar --create",
+            )
+            .map(|_| ())
+        })();
+        let mut failures = Vec::new();
+        if let Err(why) = result {
+            failures.push(why.to_string());
+        }
+        let mut restored = true;
+        for (path, saved) in moved {
+            if let Err(why) = fs::rename(&saved, &path) {
+                failures.push(format!("{}: {why}", path.display()));
+                restored = false;
+            }
+        }
+        if restored && let Err(why) = Self::remove(&aside) {
+            failures.push(why.to_string());
+        }
+        if failures.is_empty() { Ok(()) } else { Err(refused(failures.join("; "))) }
     }
     fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
         checked(
-            self.command("--extract", scratch, archive, left_out)
-                .output()
-                .map_err(|why| refused(format!("tar: {why}")))?,
+            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
             "tar --extract",
         )?;
+        for path in left_out {
+            Self::remove(&scratch.join(path))?;
+        }
         Ok(())
     }
 }
