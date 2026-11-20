@@ -259,7 +259,10 @@ pub fn review_words(
         }
         append(&mut words, part);
     }
-    append(&mut words, b"Verdict 1 approves; verdict 2 requests changes. Change: ");
+    append(
+        &mut words,
+        b"Verdict 1 approves; verdict 2 requests changes. Its pull request's title, supporting evidence: ",
+    );
     append(&mut words, &row.title);
     Some(words.into_boxed())
 }
@@ -307,12 +310,12 @@ fn repair_opening(row: &forge::ChangeRow, why: forge_change::Repair) -> Option<B
 /// domain/forge/change/repairs.md: both sides keep their intended content.
 pub fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], bound: u32) -> Option<Box<[u8]>> {
     let words = concat!(
-        "Resolve the merge conflict. Preserve the requested change and unrelated content ",
+        "Resolve the merge conflict. Preserve the requested change, as its current spec and rulings state it, and unrelated content ",
         "already landed on the base, including both independent appended lines and existing blank lines. ",
         "A deletion or a rename on either side is an intended change too: a file deleted on the base stays deleted ",
         "unless the requested change needs it, and a file deleted on the head or renamed on either side stays so, ",
         "the other side's edits carried where they still apply. Read the commit that deleted a file before you restore anything. ",
-        "Do not remove content just to make a check pass, unless the change's request as revised, or an answer given on it, says otherwise; keeping an intended deletion removes none. ",
+        "Do not remove content just to make a check pass, unless its current spec or a ruling says otherwise; keeping an intended deletion removes none. ",
         "In your result, say for each file deleted or renamed on either side whether you kept the deletion or restored the file, ",
         "and why. The worker commits and pushes the resolved merge."
     )
@@ -320,7 +323,7 @@ pub fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], 
     let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?;
     // The coding charter carries the full preservation rule when the spec is small.
     let compact = concat!(
-        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless the request as revised or an answer says otherwise. ",
+        "Resolve the merge conflict. Keep both sides, blank lines, deletions and renames unless its current spec or a ruling says otherwise. ",
         "Restore a file the base deleted only if the change needs it, after reading the commit that deleted it; ",
         "say in your result which you kept or restored, and why."
     )
@@ -347,37 +350,240 @@ pub fn resolution_words(result: Option<&[u8]>, parameters: &[tasks::Parameter], 
     Some(out.into_boxed())
 }
 
-/// temper/docs/design/domain/forge/change/questions.md, 1, What later work is told:
-/// its fixed lines, room split and UTF-8 cut.
-pub fn asked_now(request: &[u8], revision: u64, answered: &[forge_change::Answered], room: usize) -> Box<[u8]> {
-    let opening = b"\n\nWhat this change is asked now: its request as revised and the answers given on it. Where they differ from its title, its original request or the preservation rule, they come first.";
-    let answers_label: &[u8] = if answered.is_empty() { b"" } else { b"\nAnswers given on it, newest first:" };
-    let mut request_label = List::uncapped();
-    append(&mut request_label, b"\nIts request, at spec revision ");
-    append(&mut request_label, skein_lib::Decimal::of(revision).as_bytes());
-    append(&mut request_label, b":\n");
-    let fixed = opening.len().saturating_add(answers_label.len()).saturating_add(request_label.as_slice().len());
-    let Some(left) = room.checked_sub(fixed) else { return Box::new([]) };
-    let mut answers = List::uncapped();
-    for answer in answered.iter().rev() {
-        append(&mut answers, b"\nTask ");
-        append(&mut answers, skein_lib::Decimal::of(answer.asker).as_bytes());
-        append(&mut answers, b" asked: ");
-        append(&mut answers, &answer.line);
-        append(&mut answers, b"\nAnswer: ");
-        append(&mut answers, &answer.answer);
+pub const CONTEXT_OPENING: &[u8] = b"\n\nThis change's current spec and rulings: task ";
+const RULINGS_LABEL: &[u8] = b"\nRulings, newest first:";
+
+fn context_opening(task: u64, revision: u64) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[
+        CONTEXT_OPENING, skein_lib::Decimal::of(task).as_bytes(), b" at spec revision ",
+        skein_lib::Decimal::of(revision).as_bytes(),
+        b". They come first: its original request, its pull request's title and body, and CI's and reviews' remarks are supporting evidence, and where they differ from these, follow these. To preserve the requested change is to preserve it as its current spec and rulings state it.",
+    ])
+}
+
+fn context_spec_label(revision: u64, producer: bool) -> Box<[u8]> {
+    if producer {
+        return Box::from(b"\nIts current spec is your spec's words above.".as_slice());
     }
-    let half = left.checked_div(2).expect("two is nonzero");
-    let answer_room = answers.as_slice().len().min(half.max(left.saturating_sub(request.len())));
-    let answers = forge::text::fit(answers.as_slice(), answer_room, "…".as_bytes());
-    let request = forge::text::fit(request, left.saturating_sub(answer_room), "…".as_bytes());
+    skein_lib::bytes::concat(&[
+        b"\nIts current spec, at revision ",
+        skein_lib::Decimal::of(revision).as_bytes(),
+        b":\n",
+    ])
+}
+
+fn spec_cut_marker(task: u64) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[
+        "…\n[Its spec is cut here; read_task on task ".as_bytes(),
+        skein_lib::Decimal::of(task).as_bytes(),
+        b" reads it whole.]",
+    ])
+}
+
+fn rulings_left_marker(left: usize) -> Box<[u8]> {
+    skein_lib::bytes::concat(&[
+        b"\n[",
+        skein_lib::Decimal::of(skein_lib::len_u64(left)).as_bytes(),
+        b" older rulings left out]",
+    ])
+}
+
+pub fn context_fixed(
+    task: u64,
+    revision: u64,
+    request: &[u8],
+    questions: &forge_change::Questions,
+    producer: bool,
+) -> usize {
+    let count = questions.answered.len().saturating_add(questions.amended.len());
+    let mut fixed = context_opening(task, revision).len().saturating_add(context_spec_label(revision, producer).len());
+    if count > 0 {
+        fixed = fixed
+            .saturating_add(RULINGS_LABEL.len())
+            .saturating_add("…".len())
+            .saturating_add(rulings_left_marker(count).len());
+    }
+    if !producer && !request.is_empty() {
+        fixed = fixed.saturating_add(spec_cut_marker(task).len());
+    }
+    fixed
+}
+
+/// questions.md, 1, What every delegate is told: whole fixed lines, newest rulings and a marked spec cut.
+pub fn change_context(
+    task: u64,
+    revision: u64,
+    request: &[u8],
+    questions: &forge_change::Questions,
+    producer: bool,
+    room: usize,
+) -> Option<Box<[u8]>> {
+    let left = room.checked_sub(context_fixed(task, revision, request, questions, producer))?;
+    let rulings = context_rulings(questions);
+    let mut needed = 0_usize;
+    for ruling in &rulings {
+        needed = needed.checked_add(ruling.len())?;
+    }
+    let request = if producer { b"".as_slice() } else { request };
+    let half = left.checked_div(2)?;
+    let ruling_room = needed.min(half.max(left.saturating_sub(request.len())));
     let mut out = List::uncapped();
-    append(&mut out, opening);
-    append(&mut out, answers_label);
-    append(&mut out, &answers);
-    append(&mut out, request_label.as_slice());
-    append(&mut out, &request);
-    out.into_boxed()
+    append(&mut out, &context_opening(task, revision));
+    if !rulings.is_empty() {
+        append(&mut out, RULINGS_LABEL);
+        let mut remaining = ruling_room;
+        let mut omitted = usize::try_from(rulings.len()).ok()?;
+        for ruling in rulings.into_boxed() {
+            if remaining == 0 {
+                break;
+            }
+            omitted = omitted.checked_sub(1)?;
+            if ruling.len() > remaining {
+                append(&mut out, skein_lib::bytes::utf8_prefix(&ruling, remaining));
+                append(&mut out, "…".as_bytes());
+                break;
+            }
+            append(&mut out, &ruling);
+            remaining = remaining.checked_sub(ruling.len())?;
+        }
+        if omitted > 0 {
+            append(&mut out, &rulings_left_marker(omitted));
+        }
+    }
+    append(&mut out, &context_spec_label(revision, producer));
+    let spec_room = left.checked_sub(ruling_room)?;
+    if request.len() > spec_room {
+        append(&mut out, skein_lib::bytes::utf8_prefix(request, spec_room));
+        append(&mut out, &spec_cut_marker(task));
+    } else {
+        append(&mut out, request);
+    }
+    Some(out.into_boxed())
+}
+
+/// Revisions descend; within a revision answers precede amendments, each latest taken first.
+fn context_rulings(questions: &forge_change::Questions) -> List<Box<[u8]>> {
+    let mut out = List::uncapped();
+    let mut ceiling = None;
+    loop {
+        let mut next = None;
+        for answer in &questions.answered {
+            if answer.revision < ceiling.unwrap_or(u64::MAX) || ceiling.is_none() {
+                next = Some(next.unwrap_or(0).max(answer.revision));
+            }
+        }
+        for amendment in &questions.amended {
+            if amendment.revision < ceiling.unwrap_or(u64::MAX) || ceiling.is_none() {
+                next = Some(next.unwrap_or(0).max(amendment.revision));
+            }
+        }
+        let Some(revision) = next else { break };
+        for answer in questions.answered.iter().rev() {
+            if answer.revision == revision {
+                out.push(skein_lib::bytes::concat(&[
+                    b"\nTask ",
+                    skein_lib::Decimal::of(answer.asker).as_bytes(),
+                    b" asked, at spec revision ",
+                    skein_lib::Decimal::of(revision).as_bytes(),
+                    b": ",
+                    &answer.line,
+                    b"\nAnswer: ",
+                    &answer.answer,
+                ]))
+                .expect("bounded rulings");
+            }
+        }
+        for amendment in questions.amended.iter().rev() {
+            if amendment.revision == revision {
+                out.push(skein_lib::bytes::concat(&[
+                    b"\nAmended to spec revision ",
+                    skein_lib::Decimal::of(revision).as_bytes(),
+                    b": ",
+                    &amendment.reason,
+                ]))
+                .expect("bounded rulings");
+            }
+        }
+        ceiling = Some(revision);
+    }
+    out
+}
+
+/// Leave room for the required identity and preservation words, then fit the
+/// current context before adding optional evidence (change/questions.md, 1).
+pub fn delegate_words(
+    row: &forge::ChangeRow,
+    kind: forge_change::Delegate,
+    (revision, request): (u64, &[u8]),
+    questions: &forge_change::Questions,
+    failure: Option<&forge::LandingFailure>,
+    parameters: &[tasks::Parameter],
+    bound: u32,
+) -> Option<Box<[u8]>> {
+    use forge_change::Delegate;
+    if kind == Delegate::Produce {
+        return production_words((revision, request), row, questions, bound);
+    }
+    let fixed = u32::try_from(context_fixed(row.task, revision, request, questions, false)).ok()?;
+    let required_bound = bound.checked_sub(fixed)?;
+    let required = match kind {
+        Delegate::Gate { number, head } => review_words(row, number, &head, parameters, required_bound)?,
+        Delegate::Repair(why) => repair_words(row, without_changes_below(why), failure, parameters, required_bound)?,
+        Delegate::Resolve { .. } => resolution_words(None, parameters, required_bound)?,
+        Delegate::Produce | Delegate::Merge { .. } | Delegate::Close => return None,
+    };
+    let room = usize::try_from(parameter_word_room(parameters, bound)).ok()?.checked_sub(required.len())?;
+    let block = change_context(row.task, revision, request, questions, false, room)?;
+    let optional_bound = bound.checked_sub(u32::try_from(block.len()).ok()?)?;
+    let words = match kind {
+        Delegate::Gate { .. } => required,
+        Delegate::Repair(why) => repair_words(row, why, failure, parameters, optional_bound)?,
+        Delegate::Resolve { .. } => resolution_words(row.merge_result.as_deref(), parameters, optional_bound)?,
+        Delegate::Produce | Delegate::Merge { .. } | Delegate::Close => unreachable!("agent context"),
+    };
+    Some(skein_lib::bytes::concat(&[&words, &block]))
+}
+
+fn without_changes_below(why: forge_change::Repair) -> forge_change::Repair {
+    if let forge_change::Repair::LandingAt { gate, candidate, below: Some(below) } = why {
+        return forge_change::Repair::LandingAt {
+            gate,
+            candidate,
+            below: Some(forge_change::Below { changes: [None; 4], ..below }),
+        };
+    }
+    why
+}
+
+pub fn production_words(
+    (revision, words): (u64, &[u8]),
+    row: &forge::ChangeRow,
+    questions: &forge_change::Questions,
+    bound: u32,
+) -> Option<Box<[u8]>> {
+    let room = usize::try_from(bound)
+        .ok()?
+        .saturating_sub(row.base.len())
+        .saturating_sub(row.branch.len())
+        .saturating_sub(words.len());
+    let block = change_context(row.task, revision, words, questions, true, room).unwrap_or_default();
+    let bound = bound.saturating_sub(u32::try_from(block.len()).ok()?);
+    let words = produce_words(words, started_from(&row.change.early), &row.base, &row.branch, bound);
+    Some(skein_lib::bytes::concat(&[&words, &block]))
+}
+
+pub fn delegate_amendment_words(task: u64, revision: u64, reason: &[u8], bound: u32) -> Box<[u8]> {
+    let mut words = List::uncapped();
+    append(&mut words, b"Task ");
+    append(&mut words, skein_lib::Decimal::of(task).as_bytes());
+    append(&mut words, b", your change, was amended to spec revision ");
+    append(&mut words, skein_lib::Decimal::of(revision).as_bytes());
+    append(
+        &mut words,
+        b". Your spec's context now holds its current spec and rulings; work to them from here on. Its reason: ",
+    );
+    append(&mut words, reason);
+    forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes())
 }
 
 pub fn parameter_word_room(parameters: &[tasks::Parameter], bound: u32) -> u32 {
@@ -790,9 +996,9 @@ waits for CI and merges it. Finish with your change once it is checked. \
 Report the branch and head you produced; only the change task reports landing after merge.";
 
 pub const REPAIR_PRESERVATION: &[u8] = concat!(
-    " Preserve the requested change and unrelated base content, including both ",
+    " Preserve the requested change, as its current spec and rulings state it, and unrelated base content, including both ",
     "independent appended lines and existing blank lines, and do not remove content to make a check pass, ",
-    "unless the change's request as revised, or an answer given on it, says otherwise."
+    "unless its current spec or a ruling says otherwise."
 )
 .as_bytes();
 

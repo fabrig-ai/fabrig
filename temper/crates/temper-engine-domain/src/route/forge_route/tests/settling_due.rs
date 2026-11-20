@@ -66,7 +66,7 @@ fn gating(domain: &mut Domain, env: &Env<Limits>, status: change::Status) {
         freshness: change::Freshness::Exact,
         eager: false,
     }]);
-    row.verdicts = Box::new([change::GateReport { number: 1, head: super::SHA1, status }]);
+    row.verdicts = Box::new([change::GateReport { revision: 0, number: 1, head: super::SHA1, status }]);
     restore(domain, env, row);
     wake(domain, env, 8);
 }

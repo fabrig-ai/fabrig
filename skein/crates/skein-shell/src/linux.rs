@@ -152,6 +152,15 @@ pub(crate) fn release() -> Result<Box<[u8]>, i32> {
     Ok(Box::from(release.to_bytes()))
 }
 
+pub(crate) fn descriptor_path(fd: Fd) -> Result<Box<[u8]>, i32> {
+    use std::os::unix::ffi::OsStrExt;
+
+    // A closed descriptor's proc entry is absent, but its error is EBADF, not ENOENT.
+    retry(|| status_flags(fd.raw()))?;
+    let path = std::fs::read_link(format!("/proc/self/fd/{}", fd.raw())).map_err(|error| sync::errno_of(&error))?;
+    Ok(path.as_os_str().as_bytes().into())
+}
+
 pub(crate) const PATH_ONLY: i32 = libc::O_PATH;
 pub(crate) const FLOOR: (u32, u32) = (6, 12);
 pub(crate) const UNWATCHABLE: i32 = libc::EPERM;

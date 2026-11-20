@@ -7,12 +7,18 @@ use std::io::{self, Write};
 pub struct Host {
     pub service: Service,
     output: Box<dyn Write>,
-    output_failed: bool,
+    output_failed: Option<io::ErrorKind>,
 }
 impl Host {
     #[must_use]
     pub fn new(service: Service) -> Self {
-        Self { service, output: Box::new(io::stdout()), output_failed: false }
+        Self { service, output: Box::new(io::stdout()), output_failed: None }
+    }
+
+    pub(crate) fn report_stop(&self) {
+        if let Some(line) = crate::stopped::line(self.service.end(), self.output_failed) {
+            let _reported = writeln!(io::stderr().lock(), "{line}");
+        }
     }
 }
 impl skein_shell::Host for Host {
@@ -44,18 +50,17 @@ impl skein_shell::Host for Host {
         if !self.service.is_empty() {
             return None;
         }
-        Some(Exit::Code(u8::from(self.output_failed || self.service.end() != Some(&End::Drained))))
+        Some(Exit::Code(u8::from(self.output_failed.is_some() || self.service.end() != Some(&End::Drained))))
     }
     fn drain(&mut self) {
         while let Some(link) = self.service.links().pop() {
-            if self
+            if let Err(error) = self
                 .output
                 .write_all(&link)
                 .and_then(|()| self.output.write_all(b"\n"))
                 .and_then(|()| self.output.flush())
-                .is_err()
             {
-                self.output_failed = true;
+                self.output_failed.get_or_insert(error.kind());
                 self.service.shutdown();
             }
         }

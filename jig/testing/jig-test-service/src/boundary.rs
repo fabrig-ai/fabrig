@@ -23,12 +23,27 @@ pub enum End {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum Stop {
-    CommitFailed { number: u64 },
+    CommitFailed {
+        number: u64,
+    },
     Start(Problems),
-    Listener,
-    StoreOpen { phase: Option<core::start::Phase>, failure: jig_protocol_store::restore::OpenFailure },
-    StorePage { phase: Option<core::start::Phase>, failure: jig_protocol_store::restore::Failure },
-    StartCore { phase: Option<core::start::Phase>, failure: core::start::Failure },
+    /// The component that rejected the event, and its safe io failure, if any.
+    Listener {
+        component: Option<&'static str>,
+        error: Option<skein_io::Error>,
+    },
+    StoreOpen {
+        phase: Option<core::start::Phase>,
+        failure: jig_protocol_store::restore::OpenFailure,
+    },
+    StorePage {
+        phase: Option<core::start::Phase>,
+        failure: jig_protocol_store::restore::Failure,
+    },
+    StartCore {
+        phase: Option<core::start::Phase>,
+        failure: core::start::Failure,
+    },
 }
 #[derive(Debug)]
 pub enum PartyOutput {

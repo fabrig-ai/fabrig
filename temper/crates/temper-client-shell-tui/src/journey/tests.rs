@@ -140,6 +140,31 @@ fn pasted_reports_replay_to_the_same_frames_and_records() {
     same_frames(walk);
 }
 
+#[test]
+fn listening_and_returned_are_recorded_and_replay_with_the_hosts_not_found() {
+    use crate::loopback::{Answer, Returned};
+    let mut walk = Walk::new();
+    let request = Returned { get: true, target: b"/approved?grant=sample".as_slice().into(), host: None };
+    let duties = walk.reports(vec![Report::Listening { port: Some(43210) }, Report::Returned(request.clone())]);
+    assert!(matches!(
+        duties.as_slice(),
+        [
+            Duties { listen: false, unlisten: true, answer: None, .. },
+            Duties { listen: false, unlisten: false, answer: Some(Answer::NotFound), .. }
+        ]
+    ));
+    let records = lines(&walk.save()).expect("readable journey");
+    assert!(matches!(records.first(), Some(Line::Journey { version: 4 })));
+    assert!(records.windows(4).any(|lines| lines
+        == [
+            Line::Listening(Some(43210)),
+            Line::Unlisten,
+            Line::Returned(request.clone()),
+            Line::Answer(Answer::NotFound)
+        ]));
+    same_frames(walk);
+}
+
 fn same_frames(mut walk: Walk) {
     let file = walk.save();
     let records = lines(&file).expect("readable records");
@@ -475,6 +500,10 @@ fn approved() -> Walk {
 
 fn approved_at(facts: &Facts) -> Walk {
     let mut walk = Walk::with(facts);
+    if facts.address.at_name() {
+        // Keep this walk on the typed-code path when there is no listener.
+        walk.reports(vec![Report::Listening { port: None }]);
+    }
     let exchange = sent(&mut walk, |message| matches!(message, Sent::ApprovalAsk(_)));
     // v21 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];
@@ -542,7 +571,7 @@ fn duties_keep_the_seams_order_and_fields() {
     let duties = Duties {
         lend: None,
         unlend: false,
-        stop: None,
+        stop: Some(crate::host::Stop::First),
         local: true,
         note: Some(temper_client_tui::Note::SignedOut),
         asked: vec![
@@ -559,6 +588,9 @@ fn duties_keep_the_seams_order_and_fields() {
         keep: Some(Some(credential())),
         address: Some(temper_client_tui::Origin::Http("127.0.0.1:8367".parse().unwrap())),
         open: Some(b"browse".as_slice().into()),
+        listen: true,
+        unlisten: true,
+        answer: Some(crate::loopback::Answer::Redirect { to: b"https://engine.example/terminal".as_slice().into() }),
         close: true,
     };
     let expected = vec![
@@ -576,9 +608,13 @@ fn duties_keep_the_seams_order_and_fields() {
         Line::Signed(b"http://127.0.0.1:8367".as_slice().into()),
         Line::Read,
         Line::Browse(b"browse".as_slice().into()),
+        Line::Listen,
+        Line::Unlisten,
+        Line::Answer(crate::loopback::Answer::Redirect { to: b"https://engine.example/terminal".as_slice().into() }),
+        Line::StopBox,
         Line::Quit,
     ];
-    assert!(record::asked(&duties) == expected, "requests, keep, signed, browse, quit retain their fields and order");
+    assert!(record::asked(&duties) == expected, "duties retain their fields and order");
 }
 
 fn linked_walk_duties(front: bool) -> (Walk, Duties) {

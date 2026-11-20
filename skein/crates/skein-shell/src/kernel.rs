@@ -147,6 +147,14 @@ fn falls_back(refused: &OpenError) -> Option<i32> {
 }
 
 impl Kernel {
+    /// Makes the backend's process-wide storage before metered startup calls
+    /// (runtime/readiness.md, 5). Repeated calls allocate nothing; Linux has
+    /// no such tables.
+    pub fn warm() {
+        #[cfg(target_os = "macos")]
+        crate::darwin::process::warm_tables();
+    }
+
     /// The host's backend (runtime/readiness.md, 1).
     #[cfg(target_os = "linux")]
     pub fn open(config: Config) -> Result<Self, OpenError> {

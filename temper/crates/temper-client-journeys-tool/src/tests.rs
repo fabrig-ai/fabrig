@@ -340,16 +340,17 @@ fn a_setups_after_refuses_chains_missing_and_self() {
 fn every_committed_setup_reads_and_joins() {
     let root = Path::new(JOURNEYS);
     let mut count = 0;
-    for name in crate::names(root).expect("committed journeys") {
-        if root.join(&name).join("setup").is_file() {
-            let bytes = fs::read(root.join(&name).join("setup")).expect("committed setup");
+    let names = crate::names(root).expect("committed journeys");
+    for name in &names {
+        if root.join(name).join("setup").is_file() {
+            let bytes = fs::read(root.join(name).join("setup")).expect("committed setup");
             journey::setup(&bytes).expect("read setup natively");
-            let joined = crate::again::setup(root, &name).expect("join setup").expect("setup exists");
+            let joined = crate::again::setup(root, name).expect("join setup").expect("setup exists");
             assert!(!joined.steps.is_empty(), "{name} has setup steps");
             count += 1;
         }
     }
-    assert!(count > 0, "committed setups exercised");
+    assert!(count > 0 || names.is_empty(), "committed setups exercised unless every journey has moved");
 }
 
 #[test]

@@ -140,7 +140,7 @@ pub fn run_arriving(
         arriving,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
-    world.spawn(|| {
+    world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
         Process::Script(Proc::Issuer(Box::new(IssuerProcess::provider(34_444, subject, plan, again, revocation))))
     });
     world.spawn(|| Process::Script(Proc::Browser(Box::new(BrowserProcess::new()))));

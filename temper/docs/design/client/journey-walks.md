@@ -31,6 +31,10 @@ the writer takes either engine (`journey-writer.md`, 3).
 - **The box's peer** (4.4): the world's `temper box`, at the service's
   box pipe, reporting an owned Forgejo's set-up step by step on the
   world's time, as the box reports it, with no step taken through ctl.
+- **A sign-in's tab** (4.5): the tab the page opens for a model's
+  sign-in, carried by a tab of the world's to the fake issuer and on to
+  the engine's listener, so that the account is connected through the
+  client, as a box's fake backends connect it.
 - **The program** (section 5): `temper-client-walk print [--out DIR]
   [NAME]...` prints into scratch, laid out as the tree with its
   stylesheets, and `temper-client-walk pages` writes main's pages, for
@@ -38,8 +42,9 @@ the writer takes either engine (`journey-writer.md`, 3).
 - **A journey moves** (section 6) in a change that gives it a `walk` of
   version 2 and takes its `setup` out; the writer's next run prints it
   in the world and removes its `recording`. `welcome-playground` moved
-  first, `welcome-set-up` second, and `sign-in-approved` is the TUI's
-  first.
+  first, `welcome-set-up` second, `project-landing` third, and
+  `sign-in-approved` is the TUI's first; `chat-draft` returns as a walk
+  after `project-landing`, with its scripts.
 
 ## 2. The walk
 
@@ -185,7 +190,9 @@ and the native client's shell (`jig-client-shell-native`), and names no
 browser kit, box crate or `temper-client-journeys-tool`.
 
 - **`facts`:** `SEED: u64 = 7`; `WALL`, 2026-01-06T09:00:00Z; `SERVICE:
-  &str = "127.0.0.1:10001"`; for the TUI, `SIZE: skein_ui_screen::Size`,
+  &str = "127.0.0.1:10001"`; `FORGE: &str = "127.0.0.1:10002"`, the
+  forge's (4.1); `ISSUER: &str = "127.0.0.1:10003"`, the fake issuer's
+  (4.5); for the TUI, `SIZE: skein_ui_screen::Size`,
   80 columns by 24 rows, `VERSION: &[u8] = b"0.0.0 (000000000000)"` and
   `SCHEME: temper_client_tui::Scheme = Scheme::Dark`, the scheme Auto
   draws for a terminal that answers none (`tui/theme.md`);
@@ -206,15 +213,16 @@ browser kit, box crate or `temper-client-journeys-tool`.
   ```
 
   story A's start at `SEED` and `WALL`, its service's clients'
-  listener at `SERVICE`, and, where `scripts` is given, the model's
+  listener at `SERVICE`, its forge at `FORGE`, the model's plan signed
+  in through the fake issuer at `ISSUER`, story A's bounds that a box
+  does not hold lifted (4.1), and, where `scripts` is given, the model's
   scripts replaced by them, as `temper_fake::llm::Document::decode_with_scripts`
-  replaces them. The forge stays at the composition's address
-  (section 8).
+  replaces them.
 - **`Clients`,** the world's harness, `pub enum Clients {}` with
   `impl temper_playground::programs::Harness for Clients`: its
   `Service` is `()`, its `Process` holds the TUI's connection,
-  `tui::Connection` (3.3), and the box's peer (4.4) beside it under the
-  harness, and every other item the trait's default, the playground's
+  `tui::Connection` (3.3), and the box's peer (4.4) and the world's tab
+  (4.5) beside it under the harness, and every other item the trait's default, the playground's
   own. **`Playground`,** the composition's world type,
   `skein_sim_world::World<Process<Clients>, Machine>`, moved from
   `temper/tests/playground/src/lib.rs`, holds the composition's
@@ -235,6 +243,7 @@ browser kit, box crate or `temper-client-journeys-tool`.
   pub fn act(&mut self, node: NodeId, act: Act) -> Result<(), Failed>;
   pub fn reload(&mut self, path: &[u8], within: Duration) -> Result<(), Failed>;
   pub fn walk(&mut self, person: &mut Person<Address>, bound: Duration) -> Walked;
+  pub fn tab(&self) -> Option<&skein_playground::tab::Shown>;   // the tab's last answer (4.5)
   pub enum Failed { Bound, World(Box<[u8]>), Stopped, Turns, NoLink, Closed, NotBrowsed, Asked(&'static str) }
   ```
 
@@ -250,8 +259,10 @@ browser kit, box crate or `temper-client-journeys-tool`.
   `act`, only a node that face would give that act counts; past
   `within` it is `Failed::Bound`, and with nothing due before then the
   browser's time goes to `within`'s end. `act` gives the host
-  `Report::Act` and turns. `reload` starts the page again at `path`
-  (4.2). A world that fails or stops, a turn bound passed at one
+  `Report::Act` and turns, carrying any tab the host asks for (4.5).
+  `reload` starts the page again at `path` (4.2). `tab` is the last
+  answer the world's tab was given, none before a tab was pointed. A
+  world that fails or stops, a turn bound passed at one
   instant, and a link never printed are `Failed`'s, never a panic;
   `Closed`, `NotBrowsed` and `Asked` are the TUI's (3.3). `walk`, story
   A's, keeps its panics.
@@ -377,6 +388,35 @@ service, over HTTP, rather than joined to the engine's root.
   scripts where any journey of it holds a `scripts.json`, under the
   harness `Clients`, with the box's peer at the service's box pipe
   (4.4).
+- **The forge at `FORGE`,** `127.0.0.1:10002`, the address a person's
+  pages drew from a box (`../draft/journey-walks.md`, 4.1): the
+  composition started at a forge address of its caller's
+  (`../playground.md`, 4), which every part that names the forge takes
+  from that one address: the fake forge's listener, the forges' runtime
+  destination, the place chooser's port for every setup file and the
+  handover `story::prepare` lays, the hosted git's base, and the forge's
+  authority pattern. So a page that draws the forge draws
+  `127.0.0.1:10002`, as `project-landing`'s does. Story A's own start,
+  the page's and its stories', keeps `documents::FORGE`.
+- **The model's plan as a box's fake backends give it**
+  (`../protocol/setup/box.md`, 5): the deployment's providers made by
+  `temper_fake::backends::providers`, provider 1's sign-in registered
+  against the fake issuer at `ISSUER` and its callback at
+  `127.0.0.1:1455`, `auth/callback`, every model endpoint at the world's
+  fake model; the fake issuer, `temper_fake::oauth`'s document at
+  `ISSUER` with that callback, at `SEED`, as a box's `fake oauth --seed
+  7`, a host of the world's; and the service given its accounts'
+  runtime. So the bearer the issuer grants is one the world's model
+  takes. Story A's own start holds no issuer and its own providers.
+- **A box's bounds:** where story A's configuration
+  (`temper_playground::documents::configuration::story_a`) holds a bound
+  tighter than a box's, and a step a box takes is refused by it, the
+  walk's start takes the deployment's default for that bound, as a
+  box's deployment does: `tasks.spec_bytes`, from 187 to 131072 bytes,
+  for the goal's specification from a draft; and
+  `people.amendment_bytes`, from 1218 to 135168 bytes, for that
+  specification with its authority in the person's create request.
+  Story A's own start keeps its bounds.
 - **The browser starts** on the page the printed link opens, signed
   in, at `/welcome`. Nothing else is implied: the walk's first line
   acts on that page.
@@ -505,6 +545,42 @@ no group's steps, no listener of its own, no `box.log`, no record under
 - **The same bytes every time:** the script's times are the world's, so
   a walk meets each line at the same turn on any host.
 
+### 4.5 A sign-in's tab
+
+The tab a model's sign-in opens (`../draft/sign-in-new-tab.md`, 2),
+carried as a browser carries it, so that an account is connected through
+the client (`../draft/journey-walks.md`, 4.1).
+
+- **The page's tab duties,** `temper-client-shell-web`'s `Duties::tab`,
+  are carried in the turn that gives them, before its transport, as the
+  shipped browser carries them: `TabAct::Open` opens the world's tab,
+  which a world never refuses, so the host is given no
+  `Report::TabRefused`; `TabAct::Point { to }` sends it to `to`;
+  `TabAct::Close` closes it, any visit under way abandoned. A tab opened
+  again replaces the last.
+- **The world's tab,** `skein_playground::tab::Tab`, skein's (skein's
+  `playground.md`, 4), a host of the world's: a `GET` of the address on
+  a connection of its own, its `Host` the address's authority, with no
+  cookie and no `Origin`, as a new tab whose opener was cut sends it; a
+  redirect, 301, 302, 303, 307 or 308, followed to its `Location`, at
+  most 8; the last answer kept as `tab::Shown`, its address, status and
+  body up to the tab's bound. An answer refused, reset or past its
+  bound, or a ninth redirect, is kept as the last. The tab draws
+  nothing a mark prints.
+- **The way there and back:** the fake issuer grants at once
+  (`../protocol/setup/box.md`, 5) and redirects to the engine's
+  callback, `http://127.0.0.1:1455/auth/callback?code=…&state=…`; the
+  engine's listener answers "Sign-in received. You can close this
+  tab." and exchanges the code with the issuer; the page, still on its
+  address, moves on by its `accounts` watch, to Ready on the welcome
+  (`../draft/sign-in-new-tab.md`, 3). That is the page the sign-in
+  returns to, its account connected through the client.
+- **A tab that does not get there** leaves the page waiting, as a
+  person's would: the next line that needs the account stops the walk
+  by its bound (4.3).
+- **The same bytes every time:** the sign-in's state, verifier and code
+  come from the world's seeds, and the tab moves on the world's time.
+
 ## 5. The program
 
 `temper-client-walk`, `temper/bin/temper-client-walk` and its crate
@@ -599,6 +675,28 @@ is built from, as `temper-client-journeys` does, under both roots.
   its pane says the forge is connected as temper and `work/hello` made.
   Seven pages, as before. Its `setup` goes; its `recording` is the
   writer's to remove.
+- **`project-landing` moves third,** on the forge at `FORGE`, the box's
+  peer and a sign-in's tab (4.1, 4.4 and 4.5): its `walk` the draft's
+  (`../draft/journey-walks.md`, 3.2), Forgejo run on this machine with
+  its sample `work/hello`, "Continue with ChatGPT" pressed and its tab
+  carried to the issuer and back, "Create your project" pressed once
+  Ready offers it, Home's "work/hello is in Hello" seen, `/projects/1`
+  reloaded, and Home marked once it says "Hello is ready.", the words a
+  fresh project's Home draws while To begin shows, where the draft's
+  sample waits for "Nothing needs you.", which that Home does not draw.
+  One page, as before. Its `setup` goes, and its `recording` is the
+  writer's to remove. The TUI's `design-session`, `launchpad-chat` and
+  `launchpad-drawn`, not yet moved, take its `setup`'s lines in place of
+  their `after "project-landing"`, so that `again` walks them on a box
+  as before until they move (`tui/journeys.md`, 8.2).
+- **`chat-draft` returns** as a walk, `after project-landing`, with its
+  `scripts.json`, by its renewed walk (`web/journeys.md`, 9): eight
+  pages, a chat through its draft to a goal and back. Its scripts are
+  the fake model's turns for its chat, its draft's two revisions and its
+  goal's report, made from the box's own
+  (`temper_fake::backends::model_document`) with the world's task and
+  note numbers; its goal starts in the world on the bounds a box holds
+  (4.1).
 
 ## 7. Its tests
 
@@ -640,6 +738,29 @@ its own process.
   answers, step, where they are a function of its own: an owned start,
   a fake one, a start after the script and one during it, `stop`,
   `remove`, and a line past 256 bytes.
+- **The forge at `FORGE`,** simulated: a walk's world with its fake
+  forge listening at `127.0.0.1:10002`, an owned set-up's forge
+  connected there and `work/hello` made, as the box's peer's test walks
+  it; story A's own start with its forge at `documents::FORGE`, as
+  before.
+- **A sign-in's tab:** the world's tab, simulated, in skein's own
+  tests: a `GET` answered, a redirect followed to its last answer, a
+  ninth redirect kept as the last, an answer past its bound kept as
+  failed, no cookie or `Origin` sent. In a world, simulated, beside the
+  box's peer's: a walk of the tests' own from the welcome through
+  Forgejo run on this machine and "Continue with ChatGPT" reaching
+  Ready, its "Create your project" offered, the ChatGPT plan connected
+  through the client, the tab's last answer the listener's "Sign-in
+  received. You can close this tab.", printed twice, the same bytes.
+- **Scripts along a chain,** simulated: two journeys of the tests' own,
+  each with a `scripts.json`, the walked one `after` the other, a chat
+  answered from each one's script; a cue in both stopping the walk by
+  the journey whose scripts did not join.
+- **A goal from a draft,** simulated: a walk of the tests' own in the
+  playground's project, its own `scripts.json`: a chat, Split, "Write it
+  up from this chat" and its scripted document, "Start goal…", the
+  sheet's "Start goal", the goal's page with its report and its
+  "Draft" link, and that link back to the chat.
 - **The walker and the program,** simulated, on journeys of the tests'
   own in scratch roots: walked and printed; printed twice, the same
   bytes; a control that never appears stopping the walk by its journey
@@ -678,10 +799,9 @@ its own process.
 - **The drive session taking a journey's lines** on a box, `tui
   approve` and the marks among them, a mark there a look
   (`../draft/journey-walks.md`, 4.2).
-- **The forge at its fixed address,** `127.0.0.1:10002`, which the
-  first journey that draws it brings, as `project-landing`'s first page
-  does; and **a sign-in's tab** carried to the fake issuer and back
-  (`../draft/journey-walks.md`, 4.1).
+- **A forge's departures** carried by the world's tab as a model's
+  sign-in is, once a journey walks GitHub's App or install
+  (`../draft/sign-in-new-tab.md`, 6).
 - **The playground's group answered** as the box answers it, once the
   composition no longer lays that group's handover before its start
   (4.4).

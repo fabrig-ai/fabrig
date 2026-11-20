@@ -1,4 +1,5 @@
 //! Procedure cells, queue order and landing-rule agreement.
+mod amended_review;
 mod clock;
 mod drift;
 use crate::{
@@ -58,6 +59,7 @@ fn change(state: State) -> Change {
 }
 fn facts() -> Facts {
     Facts {
+        revision: 0,
         taken: None,
         fault: crate::Fault::Change,
         rerun: false,
@@ -142,26 +144,26 @@ fn blocking_gate_reports_require_a_valid_pass_and_ignore_nonblocking_gates() {
         c.gates.first_mut().unwrap().freshness = freshness;
         c.clean = if clean { Box::new([BASE]) } else { Box::new([]) };
         f.gates = Box::new([
-            GateReport { number: 1, head: report_head, status },
-            GateReport { number: 2, head: HEAD, status: Status::Failed },
+            GateReport { revision: 0, number: 1, head: report_head, status },
+            GateReport { revision: 0, number: 2, head: HEAD, status: Status::Failed },
         ]);
-        assert_eq!(crate::gates_pass(&c, &f.gates, HEAD), expected, "{freshness:?} {clean} {status:?}");
+        assert_eq!(crate::gates_pass(&c, &f.gates, HEAD, f.revision), expected, "{freshness:?} {clean} {status:?}");
         assert_eq!(crate::domain::blocking_gates_pass(&c, &f, HEAD), expected);
     }
     c.gates.get_mut(1).unwrap().blocking = true;
     f.gates = Box::new([
-        GateReport { number: 1, head: HEAD, status: Status::Passed },
-        GateReport { number: 2, head: HEAD, status: Status::Failed },
+        GateReport { revision: 0, number: 1, head: HEAD, status: Status::Passed },
+        GateReport { revision: 0, number: 2, head: HEAD, status: Status::Failed },
     ]);
-    assert!(!crate::gates_pass(&c, &f.gates, HEAD), "every blocking gate must pass");
+    assert!(!crate::gates_pass(&c, &f.gates, HEAD, f.revision), "every blocking gate must pass");
     assert!(!crate::domain::blocking_gates_pass(&c, &f, HEAD));
     f.gates.get_mut(1).unwrap().status = Status::Passed;
-    assert!(crate::gates_pass(&c, &f.gates, HEAD));
+    assert!(crate::gates_pass(&c, &f.gates, HEAD, f.revision));
     assert!(crate::domain::blocking_gates_pass(&c, &f, HEAD));
     f.gates = Box::new([]);
-    assert!(!crate::gates_pass(&c, &f.gates, HEAD), "an absent verdict is unknown");
+    assert!(!crate::gates_pass(&c, &f.gates, HEAD, f.revision), "an absent verdict is unknown");
     c.gates = Box::new([]);
-    assert!(crate::gates_pass(&c, &f.gates, HEAD), "no blocking gates need a verdict");
+    assert!(crate::gates_pass(&c, &f.gates, HEAD, f.revision), "no blocking gates need a verdict");
 }
 
 #[test]
@@ -569,7 +571,7 @@ fn an_unkept_change_is_ready_again_at_its_old_time_with_its_gate_verdict() {
     }]);
     let mut f = facts();
     f.kept = true;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     let left = decide(&c, &f, &heard());
     let waiting = step(&left.change, &f, &heard(), at(60), &LIMITS);
     assert_eq!(waiting.decision, Decision::Wait { until: None });
@@ -1139,7 +1141,7 @@ fn a_clean_update_preserves_the_turn_and_carries_a_review() {
     c.owns_turn = true;
     let mut f = facts();
     f.contains_base = Status::Failed;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     let one = decide(&c, &f, &heard());
     assert_eq!(one.decision, Decision::Effect(Effect::Update { head: HEAD, base: BASE }));
     assert_eq!(one.change.state, State::Updating { from: HEAD, base: BASE, ready_since: at(0) });
@@ -1888,7 +1890,7 @@ fn a_live_gate_keeps_its_delegate_slot_until_it_ends() {
     assert_eq!(waiting.decision, Decision::Wait { until: Some(at(30)) });
     assert_eq!(waiting.change.state, c.state);
     f.live_gate = None;
-    f.gates = Box::new([GateReport { number: 9, head: HEAD, status: Status::Passed }]);
+    f.gates = Box::new([GateReport { revision: 0, number: 9, head: HEAD, status: Status::Passed }]);
     let second = decide(&waiting.change, &f, &heard());
     assert_eq!(second.decision, Decision::Delegate(Delegate::Gate { number: 10, head: HEAD }));
 }
@@ -2347,7 +2349,7 @@ fn runner_faults_run_again_within_the_head_bound() {
                 let mut f = facts();
                 f.ci.status = Status::Failed;
                 f.fault = fault;
-                f.gates = Box::new([GateReport { number: 11, head: HEAD, status: Status::Passed }]);
+                f.gates = Box::new([GateReport { revision: 0, number: 11, head: HEAD, status: Status::Passed }]);
                 let pending = step(&c, &f, &Heard { effect: EffectResult::Pending, ..heard() }, at(5), &LIMITS);
                 assert_eq!(pending.change, c);
                 assert_eq!(pending.decision, Decision::Wait { until: Some(at(30)) });

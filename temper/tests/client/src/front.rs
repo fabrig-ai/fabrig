@@ -186,7 +186,10 @@ pub fn engine_limits() -> engine::Limits {
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
     // The world's engine admits the whole starters and cues its client offers.
     limits.people.words = limits.people.words.max(temper_client_protocol_wire::CUE_BYTES);
-    limits.tasks.spec_bytes = limits.tasks.spec_bytes.max(temper_client_protocol_wire::CUE_BYTES);
+    limits.tasks.spec_bytes = limits.tasks.spec_bytes.max(temper_client_protocol_wire::CUE_BYTES).max(1024);
+    // Task rows retain whole producer specs and the required change context.
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(32768);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(32768);
     limits.tasks.message_bytes = limits.tasks.message_bytes.max(limits.people.words);
     limits.tasks.inbox_bytes = limits.tasks.inbox_bytes.max(limits.tasks.message_bytes);
     // The world's own bound, not production's: automatic Seen takes a key per arrival.
@@ -331,6 +334,8 @@ impl Joint {
         engine_limits.journal.deliveries = 64;
         engine_limits.journal.held = 192;
         // The delegated batch and dependency-bearing task row fit whole.
+        // This watch-only world keeps short report tasks, not forge delegates.
+        engine_limits.tasks.spec_bytes = temper_client_protocol_wire::CUE_BYTES;
         engine_limits.journal.transcript_bytes = 9_536;
         engine_limits.fleet.slots = tasks;
         engine_limits.fleet.attempts = tasks * 2;
@@ -1471,9 +1476,8 @@ impl Joint {
             limits.tasks.tree_tasks = TREE_TASKS;
             limits.tasks.depth = 3;
             limits.tasks.parameters = 5;
-            // A gate's brief names its pull, branch, base and hexadecimal head,
-            // alongside the task's byte parameters (domain/forge/change/gates.md, 1).
-            limits.tasks.spec_bytes = 384;
+            // A gate names its pull and head and keeps the required change context.
+            limits.tasks.spec_bytes = 1024;
             limits.tasks.contract_choices = 2;
             limits.tasks.executor_kinds = 3;
             limits.tasks.charters = 4;
@@ -1496,7 +1500,7 @@ impl Joint {
             let opening =
                 u32::try_from(size_of::<(Option<jig_domain_tasks::OpenAttempt>, Box<[jig_domain_tasks::Word]>, u64)>())
                     .expect("inline attempt and words bytes");
-            limits.journal.transcript_bytes = 8296_u32.checked_add(opening).expect("deep row allowance");
+            limits.journal.transcript_bytes = 8296_u32.checked_add(opening).expect("deep row allowance").max(32768);
             limits.journal.run_bytes = 8192;
             limits.brief.sections = 5;
             limits.brief.brief_bytes = 1024;
@@ -1521,7 +1525,8 @@ impl Joint {
                 limits.authority.executors = SETTINGS_EXECUTORS;
                 limits.tasks.executor_kinds = SETTINGS_EXECUTORS;
                 limits.documents.executors = SETTINGS_EXECUTORS;
-                limits.journal.transcript_bytes = 8304_u32.checked_add(opening).expect("settings row allowance");
+                limits.journal.transcript_bytes =
+                    8304_u32.checked_add(opening).expect("settings row allowance").max(32768);
             }
             let mut domain = a::Domain::new(rules, limits.authority).expect("landing authority");
             let mut out = skein_lib::Queue::uncapped();

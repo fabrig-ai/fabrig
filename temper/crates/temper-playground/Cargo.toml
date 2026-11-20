@@ -45,6 +45,7 @@ skein-forge-connection.workspace = true
 skein-http.workspace = true
 skein-io.workspace = true
 skein-json.workspace = true
+skein-oauth-accounts.workspace = true
 skein-lib.workspace = true
 skein-llm.workspace = true
 skein-llm-connection.workspace = true

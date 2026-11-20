@@ -173,6 +173,9 @@ fn empty(duties: &Duties) {
     assert!(!duties.local);
     assert!(duties.address.is_none());
     assert!(duties.open.is_none());
+    assert!(!duties.listen);
+    assert!(!duties.unlisten);
+    assert!(duties.answer.is_none());
     assert!(!duties.close);
     assert!(duties.stop.is_none());
     assert!(duties.lend.is_none());

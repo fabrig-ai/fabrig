@@ -33,17 +33,19 @@
   that leaves no diff is a configuration a test refuses. The reviewer's
   reads go to what the brief leaves out (a file's whole, a check's log),
   never to finding its own pull request.
-  Its words, after the verdict's line and `Change: ` with the change's
-  title, end with what the change is asked now (`questions.md`, 1, *What
-  later work is told*): its request as revised and the answers given on
-  it, so that a review judges the change by a person's ruling, not by
-  its title and original request alone. The review charter judges
-  against what the change was asked to do, its first sentence as it
-  stands, and its second says what that is: `What it was asked is its
-  request as revised and the answers given on it, as your brief gives
-  them: where they differ from its title or its original request, they
-  come first.` A person's approval and a check, asked with the same
-  words, carry them too.
+  Its words, after the verdict's line, give the change's title as
+  supporting evidence, `Its pull request's title, supporting evidence: `
+  then the title, and end with the change's current spec and rulings
+  (`questions.md`, 1, *What every delegate is told*), so that a review
+  judges the change by them, a person's ruling among them, not by its
+  title and original request. The review charter judges against what
+  the change was asked to do, its first sentence as it stands, and its
+  second says what that is: `What it was asked is its current spec and
+  rulings, which end your brief's task: where its title, its original
+  request, its pull request's body or any remarks say otherwise, they
+  are supporting evidence, and the spec and rulings come first.` A
+  person's approval and a check, asked with the same words, carry them
+  too.
 - **A review that cannot review fails; it never asks for changes.** A
   reviewer that could not read what it judges (the pull request, its
   files, the head), or could not judge it for any other reason of its
@@ -136,6 +138,27 @@
   repair, a resolved conflict) asks for every gate again. The change
   keeps, in its state, the heads its clean updates led through, which is
   the fact the requirements read (2).
+- **Valid at a spec revision.** A review judges the change as its spec
+  and rulings stood when it was asked: the change keeps with a review's
+  verdict the change task's spec revision as the step that asked the
+  review read it. The verdict counts only while that revision is the
+  change task's spec revision as its step reads it, at whichever head
+  it counts at. Once the change is amended, whatever the amendment
+  changed (jig's spec revision moves with any amendment of the spec or
+  of the task's policy: jig's `domain/tasks/changes.md`), a review's
+  verdict at an older revision, approving or asking for changes, no
+  longer counts: the gate is asked again at the same head, as a gate
+  with no verdict is, blocking or advisory as it was, wherever the
+  change stands before its merge, gating, ready, queued or judged at a
+  landing's target, so no change merges on a review of a spec it no
+  longer has. A review still running when the amendment is taken runs
+  on; its verdict, at the older revision, counts for nothing, and the
+  gate is asked again once it ends. Asking again for this is no failed
+  review: it spends neither the fresh review a failure earns nor a
+  repair, and its words are any review's. A person's approval and a
+  check count as they did (4). A verdict kept before its revision was
+  reads revision 0, so an amended change asks its review again
+  (2026-11-17, `../../../draft/delegate-rulings.md`, 2).
 - **Posted, if the project wants:** a gate's verdict as a commit status,
   such as `temper/review/memory-safety`, which protection can require
   independently of temper. On GitHub, temper's App has `statuses: read`
@@ -464,3 +487,9 @@ sizes and never reads them (jig's `domain/connectors.md`, section 17).
   coverage through the existing process and live landing stories after
   landing. Default: those stories; focused and fuzzy checks on fakes
   establish no real-forge outcome.
+
+- **An approval and a check at an amended spec** (`gates.md`, 1, *Valid
+  at a spec revision*): a person's approval and a check still count
+  after the change is amended, at the head they were given at: the
+  request asks it of reviews alone, a person approves what they read,
+  and a check judges the head, not the spec. Default: so.

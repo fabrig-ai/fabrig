@@ -101,7 +101,7 @@ pub fn configure(value: &mut temper_playground::documents::Configuration, agent:
         ("people.words", 512),
         ("tasks.authority_bytes", 512),
         ("core.call_answer_bytes", 4096),
-        ("tasks.spec_bytes", 512),
+        ("tasks.spec_bytes", 4096),
         // Keep the merge identity, pull address and landing evidence in the result.
         ("tasks.result_bytes", 512),
         ("tasks.delegates", 4),

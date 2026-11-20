@@ -354,7 +354,12 @@ other module is safe Rust, the same on both systems.
   `poll_child`, `abandon_binary`, and the closing of what it kept,
   `close_keeper_fd`); a signal raised by hand (`open_signal_pipe`,
   `write_service_signal`, `signal_current_thread`); a blocking wait for a
-  readable descriptor (`wait_readable`); and Linux's own cgroups,
+  readable descriptor (`wait_readable`); the calling thread's CPU
+  (`thread_cpu`, `../testing/README.md`, 5); the path an open
+  descriptor names now, `descriptor_path(fd: Fd) -> Result<Box<[u8]>,
+  Error>`, by `readlink` of `/proc/self/fd/N` on Linux and
+  `fcntl(F_GETPATH)` on Darwin, which has no `/proc`, for a harness that
+  must hand a root it holds to what takes a path; and Linux's own cgroups,
   subreaper and pidfd helpers. The crate's root holds a service's calls
   alone. A service closes a descriptor it opened at startup and never gave
   to io with the root's `close_startup_fd`.
@@ -376,7 +381,12 @@ other module is safe Rust, the same on both systems.
   change (2). `EV_EOF` and `EV_ERROR` wake both sides, as epoll's
   hang-up and error do. A descriptor kqueue cannot watch is always
   ready, as 3's: the error its registration answers for one (`EINVAL`
-  for a device it does not support) is the one epoll's `EPERM` is.
+  for a device it does not support) is the one epoll's `EPERM` is. A
+  regular file is one too, though kqueue takes it: its `EVFILT_READ`
+  fires only while the offset is short of the file's end, so a read at
+  the end would wait for ever where Linux's answers `0` at once. A
+  record on a descriptor whose `fstat` says regular file registers no
+  interest and makes its call at once, as on Linux.
 - **Opening beneath a root:** `openat` with `O_RESOLVE_BENEATH`, and
   `O_NOFOLLOW_ANY` for the ways that refuse a link (kernel.md, 6.1),
   close-on-exec, without blocking or a controlling terminal, as on Linux.
@@ -515,7 +525,16 @@ other module is safe Rust, the same on both systems.
   readable by an `EVFILT_USER` event triggered in the same kqueue. The
   module keeps a table from each handle to its pid and whether it is
   reaped, process-wide behind a lock: a spawn adds the handle, the `Wait`
-  that reaps marks it, its `Close` removes it. A `Wait` is `waitid` on
+  that reaps marks it, its `Close` removes it. That table and the signal
+  pipes' set, the module's two process-wide ones, have their lock and
+  their storage made as the backend opens, before any call of a service's
+  step: Darwin's `std` mutex boxes its `pthread_mutex_t` at its first
+  lock, and an empty map keeps the node its first insertion made, each
+  held for the process's life, so a step that was first to make them
+  would hold heap its own calls never free (`../testing/README.md`, 5,
+  the heap's checks). Linux has neither table. A `Wait` that reaps marks
+  the handle only once `waitid` has answered an exit; a stop or a
+  continue leaves it unreaped and the `Wait` pending. A `Wait` is `waitid` on
   the pid (`P_PID`, `WEXITED | WNOHANG`, `WNOWAIT` to observe). A `Signal`
   is `kill`, or `killpg` for the group the child leads; one after the
   reap answers `ESRCH`, as a pidfd's does, and never signals the number.
@@ -530,7 +549,16 @@ other module is safe Rust, the same on both systems.
   for a group of zombies; with a member left that is not a zombie, it
   stays a refusal, `Permission`; and a members' reading that fails, or
   may have been cut short, counts as such a member, so a refusal is
-  never taken for an ending. Every other answer is the call's own, and
+  never taken for an ending. A member already exiting is ending too:
+  XNU's group signal skips a process it can no longer take a reference
+  on, one in its exit not yet a zombie among them, so `PROC_FLAG_INEXIT`
+  in its `pbi_flags` counts it as a zombie, and a member gone between
+  the listing and its status (`ESRCH`) counts as none. A listing that
+  answers no bytes is read by `errno`, cleared before the call: unset,
+  the group is empty; set, the reading failed. A refusal kept as
+  `Permission` writes one line to stderr naming the group and the member
+  that kept it, its pid, `pbi_status` and `pbi_flags`, or the reading
+  that failed, as the non-exit `Wait` below writes its own. Every other answer is the call's own, and
   Linux's are the kernel's, unchanged. The reading from the error number
   and what is left is in `posix`, built for macOS and for the crate's
   tests, so that Linux's tests pin it; the members' reading is Darwin's

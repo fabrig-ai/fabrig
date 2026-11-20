@@ -13,8 +13,8 @@ pub fn provider(value: Box<[u8]>) -> Peer {
     protocol.documents.openai.tokens = 4096;
     protocol.documents.openai.output_items = 256;
     protocol.http.body = protocol.http.body.max(32_768);
-    Peer::new(
-        (smith_agent_process_world::fake::loopback(), 34_443).into(),
+    let mut peer = Peer::new(
+        smith_agent_process_world::fake::address(34_443),
         Transport::Tls,
         smith_agent_process_world::fake::limits(),
         provider::Config {
@@ -32,5 +32,9 @@ pub fn provider(value: Box<[u8]>) -> Peer {
         Domain::try_scripted(&config, 17, super::scripts()).expect("bounded chat scripts"),
         config,
     )
-    .expect("key provider peer")
+    .expect("key provider peer");
+    if let Some((fd, address)) = smith_agent_process_world::fake::take_listener(34_443) {
+        peer.adopt_listener(fd, address).expect("key provider adopts held listener");
+    }
+    peer
 }

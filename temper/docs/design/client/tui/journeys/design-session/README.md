@@ -1,7 +1,7 @@
 # design-session
 
 On a fresh `temper box --fake-backends`: the browser signed in by the
-box's printed link, the setup following `project-landing` to Hello with
+box's printed link, the setup taking `project-landing`'s steps to Hello with
 its home repository, then `temper` started at the box's address. The
 browser approves the terminal. `/draft Plan a farewell line for hello.`
 opens a design session; the fake drafter writes `farewell-line.md` and

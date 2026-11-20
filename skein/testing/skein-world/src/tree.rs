@@ -44,6 +44,12 @@ std::thread_local! {
     static CGROUP_BASE: RefCell<Option<CgroupBase>> = const { RefCell::new(None) };
 }
 
+/// Registers the keeper's destructor-bearing thread-local before admission.
+pub(crate) fn warm_runtime() {
+    #[cfg(target_os = "linux")]
+    CGROUP_BASE.with(|_| {});
+}
+
 /// The settlement a test asks for (examples.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Containment {

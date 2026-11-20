@@ -1114,8 +1114,8 @@ fn has_eager_gate(change: &Change) -> bool {
     false
 }
 
-fn valid(change: &Change, gate: Gate, report: crate::GateReport, head: [u8; 32]) -> bool {
-    if report.number != gate.number {
+fn valid(change: &Change, gate: Gate, report: crate::GateReport, head: [u8; 32], revision: u64) -> bool {
+    if report.number != gate.number || !report.at_revision(gate.kind, revision) {
         return false;
     }
     if report.head == head {
@@ -1128,15 +1128,15 @@ fn valid(change: &Change, gate: Gate, report: crate::GateReport, head: [u8; 32])
 }
 
 fn verdict(change: &Change, gate: Gate, facts: &Facts, head: [u8; 32]) -> Status {
-    gate_verdict(change, gate, &facts.gates, head)
+    gate_verdict(change, gate, &facts.gates, head, facts.revision)
 }
 
-fn gate_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport], head: [u8; 32]) -> Status {
+fn gate_verdict(change: &Change, gate: Gate, reports: &[crate::GateReport], head: [u8; 32], revision: u64) -> Status {
     let mut passed = false;
     let mut pending = false;
     let mut failed = false;
     for report in reports {
-        if !valid(change, gate, *report, head) {
+        if !valid(change, gate, *report, head, revision) {
             continue;
         }
         match report.status {
@@ -1199,7 +1199,10 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
                     return repair_due(change, Repair::Gate(gate.number), facts, now, limits);
                 }
             },
-            Status::Unknown if !asked.contains(&gate.number) => {
+            Status::Unknown
+                if !asked.contains(&gate.number)
+                    || (facts.live_gate.is_none() && stale_review(gate, &facts.gates, facts.revision)) =>
+            {
                 change.owns_turn = false;
                 // The top owns one delegate slot: retain it until that gate ends.
                 if facts.live_gate.is_some() {
@@ -1209,7 +1212,9 @@ fn gating(mut change: Change, head: [u8; 32], asked: &[u64], facts: &Facts, now:
                 for number in asked {
                     collected.push(*number).expect("asked gates fit the limit");
                 }
-                collected.push(gate.number).expect("gate admission checked");
+                if !asked.contains(&gate.number) {
+                    collected.push(gate.number).expect("gate admission checked");
+                }
                 change.state = State::Gating { head, asked: collected.into_boxed() };
                 change.since = now;
                 return Stepped { change, decision: Decision::Delegate(Delegate::Gate { number: gate.number, head }) };
@@ -1293,6 +1298,7 @@ fn queued(
         || facts.ci.head != head
         || facts.ci.status != Status::Passed
         || !blocking_gates_pass(&change, facts, head)
+        || stale_reviews(&change, facts)
     {
         change.state = State::Gating { head, asked: Box::new([]) };
         change.owns_turn = false;
@@ -1308,15 +1314,41 @@ fn queued(
     }
 }
 
+// Re-asking a stale review is not a failed review (gates.md, 1, Valid at a spec revision).
+fn stale_review(gate: Gate, reports: &[crate::GateReport], revision: u64) -> bool {
+    let mut stale = false;
+    for report in reports {
+        if report.number == gate.number {
+            if report.at_revision(gate.kind, revision) {
+                return false;
+            }
+            stale = true;
+        }
+    }
+    stale
+}
+
+fn stale_reviews(change: &Change, facts: &Facts) -> bool {
+    for gate in &change.gates {
+        if !gate.blocking && facts.live_gate.is_some() {
+            continue;
+        }
+        if stale_review(*gate, &facts.gates, facts.revision) {
+            return true;
+        }
+    }
+    false
+}
+
 pub(crate) fn blocking_gates_pass(change: &Change, facts: &Facts, head: [u8; 32]) -> bool {
-    gates_pass(change, &facts.gates, head)
+    gates_pass(change, &facts.gates, head, facts.revision)
 }
 
 /// Every blocking gate has a passing verdict valid at this head (domain/forge/change/gates.md, 1).
 #[must_use]
-pub fn gates_pass(change: &Change, reports: &[crate::GateReport], head: [u8; 32]) -> bool {
+pub fn gates_pass(change: &Change, reports: &[crate::GateReport], head: [u8; 32], revision: u64) -> bool {
     for gate in &change.gates {
-        if gate.blocking && gate_verdict(change, *gate, reports, head) != Status::Passed {
+        if gate.blocking && gate_verdict(change, *gate, reports, head, revision) != Status::Passed {
             return false;
         }
     }
@@ -1348,6 +1380,7 @@ fn first(
         || facts.ci.head != head
         || facts.ci.status != Status::Passed
         || !blocking_gates_pass(&change, facts, head)
+        || stale_reviews(&change, facts)
     {
         change.state = State::Gating { head, asked: Box::new([]) };
         change.owns_turn = false;
@@ -2031,6 +2064,17 @@ fn ready(
         }
         return hold(change, Hold::BranchMoved);
     }
+    // A ready change uses its existing gate-asking path after an amendment; a
+    // landing's judge asks at its target instead (gates.md, 1, Valid at a spec revision).
+    let judging = match facts.ask {
+        Some(Ask::Judge(_)) => true,
+        Some(Ask::Prepare { .. } | Ask::Repair { .. } | Ask::Resolve { .. } | Ask::Landed { .. }) | None => false,
+    };
+    if !judging && stale_reviews(&change, facts) {
+        change.state = State::Gating { head, asked: Box::new([]) };
+        change.owns_turn = false;
+        return Stepped { change, decision: Decision::None };
+    }
     match facts.ask.clone() {
         None => Stepped { change, decision: Decision::Wait { until: None } },
         Some(Ask::Judge(target)) => {
@@ -2141,13 +2185,14 @@ pub fn prefix_verdict(
     reports: &[crate::GateReport],
     head: [u8; 32],
     prefix: [u8; 32],
+    revision: u64,
 ) -> Status {
     let mut result = Status::Unknown;
     for report in reports {
         let clean = gate.kind != GateKind::Check
             && gate.freshness == Freshness::Clean
             && (report.head == head || change.clean.contains(&report.head));
-        if report.number == gate.number && (report.head == prefix || clean) {
+        if report.number == gate.number && report.at_revision(gate.kind, revision) && (report.head == prefix || clean) {
             match report.status {
                 Status::Failed => return Status::Failed,
                 Status::Pending => result = Status::Pending,
@@ -2187,22 +2232,25 @@ fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limit
     }
     let mut waiting_gate = false;
     for gate in &change.gates.clone() {
-        if !gate.blocking {
+        if !gate.blocking && !stale_review(*gate, &facts.gates, facts.revision) {
             continue;
         }
-        match prefix_verdict(&change, *gate, &facts.gates, head, target.prefix) {
-            Status::Failed => return repair_due(change, Repair::Gate(gate.number), facts, now, limits),
-            Status::Passed => {}
+        match prefix_verdict(&change, *gate, &facts.gates, head, target.prefix, facts.revision) {
+            Status::Failed if gate.blocking => {
+                return repair_due(change, Repair::Gate(gate.number), facts, now, limits);
+            }
             Status::Unknown
                 if change.landing == Some(target.landing)
-                    && !asked.contains(&gate.number)
+                    && (!asked.contains(&gate.number) || stale_review(*gate, &facts.gates, facts.revision))
                     && facts.live_gate.is_none() =>
             {
                 let mut collected = List::with_capacity(limits.gates);
                 for number in &asked {
                     collected.push(*number).expect("bounded gates");
                 }
-                collected.push(gate.number).expect("bounded gates");
+                if !asked.contains(&gate.number) {
+                    collected.push(gate.number).expect("bounded gates");
+                }
                 change.state =
                     State::Judging { head, ready_since, target: target.clone(), asked: collected.into_boxed() };
                 change.since = now;
@@ -2211,7 +2259,8 @@ fn judging(mut change: Change, facts: &Facts, standing: &Heard, now: Wall, limit
                     decision: Decision::Delegate(Delegate::Gate { number: gate.number, head: target.prefix }),
                 };
             }
-            Status::Unknown | Status::Pending => waiting_gate = true,
+            Status::Unknown | Status::Pending if gate.blocking => waiting_gate = true,
+            Status::Unknown | Status::Pending | Status::Failed | Status::Passed => {}
         }
     }
     if change.landing != Some(target.landing) {

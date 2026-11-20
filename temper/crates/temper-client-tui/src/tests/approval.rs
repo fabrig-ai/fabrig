@@ -20,7 +20,7 @@ fn the_approval_address_uses_the_tuis_address_and_shown_code() {
     ];
     for (address, letters, expected) in rows {
         let code = ApprovalCode::parse(letters).unwrap();
-        let actual = approval_address(&crate::Origin::Http(*address), code);
+        let actual = approval_address(&crate::Origin::Http(*address), Some(code));
         assert_eq!(actual.as_ref(), *expected);
         assert!(actual.ends_with(&code.shown()));
     }
@@ -43,10 +43,14 @@ pub(super) fn asked(state: Option<State>) -> Domain {
         Event::Start { address: temper_client_domain::Address::Accounts, kept: List::with_capacity(0), with: None },
     );
     if let Some(state) = state {
-        let id = exchange(f::event(&mut root, Event::AskApproval));
+        let port = match state {
+            State::Asked { port, .. } => port,
+            State::Asking | State::NotAsked(_) => None,
+        };
+        let id = exchange(f::event(&mut root, Event::AskApproval { port }));
         let answer = match state {
             State::Asking => None,
-            State::Asked { code, expires } => Some(w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
+            State::Asked { code, expires, .. } => Some(w::ApprovalAskAnswer::Asked(w::ApprovalAsked {
                 secret: Secret::new(Box::new([7; 32])),
                 code: *code.letters(),
                 expires: expires.as_nanos(),
@@ -127,7 +131,7 @@ fn asking_again_is_the_approval_rules_table() {
     let states = [
         None,
         Some(State::Asking),
-        Some(State::Asked { code: code(), expires: Wall::from_nanos(300) }),
+        Some(State::Asked { code: code(), expires: Wall::from_nanos(300), port: None }),
         Some(State::NotAsked(NotAsked::Refused)),
         Some(State::NotAsked(NotAsked::NotReady)),
         Some(State::NotAsked(NotAsked::Busy)),
@@ -211,7 +215,7 @@ fn the_view_clock_ticks_only_when_its_words_change() {
         assert_eq!(!out.is_empty(), changes);
         assert_eq!(view.tick(), None);
     }
-    let mut root = asked(Some(State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000) }));
+    let mut root = asked(Some(State::Asked { code: code(), expires: Wall::from_nanos(600_000_000_000), port: None }));
     let mut view = f::view();
     for (nanos, span, tick, changes) in [
         (0, "The code expires in 10 min.", Some(1), true),
@@ -244,7 +248,7 @@ fn the_view_clock_ticks_only_when_its_words_change() {
     outcome(&mut root, Some(NotSignedIn::Approval(Taking::Expired)));
     f::build(&mut view, &tui, &root);
     assert_eq!(view.tick(), None);
-    let root = asked(Some(State::Asked { code: code(), expires: Wall::from_nanos(86_400_000_000_007) }));
+    let root = asked(Some(State::Asked { code: code(), expires: Wall::from_nanos(86_400_000_000_007), port: None }));
     let mut view = f::view();
     for (nanos, span, tick) in [
         (0, "The code expires in 1 d.", 8),
@@ -260,4 +264,44 @@ fn the_view_clock_ticks_only_when_its_words_change() {
     tui.step(Told::Asked);
     f::build(&mut view, &tui, &root);
     assert_eq!(view.tick(), None);
+}
+
+#[test]
+fn typing_instead_is_only_for_a_waiting_port_ask_and_never_while_the_listener_opens() {
+    let port_ask = State::Asked { code: code(), expires: Wall::from_nanos(300), port: Some(43210) };
+    for (why, type_instead) in [
+        (None, true),
+        (Some(NotSignedIn::Approval(Taking::Waiting)), true),
+        (Some(NotSignedIn::Approval(Taking::NotGranted)), true),
+        (Some(NotSignedIn::Busy), true),
+        (Some(NotSignedIn::NotReady), true),
+        (Some(NotSignedIn::Approval(Taking::Expired)), false),
+        (Some(NotSignedIn::Full { sign_ins: 4, earliest: Wall::EPOCH, link_until: Wall::from_nanos(300) }), false),
+    ] {
+        let mut root = asked(Some(port_ask));
+        outcome(&mut root, why);
+        let mut tui = Tui::new(&f::name_origin());
+        assert_eq!(crate::may_type_instead(&tui, &root), type_instead, "{why:?}");
+        assert_eq!(may_ask_again(&tui, &root), !type_instead, "{why:?}");
+        let before = tui.revision();
+        tui.step(Told::Listener { opening: true });
+        assert!(tui.revision() > before);
+        assert!(!may_ask_again(&tui, &root));
+        assert!(!crate::may_type_instead(&tui, &root));
+        let before = tui.revision();
+        tui.step(Told::Listener { opening: true });
+        assert_eq!(tui.revision(), before);
+        tui.step(Told::Listener { opening: false });
+        assert!(tui.revision() > before);
+        assert_eq!(crate::may_type_instead(&tui, &root), type_instead);
+        assert_eq!(may_ask_again(&tui, &root), !type_instead);
+        tui.step(Told::Asked);
+        assert!(!crate::may_type_instead(&tui, &root));
+    }
+    for state in [None, Some(State::Asking), Some(State::Asked { code: code(), expires: Wall::EPOCH, port: None })] {
+        let root = asked(state);
+        assert!(!crate::may_type_instead(&Tui::new(&f::name_origin()), &root), "{state:?}");
+    }
+    let (root, _) = f::live(None);
+    assert!(!crate::may_type_instead(&Tui::new(&f::name_origin()), &root));
 }

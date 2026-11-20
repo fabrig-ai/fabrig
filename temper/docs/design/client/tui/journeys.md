@@ -170,6 +170,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `opened` | `done` or `failed` | an `Opened` report |
 | `found` | the file's bytes, or `none` | a `Local` report |
 | `handshake` | `untrusted`, `expired`, `not-yet-valid`, `other-name`, `failed` or `none` | a `Handshake` report (`README.md`, 3, *The handshake*) |
+| `listening` | the port, or `none` | a `Listening` report (`pages/sign-in.md`, 4) |
+| `returned` | `get` or `other`, the target as bytes, the `Host` as bytes or `none` | a `Returned` report |
 | `box-line` | a line of the box's, as `BoxLine::print` prints it, in quotes | a `Front` report (`box.md`) |
 | `box-stage` | the stage, as `BoxStage::print` prints it, in quotes | a `Stage` report (`box.md`) |
 | `send` | the exchange, the message's kind, its bytes, the credential's bytes or `none` | a duty's `Request::Exchange`, in order |
@@ -182,6 +184,8 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 | `signed` | the origin as `address` has it | the duty `address` |
 | `read` | none | the duty `local` |
 | `browse` | the address as bytes | the duty `open` |
+| `listen`, `unlisten` | none | the duties `listen` and `unlisten` |
+| `answer` | `redirect` and the address as bytes, or `not-found` | the duty `answer` |
 | `quit` | none | the duty `close` |
 | `stop-box` | none | the duty to stop the box (`box.md`, *Quitting*) |
 | `stop-box-again` | none | the duty of the box's second stop (`box.md`, *Quitting*) |
@@ -204,8 +208,10 @@ is told from a browser's by its first fact after `clocks`, `screen`.
 - **Any other `jig_client::Event`** reaching the host is no native
   shell's, and the recorder refuses it as its defect.
 - **The duties' order:** each request of `asked` in order, then `keep`,
-  `note`, `signed`, `read`, `browse` and `quit`, each when the duty holds
-  it.
+  `note`, `signed`, `read`, `browse`, `listen`, `unlisten`, `answer` and
+  `quit`, each when the duty holds it. A recording made before the
+  loopback return holds none of its records, and replays as it stands;
+  the version stays.
 - **The start's facts** are in the table's order, `background` after
   `screen`, `plain` after `background`, `version` after `plain`,
   `local` after `address`, `box` after `local`, `front` after `box`,
@@ -302,7 +308,8 @@ the TUI's lines.
 - **The TUI's originals:**
   - *approval:* the secret of each `send` of kind `sign-in-approval`, as
     jig's wire reads that message's record; the same secret stands in
-    the ask's `reply`;
+    the ask's `reply`; and that record's grant, where it has one, the
+    one a `returned` record's target carries (`pages/sign-in.md`, 4);
   - *credential:* the start's `credential` and each `keep`'s bytes, the
     credential the TUI takes; the same bytes stand in the take's
     `reply`;
@@ -327,7 +334,7 @@ the TUI's lines.
   a `send`'s and a `streamed record`'s bytes, a `stored`'s, `save`'s and
   `erase`'s key and bytes, and every credential's field are framed; a
   `key`'s bytes and event, `found`'s and `box-line`'s bytes, `address`, `signed`,
-  `browse`, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
+  `browse`, `returned`'s target and `Host`, `answer`'s address, `mark` and `end` are text (`../web/journey-redaction.md`, *A form's
   size*). A TUI's
   stream records come whole from the native shell, so no pieces are
   joined.
@@ -341,6 +348,10 @@ the TUI's lines.
   encodings of the redacted secret, so the paste and its event, and the
   box's line, still replay. This is the TUI's addition; the browser's
   code and encodings stay as `../web/journey-redaction.md` describes.
+- **A grant's encoding:** likewise, a grant's base64url with no padding
+  in a `returned` record's target, whether or not a take sent it, is
+  replaced by the redacted grant's and scanned, so the request still
+  reads and its take still replays.
 - **The last scan** (`../web/journeys.md`, 3.7): every field of each line,
   every frame the replay drew at each turn's end as its text, and each
   printed text and page, for the originals and the shapes. An approval's
@@ -549,9 +560,10 @@ ordinary Rust over skein's harness:
   (`../journey-clock.md`, 4.3). Its output is read and dropped.
 - **A setup,** where the journey's directory holds one: its `setup`
   file, in the browser's format and with its rules (`../web/journeys.md`,
-  8.2), its `after` naming a browser journey, read from the browser's
-  journeys' directory, as `project-landing`'s steps to a project with a
-  model. `again` walks it in the signed-in browser, its `reload` loaded
+  8.2), its `after`, where it has one, naming a browser journey not yet
+  moved, read from the browser's journeys' directory. The three that go
+  to a project with a model hold `project-landing`'s steps themselves,
+  since that journey is a walk (`../journey-walks.md`, 6). `again` walks it in the signed-in browser, its `reload` loaded
   last where it has one, before the TUI starts, so that the TUI opens on
   what the setup made; a `mark` in it is refused when it is read, since
   the TUI's `walk` marks its own frames. Its steps and their bounds are
@@ -612,9 +624,8 @@ which changes which requests the pages send and when (`../README.md`, 3.4;
 pages before it is stale (section 7, *The print*). `sign-in-approved`,
 `launchpad-chat`, `launchpad-drawn` and `design-session` are recorded on
 R4's pages with `again NAME` (8.2), on journey-clock's fixed start
-(`../journey-clock.md`, 4.4), the last three's `setup` following
-`project-landing`'s (`../web/journeys.md`, 9), as section 9's table has
-it. Their steps are a real `temper`'s in front of a real `temper box
+(`../journey-clock.md`, 4.4), the last three's `setup` holding
+`project-landing`'s steps (8.2), as section 9's table has it. Their steps are a real `temper`'s in front of a real `temper box
 --fake-backends`: a step that stalls under `again` is a fault of the
 client or the box, repaired where it is, never a walk's patience raised
 or its step dropped.
@@ -624,7 +635,7 @@ or its step dropped.
 | Name | The walk | Its pages |
 |---|---|---|
 | `sign-in-approved` | version-2 `walk` in one process on the playground's composition, no `temper box` or terminal (`../journey-walks.md`, 3.3, 4 and 6): the browser signed in by the printed link at `/welcome`; the TUI started at the service's address, not signed in; the approval's frame seen and marked; `tui approve`, the approval given in the browser; the launchpad seen and marked | `01`, the approval's frame, "A tab opened in your browser", its code and its address; `02`, the launchpad of a service with no project (`pages/README.md`); its `sign-in-approved/README.md` describes the world's frames |
-| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `after project-landing`, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages/README.md`); its `../../README.md` names each frame |
+| `launchpad-chat` | on a fresh `temper box --fake-backends`: its `setup` (8.2), `project-landing`'s steps, to Hello with the ChatGPT plan and "work/hello is in Hello"; then as `sign-in-approved` to the launchpad; `/` typed and the commands; Esc; a question typed and sent, which opens an Ask temper chat; the fake model's answer; the end | the launchpad in Hello, the commands under the box, the chat while it is written where a save catches it, and the chat answered at the recording's end (`pages/README.md`); its `../../README.md` names each frame |
 | `launchpad-drawn` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello; then as `sign-in-approved` to the launchpad; `/change` and a change asked in words, which starts a chat; its fake model starts a goal and says that a question waits, and the goal asks the chat's person a question with two choices, the first recommended, as a goal a chat calls asks (`../../domain/agent/agents.md`, 2); `/new` back to the launchpad, the chat under *Where you left off*, its question under Needs you and the quiet line's count; `n` and the walk's prompt; its first choice taken; the walk's end; the end | `03`, the launchpad as drawn, with the chat, its need and Start (`pages/launchpad.md`); `05`, the walk's prompt under the box (*Walking what needs you*); `07`, the launchpad after the walk, its note, at the recording's end; `01`, `02`, `04` and `06`, the frames before the keys that act (3.3); its `../../README.md` names each frame |
 | `design-session` | on a fresh `temper box --fake-backends`: its `setup` as `launchpad-chat`'s, to Hello with its home repository; then as `sign-in-approved` to the launchpad; `/draft` and the work asked in words, which starts a design session; the fake model's reply writing the draft and ending with numbered choices, the pane at half; Ctrl-P to all, to folded and to half again; "1" typed and sent, the next reply changing a section, marked new, and saying nothing blocks the work; `/goal`, its prompt of ways, the first taken; the chat again, its goal linked: `/goal` no longer offered, and the quiet line without the goal's part, which at the recording's 80 columns goes first (`pages/design-session.md`, 1, *narrow*; the goal's part is the 110-column golden's); the end | `03`, the session at half with the drafter's choices under the box; `05`, the pane at all; `07`, folded; `10`, Open questions marked new; `12`, `/goal`'s ways prompt; `14` and `15`, the returned chat with its goal linked, marked and at the recording's end (`pages/design-session.md`, 1); `01`, Hello's launchpad; `02`, `04`, `06`, `08`, `09`, `11` and `13`, before the keys that act (3.3); its `../../README.md` names each frame |
 | `box-welcome` | on a fresh `temper box --fake-backends` with the TUI in front (8.3): the welcome as the box starts; the printed link opened in the browser; the welcome following the browser's steps to the playground, walked mid-walk; the playground's launchpad; the end | `01`, the welcome before the link is opened; `02`, the steps followed, a step under way; `03`, the playground's launchpad at the recording's end (`box.md`); its `../../README.md` names each frame |

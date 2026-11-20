@@ -895,7 +895,7 @@ fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
     world.store.change(task).expect("durable change")
 }
 
-fn assert_review_head(world: &World, reviewer: &engine::Assignment, head: [u8; 32]) {
+pub(super) fn assert_review_head(world: &World, reviewer: &engine::Assignment, head: [u8; 32]) {
     let row = live_task(world, reviewer.task);
     assert!(matches!(row.contract, tasks::Contract::Verdict { .. }), "fresh review, not a repair");
     assert!(
@@ -947,14 +947,9 @@ fn a_reviews_retry_says_it_is_asked_again_naming_the_failure() {
     let retry = &live_task(&world, second.task).spec.words;
     assert_ne!(retry, &original);
     assert!(retry.starts_with(OPENING), "retry names the first failure: {retry:?}");
-    // The retry account comes first; its room no longer holds the optional block.
-    let required = core::str::from_utf8(&original)
-        .expect("review words")
-        .split_once("\n\nWhat this change is asked now:")
-        .expect("first review carries its request")
-        .0;
-    assert_eq!(&retry[OPENING.len()..], required.as_bytes());
-    assert!(original.ends_with(b"Its request, at spec revision 0:\nSmall fix"));
+    // Both reviews retain the same required context after the retry account.
+    assert_eq!(&retry[OPENING.len()..], original.as_ref());
+    assert!(original.ends_with(b"Its current spec, at revision 0:\nSmall fix"));
     assert!(
         second.sections.iter().any(|section| matches!(&section.body,
         engine::BriefBody::Text(words) if words.starts_with(OPENING))),
@@ -1477,11 +1472,11 @@ fn held_for(why: temper_engine_domain_forge_change::Hold) -> (World, u64, [u8; 3
     match why {
         Hold::Repairs => {
             row.change.repairs = world.env.limits.forge.change_policy.repairs;
-            row.verdicts = Box::new([GateReport { number: 1, head, status: Status::Failed }]);
+            row.verdicts = Box::new([GateReport { revision: 0, number: 1, head, status: Status::Failed }]);
         }
         Hold::Rejected => {
             row.change.gates[0].kind = GateKind::Person;
-            row.verdicts = Box::new([GateReport { number: 1, head, status: Status::Failed }]);
+            row.verdicts = Box::new([GateReport { revision: 0, number: 1, head, status: Status::Failed }]);
         }
         Hold::BranchMoved => row.drift = Some(Hold::BranchMoved),
         _ => panic!("not a held fixture for {why:?}"),
@@ -1740,9 +1735,14 @@ const PRODUCER_AND_REVIEW: u32 = 2;
 const BEFORE_REPAIR: usize = 3;
 
 fn rejected_review_with_tasks(tasks: u32) -> (World, u64) {
-    let (mut world, reviewer, _) = review_world();
-    let change = requester(&world, reviewer.task);
+    let world = World::configured_policy(true, true, false, 1000, Gate { agent: true, ..Gate::default() }, None);
+    let (mut world, _, producer, branch) = change_world_in(world, Change::default());
+    let change = requester(&world, producer.task);
+    // Set the repair's authority before asking its review: an amendment during
+    // that review would ask a new one instead (gates.md, 1, Valid at a spec revision).
     change_authority(&mut world, change, Some(tasks), None, None);
+    produce(&mut world, &producer, &branch);
+    let reviewer = next_assignment(&mut world, 2);
     finish_review(
         &mut world,
         &reviewer,
@@ -2393,11 +2393,13 @@ fn a_third_append_preserves_base_content_after_conflict_and_review_repairs() {
     let made = live_task(&world, change).made;
     change_authority(&mut world, change, Some(9), None, Some(60));
     release(&mut world, change);
-    let repair = next_assignment(&mut world, 7);
+    let revised_review = next_assignment(&mut world, 7);
+    reject_lost_content(&mut world, &revised_review, b"Restore the existing blank line after README");
+    let repair = next_assignment(&mut world, 8);
     assert_preserving_assignment(&world, &repair, b"Restore the existing blank line after README");
     push_append(&mut world, &repair, &branch, BOTH_APPENDS);
-    let review = next_assignment(&mut world, 8);
-    assert_eq!(live_task(&world, change).made, made + 2, "release preserves lifetime counts");
+    let review = next_assignment(&mut world, 9);
+    assert_eq!(live_task(&world, change).made, made + 3, "release preserves counts and re-asks the amended review");
     approve(&mut world, &review);
     assert_lands(&mut world, change);
     let head = world.fake.branch(b"org/repo", b"main").expect("landed main");
@@ -2425,9 +2427,9 @@ fn assert_preserving_assignment(world: &World, run: &engine::Assignment, context
     let words = &live_task(world, run.task).spec.words;
     let expected = if words.starts_with(b"Resolve the merge conflict.") {
         [
-            b"Keep both sides, blank lines, deletions and renames".as_slice(),
-            b"Restore a file the base deleted only if the change needs it, after reading the commit that deleted it",
-            b"say in your result which you kept or restored, and why",
+            b"including both independent appended lines and existing blank lines".as_slice(),
+            b"Read the commit that deleted a file before you restore anything",
+            b"and why. The worker commits and pushes the resolved merge.",
         ]
     } else {
         [

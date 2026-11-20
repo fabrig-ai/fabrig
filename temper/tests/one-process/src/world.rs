@@ -119,6 +119,7 @@ fn process_name(process: &Proc) -> &'static str {
     match process {
         Proc::Service(_) => "service (engine + worker)",
         Proc::Peer(_) => "fake LLM",
+        Proc::Issuer(_) => "fake sign-in issuer",
         Proc::Forge(_) => "fake forge HTTP",
         Proc::Git(_) | Proc::GitRoute(_) => "git",
         Proc::Agent(_) | Proc::List(_) => "agent",
@@ -1334,6 +1335,7 @@ pub(crate) fn run_phase(
             | Proc::Git(_)
             | Proc::Shell(_)
             | Proc::Peer(_)
+            | Proc::Issuer(_)
             | Proc::Forge(_)
             | Proc::Visitor(_)
             | Proc::Other(

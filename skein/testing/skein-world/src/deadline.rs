@@ -257,7 +257,7 @@ impl Deadline {
         self.sample_pressure();
         let (tree_waited, kind) = self.watched_wait(&Proc::Live);
         let (thread_cpu, thread_waited) = match sched {
-            Some(sched) => (Some(Duration::from_nanos(sched.cpu)), Some(Duration::from_nanos(sched.waited))),
+            Some(sched) => (Some(Duration::from_nanos(sched.cpu)), sched.waited.map(Duration::from_nanos)),
             None => (None, None),
         };
         classify(
@@ -333,8 +333,8 @@ impl TreeWatch {
 }
 
 fn largest_wait(largest: Option<u64>, delta: Option<Sched>) -> Option<u64> {
-    match delta {
-        Some(delta) => Some(largest.unwrap_or(0).max(delta.waited)),
+    match delta.and_then(|sched| sched.waited) {
+        Some(waited) => Some(largest.unwrap_or(0).max(waited)),
         None => largest,
     }
 }
@@ -363,13 +363,16 @@ fn parse_pressure(source: &str) -> Option<u64> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Sched {
     pub(crate) cpu: u64,
-    pub(crate) waited: u64,
+    pub(crate) waited: Option<u64>,
 }
 
+#[cfg(not(target_os = "linux"))]
 pub(crate) fn thread_sched() -> Option<Sched> {
-    if !cfg!(target_os = "linux") {
-        return None;
-    }
+    skein_shell::keeper::thread_cpu().map(|cpu| Sched { cpu: cpu.as_nanos(), waited: None })
+}
+
+#[cfg(target_os = "linux")]
+pub(crate) fn thread_sched() -> Option<Sched> {
     // Linux scheduler/sched-stats documents runtime and runnable wait in nanoseconds;
     // thread-self selects this thread's scheduler accounting.
     let source = std::fs::read_to_string("/proc/thread-self/schedstat").ok()?;
@@ -385,12 +388,16 @@ fn parse_schedstat(source: &str) -> Option<Sched> {
     if fields.next().is_some() || runtime == 0 || runtime == u64::MAX || waited == u64::MAX {
         return None;
     }
-    Some(Sched { cpu: runtime, waited })
+    Some(Sched { cpu: runtime, waited: Some(waited) })
 }
 
 pub(crate) fn sched_elapsed(start: Option<Sched>, end: Option<Sched>) -> Option<Sched> {
     let (start, end) = start.zip(end)?;
-    Some(Sched { cpu: end.cpu.checked_sub(start.cpu)?, waited: end.waited.checked_sub(start.waited)? })
+    let waited = match start.waited.zip(end.waited) {
+        Some((start, end)) => Some(end.checked_sub(start)?),
+        None => None,
+    };
+    Some(Sched { cpu: end.cpu.checked_sub(start.cpu)?, waited })
 }
 
 #[cfg(test)]
@@ -429,7 +436,7 @@ mod tests {
             patience: Duration::from_nanos(1000),
             start: Time::from_nanos(7),
             until: Time::from_nanos(1007),
-            thread: Some(Sched { cpu: 100, waited: 200 }),
+            thread: Some(Sched { cpu: 100, waited: Some(200) }),
             trees: Vec::new(),
             boot: Boot::read(),
         };
@@ -438,7 +445,7 @@ mod tests {
                 "the referee's expectation",
                 Duration::from_nanos(100),
                 Time::from_nanos(207),
-                Some(Sched { cpu: 130, waited: 200_u64.checked_add(waited).expect("tiny counters") }),
+                Some(Sched { cpu: 130, waited: Some(200_u64.checked_add(waited).expect("tiny counters")) }),
             );
             let (is_starved, figures) = match &expired {
                 Expired::Starved(starved) => (true, starved.figures()),
@@ -453,6 +460,34 @@ mod tests {
     }
 
     #[test]
+    fn thread_clock_cpu_reaches_both_findings_but_cannot_prove_starvation() {
+        let deadline = Deadline {
+            what: "the real loop",
+            patience: Duration::from_nanos(100),
+            start: Time::from_nanos(7),
+            until: Time::from_nanos(107),
+            thread: Some(Sched { cpu: 10, waited: None }),
+            trees: Vec::new(),
+            boot: None,
+        };
+        let end = Some(Sched { cpu: 1010, waited: None });
+        for what in ["the real loop", "the referee's expectation"] {
+            let Expired::Failed(figures) =
+                deadline.classify_at(what, Duration::from_nanos(100), Time::from_nanos(207), end)
+            else {
+                crate::fail("CPU alone cannot prove starvation");
+            };
+            assert_eq!(figures.thread_cpu, Some(Duration::from_nanos(1000)));
+            assert_eq!(figures.thread_waited, None);
+            assert_eq!(figures.tree_waited, None);
+            assert!(figures.to_string().contains("thread CPU 1000 ns"));
+        }
+        assert_eq!(sched_elapsed(deadline.thread, None), None);
+        assert_eq!(sched_elapsed(None, end), None);
+        assert_eq!(sched_elapsed(end, deadline.thread), None);
+    }
+
+    #[test]
     fn starvation_includes_exactly_half_the_patience_waiting() {
         let patience = Duration::from_nanos(100);
         assert!(!starved(patience, 49));
@@ -462,10 +497,11 @@ mod tests {
     #[test]
     fn starvation_includes_a_run_with_much_cpu_and_half_the_patience_waiting() {
         let patience = Duration::from_nanos(100);
-        let elapsed = sched_elapsed(Some(Sched { cpu: 1, waited: 1 }), Some(Sched { cpu: 1001, waited: 51 }))
-            .expect("increasing scheduler counters");
+        let elapsed =
+            sched_elapsed(Some(Sched { cpu: 1, waited: Some(1) }), Some(Sched { cpu: 1001, waited: Some(51) }))
+                .expect("increasing scheduler counters");
         assert_eq!(elapsed.cpu, 1000);
-        assert!(starved(patience, elapsed.waited));
+        assert!(starved(patience, elapsed.waited.expect("schedstat includes runnable wait")));
     }
 
     #[test]
@@ -487,16 +523,19 @@ mod tests {
 
     #[test]
     fn starvation_requires_accounting_at_both_ends() {
-        let start = Sched { cpu: 1, waited: 1 };
-        let end = Sched { cpu: 2, waited: 101 };
+        let start = Sched { cpu: 1, waited: Some(1) };
+        let end = Sched { cpu: 2, waited: Some(101) };
         for (start, end) in [(None, Some(end)), (Some(start), None), (None, None)] {
             let elapsed = sched_elapsed(start, end);
             assert_eq!(elapsed, None);
-            assert!(!elapsed.is_some_and(|sched| starved(Duration::from_nanos(100), sched.waited)));
+            assert!(!elapsed.is_some_and(|sched| starved(
+                Duration::from_nanos(100),
+                sched.waited.expect("schedstat includes runnable wait")
+            )));
         }
-        assert_eq!(sched_elapsed(Some(start), Some(end)), Some(Sched { cpu: 1, waited: 100 }));
+        assert_eq!(sched_elapsed(Some(start), Some(end)), Some(Sched { cpu: 1, waited: Some(100) }));
         assert_eq!(sched_elapsed(Some(end), Some(start)), None);
-        assert_eq!(sched_elapsed(Some(start), Some(Sched { cpu: 2, waited: 0 })), None);
+        assert_eq!(sched_elapsed(Some(start), Some(Sched { cpu: 2, waited: Some(0) })), None);
     }
 
     #[test]
@@ -533,8 +572,8 @@ mod tests {
 
     #[test]
     fn schedstat_parsing_keeps_zero_wait_but_refuses_unusable_counters() {
-        assert_eq!(parse_schedstat("123 456 7\n"), Some(Sched { cpu: 123, waited: 456 }));
-        assert_eq!(parse_schedstat("1 0 1"), Some(Sched { cpu: 1, waited: 0 }));
+        assert_eq!(parse_schedstat("123 456 7\n"), Some(Sched { cpu: 123, waited: Some(456) }));
+        assert_eq!(parse_schedstat("1 0 1"), Some(Sched { cpu: 1, waited: Some(0) }));
         for source in [
             "0 0 0",
             "0 7 1",
@@ -574,9 +613,9 @@ mod tests {
 
     #[test]
     fn owned_threads_use_the_largest_usable_delta_not_a_sum() {
-        let start = Some(Sched { cpu: 1, waited: 10 });
+        let start = Some(Sched { cpu: 1, waited: Some(10) });
         let mut largest = None;
-        for end in [Some(Sched { cpu: 2, waited: 40 }), None, Some(Sched { cpu: 2, waited: 30 })] {
+        for end in [Some(Sched { cpu: 2, waited: Some(40) }), None, Some(Sched { cpu: 2, waited: Some(30) })] {
             largest = largest_wait(largest, sched_elapsed(start, end));
         }
         assert_eq!(largest, Some(30));
@@ -663,7 +702,11 @@ mod tests {
         match expired {
             Expired::Failed(figures) => {
                 let baseline = match deadline.thread {
-                    Some(sched) => format!("CPU {} ns, runnable wait {} ns", sched.cpu, sched.waited),
+                    Some(sched) => format!(
+                        "CPU {} ns, runnable wait {} ns",
+                        sched.cpu,
+                        sched.waited.expect("Linux uses schedstat")
+                    ),
                     None => String::from("UNAVAILABLE"),
                 };
                 eprintln!("deadline accounting observation: {source}; own baseline={baseline}; {figures}");

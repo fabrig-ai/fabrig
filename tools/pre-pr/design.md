@@ -59,7 +59,12 @@ boundary (smith's run.md, 8.1).
   the same set, run through `tools/tiers/one-process default` and
   `tools/tiers/one-process fuzzy`: each test binary's selected tests in one
   process, one at a time, binaries in parallel, nextest only selecting and
-  building (section 4). A starved run is a warning.
+  building (section 4). Before linking, the delivery omits an integration
+  target when neither profile can select any of its cases. A filter on a case
+  name keeps the target whenever the name could match. Cargo must resolve
+  the same build units and dependency features for every retained target;
+  otherwise the delivery keeps the ordinary package build. A starved run
+  is a warning.
 - **The budgets, where the builder keeps main's ledgers.** With
   `TIERS_LEDGER` naming a directory that holds main's ledger for a suite,
   which `ledger()` reads, that suite's run takes it and the gate's

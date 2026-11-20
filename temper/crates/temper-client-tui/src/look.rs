@@ -109,3 +109,4 @@ pub const NAMES: Names<'static> = Names {
 pub const LINK: Token = Token::new(1);
 /// The named sign-in screen's button, in the screen's default button look.
 pub const ASK_AGAIN: Token = Token::new(2);
+pub const TYPE_CODE: Token = Token::new(3);

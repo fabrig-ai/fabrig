@@ -505,8 +505,12 @@ fn due_ready_and_gating_changes_do_not_hold_another_branchs_train() {
                     freshness: change::Freshness::Exact,
                     eager: false,
                 }]);
-                row.verdicts =
-                    Box::new([change::GateReport { number: 1, head: super::SHA1, status: change::Status::Passed }]);
+                row.verdicts = Box::new([change::GateReport {
+                    revision: 0,
+                    number: 1,
+                    head: super::SHA1,
+                    status: change::Status::Passed,
+                }]);
                 row.change.last_head = Some(super::SHA1);
                 forge::step(
                     &mut domain.forge,

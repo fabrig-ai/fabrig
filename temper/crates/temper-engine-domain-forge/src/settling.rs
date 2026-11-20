@@ -44,7 +44,7 @@ fn settling_head(row: &ChangeRow) -> Option<Commit> {
 pub fn gates_settled(row: &ChangeRow, returned: Option<(u64, Commit)>, capacity: u32) -> bool {
     let Some(head) = settling_head(row) else { return false };
     let reports = crate::follow_check::reports(row, &row.verdicts, capacity);
-    if change::gates_pass(&row.change, &reports, head) {
+    if change::gates_pass(&row.change, &reports, head, row.spec_revision) {
         return true;
     }
     let Some((number, at)) = returned else { return false };
@@ -55,10 +55,13 @@ pub fn gates_settled(row: &ChangeRow, returned: Option<(u64, Commit)>, capacity:
         }
     }
     // A terminal settles this gate for one step, even if the step will reject it.
-    if settling.push(change::GateReport { number, head: at, status: change::Status::Passed }).is_err() {
+    if settling
+        .push(change::GateReport { number, head: at, revision: row.gate_revision, status: change::Status::Passed })
+        .is_err()
+    {
         return false;
     }
-    change::gates_pass(&row.change, settling.as_slice(), head)
+    change::gates_pass(&row.change, settling.as_slice(), head, row.spec_revision)
 }
 
 impl Domain {

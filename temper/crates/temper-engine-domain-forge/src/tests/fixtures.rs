@@ -159,6 +159,8 @@ pub fn opening_row() -> ChangeRow {
         effect: change::EffectResult::Pending,
         delegate: None,
         delegate_status: change::Status::Passed,
+        spec_revision: 0,
+        gate_revision: 0,
         delegate_flake: false,
         delegate_no_test: false,
         delegate_head: None,

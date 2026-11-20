@@ -324,7 +324,9 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   pub enum Report { Start(Start), Due, Key(skein_ui_screen_terminal::Key), Resize(skein_ui_screen::Size),
       Heard(jig_client::Event), Kept { written: bool }, Opened { opened: bool },
       Local { link: Option<skein_lib::Secret> },      // the engine's link file, read
-      Handshake { failed: Option<temper_client_tui::Handshake> } } // the native shell's last TLS failure
+      Handshake { failed: Option<temper_client_tui::Handshake> }, // the native shell's last TLS failure
+      Listening { port: Option<u16> },                // the loopback listener's port, or none (`pages/sign-in.md`, 4)
+      Returned(loopback::Returned) }                  // one request the loopback listener read
   pub enum Handshake { Untrusted, Expired, NotYetValid, OtherName, Failed } // temper_client_tui's
   pub struct Duties {
       pub asked: Vec<jig_client::Request>,            // to the native shell, in order, the TUI's `theme` record among them
@@ -333,8 +335,15 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
       pub address: Option<temper_client_tui::Origin>, // the origin signed in to (6.12)
       pub local: bool,                                // the engine's link file to read (6.12)
       pub open: Option<Box<[u8]>>,                    // an address for a browser
+      pub listen: bool,                               // the loopback listener to open
+      pub unlisten: bool,                             // the loopback listener to close
+      pub answer: Option<loopback::Answer>,           // the answer to this report's `Returned`
       pub close: bool,
   }
+  // temper-client-shell-tui's `loopback` (`pages/sign-in.md`, 4)
+  pub struct Returned { pub get: bool, pub target: Box<[u8]>, pub host: Option<Box<[u8]>> }
+  pub enum Answer { Redirect { to: Box<[u8]> }, NotFound }
+  pub fn grant(returned: &Returned, port: u16) -> Option<skein_lib::Secret>; // the one path's grant, or none
   impl Host {
       pub fn new(settings: &Settings, seed: u64, now: Time, wall: Wall) -> Host;
       pub fn clocks(&mut self, now: Time, wall: Wall);
@@ -367,7 +376,12 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   them; `Kept`, the credential's write ended, written or not; `Opened`,
   the browser's opener ended, done or not (`../README.md`, 4.1);
   `Handshake`, the native shell's last TLS failure changed (*The
-  handshake*, below). Any report before `Start` is the host's defect.
+  handshake*, below); `Listening`, the loopback listener the duty
+  `listen` asked for listening at its port, or none where the run has
+  no opener or couldn't listen; `Returned`, one request that listener
+  read, its method `GET` or not, its target and its `Host` as sent, at
+  most `limits::RETURN_HEAD` (`pages/sign-in.md`, 4). Any report before
+  `Start` is the host's defect.
 - **The handshake** (`../../draft/tui-remote.md`, 4): at an `https://`
   origin, the run reads the native shell's `Shell::refused` after each
   iteration (jig's `protocol/client/README.md`, section 9) and, when it
@@ -387,7 +401,11 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   sign-in's standing changes (`pages/README.md`); the address signed in to, once, the
   first time the link is live with a party; the engine's link file to
   read, each time the TUI signs in from it (`pages/README.md`); an address for a
-  browser to open, once for each approval asked (`../README.md`, 4.1); and closing, once.
+  browser to open, once for each approval asked (`../README.md`, 4.1); the
+  loopback listener to open, for each one-click ask, and to close, once
+  its ask ends (`pages/sign-in.md`, 4); the answer to a `Returned`
+  report's request, in that report's duties, which the run writes to
+  that request's connection; and closing, once.
   After closing, every report but `Heard` and `Kept` does nothing, so
   the native shell's last write still lands.
 - **The note:** after each report, once the link is live with a party,
@@ -475,7 +493,8 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   | Event | Does |
   |---|---|
   | `Typed { value }` | while the sign-in screen is drawn, the link's field, as before; else the box, whenever it is drawn (`pages/README.md`, 1, *Typed before the sign-in lands*): on the launchpad with a project `Act::ChatWords { words }`, keeping the left-off selection while the words begin with "/" and clearing it otherwise; with no project, the welcome and "Connecting" among them, the TUI's command composer; on a chat or a talk `Act::MessageWords { words }`. Typed while the theme's list stands, it lowers the list too |
-  | `SignIn` | signing in's Enter, as before; at a name, the sign-in screen's "Ask again" button pressed (`pages/sign-in.md`, 3) |
+  | `SignIn` | signing in's Enter, as before; at a name, the sign-in screen's "Ask again" button pressed (`pages/sign-in.md`, 3), which asks the one click again where there is an opener |
+  | `TypeCode` | at a name, the sign-in screen's "Type a code instead" pressed while a one-click ask waits (`pages/sign-in.md`, 3): the duty `unlisten`, and a typed code's ask, `Event::AskApproval { port: None }`, for which no tab opens |
   | `Send` | the box's Enter (`pages/README.md`, 1, *The box*): before the sign-in lands, the notice "Still signing in" and nothing else, the words kept (`pages/README.md`, 1, *Typed before the sign-in lands*); words that begin a command the TUI offers press it, as `Command` or `Own`, `/exit` whole as `/quit`, or on a talk as `Leave`; the name of `/draft`, `/change`, `/ask` or `/tell`, where the screen offers it, followed by white space alone, as that name pressed, `Own { command }`; in a place not yet started, words that begin no command as that place's `NAME WORDS` on the screen under it, and empty words or white space alone nothing (`pages/README.md`, 2, *Not yet started*); words that begin with "/", hold no white space and begin none, `terminal::Act::Dismiss` and the TUI's notice of an unknown command (`pages/README.md`, 1, *The notice*); the chat's question standing, `needs::Act::OpenReply`, `Act::CardWords` and `needs::Act::SendReply` for its object, then `Act::MessageWords` with no words; with no project, nothing; else `Act::StartChat` on the launchpad, `Act::Send` on a chat or a talk |
   | `Command { command }` | `Exit`, the TUI's `/quit`, closes (4); `New` goes to the launchpad; any other `Act::Terminal(terminal::Act::Run { command })` |
   | `Act { act }` | a list's choice, the root's act as the view bound it: `choice::Act::Model` or `Effort`, `Act::Go`, `Act::Confirm` or `Cancel`, `needs::Act::Choose`; `Act::Confirm` taken on a chat's `/close` keeps the chat as closed by the person, and the root's answer done to that close goes to the launchpad, `Went(Home { project })`, with the chat closed's notice (`pages/chat.md`, 1, *Closing*); and Enter on the launchpad's empty box with a left-off chat selected, `Act::Go` to its `Chat { task }` (`pages/launchpad.md`, 4) |
@@ -523,7 +542,10 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   terminal's background, whether the TUI is on a box and whether it is
   in front of one among them (`box.md`; the user's requests of 2026-11-08);
   `Start.address` is the origin and `Report` gains `Handshake`
-  (`../../draft/tui-remote.md`, 3 and 4);
+  (`../../draft/tui-remote.md`, 3 and 4); `Report` gains `Listening`
+  and `Returned`, and `Duties` gains `listen`, `unlisten` and `answer`,
+  the loopback return's (`../../draft/tui-remote.md`, 5.1;
+  `pages/sign-in.md`, 4);
   `Report` gains `Front` (`box.md`) and, in front, `Lent`, and `Duties`
   gains `lend` and `unlend`, its one lent terminal's (`box.md`, *Lending
   its terminal*); the root is given `Event::Lends` once in front. Following a
@@ -587,16 +609,27 @@ it (`pages/README.md`). `temper-box open` stays the tests' line client
   first (jig's `client/domain/root.md`, section 3): the requests to the
   native shell, the credential kept or erased, the note written (2),
   the address noted for the binary, the engine's link file read and
-  reported at once as `Local`, closing. Once anything was reported, the
+  reported at once as `Local`, the loopback listener opened or closed,
+  a request's answer written, closing. Once anything was reported, the
   host's frame
   goes to the terminal, which draws the newest at its pace. No key is
   taken and no frame drawn before `Start`.
+- **The loopback listener** (`pages/sign-in.md`, 4) is on the run's own
+  io, the one that holds the signals: skein-io's `Listen` on
+  `127.0.0.1` at port 0, its `Listening` the port reported, each
+  `Accepted` socket bound while fewer than `limits::RETURNS` are open
+  and rejected otherwise, and skein-http's server above each, which
+  reads one request head; the run reports it as `Returned`, writes the
+  answer the report's duties carry, and closes the connection. Its
+  sockets are counted in the io's limits beside the box's lines and the
+  opener's.
 - **Time and the seed** are skein-shell's, as `temper-box open`'s (`../line.md`, 2).
 - **Closing:** `/quit` (or `/exit`, `pages/README.md`, 2, *`/quit`*), Ctrl+C anywhere,
   the input's
   end, SIGINT or SIGTERM; in front of a box, the end of the box's lines
   too, and `/quit` and Ctrl+C ask first while work runs (`box.md`). The TUI
-  doesn't sign out. The terminal
+  doesn't sign out. A loopback listener open closes at once, its
+  connections unanswered. The terminal
   finishes the write it began and writes its `LEAVE`; the native shell
   finishes the small store's last write, then closes its connections
   and files; the binary sets the terminal's modes back, writes the
