@@ -26,6 +26,8 @@ pub trait Harness: 'static {
         false
     }
     fn configure(_document: &mut documents::Configuration) {}
+    /// Lay private, seed-derived inputs before admitting the service.
+    fn prepare(_disk: &mut skein_fake_machine::Machine, _document: &documents::Configuration, _seed: u64) {}
     /// Worlds may build typed seed configuration after the document's fixed-member checks.
     fn configure_engine(engine: &mut jig_protocol_config::Engine, document: &documents::Configuration) {
         documents::settings::seed_configuration(engine, document);
