@@ -21,6 +21,7 @@ mod fuzzy {
     mod cursor;
 }
 
+mod accounts;
 mod codec_memory {
     include!("../../../../../skein/testing/codec-memory.rs");
 }

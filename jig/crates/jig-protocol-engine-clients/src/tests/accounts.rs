@@ -266,9 +266,9 @@ fn assert_list(wire: Option<&w::AccountList>, expected: Option<d::AccountList>) 
     }
 }
 
-pub(super) fn fact_rows() -> List<a::AccountFact> {
+pub(super) fn fact_rows() -> List<d::AccountFactLine> {
     let mut facts = List::with_capacity(a::FACTS);
-    for _ in 0_u32..4 {
+    for rate in [None, Some(0), Some(600), Some(u32::MAX)] {
         for value in [
             a::FactValue::Text(Box::from(b"you@example.com".as_slice())),
             a::FactValue::Count(123),
@@ -283,13 +283,16 @@ pub(super) fn fact_rows() -> List<a::AccountFact> {
             }),
         ] {
             facts
-                .push(a::AccountFact {
-                    kind: 1,
-                    label: Box::from(b"label".as_slice()),
-                    value,
-                    seen: Wall::from_nanos(149),
-                    source: Some(11),
-                    origin: 6,
+                .push(d::AccountFactLine {
+                    rate,
+                    fact: a::AccountFact {
+                        kind: 1,
+                        label: Box::from(b"label".as_slice()),
+                        value,
+                        seen: Wall::from_nanos(149),
+                        source: Some(11),
+                        origin: 6,
+                    },
                 })
                 .unwrap();
         }

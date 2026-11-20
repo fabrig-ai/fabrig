@@ -378,6 +378,7 @@ pub(in crate::codec) fn wire_account_fact(
         c::AccountFactValue::Window(window) => w::AccountFactValue::Window(w::AccountWindow::new(
             limits,
             w::AccountWindowParts {
+                rate: window.rate,
                 length: window.length,
                 used: window.used,
                 resets: window.resets.map(skein_lib::Wall::as_nanos),

@@ -191,6 +191,7 @@ fn deployment_accounts_five_states_independent_flags_spend_overlay_and_generatio
                             AccountFactValue::Span(Duration::from_nanos(131)),
                             AccountFactValue::Share(10_000),
                             AccountFactValue::Window(AccountWindow {
+                                rate: Some(600),
                                 length: Some(Duration::from_nanos(137)),
                                 used: Some(10_000),
                                 resets: Some(Wall::from_nanos(139)),

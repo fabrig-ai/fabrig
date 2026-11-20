@@ -774,6 +774,10 @@ pub(crate) fn route_account(
         core.touch_run_waits();
         core.touch_accounts(party);
     }
+    if !facts_changed && let Some(account) = core.accounts.window_rates_changed() {
+        let holder = core.accounts.account(account).expect("a rate belongs to a held account").holder();
+        core.touch_account_rate(holder);
+    }
     tag_account(core, env, work, out)
 }
 

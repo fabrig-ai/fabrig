@@ -171,6 +171,7 @@ fn keep(
     if domain.account_facts(account) == facts.as_ref() {
         return;
     }
+    crate::rates::retain(domain, account, &facts);
     if facts.is_empty() {
         drop(domain.said.remove(&account));
         out.push(crate::Request::Erase { key: crate::Key::Facts { account } });
@@ -189,16 +190,29 @@ pub(crate) fn report_window(
     window: &UsageWindow,
     wall: Wall,
 ) -> bool {
+    let Some(changed) = merge_window(domain, account, source, origin, window, wall) else { return false };
+    crate::rates::report(domain, account, &window.label, wall);
+    changed
+}
+
+fn merge_window(
+    domain: &mut crate::Domain,
+    account: u32,
+    source: u32,
+    origin: u16,
+    window: &UsageWindow,
+    wall: Wall,
+) -> Option<bool> {
     if window.label.is_empty() || window.label.len() > skein_lib::length::usize_of(FACT_LABEL) {
-        return false;
+        return None;
     }
     for byte in &window.label {
         if !byte.is_ascii() || byte.is_ascii_control() {
-            return false;
+            return None;
         }
     }
     if window.window.used > Some(SHARE_WHOLE) {
-        return false;
+        return None;
     }
     crate::usage::reported(domain, account);
     let said = &mut domain.said;
@@ -220,7 +234,7 @@ pub(crate) fn report_window(
                     | FactValue::Share(_) => {}
                 }
                 if fact.value == FactValue::Window(value) && fact.source == Some(source) && fact.origin == origin {
-                    return false;
+                    return Some(false);
                 }
             }
         }
@@ -246,8 +260,8 @@ pub(crate) fn report_window(
         }
     }
     if !replaced && facts.push(next).is_err() {
-        return false;
+        return None;
     }
     assert!(said.insert(account, facts.into_boxed()).is_ok(), "one facts record per admitted account");
-    true
+    Some(true)
 }

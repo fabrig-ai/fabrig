@@ -11,6 +11,7 @@ mod memory;
 mod model;
 mod moves;
 mod programs;
+mod rates;
 mod selection;
 mod sign_in;
 mod simulation;
@@ -19,6 +20,7 @@ mod terms;
 mod usage_reads;
 
 mod fuzzy {
+    mod rates;
     mod simulation;
     mod start_restore;
 }

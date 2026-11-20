@@ -144,6 +144,8 @@ pub enum ModelKind {
 pub struct Domain {
     pub(crate) accounts: Map<u32, Account>,
     pub(crate) said: Map<u32, Box<[crate::AccountFact]>>,
+    pub(crate) rates: Map<u32, List<crate::rates::Window>>,
+    pub(crate) rates_changed: Option<u32>,
     pub(crate) sources: Map<u32, Source>,
     pub(crate) issued: Map<u32, crate::programs::Issued>,
     pub(crate) programs: Map<u32, crate::programs::Pending>,
@@ -244,6 +246,8 @@ impl Domain {
         Domain {
             accounts: Map::with_capacity(limits.accounts),
             said: Map::with_capacity(limits.accounts),
+            rates: Map::with_capacity(limits.accounts),
+            rates_changed: None,
             sources: Map::with_capacity(sources),
             issued: Map::with_capacity(limits.program_names),
             programs: Map::with_capacity(limits.program_names),
@@ -283,6 +287,33 @@ impl Domain {
             Some(facts) => facts,
             None => &[],
         }
+    }
+    #[expect(clippy::manual_find, reason = "step code finds a window without closures")]
+    fn window_memory(&self, account: u32, label: &[u8]) -> Option<&crate::rates::Window> {
+        for window in self.rates.get(&account)? {
+            if window.label.as_ref() == label {
+                return Some(window);
+            }
+        }
+        None
+    }
+    /// The rate beside a usage fact, in basis points per hour (accounts.md, 3.7).
+    #[must_use]
+    pub fn window_rate(&self, account: u32, label: &[u8]) -> Option<u32> {
+        self.window_memory(account, label)?.rate
+    }
+    /// Readings of a usage fact, oldest first; never restored from the store.
+    #[must_use]
+    pub fn window_readings(&self, account: u32, label: &[u8]) -> &[crate::WindowReading] {
+        match self.window_memory(account, label) {
+            Some(window) => window.readings.as_slice(),
+            None => &[],
+        }
+    }
+    /// The account whose window rate changed in the latest step, independently of its facts.
+    #[must_use]
+    pub const fn window_rates_changed(&self) -> Option<u32> {
+        self.rates_changed
     }
     pub(crate) fn last_place(&self, holder: Holder) -> u32 {
         let mut next = 0;
@@ -566,6 +597,7 @@ impl Domain {
 #[expect(clippy::too_many_lines, reason = "the accounts boundary dispatches each event in one exhaustive match")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.now = env.now;
+    domain.rates_changed = None;
     domain.wall = env.wall;
     match event {
         Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),

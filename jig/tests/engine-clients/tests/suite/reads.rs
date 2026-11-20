@@ -3,15 +3,15 @@ use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
 fn read() -> Box<[u8]> {
+    read_at_version(w::VERSION)
+}
+fn read_at_version(version: u32) -> Box<[u8]> {
     let limits = fixtures::limits().wire;
     let read = w::Read::Me;
     let mut record = Writer::new(skein_lib::length::usize_of(read.measure()));
     read.encode(&mut record).expect("me read");
-    let value = w::Owned::new(
-        &limits,
-        w::OwnedParts { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record: record.finish() },
-    )
-    .expect("frame read");
+    let value = w::Owned::new(&limits, w::OwnedParts { owner: w::Owner::Jig, version, record: record.finish() })
+        .expect("frame read");
     let mut bytes = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut bytes).expect("read envelope");
     bytes.finish()
@@ -100,4 +100,21 @@ fn a_family_read_hands_its_scope_and_window_to_the_application() {
     assert_eq!(family, 1);
     assert_eq!(scope, jig_domain_people::ApplicationScope::Own);
     assert_eq!(window, core::documents::Window { rows: 3, after: None });
+}
+
+#[test]
+fn client_37_is_refused_by_name_without_reading_the_core() {
+    let mut peer = Peer::started(&fixtures::settings());
+    let bearer = fixtures::signed_in(&mut peer);
+    let socket = peer.post(b"/jig/v1/read", read_at_version(37), Some(&bearer));
+    assert!(peer.take_core().is_none());
+    let w::ReadAnswer::NotServed(why) =
+        w::ReadAnswer::decode(&w::CEILINGS, &mut Reader::new(peer.answered(socket).expect("version refusal"))).unwrap()
+    else {
+        panic!("not served")
+    };
+    assert_eq!(why.owner(), &w::Owner::Jig);
+    let served = why.served().get(0).expect("served jig version");
+    assert_eq!(served.owner(), &w::Owner::Jig);
+    assert_eq!((served.first(), served.last()), (38, 38));
 }

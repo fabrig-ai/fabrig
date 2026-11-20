@@ -217,7 +217,7 @@ pub fn account_end_records() -> Vec<w::AccountEnd> {
 pub fn account_fact_records() -> List<w::AccountFact> {
     let l = limits();
     let mut facts = List::with_capacity(24);
-    for _ in 0_u32..4 {
+    for rate in [None, Some(0), Some(600), Some(u32::MAX)] {
         for value in [
             w::AccountFactValue::Text(
                 w::AccountFactText::new(&l, w::AccountFactTextParts { text: Box::from(b"you@example.com".as_slice()) })
@@ -240,6 +240,7 @@ pub fn account_fact_records() -> List<w::AccountFact> {
                 w::AccountWindow::new(
                     &l,
                     w::AccountWindowParts {
+                        rate,
                         length: Some(Duration::from_nanos(137)),
                         used: Some(10_000),
                         resets: Some(139),

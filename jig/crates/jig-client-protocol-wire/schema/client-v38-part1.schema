@@ -22,7 +22,7 @@ record AccountFactCount { count: u64 }
 record AccountFactInstant { at: u64 }
 record AccountFactSpan { nanos: duration }
 record AccountFactShare { basis: u16 }
-record AccountWindow { length: option duration used: option u16 resets: option u64 state: u16 }
+record AccountWindow { length: option duration used: option u16 resets: option u64 state: u16 rate: option u32 }
 enum AccountFactValue { text: AccountFactText, count: AccountFactCount, instant: AccountFactInstant, span: AccountFactSpan, share: AccountFactShare, window: AccountWindow }
 record AccountFact { kind: u16 label: bytes 32 value: AccountFactValue seen: u64 source: option u32 origin: u16 }
 record AccountLine { list: option AccountList number: u32 place: u32 uses: option list 16 AccountUse plan: bool provider: option u32 display: DocumentText holder: AccountHolder sources: bytes 16777216 cut: bool provider_name: option DocumentText manage_usage: option bytes 2048 facts: list 24 AccountFact }

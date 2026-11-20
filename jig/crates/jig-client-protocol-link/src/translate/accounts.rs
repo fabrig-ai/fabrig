@@ -490,6 +490,7 @@ fn account_facts(facts: &List<w::AccountFact>) -> Result<List<c::AccountFact>, w
                     return Err(w::Problem { path: w::Path::AccountWindowUsed, reason: skein_codec::Reason::Bound });
                 }
                 c::AccountFactValue::Window(c::AccountWindow {
+                    rate: *window.rate(),
                     length: *window.length(),
                     used: *window.used(),
                     resets: match window.resets() {

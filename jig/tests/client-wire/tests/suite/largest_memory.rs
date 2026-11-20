@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_client_protocol_wire::CLIENT_SCHEMA,
-        jig_client_protocol_wire::v37, sealed,
+        jig_client_protocol_wire::v38, sealed,
         limits [
             keyed_request,
             keyed_value_some,

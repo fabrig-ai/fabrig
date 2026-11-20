@@ -432,6 +432,7 @@ pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>)
 
 /// Facts go in the decision that erases their account (accounts.md, 3.7).
 fn erase_facts(domain: &mut Domain, account: u32, out: &mut Queue<Request>) {
+    drop(domain.rates.remove(&account));
     if domain.said.remove(&account).is_some() {
         out.push(Request::Erase { key: Key::Facts { account } });
     }

@@ -762,6 +762,9 @@ pub(super) fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
 mod usage_reads;
 
 fn program_run(seed: u64) -> World {
+    World::new(program_run_setup(seed))
+}
+fn program_run_setup(seed: u64) -> Setup {
     let (config, limits) = program_configuration(seed);
     let initial = jig_test_profile::fixtures::create_chat(
         &jig_test_profile::fixtures::Creating::new(&config.core, limits.core.tasks.tree_tasks),
@@ -785,7 +788,7 @@ fn program_run(seed: u64) -> World {
         name: b"personal".as_slice().into(),
         signed_out: false,
     })));
-    World::new(Setup {
+    Setup {
         seed,
         configuration: Some(config),
         limits,
@@ -793,7 +796,7 @@ fn program_run(seed: u64) -> World {
         initial: Some(initial),
         rows: Some(rows.into_boxed_slice()),
         ..Setup::default()
-    })
+    }
 }
 
 #[test]
@@ -1034,5 +1037,118 @@ fn usage_reports_change_only_live_sources_and_mark_accounts_documents() {
         take(&mut world, OWN_WATCH);
         take(&mut world, OTHER_WATCH);
         world.client_peer.as_mut().expect("peer").delivered.clear();
+    }
+}
+
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one watch lifecycle checks rate-only marks and absent writes for both holders"
+)]
+fn rate_only_reports_mark_the_holders_accounts_once_per_five_minutes_without_writes() {
+    for deployment in [false, true] {
+        let mut setup = program_run_setup(185);
+        if deployment {
+            for row in setup.rows.as_mut().unwrap().iter_mut() {
+                if let root::Record::Core(core::Record::Accounts(
+                    accounts::Stored::Account { holder, .. } | accounts::Stored::Issued { holder, .. },
+                )) = row
+                {
+                    *holder = accounts::Holder::Deployment;
+                }
+            }
+        }
+        setup.limits.core.people.sign_in_lifetime = Duration::from_secs(3600);
+        let mut world = World::new(setup);
+        let signed = world.sign_in.expect("signed in");
+        world.client_peer = Some(jig_core_world::client_peer::ClientPeer::default());
+        watch(&mut world, signed, OWN_WATCH, core::documents::Watched::Accounts);
+        watch(&mut world, signed, DEPLOYMENT_WATCH, core::documents::Watched::Deployment);
+        watch(&mut world, signed, OTHER_WATCH, core::documents::Watched::Frame);
+        take(&mut world, OTHER_WATCH);
+        take(&mut world, OWN_WATCH);
+        take(&mut world, DEPLOYMENT_WATCH);
+        let (now, start) = world.clocks();
+        let window = jig_domain_link::UsageWindow {
+            label: b"five_hour".as_slice().into(),
+            window: accounts::FactWindow {
+                length: Some(Duration::from_nanos(1)),
+                used: Some(2000),
+                resets: Some(start),
+                state: accounts::WINDOW_OPEN,
+            },
+        };
+        world.set_clock(now, start);
+        world.send(root::Event::Core(core::Event::Account(accounts::Event::Usage {
+            source: CONFIGURED_SOURCE,
+            window: window.clone(),
+        })));
+        let watched = if deployment { DEPLOYMENT_WATCH } else { OWN_WATCH };
+        let initial_line = match delivered(&world, watched) {
+            core::documents::Document::Accounts(doc) => doc.accounts.get(0).unwrap().facts.get(0).unwrap(),
+            core::documents::Document::Deployment(doc) => doc.accounts.get(0).unwrap().facts.get(0).unwrap(),
+            other => panic!("accounts-bearing document: {other:?}"),
+        };
+        assert_eq!(initial_line.rate, Some(u32::MAX));
+        let held = world.domain.accounts().account_facts(0).to_vec();
+        let mut prior_rate = world.domain.accounts().window_rate(0, &window.label);
+        assert_eq!(prior_rate, Some(u32::MAX));
+        take(&mut world, OWN_WATCH);
+        take(&mut world, DEPLOYMENT_WATCH);
+        take(&mut world, OTHER_WATCH);
+        for minute in 1_u64..=10 {
+            let now = world.env().now;
+            world.set_clock(now, Wall::from_nanos(start.as_nanos() + minute * 60_000_000_000));
+            world.client_peer.as_mut().expect("peer").delivered.clear();
+            let commits = world.commits.len();
+            world.send(root::Event::Core(core::Event::Account(accounts::Event::Usage {
+                source: CONFIGURED_SOURCE,
+                window: window.clone(),
+            })));
+            assert_eq!(world.commits.len(), commits, "a rate is never stored");
+            assert_eq!(world.domain.accounts().account_facts(0), held);
+            let expected = usize::from(minute.is_multiple_of(5));
+            let marks: Vec<_> = world
+                .client_peer
+                .as_ref()
+                .expect("peer")
+                .delivered
+                .iter()
+                .filter_map(|(_, delivery)| {
+                    let root::Delivery::Core(core::Held::Delivery { watcher, document }) = delivery else {
+                        return None;
+                    };
+                    assert_eq!(watcher.raw(), watched, "only the document carrying the account is marked");
+                    let line = match document.as_ref() {
+                        core::documents::Document::Accounts(doc) => doc.accounts.get(0).unwrap().facts.get(0).unwrap(),
+                        core::documents::Document::Deployment(doc) => {
+                            doc.accounts.get(0).unwrap().facts.get(0).unwrap()
+                        }
+                        other => panic!("accounts-bearing document: {other:?}"),
+                    };
+                    assert_eq!(line.fact, held[0]);
+                    Some(line.rate)
+                })
+                .collect();
+            assert_eq!(
+                marks.len(),
+                expected,
+                "minute {minute}, readings {:?}, rate {:?}, changed {:?}",
+                world.domain.accounts().window_readings(0, &window.label),
+                world.domain.accounts().window_rate(0, &window.label),
+                world.domain.accounts().window_rates_changed()
+            );
+            let rate = world.domain.accounts().window_rate(0, &window.label);
+            if expected == 1 {
+                assert_ne!(rate, prior_rate);
+                assert_eq!(marks, [rate]);
+            } else {
+                assert_eq!(rate, prior_rate);
+            }
+            prior_rate = rate;
+            take(&mut world, OWN_WATCH);
+            take(&mut world, OTHER_WATCH);
+            take(&mut world, DEPLOYMENT_WATCH);
+        }
     }
 }

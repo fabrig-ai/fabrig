@@ -11,11 +11,13 @@ pub use jig_domain_core_vocabulary::documents::accounts::*;
 use skein_lib::List;
 
 /// An account's facts as this reader may see them (client/domain/contract/documents.md, 1).
-pub(super) fn fact_lines(core: &Core, account: u32, holder_reads: bool) -> List<accounts::AccountFact> {
+pub(super) fn fact_lines(core: &Core, account: u32, holder_reads: bool) -> List<AccountFactLine> {
     let mut facts = List::with_capacity(accounts::FACTS);
     for fact in core.accounts.account_facts(account) {
         if fact.shown_to(holder_reads) {
-            facts.push(fact.clone()).expect("the child bounds account facts");
+            facts
+                .push(AccountFactLine { fact: fact.clone(), rate: core.accounts.window_rate(account, &fact.label) })
+                .expect("the child bounds account facts");
         }
     }
     facts
