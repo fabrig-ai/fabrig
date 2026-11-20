@@ -349,6 +349,17 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         Box::new([]),
     )
     .unwrap_or_else(|problems| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&problems))));
+    if let Some(page) = typed_document["world_settings"]["page"].as_str() {
+        let mut bundle = temper_service::clients::bundle::Bundle {
+            page: page.as_bytes().into(),
+            forge_meta_bytes: 0,
+            etag: Box::new([]),
+            digest: b"0000000000000000".as_slice().into(),
+            files: skein_lib::Map::with_capacity(0),
+        };
+        bundle.fill_sign_in(false).expect("native mount has a head");
+        service.adopt_bundle(bundle);
+    }
     if let Some(sets) = H::owner_sets() {
         service.owner_sets(sets);
     }
