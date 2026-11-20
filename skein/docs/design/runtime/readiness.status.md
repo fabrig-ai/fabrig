@@ -2,9 +2,6 @@
 
 2026-11-20. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
-- **Not yet:** 5: the process's unreaped children: the shell has no
-  `unreaped_children`, and smith's real world reads Linux's `/proc`
-  itself. [in flight: change 10606]
 - **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`
