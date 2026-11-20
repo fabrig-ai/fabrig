@@ -19,7 +19,9 @@ walk reloads `/projects/1`, waits for "Hello is ready." and marks it.
   and Forgejo on this machine. To begin has one step left, "Tell temper
   how you work", after the repository's done step, "work/hello is in
   Hello" and "temper can change its code now.". "Skip" and "Add Claude
-  or another plan" remain available. The project menu names `work/hello`.
+  or another plan" remain available. The project menu's `work/hello ↗`
+  link opens the forge at `127.0.0.1:10002` through temper sign-in in a
+  new tab.
   The rail offers "Home", "Ask temper" and "How work runs", with Away,
   the live link, Deployment and Owner's menu at its foot, and the night
   switch after it. The phone's tab bar offers "Home", "Ask" and
