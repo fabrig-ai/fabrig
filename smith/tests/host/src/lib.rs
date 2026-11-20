@@ -714,6 +714,9 @@ impl Seen {
             }
             parent::Request::Told { .. } => self.told += 1,
             parent::Request::Waiting { read, .. } => self.fence(read)?,
+            parent::Request::Usage { account, window, .. } => {
+                self.account_notices.push(host::Up::Usage { account, window });
+            }
             parent::Request::Limited { account, reset, .. } => {
                 self.account_notices.push(host::Up::Limited { account, reset });
             }

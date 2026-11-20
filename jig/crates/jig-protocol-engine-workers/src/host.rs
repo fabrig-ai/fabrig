@@ -430,7 +430,8 @@ pub fn grants(down: &hub::LinkDown) -> &[Grant] {
         hub::LinkDown::AssignJob { job } => &job.grants,
         hub::LinkDown::Assign { assignment } => &assignment.assignment.grants,
         hub::LinkDown::ReadList { grant, .. } | hub::LinkDown::Grant { grant, .. } => ::core::slice::from_ref(grant),
-        hub::LinkDown::Sources { .. }
+        hub::LinkDown::ReadUsage { .. }
+        | hub::LinkDown::Sources { .. }
         | hub::LinkDown::Check { .. }
         | hub::LinkDown::SignOut { .. }
         | hub::LinkDown::Message { .. }

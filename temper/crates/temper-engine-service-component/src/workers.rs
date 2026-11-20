@@ -322,6 +322,9 @@ impl Workers {
                         | jig_protocol_worker_wire::Kind::Answer
                         | jig_protocol_worker_wire::Kind::Fact
                         | jig_protocol_worker_wire::Kind::Unauthorized
+                        | jig_protocol_worker_wire::Kind::Usage
+                        | jig_protocol_worker_wire::Kind::UsageRead
+                        | jig_protocol_worker_wire::Kind::ReadUsage
                         | jig_protocol_worker_wire::Kind::Limited
                         | jig_protocol_worker_wire::Kind::AccountRefused
                         | jig_protocol_worker_wire::Kind::Message
@@ -437,13 +440,15 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
             ),
             host::Ending::Refused(_) => (None, None),
         },
-        host::LinkUp::ListRead { .. }
+        host::LinkUp::UsageRead { .. }
+        | host::LinkUp::ListRead { .. }
         | host::LinkUp::Draining
         | host::LinkUp::Logins { .. }
         | host::LinkUp::SignedOut { .. }
         | host::LinkUp::Piece { .. }
         | host::LinkUp::Activity { .. }
         | host::LinkUp::Unauthorized { .. }
+        | host::LinkUp::Usage { .. }
         | host::LinkUp::Limited { .. }
         | host::LinkUp::AccountRefused { .. }
         | host::LinkUp::Turn { .. }
@@ -646,6 +651,7 @@ mod tests {
         let mut service = crate::tests::fixtures::started();
         let channel = Token::new(7);
         let hello = jig_domain_link::Hello {
+            reads_usage: true,
             jobs: Box::default(),
             slots: 1,
             stop_bound: skein_lib::Duration::from_millis(100),

@@ -16,6 +16,7 @@ type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 
 pub mod again;
 pub mod drive;
+pub mod journey_walk;
 pub use temper_client_walk_lines::{line, named, print};
 mod pages;
 pub mod recipe;

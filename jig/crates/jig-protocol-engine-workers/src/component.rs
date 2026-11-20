@@ -42,7 +42,7 @@ pub struct Component {
     workers_ready: bool,
     names: Map<u32, Box<[u8]>>,
     pub(crate) wires: List<wire::Spoken>,
-    pub(crate) codec: wire::v18::Limits,
+    pub(crate) codec: wire::v19::Limits,
     pub(crate) connections: Map<Token, Connection>,
     pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
@@ -274,13 +274,27 @@ impl Component {
     fn deliver(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
         if let Event::Down { channel, down, parts, values } = event {
             if let Some(connection) = self.target(channel) {
+                if let jig_domain_host::LinkDown::ReadUsage { .. } = &down {
+                    let state = self.connections.get(&connection).expect("target channel exists");
+                    if self
+                        .schema
+                        .version(state.version)
+                        .expect("agreed version")
+                        .kind(wire::Kind::ReadUsage.number())
+                        .is_none()
+                    {
+                        self.dropped_down = self.dropped_down.saturating_add(1);
+                        return;
+                    }
+                }
                 let reply = match &down {
                     jig_domain_host::LinkDown::Assign { assignment } => {
                         Reply::Assignment { run: assignment.assignment.run, attempt: assignment.assignment.attempt }
                     }
                     jig_domain_host::LinkDown::AssignJob { job } => Reply::Job { run: job.run, attempt: job.attempt },
                     jig_domain_host::LinkDown::ReadList { read, .. } => Reply::ReadList { read: *read },
-                    jig_domain_host::LinkDown::Sources { .. }
+                    jig_domain_host::LinkDown::ReadUsage { .. }
+                    | jig_domain_host::LinkDown::Sources { .. }
                     | jig_domain_host::LinkDown::Check { .. }
                     | jig_domain_host::LinkDown::SignOut { .. }
                     | jig_domain_host::LinkDown::Message { .. }
@@ -429,6 +443,7 @@ impl Component {
             }
             crate::translate::Down::Restarting(_)
             | crate::translate::Down::Asked(_)
+            | crate::translate::Down::ReadUsage(_)
             | crate::translate::Down::ReadList(_)
             | crate::translate::Down::Sources(_)
             | crate::translate::Down::Check(_)
@@ -708,7 +723,7 @@ impl Component {
                             };
                             wires.push(record).expect("agreed wires fit credential limits");
                         }
-                        let record = wire::v18::Agreed { wires };
+                        let record = wire::v19::Agreed { wires };
                         let length = record.measure(&self.codec).expect("agreed statement fits limits");
                         let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
                         record.write(&self.codec, &mut body).expect("measured statement");
@@ -808,10 +823,16 @@ impl Component {
                         self.refuse(now, connection, state, 3, Box::new([]), out);
                         return;
                     };
-                    let Some(hello) = crate::translate::hello(record) else {
+                    let Some(mut hello) = crate::translate::hello(record) else {
                         self.refuse(now, connection, state, 3, Box::new([]), out);
                         return;
                     };
+                    hello.reads_usage = self
+                        .schema
+                        .version(state.version)
+                        .expect("agreed version")
+                        .kind(wire::Kind::ReadUsage.number())
+                        .is_some();
                     state.phase = Phase::Open;
                     state.heard = true;
                     state.deadline = None;

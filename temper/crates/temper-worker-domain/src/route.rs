@@ -39,6 +39,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
     match event {
         Event::RedsAsk { owner, check, bytes } => crate::reds::encoded(domain, env, owner, check, bytes, out),
         Event::RedsAnswer { owner, check, answer } => crate::reds::decoded(domain, env, owner, check, answer, out),
+        Event::UsageRead { read, outcome } => host_step(domain, env, host::Event::UsageRead { read, outcome }),
         Event::ListRead { read, outcome } => host_step(domain, env, host::Event::ListRead { read, outcome }),
         Event::SourceAnswered { owner, answer } => {
             host_step(domain, env, host::Event::SourceAnswered { owner, answer });
@@ -250,6 +251,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
             crate::reds::numbered(domain, run, attempt, number);
             out.push(Request::Link(up));
         }
+        host::Request::ReadUsage { read, source } => out.push(Request::ReadUsage { read, source }),
         host::Request::ReadList { read, endpoint, grant } => out.push(Request::ReadList { read, endpoint, grant }),
         host::Request::CancelRead { read } => out.push(Request::CancelRead { read }),
         host::Request::Source { owner, name, operation, deadline } => {
@@ -297,12 +299,14 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                             jobs::answered(domain, run, attempt, answer, env.limits.host.detail_bytes, out);
                         }
                         up @ (host::LinkUp::Piece { .. }
+                        | host::LinkUp::UsageRead { .. }
                         | host::LinkUp::ListRead { .. }
                         | host::LinkUp::Draining
                         | host::LinkUp::Logins { .. }
                         | host::LinkUp::SignedOut { .. }
                         | host::LinkUp::Activity { .. }
                         | host::LinkUp::Unauthorized { .. }
+                        | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
                         | host::LinkUp::Turn { .. }

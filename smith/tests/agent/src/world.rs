@@ -1383,6 +1383,7 @@ impl<B: Backend> World<B> {
             Request::Unauthorized { grant } => self.unauthorized.push((self.now, grant)),
             Request::MessageRefused { .. }
             | Request::Refused { .. }
+            | Request::Usage { .. }
             | Request::Limited { .. }
             | Request::Lower(smith_domain::Lower::Yield { .. } | smith_domain::Lower::Close { .. }) => {}
         }
@@ -1542,7 +1543,8 @@ impl<B: Backend> World<B> {
             | Event::Drain { .. }
             | Event::Delivered { .. }
             | Event::Below(
-                smith_domain::Below::BuiltinResult { .. }
+                smith_domain::Below::Usage { .. }
+                | smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1612,7 +1614,8 @@ impl<B: Backend> World<B> {
             | Event::Cancel { .. }
             | Event::Drain { .. }
             | Event::Below(
-                smith_domain::Below::BuiltinResult { .. }
+                smith_domain::Below::Usage { .. }
+                | smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1639,7 +1642,8 @@ impl<B: Backend> World<B> {
             | Event::HostReturned { .. }
             | Event::Delivered { .. }
             | Event::Below(
-                smith_domain::Below::BuiltinResult { .. }
+                smith_domain::Below::Usage { .. }
+                | smith_domain::Below::BuiltinResult { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }

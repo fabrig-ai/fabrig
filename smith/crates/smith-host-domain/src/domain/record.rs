@@ -27,6 +27,7 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
         | Up::Waiting { .. }
         | Up::Unauthorized { .. }
         | Up::Refused { .. }
+        | Up::Usage { .. }
         | Up::Limited { .. } => false,
     }
 }
@@ -117,7 +118,7 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
             Some(account) => agent.word.admitted() && *generation > 0 && *generation <= account.emitted,
             None => false,
         },
-        Up::Refused { account, .. } | Up::Limited { account, .. } => {
+        Up::Usage { account, .. } | Up::Refused { account, .. } | Up::Limited { account, .. } => {
             agent.word.admitted() && agent.accounts.contains_key(account)
         }
     }

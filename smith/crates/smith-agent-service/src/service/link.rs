@@ -107,6 +107,7 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
         | domain::Request::Save { .. }
         | domain::Request::Deliver { .. }
         | domain::Request::Unauthorized { .. }
+        | domain::Request::Usage { .. }
         | domain::Request::Limited { .. }
         | domain::Request::Refused { .. }
         | domain::Request::Answer { .. } => {}
@@ -209,6 +210,9 @@ pub(super) fn request(service: &mut Stages, frame: &mut Frame, request: domain::
                 None,
             );
             frame.channel.send_unauthorized(grant, token, &mut service.channel_events, &mut service.channel_below)
+        }
+        domain::Request::Usage { account, window } => {
+            frame.channel.send_usage(account, window, token, &mut service.channel_events, &mut service.channel_below)
         }
         domain::Request::Limited { account, reset } => {
             account_notice(

@@ -345,6 +345,8 @@ pub enum Up {
         /// Known positive generation.
         generation: u64,
     },
+    /// One program allowance observation for a known account.
+    Usage { account: u32, window: crate::UsageWindow },
     /// Protocol exhausted a known account.
     Limited {
         /// Known credential account.

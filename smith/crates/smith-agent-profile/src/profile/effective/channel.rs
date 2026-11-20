@@ -21,6 +21,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
         program_value_name,
         account_refused_code,
         account_refused_reason,
+        usage_window_label,
         completion_fault_code,
         completion_fault_request_id,
         completion_fault_field,
@@ -67,6 +68,7 @@ pub(super) fn bodies(inventory: &mut Inventory, limits: &smith_channel::Limits) 
     inventory.value("program_value_name", Value::Bytes(u64::from(program_value_name)))?;
     inventory.value("account_refused_code", Value::Bytes(u64::from(account_refused_code)))?;
     inventory.value("account_refused_reason", Value::Bytes(u64::from(account_refused_reason)))?;
+    inventory.value("usage_window_label", Value::Bytes(u64::from(usage_window_label)))?;
     inventory.value("completion_fault_code", Value::Bytes(u64::from(completion_fault_code)))?;
     inventory.value("completion_fault_request_id", Value::Bytes(u64::from(completion_fault_request_id)))?;
     inventory.value("completion_fault_field", Value::Bytes(u64::from(completion_fault_field)))?;

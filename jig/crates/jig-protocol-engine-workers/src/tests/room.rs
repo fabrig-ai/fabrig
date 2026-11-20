@@ -275,12 +275,14 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
                 }))
             ),
             other @ (hub::LinkUp::Draining
+            | hub::LinkUp::UsageRead { .. }
             | hub::LinkUp::ListRead { .. }
             | hub::LinkUp::Piece { .. }
             | hub::LinkUp::Logins { .. }
             | hub::LinkUp::SignedOut { .. }
             | hub::LinkUp::Activity { .. }
             | hub::LinkUp::Unauthorized { .. }
+            | hub::LinkUp::Usage { .. }
             | hub::LinkUp::Limited { .. }
             | hub::LinkUp::AccountRefused { .. }
             | hub::LinkUp::Turn { .. }

@@ -213,6 +213,7 @@ impl Timing {
                 | host::Up::Long { .. }
                 | host::Up::LongDone
                 | host::Up::Unauthorized { .. }
+                | host::Up::Usage { .. }
                 | host::Up::Limited { .. }
                 | host::Up::Refused { .. }
                 | host::Up::Answer { .. } => {}

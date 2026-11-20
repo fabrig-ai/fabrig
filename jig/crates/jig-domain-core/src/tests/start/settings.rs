@@ -508,6 +508,7 @@ fn stored_agent_needs_refuse_before_the_fleet_and_fit_at_the_bound() {
                 worker: 0,
                 channel: skein_lib::Token::new(77),
                 hello: jig_domain_link::Hello {
+                    reads_usage: true,
                     jobs: Box::default(),
                     bounds,
                     slots: 1,

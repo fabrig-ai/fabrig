@@ -113,6 +113,6 @@ pub fn valid_with_schema(limits: &Limits, schema: &channel::Schema) -> bool {
         && inventory_bound(&bodies).is_some()
 }
 
-fn inventory_bound(bodies: &wire::v18::Limits) -> Option<u64> {
+fn inventory_bound(bodies: &wire::v19::Limits) -> Option<u64> {
     wire::Logins::encoded_bound(bodies)?.checked_add(8)
 }
