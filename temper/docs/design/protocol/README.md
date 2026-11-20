@@ -502,6 +502,94 @@ the client wire (`README.md`, section 11).
   supplied times, in `temper-service`'s tests; the journal's stop and
   its line beside `note_line` in `temper-service-shell`'s `host.rs`.
 
+### 6.3 A wait that runs long
+
+A start that does not open, or a table that stays full, says what holds
+it (`../draft/reconciling-start.md`, 5). 6.2's line names the gate
+alone, and only as a party asks; these name the waiters, with no party
+asking. On 2026-11-20 dev.fabrig.ai's start logged "reading the forge
+afresh" alone, while six goal branches waited for places that eight
+cancelled landings held.
+
+- **The report bound is 30 s,** `WAIT_REPORT` (`configuration/derived.md`,
+  5.6): three times dev.fabrig.ai's whole start once that cycle was cut
+  (ten seconds, 2026-11-20), so a healthy start writes none of these
+  lines. It is no deadline: a report fails, ends and slows nothing.
+- **Its age, in words:** below 2 min in seconds, `30 s`, `60 s`; from
+  2 min on in whole minutes, rounded down, `2 min`, `17 min`.
+- **A step of the start past it.** Once one step of the start
+  (`../domain/root.md`, 8.1) has lasted the bound, counted from the
+  core's asking for it, the service writes one stderr line, then one
+  each time the step's age doubles (60 s, 2 min, 4 min, ...), until the
+  step ends; the next step counts from its own beginning:
+  `BINARY serve: starting: STEP for AGE: WAITS`. STEP is 6.2's words for
+  the step, and WAITS what it waits for, by kind, joined by `, `, each
+  `N KIND (NAME, NAME, NAME)`: the count, the kind's words, singular for
+  one, and the three oldest by name, oldest first, fewer where fewer
+  wait; `nothing named` where it waits on none of these:
+
+  | Step | KIND | NAME |
+  |---|---|---|
+  | a load or the sweep | `store page`, `store pages` | its range: `the core's records`, `the inbox`, `the forge's records`, `the sweep's rows` |
+  | any step | `commit in flight`, `commits in flight` | `commit N` |
+  | switching the store | `store switch` | none: `1 store switch` |
+  | reading the forge afresh | `fresh read`, `fresh reads` | what it reads: `OWNER/NAME branch B`, `OWNER/NAME pull N`, `OWNER/NAME issue N`, `OWNER/NAME listing` |
+  | | `landing gather`, `landing gathers` | `task T` |
+  | | `CI read`, `CI reads` | `OWNER/NAME at HEAD`, HEAD its first 12 hex digits |
+  | | `goal-file read`, `goal-file reads` | `task T` |
+  | | `lost writer's read`, `lost writers' reads` | `task T` |
+  | | `goal branch`, `goal branches` | `task T` |
+  | settling the forge's outbox | `uncertain write`, `uncertain writes` | `entry E of task T` |
+
+  Kinds come in the table's order, and a kind with none is left out.
+  The oldest is the one that began first: by its own time where it keeps
+  one, else by the order it was made in (a read's owner token, an
+  entry's number, which follow commit order), and those made together
+  in their table's order. Example:
+  `temper-engine serve: starting: reading the forge afresh for 60 s: 6 goal branches (task 10084, task 10085, task 10086), 1 fresh read (work/hello branch main)`.
+- **A full table past it.** A table is full while it has no free place:
+  the forge's outbox, its free room zero (`../domain/forge/room.md`, 2),
+  and its read admission, its call slab full (skein's
+  `forge/client.md`, 5). Both are the forge connector's, one for every
+  forge. Once one has been full for the bound, the service writes one
+  line, then one at each doubling of its age while it stays full, and,
+  after such a line, one when it has a free place again:
+  - `BINARY serve: the forge's outbox full for AGE: USED of LIMIT, held by HOLDERS; W waiting for room`,
+    the last part left out with no waiter in the room line
+    (`../domain/forge/room.md`, 3);
+  - `BINARY serve: the forge's read admission full for AGE: USED of LIMIT, held by HOLDERS`;
+  - `BINARY serve: the forge's outbox has room again`, and
+    `BINARY serve: the forge's read admission has room again`.
+
+  HOLDERS are its holders, oldest first, joined by `, `, at most eight,
+  then `and N more`: an entry, `entry E (task T)`, by number; then its
+  reservations as they were made (`room.md`, 2), `room asked for task
+  T`, `room for task T's call`, `room for goal T's projection`; a read,
+  `READ of OWNER/NAME`, READ what it reads (`branch B`, `pull N`, `issue
+  N`, `the listing`, `a file`, `CI at HEAD`), with ` for task T` where a
+  task's procedure owns it, oldest admitted first. Example:
+  `temper-engine serve: the forge's outbox full for 2 min: 8 of 8, held by entry 1201 (task 10061), entry 1202 (task 10061), entry 1207 (task 10070), entry 1209 (task 10072), entry 1210 (task 10072), entry 1214 (task 10075), entry 1215 (task 10075), entry 1216 (task 10077); 6 waiting for room`.
+- **The census shows the same words.** The forges' document carries
+  each table full past the bound: which table, since when (a wall time),
+  and its words after the line's `AGE: `. The deployment's forges, on
+  the client's Deployment page and `temper ctl forge list`, show each
+  above the forges' rows (`../client/forge/deployment.md`, *Its load*;
+  `../client/ctl/areas.md`). A start's steps have no census: no client
+  is admitted before decisions open (6.2).
+- **Made by the domain, written by the service.** The root keeps the
+  time its step began, and the forge the time each table filled; each
+  asks a deadline for its next report, so a start no client calls still
+  writes. At it, the root's fact carries the line's words after
+  `serve: `, and the service writes each as it writes the root's other
+  facts. One clock, `Report` beside `WAIT_REPORT`, gives every one of
+  them its reports: the first at the bound, then at each doubling, one
+  report where a pass skipped several.
+- **Bounded:** a line is at most 1,024 bytes, with no payload and no
+  secret: a waiter is named as its table names it, never by its words.
+- **Its tests** hold the bound, the doublings, a step's end, each kind's
+  words and the order of the oldest on supplied times in the root's and
+  the forge's worlds, and the line beside `note_line`.
+
 ## 7. Versions
 
 jig's rules hold (jig's `protocol/README.md`, section 7): one version at a
