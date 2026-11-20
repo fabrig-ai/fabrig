@@ -12,6 +12,27 @@ use crate::domain::{Domain, record};
 use crate::{Authority, Contract, Executor, Last, Limits, New, Parameter, Party, Phase, Problem, Refusal, Spec, Was};
 use skein_lib::bytes::is_utf8;
 
+impl Domain {
+    /// Read-only admission shared with Make (jig/docs/design/domain/authority.md, 6.3).
+    #[cfg_attr(
+        not(target_arch = "wasm32"),
+        expect(clippy::result_large_err, reason = "preserve the making's exact problem")
+    )]
+    pub fn check_make(
+        &self,
+        limits: &Limits,
+        creator: Party,
+        maker: Option<u64>,
+        batch: &[New],
+        places: &[crate::DependencyPlace],
+    ) -> Result<(), Problem> {
+        if !self.ready() {
+            return Err(problem(None, Refusal::NotReady));
+        }
+        check_places(self, limits, creator, maker, batch, places)
+    }
+}
+
 fn problem(task: Option<u64>, why: Refusal) -> Problem {
     Problem { task, why, blocked_by: None, capacity: None }
 }

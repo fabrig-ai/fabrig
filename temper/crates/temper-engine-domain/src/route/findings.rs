@@ -6,6 +6,7 @@ use alloc::boxed::Box;
 pub(crate) use forge::findings::{cut_words, news_words, ownership_words};
 use forge::{Filer, FindingRefusal, Holder, settings::AreaOwner};
 use skein_lib::{List, Map, Queue};
+mod repairing;
 
 pub(crate) fn goal_ended(
     domain: &mut Domain,
@@ -201,6 +202,15 @@ pub fn triage_finding(
     by: Filer,
     call: forge::TriageFinding,
 ) -> forge::TriageFindingAnswer {
+    match &call.act {
+        forge::Triage::Repair(act) => {
+            return match repairing::repair(domain, env, decision, by, call.project, call.number, act) {
+                Ok(goal) => forge::TriageFindingAnswer::Repaired(goal),
+                Err(why) => forge::TriageFindingAnswer::Refused(why),
+            };
+        }
+        forge::Triage::Route(_) | forge::Triage::Backlog | forge::Triage::Drop(_) | forge::Triage::Blame(_) => {}
+    }
     let blame = match &call.act {
         forge::Triage::Blame(_) => true,
         forge::Triage::Route(_) | forge::Triage::Backlog | forge::Triage::Drop(_) | forge::Triage::Repair(_) => false,

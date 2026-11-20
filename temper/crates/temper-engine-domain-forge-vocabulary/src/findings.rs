@@ -7,7 +7,9 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Wall};
 
+mod repair_words;
 mod words;
+pub use repair_words::repair_words;
 pub use temper_client_protocol_wire::goals::id as goal_id;
 pub use words::{cut_words, news_words, ownership_words};
 

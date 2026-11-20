@@ -1,5 +1,6 @@
 //! Reds of no goal's reach the triager without holding verification (after-landing.md, 7).
 mod follows;
+mod repairs;
 use super::*;
 use temper_engine_domain_world::{
     kinds,

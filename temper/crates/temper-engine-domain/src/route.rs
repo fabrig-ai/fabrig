@@ -580,6 +580,12 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
                     standing::move_roles(domain, project, None);
                 }
             }
+            Work::RepairFindings { goal, writes } => {
+                assert!(domain.core.tasks.task(goal).is_some(), "a preflighted repair goal was made");
+                for write in writes {
+                    findings::commit(domain, env, decision, write, false).expect("prepared repair finding");
+                }
+            }
             Work::Tasks(event) => {
                 let routed = forge_route::step_core(domain, env, core::Event::Tasks(event));
                 route_core_requests(domain, env, decision, routed);

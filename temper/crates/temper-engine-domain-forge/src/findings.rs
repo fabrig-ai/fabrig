@@ -7,6 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Map, Queue, Wall};
 pub use temper_engine_domain_forge_vocabulary::findings::*;
 pub(crate) mod judging;
+mod repairing;
 static NO_FINDINGS: Map<(u32, u32), Finding> = Map::with_capacity(0);
 impl Domain {
     pub(crate) fn finding_rows(&self) -> &Map<(u32, u32), Finding> {
@@ -258,6 +259,7 @@ impl Domain {
         row.state = FindingState::New;
         Ok(FindingWrite { row, erase: None })
     }
+    /// Single-finding acts; a repair's batch is admitted by `prepare_repair_findings` and made by the root.
     pub fn prepare_triage_finding(&self, by: Filer, call: TriageFinding) -> Result<FindingWrite, FindingRefusal> {
         let mut row = self.finding(call.project, call.number).ok_or(FindingRefusal::NoFinding)?.clone();
         match &call.act {
@@ -281,12 +283,7 @@ impl Domain {
                 row.state = FindingState::Dropped;
                 row.reason = Some(reason);
             }
-            Triage::Repair(_) => {
-                return Err(FindingRefusal::Words(crate::tiers::joined(&[
-                    b"repairs are off in project ",
-                    skein_lib::Decimal::of(u64::from(call.project)).as_bytes(),
-                ])));
-            }
+            Triage::Repair(_) => return Err(FindingRefusal::NoGoal),
             Triage::Blame(act) => row.blame = Some(self.moved_blame(&row, by, act)?),
         }
         Ok(FindingWrite { row, erase: None })

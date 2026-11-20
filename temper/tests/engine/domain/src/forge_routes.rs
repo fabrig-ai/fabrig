@@ -125,6 +125,7 @@ pub struct World {
     /// Durable limit-setting words at the service face.
     pub limit_settings: Vec<engine::Request>,
     pub follow_answers: Vec<Option<Box<[u8]>>>,
+    pub finding_triages: Vec<forge_top::TriageFindingAnswer>,
     pub signed_in: Option<u64>,
     pub web_replies: Vec<people::Reply>,
     pub assigned: Vec<engine::Assignment>,
@@ -1678,6 +1679,7 @@ impl World {
             adopted: Vec::new(),
             limit_settings: Vec::new(),
             follow_answers: Vec::new(),
+            finding_triages: Vec::new(),
             signed_in: None,
             web_replies: Vec::new(),
             assigned: Vec::new(),
@@ -2764,6 +2766,7 @@ impl World {
                     Delivery::Application { outcome, .. } => match outcome {
                         Some(engine::ApplicationAnswer::Adopt(outcome)) => self.adopted.push(outcome),
                         Some(engine::ApplicationAnswer::Follow(outcome)) => self.follow_answers.push(outcome),
+                        Some(engine::ApplicationAnswer::TriageFinding(outcome)) => self.finding_triages.push(outcome),
                         Some(
                             engine::ApplicationAnswer::Looked(_)
                             | engine::ApplicationAnswer::FileFinding(_)

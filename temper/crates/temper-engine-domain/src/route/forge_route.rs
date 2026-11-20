@@ -17,8 +17,6 @@ use forge::change_words::{
 use alloc::boxed::Box;
 use jig_domain_brief as brief;
 use temper_engine_domain_forge_landing as landing;
-pub(crate) const GOAL_BRANCH_SYMBOL: u16 = 1;
-pub(crate) const CHANGE_CODE: u32 = 2;
 pub const FOLLOW_CODE: u32 = 7;
 pub(super) const ASKING_TEMPLATE: u32 = 5;
 // The project's roles (temper/docs/design/domain/forge/change/branch-path.md).
@@ -26,7 +24,6 @@ pub(super) const DRAFTING_TEMPLATE: u32 = 6;
 pub(crate) const LANDING_CODE: u32 = 3;
 pub(crate) const AFTER_LANDING_CODE: u32 = 4;
 pub(crate) const STATUS_CODE: u32 = 5;
-pub(crate) const GOAL_CLOSER_CODE: u32 = 6;
 pub(super) const STATUS_CHARTER: u32 = 9;
 use jig_domain_core::effects::connector::{EffectDescription, EffectForm, Recovery};
 
@@ -40,7 +37,8 @@ pub(crate) use forge::routing::{
     write_holding,
 };
 
-use temper_engine_domain_translate::change_llm;
+pub(crate) use temper_engine_domain_translate::{CHANGE_CODE, GOAL_BRANCH_SYMBOL, GOAL_CLOSER_CODE};
+use temper_engine_domain_translate::{Holdings, change_llm, in_subtree, resource_report};
 mod closer_route;
 pub(crate) mod follow_route;
 pub(crate) use closer_route::{
@@ -543,163 +541,23 @@ pub(crate) fn task_holdings(
     tracked: bool,
     symbols: &[u16],
 ) -> Result<Box<[tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
-    let mut holdings = List::with_capacity(env.limits.tasks.holdings);
-    let mut reports = List::with_capacity(env.limits.tasks.holdings);
-    for &symbol in symbols {
-        if symbol != GOAL_BRANCH_SYMBOL || !tracked {
-            return Err(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol }));
-        }
-        let home = domain.forge.home(project).ok_or(Some(jig_domain_core::HoldingsRefusal::Symbol { symbol }))?;
-        let branch = tree_branch(home, root, b'g', number, None, env.limits.forge.name_bytes).ok_or(None)?;
-        let name = forge::Name {
-            forge: home.provider.forge,
-            repository: home.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-        holdings.push(holding).ok().ok_or(None)?;
-        reports.push(name).ok().ok_or(None)?;
-    }
-    let implicit = implicit_task_holdings(domain, env, project, root, number, executor, spec, parent)?;
-    for holding in implicit {
-        holdings.push(holding).ok().ok_or(None)?;
-    }
-    for name in &reports {
+    let mut names = List::with_capacity(env.limits.tasks.holdings);
+    let scope = holdings_scope(domain, env);
+    let holdings = scope.prepare(project, root, number, executor, spec, parent, tracked, symbols, &mut names);
+    for name in &names {
         report_resource(domain, env, project, name);
     }
-    Ok(holdings.into_boxed())
+    holdings
 }
 
-#[expect(clippy::too_many_arguments, reason = "task identity and specification arrive from separate admitted carriers")]
-fn implicit_task_holdings(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    project: u32,
-    root: u64,
-    number: u64,
-    executor: tasks::Executor,
-    spec: &tasks::Spec,
-    parent: Option<u64>,
-) -> Result<Box<[tasks::Holding]>, Option<jig_domain_core::HoldingsRefusal>> {
-    let child_of_change = match parent {
-        Some(task) => domain.forge.change(task).is_some(),
-        None => false,
-    };
-    let eligible = match executor {
-        tasks::Executor::Person(_) | tasks::Executor::Job { .. } => false,
-        tasks::Executor::Procedure { connector, code } => {
-            connector == domain.config.forge_connector && (code == 1 || code == CHANGE_CODE)
-        }
-        tasks::Executor::Agent { .. } => !child_of_change,
-    };
-    if !eligible {
-        return Ok(Box::new([]));
+pub(crate) fn holdings_scope<'a>(domain: &'a Domain, env: &'a Env<Limits>) -> Holdings<'a> {
+    Holdings {
+        forge: &domain.forge,
+        tasks: &domain.core.tasks,
+        connector: domain.config.forge_connector,
+        forge_limits: &env.limits.forge,
+        task_limits: &env.limits.tasks,
     }
-    let mut selected = List::with_capacity(env.limits.forge.resources_per_task);
-    if let tasks::Executor::Procedure { connector, code: 1 | CHANGE_CODE } = executor
-        && connector == domain.config.forge_connector
-    {
-        let mut repository = None;
-        let mut chosen = None;
-        let mut base = None;
-        let mut requester_branch = false;
-        for parameter in &spec.parameters {
-            match parameter {
-                tasks::Parameter::Resource { name: 1, connector, resource }
-                    if *connector == domain.config.forge_connector =>
-                {
-                    repository = domain.forge.repository_tag(project, *resource);
-                }
-                tasks::Parameter::Bytes { name: 2, value } => base = Some(value),
-                tasks::Parameter::Bytes { name: 3, value } => chosen = Some(value.clone()),
-                tasks::Parameter::Number { name: 11, value: 1 } => requester_branch = true,
-                tasks::Parameter::Number { .. }
-                | tasks::Parameter::Bytes { .. }
-                | tasks::Parameter::Resource { .. } => {}
-            }
-        }
-        let repository = repository.ok_or(None)?;
-        if let Some(base) = base {
-            check_landing_holder(domain, env, &repository, base, parent)?;
-        }
-        if requester_branch {
-            return Ok(Box::new([]));
-        }
-        let branch = match chosen {
-            Some(branch) => branch,
-            None => tree_branch(&repository, root, b'c', number, None, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let name = forge::Name {
-            forge: repository.provider.forge,
-            repository: repository.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-        report_resource(domain, env, project, &name);
-        return Ok(Box::new([holding]));
-    }
-    if let Some(home) = domain.forge.home(project) {
-        include_repository(&mut selected, home).ok_or(None)?;
-    }
-    for parameter in &spec.parameters {
-        if let tasks::Parameter::Resource { connector, resource, .. } = parameter
-            && *connector == domain.config.forge_connector
-        {
-            let repository = domain.forge.repository_tag(project, *resource).ok_or(None)?;
-            include_repository(&mut selected, &repository).ok_or(None)?;
-        }
-    }
-    let mut holdings = List::with_capacity(env.limits.tasks.holdings);
-    let mut reports = List::with_capacity(env.limits.tasks.holdings);
-    for repository in &selected {
-        if repository.role == forge::Role::Context || !repository.kinds.push {
-            continue;
-        }
-        let branch = tree_branch(repository, root, b'r', number, None, env.limits.forge.name_bytes).ok_or(None)?;
-        let name = forge::Name {
-            forge: repository.provider.forge,
-            repository: repository.provider.repository,
-            what: branch_what(&branch, env.limits.forge.name_bytes).ok_or(None)?,
-        };
-        let holding = write_holding(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-        holdings.push(holding).ok().ok_or(None)?;
-        reports.push(name).ok().ok_or(None)?;
-    }
-    for name in &reports {
-        report_resource(domain, env, project, name);
-    }
-    Ok(holdings.into_boxed())
-}
-
-/// A landing into a held branch belongs to its holder's requester subtree
-/// (temper/docs/design/domain/forge/branches.md, 1).
-fn check_landing_holder(
-    domain: &Domain,
-    env: &Env<Limits>,
-    repository: &forge::Repository,
-    base: &[u8],
-    parent: Option<u64>,
-) -> Result<(), Option<jig_domain_core::HoldingsRefusal>> {
-    let name = forge::Name {
-        forge: repository.provider.forge,
-        repository: repository.provider.repository,
-        what: branch_what(base, env.limits.forge.name_bytes).ok_or(None)?,
-    };
-    let resource = hub_name(domain.config.forge_connector, &name, &env.limits.tasks).ok_or(None)?;
-    if let Some(holder) = domain.core.tasks.holder(&resource) {
-        let inside = match parent {
-            Some(requester) if requester == holder => true,
-            Some(requester) => match domain.core.tasks.task(requester) {
-                Some(task) => in_subtree(domain, task, holder),
-                None => false,
-            },
-            None => false,
-        };
-        if !inside {
-            return Err(Some(jig_domain_core::HoldingsRefusal::Held { holder }));
-        }
-    }
-    Ok(())
 }
 
 #[derive(Hash, Debug)]
@@ -961,6 +819,7 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             | Work::Decoded { .. }
             | Work::Core(_)
             | Work::Tasks(_)
+            | Work::RepairFindings { .. }
             | Work::People(_)
             | Work::Fleet(_)
             | Work::Brief(_)
@@ -1025,21 +884,6 @@ struct GoalMembers {
     paths: Box<[Box<[u8]>]>,
 }
 
-/// Whether `task` is in `goal`'s subtree below it: its requesters, task by
-/// task, reach `goal` (temper/docs/design/domain/forge/README.md, 5.2).
-fn in_subtree(domain: &Domain, task: &tasks::TaskRecord, goal: u64) -> bool {
-    let mut current = task;
-    for _ in 0..task.depth {
-        let tasks::Party::Task(number) = current.requester else { return false };
-        if number == goal {
-            return true;
-        }
-        let Some(parent) = domain.core.tasks.task(number) else { return false };
-        current = parent;
-    }
-    false
-}
-
 fn goal_members(
     domain: &Domain,
     env: &Env<Limits>,
@@ -1061,7 +905,7 @@ fn goal_members(
     }
     for view in domain.core.tasks.view_tasks() {
         let Some(task) = domain.core.tasks.task(view.number) else { continue };
-        if !in_subtree(domain, task, goal) {
+        if !in_subtree(&domain.core.tasks, task, goal) {
             continue;
         }
         match task.executor {
@@ -5607,22 +5451,9 @@ fn route_resource(
     role: forge::Access,
     hold: forge::resources::HoldKind,
 ) {
-    let Some(name) = hub_name(domain.config.forge_connector, name, &env.limits.tasks) else { return };
-    let role = match role {
-        forge::Access::Owned => jig_domain_core::effects::connector::ResourceRole::Owned,
-        forge::Access::Participant => jig_domain_core::effects::connector::ResourceRole::Participant,
-        forge::Access::Context => jig_domain_core::effects::connector::ResourceRole::Context,
-        forge::Access::Unavailable => jig_domain_core::effects::connector::ResourceRole::Unavailable,
-    };
-    let hold = match hold {
-        forge::resources::HoldKind::Shared => jig_domain_core::effects::connector::HoldKind::Shared,
-        forge::resources::HoldKind::Exclusive { wait } => {
-            jig_domain_core::effects::connector::HoldKind::Exclusive { wait }
-        }
-    };
-    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-        jig_domain_core::effects::connector::Event::Resource { project, name, role, hold },
-    )));
+    if let Some(event) = resource_report(domain.config.forge_connector, &env.limits.tasks, project, name, role, hold) {
+        domain.work.push(Work::Core(event));
+    }
 }
 
 /// temper/docs/design/domain/forge/change/README.md, 1: parameter 16 carries canonical commit text.

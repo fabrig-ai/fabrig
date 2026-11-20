@@ -122,6 +122,77 @@ fn a_seeded_goal_never_cuts_its_budget_to_fit_any_of_its_requesters_four_numbers
 }
 
 #[test]
+fn check_make_refuses_the_same_model_as_the_making_without_changing_its_requester() {
+    let (mut core, limits) = fixture();
+    let context = core.tasks.delegation(TASK).expect("seeded goal fixture");
+    let before = core.tasks.task(TASK).expect("seeded goal fixture").clone();
+    let seed = core.repair_seed(1).expect("seeded goal fixture");
+    let valid = seed.goal(TASK, &context, goal(&context, BUDGET)).expect("seeded goal fixture");
+    assert_eq!(core.check_make(&limits, &valid), Ok(()));
+    let seed = core.repair_seed(1).expect("seeded goal fixture");
+    let number = seed.number();
+    let mut asked = goal(&context, BUDGET);
+    asked.authority.models = tasks::Models::NONE;
+    let made = seed.goal(TASK, &context, asked).expect("seeded goal fixture");
+    let why = tasks::Refusal::Llm { model: 0, why: tasks::LlmFault::Authority };
+    assert_eq!(core.check_make(&limits, &made), Err(why));
+    assert_eq!(core.tasks.task(TASK), Some(&before));
+    assert!(core.tasks.task(number).is_none());
+    let output = step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, Event::Tasks(made));
+    let mut refused = false;
+    for request in &output {
+        if let Request::Now(now) = request
+            && let Now::Link(LinkNow::RefusedPayload { problem, .. }) = now.as_ref()
+        {
+            assert_eq!(problem.why, why);
+            refused = true;
+        }
+    }
+    assert!(refused, "the making refuses the preflighted model");
+    assert_eq!(core.tasks.task(TASK), Some(&before));
+    assert!(core.tasks.task(number).is_none());
+}
+
+#[test]
+fn check_make_requires_the_resource_report_before_saying_a_goal_can_be_made() {
+    let (mut core, limits) = fixture();
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let context = core.tasks.delegation(TASK).expect("seeded goal fixture");
+    let seed = core.repair_seed(1).expect("seeded goal fixture");
+    let number = seed.number();
+    let resource = tasks::Name { connector: 1, path: Box::new([Box::from(*b"g")]) };
+    let mut asked = goal(&context, BUDGET);
+    asked.holdings = Box::new([tasks::Holding::Write { resource: resource.clone(), kind: 1 }]);
+    let make = seed.goal(TASK, &context, asked).expect("fits the requester");
+    assert_eq!(core.check_make(&env.limits, &make), Err(tasks::Refusal::Unreported));
+    step(
+        &mut core,
+        &env,
+        Event::EffectConnector(connector::Event::Resource {
+            project: 1,
+            name: resource.clone(),
+            role: connector::ResourceRole::Unavailable,
+            hold: connector::HoldKind::Shared,
+        }),
+    );
+    assert_eq!(core.check_make(&env.limits, &make), Err(tasks::Refusal::ResourceUnavailable));
+    step(
+        &mut core,
+        &env,
+        Event::EffectConnector(connector::Event::Resource {
+            project: 1,
+            name: resource,
+            role: connector::ResourceRole::Owned,
+            hold: connector::HoldKind::Shared,
+        }),
+    );
+    assert_eq!(core.check_make(&env.limits, &make), Ok(()));
+    step(&mut core, &env, Event::Tasks(make));
+    let row = core.tasks.task(number).expect("reported making fits");
+    assert!(row.holdings.is_empty(), "both paths normalize shared resources");
+}
+
+#[test]
 fn a_seeded_goal_requires_lifetime_room_and_a_delegation_level() {
     let (mut core, _) = fixture();
     let mut context = core.tasks.delegation(TASK).expect("live requester");

@@ -1,6 +1,7 @@
 //! The owner chain and bounded retained findings (domain/areas.md, 4; findings.md, 9).
 use super::*;
 use crate::settings::{Area, AreaOwner, ProjectAreas};
+mod repairing;
 
 #[test]
 fn the_owner_chain_uses_standing_then_triager_then_project_owners() {

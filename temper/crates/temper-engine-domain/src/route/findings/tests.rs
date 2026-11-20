@@ -77,7 +77,7 @@ fn task_event(domain: &mut Domain, env: &Env<Limits>, event: tasks::Event) {
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "one scenario checks ownership, unchanged facts and no news in every state")]
-fn blame_and_repair_observe_ownership_before_the_act_and_blame_sends_no_news_in_any_state() {
+fn blame_checks_ownership_without_news_and_repair_checks_settings_first_in_any_state() {
     use super::super::people;
     use forge::findings::{BlameAct, BlameMove, BlameStrength, FindingBlame, FindingSignature, RepairAct};
     for state in [
@@ -140,19 +140,29 @@ fn blame_and_repair_observe_ownership_before_the_act_and_blame_sends_no_news_in_
         );
         let blame = forge::Triage::Blame(BlameAct { landing: None, why: b"unrelated landing".as_slice().into() });
         let repair = forge::Triage::Repair(RepairAct { more: Box::new([5]), words: b"fix".as_slice().into() });
-        for act in [blame.clone(), repair.clone()] {
-            assert_eq!(
-                triage_finding(
-                    &mut domain,
-                    &env,
-                    &mut decision,
-                    Filer::Task(u64::MAX),
-                    forge::TriageFinding { project: 1, number: 1, act }
-                ),
-                forge::TriageFindingAnswer::Refused(FindingRefusal::NotYours(Holder::Task(task)))
-            );
-            assert_eq!(domain.forge.finding(1, 1), Some(&expected));
-        }
+        assert_eq!(
+            triage_finding(
+                &mut domain,
+                &env,
+                &mut decision,
+                Filer::Task(u64::MAX),
+                forge::TriageFinding { project: 1, number: 1, act: blame.clone() }
+            ),
+            forge::TriageFindingAnswer::Refused(FindingRefusal::NotYours(Holder::Task(task)))
+        );
+        assert_eq!(domain.forge.finding(1, 1), Some(&expected));
+        assert_eq!(
+            triage_finding(
+                &mut domain,
+                &env,
+                &mut decision,
+                Filer::Task(u64::MAX),
+                forge::TriageFinding { project: 1, number: 1, act: repair.clone() }
+            ),
+            forge::TriageFindingAnswer::Refused(FindingRefusal::Words(
+                b"repairs are off in project 1".as_slice().into()
+            ))
+        );
         for by in [Filer::Task(task), Filer::Party(1)] {
             assert_eq!(domain.core.people.role(1, 1), Some(people::Role::Owner));
             let news = queued_news(&domain, task).len();
