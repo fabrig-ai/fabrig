@@ -709,8 +709,11 @@ each step the core asks for:
    commits before it land in the copy alone, and a refusal before the
    switch leaves the source generation active (jig's
    `domain/engine/restart.md`). A rehearsing root
-   (`../protocol/binaries.md`, `temper-box upgrade --check`) ends
-   before this step, reporting the restores whole.
+   (`../protocol/binaries.md`, `temper-box upgrade --check`) takes
+   this step inside its scratch and runs on with no network to the
+   opening (step 6), where it ends, reporting the restores whole, the
+   opening and what the forge would catch up (jig's
+   `protocol/store/opening.md`, 5).
 4. **Runs adopted:** the claims to the fleet, those on in-process
    workers settled at once (section 2).
 5. **The calendar is given the periods** (`routing.md`, 7): for each restored
