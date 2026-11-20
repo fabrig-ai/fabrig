@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-19. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-20. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
   - 2.1: only the local-process world sweeps the simulator's faults
@@ -20,6 +20,9 @@
   - 6: job ends paired across the event stream (they are paired on the
     domain's facts only), state-digest replay (skein has none), and,
     with contained trees, containment (2.2).
+  - 6 and 6.2: the real loop's settled check reads `/proc/self/task`
+    itself (`tests/real/src/settled.rs`, `assert_no_children`), so it
+    fails on macOS before it settles anything. [in flight: change 10606]
 - **Departs:**
   - 2: domain worlds use domains and fakes only, never protocol crates,
     but `tests/agent/src/backend.rs` uses `smith-protocol-llm`,
