@@ -19,18 +19,21 @@ impl Harness for Clients {
 pub enum Native {
     Box(Box<BoxPeer>),
     Terminal(Box<crate::tui::Connection>),
+    Tab(Box<skein_playground::tab::Tab>),
 }
 impl Native {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Box(host) => host.as_ref(),
             Self::Terminal(host) => host.as_ref(),
+            Self::Tab(host) => host.as_ref(),
         }
     }
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
             Self::Box(host) => host.as_mut(),
             Self::Terminal(host) => host.as_mut(),
+            Self::Tab(host) => host.as_mut(),
         }
     }
 }
@@ -83,7 +86,9 @@ impl Observe for Attach {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, _: Time, _: Wall) -> bool {
         // The native harness is the diagnostic sink, as the service shell is.
-        while service.notes().pop().is_some() {}
+        while let Some(note) = service.notes().pop() {
+            if let temper_service::Note::Engine(temper_service::EngineNote::RunRefused(why)) = note { eprintln!("refused: {why:?}"); }
+        }
         if !self.queued {
             self.queued = true;
             service.submissions().push(Submit {

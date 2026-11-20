@@ -100,7 +100,7 @@ fn freed<T>(value: T) -> i64 {
 }
 
 fn prebuilt() -> ([i64; 3], i64) {
-    let Start { fakes: Fakes { llm, peer, forge }, .. } = A.start(SEED, Wall::EPOCH);
+    let Start { fakes: Fakes { llm, peer, forge, .. }, .. } = A.start(SEED, Wall::EPOCH);
     let llm = freed(llm);
     let peer = freed(peer);
     let shared = freed(forge);
