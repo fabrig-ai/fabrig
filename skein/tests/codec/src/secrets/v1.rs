@@ -2,220 +2,142 @@
 
 use alloc::boxed::Box;
 use skein_lib::List;
+use skein_codec::field;
+pub use skein_codec::Record;
+pub type Path = skein_codec::Path<Limits>;
+pub type Problem = skein_codec::Problem<Limits>;
 
-/// This family's schema version.
 pub const VERSION: u16 = 1;
 
-/// The family's adjustable limits, each no larger than its ceiling.
+// Limits: the owner's values, checked once against ceilings.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub credential_name: u32,
     pub credential_value: u32,
 }
 
-/// The schema's maximum limits.
 pub const CEILINGS: Limits = Limits {
     credential_name: 64,
     credential_value: 64,
 };
 
-/// The limits' field names, in field order.
 pub const LIMIT_NAMES: &[&str] = &[
     "credential_name",
     "credential_value",
 ];
 
 impl Limits {
-    /// The limits' values, in `LIMIT_NAMES` order.
     #[must_use]
     pub fn values(&self) -> List<u32> {
         let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        self.values_for_credential_record(&mut values);
+        values.push(self.credential_name).expect("room for every named limit");
+        values.push(self.credential_value).expect("room for every named limit");
         values
     }
 }
 
-/// A field or tag that caused a codec problem.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub enum Path {
-    /// The `name` field of `Credential`.
-    CredentialName,
-    /// The `value` field of `Credential`.
-    CredentialValue,
-    /// Bytes after `Credential`.
-    CredentialTail,
-}
+const LIMIT_PATHS: &[Path] = &[
+    paths::CREDENTIAL_NAME,
+    paths::CREDENTIAL_VALUE,
+];
 
-impl Path {
-    /// The path as the schema spells it (skein/docs/design/data/codec/README.md, 4).
-    #[must_use]
-    pub const fn name(self) -> &'static str {
-        match self {
-            Self::CredentialName => "Credential.name",
-            Self::CredentialValue => "Credential.value",
-            Self::CredentialTail => "Credential (tail)",
+pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
+    for ((value, ceiling), path) in limits.values().as_slice().iter().zip(CEILING_VALUES).zip(LIMIT_PATHS) {
+        if value > ceiling {
+            return Err(path.problem(skein_codec::Reason::Bound));
         }
     }
-}
-
-/// A decoding or bound failure at a schema path.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct Problem {
-    pub path: Path,
-    pub reason: skein_codec::Reason,
-}
-
-/// Checks the family limits, naming the first limit past its ceiling.
-pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
-    check_credential_record_limits(limits)
-}
-
-/// Maximum wire bytes among this family's top-level types.
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    credential_encoded_bound_family(limits, 0)
-}
-
-/// Maximum heap held by one decoded top-level value.
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    if check_limits(limits).is_err() { return None; }
-    credential_decoded_bound_family(limits, 0)
-}
-
-/// Movable fields of `Credential`.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct CredentialParts {
-    /// The `name` field.
-    pub name: Box<[u8]>,
-    /// The `value` field.
-    pub value: skein_lib::Secret,
-}
-
-/// `Credential` in this codec family.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Credential {
-    name: Box<[u8]>,
-    value: skein_lib::Secret,
-}
-
-impl Credential {
-    /// Makes a value within the given limits.
-    pub fn new(limits: &Limits, parts: CredentialParts) -> Result<Self, Problem> {
-        let CredentialParts { name, value } = parts;
-        let value = Self { name, value };
-        value.check(limits)?;
-        Ok(value)
-    }
-
-    /// Reads the `name` field.
-    #[must_use]
-    pub fn name(&self) -> &[u8] { &self.name }
-
-    /// Reads the `value` field.
-    #[must_use]
-    pub fn value(&self) -> &skein_lib::Secret { &self.value }
-
-    /// Moves the fields out without copying.
-    #[must_use]
-    pub fn into_parts(self) -> CredentialParts { CredentialParts { name: self.name, value: self.value } }
-
-    fn check(&self, limits: &Limits) -> Result<(), Problem> {
-        if self.name.len() > usize::try_from(limits.credential_name.min(CEILINGS.credential_name)).expect("u32 fits usize") { return Err(Problem { path: Path::CredentialName, reason: skein_codec::Reason::Bound }); }
-        if !skein_codec::text_is_valid(self.name.as_ref()) { return Err(Problem { path: Path::CredentialName, reason: skein_codec::Reason::Utf8 }); }
-        if self.value.len() > usize::try_from(limits.credential_value.min(CEILINGS.credential_value)).expect("u32 fits usize") { return Err(Problem { path: Path::CredentialValue, reason: skein_codec::Reason::Bound }); }
-        Ok(())
-    }
-}
-
-impl Credential {
-    /// Measures this record's wire encoding.
-    #[must_use]
-    pub fn measure(&self) -> u32 {
-        let mut size = 0_u32;
-        let field_name = &self.name;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_name.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        let field_value = &self.value;
-        size = size.checked_add(4).expect("schema ceilings fit u32");
-        size = size.checked_add(u32::try_from(field_value.len()).expect("field ceiling fits u32")).expect("schema ceilings fit u32");
-        size
-    }
-
-    /// Writes into a writer with room for the measured bytes.
-    pub fn encode(&self, writer: &mut skein_lib::Writer) -> Result<(), skein_lib::Overflow> {
-        let field_name = &self.name;
-        writer.put(&u32::try_from(field_name.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_name.as_ref())?;
-        let field_value = &self.value;
-        writer.put(&u32::try_from(field_value.len()).expect("field ceiling fits u32").to_be_bytes())?;
-        writer.put(field_value.expose())?;
-        Ok(())
-    }
-
-    /// Reads a whole record and refuses trailing bytes.
-    pub fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::decode_from(limits, reader)?;
-        if !reader.is_empty() { return Err(Problem { path: Path::CredentialTail, reason: skein_codec::Reason::Trailing }); }
-        Ok(value)
-    }
-
-    fn decode_from(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let decoded_name = match skein_codec::read_text(reader, limits.credential_name.min(CEILINGS.credential_name)) { Ok(text) => text, Err(reason) => return Err(Problem { path: Path::CredentialName, reason }), };
-        let decoded_value = skein_lib::Secret::new({ let length = match skein_codec::read_len(reader, limits.credential_value.min(CEILINGS.credential_value)) { Ok(length) => length, Err(reason) => return Err(Problem { path: Path::CredentialValue, reason }), }; Box::from(reader.bytes(length).ok_or(Problem { path: Path::CredentialValue, reason: skein_codec::Reason::Short })?) });
-        Ok(Self { name: decoded_name, value: decoded_value })
-    }
-}
-
-impl Credential {
-    /// Maximum encoded bytes under these limits.
-    #[must_use]
-    pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::encoded_bound_within(limits)
-    }
-
-    pub(crate) fn encoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut size = 0_u64;
-        size = size.checked_add(4_u64.checked_add(u64::from(limits.credential_name))?)?.checked_add(4_u64.checked_add(u64::from(limits.credential_value))?)?;
-        size.checked_add(0)
-    }
-
-    /// Maximum heap held by one decoded value under these limits.
-    #[must_use]
-    pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-        if check_limits(limits).is_err() { return None; }
-        Self::decoded_bound_within(limits)
-    }
-
-    pub(crate) fn decoded_bound_within(limits: &Limits) -> Option<u64> {
-        let mut heap = 0_u64;
-        heap = heap.checked_add(u64::from(limits.credential_name))?.checked_add(u64::from(limits.credential_value))?;
-        heap.checked_add(0)
-    }
-}
-
-fn credential_encoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Credential::encoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn credential_decoded_bound_family(limits: &Limits, biggest: u64) -> Option<u64> {
-    let biggest = biggest.max(Credential::decoded_bound_within(limits)?);
-    Some(biggest)
-}
-
-fn check_credential_record_limits(limits: &Limits) -> Result<(), Problem> {
-    if limits.credential_name > CEILINGS.credential_name { return Err(Problem { path: Path::CredentialName, reason: skein_codec::Reason::Bound }); }
-    if limits.credential_value > CEILINGS.credential_value { return Err(Problem { path: Path::CredentialValue, reason: skein_codec::Reason::Bound }); }
     Ok(())
 }
 
-impl Limits {
-    fn values_for_credential_record(&self, values: &mut List<u32>) {
-        values.push(self.credential_name).expect("room for every named limit");
-        values.push(self.credential_value).expect("room for every named limit");
+// Paths: declaration and part positions, with one naming table.
+pub mod paths {
+    use super::Path;
+    pub const CREDENTIAL_NAME: Path = Path::new(0, 0);
+    pub const CREDENTIAL_VALUE: Path = Path::new(0, 1);
+    pub const CREDENTIAL_TAIL: Path = Path::new(0, 2);
+}
+
+const PATH_NAMES: &[&[&str]] = &[
+    &[
+        "Credential.name",
+        "Credential.value",
+        "Credential (tail)",
+    ],
+];
+
+/// The path as the schema spells it, or None outside this family's table.
+#[must_use]
+pub fn name(path: Path) -> Option<&'static str> {
+    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
+}
+
+// Table: postordered shapes, with compiler-known heap slot sizes.
+const TABLE: &[skein_codec::bounds::Node] = &[
+    skein_codec::bounds::Node::Bytes { limit: 0 },
+    skein_codec::bounds::Node::Bytes { limit: 1 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+];
+
+const DECLARATIONS: &[u32] = &[
+    2,
+];
+
+const CEILING_VALUES: &[u32] = &[
+    64,
+    64,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+}
+
+// Type: Credential.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Credential {
+    pub name: Box<[u8]>,
+    pub value: skein_lib::Secret,
+}
+
+// Record: Credential.
+impl Record for Credential {
+    type Limits = Limits;
+    const TAIL: Path = paths::CREDENTIAL_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Text { limit: limits.credential_name.min(CEILINGS.credential_name) }, &self.name, limits, out, paths::CREDENTIAL_NAME)?;
+        field::write(field::Hidden { limit: limits.credential_value.min(CEILINGS.credential_value) }, &self.value, limits, out, paths::CREDENTIAL_VALUE)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            name: field::read(field::Text { limit: limits.credential_name.min(CEILINGS.credential_name) }, limits, reader, paths::CREDENTIAL_NAME)?,
+            value: field::read(field::Hidden { limit: limits.credential_value.min(CEILINGS.credential_value) }, limits, reader, paths::CREDENTIAL_VALUE)?,
+        })
     }
 }
 
