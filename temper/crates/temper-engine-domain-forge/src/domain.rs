@@ -238,6 +238,7 @@ pub struct Domain {
     pub(crate) aways: Map<(u64, u32), crate::Away>,
     pub(crate) decisions: Map<(u32, u32), crate::Decided>,
     pub(crate) findings: Option<Box<Map<(u32, u32), crate::Finding>>>,
+    pub(crate) repairs_asked: Set<u64>,
     pub(crate) reds: Map<(u64, Box<[u8]>), crate::Red>,
     pub(crate) red_number: Option<u64>,
     pub(crate) red_passes: Map<(u64, Box<[u8]>), crate::RedPass>,
@@ -945,6 +946,7 @@ impl Domain {
             aways: Map::with_capacity(l.bindings.saturating_mul(l.judge_projects)),
             decisions: Map::with_capacity(l.decided()),
             findings: None,
+            repairs_asked: Set::with_capacity(l.findings()),
             reds: Map::with_capacity(l.branch_reds.checked_mul(l.holds).expect("checked red capacity")),
             red_number: None,
             red_passes: Map::with_capacity(l.branch_reds.checked_mul(l.changes).expect("checked red pass capacity")),
@@ -1172,7 +1174,11 @@ impl Domain {
         if self.restore_phase == RestorePhase::Restoring {
             return None;
         }
-        let mut next = read_session::deadline(self).into_iter().chain(crate::history::sweep::deadline(self)).min();
+        let mut next = read_session::deadline(self)
+            .into_iter()
+            .chain(crate::history::sweep::deadline(self))
+            .chain(crate::findings::judging::deadline(self))
+            .min();
         for deadlines in [&self.projection_due, &self.change_due, &self.landing.due, &self.tier_ops.due] {
             for (_, deadline) in deadlines {
                 next = Some(match next {
@@ -2412,6 +2418,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.restore_phase == RestorePhase::Restoring {
         return;
     }
+    crate::findings::judging::fire(d, env.wall, out);
     crate::history::sweep::fire(d, env.wall, out);
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);

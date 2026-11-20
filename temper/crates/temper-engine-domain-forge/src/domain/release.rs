@@ -284,6 +284,8 @@ fn outputs(
             | Request::TierRun { .. }
             | Request::FileRedFinding { .. }
             | Request::FileVerdict { .. }
+            | Request::ReturnFinding(_)
+            | Request::FailRepair { .. }
             | Request::TierDecision { .. }
             | Request::ProjectReleased { .. }
             | Request::ForgeKept(_)

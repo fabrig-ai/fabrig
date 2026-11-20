@@ -333,6 +333,38 @@ fn an_earlier_finding_defaults_blame_clearing_and_many() {
 }
 
 #[test]
+fn an_earlier_tier_defaults_its_last_judged_run_number_to_none() {
+    use super::fixtures;
+    use crate::records;
+    use skein_codec::{
+        layout::{Plan, Workspace},
+        schema,
+    };
+    use temper_engine_domain_forge_vocabulary::Stored;
+    let family = crate::OWNER_SET.families.first().expect("store family");
+    let before = family.current.replace(" last_run: option u64 = none", "");
+    assert_ne!(before, family.current);
+    let old = schema::parse(before.as_bytes()).expect("earlier tier schema");
+    let new = schema::parse(family.current.as_bytes()).expect("current tier schema");
+    let old_root = old.root(b"Row", Some(b"tier")).expect("earlier tier root");
+    let new_root = new.root(b"Row", Some(b"tier")).expect("current tier root");
+    let write_old = Plan::derive_dropping(&new, new_root, &[], &old, old_root, &[]).expect("drop run number");
+    let mut work = Workspace::new();
+    assert!(work.fit(&write_old));
+    let mut row = fixtures::tier_row();
+    row.record.last_run = Some(7);
+    let mut earlier = skein_lib::Buffer::with_capacity(1_048_576);
+    write_old.convert(&records::encode(&Stored::Tier(row.clone())), &mut earlier, &mut work).expect("earlier bytes");
+    let read_old = Plan::derive(&old, old_root, &[], &new, new_root, &[]).expect("run number defaults");
+    assert!(work.fit(&read_old));
+    let mut current = skein_lib::Buffer::with_capacity(1_048_576);
+    read_old.convert(earlier.as_slice(), &mut current, &mut work).expect("default run number");
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("store bounds");
+    row.record.last_run = None;
+    assert!(records::decode(current.as_slice(), &bounds) == Ok(Stored::Tier(row)), "earlier tiers have no run number");
+}
+
+#[test]
 fn an_earlier_finding_defaults_repair_and_blame_move() {
     use super::fixtures;
     use crate::records;

@@ -246,6 +246,7 @@ fn empty(repository: Repository, tier: Box<[u8]>) -> TierRow {
         tier,
         record: p::Record {
             sequence: 0,
+            last_run: None,
             judged: None,
             failing: p::Failures::Tests(Box::new([])),
             flakes: Box::new([]),

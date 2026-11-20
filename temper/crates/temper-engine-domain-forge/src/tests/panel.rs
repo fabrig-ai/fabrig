@@ -716,6 +716,7 @@ fn running_tier(d: &mut Domain, number: u64, tip: skein_forge::api::Commit, comm
                 started: None,
                 record: p::Record {
                     sequence: number,
+                    last_run: None,
                     judged: None,
                     failing: p::Failures::Tests(Box::new([])),
                     flakes: Box::new([]),

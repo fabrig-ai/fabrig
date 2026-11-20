@@ -2873,7 +2873,8 @@ pub mod paths {
     pub const TIER_RECORD_FAILING: Path = Path::new(309, 2);
     pub const TIER_RECORD_FLAKES: Path = Path::new(309, 3);
     pub const TIER_RECORD_RUN: Path = Path::new(309, 4);
-    pub const TIER_RECORD_TAIL: Path = Path::new(309, 5);
+    pub const TIER_RECORD_LAST_RUN: Path = Path::new(309, 5);
+    pub const TIER_RECORD_TAIL: Path = Path::new(309, 6);
     pub const TIER_PENDING_COMMIT: Path = Path::new(310, 0);
     pub const TIER_PENDING_KEY: Path = Path::new(310, 1);
     pub const TIER_PENDING_TAIL: Path = Path::new(310, 2);
@@ -5487,6 +5488,7 @@ const PATH_NAMES: &[&[&str]] = &[
         "TierRecord.failing",
         "TierRecord.flakes",
         "TierRecord.run",
+        "TierRecord.last_run",
         "TierRecord (tail)",
     ],
     &[
@@ -8192,16 +8194,18 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Option { item: 1210 },
     skein_codec::bounds::Node::List { limit: 177, item: 1213, size: size_of::<TierFlake>() },
     skein_codec::bounds::Node::Option { item: 1241 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1242, 1243, 1188, 1244, 1245] },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1248 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1247, 1249] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1251] },
+    skein_codec::bounds::Node::Option { item: 1246 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1242, 1243, 1188, 1244, 1245, 1247] },
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Option { item: 1250 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1249, 1251] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1253] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1253, 1252, 1254] },
+    skein_codec::bounds::Node::Enum { variants: &[1255, 1254, 1256] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -8209,404 +8213,404 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1256, 1257, 1258, 1259, 1260, 1261, 1262] },
+    skein_codec::bounds::Node::Enum { variants: &[1258, 1259, 1260, 1261, 1262, 1263, 1264] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1264, 1255] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1266, 1257] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1267 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1269 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1271 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1272 },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1274 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1276 },
     skein_codec::bounds::Node::List { limit: 178, item: 204, size: size_of::<JobAttempt>() },
-    skein_codec::bounds::Node::Option { item: 1263 },
+    skein_codec::bounds::Node::Option { item: 1265 },
     skein_codec::bounds::Node::Option { item: 1184 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1266, 1268, 1270, 1271, 1273, 1275, 1276, 1277, 1278] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1268, 1270, 1272, 1273, 1275, 1277, 1278, 1279, 1280] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 179 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1280, 1281, 1282] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1282, 1283, 1284] },
     skein_codec::bounds::Node::Bytes { limit: 180 },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1284, 1285] },
-    skein_codec::bounds::Node::List { limit: 181, item: 1286, size: size_of::<ReceiptTest>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1287] },
-    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1286, 1287] },
+    skein_codec::bounds::Node::List { limit: 181, item: 1288, size: size_of::<ReceiptTest>() },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1289] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1291] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1291, 1292, 1290, 1288] },
+    skein_codec::bounds::Node::Enum { variants: &[1293, 1294, 1292, 1290] },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1294 },
-    skein_codec::bounds::Node::List { limit: 182, item: 1283, size: size_of::<ReceiptJob>() },
+    skein_codec::bounds::Node::Option { item: 1296 },
+    skein_codec::bounds::Node::List { limit: 182, item: 1285, size: size_of::<ReceiptJob>() },
     skein_codec::bounds::Node::Option { item: 1188 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 183 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1295, 1296, 1297, 1298, 1184, 1299, 1300, 1301] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1297, 1298, 1299, 1300, 1184, 1301, 1302, 1303] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 184 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1305 },
-    skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Option { item: 1307 },
-    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Option { item: 1309 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1303, 1304, 1306, 1308, 1188, 1310] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1311 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1305, 1306, 1308, 1310, 1188, 1312] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 185 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1312, 1313, 1314] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1314, 1315, 1316] },
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::List { limit: 186, item: 1316, size: size_of::<u16>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1317] },
+    skein_codec::bounds::Node::List { limit: 186, item: 1318, size: size_of::<u16>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1319] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1319, 1318, 1318, 1320, 1321] },
+    skein_codec::bounds::Node::Enum { variants: &[1321, 1320, 1320, 1322, 1323] },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1324 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1323, 1322, 1325] },
+    skein_codec::bounds::Node::Option { item: 1326 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1325, 1324, 1327] },
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1327] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1329] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1329 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1330] },
-    skein_codec::bounds::Node::Enum { variants: &[1328, 1331] },
+    skein_codec::bounds::Node::Option { item: 1331 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1332] },
+    skein_codec::bounds::Node::Enum { variants: &[1330, 1333] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1333, 1334, 1332] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1335, 1336, 1334] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Bytes { limit: 187 },
     skein_codec::bounds::Node::Bytes { limit: 188 },
-    skein_codec::bounds::Node::List { limit: 189, item: 1326, size: size_of::<TierPostedLanding>() },
-    skein_codec::bounds::Node::List { limit: 190, item: 1335, size: size_of::<TierComment>() },
+    skein_codec::bounds::Node::List { limit: 189, item: 1328, size: size_of::<TierPostedLanding>() },
+    skein_codec::bounds::Node::List { limit: 190, item: 1337, size: size_of::<TierComment>() },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1343 },
+    skein_codec::bounds::Node::Option { item: 1345 },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1336, 1337, 1338, 172, 1339, 1340, 1341, 1342, 1344, 1345, 1346] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1293, 1166, 1302] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1338, 1339, 1340, 172, 1341, 1342, 1343, 1344, 1346, 1347, 1348] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1295, 1166, 1304] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1349, 1350] },
+    skein_codec::bounds::Node::Enum { variants: &[1351, 1352] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1352, 1353, 1354, 1355] },
+    skein_codec::bounds::Node::Enum { variants: &[1354, 1355, 1356, 1357] },
     skein_codec::bounds::Node::Bytes { limit: 191 },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Bytes { limit: 192 },
-    skein_codec::bounds::Node::Option { item: 1359 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1357, 1358, 1360] },
+    skein_codec::bounds::Node::Option { item: 1361 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1359, 1360, 1362] },
     skein_codec::bounds::Node::Bytes { limit: 193 },
     skein_codec::bounds::Node::Bytes { limit: 194 },
-    skein_codec::bounds::Node::Option { item: 1363 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1361, 1362, 1364] },
+    skein_codec::bounds::Node::Option { item: 1365 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1363, 1364, 1366] },
     skein_codec::bounds::Node::Bytes { limit: 195 },
     skein_codec::bounds::Node::Bytes { limit: 196 },
     skein_codec::bounds::Node::Bytes { limit: 197 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1366, 1367, 1368] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1368, 1369, 1370] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Bytes { limit: 198 },
     skein_codec::bounds::Node::Bytes { limit: 199 },
     skein_codec::bounds::Node::Bytes { limit: 200 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1370, 1371, 1372, 1373] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1372, 1373, 1374, 1375] },
     skein_codec::bounds::Node::Bytes { limit: 202 },
-    skein_codec::bounds::Node::List { limit: 201, item: 1375, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1376] },
+    skein_codec::bounds::Node::List { limit: 201, item: 1377, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1378] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1374, 1377, 1378] },
+    skein_codec::bounds::Node::Enum { variants: &[1376, 1379, 1380] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1380, 1381] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1382, 1383] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1383, 1382] },
+    skein_codec::bounds::Node::Enum { variants: &[1385, 1384] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1385, 1386] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1387, 1388] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Bytes { limit: 203 },
+    skein_codec::bounds::Node::Option { item: 1391 },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Option { item: 1381 },
     skein_codec::bounds::Node::Option { item: 1389 },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 1379 },
-    skein_codec::bounds::Node::Option { item: 1387 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1388, 1351, 1356, 1384, 1365, 1390, 1391, 1369, 1392, 1393, 1394] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1390, 1353, 1358, 1386, 1367, 1392, 1393, 1371, 1394, 1395, 1396] },
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1396] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1398] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1398, 1399, 1400] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1401] },
+    skein_codec::bounds::Node::Enum { variants: &[1400, 1401, 1402] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1403] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1403, 1404, 1402] },
+    skein_codec::bounds::Node::Enum { variants: &[1405, 1406, 1404] },
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1407 },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 1409 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1405, 1406, 1408, 1410] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 1411 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1407, 1408, 1410, 1412] },
     skein_codec::bounds::Node::Enum { variants: &[8, 8] },
     skein_codec::bounds::Node::Bytes { limit: 204 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1413, 1412] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1415, 1414] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1415, 1416, 542] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1417, 1418, 542] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1418, 1419, 542] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1420, 1421, 542] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 205, item: 1417, size: size_of::<RuleGate>() },
-    skein_codec::bounds::Node::List { limit: 206, item: 1420, size: size_of::<RuleApproval>() },
+    skein_codec::bounds::Node::List { limit: 205, item: 1419, size: size_of::<RuleGate>() },
+    skein_codec::bounds::Node::List { limit: 206, item: 1422, size: size_of::<RuleApproval>() },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 207, item: 1426, size: size_of::<u8>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1414, 1421, 1422, 1423, 1424, 1425, 1427] },
+    skein_codec::bounds::Node::List { limit: 207, item: 1428, size: size_of::<u8>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1416, 1423, 1424, 1425, 1426, 1427, 1429] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1429] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1431] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1431, 1432] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1433, 1434] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[746] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1435, 1436] },
+    skein_codec::bounds::Node::Enum { variants: &[1437, 1438] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1438, 1439] },
+    skein_codec::bounds::Node::Enum { variants: &[1440, 1441] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1441, 1442] },
+    skein_codec::bounds::Node::Enum { variants: &[1443, 1444] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Bytes { limit: 208 },
-    skein_codec::bounds::Node::Option { item: 1445 },
-    skein_codec::bounds::Node::Bytes { limit: 209 },
     skein_codec::bounds::Node::Option { item: 1447 },
+    skein_codec::bounds::Node::Bytes { limit: 209 },
+    skein_codec::bounds::Node::Option { item: 1449 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1450 },
+    skein_codec::bounds::Node::Option { item: 1452 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1437, 1444, 1443, 1443, 1446, 1448, 1449, 1451, 1452, 1453, 1454, 1455, 1440] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1439, 1446, 1445, 1445, 1448, 1450, 1451, 1453, 1454, 1455, 1456, 1457, 1442] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1457, 1458] },
+    skein_codec::bounds::Node::Enum { variants: &[1459, 1460] },
     skein_codec::bounds::Node::Bytes { limit: 210 },
     skein_codec::bounds::Node::Bytes { limit: 211 },
-    skein_codec::bounds::Node::Option { item: 1461 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1460, 1459, 1462] },
+    skein_codec::bounds::Node::Option { item: 1463 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1462, 1461, 1464] },
     skein_codec::bounds::Node::Bytes { limit: 212 },
     skein_codec::bounds::Node::Bytes { limit: 213 },
     skein_codec::bounds::Node::Bytes { limit: 215 },
-    skein_codec::bounds::Node::List { limit: 214, item: 1466, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::List { limit: 214, item: 1468, size: size_of::<Box<[u8]>>() },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 1463 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1464, 1465, 1467, 1468, 1469, 1470] },
+    skein_codec::bounds::Node::Option { item: 1465 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1466, 1467, 1469, 1470, 1471, 1472] },
     skein_codec::bounds::Node::Bytes { limit: 216 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1472] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1474] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1474, 1475, 1473] },
+    skein_codec::bounds::Node::Enum { variants: &[1476, 1477, 1475] },
     skein_codec::bounds::Node::Bytes { limit: 217 },
     skein_codec::bounds::Node::Bytes { limit: 218 },
     skein_codec::bounds::Node::Bytes { limit: 220 },
-    skein_codec::bounds::Node::List { limit: 219, item: 1479, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::List { limit: 219, item: 1481, size: size_of::<Box<[u8]>>() },
     skein_codec::bounds::Node::Bytes { limit: 221 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 222 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1477, 1478, 1480, 1481, 1459, 1476, 1482, 1483] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1479, 1480, 1482, 1483, 1461, 1478, 1484, 1485] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 223 },
     skein_codec::bounds::Node::Bytes { limit: 224 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1485, 1486, 1487, 1488] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1487, 1488, 1489, 1490] },
     skein_codec::bounds::Node::Bytes { limit: 225 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1490] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1492] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1492, 1493, 1494, 1495] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1494, 1495, 1496, 1497] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[475] },
-    skein_codec::bounds::Node::Enum { variants: &[1497, 482] },
+    skein_codec::bounds::Node::Enum { variants: &[1499, 482] },
     skein_codec::bounds::Node::Bytes { limit: 226 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1498, 1499, 480] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1500, 1501, 480] },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Bytes { limit: 227 },
     skein_codec::bounds::Node::Bytes { limit: 229 },
-    skein_codec::bounds::Node::List { limit: 228, item: 1503, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1501, 1502, 1504] },
-    skein_codec::bounds::Node::List { limit: 230, item: 1500, size: size_of::<ClassItem>() },
-    skein_codec::bounds::Node::List { limit: 231, item: 1505, size: size_of::<PathSet>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1506, 1507] },
+    skein_codec::bounds::Node::List { limit: 228, item: 1505, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1503, 1504, 1506] },
+    skein_codec::bounds::Node::List { limit: 230, item: 1502, size: size_of::<ClassItem>() },
+    skein_codec::bounds::Node::List { limit: 231, item: 1507, size: size_of::<PathSet>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1508, 1509] },
     skein_codec::bounds::Node::Bytes { limit: 232 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1509] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1511] },
     skein_codec::bounds::Node::Bytes { limit: 233 },
     skein_codec::bounds::Node::Bytes { limit: 234 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1511, 1512] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1513, 1514] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1514] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1516] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1516, 1517] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1518, 1519] },
     skein_codec::bounds::Node::Bytes { limit: 235 },
     skein_codec::bounds::Node::Bytes { limit: 237 },
-    skein_codec::bounds::Node::List { limit: 236, item: 1520, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1518, 1519, 1521] },
+    skein_codec::bounds::Node::List { limit: 236, item: 1522, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1520, 1521, 1523] },
     skein_codec::bounds::Node::Bytes { limit: 238 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1518, 1523] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1525] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1520, 1525] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1527] },
-    skein_codec::bounds::Node::Enum { variants: &[1526, 1528] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1529] },
+    skein_codec::bounds::Node::Enum { variants: &[1528, 1530] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1530, 1531] },
+    skein_codec::bounds::Node::Enum { variants: &[1532, 1533] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1533, 1534] },
+    skein_codec::bounds::Node::Enum { variants: &[1535, 1536] },
     skein_codec::bounds::Node::Bytes { limit: 239 },
     skein_codec::bounds::Node::Bytes { limit: 240 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1536, 1537, 1535] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1538, 1539, 1537] },
     skein_codec::bounds::Node::Bytes { limit: 241 },
-    skein_codec::bounds::Node::Option { item: 1539 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1522, 1524, 1529, 1532, 1540, 1538] },
+    skein_codec::bounds::Node::Option { item: 1541 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1524, 1526, 1531, 1534, 1542, 1540] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1542, 1543, 4, 4] },
+    skein_codec::bounds::Node::Enum { variants: &[1544, 1545, 4, 4] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1545] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1547, 1548, 1549, 1550] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1547] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1552, 1498, 1553] },
-    skein_codec::bounds::Node::Enum { variants: &[1546, 1551, 1554] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1556, 1555] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1549, 1550, 1551, 1552] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 242, item: 1558, size: size_of::<u32>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1560 },
-    skein_codec::bounds::Node::Bytes { limit: 243 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1554, 1500, 1555] },
+    skein_codec::bounds::Node::Enum { variants: &[1548, 1553, 1556] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1558, 1557] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::List { limit: 242, item: 1560, size: size_of::<u32>() },
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1562 },
-    skein_codec::bounds::Node::Bytes { limit: 244 },
+    skein_codec::bounds::Node::Bytes { limit: 243 },
     skein_codec::bounds::Node::Option { item: 1564 },
+    skein_codec::bounds::Node::Bytes { limit: 244 },
+    skein_codec::bounds::Node::Option { item: 1566 },
     skein_codec::bounds::Node::List { limit: 245, item: 783, size: size_of::<SignOff>() },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1568 },
+    skein_codec::bounds::Node::Option { item: 1570 },
     skein_codec::bounds::Node::Bytes { limit: 246 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1571 },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1573 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1559, 1561, 1563, 1565, 1566, 1567, 1569, 1570, 1572, 1574] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1576] },
+    skein_codec::bounds::Node::Option { item: 1575 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1561, 1563, 1565, 1567, 1568, 1569, 1571, 1572, 1574, 1576] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1578] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1578, 1579] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1580, 1581] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1582 },
+    skein_codec::bounds::Node::Option { item: 1584 },
     skein_codec::bounds::Node::List { limit: 247, item: 1036, size: size_of::<FailingTest>() },
-    skein_codec::bounds::Node::Option { item: 1580 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1581, 1583, 1584, 1585] },
+    skein_codec::bounds::Node::Option { item: 1582 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1583, 1585, 1586, 1587] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1587, 1577, 1586] },
+    skein_codec::bounds::Node::Enum { variants: &[1589, 1579, 1588] },
     skein_codec::bounds::Node::Bytes { limit: 248 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1589, 1588] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1591, 1590] },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Bytes { limit: 249 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 250, item: 1575, size: size_of::<LoggedChange>() },
-    skein_codec::bounds::Node::List { limit: 251, item: 1590, size: size_of::<LoggedTier>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1591, 1592, 1593, 1594, 1595] },
+    skein_codec::bounds::Node::List { limit: 250, item: 1577, size: size_of::<LoggedChange>() },
+    skein_codec::bounds::Node::List { limit: 251, item: 1592, size: size_of::<LoggedTier>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1593, 1594, 1595, 1596, 1597] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1597, 1598, 1599] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1599, 1600, 1601] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1601, 1602, 1603] },
+    skein_codec::bounds::Node::Enum { variants: &[1603, 1604, 1605] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1605, 1604, 1606, 1607, 1608, 1609] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1607, 1606, 1608, 1609, 1610, 1611] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 252 },
-    skein_codec::bounds::Node::Option { item: 1600 },
-    skein_codec::bounds::Node::Option { item: 1610 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1611, 1612, 1613, 1614, 1615] },
-    skein_codec::bounds::Node::List { limit: 253, item: 1596, size: size_of::<LoggedLanding>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 1617] },
+    skein_codec::bounds::Node::Option { item: 1602 },
+    skein_codec::bounds::Node::Option { item: 1612 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1613, 1614, 1615, 1616, 1617] },
+    skein_codec::bounds::Node::List { limit: 253, item: 1598, size: size_of::<LoggedLanding>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 1619] },
     skein_codec::bounds::Node::Bytes { limit: 254 },
     skein_codec::bounds::Node::Bytes { limit: 255 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1623 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1619, 1620, 1621, 1622, 1624] },
+    skein_codec::bounds::Node::Option { item: 1625 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1621, 1622, 1623, 1624, 1626] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1626 },
+    skein_codec::bounds::Node::Option { item: 1628 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1630 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1627, 1628, 1629, 1631] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1633, 1634, 1635] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1625 },
     skein_codec::bounds::Node::Option { item: 1632 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1641 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1637, 1638, 1639, 1640, 1642] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1646 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1644, 1645, 1647, 1648, 1649, 1650] },
-    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1629, 1630, 1631, 1633] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1655 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1635, 1636, 1637] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 1627 },
+    skein_codec::bounds::Node::Option { item: 1634 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1643 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1639, 1640, 1641, 1642, 1644] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1648 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1658 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1652, 1653, 1654, 1656, 1657, 1659] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1646, 1647, 1649, 1650, 1651, 1652] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1657 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1660 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1654, 1655, 1656, 1658, 1659, 1661] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
@@ -8614,68 +8618,68 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 256 },
     skein_codec::bounds::Node::Bytes { limit: 258 },
-    skein_codec::bounds::Node::List { limit: 257, item: 1667, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::List { limit: 257, item: 1669, size: size_of::<Box<[u8]>>() },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 1669 },
+    skein_codec::bounds::Node::Option { item: 1671 },
     skein_codec::bounds::Node::Bytes { limit: 259 },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1661, 1662, 1663, 1664, 1665, 1666, 1668, 1670, 1671, 1672, 490] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1663, 1664, 1665, 1666, 1667, 1668, 1670, 1672, 1673, 1674, 490] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1674, 1675] },
+    skein_codec::bounds::Node::Enum { variants: &[1676, 1677] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1676, 1677] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1678, 1679] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 260, item: 1679, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1680] },
+    skein_codec::bounds::Node::List { limit: 260, item: 1681, size: size_of::<u64>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1682] },
     skein_codec::bounds::Node::List { limit: 261, item: 204, size: size_of::<JobAttempt>() },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1682, 1683] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1684, 1685] },
     skein_codec::bounds::Node::Bytes { limit: 262 },
-    skein_codec::bounds::Node::Option { item: 1685 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1686] },
+    skein_codec::bounds::Node::Option { item: 1687 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1688] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1688, 1689, 1684, 1687] },
+    skein_codec::bounds::Node::Enum { variants: &[1690, 1691, 1686, 1689] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 6 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1691, 1692, 1690] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1693, 1694, 1692] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 263 },
-    skein_codec::bounds::Node::Option { item: 1695 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1694, 1696] },
+    skein_codec::bounds::Node::Option { item: 1697 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1696, 1698] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1698, 1697] },
+    skein_codec::bounds::Node::Enum { variants: &[1700, 1699] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 264 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1700, 1701, 1676, 1702, 1699] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1702, 1703, 1678, 1704, 1701] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1704, 1705, 4] },
+    skein_codec::bounds::Node::Enum { variants: &[1706, 1707, 4] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 265 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1707, 1706, 1708] },
-    skein_codec::bounds::Node::Option { item: 1703 },
-    skein_codec::bounds::Node::List { limit: 266, item: 1709, size: size_of::<ClosingMessage>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1710, 1711] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1709, 1708, 1710] },
+    skein_codec::bounds::Node::Option { item: 1705 },
+    skein_codec::bounds::Node::List { limit: 266, item: 1711, size: size_of::<ClosingMessage>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1712, 1713] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1681 },
+    skein_codec::bounds::Node::Option { item: 1683 },
+    skein_codec::bounds::Node::Option { item: 1680 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1719 },
+    skein_codec::bounds::Node::Option { item: 1680 },
+    skein_codec::bounds::Node::Option { item: 1678 },
     skein_codec::bounds::Node::Option { item: 1678 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1717 },
-    skein_codec::bounds::Node::Option { item: 1678 },
-    skein_codec::bounds::Node::Option { item: 1676 },
-    skein_codec::bounds::Node::Option { item: 1676 },
+    skein_codec::bounds::Node::List { limit: 267, item: 1724, size: size_of::<u64>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 267, item: 1722, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 268, item: 1724, size: size_of::<u64>() },
-    skein_codec::bounds::Node::List { limit: 269, item: 1693, size: size_of::<ClosingSelection>() },
+    skein_codec::bounds::Node::List { limit: 268, item: 1726, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 269, item: 1695, size: size_of::<ClosingSelection>() },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 1712 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1713, 1714, 1715, 1716, 1718, 1719, 1720, 1721, 1723, 1725, 1726, 1727, 1728] },
+    skein_codec::bounds::Node::Option { item: 1714 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1715, 1716, 1717, 1718, 1720, 1721, 1722, 1723, 1725, 1727, 1728, 1729, 1730] },
     skein_codec::bounds::Node::Bytes { limit: 270 },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 271 },
@@ -8684,87 +8688,85 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1737 },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1739 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1741 },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 1730, 1731, 1732, 1733, 1734, 1735, 1736, 1738, 1740, 1741] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 1732, 1733, 1734, 1735, 1736, 1737, 1738, 1740, 1742, 1743] },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Bytes { limit: 273 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1743, 1744] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1745, 1746] },
     skein_codec::bounds::Node::Bytes { limit: 274 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1746] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1748] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1748, 1749, 1747, 4, 1750, 1747, 1747] },
+    skein_codec::bounds::Node::Enum { variants: &[1750, 1751, 1749, 4, 1752, 1749, 1749] },
     skein_codec::bounds::Node::Bytes { limit: 275 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1752] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1754] },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1756 },
-    skein_codec::bounds::Node::List { limit: 276, item: 1745, size: size_of::<FollowCommit>() },
+    skein_codec::bounds::Node::Option { item: 1758 },
+    skein_codec::bounds::Node::List { limit: 276, item: 1747, size: size_of::<FollowCommit>() },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1753 },
+    skein_codec::bounds::Node::Option { item: 1755 },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1762 },
+    skein_codec::bounds::Node::Option { item: 1764 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1754, 1755, 1757, 1758, 1759, 1760, 1761, 1763, 1751, 1764, 1765] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1756, 1757, 1759, 1760, 1761, 1762, 1763, 1765, 1753, 1766, 1767] },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Bytes { limit: 277 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1767, 1768] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1769, 1770] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1770] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1772] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1772, 1771, 1773] },
+    skein_codec::bounds::Node::Enum { variants: &[1774, 1773, 1775] },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Bytes { limit: 278 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1775, 1776, 1774, 1777] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1777, 1778, 1776, 1779] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 279 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1782 },
-    skein_codec::bounds::Node::Bytes { limit: 280 },
     skein_codec::bounds::Node::Option { item: 1784 },
-    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Bytes { limit: 280 },
     skein_codec::bounds::Node::Option { item: 1786 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1779, 1780, 1781, 1783, 1785, 1787] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 1788 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1781, 1782, 1783, 1785, 1787, 1789] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 281 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1792 },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1794 },
-    skein_codec::bounds::Node::Bytes { limit: 282 },
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1796 },
-    skein_codec::bounds::Node::List { limit: 283, item: 1766, size: size_of::<FollowEntry>() },
-    skein_codec::bounds::Node::List { limit: 284, item: 1769, size: size_of::<FollowSkip>() },
-    skein_codec::bounds::Node::Option { item: 1778 },
-    skein_codec::bounds::Node::List { limit: 285, item: 1788, size: size_of::<FollowQuestion>() },
+    skein_codec::bounds::Node::Bytes { limit: 282 },
+    skein_codec::bounds::Node::Option { item: 1798 },
+    skein_codec::bounds::Node::List { limit: 283, item: 1768, size: size_of::<FollowEntry>() },
+    skein_codec::bounds::Node::List { limit: 284, item: 1771, size: size_of::<FollowSkip>() },
+    skein_codec::bounds::Node::Option { item: 1780 },
+    skein_codec::bounds::Node::List { limit: 285, item: 1790, size: size_of::<FollowQuestion>() },
     skein_codec::bounds::Node::Option { item: 912 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1789, 1790, 2, 1791, 1793, 1795, 1797, 1798, 1799, 1800, 1801, 1802] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1791, 1792, 2, 1793, 1795, 1797, 1799, 1800, 1801, 1802, 1803, 1804] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Bytes { limit: 286 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1808 },
-    skein_codec::bounds::Node::Option { item: 1279 },
+    skein_codec::bounds::Node::Option { item: 1810 },
+    skein_codec::bounds::Node::Option { item: 1281 },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 287 },
-    skein_codec::bounds::Node::Option { item: 1813 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1804, 1805, 1806, 1807, 1809, 1810, 1811, 1812, 1814] },
+    skein_codec::bounds::Node::Option { item: 1815 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1806, 1807, 1808, 1809, 1811, 1812, 1813, 1814, 1816] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1817 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1819 },
     skein_codec::bounds::Node::Scalar(8),
@@ -8773,26 +8775,28 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Option { item: 1823 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1825 },
-    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 1827 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1816, 1818, 1820, 1822, 1824, 1826, 1828] },
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Option { item: 1829 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1818, 1820, 1822, 1824, 1826, 1828, 1830] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1830, 1831] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1832, 1833] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1836 },
-    skein_codec::bounds::Node::List { limit: 288, item: 1832, size: size_of::<HistoryMark>() },
+    skein_codec::bounds::Node::Option { item: 1838 },
+    skein_codec::bounds::Node::List { limit: 288, item: 1834, size: size_of::<HistoryMark>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1839 },
+    skein_codec::bounds::Node::Option { item: 1841 },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1833, 1834, 1835, 1837, 1838, 1840, 1841] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1835, 1836, 1837, 1839, 1840, 1842, 1843] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1843, 1844, 1845] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1845, 1846, 1847] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -8800,132 +8804,132 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1847, 1848, 1849, 1850, 1851, 1852, 1853] },
+    skein_codec::bounds::Node::Enum { variants: &[1849, 1850, 1851, 1852, 1853, 1854, 1855] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1855, 1856, 1857] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 1859 },
+    skein_codec::bounds::Node::Enum { variants: &[1857, 1858, 1859] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 1861 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1858, 1860, 1862] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Option { item: 1863 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1860, 1862, 1864] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[997] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1864, 1865, 1866, 1867, 1868] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1858, 1869] },
+    skein_codec::bounds::Node::Enum { variants: &[1866, 1867, 1868, 1869, 1870] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1860, 1871] },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1871 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[212, 1872] },
+    skein_codec::bounds::Node::Option { item: 1873 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[212, 1874] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1874, 1875, 1876] },
+    skein_codec::bounds::Node::Enum { variants: &[1876, 1877, 1878] },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1878 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1877, 1879] },
+    skein_codec::bounds::Node::Option { item: 1880 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1879, 1881] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1135, 1881] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1135, 1883] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1135, 1150] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1884, 1885] },
+    skein_codec::bounds::Node::Enum { variants: &[1886, 1887] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1886, 1887] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1888, 1889] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1889, 1890, 1891] },
+    skein_codec::bounds::Node::Enum { variants: &[1891, 1892, 1893] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Option { item: 1894 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1892, 1893, 1895] },
+    skein_codec::bounds::Node::Option { item: 1896 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1894, 1895, 1897] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1897, 1898, 1899, 1900, 1901, 1902] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1892, 1903] },
+    skein_codec::bounds::Node::Enum { variants: &[1899, 1900, 1901, 1902, 1903, 1904] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1894, 1905] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1905] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1907] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1907, 1908] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1909] },
+    skein_codec::bounds::Node::Enum { variants: &[1909, 1910] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1911] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1911, 1912, 1913] },
-    skein_codec::bounds::Node::List { limit: 289, item: 1914, size: size_of::<HistoryMember>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1913, 1914, 1915] },
+    skein_codec::bounds::Node::List { limit: 289, item: 1916, size: size_of::<HistoryMember>() },
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1915, 1916] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1917, 1918] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1918, 1919, 1920, 1921, 1922] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1923] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1925, 1926] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1928, 1929, 1930, 1931, 1932] },
+    skein_codec::bounds::Node::Enum { variants: &[1920, 1921, 1922, 1923, 1924] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1925] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1934, 1935, 1933] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1927, 1928] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1930, 1931, 1932, 1933, 1934] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1936, 1937, 1935] },
     skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1938 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1937, 1939] },
-    skein_codec::bounds::Node::List { limit: 290, item: 1940, size: size_of::<HistoryProof>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1941] },
+    skein_codec::bounds::Node::Option { item: 1940 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1939, 1941] },
+    skein_codec::bounds::Node::List { limit: 290, item: 1942, size: size_of::<HistoryProof>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1943] },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1943 },
+    skein_codec::bounds::Node::Option { item: 1945 },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1944, 1945, 1946] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1946, 1947, 1948] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1948] },
-    skein_codec::bounds::Node::Scalar(2),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[1950] },
+    skein_codec::bounds::Node::Scalar(2),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1952] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1952, 1953] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1954] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1956, 1957, 1958] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1959] },
+    skein_codec::bounds::Node::Enum { variants: &[1954, 1955] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1956] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1961, 1962, 1963] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1964] },
+    skein_codec::bounds::Node::Enum { variants: &[1958, 1959, 1960] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1961] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1966, 1967] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1963, 1964, 1965] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1966] },
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Scalar(0),
+    skein_codec::bounds::Node::Enum { variants: &[1968, 1969] },
     skein_codec::bounds::Node::Enum { variants: &[4, 4] },
     skein_codec::bounds::Node::Bytes { limit: 291 },
-    skein_codec::bounds::Node::Option { item: 1969 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1968, 1970, 1971] },
+    skein_codec::bounds::Node::Option { item: 1971 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1970, 1972, 1973] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1973, 1974, 1975, 1976] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1977] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1854] },
+    skein_codec::bounds::Node::Enum { variants: &[1975, 1976, 1977, 1978] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1979] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1856] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
@@ -8933,58 +8937,58 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1980, 1979, 1863, 1870, 1981, 1873, 1880, 1882, 1883, 1888, 1896, 1904, 1982, 1906, 1910, 1983, 1917, 1924, 1927, 1936, 1942, 1984, 1947, 1985, 1949, 1951, 1986, 1955, 1960, 1965, 1972, 1972, 1978] },
+    skein_codec::bounds::Node::Enum { variants: &[1982, 1981, 1865, 1872, 1983, 1875, 1882, 1884, 1885, 1890, 1898, 1906, 1984, 1908, 1912, 1985, 1919, 1926, 1929, 1938, 1944, 1986, 1949, 1987, 1951, 1953, 1988, 1957, 1962, 1967, 1974, 1974, 1980] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1991 },
+    skein_codec::bounds::Node::Option { item: 1993 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 1846 },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 1995 },
+    skein_codec::bounds::Node::Option { item: 1848 },
     skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Option { item: 1997 },
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Option { item: 1999 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1988, 1989, 1990, 1992, 1993, 2, 1994, 1996, 1998, 1999, 2000, 1987] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2005 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2002, 2003, 2004, 2006] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1990, 1991, 1992, 1994, 1995, 2, 1996, 1998, 2000, 2001, 2002, 1989] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2008, 2009, 2010, 2011] },
+    skein_codec::bounds::Node::Option { item: 2007 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2004, 2005, 2006, 2008] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2013, 2014, 2015, 2016] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2018, 2019] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2010, 2011, 2012, 2013] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2021] },
-    skein_codec::bounds::Node::Enum { variants: &[130, 132, 134, 134, 2022] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2015, 2016, 2017, 2018] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2020, 2021] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2023] },
+    skein_codec::bounds::Node::Enum { variants: &[130, 132, 134, 134, 2024] },
     skein_codec::bounds::Node::Bytes { limit: 292 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 2025 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2024, 2026] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2028 },
-    skein_codec::bounds::Node::Bytes { limit: 293 },
-    skein_codec::bounds::Node::Option { item: 2030 },
-    skein_codec::bounds::Node::Bytes { limit: 294 },
-    skein_codec::bounds::Node::Option { item: 2032 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2034 },
     skein_codec::bounds::Node::Option { item: 2027 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2026, 2028] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2037 },
+    skein_codec::bounds::Node::Option { item: 2030 },
+    skein_codec::bounds::Node::Bytes { limit: 293 },
+    skein_codec::bounds::Node::Option { item: 2032 },
+    skein_codec::bounds::Node::Bytes { limit: 294 },
+    skein_codec::bounds::Node::Option { item: 2034 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 2036 },
+    skein_codec::bounds::Node::Option { item: 2029 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 2039 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 295 },
     skein_codec::bounds::Node::Bytes { limit: 296 },
@@ -8997,89 +9001,89 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Option { item: 742 },
     skein_codec::bounds::Node::Bytes { limit: 299 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 2050 },
+    skein_codec::bounds::Node::Option { item: 2052 },
     skein_codec::bounds::Node::Option { item: 787 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 2053 },
-    skein_codec::bounds::Node::Bytes { limit: 300 },
     skein_codec::bounds::Node::Option { item: 2055 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2029, 2031, 2033, 2035, 2036, 2038, 2039, 2, 2040, 2041, 2042, 2043, 2044, 2045, 2046, 2047, 2048, 2049, 2051, 2052, 2054, 2056] },
+    skein_codec::bounds::Node::Bytes { limit: 300 },
+    skein_codec::bounds::Node::Option { item: 2057 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2031, 2033, 2035, 2037, 2038, 2040, 2041, 2, 2042, 2043, 2044, 2045, 2046, 2047, 2048, 2049, 2050, 2051, 2053, 2054, 2056, 2058] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1166, 2058] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[1166, 2060] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2060 },
-    skein_codec::bounds::Node::Scalar(32),
     skein_codec::bounds::Node::Option { item: 2062 },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 2059 },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 2066 },
-    skein_codec::bounds::Node::Option { item: 2020 },
+    skein_codec::bounds::Node::Option { item: 2064 },
+    skein_codec::bounds::Node::Scalar(1),
+    skein_codec::bounds::Node::Option { item: 2061 },
+    skein_codec::bounds::Node::Scalar(32),
+    skein_codec::bounds::Node::Option { item: 2068 },
+    skein_codec::bounds::Node::Option { item: 2022 },
     skein_codec::bounds::Node::Option { item: 1160 },
     skein_codec::bounds::Node::List { limit: 301, item: 783, size: size_of::<SignOff>() },
     skein_codec::bounds::Node::Option { item: 779 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 302, item: 2072, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 302, item: 2074, size: size_of::<u64>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 303, item: 2074, size: size_of::<u64>() },
+    skein_codec::bounds::Node::List { limit: 303, item: 2076, size: size_of::<u64>() },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 724 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2079 },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 2081 },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 2083 },
     skein_codec::bounds::Node::Option { item: 607 },
     skein_codec::bounds::Node::List { limit: 304, item: 666, size: size_of::<GateReport>() },
     skein_codec::bounds::Node::List { limit: 305, item: 673, size: size_of::<GateRemark>() },
     skein_codec::bounds::Node::Option { item: 571 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2087 },
+    skein_codec::bounds::Node::Option { item: 2089 },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 727 },
     skein_codec::bounds::Node::Bytes { limit: 306 },
-    skein_codec::bounds::Node::Option { item: 2091 },
-    skein_codec::bounds::Node::Option { item: 1815 },
+    skein_codec::bounds::Node::Option { item: 2093 },
+    skein_codec::bounds::Node::Option { item: 1817 },
     skein_codec::bounds::Node::Bytes { limit: 307 },
-    skein_codec::bounds::Node::Option { item: 2094 },
-    skein_codec::bounds::Node::Option { item: 1829 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2061, 2063, 2064, 2065, 2067, 2068, 2069, 2070, 2071, 2073, 2075, 734, 2076, 2077, 722, 2078, 2080, 2082, 578, 2083, 539, 2084, 2085, 2086, 2088, 2089, 2090, 2092, 773, 2093, 2095, 2096] },
+    skein_codec::bounds::Node::Option { item: 2096 },
+    skein_codec::bounds::Node::Option { item: 1831 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2063, 2065, 2066, 2067, 2069, 2070, 2071, 2072, 2073, 2075, 2077, 734, 2078, 2079, 722, 2080, 2082, 2084, 578, 2085, 539, 2086, 2087, 2088, 2090, 2091, 2092, 2094, 773, 2095, 2097, 2098] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2100 },
+    skein_codec::bounds::Node::Option { item: 2102 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 308, item: 2102, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Option { item: 2103 },
+    skein_codec::bounds::Node::List { limit: 308, item: 2104, size: size_of::<u64>() },
+    skein_codec::bounds::Node::Option { item: 2105 },
     skein_codec::bounds::Node::Bytes { limit: 310 },
-    skein_codec::bounds::Node::List { limit: 309, item: 2105, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2098, 2099, 2023, 2101, 2104, 2106] },
+    skein_codec::bounds::Node::List { limit: 309, item: 2107, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2100, 2101, 2025, 2103, 2106, 2108] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2108] },
-    skein_codec::bounds::Node::Enum { variants: &[4, 4, 2109] },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2110] },
+    skein_codec::bounds::Node::Enum { variants: &[4, 4, 2111] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2112] },
     skein_codec::bounds::Node::Bytes { limit: 312 },
-    skein_codec::bounds::Node::List { limit: 311, item: 2112, size: size_of::<Box<[u8]>>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2113] },
-    skein_codec::bounds::Node::Bytes { limit: 313 },
+    skein_codec::bounds::Node::List { limit: 311, item: 2114, size: size_of::<Box<[u8]>>() },
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2115] },
+    skein_codec::bounds::Node::Bytes { limit: 313 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2117] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2114, 2109, 2111, 2117, 2118, 2119, 2116] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2120] },
+    skein_codec::bounds::Node::Enum { variants: &[2116, 2111, 2113, 2119, 2120, 2121, 2118] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2122] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2111, 2111, 4, 2122, 2123, 2121] },
+    skein_codec::bounds::Node::Enum { variants: &[2113, 2113, 4, 2124, 2125, 2123] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 314 },
-    skein_codec::bounds::Node::Option { item: 2127 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2125, 2126, 2128, 2124] },
+    skein_codec::bounds::Node::Option { item: 2129 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2127, 2128, 2130, 2126] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 315 },
-    skein_codec::bounds::Node::Option { item: 2131 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2130, 2132] },
+    skein_codec::bounds::Node::Option { item: 2133 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2132, 2134] },
     skein_codec::bounds::Node::Enum { variants: &[4, 4] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 316 },
@@ -9087,195 +9091,195 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Bytes { limit: 318 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2135, 2136, 2137, 2138, 2134, 2139, 2140] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2137, 2138, 2139, 2140, 2136, 2141, 2142] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2142] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2144] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 319 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2144, 2145, 2146] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2146, 2147, 2148] },
     skein_codec::bounds::Node::Bytes { limit: 320 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2141 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2148, 2149, 2150] },
+    skein_codec::bounds::Node::Option { item: 2143 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2150, 2151, 2152] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2152] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2154] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2154, 2153, 2155] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2156] },
-    skein_codec::bounds::Node::Enum { variants: &[2151, 2141, 2157] },
+    skein_codec::bounds::Node::Enum { variants: &[2156, 2155, 2157] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2158] },
+    skein_codec::bounds::Node::Enum { variants: &[2153, 2143, 2159] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 321 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2159, 2160, 2158] },
-    skein_codec::bounds::Node::Boxed { item: 2129, size: size_of::<FindingReply>() },
-    skein_codec::bounds::Node::Boxed { item: 2161, size: size_of::<RedReply>() },
-    skein_codec::bounds::Node::Enum { variants: &[463, 298, 459, 494, 2162, 2133, 2163] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[499, 2164] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2166] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2161, 2162, 2160] },
+    skein_codec::bounds::Node::Boxed { item: 2131, size: size_of::<FindingReply>() },
+    skein_codec::bounds::Node::Boxed { item: 2163, size: size_of::<RedReply>() },
+    skein_codec::bounds::Node::Enum { variants: &[463, 298, 459, 494, 2164, 2135, 2165] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[499, 2166] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2168] },
-    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2170] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2172] },
-    skein_codec::bounds::Node::Enum { variants: &[2167, 2169, 2171, 2173] },
+    skein_codec::bounds::Node::Scalar(4),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2174] },
+    skein_codec::bounds::Node::Enum { variants: &[2169, 2171, 2173, 2175] },
     skein_codec::bounds::Node::Bytes { limit: 322 },
     skein_codec::bounds::Node::Bytes { limit: 323 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2175, 2176, 2174] },
-    skein_codec::bounds::Node::List { limit: 324, item: 2177, size: size_of::<Area>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2178] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2174] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2177, 2178, 2176] },
+    skein_codec::bounds::Node::List { limit: 324, item: 2179, size: size_of::<Area>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2180] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2176] },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2181] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2183] },
     skein_codec::bounds::Node::Bytes { limit: 325 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 326 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2183, 2184, 2185] },
-    skein_codec::bounds::Node::List { limit: 327, item: 2186, size: size_of::<LimitOverride>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2187] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2185, 2186, 2187] },
+    skein_codec::bounds::Node::List { limit: 327, item: 2188, size: size_of::<LimitOverride>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2189] },
     skein_codec::bounds::Node::Bytes { limit: 328 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2189, 2190] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2191, 2192] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2192, 2193] },
+    skein_codec::bounds::Node::Enum { variants: &[2194, 2195] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2195, 2196, 2197, 2198, 2199, 2194] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2197, 2198, 2199, 2200, 2201, 2196] },
     skein_codec::bounds::Node::Bytes { limit: 329 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2201, 2200] },
-    skein_codec::bounds::Node::List { limit: 330, item: 2191, size: size_of::<AgentFigure>() },
-    skein_codec::bounds::Node::List { limit: 331, item: 2202, size: size_of::<AgentEndpointLimits>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2203, 2204, 2200] },
-    skein_codec::bounds::Node::Enum { variants: &[1428, 1430, 1434, 1496, 1433, 1510, 1513, 1508, 1541, 1515, 2179, 2180, 2182, 1456, 1491, 2205, 2188] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2203, 2202] },
+    skein_codec::bounds::Node::List { limit: 330, item: 2193, size: size_of::<AgentFigure>() },
+    skein_codec::bounds::Node::List { limit: 331, item: 2204, size: size_of::<AgentEndpointLimits>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2205, 2206, 2202] },
+    skein_codec::bounds::Node::Enum { variants: &[1430, 1432, 1436, 1498, 1435, 1512, 1515, 1510, 1543, 1517, 2181, 2182, 2184, 1458, 1493, 2207, 2190] },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2206, 2207] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2208, 2209] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2208, 2209, 2210] },
+    skein_codec::bounds::Node::Enum { variants: &[2210, 2211, 2212] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2212, 2213, 2214, 1544, 2211] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2214, 2215, 2216, 1546, 2213] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2216, 2217, 2218, 2219, 2220] },
+    skein_codec::bounds::Node::Enum { variants: &[2218, 2219, 2220, 2221, 2222] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2222, 2223, 2224] },
+    skein_codec::bounds::Node::Enum { variants: &[2224, 2225, 2226] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2226, 2227, 2228, 2229] },
+    skein_codec::bounds::Node::Enum { variants: &[2228, 2229, 2230, 2231] },
     skein_codec::bounds::Node::Enum { variants: &[4, 4] },
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2232, 2233, 2234, 2235] },
+    skein_codec::bounds::Node::Enum { variants: &[2234, 2235, 2236, 2237] },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2238 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 2240 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2237, 2239, 2241] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 2242 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2239, 2241, 2243] },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::List { limit: 332, item: 2242, size: size_of::<BlamedGoal>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2243, 2244] },
+    skein_codec::bounds::Node::List { limit: 332, item: 2244, size: size_of::<BlamedGoal>() },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2245, 2246] },
     skein_codec::bounds::Node::Bytes { limit: 333 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2231, 2246] },
-    skein_codec::bounds::Node::List { limit: 334, item: 2245, size: size_of::<BlamedLanding>() },
-    skein_codec::bounds::Node::Option { item: 2247 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2236, 2248, 2249] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2233, 2248] },
+    skein_codec::bounds::Node::List { limit: 334, item: 2247, size: size_of::<BlamedLanding>() },
+    skein_codec::bounds::Node::Option { item: 2249 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2238, 2250, 2251] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2251, 2252] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2253, 2254] },
     skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2254] },
-    skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Record { prefix: 0, fields: &[2256] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2258] },
     skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[2255, 2257, 2258] },
+    skein_codec::bounds::Node::Enum { variants: &[2257, 2259, 2260] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Bytes { limit: 336 },
-    skein_codec::bounds::Node::List { limit: 335, item: 2264, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::List { limit: 335, item: 2266, size: size_of::<Box<[u8]>>() },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2266 },
-    skein_codec::bounds::Node::Option { item: 2259 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2260, 2261, 2262, 2263, 2265, 2267, 2268] },
+    skein_codec::bounds::Node::Option { item: 2268 },
+    skein_codec::bounds::Node::Option { item: 2261 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2262, 2263, 2264, 2265, 2267, 2269, 2270] },
     skein_codec::bounds::Node::Bytes { limit: 337 },
     skein_codec::bounds::Node::Bytes { limit: 339 },
-    skein_codec::bounds::Node::List { limit: 338, item: 2271, size: size_of::<Box<[u8]>>() },
+    skein_codec::bounds::Node::List { limit: 338, item: 2273, size: size_of::<Box<[u8]>>() },
     skein_codec::bounds::Node::Bytes { limit: 340 },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 2270, 2272, 2273, 2274] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2, 2272, 2274, 2275, 2276] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 341 },
     skein_codec::bounds::Node::Bytes { limit: 342 },
-    skein_codec::bounds::Node::Option { item: 2250 },
+    skein_codec::bounds::Node::Option { item: 2252 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 2280 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2276, 2221, 2225, 2277, 2278, 2275, 2279, 2281] },
-    skein_codec::bounds::Node::List { limit: 343, item: 2282, size: size_of::<VerdictFiling>() },
+    skein_codec::bounds::Node::Option { item: 2282 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2278, 2223, 2227, 2279, 2280, 2277, 2281, 2283] },
+    skein_codec::bounds::Node::List { limit: 343, item: 2284, size: size_of::<VerdictFiling>() },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Option { item: 1042 },
     skein_codec::bounds::Node::Bytes { limit: 344 },
     skein_codec::bounds::Node::Bytes { limit: 345 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2288 },
+    skein_codec::bounds::Node::Option { item: 2290 },
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(1),
     skein_codec::bounds::Node::Scalar(30),
-    skein_codec::bounds::Node::Option { item: 2292 },
-    skein_codec::bounds::Node::List { limit: 346, item: 1250, size: size_of::<TierPending>() },
-    skein_codec::bounds::Node::Option { item: 1250 },
+    skein_codec::bounds::Node::Option { item: 2294 },
+    skein_codec::bounds::Node::List { limit: 346, item: 1252, size: size_of::<TierPending>() },
+    skein_codec::bounds::Node::Option { item: 1252 },
+    skein_codec::bounds::Node::Option { item: 1267 },
+    skein_codec::bounds::Node::Option { item: 1281 },
     skein_codec::bounds::Node::Option { item: 1265 },
-    skein_codec::bounds::Node::Option { item: 1279 },
-    skein_codec::bounds::Node::Option { item: 1263 },
-    skein_codec::bounds::Node::Option { item: 1315 },
-    skein_codec::bounds::Node::Option { item: 1302 },
-    skein_codec::bounds::Node::Option { item: 1347 },
+    skein_codec::bounds::Node::Option { item: 1317 },
+    skein_codec::bounds::Node::Option { item: 1304 },
+    skein_codec::bounds::Node::Option { item: 1349 },
     skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 347, item: 1311, size: size_of::<TierGoal>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2304 },
+    skein_codec::bounds::Node::List { limit: 347, item: 1313, size: size_of::<TierGoal>() },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Option { item: 2306 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2283, 2284, 2285, 2286, 2, 2287, 1246, 2289, 2290, 2291, 2293, 2294, 2295, 1255, 2296, 2297, 2298, 2299, 2300, 2301, 2302, 2303, 2305, 2307] },
+    skein_codec::bounds::Node::Scalar(8),
+    skein_codec::bounds::Node::Option { item: 2308 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2285, 2286, 2287, 2288, 2, 2289, 1248, 2291, 2292, 2293, 2295, 2296, 2297, 1257, 2298, 2299, 2300, 2301, 2302, 2303, 2304, 2305, 2307, 2309] },
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 348 },
-    skein_codec::bounds::Node::Option { item: 2311 },
+    skein_codec::bounds::Node::Option { item: 2313 },
     skein_codec::bounds::Node::Bytes { limit: 349 },
     skein_codec::bounds::Node::Bytes { limit: 350 },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Bytes { limit: 351 },
-    skein_codec::bounds::Node::Option { item: 2316 },
-    skein_codec::bounds::Node::Option { item: 2231 },
+    skein_codec::bounds::Node::Option { item: 2318 },
+    skein_codec::bounds::Node::Option { item: 2233 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 2319 },
-    skein_codec::bounds::Node::Bytes { limit: 352 },
     skein_codec::bounds::Node::Option { item: 2321 },
-    skein_codec::bounds::Node::Option { item: 2275 },
+    skein_codec::bounds::Node::Bytes { limit: 352 },
+    skein_codec::bounds::Node::Option { item: 2323 },
+    skein_codec::bounds::Node::Option { item: 2277 },
     skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 2324 },
-    skein_codec::bounds::Node::Option { item: 2250 },
-    skein_codec::bounds::Node::Option { item: 2253 },
-    skein_codec::bounds::Node::Option { item: 2269 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2309, 2310, 2221, 2225, 2312, 2230, 2313, 2314, 2231, 2315, 2317, 2318, 2320, 2322, 2323, 2325, 2326, 2327, 2328] },
+    skein_codec::bounds::Node::Option { item: 2326 },
+    skein_codec::bounds::Node::Option { item: 2252 },
+    skein_codec::bounds::Node::Option { item: 2255 },
+    skein_codec::bounds::Node::Option { item: 2271 },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2311, 2312, 2223, 2227, 2314, 2232, 2315, 2316, 2233, 2317, 2319, 2320, 2322, 2324, 2325, 2327, 2328, 2329, 2330] },
     skein_codec::bounds::Node::Scalar(8),
     skein_codec::bounds::Node::Scalar(4),
     skein_codec::bounds::Node::Bytes { limit: 353 },
@@ -9283,15 +9287,15 @@ const TABLE: &[skein_codec::bounds::Node] = &[
     skein_codec::bounds::Node::Scalar(16),
     skein_codec::bounds::Node::Bytes { limit: 354 },
     skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2330, 2331, 2332, 2333, 2334, 2335, 2336] },
+    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2332, 2333, 2334, 2335, 2336, 2337, 2338] },
     skein_codec::bounds::Node::Boxed { item: 835, size: size_of::<IssueRow>() },
     skein_codec::bounds::Node::Boxed { item: 1180, size: size_of::<LandingRow>() },
-    skein_codec::bounds::Node::Boxed { item: 2308, size: size_of::<TierRow>() },
-    skein_codec::bounds::Node::Boxed { item: 1803, size: size_of::<FollowRow>() },
-    skein_codec::bounds::Node::Boxed { item: 2057, size: size_of::<ChangeCold>() },
-    skein_codec::bounds::Node::Boxed { item: 2097, size: size_of::<ChangeHot>() },
-    skein_codec::bounds::Node::Enum { variants: &[2165, 264, 76, 105, 108, 2107, 137, 139, 141, 144, 262, 534, 2338, 164, 937, 940, 943, 946, 2339, 1348, 1395, 1397, 1411, 2340, 1207, 2215, 1557, 894, 1618, 1636, 1651, 1660, 1673, 1729, 1742, 2341, 2337, 2329, 1842, 2001, 2007, 2012, 2017, 2141, 2143, 2147, 2342, 2343, 1616, 1643, 128] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[2344] },
+    skein_codec::bounds::Node::Boxed { item: 2310, size: size_of::<TierRow>() },
+    skein_codec::bounds::Node::Boxed { item: 1805, size: size_of::<FollowRow>() },
+    skein_codec::bounds::Node::Boxed { item: 2059, size: size_of::<ChangeCold>() },
+    skein_codec::bounds::Node::Boxed { item: 2099, size: size_of::<ChangeHot>() },
+    skein_codec::bounds::Node::Enum { variants: &[2167, 264, 76, 105, 108, 2109, 137, 139, 141, 144, 262, 534, 2340, 164, 937, 940, 943, 946, 2341, 1350, 1397, 1399, 1413, 2342, 1207, 2217, 1559, 894, 1620, 1638, 1653, 1662, 1675, 1731, 1744, 2343, 2339, 2331, 1844, 2003, 2009, 2014, 2019, 2143, 2145, 2149, 2344, 2345, 1618, 1645, 128] },
+    skein_codec::bounds::Node::Record { prefix: 2, fields: &[2346] },
 ];
 
 const DECLARATIONS: &[u32] = &[
@@ -9604,262 +9608,262 @@ const DECLARATIONS: &[u32] = &[
     1233,
     1235,
     1241,
-    1246,
-    1250,
+    1248,
     1252,
-    1255,
-    1263,
+    1254,
+    1257,
     1265,
-    1279,
-    1283,
-    1286,
+    1267,
+    1281,
+    1285,
     1288,
     1290,
-    1293,
-    1302,
-    1311,
-    1315,
-    1318,
-    1322,
-    1326,
+    1292,
+    1295,
+    1304,
+    1313,
+    1317,
+    1320,
+    1324,
     1328,
-    1331,
-    1332,
-    1335,
-    1347,
-    1348,
-    1351,
-    1356,
-    1361,
-    1365,
-    1369,
-    1374,
-    1377,
+    1330,
+    1333,
+    1334,
+    1337,
+    1349,
+    1350,
+    1353,
+    1358,
+    1363,
+    1367,
+    1371,
+    1376,
     1379,
-    1382,
+    1381,
     1384,
-    1387,
-    1395,
+    1386,
+    1389,
     1397,
-    1401,
-    1402,
-    1405,
-    1411,
-    1412,
+    1399,
+    1403,
+    1404,
+    1407,
+    1413,
     1414,
-    1417,
-    1420,
-    1428,
+    1416,
+    1419,
+    1422,
     1430,
-    1433,
-    1434,
-    1437,
-    1440,
-    1443,
-    1456,
-    1459,
-    1463,
-    1471,
+    1432,
+    1435,
+    1436,
+    1439,
+    1442,
+    1445,
+    1458,
+    1461,
+    1465,
     1473,
-    1476,
-    1484,
-    1489,
+    1475,
+    1478,
+    1486,
     1491,
-    1496,
-    1497,
+    1493,
     1498,
+    1499,
     1500,
-    1505,
-    1508,
+    1502,
+    1507,
     1510,
-    1513,
+    1512,
     1515,
-    1518,
-    1522,
+    1517,
+    1520,
     1524,
     1526,
     1528,
-    1529,
-    1532,
-    1535,
-    1538,
-    1541,
-    1544,
+    1530,
+    1531,
+    1534,
+    1537,
+    1540,
+    1543,
     1546,
-    1551,
-    1554,
-    1555,
+    1548,
+    1553,
+    1556,
     1557,
-    1575,
+    1559,
     1577,
-    1580,
-    1586,
+    1579,
+    1582,
     1588,
     1590,
-    1596,
-    1600,
-    1604,
-    1610,
-    1616,
+    1592,
+    1598,
+    1602,
+    1606,
+    1612,
     1618,
-    1625,
-    1632,
-    1636,
-    1643,
-    1651,
-    1660,
-    1673,
-    1676,
+    1620,
+    1627,
+    1634,
+    1638,
+    1645,
+    1653,
+    1662,
+    1675,
     1678,
-    1681,
-    1684,
-    1687,
-    1690,
-    1693,
-    1697,
+    1680,
+    1683,
+    1686,
+    1689,
+    1692,
+    1695,
     1699,
-    1703,
-    1706,
-    1709,
-    1712,
-    1729,
-    1742,
-    1745,
+    1701,
+    1705,
+    1708,
+    1711,
+    1714,
+    1731,
+    1744,
     1747,
-    1751,
+    1749,
     1753,
-    1766,
-    1769,
+    1755,
+    1768,
     1771,
-    1774,
-    1778,
-    1788,
-    1803,
-    1815,
-    1829,
-    1832,
-    1842,
-    1846,
-    1854,
-    1858,
-    1863,
-    1864,
-    1869,
-    1870,
-    1873,
-    1877,
-    1880,
+    1773,
+    1776,
+    1780,
+    1790,
+    1805,
+    1817,
+    1831,
+    1834,
+    1844,
+    1848,
+    1856,
+    1860,
+    1865,
+    1866,
+    1871,
+    1872,
+    1875,
+    1879,
     1882,
-    1883,
-    1886,
+    1884,
+    1885,
     1888,
-    1892,
-    1896,
-    1903,
-    1904,
+    1890,
+    1894,
+    1898,
+    1905,
     1906,
-    1909,
-    1910,
-    1914,
-    1917,
-    1923,
-    1924,
-    1927,
-    1933,
-    1936,
-    1940,
+    1908,
+    1911,
+    1912,
+    1916,
+    1919,
+    1925,
+    1926,
+    1929,
+    1935,
+    1938,
     1942,
-    1947,
+    1944,
     1949,
     1951,
-    1954,
-    1955,
-    1959,
-    1960,
-    1964,
-    1965,
-    1968,
-    1969,
-    1972,
-    1977,
-    1978,
+    1953,
+    1956,
+    1957,
+    1961,
+    1962,
+    1966,
+    1967,
+    1970,
+    1971,
+    1974,
     1979,
-    1987,
-    2001,
-    2007,
-    2012,
-    2017,
-    2020,
+    1980,
+    1981,
+    1989,
+    2003,
+    2009,
+    2014,
+    2019,
     2022,
-    2023,
-    2027,
-    2057,
+    2024,
+    2025,
+    2029,
     2059,
-    2097,
-    2107,
+    2061,
+    2099,
     2109,
-    2110,
     2111,
-    2114,
+    2112,
+    2113,
     2116,
-    2120,
-    2121,
-    2124,
-    2129,
-    2133,
-    2134,
-    2141,
+    2118,
+    2122,
+    2123,
+    2126,
+    2131,
+    2135,
+    2136,
     2143,
-    2147,
-    2151,
+    2145,
+    2149,
     2153,
-    2156,
-    2157,
+    2155,
     2158,
-    2161,
-    2164,
-    2165,
+    2159,
+    2160,
+    2163,
+    2166,
     2167,
     2169,
     2171,
     2173,
-    2174,
-    2177,
+    2175,
+    2176,
     2179,
-    2180,
+    2181,
     2182,
-    2186,
+    2184,
     2188,
-    2191,
-    2194,
-    2200,
+    2190,
+    2193,
+    2196,
     2202,
-    2205,
-    2206,
+    2204,
+    2207,
     2208,
-    2211,
-    2215,
-    2221,
-    2225,
-    2230,
-    2231,
-    2236,
-    2242,
-    2245,
+    2210,
+    2213,
+    2217,
+    2223,
+    2227,
+    2232,
+    2233,
+    2238,
+    2244,
     2247,
-    2250,
-    2253,
+    2249,
+    2252,
     2255,
     2257,
     2259,
-    2269,
-    2275,
-    2282,
-    2308,
-    2329,
-    2337,
-    2344,
-    2345,
+    2261,
+    2271,
+    2277,
+    2284,
+    2310,
+    2331,
+    2339,
+    2346,
+    2347,
 ];
 
 const CEILING_VALUES: &[u32] = &[
@@ -22586,6 +22590,7 @@ pub struct TierRecord {
     pub failing: Failures,
     pub flakes: List<TierFlake>,
     pub run: Option<TierRun>,
+    pub last_run: Option<u64>,
 }
 
 // Record: TierRecord.
@@ -22594,11 +22599,11 @@ impl Record for TierRecord {
     const TAIL: Path = paths::TIER_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1246)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1248)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1246)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1248)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22607,6 +22612,7 @@ impl Record for TierRecord {
         field::write(field::Nested, &self.failing, limits, out, paths::TIER_RECORD_FAILING)?;
         field::write(field::Sequence { limit: limits.tier_record_flakes.min(CEILINGS.tier_record_flakes), minimum: 8, item: field::Nested }, &self.flakes, limits, out, paths::TIER_RECORD_FLAKES)?;
         field::write(field::Optional { item: field::Nested }, &self.run, limits, out, paths::TIER_RECORD_RUN)?;
+        field::write(field::Optional { item: field::U64 }, &self.last_run, limits, out, paths::TIER_RECORD_LAST_RUN)?;
         Ok(())
     }
 
@@ -22617,6 +22623,7 @@ impl Record for TierRecord {
             failing: field::read(field::Nested, limits, reader, paths::TIER_RECORD_FAILING)?,
             flakes: field::read(field::Sequence { limit: limits.tier_record_flakes.min(CEILINGS.tier_record_flakes), minimum: 8, item: field::Nested }, limits, reader, paths::TIER_RECORD_FLAKES)?,
             run: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TIER_RECORD_RUN)?,
+            last_run: field::read(field::Optional { item: field::U64 }, limits, reader, paths::TIER_RECORD_LAST_RUN)?,
         })
     }
 }
@@ -22634,11 +22641,11 @@ impl Record for TierPending {
     const TAIL: Path = paths::TIER_PENDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1250)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1252)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1250)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1252)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22667,11 +22674,11 @@ impl Record for TierBranchEntry {
     const TAIL: Path = paths::TIER_BRANCH_ENTRY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1252)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1254)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1252)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1254)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22700,11 +22707,11 @@ impl Record for TierBranch {
     const TAIL: Path = paths::TIER_BRANCH_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1255)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1257)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1255)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1257)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22744,11 +22751,11 @@ impl Record for TierFault {
     const TAIL: Path = paths::TIER_FAULT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1263)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1265)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1263)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1265)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22791,11 +22798,11 @@ impl Record for TierProbeBranch {
     const TAIL: Path = paths::TIER_PROBE_BRANCH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1265)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1267)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1265)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1267)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22832,11 +22839,11 @@ impl Record for TierFlight {
     const TAIL: Path = paths::TIER_FLIGHT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1279)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1281)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1279)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1281)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22881,11 +22888,11 @@ impl Record for ReceiptJob {
     const TAIL: Path = paths::RECEIPT_JOB_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1283)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1285)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1283)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1285)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22917,11 +22924,11 @@ impl Record for ReceiptTest {
     const TAIL: Path = paths::RECEIPT_TEST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1286)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1288)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1286)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1288)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22950,11 +22957,11 @@ impl Record for ReceiptTests {
     const TAIL: Path = paths::RECEIPT_TESTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1288)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1290)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1288)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1290)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -22981,11 +22988,11 @@ impl Record for ReceiptMany {
     const TAIL: Path = paths::RECEIPT_MANY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1290)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1292)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1290)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1292)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23015,11 +23022,11 @@ impl Record for ReceiptReport {
     const TAIL: Path = paths::RECEIPT_REPORT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1293)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1295)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1293)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1295)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23062,11 +23069,11 @@ impl Record for Receipt {
     const TAIL: Path = paths::RECEIPT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1302)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1304)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1302)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1304)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23112,11 +23119,11 @@ impl Record for TierGoal {
     const TAIL: Path = paths::TIER_GOAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1311)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1313)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1311)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1313)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23155,11 +23162,11 @@ impl Record for TierHold {
     const TAIL: Path = paths::TIER_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1315)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1317)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1315)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1317)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23190,11 +23197,11 @@ impl Record for TierPostedTests {
     const TAIL: Path = paths::TIER_POSTED_TESTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1318)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1320)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1318)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1320)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23225,11 +23232,11 @@ impl Record for TierPostedBlame {
     const TAIL: Path = paths::TIER_POSTED_BLAME_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1322)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1324)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1322)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1324)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23269,11 +23276,11 @@ impl Record for TierPostedLanding {
     const TAIL: Path = paths::TIER_POSTED_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1326)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1328)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1326)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1328)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23304,11 +23311,11 @@ impl Record for TierCommentVerdict {
     const TAIL: Path = paths::TIER_COMMENT_VERDICT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1328)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1330)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1328)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1330)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23335,11 +23342,11 @@ impl Record for TierCommentRepair {
     const TAIL: Path = paths::TIER_COMMENT_REPAIR_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1331)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1333)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1331)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1333)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23367,11 +23374,11 @@ impl Record for TierCommentKind {
     const TAIL: Path = paths::TIER_COMMENT_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1332)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1334)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1332)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1334)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23405,11 +23412,11 @@ impl Record for TierComment {
     const TAIL: Path = paths::TIER_COMMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1335)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1337)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1335)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1337)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23450,11 +23457,11 @@ impl Record for TierPosting {
     const TAIL: Path = paths::TIER_POSTING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1347)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1349)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1347)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1349)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23503,11 +23510,11 @@ impl Record for ReceiptRow {
     const TAIL: Path = paths::RECEIPT_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1348)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1350)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1348)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1350)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23539,11 +23546,11 @@ impl Record for ForgeKind {
     const TAIL: Path = paths::FORGE_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1351)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1353)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1351)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1353)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23578,11 +23585,11 @@ impl Record for ForgeMode {
     const TAIL: Path = paths::FORGE_MODE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1356)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1358)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1356)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1358)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23620,11 +23627,11 @@ impl Record for Address {
     const TAIL: Path = paths::ADDRESS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1361)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1363)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1361)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1363)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23657,11 +23664,11 @@ impl Record for Place {
     const TAIL: Path = paths::PLACE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1365)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1367)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1365)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1367)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23694,11 +23701,11 @@ impl Record for Bot {
     const TAIL: Path = paths::BOT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1369)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1371)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1369)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1371)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23732,11 +23739,11 @@ impl Record for EmptyIntent {
     const TAIL: Path = paths::EMPTY_INTENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1374)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1376)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1374)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1376)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23769,11 +23776,11 @@ impl Record for CopyIntent {
     const TAIL: Path = paths::COPY_INTENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1377)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1379)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1377)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1379)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23802,11 +23809,11 @@ impl Record for FirstIntent {
     const TAIL: Path = paths::FIRST_INTENT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1379)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1381)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1379)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1381)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23841,11 +23848,11 @@ impl Record for EndedForge {
     const TAIL: Path = paths::ENDED_FORGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1382)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1384)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1382)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1384)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23875,11 +23882,11 @@ impl Record for ForgeState {
     const TAIL: Path = paths::FORGE_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1384)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1386)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1384)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1386)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23912,11 +23919,11 @@ impl Record for ForgeLink {
     const TAIL: Path = paths::FORGE_LINK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1387)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1389)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1387)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1389)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -23955,11 +23962,11 @@ impl Record for Forge {
     const TAIL: Path = paths::FORGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1395)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1397)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1395)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1397)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24006,11 +24013,11 @@ impl Record for ForgeNumber {
     const TAIL: Path = paths::FORGE_NUMBER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1397)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1399)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1397)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1399)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24039,11 +24046,11 @@ impl Record for ResetStep {
     const TAIL: Path = paths::RESET_STEP_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1401)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1403)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1401)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1403)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24077,11 +24084,11 @@ impl Record for Resetting {
     const TAIL: Path = paths::RESETTING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1402)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1404)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1402)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1404)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24110,11 +24117,11 @@ impl Record for PlaygroundState {
     const TAIL: Path = paths::PLAYGROUND_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1405)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1407)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1405)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1407)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24151,11 +24158,11 @@ impl Record for Playground {
     const TAIL: Path = paths::PLAYGROUND_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1411)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1413)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1411)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1413)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24189,11 +24196,11 @@ impl Record for PatternLast {
     const TAIL: Path = paths::PATTERN_LAST_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1412)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1414)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1412)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1414)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24226,11 +24233,11 @@ impl Record for RulePattern {
     const TAIL: Path = paths::RULE_PATTERN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1414)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1416)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1414)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1416)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24261,11 +24268,11 @@ impl Record for RuleGate {
     const TAIL: Path = paths::RULE_GATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1417)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1419)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1417)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1419)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24298,11 +24305,11 @@ impl Record for RuleApproval {
     const TAIL: Path = paths::RULE_APPROVAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1420)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1422)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1420)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1422)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24339,11 +24346,11 @@ impl Record for LandingRule {
     const TAIL: Path = paths::LANDING_RULE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1428)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1430)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1428)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1430)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24382,11 +24389,11 @@ impl Record for CharterValue {
     const TAIL: Path = paths::CHARTER_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1430)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1432)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1430)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1432)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24414,11 +24421,11 @@ impl Record for TemplateGoal {
     const TAIL: Path = paths::TEMPLATE_GOAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1433)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1435)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1433)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1435)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24447,11 +24454,11 @@ impl Record for ProjectQuestions {
     const TAIL: Path = paths::PROJECT_QUESTIONS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1434)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1436)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1434)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1436)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24479,11 +24486,11 @@ impl Record for SettingsLandingWay {
     const TAIL: Path = paths::SETTINGS_LANDING_WAY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1437)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1439)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1437)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1439)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24516,11 +24523,11 @@ impl Record for SettingsLandingWait {
     const TAIL: Path = paths::SETTINGS_LANDING_WAIT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1440)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1442)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1440)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1442)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24553,11 +24560,11 @@ impl Record for SettingsCombine {
     const TAIL: Path = paths::SETTINGS_COMBINE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1443)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1445)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1443)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1445)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24601,11 +24608,11 @@ impl Record for ProjectLanding {
     const TAIL: Path = paths::PROJECT_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1456)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1458)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1456)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1458)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24657,11 +24664,11 @@ impl Record for SettingsReportFormat {
     const TAIL: Path = paths::SETTINGS_REPORT_FORMAT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1459)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1461)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1459)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1461)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24695,11 +24702,11 @@ impl Record for SettingsGateReport {
     const TAIL: Path = paths::SETTINGS_GATE_REPORT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1463)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1465)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1463)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1465)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24735,11 +24742,11 @@ impl Record for SettingsGate {
     const TAIL: Path = paths::SETTINGS_GATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1471)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1473)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1471)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1473)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24776,11 +24783,11 @@ impl Record for SettingsBranch {
     const TAIL: Path = paths::SETTINGS_BRANCH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1473)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1475)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1473)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1475)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24809,11 +24816,11 @@ impl Record for SettingsFollows {
     const TAIL: Path = paths::SETTINGS_FOLLOWS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1476)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1478)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1476)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1478)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24854,11 +24861,11 @@ impl Record for SettingsTier {
     const TAIL: Path = paths::SETTINGS_TIER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1484)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1486)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1484)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1486)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24902,11 +24909,11 @@ impl Record for RepositoryGates {
     const TAIL: Path = paths::REPOSITORY_GATES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1489)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1491)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1489)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1491)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24939,11 +24946,11 @@ impl Record for ProjectGates {
     const TAIL: Path = paths::PROJECT_GATES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1491)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1493)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1491)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1493)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -24973,11 +24980,11 @@ impl Record for ProjectWays {
     const TAIL: Path = paths::PROJECT_WAYS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1496)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1498)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1496)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1498)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25010,11 +25017,11 @@ impl Record for ReachKindOf {
     const TAIL: Path = paths::REACH_KIND_OF_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1497)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1499)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1497)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1499)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25042,11 +25049,11 @@ impl Record for ClassSubject {
     const TAIL: Path = paths::CLASS_SUBJECT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1498)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1500)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1498)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1500)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25080,11 +25087,11 @@ impl Record for ClassItem {
     const TAIL: Path = paths::CLASS_ITEM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1500)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1502)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1500)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1502)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25117,11 +25124,11 @@ impl Record for PathSet {
     const TAIL: Path = paths::PATH_SET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1505)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1507)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1505)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1507)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25153,11 +25160,11 @@ impl Record for ProjectClasses {
     const TAIL: Path = paths::PROJECT_CLASSES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1508)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1510)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1508)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1510)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25186,11 +25193,11 @@ impl Record for CharterWords {
     const TAIL: Path = paths::CHARTER_WORDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1510)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1512)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1510)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1512)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25218,11 +25225,11 @@ impl Record for ProjectWords {
     const TAIL: Path = paths::PROJECT_WORDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1513)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1515)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1513)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1515)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25251,11 +25258,11 @@ impl Record for Dependency {
     const TAIL: Path = paths::DEPENDENCY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1515)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1517)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1515)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1517)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25283,11 +25290,11 @@ impl Record for FollowRepository {
     const TAIL: Path = paths::FOLLOW_REPOSITORY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1518)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1520)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1518)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1520)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25318,11 +25325,11 @@ impl Record for FollowSource {
     const TAIL: Path = paths::FOLLOW_SOURCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1522)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1524)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1522)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1524)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25354,11 +25361,11 @@ impl Record for FollowTarget {
     const TAIL: Path = paths::FOLLOW_TARGET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1524)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1526)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1524)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1526)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25387,11 +25394,11 @@ impl Record for FollowPerson {
     const TAIL: Path = paths::FOLLOW_PERSON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1526)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1528)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1526)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1528)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25418,11 +25425,11 @@ impl Record for FollowOwnerTask {
     const TAIL: Path = paths::FOLLOW_OWNER_TASK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1528)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1530)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1528)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1530)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25450,11 +25457,11 @@ impl Record for FollowOwner {
     const TAIL: Path = paths::FOLLOW_OWNER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1529)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1531)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1529)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1531)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25487,11 +25494,11 @@ impl Record for FollowStart {
     const TAIL: Path = paths::FOLLOW_START_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1532)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1534)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1532)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1534)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25524,11 +25531,11 @@ impl Record for FollowFormat {
     const TAIL: Path = paths::FOLLOW_FORMAT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1535)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1537)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1535)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1537)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25562,11 +25569,11 @@ impl Record for FollowCheck {
     const TAIL: Path = paths::FOLLOW_CHECK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1538)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1540)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1538)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1540)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25602,11 +25609,11 @@ impl Record for Follow {
     const TAIL: Path = paths::FOLLOW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1541)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1543)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1541)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1543)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25646,11 +25653,11 @@ impl Record for SettingSlot {
     const TAIL: Path = paths::SETTING_SLOT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1544)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1546)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1544)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1546)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25686,11 +25693,11 @@ impl Record for ToBegin {
     const TAIL: Path = paths::TO_BEGIN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1546)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1548)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1546)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1548)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25720,11 +25727,11 @@ impl Record for GoalFrom {
     const TAIL: Path = paths::GOAL_FROM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1551)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1553)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1551)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1553)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25759,11 +25766,11 @@ impl Record for KeepAsking {
     const TAIL: Path = paths::KEEP_ASKING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1554)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1556)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1554)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1556)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25796,11 +25803,11 @@ impl Record for PersonFact {
     const TAIL: Path = paths::PERSON_FACT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1555)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1557)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1555)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1557)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25835,11 +25842,11 @@ impl Record for Dismissed {
     const TAIL: Path = paths::DISMISSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1557)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1559)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1557)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1559)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25877,11 +25884,11 @@ impl Record for LoggedChange {
     const TAIL: Path = paths::LOGGED_CHANGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1575)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1577)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1575)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1577)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25926,11 +25933,11 @@ impl Record for LoggedCleared {
     const TAIL: Path = paths::LOGGED_CLEARED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1577)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1579)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1577)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1579)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25958,11 +25965,11 @@ impl Record for LoggedMany {
     const TAIL: Path = paths::LOGGED_MANY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1580)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1582)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1580)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1582)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -25994,11 +26001,11 @@ impl Record for LoggedRed {
     const TAIL: Path = paths::LOGGED_RED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1586)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1588)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1586)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1588)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26033,11 +26040,11 @@ impl Record for LoggedVerdict {
     const TAIL: Path = paths::LOGGED_VERDICT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1588)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1590)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1588)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1590)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26072,11 +26079,11 @@ impl Record for LoggedTier {
     const TAIL: Path = paths::LOGGED_TIER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1590)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1592)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1590)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1592)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26109,11 +26116,11 @@ impl Record for LoggedLanding {
     const TAIL: Path = paths::LOGGED_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1596)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1598)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1596)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1598)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26150,11 +26157,11 @@ impl Record for MilestoneLanding {
     const TAIL: Path = paths::MILESTONE_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1600)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1602)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1600)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1602)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26187,11 +26194,11 @@ impl Record for MilestoneOutcome {
     const TAIL: Path = paths::MILESTONE_OUTCOME_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1604)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1606)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1604)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1606)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26230,11 +26237,11 @@ impl Record for MilestoneEnd {
     const TAIL: Path = paths::MILESTONE_END_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1610)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1612)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1610)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1612)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26275,11 +26282,11 @@ impl Record for MilestoneRow {
     const TAIL: Path = paths::MILESTONE_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1616)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1618)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1616)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1618)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26315,11 +26322,11 @@ impl Record for LandingLog {
     const TAIL: Path = paths::LANDING_LOG_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1618)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1620)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1618)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1620)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26352,11 +26359,11 @@ impl Record for StatusBrief {
     const TAIL: Path = paths::STATUS_BRIEF_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1625)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1627)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1625)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1627)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26394,11 +26401,11 @@ impl Record for StatusRunning {
     const TAIL: Path = paths::STATUS_RUNNING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1632)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1634)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1632)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1634)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26433,11 +26440,11 @@ impl Record for ProjectFacts {
     const TAIL: Path = paths::PROJECT_FACTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1636)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1638)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1636)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1638)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26472,11 +26479,11 @@ impl Record for PersonBrief {
     const TAIL: Path = paths::PERSON_BRIEF_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1643)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1645)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1643)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1645)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26516,11 +26523,11 @@ impl Record for Looked {
     const TAIL: Path = paths::LOOKED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1651)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1653)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1651)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1653)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26562,11 +26569,11 @@ impl Record for Away {
     const TAIL: Path = paths::AWAY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1660)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1662)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1660)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1662)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26613,11 +26620,11 @@ impl Record for Decided {
     const TAIL: Path = paths::DECIDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1673)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1675)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1673)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1675)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26665,11 +26672,11 @@ impl Record for ClosingStep {
     const TAIL: Path = paths::CLOSING_STEP_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1676)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1678)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1676)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1678)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26702,11 +26709,11 @@ impl Record for ClosingRun {
     const TAIL: Path = paths::CLOSING_RUN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1678)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1680)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1678)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1680)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26735,11 +26742,11 @@ impl Record for ClosingTasks {
     const TAIL: Path = paths::CLOSING_TASKS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1681)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1683)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1681)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1683)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26767,11 +26774,11 @@ impl Record for ClosingJobs {
     const TAIL: Path = paths::CLOSING_JOBS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1684)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1686)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1684)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1686)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26800,11 +26807,11 @@ impl Record for ClosingLine {
     const TAIL: Path = paths::CLOSING_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1687)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1689)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1687)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1689)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26834,11 +26841,11 @@ impl Record for ClosingSelectionProgress {
     const TAIL: Path = paths::CLOSING_SELECTION_PROGRESS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1690)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1692)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1690)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1692)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26876,11 +26883,11 @@ impl Record for ClosingSelection {
     const TAIL: Path = paths::CLOSING_SELECTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1693)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1695)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1693)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1695)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26912,11 +26919,11 @@ impl Record for ClosingAsked {
     const TAIL: Path = paths::CLOSING_ASKED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1697)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1699)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1697)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1699)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26946,11 +26953,11 @@ impl Record for ClosingStands {
     const TAIL: Path = paths::CLOSING_STANDS_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1699)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1701)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1699)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1701)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -26986,11 +26993,11 @@ impl Record for ClosingQuestion {
     const TAIL: Path = paths::CLOSING_QUESTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1703)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1705)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1703)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1705)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27027,11 +27034,11 @@ impl Record for ClosingForm {
     const TAIL: Path = paths::CLOSING_FORM_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1706)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1708)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1706)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1708)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27067,11 +27074,11 @@ impl Record for ClosingMessage {
     const TAIL: Path = paths::CLOSING_MESSAGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1709)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1711)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1709)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1711)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27103,11 +27110,11 @@ impl Record for ClosingRelay {
     const TAIL: Path = paths::CLOSING_RELAY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1712)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1714)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1712)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1714)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27148,11 +27155,11 @@ impl Record for Closer {
     const TAIL: Path = paths::CLOSER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1729)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1731)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1729)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1731)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27213,11 +27220,11 @@ impl Record for LandedDraft {
     const TAIL: Path = paths::LANDED_DRAFT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1742)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1744)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1742)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1744)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27265,11 +27272,11 @@ impl Record for FollowCommit {
     const TAIL: Path = paths::FOLLOW_COMMIT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1745)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1747)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1745)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1747)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27298,11 +27305,11 @@ impl Record for FollowReason {
     const TAIL: Path = paths::FOLLOW_REASON_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1747)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1749)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1747)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1749)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27335,11 +27342,11 @@ impl Record for FollowState {
     const TAIL: Path = paths::FOLLOW_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1751)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1753)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1751)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1753)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27381,11 +27388,11 @@ impl Record for FollowFiles {
     const TAIL: Path = paths::FOLLOW_FILES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1753)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1755)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1753)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1755)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27422,11 +27429,11 @@ impl Record for FollowEntry {
     const TAIL: Path = paths::FOLLOW_ENTRY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1766)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1768)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1766)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1768)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27474,11 +27481,11 @@ impl Record for FollowSkip {
     const TAIL: Path = paths::FOLLOW_SKIP_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1769)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1771)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1769)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1771)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27507,11 +27514,11 @@ impl Record for FollowFailing {
     const TAIL: Path = paths::FOLLOW_FAILING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1771)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1773)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1771)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1773)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27540,11 +27547,11 @@ impl Record for FollowVerdict {
     const TAIL: Path = paths::FOLLOW_VERDICT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1774)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1776)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1774)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1776)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27581,11 +27588,11 @@ impl Record for FollowParity {
     const TAIL: Path = paths::FOLLOW_PARITY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1778)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1780)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1778)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1780)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27623,11 +27630,11 @@ impl Record for FollowQuestion {
     const TAIL: Path = paths::FOLLOW_QUESTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1788)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1790)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1788)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1790)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27675,11 +27682,11 @@ impl Record for FollowRow {
     const TAIL: Path = paths::FOLLOW_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1803)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1805)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1803)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1805)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27736,11 +27743,11 @@ impl Record for FollowCheckProgress {
     const TAIL: Path = paths::FOLLOW_CHECK_PROGRESS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1815)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1817)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1815)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1817)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27789,11 +27796,11 @@ impl Record for ChangeHistory {
     const TAIL: Path = paths::CHANGE_HISTORY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1829)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1831)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1829)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1831)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27833,11 +27840,11 @@ impl Record for HistoryMark {
     const TAIL: Path = paths::HISTORY_MARK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1832)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1834)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1832)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1834)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27872,11 +27879,11 @@ impl Record for HistoryProject {
     const TAIL: Path = paths::HISTORY_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1842)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1844)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1842)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1844)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27917,11 +27924,11 @@ impl Record for HistoryInLanding {
     const TAIL: Path = paths::HISTORY_IN_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1846)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1848)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1846)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1848)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -27958,11 +27965,11 @@ impl Record for HistoryUnready {
     const TAIL: Path = paths::HISTORY_UNREADY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1854)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1856)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1854)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1856)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28006,11 +28013,11 @@ impl Record for HistoryLine {
     const TAIL: Path = paths::HISTORY_LINE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1858)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1860)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1858)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1860)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28046,11 +28053,11 @@ impl Record for HistoryJoined {
     const TAIL: Path = paths::HISTORY_JOINED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1863)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1865)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1863)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1865)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28081,11 +28088,11 @@ impl Record for HistoryLandingDeparture {
     const TAIL: Path = paths::HISTORY_LANDING_DEPARTURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1864)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1866)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1864)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1866)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28116,11 +28123,11 @@ impl Record for HistoryDeparture {
     const TAIL: Path = paths::HISTORY_DEPARTURE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1869)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1871)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1869)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1871)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28159,11 +28166,11 @@ impl Record for HistoryDeparted {
     const TAIL: Path = paths::HISTORY_DEPARTED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1870)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1872)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1870)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1872)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28193,11 +28200,11 @@ impl Record for HistoryUpdate {
     const TAIL: Path = paths::HISTORY_UPDATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1873)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1875)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1873)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1875)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28228,11 +28235,11 @@ impl Record for HistoryUpdateOutcome {
     const TAIL: Path = paths::HISTORY_UPDATE_OUTCOME_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1877)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1879)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1877)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1879)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28267,11 +28274,11 @@ impl Record for HistoryUpdated {
     const TAIL: Path = paths::HISTORY_UPDATED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1880)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1882)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1880)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1882)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28301,11 +28308,11 @@ impl Record for HistoryJobStarted {
     const TAIL: Path = paths::HISTORY_JOB_STARTED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1882)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1884)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1882)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1884)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28335,11 +28342,11 @@ impl Record for HistoryJobEnded {
     const TAIL: Path = paths::HISTORY_JOB_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1883)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1885)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1883)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1885)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28369,11 +28376,11 @@ impl Record for HistoryWith {
     const TAIL: Path = paths::HISTORY_WITH_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1886)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1888)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1886)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1888)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28406,11 +28413,11 @@ impl Record for HistoryConflict {
     const TAIL: Path = paths::HISTORY_CONFLICT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1888)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1890)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1888)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1890)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28441,11 +28448,11 @@ impl Record for HistoryAsk {
     const TAIL: Path = paths::HISTORY_ASK_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1892)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1894)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1892)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1894)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28481,11 +28488,11 @@ impl Record for HistoryAsked {
     const TAIL: Path = paths::HISTORY_ASKED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1896)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1898)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1896)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1898)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28521,11 +28528,11 @@ impl Record for HistoryAnswer {
     const TAIL: Path = paths::HISTORY_ANSWER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1903)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1905)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1903)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1905)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28566,11 +28573,11 @@ impl Record for HistoryAnswered {
     const TAIL: Path = paths::HISTORY_ANSWERED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1904)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1906)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1904)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1906)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28599,11 +28606,11 @@ impl Record for HistoryDelivered {
     const TAIL: Path = paths::HISTORY_DELIVERED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1906)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1908)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1906)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1908)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28631,11 +28638,11 @@ impl Record for HistoryPause {
     const TAIL: Path = paths::HISTORY_PAUSE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1909)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1911)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1909)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1911)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28667,11 +28674,11 @@ impl Record for HistoryPaused {
     const TAIL: Path = paths::HISTORY_PAUSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1910)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1912)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1910)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1912)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28700,11 +28707,11 @@ impl Record for HistoryMember {
     const TAIL: Path = paths::HISTORY_MEMBER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1914)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1916)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1914)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1916)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28736,11 +28743,11 @@ impl Record for HistoryFormed {
     const TAIL: Path = paths::HISTORY_FORMED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1917)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1919)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1917)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1919)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28773,11 +28780,11 @@ impl Record for HistoryRoundCause {
     const TAIL: Path = paths::HISTORY_ROUND_CAUSE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1923)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1925)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1923)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1925)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28815,11 +28822,11 @@ impl Record for HistoryRoundEnded {
     const TAIL: Path = paths::HISTORY_ROUND_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1924)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1926)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1924)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1926)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28847,11 +28854,11 @@ impl Record for HistoryGate {
     const TAIL: Path = paths::HISTORY_GATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1927)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1929)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1927)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1929)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28884,11 +28891,11 @@ impl Record for HistoryGateVerdict {
     const TAIL: Path = paths::HISTORY_GATE_VERDICT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1933)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1935)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1933)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1935)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28928,11 +28935,11 @@ impl Record for HistoryGateEnded {
     const TAIL: Path = paths::HISTORY_GATE_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1936)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1938)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1936)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1938)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28964,11 +28971,11 @@ impl Record for HistoryProof {
     const TAIL: Path = paths::HISTORY_PROOF_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1940)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1942)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1940)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1942)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -28997,11 +29004,11 @@ impl Record for HistoryProved {
     const TAIL: Path = paths::HISTORY_PROVED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1942)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1944)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1942)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1944)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29030,11 +29037,11 @@ impl Record for HistorySearched {
     const TAIL: Path = paths::HISTORY_SEARCHED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1947)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1949)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1947)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1949)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29065,11 +29072,11 @@ impl Record for HistoryProbeEnded {
     const TAIL: Path = paths::HISTORY_PROBE_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1949)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1951)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1949)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1951)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29096,11 +29103,11 @@ impl Record for HistoryTurn {
     const TAIL: Path = paths::HISTORY_TURN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1951)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1953)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1951)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1953)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29128,11 +29135,11 @@ impl Record for HistoryRecordedState {
     const TAIL: Path = paths::HISTORY_RECORDED_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1954)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1956)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1954)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1956)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29164,11 +29171,11 @@ impl Record for HistoryRecorded {
     const TAIL: Path = paths::HISTORY_RECORDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1955)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1957)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1955)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1957)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29197,11 +29204,11 @@ impl Record for HistoryEnding {
     const TAIL: Path = paths::HISTORY_ENDING_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1959)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1961)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1959)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1961)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29235,11 +29242,11 @@ impl Record for HistoryEnded {
     const TAIL: Path = paths::HISTORY_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1960)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1962)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1960)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1962)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29268,11 +29275,11 @@ impl Record for HistoryLandingOutcome {
     const TAIL: Path = paths::HISTORY_LANDING_OUTCOME_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1964)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1966)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1964)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1966)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29306,11 +29313,11 @@ impl Record for HistoryLandingEnded {
     const TAIL: Path = paths::HISTORY_LANDING_ENDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1965)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1967)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1965)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1967)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29338,11 +29345,11 @@ impl Record for HistoryOn {
     const TAIL: Path = paths::HISTORY_ON_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1968)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1970)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1968)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1970)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29375,11 +29382,11 @@ impl Record for HistoryBy {
     const TAIL: Path = paths::HISTORY_BY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1969)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1971)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1969)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1971)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29413,11 +29420,11 @@ impl Record for HistoryHold {
     const TAIL: Path = paths::HISTORY_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1972)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1974)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1972)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1974)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29451,11 +29458,11 @@ impl Record for HistoryAfterVerdict {
     const TAIL: Path = paths::HISTORY_AFTER_VERDICT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1977)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1979)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1977)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1979)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29491,11 +29498,11 @@ impl Record for HistoryAfter {
     const TAIL: Path = paths::HISTORY_AFTER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1978)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1980)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1978)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1980)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29522,11 +29529,11 @@ impl Record for HistoryUnreadyStep {
     const TAIL: Path = paths::HISTORY_UNREADY_STEP_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1979)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1981)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1979)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1981)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29585,11 +29592,11 @@ impl Record for HistoryWhat {
     const TAIL: Path = paths::HISTORY_WHAT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1987)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1989)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1987)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1989)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29694,11 +29701,11 @@ impl Record for HistoryEvent {
     const TAIL: Path = paths::HISTORY_EVENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2001)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2003)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2001)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2003)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29750,11 +29757,11 @@ impl Record for HistoryChange {
     const TAIL: Path = paths::HISTORY_CHANGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2007)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2009)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2007)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2009)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29790,11 +29797,11 @@ impl Record for HistoryLanding {
     const TAIL: Path = paths::HISTORY_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2012)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2014)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2012)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2014)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29830,11 +29837,11 @@ impl Record for HistoryLast {
     const TAIL: Path = paths::HISTORY_LAST_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2017)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2019)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2017)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2019)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29868,11 +29875,11 @@ impl Record for TaskRelease {
     const TAIL: Path = paths::TASK_RELEASE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2020)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2022)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2020)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2022)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29901,11 +29908,11 @@ impl Record for FindingsTopic {
     const TAIL: Path = paths::FINDINGS_TOPIC_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2022)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2024)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2022)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2024)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29936,11 +29943,11 @@ impl Record for Topic {
     const TAIL: Path = paths::TOPIC_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2023)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2025)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2023)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2025)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -29979,11 +29986,11 @@ impl Record for ChangeSource {
     const TAIL: Path = paths::CHANGE_SOURCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2027)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2029)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2027)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2029)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30033,11 +30040,11 @@ impl Record for ChangeCold {
     const TAIL: Path = paths::CHANGE_COLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2057)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2059)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2057)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2059)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30107,11 +30114,11 @@ impl Record for Regate {
     const TAIL: Path = paths::REGATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2059)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2061)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2059)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2061)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30171,11 +30178,11 @@ impl Record for ChangeHot {
     const TAIL: Path = paths::CHANGE_HOT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2097)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2099)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2097)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2099)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30269,11 +30276,11 @@ impl Record for Subscriber {
     const TAIL: Path = paths::SUBSCRIBER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2107)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2109)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2107)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2109)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30310,11 +30317,11 @@ impl Record for FindingCount {
     const TAIL: Path = paths::FINDING_COUNT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2109)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2111)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2109)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2111)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30343,11 +30350,11 @@ impl Record for FindingHolder {
     const TAIL: Path = paths::FINDING_HOLDER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2110)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2112)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2110)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2112)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30381,11 +30388,11 @@ impl Record for FindingHeld {
     const TAIL: Path = paths::FINDING_HELD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2111)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2113)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2111)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2113)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30412,11 +30419,11 @@ impl Record for FindingAreas {
     const TAIL: Path = paths::FINDING_AREAS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2114)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2116)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2114)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2116)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30443,11 +30450,11 @@ impl Record for FindingWords {
     const TAIL: Path = paths::FINDING_WORDS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2116)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2118)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2116)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2118)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30480,11 +30487,11 @@ impl Record for FindingRefusal {
     const TAIL: Path = paths::FINDING_REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2120)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2122)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2120)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2122)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30526,11 +30533,11 @@ impl Record for FindingRefused {
     const TAIL: Path = paths::FINDING_REFUSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2121)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2123)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2121)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2123)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30562,11 +30569,11 @@ impl Record for FindingResult {
     const TAIL: Path = paths::FINDING_RESULT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2124)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2126)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2124)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2126)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30609,11 +30616,11 @@ impl Record for FindingReply {
     const TAIL: Path = paths::FINDING_REPLY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2129)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2131)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2129)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2131)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30647,11 +30654,11 @@ impl Record for CallFollow {
     const TAIL: Path = paths::CALL_FOLLOW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2133)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2135)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2133)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2135)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30681,11 +30688,11 @@ impl Record for Recorder {
     const TAIL: Path = paths::RECORDER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2134)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2136)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2134)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2136)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30723,11 +30730,11 @@ impl Record for Red {
     const TAIL: Path = paths::RED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2141)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2143)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2141)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2143)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30766,11 +30773,11 @@ impl Record for RedNumber {
     const TAIL: Path = paths::RED_NUMBER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2143)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2145)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2143)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2145)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30799,11 +30806,11 @@ impl Record for RedPass {
     const TAIL: Path = paths::RED_PASS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2147)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2149)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2147)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2149)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30836,11 +30843,11 @@ impl Record for RedRecorded {
     const TAIL: Path = paths::RED_RECORDED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2151)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2153)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2151)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2153)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30871,11 +30878,11 @@ impl Record for RedFull {
     const TAIL: Path = paths::RED_FULL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2153)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2155)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2153)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2155)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30904,11 +30911,11 @@ impl Record for RedRefusal {
     const TAIL: Path = paths::RED_REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2156)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2158)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2156)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2158)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30942,11 +30949,11 @@ impl Record for RedRefused {
     const TAIL: Path = paths::RED_REFUSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2157)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2159)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2157)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2159)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -30975,11 +30982,11 @@ impl Record for RedResult {
     const TAIL: Path = paths::RED_RESULT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2158)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2160)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2158)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2160)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31015,11 +31022,11 @@ impl Record for RedReply {
     const TAIL: Path = paths::RED_REPLY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2161)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2163)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2161)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2163)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31056,11 +31063,11 @@ impl Record for CallPayload {
     const TAIL: Path = paths::CALL_PAYLOAD_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2164)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2166)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2164)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2166)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31103,11 +31110,11 @@ impl Record for Call {
     const TAIL: Path = paths::CALL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2165)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2167)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2165)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2167)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31136,11 +31143,11 @@ impl Record for AreaTask {
     const TAIL: Path = paths::AREA_TASK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2167)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2169)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2167)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2169)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31167,11 +31174,11 @@ impl Record for AreaParty {
     const TAIL: Path = paths::AREA_PARTY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2169)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2171)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2169)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2171)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31198,11 +31205,11 @@ impl Record for AreaRole {
     const TAIL: Path = paths::AREA_ROLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2171)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2173)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2171)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2173)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31229,11 +31236,11 @@ impl Record for AreaCharter {
     const TAIL: Path = paths::AREA_CHARTER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2173)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2175)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2173)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2175)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31263,11 +31270,11 @@ impl Record for AreaOwner {
     const TAIL: Path = paths::AREA_OWNER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2174)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2176)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2174)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2176)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31305,11 +31312,11 @@ impl Record for Area {
     const TAIL: Path = paths::AREA_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2177)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2179)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2177)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2179)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31340,11 +31347,11 @@ impl Record for ProjectAreas {
     const TAIL: Path = paths::PROJECT_AREAS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2179)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2181)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2179)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2181)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31371,11 +31378,11 @@ impl Record for ProjectTriager {
     const TAIL: Path = paths::PROJECT_TRIAGER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2180)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2182)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2180)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2182)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31402,11 +31409,11 @@ impl Record for Welcome {
     const TAIL: Path = paths::WELCOME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2182)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2184)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2182)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2184)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31435,11 +31442,11 @@ impl Record for LimitOverride {
     const TAIL: Path = paths::LIMIT_OVERRIDE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2186)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2188)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2186)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2188)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31470,11 +31477,11 @@ impl Record for LimitOverrides {
     const TAIL: Path = paths::LIMIT_OVERRIDES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2188)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2190)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2188)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2190)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31502,11 +31509,11 @@ impl Record for AgentFigure {
     const TAIL: Path = paths::AGENT_FIGURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2191)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2193)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2191)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2193)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31536,11 +31543,11 @@ impl Record for Oversized {
     const TAIL: Path = paths::OVERSIZED_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2194)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2196)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2194)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2196)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31577,11 +31584,11 @@ impl Record for AgentLimits {
     const TAIL: Path = paths::AGENT_LIMITS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2200)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2202)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2200)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2202)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31619,11 +31626,11 @@ impl Record for AgentEndpointLimits {
     const TAIL: Path = paths::AGENT_ENDPOINT_LIMITS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2202)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2204)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2202)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2204)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31654,11 +31661,11 @@ impl Record for AgentFigures {
     const TAIL: Path = paths::AGENT_FIGURES_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2205)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2207)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2205)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2207)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31705,11 +31712,11 @@ impl Record for SettingValue {
     const TAIL: Path = paths::SETTING_VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2206)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2208)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2206)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2208)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31772,11 +31779,11 @@ impl Record for SizedValue {
     const TAIL: Path = paths::SIZED_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2208)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2210)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2208)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2210)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31807,11 +31814,11 @@ impl Record for SettingEdit {
     const TAIL: Path = paths::SETTING_EDIT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2211)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2213)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2211)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2213)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31849,11 +31856,11 @@ impl Record for SettingRow {
     const TAIL: Path = paths::SETTING_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2215)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2217)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2215)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2217)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31892,11 +31899,11 @@ impl Record for FindingKind {
     const TAIL: Path = paths::FINDING_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2221)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2223)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2221)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2223)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31936,11 +31943,11 @@ impl Record for Severity {
     const TAIL: Path = paths::SEVERITY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2225)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2227)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2225)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2227)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -31977,11 +31984,11 @@ impl Record for FindingState {
     const TAIL: Path = paths::FINDING_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2230)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2232)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2230)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2232)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32018,11 +32025,11 @@ impl Record for Filer {
     const TAIL: Path = paths::FILER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2231)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2233)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2231)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2233)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32057,11 +32064,11 @@ impl Record for BlameStrength {
     const TAIL: Path = paths::BLAME_STRENGTH_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2236)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2238)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2236)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2238)?.decoded)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32099,11 +32106,11 @@ impl Record for BlamedGoal {
     const TAIL: Path = paths::BLAMED_GOAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2242)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2244)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2242)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2244)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32135,11 +32142,11 @@ impl Record for BlamedLanding {
     const TAIL: Path = paths::BLAMED_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2245)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2247)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2245)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2247)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32169,11 +32176,11 @@ impl Record for BlameMove {
     const TAIL: Path = paths::BLAME_MOVE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2247)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2249)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2247)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2249)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32204,11 +32211,11 @@ impl Record for FindingBlame {
     const TAIL: Path = paths::FINDING_BLAME_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2250)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2252)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2250)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2252)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32240,11 +32247,11 @@ impl Record for FindingCleared {
     const TAIL: Path = paths::FINDING_CLEARED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2253)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2255)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2253)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2255)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32273,11 +32280,11 @@ impl Record for RepairLanding {
     const TAIL: Path = paths::REPAIR_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2255)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2257)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2255)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2257)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32304,11 +32311,11 @@ impl Record for RepairAfter {
     const TAIL: Path = paths::REPAIR_AFTER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2257)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2259)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2257)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2259)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32337,11 +32344,11 @@ impl Record for RepairJudging {
     const TAIL: Path = paths::REPAIR_JUDGING_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2259)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2261)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2259)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2261)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32381,11 +32388,11 @@ impl Record for FindingRepair {
     const TAIL: Path = paths::FINDING_REPAIR_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2269)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2271)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2269)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2271)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32428,11 +32435,11 @@ impl Record for FindingSignature {
     const TAIL: Path = paths::FINDING_SIGNATURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2275)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2277)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2275)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2277)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32474,11 +32481,11 @@ impl Record for VerdictFiling {
     const TAIL: Path = paths::VERDICT_FILING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2282)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2284)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2282)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2284)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32542,11 +32549,11 @@ impl Record for TierRow {
     const TAIL: Path = paths::TIER_ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2308)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2310)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2308)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2310)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32637,11 +32644,11 @@ impl Record for Finding {
     const TAIL: Path = paths::FINDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2329)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2331)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2329)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2331)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32710,11 +32717,11 @@ impl Record for Device {
     const TAIL: Path = paths::DEVICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2337)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2339)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2337)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2339)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32803,11 +32810,11 @@ impl Record for Value {
     const TAIL: Path = paths::VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2344)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2346)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2344)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2346)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -32937,11 +32944,11 @@ impl Record for Row {
     const TAIL: Path = paths::ROW_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2345)?.encoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2347)?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2345)?.decoded)
+        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2347)?.decoded)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {

@@ -1123,6 +1123,7 @@ fn tier_row(number: u32) -> TierRow {
         tier: Box::from(b"tier".as_slice()),
         record: temper_engine_domain_forge_tiers::Record {
             sequence: 0,
+            last_run: None,
             judged: None,
             failing: temper_engine_domain_forge_tiers::Failures::Tests(Box::new([])),
             flakes: Box::new([]),

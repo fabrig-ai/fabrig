@@ -22,6 +22,7 @@ pub(super) fn finish(
     out: &mut Queue<Request>,
 ) -> bool {
     clearing::judged(d, env, row, verdict, out);
+    crate::findings::judging::judged(d, env, row, verdict, out);
     let mut filings = prepare(d, row, verdict, &env.limits, &[]);
     let mut needs_logs = false;
     for filing in &filings.rows {

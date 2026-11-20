@@ -7,6 +7,34 @@ pub(crate) use forge::findings::{cut_words, news_words, ownership_words};
 use forge::{Filer, FindingRefusal, Holder, settings::AreaOwner};
 use skein_lib::{List, Map, Queue};
 
+pub(crate) fn goal_ended(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    task: u64,
+    ending: forge::ReleaseEnding,
+) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    let project = row.project;
+    let mut out = Queue::uncapped();
+    domain.forge.judge_goal_findings(&super::environment_forge(env), project, task, ending, &mut out);
+    forge_route::outputs(domain, env, decision, &mut out);
+}
+pub(crate) fn fail_repair(domain: &mut Domain, project: u32, task: u64, until: skein_lib::Wall) {
+    let Some(row) = domain.core.tasks.task(task) else { return };
+    let hours = until.as_nanos().saturating_sub(row.created_at.as_nanos()).div_euclid(3_600_000_000_000);
+    let mut words = List::uncapped();
+    for part in [b"past its repair deadline of ".as_slice(), skein_lib::Decimal::of(hours).as_bytes(), b" hours"] {
+        for &byte in part {
+            words.push(byte).expect("bounded deadline reason");
+        }
+    }
+    domain.work.push(Work::Tasks(tasks::Event::Fail {
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(task)),
+        by: tasks::Party::Deployment { project },
+        operation: tasks::Fail { task, reason: words.into_boxed() },
+    }));
+}
 fn live(row: &tasks::TaskRecord, project: u32) -> bool {
     if row.project != project {
         return false;

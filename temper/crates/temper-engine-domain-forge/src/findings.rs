@@ -6,6 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Queue, Wall};
 pub use temper_engine_domain_forge_vocabulary::findings::*;
+pub(crate) mod judging;
 static NO_FINDINGS: Map<(u32, u32), Finding> = Map::with_capacity(0);
 impl Domain {
     pub(crate) fn finding_rows(&self) -> &Map<(u32, u32), Finding> {

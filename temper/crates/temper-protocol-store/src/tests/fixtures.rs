@@ -1177,6 +1177,7 @@ pub fn tier_row() -> top::TierRow {
         task: Some(51),
         record: p::Record {
             sequence: 2,
+            last_run: None,
             judged: Some(p::Judged { tip: [2; 32], key: [3; 32] }),
             failing: failures.clone(),
             flakes: flakes.into_boxed(),

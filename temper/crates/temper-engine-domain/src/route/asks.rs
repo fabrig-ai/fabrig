@@ -264,6 +264,9 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
         }
         core::Ask::Release { task, root, ending, entry } => {
             if connector == domain.config.forge_connector {
+                super::findings::goal_ended(domain, env, decision, task, forge_release_ending(ending.clone()));
+            }
+            if connector == domain.config.forge_connector {
                 let branches = forge_route::saved_branches(domain, env, task, root);
                 if !branches.is_empty() {
                     domain.work.push(Work::Forge(forge::Event::SavedWork { task, branches }));

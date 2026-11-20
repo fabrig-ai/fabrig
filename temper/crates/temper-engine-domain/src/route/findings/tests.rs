@@ -285,6 +285,141 @@ fn the_next_finding_restores_an_unsubscribed_holder_under_the_forge_number() {
     assert!(news[0].words.starts_with(b"Finding 1/2 is yours: Red\n"));
 }
 #[test]
+fn a_cancelled_routed_red_returns_through_release_to_its_holder_with_back_news() {
+    let (mut domain, mut env, source) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
+    env.limits.tasks.inbox_bytes = 512;
+    env.limits.tasks.message_bytes = 128;
+    let template = domain.core.tasks.task(source).unwrap().clone();
+    let goal = 40;
+    add(&mut domain, &env, goal, 1, 2, &template);
+    set_area(&mut domain, &env, AreaOwner::Task(source));
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    let mut write = domain
+        .forge
+        .prepare_verdict_filing(
+            &env.limits.forge,
+            env.wall,
+            Filer::Task(source),
+            &forge::VerdictFiling {
+                project: 1,
+                kind: forge::FindingKind::Red,
+                severity: forge::Severity::High,
+                title: b"Red".as_slice().into(),
+                body: b"reproduce".as_slice().into(),
+                signature: forge::FindingSignature {
+                    repository: skein_forge::api::Repository { forge: 1, repository: 1 },
+                    source: b"browser".as_slice().into(),
+                    ids: Box::new([b"suite::fails".as_slice().into()]),
+                    first: Box::new([]),
+                    many: false,
+                },
+                blame: Some(forge::FindingBlame {
+                    strength: forge::BlameStrength::Unblamed,
+                    landings: Box::new([]),
+                    moved: None,
+                }),
+                follow: None,
+            },
+        )
+        .unwrap();
+    let number = write.row.number;
+    write.row.area = Some(b"tests".as_slice().into());
+    domain.forge.commit_finding(&env.limits.forge, write, &mut Queue::uncapped());
+    assert_eq!(
+        triage_finding(
+            &mut domain,
+            &env,
+            &mut decision,
+            Filer::Task(source),
+            forge::TriageFinding { project: 1, number, act: forge::Triage::Route(goal) }
+        ),
+        forge::TriageFindingAnswer::Triaged
+    );
+    while domain.work.pop().is_some() {}
+    let connector = domain.config.forge_connector;
+    super::super::asks::ask(
+        &mut domain,
+        &env,
+        &mut decision,
+        connector,
+        jig_domain_core::Ask::Release {
+            task: goal,
+            root: goal,
+            ending: tasks::Ending::Cancelled {
+                by: tasks::Party::Deployment { project: 1 },
+                at: env.wall,
+                reason: b"stop".as_slice().into(),
+                result: None,
+            },
+            entry: 80,
+        },
+    );
+    let finding = domain.forge.finding(1, number).unwrap();
+    assert_eq!(finding.state, forge::FindingState::New);
+    assert_eq!(finding.goal, None);
+    assert_eq!(finding.hander, None);
+    assert!(finding.repair.as_ref().unwrap().cancelled);
+    assert_eq!(finding.repair.as_ref().unwrap().attempts, 0);
+    let news = queued_news(&domain, source);
+    assert_eq!(news.len(), 1);
+    assert_eq!(
+        news[0].words.as_ref(),
+        b"Finding 1/1 is yours: Red\nred, high, area tests\nBack: goal 40 was cancelled\nreproduce"
+    );
+}
+
+#[test]
+fn a_repair_deadline_sends_jigs_application_failure_and_a_closing_refusal_writes_nothing() {
+    let (mut domain, env, task) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
+    let created = domain.core.tasks.task(task).unwrap().created_at;
+    let until = skein_lib::Wall::from_nanos(created.as_nanos().checked_add(7_200_000_000_000).unwrap());
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    let mut out = Queue::uncapped();
+    out.push(forge::Request::FailRepair { project: 1, task, until });
+    forge_route::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Tasks(tasks::Event::Fail { reply_to, by, operation })) = domain.work.pop() else {
+        panic!("jig Fail event")
+    };
+    assert_eq!(by, tasks::Party::Deployment { project: 1 });
+    assert_eq!(operation.task, task);
+    assert_eq!(operation.reason.as_ref(), b"past its repair deadline of 2 hours");
+    let reason = operation.reason.clone();
+    let mut out = Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Fail { reply_to, by, operation },
+        &mut out,
+    );
+    let mut written = 0_u32;
+    for request in &out {
+        if let tasks::Request::Save { .. } = request {
+            written += 1;
+        }
+    }
+    assert!(written > 0);
+    let mut refused = Queue::uncapped();
+    tasks::step(
+        &mut domain.core.tasks,
+        &env.with(env.limits.tasks),
+        tasks::Event::Fail { reply_to: ReplyTo::new(Token::new(902)), by, operation: tasks::Fail { task, reason } },
+        &mut refused,
+    );
+    let mut saves = 0_u32;
+    let mut refusals = 0_u32;
+    for request in &refused {
+        if let tasks::Request::Save { .. } = request {
+            saves += 1;
+        }
+        if let tasks::Request::Refused { .. } = request {
+            refusals += 1;
+        }
+    }
+    assert_eq!(saves, 0);
+    assert_eq!(refusals, 1);
+}
+
+#[test]
 fn routing_to_a_goal_at_its_subscription_bound_writes_and_tells_it() {
     let (mut domain, mut env, source) = crate::tests::live_task(Some(1), tasks::Executor::Agent { charter: 1 });
     env.limits.tasks.subscriptions = 1;

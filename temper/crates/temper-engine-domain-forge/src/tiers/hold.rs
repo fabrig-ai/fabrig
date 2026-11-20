@@ -57,6 +57,7 @@ fn apply(
             if row.hold.take().is_none() {
                 return Err(TierRefusal::NotHeld);
             }
+            crate::findings::judging::released(d, env, &row, out);
         }
     }
     let released = row.hold.is_none();
