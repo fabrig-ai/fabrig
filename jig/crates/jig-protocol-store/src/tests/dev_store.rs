@@ -12,8 +12,13 @@ use super::{
 use crate::{Event, Get, OwnerSets, Request, Restore, Row, Store, codec, keys, logs};
 use jig_domain_core_vocabulary::{self as core, Record, RestoreRange};
 use jig_domain_tasks as tasks;
-use skein_codec::{Record as _, schema, value::Value};
-use skein_lib::{Queue, Reader, Token};
+use skein_codec::{
+    Record as _,
+    layout::{Plan, Workspace},
+    schema,
+    value::Value,
+};
+use skein_lib::{Buffer, Queue, Reader, Token};
 
 // Verbatim from 13efa774615022299aea9ed57b2577df517494ad, under
 // jig/crates/jig-protocol-store/schema/ and smith/crates/smith-transcript/schema/.
@@ -75,6 +80,32 @@ fn generic(text: &str, root: &str, bytes: &[u8]) {
     let mut value = Value::with_room(8192);
     value.decode(&schema, schema.root(root.as_bytes(), None).unwrap().decl, bytes.into()).unwrap();
 }
+/// Write a binary-encoded value at dev's layout by dropping only what dev's
+/// texts do not hold.
+fn at_dev(family: &crate::KeptFamily, ty: &crate::ValueType, value: &[u8]) -> Box<[u8]> {
+    let parse = |text: &str| schema::parse(text.as_bytes()).unwrap();
+    let dev = |name: &str| TEXTS.iter().find(|(held, _)| *held == name).unwrap().1;
+    let binary = parse(family.current);
+    let old = parse(dev(family.name));
+    let held = crate::STORE_FAMILIES.iter().filter(|held| family.current.contains(&format!("holds {} ", held.name)));
+    let binary_held: Vec<_> = held.clone().map(|held| parse(held.current)).collect();
+    let old_held: Vec<_> = held.map(|held| parse(dev(held.name))).collect();
+    let variant = ty.variant.map(str::as_bytes);
+    let plan = Plan::derive_dropping(
+        &binary,
+        binary.root(ty.root.as_bytes(), variant).unwrap(),
+        &binary_held.iter().collect::<Vec<_>>(),
+        &old,
+        old.root(ty.root.as_bytes(), variant).unwrap(),
+        &old_held.iter().collect::<Vec<_>>(),
+    )
+    .expect("the binary's value drops to dev's layout");
+    let mut work = Workspace::new();
+    assert!(work.fit(&plan));
+    let mut out = Buffer::with_capacity(1_048_576);
+    plan.convert(value, &mut out, &mut work).unwrap();
+    out.as_slice().into()
+}
 fn encoded(store: &Store, row: &Record) -> logs::record::Row {
     let key = key(row);
     let family = crate::STORE_FAMILIES
@@ -92,9 +123,9 @@ fn encoded(store: &Store, row: &Record) -> logs::record::Row {
         .iter()
         .find(|ty| ty.keys.iter().any(|range| key.as_ref() >= range.from && key.as_ref() < range.to))
         .unwrap();
-    let value = codec::encode(row, &store.codec_limits, &store.names).unwrap();
-    // These values use only old fields and variants. Check the bytes against
-    // the kept schema, rather than assuming the binary's encoder writes them.
+    let value = at_dev(family, ty, &codec::encode(row, &store.codec_limits, &store.names).unwrap());
+    // These values use only dev's variants, and the binary's added fields at
+    // their defaults. Check the bytes against the kept schema.
     generic(text, ty.root, &value);
     assert_eq!(crate::registry::head(&value), Some(schema::parse(text.as_bytes()).unwrap().version()));
     (key, Some(value))
