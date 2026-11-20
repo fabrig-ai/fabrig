@@ -1,14 +1,14 @@
-//! Largest schema values through the sealed byte pin (data/codec/README.md, 6).
+//! Largest schema values through the lean byte pin (data/codec/README.md, 6).
 
 #[cfg(test)]
 mod tests {
-    use skein_codec_tests::every_v3::{self, CEILINGS, Limits};
+    use skein_codec_tests::every_v3::{self, CEILINGS, Limits, Record};
     use skein_codegen::{Schema, largest, roots};
-    use skein_lib::{Reader, Writer};
+    use skein_lib::Reader;
 
     const MAX_BYTES: u64 = 16 * 1024 * 1024;
 
-    #[expect(clippy::too_many_lines, reason = "the sealed Limits fixture clamps each named field once")]
+    #[expect(clippy::too_many_lines, reason = "the lean Limits fixture clamps each named field once")]
     fn small_limits() -> Limits {
         macro_rules! small {
             ($($field:ident),+ $(,)?) => {
@@ -177,16 +177,14 @@ mod tests {
                         let bytes = largest(schema, root, limits.values().as_slice()).expect("largest root");
                         assert_eq!(u64::try_from(bytes.len()).expect("length fits"), bound, "{root}: largest bound");
                         let mut reader = Reader::new(&bytes);
-                        let value = every_v3::$name::decode(limits, &mut reader).expect("sealed decoder");
+                        let value = every_v3::$name::decode(limits, &mut reader).expect("lean decoder");
                         assert!(reader.is_empty(), "{root}: whole encoding consumed");
-                        let measured = usize::try_from(value.measure()).expect("measured length fits");
+                        let measured = usize::try_from(value.measure(limits).expect("decoded value measures")).expect("measured length fits");
                         assert_eq!(measured, bytes.len(), "{root}: measure");
-                        let mut writer = Writer::new(measured);
-                        value.encode(&mut writer).expect("measured room");
-                        assert_eq!(writer.finish().as_ref(), bytes, "{root}: round trip");
+                        assert_eq!(value.encode(limits).expect("decoded value encodes").as_ref(), bytes, "{root}: round trip");
                         true
                     }),+
-                    _ => panic!("no sealed decoder for root {root}"),
+                    _ => panic!("no lean decoder for root {root}"),
                 }
             };
         }

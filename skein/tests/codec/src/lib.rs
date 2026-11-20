@@ -1,6 +1,6 @@
 //! Generated sample family for data/codec/README.md, sections 4 and 6.
-//! The types hold bounded fields. They know no peer or transport. Tests drive
-//! their constructors and, later, wire entry points.
+//! Values are checked where bytes are made. They know no peer or transport.
+//! Tests drive their wire entry points.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
@@ -52,20 +52,11 @@ pub mod every_v2;
 
 #[rustfmt::skip]
 #[path = "every/v3.rs"]
-#[expect(clippy::option_option, reason = "the pin exercises all three nested-option wire states")]
 pub mod every_v3;
-
-#[rustfmt::skip]
-#[path = "every/v3_lean.rs"]
-pub mod every_v3_lean;
 
 #[rustfmt::skip]
 #[path = "growth/v1.rs"]
 pub mod growth;
-
-#[rustfmt::skip]
-#[path = "growth/v1_lean.rs"]
-pub mod growth_lean;
 
 #[path = "../patches/mod.rs"]
 pub mod patches;

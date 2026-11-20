@@ -83,7 +83,7 @@ class ProtocolTests(unittest.TestCase):
                 self.assertIn('ok a' if scenario == 'pass' else 'failed a', logfile.read_text())
 
 
-class PrePrListingTests(unittest.TestCase):
+class ProfileTargetTests(unittest.TestCase):
     def test_cargo_targets_and_named_test_exceptions(self):
         one = runpy.run_path(str(HERE / 'one_process.py'))
         with tempfile.TemporaryDirectory(dir=HERE.parents[1]) as scratch, contextlib.chdir(scratch):
@@ -105,22 +105,37 @@ default-filter = "test(/^fuzzy::/) - binary(=live)"
 """)
             subprocess.run(['cargo', 'generate-lockfile', '--offline'], check=True, capture_output=True)
             command = ['cargo', 'nextest', 'run', '-p', 'app', '-p', 'other', '--no-tests=warn']
+            build_target = root / 'landing'
+            landing_env = dict(os.environ, CARGO_TARGET_DIR=str(build_target), CARGO_NET_OFFLINE='true',
+                               TIERS_PROFILE_TARGETS='1')
+            built = subprocess.run([HERE / 'build-profile-targets', '--workspace'], env=landing_env,
+                                   capture_output=True, text=True)
+            self.assertEqual(built.returncode, 0, built.stderr)
+            self.assertIn('skip linking app::live', built.stdout)
+            dep_info = '\n'.join(path.read_text() for path in build_target.rglob('*.d'))
+            self.assertNotIn('app/tests/live.rs', dep_info)
+            self.assertIn('other/tests/live.rs', dep_info)
             for profile in ('default', 'fuzzy'):
                 selections = []
-                for mode in ('broad', 'pruned'):
-                    target = root / mode
-                    env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_NET_OFFLINE='true',
-                               TIERS_PRE_PR_TARGETS='1' if mode == 'pruned' else '0')
+                for mode in ('broad', 'pruned', 'landing'):
+                    if mode == 'landing':
+                        target, env = build_target, landing_env
+                        args = ['cargo', 'nextest', 'run', '--workspace', '--no-tests=warn']
+                    else:
+                        target = root / mode
+                        env = dict(os.environ, CARGO_TARGET_DIR=str(target), CARGO_NET_OFFLINE='true',
+                                   TIERS_PRE_PR_TARGETS='1' if mode == 'pruned' else '0')
+                        args = command
                     with contextlib.redirect_stdout(io.StringIO()):
-                        plan, *_ = one['listed_plan'](command, env, profile, {}, config, None, root / 'layers.toml')
+                        plan, *_ = one['listed_plan'](args, env, profile, {}, config, None, root / 'layers.toml')
                     selections.append({(binary['binary_id'], case['name'])
                                        for binary in plan['binaries'] for case in binary['tests']})
-                    # Dep-info exists even for a linked harness with zero selected cases.
                     linked = any('app/tests/live.rs' in path.read_text() for path in target.rglob('*.d'))
                     self.assertEqual(linked, mode == 'broad')
                 self.assertEqual(selections[0], selections[1])
-                self.assertIn(('app::suite', 'kept' if profile == 'default' else 'fuzzy::sample'), selections[1])
-                self.assertEqual(('other::live', 'kept') in selections[1], profile == 'default')
+                self.assertEqual(selections[0], selections[2])
+                self.assertIn(('app::suite', 'kept' if profile == 'default' else 'fuzzy::sample'), selections[2])
+                self.assertEqual(('other::live', 'kept') in selections[2], profile == 'default')
 
             config.write_text('[profile.default]\ndefault-filter="none()"\n')
             with contextlib.redirect_stdout(io.StringIO()):
@@ -142,7 +157,7 @@ default-filter = "test(/^fuzzy::/) - binary(=live)"
             args = ['-p', 'app', '-p', 'other']
             filters = [one['filterset']('not (package(=app) & binary(=live))')]
             with contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(one['pre_pr_listings'](args, metadata, filters, ['cargo'], os.environ), [args])
+                self.assertEqual(one['profile_target_groups'](args, metadata, filters, ['cargo'], os.environ), [args])
 
 
 class ConfigurationTests(unittest.TestCase):

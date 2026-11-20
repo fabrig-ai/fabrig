@@ -272,14 +272,12 @@ The public keys, which help lists:
 
 ## 8. Upgrades
 
-By the user's word for this draft (`notes.md`, section 21): until v0.1.0 has users, an upgrade is cheap rather than smooth. For the configuration, this departs from `upgrades.md`, section 10.
+By the user's word of 2026-11-20, the configuration crosses a build as `upgrades.md`, section 10, has it. Until then this draft departed from it, an upgrade being cheap rather than smooth until v0.1.0 has users (`notes.md`, section 21), and its milestones landed with their operators' steps.
 
-- **No build reads a member that moved.** One is refused as unknown, naming it, and the `configuration` page says where each went (6.5). Once the TOML file lands, a `temper.json` is refused by name.
-- **Each milestone lands compatible with dev.fabrig.ai, or with its operators' steps.** Its row in the execution file says which. The steps are edits to dev's documents before its redeploy, and settings made by `temper ctl` after it. Several landings' steps are taken together at dev's next redeploy.
-- **A wire changed is declared breaking** (6.3), so dev's engine and workers redeploy together.
-- **The registered store's changes use defaults, former names or a written job,** with no version move or patch (jig's `protocol/store/layouts.md`). The new kinds start empty, over their defaults, and need none.
-- **A box's file is written again by hand:** one line, from its help.
-- **dev.fabrig.ai's 133 overrides become none** with this stock, and its operators drop them.
+- **Each build reads its own members and the previous release's.** A member that moves or is renamed is read from its old place too, with one warning naming the new one. Once dev.fabrig.ai runs a build that reads the new form, the old place is refused as unknown, naming it, and the `configuration` page says where each went (6.5): as for the store, no code is kept for a configuration older than dev.fabrig.ai's (`store-floor.md`).
+- **The same holds for a worker's configuration and the small files a build reads at its start:** a secret's file renamed, an environment entry moved, the forge's setup file.
+- **A change no plan derives,** such as a member split in two or a unit changed, brings a written converter in the build, tested against a fixture of the previous release's form, never a deployment's own configuration, and never an operator's step.
+- **The registered store's changes use defaults, former names or a written job,** with no version move or patch (jig's `protocol/store/layouts.md`).
 
 ## 9. Acceptance
 

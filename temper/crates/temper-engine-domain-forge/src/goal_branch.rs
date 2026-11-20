@@ -110,6 +110,17 @@ pub(super) fn reading(d: &Domain, name: &Name) -> bool {
     false
 }
 
+/// Reading afresh counts a making's read, not its wait in the outbox's line
+/// (temper/docs/design/domain/forge/branches.md, 1).
+pub(super) fn reading_afresh(d: &Domain) -> bool {
+    for (_, pending) in &d.makings {
+        if pending.outbox_wait.is_none() {
+            return true;
+        }
+    }
+    false
+}
+
 pub(super) fn base_wait(d: &Domain, repository: skein_forge::api::Repository, base: &[u8]) -> bool {
     for (name, _) in &d.holds {
         if name.forge == repository.forge
@@ -295,6 +306,8 @@ fn read_result(
     }
 }
 
+/// Missing with no creation entry, a making joins the line and asks nothing
+/// before the outbox settles (temper/docs/design/domain/forge/branches.md, 1).
 fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
     if let Some(entry) = held_entry(d, &pending.name) {
         super::resolve(d, env, entry.number, true, out);
@@ -304,16 +317,7 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
         if waiting(d, &pending.name) {
             return;
         }
-        let hold = d.holds.get_mut(&pending.name).expect("restored goal hold");
-        match hold.writer {
-            Some(Writer::Entry(_)) => {
-                hold.writer = None;
-                save_hold(out, hold.clone());
-            }
-            Some(Writer::Run { .. } | Writer::Lost { .. }) | None => {}
-        }
-        emit(out, Request::ContinueGoalBranch { task: pending.task });
-        d.makings.insert(owner, pending).expect("making waits for its entry");
+        wait_for_room(d, owner, pending, out);
         return;
     }
     let resource = to_client(&pending.name, &env.limits).expect("validated held branch");

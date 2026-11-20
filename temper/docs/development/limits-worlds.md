@@ -413,6 +413,84 @@ All eight passed. The named dependency-boundary test,
 also passed alone (0.125 s). No budget, timeout, nextest setting or
 reference was added or raised.
 
+### The TUI's design session
+
+2026-11-20, change 10883, based on
+`0d86632282802e0919d31ec10c02f0e3247fdcf8`: `design-session`'s version-2
+walk, `after project-landing`, prints ten frames and their HTML in one
+process. It approves the TUI, opens Hello's design session, cycles the
+pane, answers the drafter and starts its goal. On Linux x86_64,
+`nproc` = 8, CPU model AMD EPYC-Genoa Processor, three warm prints of the
+unoptimized debug binary into fresh scratch directories took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 6.75 | 6.28 | 0.27 | 6.55 |
+| 2 | 6.78 | 6.25 | 0.32 | 6.57 |
+| 3 | 7.31 | 6.52 | 0.35 | 6.87 |
+
+**Median: 6.78 wall s, 6.57 CPU s.** `/usr/bin/time` measured the built
+binary alone, launched through `cargo run -p temper-client-walk` with
+`target.x86_64-unknown-linux-gnu.runner` set to that timer, and
+`TEMPER_INTERNAL_BUNDLE=none`; build and Cargo overhead are excluded.
+Earlier diagnostic prints warmed the binary. An independently idle host
+was not established. All three scratch trees had identical bytes. The
+frames and key links were checked against the journey's README; scratch
+was removed, and no page or recording is committed.
+
+The new focused test, `temper-client-walk-tool` / `suite` /
+`a_tui_drafts_pane_cycles_and_key_links_print_repeatably`, passed alone
+in **6.939 s**, nextest's per-test elapsed time, not CPU or build time.
+It uses its own playground ancestor, TUI walk and model scripts, prints
+half, all, folded and half again twice, and checks identical bytes,
+document visibility, choices below the box and Ctrl-P's page links.
+Disabling the walker's key-link retention made that test fail on the
+missing Ctrl-P link; restoring it passed. No budget, timeout, nextest
+setting or reference was added or raised.
+
+### The TUI's launchpad chat
+
+2026-11-20, change 10881: `launchpad-chat`'s version-2 walk runs
+`after project-landing`, approves the TUI, then prints four pages from
+Hello's launchpad through its commands and typed question to the Ask
+temper chat and its scripted answer. Before the first mark it waits for
+"Nothing needs you." and `/draft`, so the launchpad has its status and
+project commands. On Linux x86_64, `nproc` = 8, CPU model AMD
+EPYC-Genoa Processor, three warm runs of the built, unoptimized
+`target/debug/temper-client-walk print --out DIR launchpad-chat`
+(Cargo's configured target directory, each DIR fresh) took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 6.786375 | 6.591297 | 0.191979 | 6.783276 |
+| 2 | 6.722648 | 6.538222 | 0.171953 | 6.710175 |
+| 3 | 6.725978 | 6.555155 | 0.168081 | 6.723236 |
+
+**Medians: 6.725978 wall s, 6.723236 CPU s.** Wall time is Python's
+`time.perf_counter` difference around each direct binary run; CPU is
+the difference of `resource.getrusage(RUSAGE_CHILDREN)`, user plus
+system. Build and Cargo overhead are excluded. An independently idle
+host was not established. Two preceding `TEMPER_INTERNAL_BUNDLE=none
+cargo run -p temper-client-walk -- print --out DIR launchpad-chat`
+runs printed identical scratch trees. Each measured run matched those
+bytes too. All scratch directories were outside the checkout and
+removed; no journey page or recording is changed.
+
+The new focused test ran alone by exact name with `cargo nextest run`,
+`TEMPER_INTERNAL_BUNDLE=none`, default profile. This is nextest's
+per-test elapsed time, not CPU or build time:
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::moved_journeys_read_and_join_their_scripts_without_a_world` | 0.190 |
+
+It passed, reading all six moved journeys: `chat-draft`,
+`project-landing`, `welcome-playground`, `welcome-set-up`,
+`sign-in-approved` and `launchpad-chat`. It discovers moved journeys
+under both roots and joins each chain's scripts through the walker's
+shared helper without starting a world. No budget, timeout, nextest
+setting or reference was added or raised.
+
 ### The launchpad's delegated question
 
 2026-11-20, change 10882: `launchpad-drawn`'s version-2 walk,
