@@ -7760,6 +7760,7 @@ dependencies = [
  "temper-client-domain",
  "temper-client-shell-web",
  "temper-client-walk-world",
+ "temper-forge-setup",
  "temper-playground",
  "temper-service",
  "temper-test-env",

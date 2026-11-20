@@ -342,6 +342,11 @@ impl Domain {
     pub fn forge_connection(&self, forge: u16) -> forge::Connection {
         self.forge.connection(forge)
     }
+    /// The kept forge's public addresses and setup choice, whatever its state.
+    #[must_use]
+    pub fn forge_record(&self, forge: u16) -> Option<&forge::ForgeRecord> {
+        self.forge.record(forge)
+    }
     /// The current deployment document, including volatile setup progress.
     #[must_use]
     pub fn forges(&self) -> forge::Forges {

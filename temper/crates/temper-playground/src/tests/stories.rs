@@ -379,6 +379,39 @@ fn story_as_pace_is_paced() {
 }
 
 #[test]
+fn story_a_start_is_start_at_the_default_forge() {
+    let wall = Wall::from_nanos(1_700_000_000_000_000_000);
+    let default = A.start(7, wall);
+    let explicit = A.start_at(7, wall, documents::FORGE);
+    assert_eq!(default.seed, explicit.seed);
+    assert_eq!(default.wall, explicit.wall);
+    assert_eq!(default.links, explicit.links);
+    assert_eq!(default.deployment.forge, documents::FORGE);
+    assert_eq!(default.deployment, explicit.deployment);
+    assert_eq!(default.fakes.peer.image().expect("fresh peer"), explicit.fakes.peer.image().expect("fresh peer"));
+    assert_eq!(
+        default.fakes.forge.forge.borrow().domain.image().expect("fresh forge"),
+        explicit.fakes.forge.forge.borrow().domain.image().expect("fresh forge")
+    );
+}
+
+#[test]
+fn composition_settings_name_the_starts_forge() {
+    let address = "127.0.0.1:10002".parse().expect("forge address");
+    let mut deployment = documents::world_document();
+    deployment.forge = address;
+    documents::configure(&mut deployment);
+    let grants = &deployment["world_settings"]["policies"][0]["policy"]["ceiling"]["grants"];
+    for grant in grants.as_array().expect("composition grants") {
+        assert_eq!(grant["pattern"]["segments"][1], address.to_string());
+    }
+    let forges = documents::forges_at(deployment.forge);
+    assert_eq!(forges.get(0).expect("one forge").address, address);
+    let table = documents::hosted_git::table_at(b"acme/app", None, deployment.forge);
+    assert_eq!(table.base.as_ref(), b"http://127.0.0.1:10002");
+}
+
+#[test]
 fn story_a_starts_and_prints_its_link() {
     let wall = Wall::from_nanos(1_700_000_000_000_000_000);
     let start = A.start(7, wall);

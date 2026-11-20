@@ -349,12 +349,17 @@ pub fn agent_configuration_for(profile: &smith_agent_service::profile::Profile) 
 /// The forge runtime destinations.
 #[must_use]
 pub fn forges() -> List<temper_service::ForgeRuntime> {
+    forges_at(FORGE)
+}
+/// The forge runtime destinations at the start's address.
+#[must_use]
+pub fn forges_at(address: SocketAddr) -> List<temper_service::ForgeRuntime> {
     let mut forges = List::with_capacity(1);
     forges
         .push(temper_service::ForgeRuntime {
             log_origins: skein_lib::List::with_capacity(0),
             number: 1,
-            address: FORGE,
+            address,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
         })
         .expect("one loopback forge");
@@ -411,11 +416,12 @@ pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_serv
 pub fn configure(value: &mut Configuration) {
     value["workers"][0]["slots"] = AGENTS.into();
     value.jig_over("hub.slots", AGENTS);
+    let forge = value.forge.to_string();
     let grants: Vec<_> = GRANT_KINDS
         .into_iter()
         .map(|kind| {
             serde_json::json!({
-                "connector":FORGE_CONNECTOR,"kind":kind,"pattern":{"segments":["forge","127.0.0.1:3000"],"last":"open","value":"acme"}
+                "connector":FORGE_CONNECTOR,"kind":kind,"pattern":{"segments":["forge",forge],"last":"open","value":"acme"}
             })
         })
         .collect();

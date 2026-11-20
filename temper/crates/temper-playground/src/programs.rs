@@ -286,7 +286,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         &files,
         Some(&agent),
         &seeds,
-        documents::forges(),
+        documents::forges_at(parameters.deployment.forge),
         None,
         &given,
         Some(b"/usr/bin/git"),
@@ -429,7 +429,10 @@ pub fn llm<H: Harness>(inherited: &Inherited) -> Process<H> {
 #[must_use]
 pub fn forge<H: Harness>(inherited: &Inherited) -> Process<H> {
     let parameters = parameters();
-    fake_forge(crate::fakes::forge_peer(&parameters.forge, H::forge_seed(parameters.seed)), inherited)
+    fake_forge(
+        crate::fakes::forge_peer_at(&parameters.forge, H::forge_seed(parameters.seed), parameters.deployment.forge),
+        inherited,
+    )
 }
 /// Register the agent, git (typed or routed) and scripted shell.
 #[must_use]

@@ -68,7 +68,7 @@ pub fn prepare(disk: &mut skein_fake_machine::Machine, deployment: &documents::C
             .unwrap_or(0);
         let number = u16::try_from(last + 1).expect("playground forge number");
         let setup =
-            temper_forge_setup::setup_file::chosen(BoxKind::Fake, documents::FORGE.port(), b"ada", false, &directories)
+            temper_forge_setup::setup_file::chosen(BoxKind::Fake, deployment.forge.port(), b"ada", false, &directories)
                 .expect("world fake setup");
         let entry = setup.entry(number, &directories).expect("fake setup entry");
         let path = Place { directory: entry.directory, user: Box::new([]) }.path(File::AdminToken);
