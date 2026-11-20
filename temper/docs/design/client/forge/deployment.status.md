@@ -2,6 +2,8 @@
 
 2026-11-20. Where the tree's code lags or departs from [deployment.md](deployment.md).
 
+- **Not yet:** the whole document: a row says nothing of its forge catching up [in flight: change 11026].
+
 - **Not yet:**  the native-queue position remains `README.status.md`, 2.1.
   the panel's gate amendment remains `README.status.md`, 2.3.  the counted approval and person-task cards remain `README.status.md`, 4.
    "Land without CI" for a repository with no CI.  health. 

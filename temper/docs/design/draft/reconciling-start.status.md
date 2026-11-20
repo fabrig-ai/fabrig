@@ -9,6 +9,8 @@
   - 3, 5: the forge's work after the opening is "catching up", its report "caught up" and its pages' words "Catching up", where the draft says "reconciling" and "reconciled", as the goal that built section 3 was asked (2026-11-20; its designer's choice on the request's words).
   - 3: a procedure that waits on the forge waits for its fresh reads, the first half of catching up, not for the whole: one uncertain write whose find keeps failing would otherwise hold every procedure, which the draft's own test 4 rules out (`../domain/forge/catching-up.md`, 2 and 4).
   - 3: a write waits behind every earlier entry on its lane, the outbox's order in steady state, not only until each restored one has had its first look: the lane is the fence, and no second order is kept (`../domain/forge/catching-up.md`, 3; skein's `forge/client.md`, 7.2).
+  - 7, test 2: a making found missing with room is made in the room line's order from the beginning of catching up, its write behind its lane, not after the settle: section 3 has the line order writes as soon as the outbox's table is restored, which the test's "after the settle" predates; what the test guards, that no read waits on the making's write, holds (`../domain/forge/branches.md`, 1).
+  - 6: the check has no bound of its own past which it fails: the start's work up to the opening is local and finite, and a bound would be a timeout the user has not set (`../protocol/binaries.md`, 2).
 - **Open:** none.
 
 Section 2's check of every term that ends reading afresh (S1, 2026-11-20;
