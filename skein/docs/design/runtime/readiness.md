@@ -337,7 +337,12 @@ other module is safe Rust, the same on both systems.
   `poll_child`, `abandon_binary`, and the closing of what it kept,
   `close_keeper_fd`); a signal raised by hand (`open_signal_pipe`,
   `write_service_signal`, `signal_current_thread`); a blocking wait for a
-  readable descriptor (`wait_readable`); and Linux's own cgroups,
+  readable descriptor (`wait_readable`); the calling thread's CPU
+  (`thread_cpu`, `../testing/README.md`, 5); the path an open
+  descriptor names now, `descriptor_path(fd: Fd) -> Result<Box<[u8]>,
+  Error>`, by `readlink` of `/proc/self/fd/N` on Linux and
+  `fcntl(F_GETPATH)` on Darwin, which has no `/proc`, for a harness that
+  must hand a root it holds to what takes a path; and Linux's own cgroups,
   subreaper and pidfd helpers. The crate's root holds a service's calls
   alone. A service closes a descriptor it opened at startup and never gave
   to io with the root's `close_startup_fd`.

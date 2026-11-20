@@ -3,6 +3,7 @@
 2026-11-20. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
 - **Not yet:** 5: on Darwin, a regular file still registers kqueue interest; a reaping `Wait` marks the child reaped before reading its state; a group refusal counts an exiting member as running, reads an empty listing as a failure and prints nothing of the member that kept it. [in flight: change 10641]
+- **Not yet:** 5: `keeper::descriptor_path`; temper's real loop names a held root by `/proc/self/fd/N`, which macOS lacks. [in flight: change NEXT]
 - **Not yet:** 5: Darwin's child table and signal pipes' set make their lock and storage at their first use, not as the backend opens. [in flight: change 10644]
 - **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
    the user's request of 2026-11-04 asked each part of its
