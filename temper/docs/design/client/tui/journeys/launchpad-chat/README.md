@@ -1,29 +1,32 @@
 # launchpad-chat
 
-On a fresh `temper box --fake-backends`: the browser signed in by the
-box's printed link, the setup taking `project-landing`'s steps to Hello with
-the ChatGPT plan and "work/hello is in Hello", then `temper` started at
-the box's address. The browser approves the terminal, the launchpad is
-marked, `/` opens the commands, Escape closes them, and a question sent
-to Ask temper opens a chat and receives the fake model's answer.
+A version-2 `walk`, `after project-landing`, in one process on the
+playground's composition, with both shipped clients: no box or terminal
+(`../../../journey-walks.md`, 4 and 6). Hello has its owned Forgejo
+repository `work/hello` and the ChatGPT plan with the `fake` model.
+The TUI starts signed out; the browser approves the address it asks to
+browse. The walk waits for the launchpad's status and project commands,
+opens the commands with `/`, closes them with Escape, and sends a
+question to Ask temper. Its `scripts.json` supplies the answer to that
+question, not a fallback.
 
-- `01.html` and `01.txt`: the launchpad as drawn in Hello, its Start
-  commands `/draft`, `/change` and `/ask`, "Nothing needs you.", the
-  "Ask for a change, or ask temper" box and the project, model, effort
-  and live link in the quiet line, marked by Alt+Shift+M. The framed
-  header has no headline.
-- `02.html` and `02.txt`: the commands under the box, including "Start
-  a new chat", before Escape closes them.
-- `03.html` and `03.txt`: "What can you tell me about Hello?" typed in
-  the launchpad's box, before Enter sends it.
-- `04.html` and `04.txt`: the Ask temper chat from the first row, the
-  person's question and "Hello from the local fake model.", with
-  "Hello", the title cut to "What can you tell…", its number and the engine's
-  `127.0.0.1:PORT` in the rule above the box, at the recording's end.
-  The walk's TUI reads no engine's link file, so the place is the
-  address, not "box" (`../../journeys.md`, 8.2).
+- `01.html` and `01.txt`: temper's mark and build `0.0.0 (000000000000)`,
+  the service address `127.0.0.1:10001`, "Nothing needs you.", and Start
+  with `/draft`, `/change` and `/ask`. The empty box offers "Ask for a
+  change, or ask temper." and `/ for commands`; the foot says
+  "Live · Hello · fake". `/` types into the box to open the commands;
+  it is not a key link on this page.
+- `02.html` and `02.txt`: the launchpad with `/` in the box and the
+  commands below it, including "Start a new chat". Escape is the key
+  link to the next page, closing the commands.
+- `03.html` and `03.txt`: the launchpad with "What can you tell me about
+  Hello?" in the box. Enter is the key link, sending the question.
+- `04.html` and `04.txt`: the Ask temper chat from its first row, the
+  person's question and "Hello from the local fake model.". The rule
+  above the Reply box reads "Hello / What can you tell… T2 on
+  127.0.0.1:10001"; the foot says "Live · Hello · fake". This last page
+  has no key link.
 
-The code, the port and the clocks are the recording's own. The walk is
-recorded by `again launchpad-chat` from its `walk` after its `setup`;
-Alt+Shift+S saves its end. The first replay proves all four frames
-against the live prints.
+All four frames are 80 columns by 24 rows, dark with no band. The first
+and last pages lead by their neighbours. The pages and their accompanying
+files belong to the journeys' writer, not this directory's sources.

@@ -1,0 +1,13 @@
+{
+  "asked": [
+    {
+      "cue": "What can you tell me about Hello?",
+      "turns": [
+        "Hello from the local fake model."
+      ]
+    }
+  ],
+  "otherwise": [
+    "No scripted request matched."
+  ]
+}

@@ -42,21 +42,8 @@ pub fn walk(walk: &Walk) -> Result<Marks, Stopped> {
         return Err(Stopped { journey: String::new(), line: 0, why: "empty walk".into() });
     };
     let stop = |why| Stopped { journey: last.name.clone(), line: 0, why };
-    let mut joined = temper_fake::llm::ScriptJoin::empty();
-    let mut any = false;
-    for journey in &walk.chain {
-        if let Some(scripts) = &journey.scripts {
-            joined.push(temper_playground::stories::A.llm, scripts).map_err(|why| Stopped {
-                journey: journey.name.clone(),
-                line: 0,
-                why: format!("scripts.json: {why:?}"),
-            })?;
-            any = true;
-        }
-    }
-    let scripts = joined.into_bytes();
-    let start =
-        facts::start(any.then_some(scripts.as_ref())).map_err(|why| stop(format!("the world failed: {why}")))?;
+    let scripts = joined_scripts(walk)?;
+    let start = facts::start(scripts.as_deref()).map_err(|why| stop(format!("the world failed: {why}")))?;
     let mut page = Page::start(start, last.name.as_bytes())
         .map_err(|why| stop(failed(why, "the main region not drawn within 60 s")))?;
     let mut web_marks = Vec::new();
@@ -87,6 +74,22 @@ pub fn walk(walk: &Walk) -> Result<Marks, Stopped> {
         Client::Web => Marks::Web(web_marks),
         Client::Tui => Marks::Tui(tui_marks),
     })
+}
+
+fn joined_scripts(walk: &Walk) -> Result<Option<Box<[u8]>>, Stopped> {
+    let mut joined = temper_fake::llm::ScriptJoin::empty();
+    let mut any = false;
+    for journey in &walk.chain {
+        if let Some(scripts) = &journey.scripts {
+            joined.push(temper_playground::stories::A.llm, scripts).map_err(|why| Stopped {
+                journey: journey.name.clone(),
+                line: 0,
+                why: format!("scripts.json: {why:?}"),
+            })?;
+            any = true;
+        }
+    }
+    Ok(any.then(|| joined.into_bytes()))
 }
 
 fn tui_mark(page: &mut Page, following: &[Numbered]) -> Result<journey::Mark, String> {

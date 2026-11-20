@@ -413,6 +413,49 @@ All eight passed. The named dependency-boundary test,
 also passed alone (0.125 s). No budget, timeout, nextest setting or
 reference was added or raised.
 
+### The TUI's launchpad chat
+
+2026-11-20, change 10881: `launchpad-chat`'s version-2 walk runs
+`after project-landing`, approves the TUI, then prints four pages from
+Hello's launchpad through its commands and typed question to the Ask
+temper chat and its scripted answer. Before the first mark it waits for
+"Nothing needs you." and `/draft`, so the launchpad has its status and
+project commands. On Linux x86_64, `nproc` = 8, CPU model AMD
+EPYC-Genoa Processor, three warm runs of the built, unoptimized
+`target/debug/temper-client-walk print --out DIR launchpad-chat`
+(Cargo's configured target directory, each DIR fresh) took:
+
+| Run | Wall s | User CPU s | System CPU s | Total CPU s |
+|---|---:|---:|---:|---:|
+| 1 | 6.786375 | 6.591297 | 0.191979 | 6.783276 |
+| 2 | 6.722648 | 6.538222 | 0.171953 | 6.710175 |
+| 3 | 6.725978 | 6.555155 | 0.168081 | 6.723236 |
+
+**Medians: 6.725978 wall s, 6.723236 CPU s.** Wall time is Python's
+`time.perf_counter` difference around each direct binary run; CPU is
+the difference of `resource.getrusage(RUSAGE_CHILDREN)`, user plus
+system. Build and Cargo overhead are excluded. An independently idle
+host was not established. Two preceding `TEMPER_INTERNAL_BUNDLE=none
+cargo run -p temper-client-walk -- print --out DIR launchpad-chat`
+runs printed identical scratch trees. Each measured run matched those
+bytes too. All scratch directories were outside the checkout and
+removed; no journey page or recording is changed.
+
+The new focused test ran alone by exact name with `cargo nextest run`,
+`TEMPER_INTERNAL_BUNDLE=none`, default profile. This is nextest's
+per-test elapsed time, not CPU or build time:
+
+| Package / target | Test | Elapsed s |
+|---|---|---:|
+| `temper-client-walk-world` / lib | `walk::tests::moved_journeys_read_and_join_their_scripts_without_a_world` | 0.190 |
+
+It passed, reading all six moved journeys: `chat-draft`,
+`project-landing`, `welcome-playground`, `welcome-set-up`,
+`sign-in-approved` and `launchpad-chat`. It discovers moved journeys
+under both roots and joins each chain's scripts through the walker's
+shared helper without starting a world. No budget, timeout, nextest
+setting or reference was added or raised.
+
 ### The launchpad's delegated question
 
 2026-11-20, change 10882: `launchpad-drawn`'s version-2 walk,
