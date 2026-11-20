@@ -52,36 +52,25 @@ pub struct RepairGoal {
 #[expect(clippy::manual_map, reason = "optional records are translated without closures")]
 pub(super) fn record(value: Option<&RepairSettings>) -> Option<w::RepairSettings> {
     match value {
-        Some(v) => Some(
-            w::RepairSettings::new(
-                &w::CEILINGS,
-                w::RepairSettingsParts {
-                    goals: v.goals,
-                    attempts: v.attempts,
-                    deadline_ms: v.deadline_ms,
-                    goal: w::RepairGoalSettings::new(
-                        &w::CEILINGS,
-                        w::RepairGoalSettingsParts {
-                            charter: v.goal.charter,
-                            priority: v.goal.priority,
-                            budget: v.goal.budget,
-                            llm: match &v.goal.llm {
-                                Some(v) => Some(llm_record(v)),
-                                None => None,
-                            },
-                        },
-                    )
-                    .expect("admitted repair goal"),
+        Some(v) => Some(w::RepairSettings {
+            goals: v.goals,
+            attempts: v.attempts,
+            deadline_ms: v.deadline_ms,
+            goal: w::RepairGoalSettings {
+                charter: v.goal.charter,
+                priority: v.goal.priority,
+                budget: v.goal.budget,
+                llm: match &v.goal.llm {
+                    Some(v) => Some(llm_record(v)),
+                    None => None,
                 },
-            )
-            .expect("admitted repairs"),
-        ),
+            },
+        }),
         None => None,
     }
 }
 fn model_record(v: &NamedModel) -> w::NamedModel {
-    w::NamedModel::new(&w::CEILINGS, w::NamedModelParts { model: v.model.clone(), effort: v.effort.clone() })
-        .expect("admitted named model")
+    w::NamedModel { model: v.model.clone(), effort: v.effort.clone() }
 }
 fn models_record(v: &[NamedModel]) -> List<w::NamedModel> {
     let mut out = List::with_capacity(u32::try_from(v.len()).expect("bounded models"));
@@ -92,30 +81,20 @@ fn models_record(v: &[NamedModel]) -> List<w::NamedModel> {
 }
 #[expect(clippy::manual_map, reason = "optional records are translated without closures")]
 fn llm_record(v: &NamedLlm) -> w::NamedLlm {
-    w::NamedLlm::new(
-        &w::CEILINGS,
-        w::NamedLlmParts {
-            account: v.account,
-            main: model_record(&v.main),
-            subagents: models_record(&v.subagents),
-            later: match &v.later {
-                Some(v) => Some(
-                    w::NamedLater::new(
-                        &w::CEILINGS,
-                        w::NamedLaterParts { main: model_record(&v.main), subagents: models_record(&v.subagents) },
-                    )
-                    .expect("admitted later choice"),
-                ),
-                None => None,
-            },
+    w::NamedLlm {
+        account: v.account,
+        main: model_record(&v.main),
+        subagents: models_record(&v.subagents),
+        later: match &v.later {
+            Some(v) => Some(w::NamedLater { main: model_record(&v.main), subagents: models_record(&v.subagents) }),
+            None => None,
         },
-    )
-    .expect("admitted named llm")
+    }
 }
 #[expect(clippy::manual_map, reason = "optional records are translated without closures")]
 pub(super) fn from_record(v: Option<w::RepairSettings>) -> Option<RepairSettings> {
-    let v = v?.into_parts();
-    let g = v.goal.into_parts();
+    let v = v?;
+    let g = v.goal;
     Some(RepairSettings {
         goals: v.goals,
         attempts: v.attempts,
@@ -132,7 +111,6 @@ pub(super) fn from_record(v: Option<w::RepairSettings>) -> Option<RepairSettings
     })
 }
 fn model_from(v: w::NamedModel) -> NamedModel {
-    let v = v.into_parts();
     NamedModel { model: v.model, effort: v.effort }
 }
 fn models_from(v: List<w::NamedModel>) -> Box<[NamedModel]> {
@@ -143,16 +121,12 @@ fn models_from(v: List<w::NamedModel>) -> Box<[NamedModel]> {
     out.into_boxed()
 }
 fn llm_from(v: w::NamedLlm) -> NamedLlm {
-    let v = v.into_parts();
     NamedLlm {
         account: v.account,
         main: model_from(v.main),
         subagents: models_from(v.subagents),
         later: match v.later {
-            Some(v) => {
-                let v = v.into_parts();
-                Some(NamedLater { main: model_from(v.main), subagents: models_from(v.subagents) })
-            }
+            Some(v) => Some(NamedLater { main: model_from(v.main), subagents: models_from(v.subagents) }),
             None => None,
         },
     }

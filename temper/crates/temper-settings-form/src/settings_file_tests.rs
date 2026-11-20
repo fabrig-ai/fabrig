@@ -225,16 +225,16 @@ fn repair_settings_default_counts_and_deadline_are_omitted_when_shown() {
     let landing = repair_round_trip(
         br#"{"wait":"landed","repairs":{"goal":{"charter":5,"llm":null,"priority":0,"budget":2000000}}}"#,
     );
-    let repairs = landing.repairs().as_ref().unwrap();
-    assert_eq!((repairs.goals(), repairs.attempts(), repairs.deadline_ms()), (2, 2, 86_400_000));
-    assert!(repairs.goal().llm().is_none());
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (2, 2, 86_400_000));
+    assert!(repairs.goal.llm.is_none());
 }
 #[test]
 fn repair_settings_round_trip_all_members_and_the_templates_named_llm() {
     let landing = repair_round_trip(br#"{"wait":"landed","repairs":{"repair_goals":16,"repair_attempts":8,"repair_deadline_ms":604800000,"goal":{"charter":5,"llm":{"account":3,"main":{"model":"main","effort":"high"},"subagents":[{"model":"helper","effort":null}],"later":{"main":{"model":"later","effort":"low"},"subagents":[]}},"priority":42,"budget":2000000}}}"#);
-    let repairs = landing.repairs().as_ref().unwrap();
-    assert_eq!((repairs.goals(), repairs.attempts(), repairs.deadline_ms()), (16, 8, 604_800_000));
-    assert_eq!(repairs.goal().llm().as_ref().unwrap().main().model(), b"main");
+    let repairs = landing.repairs.as_ref().unwrap();
+    assert_eq!((repairs.goals, repairs.attempts, repairs.deadline_ms), (16, 8, 604_800_000));
+    assert_eq!(repairs.goal.llm.as_ref().unwrap().main.model.as_ref(), b"main");
 }
 #[test]
 fn repair_settings_refuse_unknown_and_missing_members_by_path() {
