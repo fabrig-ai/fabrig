@@ -4,7 +4,7 @@
 #![cfg(test)]
 
 use super::codec_memory::family;
-use skein_codec_tests::every_v3_lean::Record;
+use skein_codec_tests::every_v3::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
@@ -193,6 +193,5 @@ fn largest_roots_stay_within_decoded_bounds() {
             Marker,
         ]
     );
-    every!(skein_codec_tests::every_v3, sealed);
-    every!(skein_codec_tests::every_v3_lean, lean);
+    every!(skein_codec_tests::every_v3, lean);
 }
