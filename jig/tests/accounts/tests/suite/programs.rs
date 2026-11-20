@@ -271,6 +271,8 @@ fn restart_preserves_desired_program_absence() {
         .filter_map(|request| match request {
             Request::Save { record } => Some(record),
             Request::Programs { .. }
+            | Request::CancelUsage { .. }
+            | Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CheckProgram { .. }
             | Request::SignOutProgram { .. }
@@ -595,11 +597,13 @@ fn a_usable_program_source_is_granted_by_its_name() {
 }
 #[test]
 fn a_program_grant_never_lapses() {
+    const QUIET: skein_lib::Duration = skein_lib::Duration::from_secs(30 * 60);
     let mut world = fresh();
     let (source, _) = declare(&mut world, HOLDER, PROVIDER, None, b"personal");
     let source = source.expect("declared source");
     assert_eq!(world.domain.source_grant(source, skein_lib::Time::from_nanos(u64::MAX)), Some(named_grant(source, 2)));
-    assert_eq!(world.domain.next_deadline(), None);
+    // The grant never lapses; the account's next alarm reads idle usage (accounts.md, 3.7).
+    assert_eq!(world.domain.next_deadline(), Some(skein_lib::Time::ZERO.saturating_add(QUIET)));
 }
 #[test]
 fn a_new_login_raises_the_program_grant_s_generation() {

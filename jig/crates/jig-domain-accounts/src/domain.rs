@@ -156,6 +156,9 @@ pub struct Domain {
     pub(crate) providers: Providers,
     pub(crate) list_reads: Map<u32, crate::lists::Reading>,
     pub(crate) list_alarms: Deadlines<u32>,
+    pub(crate) usage_reads: Map<u32, crate::usage::Reading>,
+    pub(crate) usage_alarms: Deadlines<u32>,
+    pub(crate) wall: Wall,
     pub(crate) next_read: u64,
     credentials: Map<u32, Granted>,
     credential_alarms: Deadlines<u32>,
@@ -250,6 +253,9 @@ impl Domain {
             providers,
             list_reads: Map::with_capacity(limits.accounts),
             list_alarms: Deadlines::with_capacity(limits.accounts),
+            usage_reads: Map::with_capacity(limits.accounts),
+            usage_alarms: Deadlines::with_capacity(limits.accounts),
+            wall: Wall::EPOCH,
             next_read: 0,
             credentials: Map::with_capacity(limits.credentials),
             credential_alarms: Deadlines::with_capacity(limits.credentials),
@@ -456,9 +462,15 @@ impl Domain {
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         let mut next = None;
-        for at in [self.alarms.next(), self.credential_alarms.next(), self.move_alarms.next(), self.list_alarms.next()]
-            .into_iter()
-            .flatten()
+        for at in [
+            self.alarms.next(),
+            self.credential_alarms.next(),
+            self.move_alarms.next(),
+            self.list_alarms.next(),
+            self.usage_alarms.next(),
+        ]
+        .into_iter()
+        .flatten()
         {
             next = Some(match next {
                 Some(old) => at.min(old),
@@ -554,6 +566,7 @@ impl Domain {
 #[expect(clippy::too_many_lines, reason = "the accounts boundary dispatches each event in one exhaustive match")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.now = env.now;
+    domain.wall = env.wall;
     match event {
         Event::ForgetProject { project } => crate::changes::forget_project(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
@@ -564,10 +577,15 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 return;
             }
             let account = entry.account;
-            if crate::facts::report_window(&mut domain.said, account, source, crate::ORIGIN_PROGRAM, &window, env.wall)
-            {
+            if crate::facts::report_window(domain, account, source, crate::ORIGIN_PROGRAM, &window, env.wall) {
                 let facts = domain.account_facts(account).into();
                 out.push(Request::Save { record: Stored::Facts { account, facts } });
+            }
+            crate::usage::settled(domain, account, out);
+        }
+        Event::UsageRead { read, outcome } => {
+            if domain.wanted() {
+                crate::usage::answered(domain, read, outcome, out);
             }
         }
         Event::ProgramSaid { name, email } => {
@@ -701,6 +719,7 @@ fn want(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     domain.phase = Phase::Wanted;
     crate::lists::start(domain, env, out);
+    crate::usage::start(domain, out);
     none_accounts(domain, env, out);
     domain.counted(out);
     for (number, source) in &domain.sources {
@@ -905,6 +924,8 @@ fn close(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     domain.list_reads = Map::with_capacity(env.limits.accounts);
     domain.list_alarms = Deadlines::with_capacity(env.limits.accounts);
+    domain.usage_reads = Map::with_capacity(env.limits.accounts);
+    domain.usage_alarms = Deadlines::with_capacity(env.limits.accounts);
     crate::signing::close(domain, out);
     crate::keys::close(domain, out);
     crate::signing::close_moves(domain, out);
@@ -1074,6 +1095,7 @@ fn failed(entry: &mut Source, env: &Env<Limits>, failure: Failure) {
 /// One expired source, after component inputs so a grant arriving now wins.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     domain.now = env.now;
+    domain.wall = env.wall;
     if let Some(number) = domain.credential_alarms.expire(env.now) {
         domain.credentials.remove(&number).expect("credential alarm names a grant");
         return;
@@ -1084,6 +1106,10 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     if let Some(account) = domain.list_alarms.expire(env.now) {
         crate::lists::due(domain, account, out);
+        return;
+    }
+    if let Some(account) = domain.usage_alarms.expire(env.now) {
+        crate::usage::settled(domain, account, out);
         return;
     }
     let Some(source) = domain.alarms.expire(env.now) else { return };
@@ -1162,6 +1188,7 @@ pub(crate) fn changed(
     program_grant(domain, source, out);
     let view = settle(domain, env, source);
     crate::lists::settled(domain, view.account, out);
+    crate::usage::settled(domain, view.account, out);
     if domain.facts.try_push(view).is_err() {
         domain.lost = domain.lost.saturating_add(1);
     }

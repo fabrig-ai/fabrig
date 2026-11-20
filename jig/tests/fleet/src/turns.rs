@@ -267,7 +267,9 @@ impl World {
                     self.channel = None;
                     self.see(Seen::Refused);
                 }
-                Request::ReadList { .. }
+                Request::ReadUsage { .. }
+                | Request::UsageRead { .. }
+                | Request::ReadList { .. }
                 | Request::ListRead { .. }
                 | Request::ProgramEmail { .. }
                 | Request::Assign { .. }

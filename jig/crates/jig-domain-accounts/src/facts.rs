@@ -182,7 +182,7 @@ fn keep(
 
 /// Apply one kind 7 report, preserving absent fields and the first equal report's time.
 pub(crate) fn report_window(
-    said: &mut skein_lib::Map<u32, Box<[AccountFact]>>,
+    domain: &mut crate::Domain,
     account: u32,
     source: u32,
     origin: u16,
@@ -200,6 +200,8 @@ pub(crate) fn report_window(
     if window.window.used > Some(SHARE_WHOLE) {
         return false;
     }
+    crate::usage::reported(domain, account);
+    let said = &mut domain.said;
     let mut value = window.window;
     let held = said.get(&account);
     if let Some(facts) = held {

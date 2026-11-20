@@ -468,6 +468,8 @@ impl Protocol {
             }
             accounts::Request::Component(accounts::ToComponent::Release { .. } | accounts::ToComponent::Close)
             | accounts::Request::Programs { .. }
+            | accounts::Request::CancelUsage { .. }
+            | accounts::Request::ReadUsage { .. }
             | accounts::Request::ReadList { .. }
             | accounts::Request::CheckProgram { .. }
             | accounts::Request::SignOutProgram { .. }

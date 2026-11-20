@@ -758,6 +758,9 @@ pub(super) fn program_configuration(seed: u64) -> (root::Config, root::Limits) {
     config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
     (config, limits)
 }
+#[path = "../credentials/usage_reads.rs"]
+mod usage_reads;
+
 fn program_run(seed: u64) -> World {
     let (config, limits) = program_configuration(seed);
     let initial = jig_test_profile::fixtures::create_chat(

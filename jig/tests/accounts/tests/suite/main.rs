@@ -16,6 +16,7 @@ mod sign_in;
 mod simulation;
 mod start_restore;
 mod terms;
+mod usage_reads;
 
 mod fuzzy {
     mod simulation;

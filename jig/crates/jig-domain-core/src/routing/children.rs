@@ -143,6 +143,13 @@ pub(crate) fn tag_fleet(
                 })));
                 continue;
             }
+            fleet::Request::ReadUsage { channel, read, source } => {
+                Request::Held(Box::new(Held::ReadUsage { channel, read, source }))
+            }
+            fleet::Request::UsageRead { read, outcome } => {
+                append_account(core, env, accounts::Event::UsageRead { read, outcome }, &mut out);
+                continue;
+            }
             fleet::Request::ReadList { channel, read, endpoint, grant } => {
                 Request::Held(Box::new(Held::ReadList { channel, read, endpoint, grant }))
             }
@@ -512,6 +519,12 @@ pub(crate) fn tag_account(
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("account output count") {
+            accounts::Request::CancelUsage { read } => {
+                append_fleet(core, env, work, fleet::Event::CancelUsage { read }, &mut out);
+            }
+            accounts::Request::ReadUsage { read, source } => {
+                append_fleet(core, env, work, fleet::Event::ReadUsage { read, source }, &mut out);
+            }
             accounts::Request::ReadList { read, provider, grant, .. } => {
                 let endpoint = match core.settings.direct_endpoint(provider) {
                     Some(facts) => Some(facts.number),
@@ -638,6 +651,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
+        | accounts::Event::UsageRead { .. }
         | accounts::Event::Usage { .. }
         | accounts::Event::ProgramSaid { .. }
         | accounts::Event::ProgramTargets { .. }
@@ -681,7 +695,7 @@ pub(crate) fn route_account(
     }
     let party = account_party(core, &event);
     let refresh = match &event {
-        accounts::Event::Usage { .. } | accounts::Event::ProgramSaid { .. } => true,
+        accounts::Event::UsageRead { .. } | accounts::Event::Usage { .. } | accounts::Event::ProgramSaid { .. } => true,
         accounts::Event::Component(event) => match event {
             accounts::FromComponent::Refreshed { .. } => true,
             accounts::FromComponent::Granted { .. }
@@ -723,7 +737,10 @@ pub(crate) fn route_account(
     let mut facts_changed = false;
     for request in &out {
         match request {
-            accounts::Request::ReadList { .. } | accounts::Request::Answer { .. } => {}
+            accounts::Request::CancelUsage { .. }
+            | accounts::Request::ReadUsage { .. }
+            | accounts::Request::ReadList { .. }
+            | accounts::Request::Answer { .. } => {}
             accounts::Request::Save { record: accounts::Stored::Facts { .. } }
             | accounts::Request::Erase { key: accounts::Key::Facts { .. } } => {
                 changes = true;
@@ -834,7 +851,9 @@ pub(crate) fn route_fleet(
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. }
         | fleet::Event::Answer { .. } => true,
-        fleet::Event::ReadList { .. }
+        fleet::Event::CancelUsage { .. }
+        | fleet::Event::ReadUsage { .. }
+        | fleet::Event::ReadList { .. }
         | fleet::Event::ListRead { .. }
         | fleet::Event::Inbound { .. }
         | fleet::Event::Relay { .. }
@@ -929,6 +948,8 @@ fn host_shape(event: &fleet::Event) -> bool {
         | fleet::Event::Hello { .. }
         | fleet::Event::Lost { .. } => true,
         fleet::Event::Untooled { .. }
+        | fleet::Event::CancelUsage { .. }
+        | fleet::Event::ReadUsage { .. }
         | fleet::Event::ReadList { .. }
         | fleet::Event::ListRead { .. }
         | fleet::Event::StartJob { .. }

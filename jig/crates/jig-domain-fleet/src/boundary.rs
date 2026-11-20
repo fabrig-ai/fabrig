@@ -170,6 +170,13 @@ pub enum Event {
     Draining {
         channel: Token,
     },
+    CancelUsage {
+        read: u64,
+    },
+    ReadUsage {
+        read: u64,
+        source: crate::SourceName,
+    },
     ReadList {
         read: u64,
         endpoint: u32,
@@ -426,6 +433,15 @@ pub enum Request {
         attempt: Token,
         number: u64,
         answer: jig_domain_link::AskAnswer,
+    },
+    ReadUsage {
+        channel: Token,
+        read: u64,
+        source: crate::SourceName,
+    },
+    UsageRead {
+        read: u64,
+        outcome: jig_domain_link::UsageOutcome,
     },
     ReadList {
         channel: Token,

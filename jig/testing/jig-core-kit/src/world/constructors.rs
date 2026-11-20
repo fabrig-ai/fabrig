@@ -251,6 +251,7 @@ impl World {
             stop_deliveries: Vec::new(),
             commits: Vec::new(),
             list_reads: Vec::new(),
+            usage_reads: Vec::new(),
             projections: Vec::new(),
             hold_projection_settlements: false,
             sign_in: None,

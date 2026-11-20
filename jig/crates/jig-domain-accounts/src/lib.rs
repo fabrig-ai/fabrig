@@ -23,6 +23,7 @@ mod records;
 mod restore;
 mod selection;
 mod signing;
+mod usage;
 pub use boundary::{
     ADDRESS, Answer, Change, Deadline, End, Ended, Event, Fact, Failure, FromComponent, KeyFailure, Pending, Place,
     Program, ProgramFailure, ProgramHost, ProgramResult, Request, Said, Signing, State, ToComponent, Turned, Unread,

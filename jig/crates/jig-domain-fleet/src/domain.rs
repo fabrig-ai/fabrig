@@ -25,6 +25,7 @@ pub(crate) enum EngineHello {
 pub struct Domain {
     pub(crate) versions: u32,
     pub(crate) reads: crate::reads::Reads,
+    pub(crate) usage_reads: crate::usage::Reads,
     pub(crate) program_sources: Box<[crate::SourceName]>,
     pub(crate) cleanup_programs: Box<[crate::SourceName]>,
     pub(crate) worker_names: crate::Membership,
@@ -161,6 +162,7 @@ impl Domain {
                 program_endpoints: Box::new([]),
                 worker: None,
                 sources: crate::sources::Sources::new(Box::new([]), 0, false),
+                reads_usage: false,
                 eligible: crate::needs::eligibility(&needs, &[]),
                 kind: HostKind::Engine,
                 token: Token::new(0),
@@ -180,6 +182,7 @@ impl Domain {
         Domain {
             versions,
             reads: crate::reads::Reads::new(limits.reads),
+            usage_reads: crate::usage::Reads::new(limits.reads),
             program_sources: Box::new([]),
             worker_names: crate::Membership::empty(),
             worker_links: Map::with_capacity(limits.configured_workers),
@@ -518,7 +521,11 @@ impl Domain {
     /// Whether resumption can progress with the supplied placement permission.
     #[must_use]
     pub fn ready_to_resume(&self, place: bool) -> bool {
-        (place && self.placing) || self.turning || crate::programs::ready(self) || crate::reads::ready(self)
+        (place && self.placing)
+            || self.turning
+            || crate::programs::ready(self)
+            || crate::reads::ready(self)
+            || crate::usage::ready(self)
     }
 
     /// The oldest fact not yet drained. The parent drains them at its own
@@ -567,6 +574,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::CheckProgram { name } => crate::programs::check(domain, name, out),
         Event::SignOutProgram { source, name } => crate::programs::sign_out(domain, source, name, out),
+        Event::CancelUsage { read } => domain.usage_reads.cancel(read),
+        Event::ReadUsage { read, source } => domain.usage_reads.push(read, source),
         Event::ReadList { read, endpoint, grant } => domain.reads.push(read, endpoint, grant, env.now),
         Event::ListRead { channel, read, outcome } => domain.reads.answered(channel, read, outcome, out),
         Event::Sources { sources } => crate::sources::replace(domain, env, sources, out),
@@ -628,7 +637,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 out,
             );
         }
-        Event::UsageRead { .. } => {}
+        Event::UsageRead { channel, read, outcome } => domain.usage_reads.answered(channel, read, outcome, out),
         Event::Usage { channel, run, attempt, account, window } => call::credential_notice(
             domain,
             channel,
@@ -702,6 +711,8 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 pub fn resume(domain: &mut Domain, env: &Env<Limits>, place: bool, out: &mut Queue<Request>) {
     if crate::programs::ready(domain) {
         crate::programs::resume(domain, out);
+    } else if crate::usage::ready(domain) {
+        crate::usage::resume(domain, out);
     } else if crate::reads::ready(domain) {
         crate::reads::resume(domain, env.now, out);
     } else if domain.turning {
