@@ -52,12 +52,12 @@ fn a_sign_in_tab_returns_to_the_listener_and_the_welcome_reaches_ready() {
     assert!(!tab.failed);
     assert_eq!(&*tab.body, b"Sign-in received. You can close this tab.\n");
     assert!(tab.address.starts_with(b"http://127.0.0.1:1455/auth/callback?"));
-    for process in page.world().processes() { if let Process::Peer(peer) = process { eprintln!("{:?}", peer.observations()); } }
     assert!(page.html().contains("ChatGPT plan · sam@example.com"), "{}", page.html());
     // A fresh accounts read, not a locally optimistic connected state, sees the
     // account retained by the service after the callback's code exchange.
-    page.reload(b"/accounts", WITHIN).expect("accounts read");
-    page.wait(&Find::text(b"sam@example.com"), None, WITHIN).expect("service holds the signed-in account");
+    page.reload(b"/welcome?at=ready", WITHIN).expect("fresh welcome read");
+    page.wait(&Find::exactly_named(Role::Paragraph, "ChatGPT plan · sam@example.com".as_bytes()), None, WITHIN)
+        .expect("service holds the signed-in account");
 }
 
 #[test]

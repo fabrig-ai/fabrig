@@ -294,6 +294,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     let files = H::files();
     let mut agent = H::agent_settings();
     if typed_document["world_settings"]["issuer"].is_string() {
+        agent.endpoints = issuer::endpoints();
         // The box's provider offer includes its Claude program choice as well
         // as the signed-in model; startup checks that offer against the worker.
         agent.programs = Box::new([temper_service::settings::Program {
@@ -362,11 +363,15 @@ pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
         )));
     }
     let declarations = documents::agent_declarations_for(&profile);
+    let mut service = documents::agent_configuration_for(&profile);
+    if parameters().deployment["world_settings"]["issuer"].is_string() {
+        service.channel_endpoints = issuer::endpoints();
+    }
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = skein_sim_world::PipeWriter::new(stderr, 4096);
     let agent = smith_agent_shell::Agent::new(
         smith_agent_shell::config::Configuration {
-            service: documents::agent_configuration_for(&profile),
+            service,
             memory: profile.declared.memory,
             trace: None,
             profile,

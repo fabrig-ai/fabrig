@@ -28,6 +28,15 @@ impl Host for Issuer {
     fn operations(&self) -> u32 { self.peer.operations() }
 }
 
+/// Provider 1's OpenAI dialect is hosted at the story model's endpoint zero.
+pub(super) fn endpoints() -> smith_protocol_channel::Endpoints {
+    let mut entries = skein_lib::List::with_capacity(1);
+    entries.push(smith_protocol_channel::Endpoint {
+        name: b"openai".as_slice().into(), number: 0, dialect: 3,
+    }).expect("one model endpoint");
+    smith_protocol_channel::Endpoints::new(entries)
+}
+
 pub(super) fn runtime(document: &crate::documents::Configuration) -> Option<temper_service::AccountsRuntime> {
     let issuer = document["world_settings"]["issuer"].as_str()?;
     let endpoint = || skein_oauth_accounts::Endpoint {
