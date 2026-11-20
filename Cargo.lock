@@ -7422,6 +7422,7 @@ dependencies = [
  "serde_json",
  "skein-channel",
  "skein-forge",
+ "skein-forge-client",
  "skein-forge-connection",
  "skein-http",
  "skein-io",

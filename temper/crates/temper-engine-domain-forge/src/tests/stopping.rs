@@ -53,7 +53,7 @@ fn settle_names_a_write_without_its_outcome_at_its_bound() {
     let (mut d, _call) = sent();
     outputs(&mut d, Event::Settle);
     let mut env = env();
-    let until = env.now.saturating_add(CLIENT.lifetime.saturating_add(CLIENT.clock_margin).saturating_mul(2));
+    let until = env.now.saturating_add(skein_forge_client::stop_bound(&CLIENT));
     assert_eq!(d.next_deadline(), Some(until));
     let mut out = Queue::uncapped();
     env.now = Time::from_nanos(until.as_nanos().checked_sub(1).unwrap());

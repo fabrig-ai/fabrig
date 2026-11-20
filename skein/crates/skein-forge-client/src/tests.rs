@@ -48,6 +48,15 @@ const LIMITS: Limits = Limits {
 const REPO: Repository = Repository { forge: 2, repository: 5 };
 
 #[test]
+fn stop_bound_doubles_the_lifetime_and_margin_and_saturates() {
+    let limits = Limits { lifetime: Duration::from_secs(300), clock_margin: Duration::from_secs(1), ..LIMITS };
+    assert_eq!(crate::stop_bound(&limits), Duration::from_secs(602));
+    let greatest = Duration::from_nanos(u64::MAX);
+    let limits = Limits { lifetime: greatest, clock_margin: greatest, ..LIMITS };
+    assert_eq!(crate::stop_bound(&limits), greatest);
+}
+
+#[test]
 fn missing_provider_configuration_ends_fresh_reads_exactly_once() {
     skein_rows::check(
         [

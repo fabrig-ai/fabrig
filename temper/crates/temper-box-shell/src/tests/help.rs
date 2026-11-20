@@ -109,6 +109,31 @@ fn server_walk_gives_the_agents_environment_as_entries() {
 }
 
 #[test]
+fn server_engine_unit_outlasts_the_stock_stop_bound_with_a_margin() {
+    let page = help::answer(&configured(&["help", "server"])).expect("server walk");
+    let (_, steps) = page.split_once("\n## 3. ").expect("step 3");
+    let (step, _) = steps.split_once("\n## 4. ").expect("step 4");
+    let text = step.split_whitespace().collect::<Vec<_>>().join(" ");
+    let limits = temper_engine_service::limits::stock();
+    let bound = skein_forge_client::stop_bound(&limits.forge.client).as_nanos().div_ceil(1_000_000_000);
+    let timeout = bound.saturating_add(30).div_ceil(60).saturating_mul(60);
+    let margin = timeout.checked_sub(bound).expect("unit outlasts stop bound");
+    for required in [
+        format!("TimeoutStopSec={timeout}s"),
+        format!("{bound}-second stop bound"),
+        format!("plus {margin} seconds"),
+        "`temper-engine versions`, `bound stop`".to_owned(),
+        "`forge.client.lifetime_ms` or `forge.client.clock_margin_ms`".to_owned(),
+        "twice their sum, plus at least 30 seconds, rounded up to a whole minute".to_owned(),
+        "No `TimeoutStartSec`".to_owned(),
+        "start lasts as long as the store's open and its steps".to_owned(),
+        "a step past 30 seconds says what holds it in the journal".to_owned(),
+    ] {
+        assert!(text.contains(&required), "step 3 must explain {required}");
+    }
+}
+
+#[test]
 fn server_worker_unit_outlasts_the_stop_bound_and_kills_the_whole_group() {
     let page = help::answer(&configured(&["help", "server"])).expect("server walk");
     let (_, steps) = page.split_once("\n## 5. ").expect("step 5");
