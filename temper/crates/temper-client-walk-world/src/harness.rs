@@ -8,7 +8,7 @@ use temper_playground::{programs::Harness, service::Observe};
 
 const ATTACH: Token = Token::new(u64::MAX);
 
-/// The walk world's harness: the service, box peer and native terminal connection.
+/// The walk world's harness: the service, box peer, terminal connection and tab.
 pub enum Clients {}
 impl Harness for Clients {
     type Service = Attach;
@@ -86,9 +86,7 @@ impl Observe for Attach {
     }
     fn before_iterate(&mut self, service: &mut temper_service::Service, _: Time, _: Wall) -> bool {
         // The native harness is the diagnostic sink, as the service shell is.
-        while let Some(note) = service.notes().pop() {
-            if let temper_service::Note::Engine(temper_service::EngineNote::RunRefused(why)) = note { eprintln!("refused: {why:?}"); }
-        }
+        while service.notes().pop().is_some() {}
         if !self.queued {
             self.queued = true;
             service.submissions().push(Submit {
