@@ -4,6 +4,7 @@ web reload "/projects/1/settings"
 web see "Chats can write drafts"
 web reload "/chats"
 web press link "+ New chat"
+web see "Say what you want; the agent works in work/hello."
 web input textbox "What do you want done?" "Let us design Away mode."
 web press button "Send"
 web see "Let us write down how Away mode works."
@@ -22,7 +23,6 @@ web press button "Split"
 web see "A running goal continues within its existing authority and budget."
 web mark
 web press button "Draft"
-web see "Start goal\xe2\x80\xa6"
 web mark
 web press button "Start goal\xe2\x80\xa6"
 web see "Start a goal from away-mode.md"
@@ -33,5 +33,6 @@ web see "Nothing remains in this demonstration."
 web see "landed"
 web mark
 web press link "Draft"
-web see "Let us write down how Away mode works."
+web see "I added how a running goal continues and waits for your decisions."
+web see "away-mode.md"
 web mark
