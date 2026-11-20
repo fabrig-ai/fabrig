@@ -3,8 +3,12 @@
 
 #[cfg(test)]
 mod tests {
-    use skein_codec::Reason;
-    use skein_codec_tests::every_v3_lean::{self as lean, CEILINGS, Limits, Problem, Record, paths};
+    use crate::{generic_support as generic, support::generated::Decoded};
+    use skein_codec::{
+        Reason,
+        value::{Refusal, Value},
+    };
+    use skein_codec_tests::every_v3::{self as lean, CEILINGS, Limits, Problem, Record, paths};
     use skein_lib::Reader;
 
     #[expect(clippy::too_many_lines, reason = "each lean Limits field is clamped from its ceiling")]
@@ -174,9 +178,35 @@ mod tests {
     }
 
     #[test]
+    fn every_v3_bounds_at_ceilings_are_pinned() {
+        pin!(&CEILINGS;
+            Blank => (Some(2), Some(0)),
+            Numbers => (Some(27), Some(0)),
+            Texts => (Some(32), Some(20)),
+            Light => (Some(1), Some(0)),
+            Stamp => (Some(31), Some(12)),
+            Shape => (Some(33), Some(68)),
+            Nest => (Some(256), Some(470)),
+            Every => (Some(469), Some(642)),
+            Kinds => (Some(1), Some(0)),
+            Lists => (Some(230), Some(312)),
+            Options => (Some(101), Some(14)),
+            Grouped => (Some(4), Some(0)),
+            Held => (Some(184), Some(160)),
+            LongRecord => (Some(800), Some(400)),
+        );
+        assert_eq!((lean::encoded_bound(&CEILINGS), lean::decoded_bound(&CEILINGS)), (Some(800), Some(642)));
+    }
+
+    #[test]
     fn every_lean_bounds_at_small_limits_are_pinned() {
         let limits = small_limits();
         pin!(&limits;
+            Blank => (Some(2), Some(0)),
+            Numbers => (Some(27), Some(0)),
+            Light => (Some(1), Some(0)),
+            Kinds => (Some(1), Some(0)),
+            Grouped => (Some(4), Some(0)),
             Texts => (Some(21), Some(9)),
             Stamp => (Some(25), Some(6)),
             Shape => (Some(28), Some(57)),
@@ -188,6 +218,96 @@ mod tests {
             LongRecord => (Some(700), Some(300)),
         );
         assert_eq!((lean::encoded_bound(&limits), lean::decoded_bound(&limits)), (Some(700), Some(509)));
+    }
+
+    fn decode(root: &str, bytes: &[u8], limits: &Limits) -> Decoded {
+        macro_rules! decode {
+            ($($record:ident),+ $(,)?) => {
+                match root {
+                    $(stringify!($record) => match lean::$record::decode(limits, &mut Reader::new(bytes)) {
+                        Ok(value) => Decoded::Value {
+                            debug: format!("{value:?}"),
+                            bytes: value.encode(limits).expect("decoded value encodes").into_vec(),
+                            measured: value.measure(limits).expect("decoded value measures"),
+                        },
+                        Err(problem) => Decoded::Problem {
+                            path: lean::name(problem.path).expect("generated path").into(), reason: problem.reason,
+                        },
+                    }),+
+                    _ => panic!("unknown every root: {root}"),
+                }
+            };
+        }
+        decode!(
+            Blank, Numbers, Texts, Light, Stamp, Shape, Nest, Every, Kinds, Lists, Options, Grouped, Held, LongRecord
+        )
+    }
+
+    // The generic decoder reads ceilings from its schema: clamp only bound tokens,
+    // leaving fixed widths, versions and defaults alone.
+    fn small_schema() -> skein_codec::schema::Schema {
+        let mut bound = false;
+        let text = skein_codec_tests::EVERY_SCHEMA
+            .lines()
+            .flat_map(|line| line.split('#').next().expect("line before comment").split_whitespace())
+            .map(|word| {
+                let token = if bound { word.parse::<u32>().expect("bound").min(3).to_string() } else { word.into() };
+                bound = matches!(word, "bytes" | "secret" | "text" | "list");
+                token
+            })
+            .collect::<Vec<_>>()
+            .join(" ");
+        skein_codec::schema::parse(text.as_bytes()).expect("clamped every schema")
+    }
+
+    #[test]
+    fn every_mutation_at_small_limits_matches_the_generic_decoder() {
+        let limits = small_limits();
+        let schema = small_schema();
+        let mut generic = Value::with_room(generic::ROOM);
+        let mut paths = std::fs::read_dir("golden/every-v3")
+            .expect("goldens")
+            .map(|entry| entry.expect("golden entry").path())
+            .collect::<Vec<_>>();
+        paths.sort();
+        assert_eq!(paths.len(), 40, "all committed every-v3 goldens");
+        let mut cases = 0_u32;
+        for path in paths {
+            let name = path.file_name().expect("name").to_str().expect("UTF-8");
+            let decl = generic::golden_root(&schema, name);
+            let root = core::str::from_utf8(schema.spelled(schema.declaration(decl).name)).expect("root name");
+            let bytes = std::fs::read(&path).expect("golden");
+            let mut compare = |bytes: &[u8]| {
+                let generated = decode(root, bytes, &limits);
+                let expected = match generic.decode(&schema, decl, bytes.into()) {
+                    Ok(node) => Decoded::Value {
+                        debug: generic::render(&schema, &generic, node, decl),
+                        bytes: generic.bytes().to_vec(),
+                        measured: u32::try_from(bytes.len()).expect("length"),
+                    },
+                    Err(Refusal::Problem(problem)) => {
+                        Decoded::Problem { path: generic::path_name(&schema, problem.path), reason: problem.reason }
+                    }
+                    Err(Refusal::Room) => unreachable!("every value fits the room"),
+                };
+                assert_eq!(generated, expected, "small: {name}: {bytes:02x?}");
+                cases = cases.checked_add(1).expect("case count");
+            };
+            for cut in 0..bytes.len() {
+                compare(bytes.get(..cut).expect("prefix"));
+            }
+            let mut changed = bytes.clone();
+            changed.push(0);
+            compare(&changed);
+            for at in 0..bytes.len() {
+                changed.clone_from(&bytes);
+                for replacement in [0, 1, 2, 4, 0x7f, 0x80, 0xff] {
+                    *changed.get_mut(at).expect("byte") = replacement;
+                    compare(&changed);
+                }
+            }
+        }
+        assert!(cases > 10_000, "every cut and byte replacement was exercised");
     }
 
     // One nonempty field; all other fields are empty strings/lists or absent options.
