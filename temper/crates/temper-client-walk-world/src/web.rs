@@ -42,6 +42,7 @@ pub struct Page {
     host: host::Host,
     memory: Memory<Process<Clients>, Machine, Report>,
     terminal: Option<Terminal>,
+    tab: Option<usize>,
     held: Held,
     tui_starts: u64,
     inbox: Rc<Inbox<Report>>,
@@ -159,6 +160,7 @@ impl Page {
             seed,
             ways,
             terminal: None,
+            tab: None,
             held: Held::default(),
             tui_starts: 0,
         };
@@ -513,8 +515,49 @@ impl Page {
         }
     }
 
+    /// The separate tab's last answer; never part of the page's printed surface.
+    #[must_use]
+    pub fn tab(&self) -> Option<&skein_playground::tab::Shown> {
+        let Process::Other(Native::Tab(tab)) = &self.world().processes()[self.tab?] else {
+            unreachable!("tab process")
+        };
+        tab.shown()
+    }
+
+    fn carry_tab(&mut self, act: host::TabAct) {
+        if self.tab.is_none() {
+            match &act {
+                host::TabAct::Open { .. } => {
+                    let parameters = story::parameters(self.world());
+                    let config = temper_playground::documents::visitor(&parameters.deployment);
+                    self.tab = Some(self.memory.slices_mut().world_mut().spawn(|| {
+                        Process::Other(Native::Tab(Box::new(skein_playground::tab::Tab::new(
+                            &config.io,
+                            &config.http,
+                            config.http.head,
+                        ))))
+                    }));
+                }
+                host::TabAct::Point { .. } | host::TabAct::Close => return,
+            }
+        }
+        let (_, _, processes) = self.memory.slices_mut().world_mut().parts();
+        let Process::Other(Native::Tab(tab)) = &mut processes[self.tab.expect("opened tab")] else {
+            unreachable!("tab process")
+        };
+        match act {
+            host::TabAct::Open { .. } | host::TabAct::Close => tab.close(),
+            host::TabAct::Point { to } => tab.point(&to),
+        }
+    }
+
     fn give(&mut self, report: host::Report, read_on: bool) {
         let duties = self.host.report(report);
+        // As in the shipped carrier, tab acts precede the sign-in transport.
+        // Opening a simulated tab is never refused, so no TabRefused is reported.
+        for act in duties.tab {
+            self.carry_tab(act);
+        }
         if let Some(look) = duties.keep_look {
             // The native page keeps the look in its small store, alongside the session.
             self.store.write(temper_client_shell_web::records::LOOK_KEY, &look, &mut self.memory).ok();

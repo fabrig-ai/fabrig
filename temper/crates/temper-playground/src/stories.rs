@@ -82,7 +82,13 @@ impl Story {
         }
         let mut deployment = self.configuration();
         deployment.forge = address;
-        Start { seed, wall, deployment, fakes: Fakes { llm, forge: transport, peer }, links: Links::Print }
+        Start {
+            seed,
+            wall,
+            deployment,
+            fakes: Fakes { llm, forge: transport, peer, issuer: None },
+            links: Links::Print,
+        }
     }
 }
 

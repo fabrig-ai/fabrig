@@ -349,6 +349,34 @@ web mark
 }
 
 #[test]
+fn sign_in_reaches_ready_and_prints_the_same_bytes_twice() {
+    let f = Fixture::new();
+    f.journey(
+        "sign-in",
+        r#"walk 2
+web press link "Set up temper"
+web press link "Run on this machine"
+web press button "Run on this machine"
+web press button "Continue with ChatGPT"
+web see "Ready"
+web see "Everything is connected."
+web mark
+"#,
+    );
+    let a = f.root().join("a");
+    let b = f.root().join("b");
+    ok(&f.print(&a, &["sign-in"]));
+    ok(&f.print(&b, &["sign-in"]));
+    let first = bytes(&a);
+    assert_eq!(first, bytes(&b), "both prints have the same page and asset bytes");
+    let pages = bytes(&a.join(WEB).join("sign-in"));
+    assert_eq!(pages.len(), 1);
+    let ready = String::from_utf8_lossy(&pages[Path::new("01.html")]);
+    assert!(ready.contains("Create your project"));
+    assert!(ready.contains("ChatGPT plan · sam@example.com"));
+}
+
+#[test]
 fn stopped_walks_and_unreadable_chains_do_not_stop_other_journeys() {
     let f = Fixture::new();
     f.journey("x", "walk 2\nweb press button \"No such control\"\n");

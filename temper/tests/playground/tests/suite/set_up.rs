@@ -39,6 +39,28 @@ fn text(node: &Node) -> String {
 }
 
 #[test]
+fn a_sign_in_tab_returns_to_the_listener_and_the_welcome_reaches_ready() {
+    let mut page = Page::start(facts::start(None).expect("fixed facts"), b"sign-in").expect("page");
+    press(&mut page, Role::Link, "Set up temper");
+    press(&mut page, Role::Link, "Run on this machine");
+    press(&mut page, Role::Button, "Run on this machine");
+    press(&mut page, Role::Button, "Continue with ChatGPT");
+    page.wait(&Find::exactly_named(Role::Button, b"Create your project"), Some(&Act::Press), WITHIN)
+        .unwrap_or_else(|why| panic!("Ready: {why:?}\n{}", page.html()));
+    let tab = page.tab().expect("sign-in opened and pointed a tab");
+    assert_eq!(tab.status, 200);
+    assert!(!tab.failed);
+    assert_eq!(&*tab.body, b"Sign-in received. You can close this tab.\n");
+    assert!(tab.address.starts_with(b"http://127.0.0.1:1455/auth/callback?"));
+    assert!(page.html().contains("ChatGPT plan · sam@example.com"), "{}", page.html());
+    // A fresh accounts read, not a locally optimistic connected state, sees the
+    // account retained by the service after the callback's code exchange.
+    page.reload(b"/welcome?at=ready", WITHIN).expect("fresh welcome read");
+    page.wait(&Find::exactly_named(Role::Paragraph, "ChatGPT plan · sam@example.com".as_bytes()), None, WITHIN)
+        .expect("service holds the signed-in account");
+}
+
+#[test]
 fn owned_setup_connects_and_makes_its_sample_at_the_walks_forge() {
     let start = facts::start(None).expect("fixed facts");
     let shared = start.fakes.forge.forge.clone();

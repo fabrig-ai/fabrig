@@ -10,7 +10,9 @@ use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
 use skein_sim_world::{HostedProgram, Inherited, StartupRoot, StartupRoots};
 use std::{cell::RefCell, rc::Rc};
+mod issuer;
 mod shell;
+pub use issuer::Issuer;
 pub use shell::Shell;
 
 /// Instrumentation supplied by a world's harness, absent from the playground.
@@ -172,6 +174,7 @@ pub enum Process<H: Harness> {
     Peer(Box<SignalHost<skein_fake_peers::llm::Peer>>),
     Forge(Box<SignalHost<skein_fake_peers::forge::Peer>>),
     Visitor(Box<skein_playground::visitor::Visitor>),
+    Issuer(Box<SignalHost<Issuer>>),
     Other(H::Process),
 }
 impl<H: Harness> Process<H> {
@@ -186,6 +189,7 @@ impl<H: Harness> Process<H> {
             Self::Peer(h) => h.as_ref(),
             Self::Forge(h) => h.as_ref(),
             Self::Visitor(h) => h.as_ref(),
+            Self::Issuer(h) => h.as_ref(),
             Self::Other(h) => h,
         }
     }
@@ -200,6 +204,7 @@ impl<H: Harness> Process<H> {
             Self::Peer(h) => h.as_mut(),
             Self::Forge(h) => h.as_mut(),
             Self::Visitor(h) => h.as_mut(),
+            Self::Issuer(h) => h.as_mut(),
             Self::Other(h) => h,
         }
     }
@@ -212,7 +217,7 @@ impl<H: Harness> Process<H> {
             Self::Peer(_) => Role::Provider,
             Self::Forge(_) => Role::Forge,
             Self::Visitor(_) => Role::Visitor,
-            Self::Other(_) => Role::Other,
+            Self::Issuer(_) | Self::Other(_) => Role::Other,
         }
     }
 }
@@ -272,14 +277,40 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     H::spawned(Role::Service, inherited, b"state");
     let mut document = parameters.deployment.as_ref().clone();
     H::configure(&mut document);
-    let given = H::given(&document);
+    let mut given = H::given(&document);
+    if let Some(providers) = document["world_settings"].get("providers") {
+        let bytes = serde_json::to_vec(providers).expect("walk providers");
+        let parsed = jig_protocol_config::document(
+            &bytes,
+            &jig_protocol_config::DocumentLimits { bytes: temper_fake::DOCUMENT_BYTES, tokens: 65_536, depth: 32 },
+        )
+        .expect("walk provider document");
+        let values = jig_protocol_config::llm::providers_setting(
+            &parsed,
+            0,
+            &jig_protocol_config::Path::root(),
+            &mut jig_protocol_config::Problems::empty(),
+        )
+        .expect("walk providers");
+        given = given.with_providers(values, Box::new([]));
+    }
     let typed_document = document.clone();
     documents::settings::strip_models(&mut document);
     document.as_object_mut().expect("deployment").remove("world_settings");
     let bytes = serde_json::to_vec(&document).expect("deployment JSON");
     let seeds = H::seeds(parameters.seed);
     let files = H::files();
-    let agent = H::agent_settings();
+    let mut agent = H::agent_settings();
+    if typed_document["world_settings"]["issuer"].is_string() {
+        agent.endpoints = issuer::endpoints();
+        // The box's provider offer includes its Claude program choice as well
+        // as the signed-in model; startup checks that offer against the worker.
+        agent.programs = Box::new([temper_service::settings::Program {
+            adapter: temper_service::settings::Adapter::ClaudeCode,
+            path: b"/bin/fake-claude".as_slice().into(),
+            directory: b"/programs".as_slice().into(),
+        }]);
+    }
     let mut checked = temper_service::startup::checked_start_with_limits(
         &bytes,
         &jig_protocol_config::Directories::working(),
@@ -303,7 +334,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         &files,
         Some(&agent),
         &seeds,
-        None,
+        issuer::runtime(&typed_document),
         Some(temper_service::WorkerRuntime {
             wires: H::worker_wires(),
             root: worker,
@@ -340,11 +371,15 @@ pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
         )));
     }
     let declarations = documents::agent_declarations_for(&profile);
+    let mut service = documents::agent_configuration_for(&profile);
+    if parameters().deployment["world_settings"]["issuer"].is_string() {
+        service.channel_endpoints = issuer::endpoints();
+    }
     let stderr = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (errors, capture) = skein_sim_world::PipeWriter::new(stderr, 4096);
     let agent = smith_agent_shell::Agent::new(
         smith_agent_shell::config::Configuration {
-            service: documents::agent_configuration_for(&profile),
+            service,
             memory: profile.declared.memory,
             trace: None,
             profile,
