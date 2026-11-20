@@ -266,7 +266,7 @@ pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
     let mut length = 0_usize;
     for row in rows {
         length = length
-            .checked_add(skein_lib::length::usize_of(row.measure(&limits()).expect("bounded fixture")))
+            .checked_add(skein_lib::length::usize_of(row.measure(&w::CEILINGS).expect("bounded fixture")))
             .expect("literal fixture fits")
             .checked_add(4)
             .expect("literal fixture fits");
@@ -279,10 +279,10 @@ pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
 }
 #[must_use]
 pub fn fact_bytes(value: &w::Fact) -> Box<[u8]> {
-    let mut row = Writer::new(skein_lib::length::usize_of(value.measure(&limits()).expect("bounded fixture")));
-    value.write(&limits(), &mut row).expect("literal fixture fits");
+    let mut row = Writer::new(skein_lib::length::usize_of(value.measure(&w::CEILINGS).expect("bounded fixture")));
+    value.write(&w::CEILINGS, &mut row).expect("literal fixture fits");
     let mut piece = Writer::new(skein_lib::length::usize_of(
-        value.measure(&limits()).expect("bounded fixture").checked_add(4).expect("literal fixture fits"),
+        value.measure(&w::CEILINGS).expect("bounded fixture").checked_add(4).expect("literal fixture fits"),
     ));
     skein_codec::piece::write(&mut piece, &row.finish()).expect("literal fixture fits");
     piece.finish()

@@ -102,7 +102,7 @@ impl Draw<'_> {
         self.folded(b, board.live_folded);
         self.as_of(b, as_of);
         if let Some((application, landings)) = landings
-            && (!landings.queues().is_empty() || !landings.landings().is_empty())
+            && (!landings.queues.is_empty() || !landings.landings.is_empty())
         {
             b.open(Role::Region);
             b.style(crate::look::PUBLIC_SECTION);
@@ -110,7 +110,7 @@ impl Draw<'_> {
             self.link(b, &self.words.say(Word::PublicLandings, &[]), Public::Landings { project: board.project });
             b.close();
             self.queues(b, application, landings);
-            if landings.landings().is_empty() {
+            if landings.landings.is_empty() {
                 self.paragraph(b, Word::PublicNoLandings);
             }
             self.as_of(b, companion_as_of);

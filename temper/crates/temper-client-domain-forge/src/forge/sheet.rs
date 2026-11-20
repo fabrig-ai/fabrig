@@ -6,6 +6,7 @@ use super::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token, bytes};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 pub const PICKER_ROWS: usize = 2000;
@@ -261,7 +262,7 @@ pub fn long(sheet: &Sheet) -> bool {
     sheet.rows.len() > 8 || sheet.more
 }
 fn wanted(sheet: &Sheet, row: &w::Reached) -> bool {
-    let full = bytes::concat(&[row.owner().login(), b"/", row.name()]);
+    let full = bytes::concat(&[row.owner.login.as_ref(), b"/", row.name.as_ref()]);
     let needle = sheet.find.text.as_ref().trim_ascii();
     if needle.is_empty() {
         return true;
@@ -278,12 +279,14 @@ pub fn shown<'a>(sheet: &'a Sheet, project: u32, rows: &State) -> List<Shown<'a>
     let mut shown = List::with_capacity(CAP);
     for reached in &sheet.rows {
         if wanted(sheet, reached) {
-            let mut mark = if reached.private() { Mark::Private } else { Mark::None };
+            let mut mark = if reached.private { Mark::Private } else { Mark::None };
             if let Some(row) = row(rows, sheet.forge) {
                 for making in &row.makings {
-                    if making.org.as_ref() == reached.owner().login() && making.name.as_ref() == reached.name() {
+                    if making.org.as_ref() == reached.owner.login.as_ref()
+                        && making.name.as_ref() == reached.name.as_ref()
+                    {
                         let taken = match &making.state {
-                            w::MakingState::Failed(failed) => *failed.reason() == w::MakeFailure::Taken,
+                            w::MakingState::Failed(failed) => failed.reason == w::MakeFailure::Taken,
                             w::MakingState::Waiting
                             | w::MakingState::Making
                             | w::MakingState::Made(_)
@@ -296,8 +299,8 @@ pub fn shown<'a>(sheet: &'a Sheet, project: u32, rows: &State) -> List<Shown<'a>
                 }
                 for repository in &row.repositories {
                     if repository.project == project
-                        && repository.owner.as_ref() == reached.owner().login()
-                        && repository.name.as_ref() == reached.name()
+                        && repository.owner.as_ref() == reached.owner.login.as_ref()
+                        && repository.name.as_ref() == reached.name.as_ref()
                     {
                         mark = Mark::InProject;
                     }
@@ -305,7 +308,7 @@ pub fn shown<'a>(sheet: &'a Sheet, project: u32, rows: &State) -> List<Shown<'a>
             }
             let mut picked = false;
             for pick in &sheet.picks {
-                picked |= pick.id == reached.id();
+                picked |= pick.id == reached.id;
             }
             shown.push(Shown { row: reached, mark, picked }).expect("bounded rows");
         }
@@ -340,7 +343,7 @@ pub fn remedy(sheet: &Sheet, row: &Row) -> Option<Remedy> {
         return None;
     }
     for reached in &sheet.rows {
-        if reached.owner().login() == owner && reached.name() == name {
+        if reached.owner.login.as_ref() == owner && reached.name.as_ref() == name {
             return None;
         }
     }
@@ -391,7 +394,7 @@ pub fn lines(sheet: &Sheet, rows: &State) -> List<super::making::Line> {
             for making in &row.makings {
                 if making.org.as_ref() == org && making.name.as_ref() == name {
                     match &making.state {
-                        w::MakingState::Failed(failed) => match failed.reason() {
+                        w::MakingState::Failed(failed) => match &failed.reason {
                             w::MakeFailure::Taken => {}
                             w::MakeFailure::Empty
                             | w::MakeFailure::TimedOut
@@ -400,7 +403,7 @@ pub fn lines(sheet: &Sheet, rows: &State) -> List<super::making::Line> {
                             | w::MakeFailure::Other => match &making.from {
                                 w::MakeFrom::Empty => {}
                                 w::MakeFrom::Copy(copy) => {
-                                    if let Ok(source) = wire::source::parse(copy.address()) {
+                                    if let Ok(source) = wire::source::parse(copy.address.as_ref()) {
                                         replaceable |= wire::source::address(&source).as_ref() == address;
                                     }
                                 }
@@ -420,7 +423,7 @@ pub fn lines(sheet: &Sheet, rows: &State) -> List<super::making::Line> {
             }
         }
         for reached in &sheet.rows {
-            if reached.owner().login() == org && reached.name() == name {
+            if reached.owner.login.as_ref() == org && reached.name.as_ref() == name {
                 return true;
             }
         }
@@ -568,7 +571,7 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
             let Some(making) = making(side, *forge, org, name) else { return };
             let Some(into) = &making.into else { return };
             let w::MakingState::Failed(_) = making.state else { return };
-            let project = into.project();
+            let project = into.project;
             side.sheet_again = Some(act);
             out.push(Request::Show { address: super::Address::Adopt { project } });
             return;
@@ -633,9 +636,7 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
         Act::Pick { id, on } => {
             if on {
                 for shown in &shown(sheet, sheet.project, &side.forges) {
-                    if shown.row.id() == id
-                        && !shown.picked
-                        && (shown.mark == Mark::None || shown.mark == Mark::Private)
+                    if shown.row.id == id && !shown.picked && (shown.mark == Mark::None || shown.mark == Mark::Private)
                     {
                         sheet.picks.push(pick(shown.row)).expect("bounded picks");
                         break;
@@ -698,10 +699,10 @@ pub(crate) fn act(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Req
 }
 fn pick(row: &w::Reached) -> Pick {
     Pick {
-        id: row.id(),
-        owner_id: row.owner().id(),
-        owner: Box::from(row.owner().login()),
-        name: Box::from(row.name()),
+        id: row.id,
+        owner_id: row.owner.id,
+        owner: Box::from(row.owner.login.as_ref()),
+        name: Box::from(row.name.as_ref()),
     }
 }
 fn remove_pick(picks: &mut List<Pick>, id: u64) {
@@ -757,7 +758,6 @@ pub(crate) fn received(
     }
     match answer {
         Ok(answer) => {
-            let answer = answer.into_parts();
             sheet.more = answer.more && !answer.rows.is_empty();
             sheet.page = page;
             sheet.reading = Reading::Idle;
@@ -768,7 +768,7 @@ pub(crate) fn received(
             }
             if let Some(intent) = &sheet.adopt_when_read {
                 for row in &sheet.rows {
-                    if row.owner().login() == intent.owner.as_ref() && row.name() == intent.name.as_ref() {
+                    if row.owner.login.as_ref() == intent.owner.as_ref() && row.name.as_ref() == intent.name.as_ref() {
                         sheet.picks.push(pick(row)).expect("one pick after reset");
                         sheet.adopt_when_read = None;
                         break;
@@ -843,9 +843,7 @@ fn send(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
             let mut requests = List::with_capacity(CAP);
             match sheet.source {
                 Source::Empty => {
-                    let into =
-                        w::MakeInto::new(&w::CEILINGS, w::MakeIntoParts { project: sheet.project, home: sheet.home })
-                            .expect("project fits");
+                    let into = w::MakeInto { project: sheet.project, home: sheet.home };
                     let Ok(request) = super::making::ask(forge, &sheet.org.text, &sheet.name.text, None, Some(into))
                     else {
                         return;
@@ -856,14 +854,8 @@ fn send(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
                     for line in &lines(sheet, &side.forges) {
                         match line {
                             super::making::Line::To { address, org, name } => {
-                                let into = w::MakeInto::new(
-                                    &w::CEILINGS,
-                                    w::MakeIntoParts {
-                                        project: sheet.project,
-                                        home: sheet.home && requests.is_empty(),
-                                    },
-                                )
-                                .expect("project fits");
+                                let into =
+                                    w::MakeInto { project: sheet.project, home: sheet.home && requests.is_empty() };
                                 let Ok(request) = super::making::ask(forge, org, name, Some(address), Some(into))
                                 else {
                                     return;
@@ -1002,7 +994,7 @@ pub(crate) fn made(
         Err(words) => sheet.sent = Sent::Refused(words),
         Ok(()) => {
             if let Some(done) = sheet.making.get(0) {
-                match done.from() {
+                match &done.from {
                     w::MakeFrom::Copy(copy) => {
                         let Ok(text) = core::str::from_utf8(&sheet.addresses.text) else { return };
                         let mut raw = None;
@@ -1010,7 +1002,7 @@ pub(crate) fn made(
                             let parsed = super::making::parse_copies(line.as_bytes());
                             if let Ok(parsed) = parsed
                                 && let Some(address) = parsed.get(0)
-                                && address.as_ref() == copy.address()
+                                && address.as_ref() == copy.address.as_ref()
                             {
                                 raw = Some(Box::from(line.as_bytes().trim_ascii()));
                                 break;
@@ -1072,7 +1064,7 @@ fn dismiss(side: &mut Side, limits: Limits, forge: u16, org: &[u8], name: &[u8],
         return;
     }
     let project = match &making.into {
-        Some(into) => Some(into.project()),
+        Some(into) => Some(into.project),
         None => None,
     };
     let Some(bounds) = super::wire_limits(&limits) else { return };
@@ -1123,7 +1115,7 @@ pub(crate) fn again(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<R
     let Some(making) = making(side, forge, &org, &name).cloned() else { return };
     let Some(sheet) = &mut side.sheet else { return };
     let Some(into) = &making.into else { return };
-    if into.project() != sheet.project {
+    if into.project != sheet.project {
         return;
     }
     sheet.source = source;
@@ -1134,7 +1126,7 @@ pub(crate) fn again(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<R
     match source {
         Source::Copy => {
             if let w::MakeFrom::Copy(copy) = making.from {
-                put(&mut sheet.addresses, Box::from(copy.address()), limits.field_bytes);
+                put(&mut sheet.addresses, Box::from(copy.address.as_ref()), limits.field_bytes);
             }
         }
         Source::Empty => {
@@ -1206,7 +1198,7 @@ pub fn told(
     if reading {
         let answer = match decoded {
             Some(w::Outcome::Page(page)) => Ok(page),
-            Some(w::Outcome::ConnectRefused(why)) => Err(connect_refused(why.why().clone())),
+            Some(w::Outcome::ConnectRefused(why)) => Err(connect_refused(why.why.clone())),
             Some(value) => Err(Refused::Words(super::words::sheet_outcome(&value))),
             None => Err(Refused::NoAnswer),
         };
@@ -1231,7 +1223,7 @@ fn decode(outcome: Option<&jig_client::Outcome>, limits: Limits) -> Option<w::Ou
     if !reader.is_empty() {
         return None;
     }
-    Some(answer.into_parts().outcome)
+    Some(answer.outcome)
 }
 fn connect_refused(why: w::ForgeRefusal) -> Refused {
     match why {

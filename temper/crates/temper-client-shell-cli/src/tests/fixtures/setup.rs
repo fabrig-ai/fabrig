@@ -22,39 +22,29 @@ impl Frame {
         let envelope = w::FamilyRequest::decode(&w::CEILINGS, &mut skein_lib::Reader::new(keyed.request.as_ref()))
             .expect("family envelope");
         let request = wire::decode_requesting(envelope.record.as_ref(), &f::CEILINGS).expect("forge request");
-        let outcome = match request.into_parts().request {
+        let outcome = match request.request {
             f::Request::SetUp(_) => f::Outcome::SettingUp,
-            f::Request::Adopt(_) if self.wait_task.is_some() => f::Outcome::Adopted(
-                f::Adopted::new(
-                    &f::CEILINGS,
-                    f::AdoptedParts {
-                        landing: b"main".as_slice().into(),
-                        forge: FORGE,
-                        repository: 42,
-                        owner: b"work".as_slice().into(),
-                        name: b"hello".as_slice().into(),
-                        role: f::Role::Owned,
-                        home: true,
-                        kinds: f::Kinds::new(
-                            &f::CEILINGS,
-                            f::KindsParts {
-                                read: true,
-                                push: true,
-                                open: true,
-                                land: true,
-                                review: true,
-                                status: true,
-                                comment: true,
-                                issue: true,
-                                branch: true,
-                            },
-                        )
-                        .expect("valid setup fixture"),
-                        protection: f::Protection::Unknown,
-                    },
-                )
-                .expect("valid setup fixture"),
-            ),
+            f::Request::Adopt(_) if self.wait_task.is_some() => f::Outcome::Adopted(f::Adopted {
+                landing: b"main".as_slice().into(),
+                forge: FORGE,
+                repository: 42,
+                owner: b"work".as_slice().into(),
+                name: b"hello".as_slice().into(),
+                role: f::Role::Owned,
+                home: true,
+                kinds: f::Kinds {
+                    read: true,
+                    push: true,
+                    open: true,
+                    land: true,
+                    review: true,
+                    status: true,
+                    comment: true,
+                    issue: true,
+                    branch: true,
+                },
+                protection: f::Protection::Unknown,
+            }),
             f::Request::Adopt(_)
             | f::Request::FileFinding(_)
             | f::Request::HandFinding(_)
@@ -82,7 +72,7 @@ impl Frame {
             | f::Request::Checkpoint
             | f::Request::DismissMaking(_) => return false,
         };
-        let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).expect("valid setup fixture");
+        let answer = f::Answer { outcome };
         let document = owned(wire::answer(&answer));
         self.reply(fd, &encode!(w::KeyedAnswer::FinalAnswer(document)));
         true
@@ -93,70 +83,44 @@ impl Frame {
     }
     pub(super) fn deliver_setup(&mut self, made: bool) {
         let mut forges = skein_lib::List::with_capacity(1);
-        let first = made.then(|| {
-            f::FirstRepository::new(
-                &f::CEILINGS,
-                f::FirstRepositoryParts {
-                    playground: false,
-                    sample: false,
-                    label: b"cold".as_slice().into(),
-                    org: b"work".as_slice().into(),
-                    repository: b"hello".as_slice().into(),
-                    state: f::FirstState::Made(
-                        f::Made::new(&f::CEILINGS, f::MadeParts { id: 42 }).expect("valid setup fixture"),
-                    ),
-                },
-            )
-            .expect("valid setup fixture")
+        let first = made.then(|| f::FirstRepository {
+            playground: false,
+            sample: false,
+            label: b"cold".as_slice().into(),
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            state: f::FirstState::Made(f::Made { id: 42 }),
         });
         forges
-            .push(
-                f::ForgeRow::new(
-                    &f::CEILINGS,
-                    f::ForgeRowParts {
-                        starts_with: f::StartsWith::Repository,
-                        makings: skein_lib::List::with_capacity(0),
-                        host: b"git.example:3000".as_slice().into(),
-                        number: FORGE,
-                        kind: f::Kind::Forgejo,
-                        mode: f::Mode::Owned,
-                        connection: if made {
-                            f::Connection::Connected(
-                                f::Connected::new(
-                                    &f::CEILINGS,
-                                    f::ConnectedParts { id: 1, login: b"temper".as_slice().into() },
-                                )
-                                .expect("valid setup fixture"),
-                            )
-                        } else {
-                            f::Connection::SettingUp(
-                                f::SettingUp::new(
-                                    &f::CEILINGS,
-                                    f::SettingUpParts { step: Some(f::SetUpStep::Run), fetched: None },
-                                )
-                                .expect("valid setup fixture"),
-                            )
-                        },
-                        offer: f::Offer::NotOffered,
-                        first,
-                        installations: skein_lib::List::with_capacity(0),
-                        ended: None,
-                        app: None,
-                        web: None,
-                        repositories: skein_lib::List::with_capacity(0),
-                        owned: None,
-                        admin: false,
-                        read_only: false,
-                        ended_stop: None,
-                    },
-                )
-                .expect("valid setup fixture"),
-            )
+            .push(f::ForgeRow {
+                starts_with: f::StartsWith::Repository,
+                makings: skein_lib::List::with_capacity(0),
+                host: b"git.example:3000".as_slice().into(),
+                number: FORGE,
+                kind: f::Kind::Forgejo,
+                mode: f::Mode::Owned,
+                connection: if made {
+                    f::Connection::Connected(f::Connected { id: 1, login: b"temper".as_slice().into() })
+                } else {
+                    f::Connection::SettingUp(f::SettingUp { step: Some(f::SetUpStep::Run), fetched: None })
+                },
+                offer: f::Offer::NotOffered,
+                first,
+                installations: skein_lib::List::with_capacity(0),
+                ended: None,
+                app: None,
+                web: None,
+                repositories: skein_lib::List::with_capacity(0),
+                owned: None,
+                admin: false,
+                read_only: false,
+                ended_stop: None,
+            })
             .expect("valid setup fixture");
-        let document = owned(wire::forges(
-            &f::Forges::new(&f::CEILINGS, f::ForgesParts { forges, linked: false }).expect("valid setup fixture"),
-        ));
-        let event = w::StreamEvent::Delivery(w::Delivery { watch: self.wait_task.expect("forge watch"), document });
+        let document = owned(wire::forges(&f::Forges { forges, linked: false }));
+        let event = w::StreamEvent::Delivery(
+            w::Delivery { watch: self.wait_task.expect("forge watch"), document },
+        );
         self.sockets.get_mut(&self.stream.expect("stream")).expect("valid setup fixture").reply.extend(sse(&event));
     }
 }

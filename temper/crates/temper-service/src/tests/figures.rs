@@ -95,17 +95,13 @@ fn a_box_derives_its_composed_carriers_from_its_agent() {
 
     let document = fixtures::stock_document();
     let agent = fixtures::parsed_agent(fixtures::stock_configuration(8192, 48_000).unwrap());
-    let mut agents = crate::stock::agents().into_parts();
+    let mut agents = crate::stock::agents();
     for figure in agents.profile.iter_mut() {
-        if figure.name() == b"declared.tool_payload" {
-            *figure = w::AgentFigure::new(
-                &w::CEILINGS,
-                w::AgentFigureParts { name: b"declared.tool_payload".as_slice().into(), value: 8192 },
-            )
-            .unwrap();
+        if figure.name.as_ref() == b"declared.tool_payload" {
+            *figure = w::AgentFigure { name: b"declared.tool_payload".as_slice().into(), value: 8192 };
         }
     }
-    let agents = w::AgentFigures::new(&w::CEILINGS, agents).unwrap();
+    let agents = agents;
     let declaration = agent.declaration();
     let (mut jig, own) =
         crate::limits::base(40, 4096, temper_service_core::derived::Sources::agent(&declaration)).unwrap();

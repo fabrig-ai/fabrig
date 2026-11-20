@@ -981,5 +981,5 @@ fn forges_linked(engine: &crate::engine::Engine) -> bool {
     let bytes = crate::route::forge_rows(engine, engine.domain.forges()).expect("forges document");
     temper_client_protocol_wire::decode_forges(&bytes, &temper_client_protocol_wire::v1::CEILINGS)
         .expect("whole forges document")
-        .linked()
+        .linked
 }

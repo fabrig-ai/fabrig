@@ -13,19 +13,17 @@ fn watch_names_the_projects_drafts_with_no_window() {
     assert_eq!(window, c::Window { rows: 0, after: None });
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
     assert_eq!(
-        wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch(),
-        &w::Watch::Drafts(w::DraftsSubject::new(&w::CEILINGS, w::DraftsSubjectParts { project: f::PROJECT }).unwrap())
+        &wire::decode_watching(&record.bytes, &w::CEILINGS).unwrap().watch,
+        &w::Watch::Drafts(w::DraftsSubject { project: f::PROJECT })
     );
 }
 
 #[test]
 fn panel_accepts_only_a_complete_drafts_family_record() {
-    let panel =
-        w::DraftsPanel::new(&w::CEILINGS, w::DraftsPanelParts { project: f::PROJECT, drafts: List::with_capacity(0) })
-            .unwrap();
+    let panel = w::DraftsPanel { project: f::PROJECT, drafts: List::with_capacity(0) };
     let record = Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::drafts_panel(&panel) };
     assert_eq!(drafts::panel(&record, f::limits().forge), Some(panel));
-    let other = w::Watching::new(&w::CEILINGS, w::WatchingParts { watch: w::Watch::Away }).unwrap();
+    let other = w::Watching { watch: w::Watch::Away };
     let mut trailing = skein_lib::Writer::new(record.bytes.len().checked_add(1).unwrap());
     trailing.put(&record.bytes).unwrap();
     trailing.put(&[0]).unwrap();
@@ -41,16 +39,12 @@ fn panel_accepts_only_a_complete_drafts_family_record() {
 
 #[test]
 fn ask_carries_set_draft_in_the_projects_scope() {
-    let repository = w::DraftRepository::new(
-        &w::CEILINGS,
-        w::DraftRepositoryParts { owner: b"acme".as_slice().into(), name: b"shop".as_slice().into() },
-    )
-    .unwrap();
-    let parts = w::SetDraftParts {
+    let repository = w::DraftRepository { owner: b"acme".as_slice().into(), name: b"shop".as_slice().into() };
+    let parts = w::SetDraft {
         project: f::PROJECT,
         repository: Some(repository),
         path: b"docs/design/draft/catch-up.md".as_slice().into(),
-        change: w::DraftChange::Ready(w::ReadyDraft::new(&w::CEILINGS, w::ReadyDraftParts { chat: Some(7) }).unwrap()),
+        change: w::DraftChange::Ready(w::ReadyDraft { chat: Some(7) }),
     };
     let Ask::Family { scope, record } = drafts::ask(
         parts.project,
@@ -64,8 +58,5 @@ fn ask_carries_set_draft_in_the_projects_scope() {
     };
     assert_eq!(scope, c::Scope::Project(f::PROJECT));
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    assert_eq!(
-        wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request,
-        w::Request::SetDraft(w::SetDraft::new(&w::CEILINGS, parts).unwrap()),
-    );
+    assert_eq!(wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request, w::Request::SetDraft(parts),);
 }

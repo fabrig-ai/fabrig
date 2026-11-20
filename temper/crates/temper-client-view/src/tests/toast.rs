@@ -398,9 +398,7 @@ fn stop_answer(which: u8) -> d::Domain {
             jig_client::Answered::Family(jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::answer(
-                    &w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome: w::Outcome::Dismissed }).unwrap(),
-                ),
+                bytes: wire::answer(&w::Answer { outcome: w::Outcome::Dismissed }),
             })
         }
         3 => jig_client::Answered::Jig(c::Answer::Refused { refusal: c::Refusal::NotOffered, at: None }),
@@ -426,43 +424,28 @@ fn stop_answer(which: u8) -> d::Domain {
 
 fn ways_panel(kept: bool) -> temper_client_protocol_wire::v1::WaysPanel {
     use temper_client_protocol_wire::v1 as w;
-    let path = w::BranchPath::new(
-        &w::CEILINGS,
-        w::BranchPathParts { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) },
-    )
-    .unwrap();
-    let way = w::StockWay::new(
-        &w::CEILINGS,
-        w::StockWayParts {
-            headline: b"".as_slice().into(),
-            name: b"A way".as_slice().into(),
-            line: b"A line".as_slice().into(),
-            path: path.clone(),
-            items: List::from_boxed(Box::new([w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts { kind: 2, scope: f::PROJECT, number: 4, edit: w::SettingEdit::Removed },
-            )
-            .unwrap()])),
-            delegation: false,
-            roles: List::with_capacity(0),
-        },
-    )
-    .unwrap();
-    w::WaysPanel::new(
-        &w::CEILINGS,
-        w::WaysPanelParts {
-            rules: w::PathRules::new(
-                &w::CEILINGS,
-                w::PathRulesParts { rows: List::with_capacity(0), note: Box::new([]) },
-            )
-            .unwrap(),
-            words: None,
-            project: f::PROJECT,
-            ways: List::from_boxed(Box::new([way])),
-            current: if kept { Some(0) } else { None },
-            own: path,
-            may_change: true,
-        },
-    )
-    .unwrap()
+    let path = w::BranchPath { repository: None, branch: b"main".as_slice().into(), stops: List::with_capacity(0) };
+    let way = w::StockWay {
+        headline: b"".as_slice().into(),
+        name: b"A way".as_slice().into(),
+        line: b"A line".as_slice().into(),
+        path: path.clone(),
+        items: List::from_boxed(Box::new([w::ProposalItem {
+            kind: 2,
+            scope: f::PROJECT,
+            number: 4,
+            edit: w::SettingEdit::Removed,
+        }])),
+        delegation: false,
+        roles: List::with_capacity(0),
+    };
+    w::WaysPanel {
+        rules: w::PathRules { rows: List::with_capacity(0), note: Box::new([]) },
+        words: None,
+        project: f::PROJECT,
+        ways: List::from_boxed(Box::new([way])),
+        current: if kept { Some(0) } else { None },
+        own: path,
+        may_change: true,
+    }
 }

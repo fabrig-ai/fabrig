@@ -21,6 +21,7 @@ use temper_client_domain_forge::{
     forge::{self, drafts},
     owner::Owner,
 };
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 const PROJECT: jig::table::Argument =
@@ -62,7 +63,7 @@ pub(crate) struct Drafts {
 }
 #[derive(Debug)]
 struct Pending {
-    request: w::SetDraftParts,
+    request: w::SetDraft,
     project: Box<[u8]>,
     called: Option<Called>,
 }
@@ -166,10 +167,13 @@ fn text(call: &jig::call::Call, at: usize) -> Box<[u8]> {
 fn send(state: &mut Drafts, client: &Client, env: &Env<Limits>, called: Called, project: u32, out: &mut Queue<Out>) {
     let bounds = forge::wire_limits(&env.limits.domain.forge).expect("checked limits");
     let repository = if value(&called.call, 1).is_some() {
-        let Ok(repository) = w::DraftRepository::new(
-            &bounds,
-            w::DraftRepositoryParts { owner: text(&called.call, 1), name: text(&called.call, 2) },
-        ) else {
+        let Ok(repository) = ({
+            let value = w::DraftRepository { owner: text(&called.call, 1), name: text(&called.call, 2) };
+            match value.encode(&bounds) {
+                Ok(_) => Ok(value),
+                Err(problem) => Err(problem),
+            }
+        }) else {
             fail(called, b"repository past the forge's bounds", out);
             return;
         };
@@ -179,9 +183,7 @@ fn send(state: &mut Drafts, client: &Client, env: &Env<Limits>, called: Called, 
     };
     let is_ready = tool(&called.call).name == READY.name;
     let change = if is_ready {
-        w::DraftChange::Ready(
-            w::ReadyDraft::new(&bounds, w::ReadyDraftParts { chat: number(&called.call, 3) }).expect("chat fits"),
-        )
+        w::DraftChange::Ready(w::ReadyDraft { chat: number(&called.call, 3) })
     } else {
         w::DraftChange::NotReady
     };
@@ -205,7 +207,7 @@ fn send(state: &mut Drafts, client: &Client, env: &Env<Limits>, called: Called, 
     state.pending.insert(
         key,
         Pending {
-            request: w::SetDraftParts { project, repository, path, change },
+            request: w::SetDraft { project, repository, path, change },
             project: project_name,
             called: Some(called),
         },
@@ -225,8 +227,8 @@ pub(crate) fn told(state: &mut Drafts, client: &Client, env: &Env<Limits>, told:
             ) else {
                 return;
             };
-            let w::Request::SetDraft(request) = request.into_parts().request else { return };
-            let request = request.into_parts();
+            let w::Request::SetDraft(request) = request.request else { return };
+
             let project = Box::from(skein_lib::Decimal::of(u64::from(request.project)).as_bytes());
             state.pending.insert(*key, Pending { request, project, called: None });
         }
@@ -287,7 +289,7 @@ fn changed(state: &mut Drafts, client: &Client, env: &Env<Limits>, handle: Handl
         complete(state, handle, printed, out);
         return;
     };
-    if panel.project() != watch.project {
+    if panel.project != watch.project {
         let printed = render::failure(b"unexpected drafts project", watch.called.json, 1);
         complete(state, handle, printed, out);
         return;
@@ -328,14 +330,14 @@ pub(crate) fn fire(state: &mut Drafts, client: &Client, env: &Env<Limits>, out: 
     }
 }
 fn identity(row: &w::LandedDraft, out: &mut Text) {
-    out.put(row.owner());
+    out.put(&row.owner);
     out.put(b"/");
-    out.put(row.name());
+    out.put(&row.name);
     out.put(b" ");
-    out.put(row.path());
+    out.put(&row.path);
 }
 fn commit(row: &w::LandedDraft, out: &mut Text) {
-    out.put(row.commit().get(..12).unwrap_or(row.commit()));
+    out.put(row.commit.get(..12).unwrap_or(&row.commit));
 }
 fn ready_text(row: &w::LandedDraft, ready: bool, out: &mut Text) {
     out.put(if ready { b"ready: " } else { b"not ready: " });
@@ -344,11 +346,11 @@ fn ready_text(row: &w::LandedDraft, ready: bool, out: &mut Text) {
         out.put(b" at ");
         commit(row, out);
         out.put(b" on ");
-        out.put(row.branch());
+        out.put(&row.branch);
     }
     out.put(b"\n");
-    if ready && !row.title().is_empty() {
-        out.put(row.title());
+    if ready && !row.title.is_empty() {
+        out.put(&row.title);
         out.put(b"\n");
     }
 }
@@ -357,9 +359,9 @@ fn refusal(p: &Pending, why: &w::DraftRefusal, out: &mut Text) {
         w::DraftRefusal::NoRepository => match &p.request.repository {
             Some(repository) => {
                 out.put(b"no repository ");
-                out.put(repository.owner());
+                out.put(&repository.owner);
                 out.put(b"/");
-                out.put(repository.name());
+                out.put(&repository.name);
                 out.put(b" in ");
                 out.put(&p.project);
             }
@@ -409,7 +411,7 @@ fn print_answer(p: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
         ) else {
             return render::failure(b"draft answer decoding failed", json, 1);
         };
-        if let w::Outcome::Drafted(row) = answer.outcome() {
+        if let w::Outcome::Drafted(row) = &answer.outcome {
             let bytes = if json {
                 let Some(bytes) = json_row(row, limits) else { return render::failure(b"result limit", json, 1) };
                 bytes
@@ -422,11 +424,11 @@ fn print_answer(p: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
             };
             return printed(bytes, 0, limits);
         }
-        if let w::Outcome::DraftRefused(why) = answer.outcome() {
+        if let w::Outcome::DraftRefused(why) = &answer.outcome {
             let mut measure = Text::measure();
-            refusal(p, why.reason(), &mut measure);
+            refusal(p, &why.reason, &mut measure);
             let mut out = Text::writing_exact(measure);
-            refusal(p, why.reason(), &mut out);
+            refusal(p, &why.reason, &mut out);
             return render::failure(&out.finish(), json, 2);
         }
         if let Some(forge::Answer::CoreRefused(why)) =
@@ -444,7 +446,7 @@ fn print_answer(p: &Pending, outcome: &Outcome, json: bool, limits: &Limits) -> 
                 crate::root::DIAGNOSTIC_PREFIX,
             );
         }
-        if let w::Outcome::Unknown = answer.outcome() {
+        if let w::Outcome::Unknown = &answer.outcome {
             return render::outcome::print(
                 &operation(p, limits),
                 &Outcome::Unknown,
@@ -475,23 +477,23 @@ fn operation(p: &Pending, limits: &Limits) -> render::outcome::Operation {
 fn encode_row(row: &w::LandedDraft, out: &mut Encoder) {
     out.object_start();
     out.key(b"forge");
-    out.unsigned(u64::from(row.forge()));
+    out.unsigned(u64::from(row.forge));
     for (key, value) in [
-        (b"owner".as_slice(), row.owner()),
-        (b"name", row.name()),
-        (b"path", row.path()),
-        (b"branch", row.branch()),
-        (b"commit", row.commit()),
-        (b"title", row.title()),
+        (b"owner".as_slice(), &row.owner),
+        (b"name", &row.name),
+        (b"path", &row.path),
+        (b"branch", &row.branch),
+        (b"commit", &row.commit),
+        (b"title", &row.title),
     ] {
         out.key(key);
         out.string(value);
     }
     out.key(b"writer");
-    out.unsigned(row.writer());
+    out.unsigned(row.writer);
     out.key(b"at");
-    out.unsigned(row.at());
-    for (key, value) in [(b"chat".as_slice(), row.chat()), (b"goal", row.goal())] {
+    out.unsigned(row.at);
+    for (key, value) in [(b"chat".as_slice(), &row.chat), (b"goal", &row.goal)] {
         out.key(key);
         match value {
             Some(n) => out.unsigned(*n),
@@ -499,7 +501,7 @@ fn encode_row(row: &w::LandedDraft, out: &mut Encoder) {
         }
     }
     out.key(b"ready");
-    out.boolean(row.ready());
+    out.boolean(row.ready);
     out.object_end();
 }
 fn json_row(row: &w::LandedDraft, limits: &Limits) -> Option<Box<[u8]>> {
@@ -512,32 +514,32 @@ fn json_row(row: &w::LandedDraft, limits: &Limits) -> Option<Box<[u8]>> {
 }
 fn rows_text(panel: Option<&w::DraftsPanel>, timeout: bool, out: &mut Text) {
     if let Some(panel) = panel {
-        if panel.drafts().is_empty() {
+        if panel.drafts.is_empty() {
             out.put(b"No landed drafts.\n");
         }
-        for row in panel.drafts() {
+        for row in &panel.drafts {
             identity(row, out);
             out.put(b" ");
-            match row.goal() {
+            match &row.goal {
                 Some(goal) => {
                     out.put(b"goal ");
                     out.number(*goal);
                 }
-                None => out.put(if row.ready() { b"ready" } else { b"not ready" }),
+                None => out.put(if row.ready { b"ready" } else { b"not ready" }),
             }
             out.put(b" ");
             commit(row, out);
             out.put(b" ");
-            out.put(row.branch());
+            out.put(&row.branch);
             out.put(b" ");
-            render::document::clock::deadline(Wall::from_nanos(row.at()), out);
-            if let Some(chat) = row.chat() {
+            render::document::clock::deadline(Wall::from_nanos(row.at), out);
+            if let Some(chat) = &row.chat {
                 out.put(b" chat ");
                 out.number(*chat);
             }
-            if !row.title().is_empty() {
+            if !row.title.is_empty() {
                 out.put(b" ");
-                out.put(row.title());
+                out.put(&row.title);
             }
             out.put(b"\n");
         }
@@ -549,7 +551,7 @@ fn rows_text(panel: Option<&w::DraftsPanel>, timeout: bool, out: &mut Text) {
 fn encode_rows(panel: Option<&w::DraftsPanel>, out: &mut Encoder) {
     out.array_start();
     if let Some(panel) = panel {
-        for row in panel.drafts() {
+        for row in &panel.drafts {
             encode_row(row, out);
         }
     }

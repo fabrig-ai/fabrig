@@ -46,7 +46,7 @@ pub(super) fn text(wait: Option<&w::LandingWait>, out: &mut Text) {
         out.put(b"nothing; it steps next\n");
         return;
     };
-    match wait.on() {
+    match wait.on {
         w::LandingWaitFor::Nothing => out.put(b"nothing; it steps next"),
         w::LandingWaitFor::Release => out.put(b"its release"),
         w::LandingWaitFor::Ready => {
@@ -55,7 +55,7 @@ pub(super) fn text(wait: Option<&w::LandingWait>, out: &mut Text) {
         }
         w::LandingWaitFor::Turn => {
             out.put(b"the turn");
-            if let Some(landing) = wait.landing() {
+            if let Some(landing) = wait.landing.as_ref() {
                 out.put(b", held by landing ");
                 out.number(*landing);
             }
@@ -74,7 +74,7 @@ pub(super) fn text(wait: Option<&w::LandingWait>, out: &mut Text) {
         }
         w::LandingWaitFor::Run => {
             gate(wait, b"'s run ", out);
-            if let Some(run) = wait.run() {
+            if let Some(run) = wait.run.as_ref() {
                 out.number(*run);
                 out.put(b" ");
             }
@@ -107,7 +107,7 @@ pub(super) fn text(wait: Option<&w::LandingWait>, out: &mut Text) {
 }
 fn gate(wait: &w::LandingWait, words: &[u8], out: &mut Text) {
     out.put(b"gate ");
-    if let Some(gate) = wait.gate() {
+    if let Some(gate) = wait.gate.as_ref() {
         out.put(gate);
     }
     out.put(words);
@@ -118,7 +118,7 @@ fn prefix(wait: &w::LandingWait, out: &mut Text) {
 }
 fn change(wait: &w::LandingWait, out: &mut Text) {
     out.put(b"change ");
-    if let Some(change) = wait.change() {
+    if let Some(change) = wait.change.as_ref() {
         out.number(*change);
     }
 }
@@ -130,20 +130,20 @@ pub(super) fn json(wait: Option<&w::LandingWait>, live: bool, out: &mut Encoder)
     out.object_start();
     out.key(b"for");
     out.string(match wait {
-        Some(wait) => name(wait.on()),
+        Some(wait) => name(&wait.on),
         None => b"nothing",
     });
     out.key(b"change");
     optional_number(
         match wait {
-            Some(wait) => wait.change().as_ref(),
+            Some(wait) => wait.change.as_ref(),
             None => None,
         },
         out,
     );
     out.key(b"gate");
     match wait {
-        Some(wait) => match wait.gate() {
+        Some(wait) => match wait.gate.as_ref() {
             Some(gate) => out.string(gate),
             None => out.null(),
         },
@@ -152,7 +152,7 @@ pub(super) fn json(wait: Option<&w::LandingWait>, live: bool, out: &mut Encoder)
     out.key(b"run");
     optional_number(
         match wait {
-            Some(wait) => wait.run().as_ref(),
+            Some(wait) => wait.run.as_ref(),
             None => None,
         },
         out,
@@ -160,7 +160,7 @@ pub(super) fn json(wait: Option<&w::LandingWait>, live: bool, out: &mut Encoder)
     out.key(b"landing");
     optional_number(
         match wait {
-            Some(wait) => wait.landing().as_ref(),
+            Some(wait) => wait.landing.as_ref(),
             None => None,
         },
         out,

@@ -309,47 +309,38 @@ fn telling_on_a_roles_talk_files_in_its_area() {
             if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope =
-                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             let reading = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
-            matches!(reading.watch(), f::Watch::Findings(subject) if subject.project() == 3).then_some(open.watch)
+            matches!(&reading.watch, f::Watch::Findings(subject) if subject.project == 3).then_some(open.watch)
         })
         .expect("the talk's project reads findings");
-    let task = f::Holder::Task(f::HolderTask::new(&f::CEILINGS, f::HolderTaskParts { number: ROLE }).unwrap());
-    let document = f::Findings::new(
-        &f::CEILINGS,
-        f::FindingsParts {
-            project: 3,
-            rows: List::with_capacity(0),
-            areas: List::from_boxed(Box::new([f::AreaRow::new(
-                &f::CEILINGS,
-                f::AreaRowParts {
-                    name: b"ports".as_slice().into(),
-                    words: b"Porting".as_slice().into(),
-                    owner: f::AreaOwner::Task(
-                        f::AreaTask::new(&f::CEILINGS, f::AreaTaskParts { number: ROLE }).unwrap(),
-                    ),
-                    holder: Some(task.clone()),
-                },
-            )
-            .unwrap()])),
-            triager: None,
-            holder: task,
-            cut: false,
-        },
-    )
-    .unwrap();
-    let document = w::Owned {
-        owner: w::Owner::Family(w::Family { number: wire::FORGE }),
-        version: wire::CLIENT_VERSION,
-        record: wire::findings(&document),
+    let task = f::Holder::Task(f::HolderTask { number: ROLE });
+    let document = f::Findings {
+        project: 3,
+        rows: List::with_capacity(0),
+        areas: List::from_boxed(Box::new([f::AreaRow {
+            name: b"ports".as_slice().into(),
+            words: b"Porting".as_slice().into(),
+            owner: f::AreaOwner::Task(f::AreaTask { number: ROLE }),
+            holder: Some(task.clone()),
+        }])),
+        triager: None,
+        holder: task,
+        cut: false,
     };
-    let event = w::StreamEvent::Delivery(w::Delivery { watch: watched, document });
+    let document = w::Owned {
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            version: wire::CLIENT_VERSION,
+            record: wire::findings(&document),
+        };
+    let event = w::StreamEvent::Delivery(
+        w::Delivery { watch: watched, document },
+    );
     let duties = host.report(Report::Heard(jig_client::Event::Streamed {
         message: jig_client::Streamed::Record(stream_bytes(&event)),
     }));
     admit(&mut host, duties);
     let (_, file) = super::tell::send(&mut host, b"/tell The port is stuck").expect("one filing");
-    assert_eq!(file.area().as_deref(), Some(b"ports".as_slice()));
-    assert_eq!(file.body(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
+    assert_eq!(file.area.as_deref(), Some(b"ports".as_slice()));
+    assert_eq!(file.body.as_ref(), b"The port is stuck\n\nPage: /projects/3/talk/7 (Porter)");
 }

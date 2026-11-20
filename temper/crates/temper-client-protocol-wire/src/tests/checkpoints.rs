@@ -1,10 +1,11 @@
 //! The checkpoint act's framing and both terminal forms (temper/docs/design/protocol/checkpoints.md, 3).
 use crate::v1 as w;
+use crate::v1::Record;
 use skein_lib::Reader;
 
 #[test]
 fn checkpoints_carry_the_request_and_both_terminal_forms_at_current_version() {
-    let request = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::Checkpoint }).unwrap();
+    let request = w::Requesting { request: w::Request::Checkpoint };
     let [high, low] = w::VERSION.to_be_bytes();
     let request_bytes = [high, low, 26];
     assert_eq!(crate::requesting(&request).as_ref(), request_bytes);
@@ -18,11 +19,9 @@ fn checkpoints_carry_the_request_and_both_terminal_forms_at_current_version() {
     writer.put(&[high, low]).unwrap();
     writer.put(golden).unwrap();
     let success_bytes = writer.finish();
-    let refused = w::Outcome::CheckpointRefused(
-        w::CheckpointRefused::new(&w::CEILINGS, w::CheckpointRefusedParts { why: w::CheckpointWhy::NotOwner }).unwrap(),
-    );
+    let refused = w::Outcome::CheckpointRefused(w::CheckpointRefused { why: w::CheckpointWhy::NotOwner });
     for (outcome, bytes) in [(success, success_bytes), (refused, Box::from([high, low, 41, 0]))] {
-        let answer = w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap();
+        let answer = w::Answer { outcome };
         assert_eq!(crate::answer(&answer).as_ref(), bytes.as_ref());
         let mut reader = Reader::new(&bytes);
         assert_eq!(w::Answer::decode(&w::CEILINGS, &mut reader), Ok(answer));

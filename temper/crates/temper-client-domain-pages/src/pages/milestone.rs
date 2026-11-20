@@ -125,8 +125,8 @@ impl Page {
     pub fn headline(&self, task: u64) -> Option<Box<[u8]>> {
         for line in &self.milestone.goals {
             if line.chip.task == task {
-                return match parts::goal(line)?.into_parts().report {
-                    Some(report) => Some(report.into_parts().headline),
+                return match parts::goal(line)?.report {
+                    Some(report) => Some(report.headline),
                     None => None,
                 };
             }

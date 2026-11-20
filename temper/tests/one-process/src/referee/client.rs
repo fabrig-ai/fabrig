@@ -82,7 +82,7 @@ pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
         return false;
     };
     forge::decode_requesting(envelope.record.as_ref(), &w::CEILINGS)
-        .is_some_and(|request| matches!(request.request(), w::Request::Reachable(_)))
+        .is_some_and(|request| matches!(request.request, w::Request::Reachable(_)))
 }
 impl Connection {
     fn request(&mut self, received: &mut Vec<Received>) {

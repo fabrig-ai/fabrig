@@ -1,6 +1,7 @@
 //! Configuration values without run state (smith/docs/design/shell/README.md, sections 2.1 and 2.6).
 
 use crate::ProgramBackend;
+use alloc::boxed::Box;
 use skein_channel::StreamMode;
 use skein_io as io;
 use skein_lib::Duration;
@@ -45,6 +46,8 @@ pub struct Config {
     pub domain: domain::Config,
     pub channel_endpoints: smith_protocol_translate::Endpoints,
     pub llm_endpoints: llm::Endpoints,
+    /// Executable found once on the commands' PATH, used by every listing and search.
+    pub rg: Box<[u8]>,
     pub environment: machine::Environment,
     pub stream_mode: StreamMode,
     pub program: Option<ProgramBackend>,

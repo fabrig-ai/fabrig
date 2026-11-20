@@ -5,6 +5,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 use skein_lib::{List, Reader, Writer};
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_landing::{Combine, Gate, GateReport};
 use temper_engine_domain_forge_tiers::Format;
 
@@ -51,34 +52,29 @@ pub struct ProjectGates {
 }
 
 pub fn landing_record(v: &ProjectLanding) -> w::ProjectLanding {
-    w::ProjectLanding::new(
-        &w::CEILINGS,
-        w::ProjectLandingParts {
-            by: match v.by {
-                temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
-                temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
-            },
-            batch: v.batch,
-            combine_main: combine_record(v.combine_main),
-            combine_other: combine_record(v.combine_other),
-            merge_job: v.merge_job.clone(),
-            close_job: v.close_job.clone(),
-            landing_attempts: v.landing_attempts,
-            check_timeout_ms: v.check_timeout_ms,
-            gate_retries: v.gate_retries,
-            gate_timeout_ms: v.gate_timeout_ms,
-            tier_retries: v.tier_retries,
-            verification_bound_ms: v.verification_bound_ms,
-            wait: match v.wait {
-                temper_engine_domain_forge_change::Wait::Cleared => w::SettingsLandingWait::Cleared,
-                temper_engine_domain_forge_change::Wait::Landed => w::SettingsLandingWait::Landed,
-            },
+    w::ProjectLanding {
+        by: match v.by {
+            temper_engine_domain_forge_change::Way::Queue => w::SettingsLandingWay::Queue,
+            temper_engine_domain_forge_change::Way::Turn => w::SettingsLandingWay::Turn,
         },
-    )
-    .expect("admitted landing fits codec")
+        batch: v.batch,
+        combine_main: combine_record(v.combine_main),
+        combine_other: combine_record(v.combine_other),
+        merge_job: v.merge_job.clone(),
+        close_job: v.close_job.clone(),
+        landing_attempts: v.landing_attempts,
+        check_timeout_ms: v.check_timeout_ms,
+        gate_retries: v.gate_retries,
+        gate_timeout_ms: v.gate_timeout_ms,
+        tier_retries: v.tier_retries,
+        verification_bound_ms: v.verification_bound_ms,
+        wait: match v.wait {
+            temper_engine_domain_forge_change::Wait::Cleared => w::SettingsLandingWait::Cleared,
+            temper_engine_domain_forge_change::Wait::Landed => w::SettingsLandingWait::Landed,
+        },
+    }
 }
 pub fn landing_from(v: w::ProjectLanding) -> ProjectLanding {
-    let v = v.into_parts();
     ProjectLanding {
         by: match v.by {
             w::SettingsLandingWay::Queue => temper_engine_domain_forge_change::Way::Queue,
@@ -133,62 +129,42 @@ fn ignored(v: &[Box<[u8]>]) -> List<Box<[u8]>> {
     out
 }
 fn report_record(v: &GateReport) -> w::SettingsGateReport {
-    w::SettingsGateReport::new(
-        &w::CEILINGS,
-        w::SettingsGateReportParts {
-            artifact: v.artifact.clone(),
-            format: format_record(v.format),
-            fuzzy: v.fuzzy.clone(),
-        },
-    )
-    .expect("admitted report")
+    w::SettingsGateReport { artifact: v.artifact.clone(), format: format_record(v.format), fuzzy: v.fuzzy.clone() }
 }
 #[expect(clippy::manual_map, reason = "the domain matches optional report records without closures")]
 pub fn gate_record(v: &Gate) -> w::SettingsGate {
-    w::SettingsGate::new(
-        &w::CEILINGS,
-        w::SettingsGateParts {
-            name: v.name.clone(),
-            workflow: v.workflow.clone(),
-            ignored: ignored(&v.ignored),
-            blocking: v.blocking,
-            base: v.base,
-            report: match &v.report {
-                Some(report) => Some(report_record(report)),
-                None => None,
-            },
+    w::SettingsGate {
+        name: v.name.clone(),
+        workflow: v.workflow.clone(),
+        ignored: ignored(&v.ignored),
+        blocking: v.blocking,
+        base: v.base,
+        report: match &v.report {
+            Some(report) => Some(report_record(report)),
+            None => None,
         },
-    )
-    .expect("admitted gate")
+    }
 }
 pub fn tier_record(v: &Tier) -> w::SettingsTier {
-    w::SettingsTier::new(
-        &w::CEILINGS,
-        w::SettingsTierParts {
-            name: v.name.clone(),
-            workflow: v.workflow.clone(),
-            ignored: ignored(&v.ignored),
-            artifact: v.artifact.clone(),
-            format: format_record(v.format),
-            follows: match &v.follows {
-                Follows::Landing => w::SettingsFollows::Landing,
-                Follows::Goals => w::SettingsFollows::Goals,
-                Follows::Branch(name) => w::SettingsFollows::Branch(
-                    w::SettingsBranch::new(&w::CEILINGS, w::SettingsBranchParts { name: name.clone() })
-                        .expect("admitted branch"),
-                ),
-            },
-            span_ms: match v.span {
-                Some(span) => span.as_millis(),
-                None => 0,
-            },
-            description: v.description.clone(),
+    w::SettingsTier {
+        name: v.name.clone(),
+        workflow: v.workflow.clone(),
+        ignored: ignored(&v.ignored),
+        artifact: v.artifact.clone(),
+        format: format_record(v.format),
+        follows: match &v.follows {
+            Follows::Landing => w::SettingsFollows::Landing,
+            Follows::Goals => w::SettingsFollows::Goals,
+            Follows::Branch(name) => w::SettingsFollows::Branch(w::SettingsBranch { name: name.clone() }),
         },
-    )
-    .expect("admitted tier")
+        span_ms: match v.span {
+            Some(span) => span.as_millis(),
+            None => 0,
+        },
+        description: v.description.clone(),
+    }
 }
 fn gate_from(v: w::SettingsGate) -> Gate {
-    let v = v.into_parts();
     Gate {
         name: v.name,
         workflow: v.workflow,
@@ -197,7 +173,7 @@ fn gate_from(v: w::SettingsGate) -> Gate {
         base: v.base,
         report: match v.report {
             Some(report) => {
-                let r = report.into_parts();
+                let r = report;
                 Some(GateReport { artifact: r.artifact, format: format_from(r.format), fuzzy: r.fuzzy })
             }
             None => None,
@@ -205,7 +181,6 @@ fn gate_from(v: w::SettingsGate) -> Gate {
     }
 }
 fn tier_from(v: w::SettingsTier) -> Tier {
-    let v = v.into_parts();
     Tier {
         name: v.name,
         workflow: v.workflow,
@@ -215,7 +190,7 @@ fn tier_from(v: w::SettingsTier) -> Tier {
         follows: match v.follows {
             w::SettingsFollows::Landing => Follows::Landing,
             w::SettingsFollows::Goals => Follows::Goals,
-            w::SettingsFollows::Branch(b) => Follows::Branch(b.into_parts().name),
+            w::SettingsFollows::Branch(b) => Follows::Branch(b.name),
         },
         span: match v.span_ms {
             0 => None,
@@ -229,14 +204,14 @@ fn append(out: &mut Writer, bytes: &[u8]) {
 }
 fn encoded_gate(v: &Gate) -> Box<[u8]> {
     let r = gate_record(v);
-    let mut out = Writer::new(skein_lib::usize_of(r.measure()));
-    r.encode(&mut out).expect("measured gate");
+    let mut out = Writer::new(skein_lib::usize_of(r.measure(&w::CEILINGS).expect("admitted settings within ceilings")));
+    r.write(&w::CEILINGS, &mut out).expect("measured gate");
     out.finish()
 }
 fn encoded_tier(v: &Tier) -> Box<[u8]> {
     let r = tier_record(v);
-    let mut out = Writer::new(skein_lib::usize_of(r.measure()));
-    r.encode(&mut out).expect("measured tier");
+    let mut out = Writer::new(skein_lib::usize_of(r.measure(&w::CEILINGS).expect("admitted settings within ceilings")));
+    r.write(&w::CEILINGS, &mut out).expect("measured tier");
     out.finish()
 }
 fn repository_record(v: &RepositoryGates) -> w::RepositoryGates {
@@ -248,16 +223,12 @@ fn repository_record(v: &RepositoryGates) -> w::RepositoryGates {
     for tier in &v.tiers {
         append(&mut tiers, &encoded_tier(tier));
     }
-    w::RepositoryGates::new(
-        &w::CEILINGS,
-        w::RepositoryGatesParts {
-            forge: v.repository.forge,
-            repository: v.repository.repository,
-            gates: gates.finish(),
-            tiers: tiers.finish(),
-        },
-    )
-    .expect("admitted repository gates")
+    w::RepositoryGates {
+        forge: v.repository.forge,
+        repository: v.repository.repository,
+        gates: gates.finish(),
+        tiers: tiers.finish(),
+    }
 }
 pub fn gates_record(v: &ProjectGates) -> w::ProjectGates {
     let mut out = Writer::new(skein_lib::usize_of(
@@ -265,21 +236,21 @@ pub fn gates_record(v: &ProjectGates) -> w::ProjectGates {
     ));
     for repo in &v.repositories {
         let r = repository_record(repo);
-        let mut item = Writer::new(skein_lib::usize_of(r.measure()));
-        r.encode(&mut item).expect("measured repository");
+        let mut item =
+            Writer::new(skein_lib::usize_of(r.measure(&w::CEILINGS).expect("admitted settings within ceilings")));
+        r.write(&w::CEILINGS, &mut item).expect("measured repository");
         append(&mut out, &item.finish());
     }
-    w::ProjectGates::new(&w::CEILINGS, w::ProjectGatesParts { repositories: out.finish() })
-        .expect("admitted project gates")
+    w::ProjectGates { repositories: out.finish() }
 }
 pub fn gates_from(v: w::ProjectGates) -> Option<ProjectGates> {
-    let bytes = v.into_parts().repositories;
+    let bytes = v.repositories;
     let mut input = Reader::new(&bytes);
     let mut charged = 4;
     let mut repositories = List::uncapped();
     while let Some(bytes) = skein_codec::piece::split_within(&mut input, &mut charged, u64::from(CARRIER)).ok()? {
         let mut r = Reader::new(&bytes);
-        let v = w::RepositoryGates::decode(&w::CEILINGS, &mut r).ok()?.into_parts();
+        let v = w::RepositoryGates::decode(&w::CEILINGS, &mut r).ok()?;
         if !r.is_empty() {
             return None;
         }

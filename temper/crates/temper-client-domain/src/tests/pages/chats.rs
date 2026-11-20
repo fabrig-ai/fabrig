@@ -1442,10 +1442,7 @@ fn chat_parts_require_the_forge_version_and_a_complete_record() {
     use temper_client_domain_forge::parts;
     let part = document_part(Some(b"away-mode.md"));
     let RowPart::Value(value) = &part else { unreachable!() };
-    assert_eq!(
-        parts::chat(&document_line(4, part.clone())).unwrap().into_parts().document.unwrap().as_ref(),
-        b"away-mode.md"
-    );
+    assert_eq!(parts::chat(&document_line(4, part.clone())).unwrap().document.unwrap().as_ref(), b"away-mode.md");
     let mut trailing = List::uncapped();
     for byte in value.bytes.iter().copied() {
         trailing.push(byte).unwrap();
@@ -1485,13 +1482,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
             live.push(row).unwrap();
         }
         dismissed
-            .push(w::PersonFact::GoalFrom(
-                w::GoalFrom::new(
-                    &w::CEILINGS,
-                    w::GoalFromParts { project: fixtures::PROJECT, chat, goal: chat + 100, at: 1 },
-                )
-                .unwrap(),
-            ))
+            .push(w::PersonFact::GoalFrom(w::GoalFrom { project: fixtures::PROJECT, chat, goal: chat + 100, at: 1 }))
             .unwrap();
     }
     let mut out = Queue::uncapped();
@@ -1514,7 +1505,7 @@ fn goal_chips_cover_only_the_newest_rows_across_both_lists() {
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::dismissals(&w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap()),
+                bytes: wire::dismissals(&w::Dismissals { dismissed }),
             },
         },
     ] {

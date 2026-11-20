@@ -25,30 +25,26 @@ fn row(
     stop: Option<w::AdminStop>,
     first: Option<w::FirstRepository>,
 ) -> w::ForgeRow {
-    w::ForgeRow::new(
-        &w::CEILINGS,
-        w::ForgeRowParts {
-            starts_with: w::StartsWith::Repository,
-            makings: List::with_capacity(0),
-            host: b"git.example:3000".as_slice().into(),
-            number: FORGE,
-            kind: w::Kind::Forgejo,
-            mode: w::Mode::Managed,
-            connection,
-            offer: w::Offer::NotOffered,
-            first,
-            installations: List::with_capacity(0),
-            ended: None,
-            app: None,
-            web: None,
-            repositories: List::with_capacity(0),
-            owned: None,
-            admin,
-            read_only: false,
-            ended_stop: stop,
-        },
-    )
-    .unwrap()
+    w::ForgeRow {
+        starts_with: w::StartsWith::Repository,
+        makings: List::with_capacity(0),
+        host: b"git.example:3000".as_slice().into(),
+        number: FORGE,
+        kind: w::Kind::Forgejo,
+        mode: w::Mode::Managed,
+        connection,
+        offer: w::Offer::NotOffered,
+        first,
+        installations: List::with_capacity(0),
+        ended: None,
+        app: None,
+        web: None,
+        repositories: List::with_capacity(0),
+        owned: None,
+        admin,
+        read_only: false,
+        ended_stop: stop,
+    }
 }
 fn deliver(root: &mut crate::Domain, watch: Token, row: w::ForgeRow) -> Queue<Request> {
     let mut rows = List::with_capacity(1);
@@ -62,9 +58,7 @@ fn deliver(root: &mut crate::Domain, watch: Token, row: w::ForgeRow) -> Queue<Re
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
-                        ),
+                        bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                     },
                 },
             },
@@ -140,15 +134,14 @@ fn the_token_is_secret_and_carried_once_with_the_first_ask() {
             assert_eq!(value.expose(), expected);
             let jig_client::Ask::Family { record, .. } = request else { panic!("family") };
             assert!(skein_lib::bytes::find(&record.bytes, TOKEN).is_none());
-            let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            let w::Request::Connect(connect) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("connect")
             };
-            let w::How::ForgejoAdmin(admin) = connect.how() else { panic!("admin") };
-            let first = admin.first().as_ref().unwrap();
+            let w::How::ForgejoAdmin(admin) = &connect.how else { panic!("admin") };
+            let first = admin.first.as_ref().unwrap();
             assert_eq!(
-                (first.org(), first.repository(), first.label()),
+                (first.org.as_ref(), first.repository.as_ref(), first.label.as_ref()),
                 (b"team".as_slice(), b"app".as_slice(), b"linux.arm_64-1".as_slice())
             );
         }
@@ -163,14 +156,8 @@ fn each_stop_returns_to_details_and_erases_only_the_token() {
         w::AdminStop::NotAdmin,
         w::AdminStop::Unmarked,
         w::AdminStop::Other,
-        w::AdminStop::Refused(
-            w::AdminRefused::new(&w::CEILINGS, w::AdminRefusedParts { status: 401, stage: w::SetupStage::Admin })
-                .unwrap(),
-        ),
-        w::AdminStop::Refused(
-            w::AdminRefused::new(&w::CEILINGS, w::AdminRefusedParts { status: 403, stage: w::SetupStage::Bot })
-                .unwrap(),
-        ),
+        w::AdminStop::Refused(w::AdminRefused { status: 401, stage: w::SetupStage::Admin }),
+        w::AdminStop::Refused(w::AdminRefused { status: 403, stage: w::SetupStage::Bot }),
     ] {
         let (mut root, watch) = opened();
         write(&mut root, Field::Organization, b"team");
@@ -191,23 +178,17 @@ fn each_stop_returns_to_details_and_erases_only_the_token() {
     }
 }
 fn connected() -> w::Connection {
-    w::Connection::Connected(
-        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 7, login: b"temper".as_slice().into() }).unwrap(),
-    )
+    w::Connection::Connected(w::Connected { id: 7, login: b"temper".as_slice().into() })
 }
 fn first() -> w::FirstRepository {
-    w::FirstRepository::new(
-        &w::CEILINGS,
-        w::FirstRepositoryParts {
-            playground: false,
-            sample: false,
-            org: b"work".as_slice().into(),
-            repository: b"hello".as_slice().into(),
-            state: w::FirstState::Made(w::Made::new(&w::CEILINGS, w::MadeParts { id: 42 }).unwrap()),
-            label: b"docker".as_slice().into(),
-        },
-    )
-    .unwrap()
+    w::FirstRepository {
+        playground: false,
+        sample: false,
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        state: w::FirstState::Made(w::Made { id: 42 }),
+        label: b"docker".as_slice().into(),
+    }
 }
 #[test]
 fn connecting_then_ready_makes_no_project_and_adopts_nothing() {
@@ -260,13 +241,9 @@ fn create_stops_keep_the_fields_and_empty_the_token() {
     for step in [w::CreateStep::Admin, w::CreateStep::Org, w::CreateStep::Repository, w::CreateStep::File] {
         let (mut root, watch) = opened();
         token(&mut root, TOKEN);
-        let mut parts = first().into_parts();
-        parts.state = w::FirstState::Failed(w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step }).unwrap());
-        deliver(
-            &mut root,
-            watch,
-            row(true, w::Connection::NotConnected, None, Some(w::FirstRepository::new(&w::CEILINGS, parts).unwrap())),
-        );
+        let mut parts = first();
+        parts.state = w::FirstState::Failed(w::CreateFailed { step });
+        deliver(&mut root, watch, row(true, w::Connection::NotConnected, None, Some(parts)));
         assert!(!root.forge().admin_form().has_token());
         assert_eq!(
             forge::connect::step(Some(Choice::Forge(FORGE)), root.forges(), None, true),
@@ -333,15 +310,14 @@ fn a_managed_forgejo_sends_connect_new_managed_with_its_place() {
                 },
         } = request
         {
-            let w::Request::Connect(connect) =
-                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            let w::Request::Connect(connect) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
             else {
                 panic!("connect")
             };
-            let w::Making::New(new) = connect.forge() else { panic!("new") };
-            let w::ForgeAsk::Managed(managed) = new.forge() else { panic!("managed") };
+            let w::Making::New(new) = &connect.forge else { panic!("new") };
+            let w::ForgeAsk::Managed(managed) = &new.forge else { panic!("managed") };
             assert_eq!(
-                (managed.host(), managed.port(), managed.tls(), managed.git(), managed.web()),
+                (managed.host.as_ref(), managed.port, &managed.tls, managed.git.as_ref(), &managed.web),
                 (place.host.as_ref(), place.port, &place.tls, place.git.as_ref(), &place.web)
             );
             found = true;

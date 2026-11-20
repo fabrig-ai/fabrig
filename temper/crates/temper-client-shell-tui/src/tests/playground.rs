@@ -31,10 +31,9 @@ pub(super) fn forges_watch(duties: &Duties) -> u64 {
             if open.subject.owner == w::Owner::Jig {
                 return None;
             }
-            let envelope =
-                w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
+            let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).unwrap();
             let watch = wire::decode_watching(envelope.record.as_ref(), &f::CEILINGS).unwrap();
-            (watch.watch() == &f::Watch::Forges).then_some(open.watch)
+            (watch.watch == f::Watch::Forges).then_some(open.watch)
         })
         .expect("session forges watch")
 }
@@ -50,7 +49,7 @@ fn playground_read(duties: &Duties) -> ReplySlot {
             }
             let envelope = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(owned.record.as_ref())).unwrap();
             let read = wire::decode_reading(envelope.record.as_ref(), &f::CEILINGS).unwrap();
-            (read.read() == &f::Read::Playground).then_some(slot)
+            (read.read == f::Read::Playground).then_some(slot)
         })
         .expect("a first fake row refreshes the playground read")
 }
@@ -82,21 +81,15 @@ fn a_first_forges_delivery_with_the_playground_draws_it_without_reconnecting() {
     admit(&mut host, duties);
     assert_eq!(host.root.pages().address(), &Address::Home { project: 3 });
 
-    let record = wire::playground_answer(
-        &f::PlaygroundAnswer::new(
-            &f::CEILINGS,
-            f::PlaygroundAnswerParts {
-                state: f::PlaygroundState::Running,
-                project: Some(3),
-                forge: 2,
-                provider: 3,
-                owner: b"playground".as_slice().into(),
-                name: b"widget".as_slice().into(),
-                cues: List::with_capacity(0),
-            },
-        )
-        .unwrap(),
-    );
+    let record = wire::playground_answer(&f::PlaygroundAnswer {
+        state: f::PlaygroundState::Running,
+        project: Some(3),
+        forge: 2,
+        provider: 3,
+        owner: b"playground".as_slice().into(),
+        name: b"widget".as_slice().into(),
+        cues: List::with_capacity(0),
+    });
     let answer = w::ReadAnswer::Value(goal::family(record));
     let mut writer = Writer::new(
         usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),

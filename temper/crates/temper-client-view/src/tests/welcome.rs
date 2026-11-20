@@ -56,8 +56,8 @@ fn waiting_for_deployment(step: Step) -> (d::Domain, skein_lib::Token) {
                     down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                 },
         } = request
-            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read()
-                == &w::Read::Deployment
+            && temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
+                == w::Read::Deployment
         {
             return (root, *read);
         }
@@ -229,13 +229,7 @@ fn the_sheet_opens_over_the_forge_choices() {
 fn the_sheet_shows_a_new_forges_refusal_above_its_foot() {
     let mut root = sheet_root();
     let token = forge::attempt(forge::act(&mut root, d::forge::Act::Forges(d::forge::forges::Act::RunOwned)));
-    forge::answer(
-        &mut root,
-        token,
-        w::Outcome::SetUpRefused(
-            w::SetUpRefused::new(&w::CEILINGS, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
-        ),
-    );
+    forge::answer(&mut root, token, w::Outcome::SetUpRefused(w::SetUpRefused { why: w::SetUpRefusal::Busy }));
     let view = f::page_view(&root);
     let nodes = sheet(view.tree());
     let refusal = d::forge::words::set_up_refusal(d::forge::forges::SetUpRefusal::Busy);
@@ -354,12 +348,7 @@ fn model_names_the_first_repository_while_forgejo_sets_up() {
     forge::deliver(
         &mut root,
         watch,
-        forge::rows(
-            w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: None, fetched: None }).unwrap(),
-            ),
-            w::Offer::Offered,
-        ),
+        forge::rows(w::Connection::SettingUp(w::SettingUp { step: None, fetched: None }), w::Offer::Offered),
     );
     f::root_event(
         &mut root,
@@ -423,10 +412,7 @@ fn model_keeps_github_connecting_until_an_installation_is_accepted() {
 #[test]
 fn model_says_which_setup_failed_and_keeps_its_steps() {
     let view = model_view(forge::rows(
-        w::Connection::SetUpFailed(
-            w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
-                .unwrap(),
-        ),
+        w::Connection::SetUpFailed(w::SetUpFailed { why: b"fetch failed".as_slice().into(), at: None }),
         w::Offer::Offered,
     ));
     let line = lines_in_pane(view.tree(), "Forgejo on this machine · Set up failed: fetch failed");
@@ -459,10 +445,8 @@ fn model_names_the_failed_first_repository_step() {
             "Making work/hello failed: adding the starter workflow",
         ),
     ] {
-        let view = model_view(forge::first_rows(
-            w::Connection::Connecting,
-            w::FirstState::Failed(w::CreateFailed::new(&w::CEILINGS, w::CreateFailedParts { step }).unwrap()),
-        ));
+        let view =
+            model_view(forge::first_rows(w::Connection::Connecting, w::FirstState::Failed(w::CreateFailed { step })));
         lines_in_pane(view.tree(), connection);
         each_step(view.tree(), true);
         forge::words_in_order(view.tree(), &["failed", failed]);
@@ -1220,9 +1204,9 @@ fn a_kept_real_forge_hides_the_playground() {
     cases.push(forge::rows(forge::connected(), w::Offer::Offered));
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
         let mut rows = forge::github_rows(false);
-        let mut parts = rows.get(0).unwrap().clone().into_parts();
+        let mut parts = rows.get(0).unwrap().clone();
         parts.app = Some(app);
-        *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+        *rows.get_mut(0).unwrap() = parts;
         cases.push(rows);
     }
     for rows in cases {
@@ -1394,23 +1378,13 @@ fn a_failed_model_keeps_the_welcomes_sign_in_back() {
 
 fn github_adopted_rows() -> skein_lib::List<w::ForgeRow> {
     let mut rows = forge::github_rows(true);
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.repositories = skein_lib::List::with_capacity(1);
     parts
         .repositories
-        .push(
-            w::Adoption::new(
-                &w::CEILINGS,
-                w::AdoptionParts {
-                    owner: b"sam".as_slice().into(),
-                    name: b"widget".as_slice().into(),
-                    project: f::PROJECT,
-                },
-            )
-            .unwrap(),
-        )
+        .push(w::Adoption { owner: b"sam".as_slice().into(), name: b"widget".as_slice().into(), project: f::PROJECT })
         .unwrap();
-    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    *rows.get_mut(0).unwrap() = parts;
     rows
 }
 #[test]
@@ -1428,11 +1402,11 @@ fn managed_forgejo_ready_uses_the_default_checklist() {
     // Forge 4 is Forgejo elsewhere in the standalone configuration.
     const ELSEWHERE: u16 = 4;
     let mut rows = owned_adopted_rows();
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
     parts.number = ELSEWHERE;
     parts.mode = w::Mode::Managed;
     parts.admin = true;
-    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    *rows.get_mut(0).unwrap() = parts;
     let root = ready_root(rows);
     let view = f::page_view(&root);
     node(view.tree(), Role::Heading { level: 1 }, "Ready");
@@ -1677,9 +1651,7 @@ fn welcomes_five_steps_name_no_version_or_future_login() {
     for (pins, runner) in [(true, true), (false, false)] {
         for (step, expected) in [(w::SetUpStep::Fetch, "Fetching Forgejo"), (w::SetUpStep::Prepare, "Fetched Forgejo")]
         {
-            let connection = w::Connection::SettingUp(
-                w::SettingUp::new(&w::CEILINGS, w::SettingUpParts { step: Some(step), fetched: None }).unwrap(),
-            );
+            let connection = w::Connection::SettingUp(w::SettingUp { step: Some(step), fetched: None });
             let root =
                 f::forge_root(Address::Welcome { step: Step::Ready }, forge::pinned_rows(connection, pins, runner));
             for view in [f::page_view(&root), f::browser_page_view(&root)] {
@@ -1700,13 +1672,7 @@ fn ready_offers_forgejo_sign_in_only_when_its_owned_forge_is_connected() {
         (forge::first_rows(w::Connection::Connecting, w::FirstState::Making), false),
         (
             forge::pinned_rows(
-                w::Connection::SettingUp(
-                    w::SettingUp::new(
-                        &w::CEILINGS,
-                        w::SettingUpParts { step: Some(w::SetUpStep::Fetch), fetched: None },
-                    )
-                    .unwrap(),
-                ),
+                w::Connection::SettingUp(w::SettingUp { step: Some(w::SetUpStep::Fetch), fetched: None }),
                 true,
                 true,
             ),
@@ -1879,21 +1845,16 @@ fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::T
                                 record: jig_client::Family {
                                     family: wire::FORGE,
                                     version: wire::CLIENT_VERSION,
-                                    bytes: wire::dismissals(
-                                        &w::Dismissals::new(
-                                            &w::CEILINGS,
-                                            w::DismissalsParts { dismissed: skein_lib::List::with_capacity(0) },
-                                        )
-                                        .unwrap(),
-                                    ),
+                                    bytes: wire::dismissals(&w::Dismissals {
+                                        dismissed: skein_lib::List::with_capacity(0),
+                                    }),
                                 },
                             },
                         },
                     },
                 );
             } else if Some(subject.clone()) == d::forge::forges::watch(&f::limits().forge) {
-                let doc = w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: owned_adopted_rows(), linked: true })
-                    .unwrap();
+                let doc = w::Forges { forges: owned_adopted_rows(), linked: true };
                 f::root_event(
                     &mut root,
                     d::Event::Client {
@@ -1919,9 +1880,9 @@ fn ready_with_pending_playground() -> (d::Domain, skein_lib::Token, skein_lib::T
         } = request
         {
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-            if reading.read() == &w::Read::Deployment {
+            if reading.read == w::Read::Deployment {
                 f::deliver_deployment(&mut root, *read, true, true);
-            } else if reading.read() == &w::Read::Playground {
+            } else if reading.read == w::Read::Playground {
                 playground = Some(*read);
             }
         }
@@ -2068,15 +2029,15 @@ fn ready_names_its_first_project_in_a_form() {
 fn forge_step_draws_its_status_in_the_column_and_continues() {
     let address = Address::Welcome { step: Step::Forge { forge: Some(d::Choice::Forge(HERE)) } };
     let mut github = forge::github_rows(true);
-    let mut parts = github.get(0).unwrap().clone().into_parts();
+    let mut parts = github.get(0).unwrap().clone();
     let accepted = parts.installations.get(0).unwrap().clone();
     *parts.installations.get_mut(0).unwrap() = parts.installations.get(1).unwrap().clone();
     *parts.installations.get_mut(1).unwrap() = accepted;
-    *github.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    *github.get_mut(0).unwrap() = parts;
     let mut no_first = forge::first_rows(forge::connected(), forge::made());
-    let mut parts = no_first.get(0).unwrap().clone().into_parts();
+    let mut parts = no_first.get(0).unwrap().clone();
     parts.first = None;
-    *no_first.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    *no_first.get_mut(0).unwrap() = parts;
     for (rows, address, line, done) in [
         (
             forge::first_rows(w::Connection::Connecting, w::FirstState::Making),
@@ -2177,16 +2138,12 @@ fn forge_step_keeps_recovery_installation_and_admin_steps_without_view() {
     for (rows, _, _) in forge::failure_cases() {
         cases.push((rows, Some(d::Choice::Forge(HERE)), "Set up failed"));
     }
-    let admin = forge::rows(
-        w::Connection::Stopped(
-            w::Stopped::new(&w::CEILINGS, w::StoppedParts { reason: b"stopped".as_slice().into() }).unwrap(),
-        ),
-        w::Offer::Offered,
-    );
-    let mut parts = admin.get(1).unwrap().clone().into_parts();
+    let admin =
+        forge::rows(w::Connection::Stopped(w::Stopped { reason: b"stopped".as_slice().into() }), w::Offer::Offered);
+    let mut parts = admin.get(1).unwrap().clone();
     parts.admin = true;
     let mut rows = skein_lib::List::with_capacity(1);
-    rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
+    rows.push(parts).unwrap();
     cases.push((
         rows,
         Some(d::Choice::Forge(HERE)),
@@ -2217,15 +2174,13 @@ fn forge_status_keeps_the_complete_login_and_repository() {
     let org = "o".repeat(NAME_BYTES);
     let repository = "r".repeat(NAME_BYTES);
     let mut rows = forge::first_rows(forge::connected(), forge::made());
-    let mut parts = rows.get(0).unwrap().clone().into_parts();
-    parts.connection = w::Connection::Connected(
-        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: login.as_bytes().into() }).unwrap(),
-    );
-    let mut first = parts.first.take().unwrap().into_parts();
+    let mut parts = rows.get(0).unwrap().clone();
+    parts.connection = w::Connection::Connected(w::Connected { id: 42, login: login.as_bytes().into() });
+    let mut first = parts.first.take().unwrap();
     first.org = org.as_bytes().into();
     first.repository = repository.as_bytes().into();
-    parts.first = Some(w::FirstRepository::new(&w::CEILINGS, first).unwrap());
-    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    parts.first = Some(first);
+    *rows.get_mut(0).unwrap() = parts;
     let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, rows);
     let mut expected = String::from("Forgejo on this machine · connected as ");
     for part in [&login, " · ", &org, "/", &repository, " made"] {
@@ -2930,17 +2885,15 @@ fn ready_copies_name_the_project_and_lead_in_both_shells() {
         ),
     ] {
         let mut rows = owned_adopted_rows();
-        let mut parts = rows.get(0).unwrap().clone().into_parts();
+        let mut parts = rows.get(0).unwrap().clone();
         parts.first = None;
         parts.repositories.clear();
         let mut copies = skein_lib::List::with_capacity(temper_client_protocol_wire::FIRST_COPIES);
         for address in addresses {
             copies.push((*address).into()).unwrap();
         }
-        parts.starts_with = w::StartsWith::Copies(
-            w::CopyAddresses::new(&w::CEILINGS, w::CopyAddressesParts { addresses: copies }).unwrap(),
-        );
-        *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+        parts.starts_with = w::StartsWith::Copies(w::CopyAddresses { addresses: copies });
+        *rows.get_mut(0).unwrap() = parts;
         let root = ready_root(rows);
         for view in [f::page_view(&root), f::browser_page_view(&root)] {
             node(view.tree(), Role::Paragraph, lead);

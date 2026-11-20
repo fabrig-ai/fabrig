@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use jig_client::{Ask, Family, Handle, Latest, Link, Told, Watchable, contract as c};
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Reader, Token};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -100,21 +101,21 @@ impl Side {
 #[must_use]
 pub fn watch(limits: &Limits) -> Option<Watchable> {
     let bounds = wire_limits(limits)?;
-    let record = w::Watching::new(&bounds, w::WatchingParts { watch: w::Watch::Trials }).ok()?;
+    let record = w::Watching { watch: w::Watch::Trials };
     Some(Watchable::Family {
         scope: c::Scope::Own,
         window: c::Window { rows: 0, after: None },
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::watching(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 #[must_use]
 pub fn ask(account: u32, again: bool, limits: &Limits) -> Option<Ask> {
     let bounds = wire_limits(limits)?;
-    let value = w::TryAccount::new(&bounds, w::TryAccountParts { account, again }).ok()?;
-    let record = w::Requesting::new(&bounds, w::RequestingParts { request: w::Request::TryAccount(value) }).ok()?;
+    let value = w::TryAccount { account, again };
+    let record = w::Requesting { request: w::Request::TryAccount(value) };
     Some(Ask::Family {
         scope: c::Scope::Own,
-        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
+        record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: record.encode(&bounds).ok()? },
     })
 }
 pub(crate) fn handle() -> Handle {
@@ -269,21 +270,20 @@ fn rows(record: &Family, limits: &crate::Limits) -> Option<Box<[Row]>> {
         return None;
     }
     let mut rows = List::with_capacity(bounds.trials_rows);
-    for value in document.into_parts().rows.into_boxed() {
-        let value = value.into_parts();
+    for value in document.rows.into_boxed() {
         let step = match value.step {
             w::TrialStep::Starts => Step::Starts,
             w::TrialStep::Answers => Step::Answers,
         };
         let state = match value.state {
             w::TrialState::Running => State::Running,
-            w::TrialState::Answered(value) => State::Answered { seconds: value.seconds() },
+            w::TrialState::Answered(value) => State::Answered { seconds: value.seconds },
             w::TrialState::Failed(value) => State::Failed {
-                why: match value.into_parts().why {
+                why: match value.why {
                     w::TrialWhy::Refused => Why::Refused,
                     w::TrialWhy::Waited => Why::Waited,
                     w::TrialWhy::Ended(value) => Why::Ended {
-                        class: match value.class() {
+                        class: match &value.class {
                             w::TrialClass::Transient => Class::Transient,
                             w::TrialClass::Permanent => Class::Permanent,
                             w::TrialClass::Run => Class::Run,
@@ -325,7 +325,7 @@ fn tried(outcome: &jig_client::Outcome, limits: Limits) -> bool {
     let Some(bounds) = wire_limits(&limits) else { return false };
     let mut reader = Reader::new(&record.bytes);
     let Ok(answer) = w::Answer::decode(&bounds, &mut reader) else { return false };
-    reader.is_empty() && *answer.outcome() == w::Outcome::Tried
+    reader.is_empty() && answer.outcome == w::Outcome::Tried
 }
 
 fn run_wait(bytes: &[u8], limits: &jig_client_protocol_link::Limits) -> Option<c::TaskRunWait> {

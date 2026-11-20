@@ -15,6 +15,7 @@ use crate::{
 use jig_client::contract as c;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{Duration, List, Wall};
+use temper_client_protocol_wire::v1::Record;
 
 fn list<T, I: IntoIterator<Item = T>>(values: I) -> List<T> {
     let values: Vec<T> = values.into_iter().collect();
@@ -583,14 +584,14 @@ fn read(argv: &[&str], value: c::ReadValue) -> jig::Printed {
     }
     while root.family_reads.contains_key(&call) {
         if let temper_client_protocol_wire::v1::Read::Setting(query) = forge_query(&root, call) {
-            assert_eq!(query.kind(), 21, "inventory limit read");
+            assert_eq!(query.kind, 21, "inventory limit read");
             root.serve_readout(call, forge_setting_page(None));
             continue;
         }
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("revision value")
         };
-        root.serve_readout(call, forge_setting_page(Some(forge_value(query.kind()))));
+        root.serve_readout(call, forge_setting_page(Some(forge_value(query.kind))));
     }
     root.answer(call).expect("read completed")
 }
@@ -2213,9 +2214,7 @@ fn forge_setting_page(value: Option<Box<[u8]>>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
     jig_client::Readout::Family {
         family: wire::FORGE,
-        record: Some(wire::setting_answer(
-            &w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value }).unwrap(),
-        )),
+        record: Some(wire::setting_answer(&w::SettingAnswer { revision: None, value })),
     }
 }
 fn forge_query(root: &fixtures::Harness, call: u32) -> temper_client_protocol_wire::v1::Read {
@@ -2226,7 +2225,7 @@ fn forge_query(root: &fixtures::Harness, call: u32) -> temper_client_protocol_wi
     };
     assert_eq!(*scope, c::Scope::Deployment);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().into_parts().read
+    wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read
 }
 fn forge_inventory(setting: c::Setting, follows: c::ApplicationFollows) -> c::ReadResult {
     c::ReadResult::Value(c::ReadValue::Settings(Box::new(c::SettingsDocument {
@@ -2315,10 +2314,10 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             assert!(root.answer(call).is_none());
             if historical {
                 let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("revision query") };
-                assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+                assert_eq!((query.kind, query.scope, query.number, query.revision), (kind, scope, 1, 5));
             } else {
                 let w::Read::Setting(query) = forge_query(&root, call) else { panic!("setting query") };
-                assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, 1));
+                assert_eq!((query.kind, query.scope, query.number), (kind, scope, 1));
             }
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
             let answer = root.answer(call).expect("joined setting");
@@ -2401,7 +2400,7 @@ fn forge_setting_commands_join_inventory_state_and_the_forges_value_in_text_and_
             historical.extend_from_slice(&["--revision", "5"]);
             let call = root.submit_prepared(fixtures::call(&historical), json, None);
             let w::Read::RevisionSetting(query) = forge_query(&root, call) else { panic!("historical setting query") };
-            assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+            assert_eq!((query.kind, query.scope, query.number, query.revision), (kind, scope, 1, 5));
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
             let answer = root.answer(call).expect("historical setting");
             assert_eq!(answer.status, 0);
@@ -2593,25 +2592,17 @@ fn forge_state_review(setting: c::Setting, follows: Option<c::ApplicationFollows
 }
 fn forge_set_items(kind: u32) -> jig_client::Readout {
     use temper_client_protocol_wire::v1 as w;
-    let item = w::ProposalItem::new(
-        &w::CEILINGS,
-        w::ProposalItemParts {
-            kind,
-            scope: 0,
-            number: 1,
-            edit: w::SettingEdit::Set(
-                w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(kind) }).unwrap(),
-            ),
-        },
-    )
-    .unwrap();
+    let item = w::ProposalItem {
+        kind,
+        scope: 0,
+        number: 1,
+        edit: w::SettingEdit::Set(w::SettingValue { value: forge_value(kind) }),
+    };
     forge_items_page(list([item]))
 }
 fn forge_items_page(items: List<temper_client_protocol_wire::v1::ProposalItem>) -> jig_client::Readout {
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record =
-        w::ProposalItemsAnswer::new(&w::CEILINGS, w::ProposalItemsAnswerParts { items, owned_approval: false })
-            .unwrap();
+    let record = w::ProposalItemsAnswer { items, owned_approval: false };
     jig_client::Readout::Family { family: wire::FORGE, record: Some(wire::proposal_items_answer(&record)) }
 }
 fn forge_proposed_review(kind: u32, follows: Option<c::ApplicationFollows>, json: bool) -> jig::Printed {
@@ -2709,35 +2700,21 @@ fn forge_proposal_show_reads_the_reviews_key_and_prints_every_temper_edit() {
         let call = root.submit_prepared(fixtures::call(&["proposal", "show", "p73/7"]), json, None);
         serve_review(&mut root, call, forge_review());
         let w::Read::ProposalItems(query) = forge_query(&root, call) else { panic!("proposal items") };
-        assert_eq!(query.key(), u64::MAX, "the review's key, not proposer 73's number 7");
+        assert_eq!(query.key, u64::MAX, "the review's key, not proposer 73's number 7");
         let items = list([
-            w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts {
-                    kind: 1,
-                    scope: 0,
-                    number: 1,
-                    edit: w::SettingEdit::Set(
-                        w::SettingValue::new(&w::CEILINGS, w::SettingValueParts { value: forge_value(1) }).unwrap(),
-                    ),
-                },
-            )
-            .unwrap(),
-            w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
-            )
-            .unwrap(),
-            w::ProposalItem::new(
-                &w::CEILINGS,
-                w::ProposalItemParts { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
-            )
-            .unwrap(),
+            w::ProposalItem {
+                kind: 1,
+                scope: 0,
+                number: 1,
+                edit: w::SettingEdit::Set(w::SettingValue { value: forge_value(1) }),
+            },
+            w::ProposalItem { kind: 2, scope: 7, number: 2, edit: w::SettingEdit::Removed },
+            w::ProposalItem { kind: 3, scope: 0, number: 1, edit: w::SettingEdit::Reset },
         ]);
         root.serve_readout(call, forge_items_page(items));
         for (kind, scope, number) in [(1, 0, 1), (2, 7, 2), (3, 0, 1)] {
             let w::Read::Setting(query) = forge_query(&root, call) else { panic!("current setting") };
-            assert_eq!((query.kind(), query.scope(), query.number()), (kind, scope, number));
+            assert_eq!((query.kind, query.scope, query.number), (kind, scope, number));
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
         }
         let answer = root.answer(call).unwrap();
@@ -3372,7 +3349,7 @@ fn revision_show_reads_temper_set_values_at_the_recorded_revision() {
             let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
                 panic!("revision-qualified read")
             };
-            assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (kind, scope, 1, 5));
+            assert_eq!((query.kind, query.scope, query.number, query.revision), (kind, scope, 1, 5));
             root.serve_readout(call, forge_setting_page(Some(forge_value(kind))));
         }
         let answer = root.answer(call).expect("historical values joined");
@@ -3433,7 +3410,7 @@ fn revision_show_large_temper_values_name_a_working_historical_read() {
         let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
             panic!("qualified historical read")
         };
-        assert_eq!((query.kind(), query.scope(), query.number(), query.revision()), (2, 1, 1, 5));
+        assert_eq!((query.kind, query.scope, query.number, query.revision), (2, 1, 1, 5));
         root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
         let answer = root.answer(call).expect("whole historical value");
         assert_eq!(answer.status, 0);
@@ -3550,7 +3527,7 @@ fn revision_show_hydrates_replaced_values_for_every_edit() {
                 let temper_client_protocol_wire::v1::Read::RevisionSetting(query) = forge_query(&root, call) else {
                     panic!("historical read")
                 };
-                assert_eq!(query.revision(), revision);
+                assert_eq!(query.revision, revision);
                 root.serve_readout(call, forge_setting_page(Some(forge_value(2))));
             }
             let answer = root.answer(call).expect("hydrated replaced value");

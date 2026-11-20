@@ -188,20 +188,6 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     form_train(domain, env, repository, &branch);
 }
 
-/// A step begun before readiness includes its coalesced wake until it parks.
-/// Later wakes of a waiting change are separate steps (domain/landing.md, 9).
-pub(super) fn settled_steps(domain: &mut Domain, env: &Env<Limits>) {
-    if domain.forge_settling.is_empty() {
-        return;
-    }
-    let prior = core::mem::replace(&mut domain.forge_settling, skein_lib::Set::with_capacity(env.limits.forge.changes));
-    for task in &prior {
-        if domain.core.tasks.procedure_due(*task).is_some() {
-            domain.forge_settling.insert(*task).expect("one settling step per bounded change");
-        }
-    }
-}
-
 fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
     if !domain.forge_refused.is_empty() {
         let train = (repository, Box::from(branch));
@@ -212,8 +198,8 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
             *judged = true;
         }
     }
-    // Due waiting changes leave their units out unless still settling readiness.
-    // Only a gating change whose gates and dependencies have settled holds this
+    // Due ready changes join in queue order and never hold forming. Only a
+    // non-ready change whose gates and dependencies have settled holds this
     // train, for one due step at that head (domain/landing.md, 9).
     let mut excluded = List::with_capacity(env.limits.forge.changes);
     for task in domain.forge.changes_for(repository, env.limits.forge.changes) {
@@ -224,10 +210,6 @@ fn form_train(domain: &mut Domain, env: &Env<Limits>, repository: skein_forge::a
             && let Some((_, _, step)) = domain.core.tasks.procedure_due(task)
         {
             if let forge_change::State::Ready { .. } = row.change.state {
-                if domain.forge_settling.contains(&task) {
-                    return false;
-                }
-                excluded.push(task).expect("bounded changes");
                 continue;
             }
             if forge::gates_settled(row, returned_gate(domain, row), env.limits.forge.change_policy.gates)
@@ -668,24 +650,26 @@ pub(super) fn landing_decision(domain: &mut Domain, env: &Env<Limits>, task: u64
         decision: ProcedureStep::new(end),
     }));
     if choice == landing::Decision::Finish || choice == landing::Decision::Cancel {
-        wake_ready(domain, env, task);
+        wake_train_ready(domain, env, task);
     } else if let landing::Decision::Wait { .. } = choice {
     } else {
         domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
     }
 }
 
-fn wake_ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
-    let Some(row) = domain.forge.landing(task) else { return };
-    let project = row.landing.project;
-    for repository in domain.forge.writable_repositories(project) {
-        for change in domain.forge.changes_for(repository.provider, env.limits.forge.changes) {
-            if let Some(row) = domain.forge.change(change)
-                && row.change.landing.is_none()
-                && let forge_change::State::Ready { .. } = row.change.state
-            {
-                domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));
-            }
+// A landing ends for its train alone (domain/landing.md, 4.2 and 9).
+fn wake_train_ready(domain: &mut Domain, env: &Env<Limits>, task: u64) {
+    let Some(landing) = domain.forge.landing(task) else { return };
+    let Some(member) = landing.landing.members.first() else { return };
+    let repository =
+        skein_forge::api::Repository { forge: member.repository.forge, repository: member.repository.repository };
+    for change in domain.forge.changes_for(repository, env.limits.forge.changes) {
+        if let Some(row) = domain.forge.change(change)
+            && row.change.landing.is_none()
+            && let forge_change::State::Ready { .. } = row.change.state
+            && row.base == landing.landing.branch
+        {
+            domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task: change }));
         }
     }
 }

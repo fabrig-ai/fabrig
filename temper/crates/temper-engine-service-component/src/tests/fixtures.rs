@@ -1866,7 +1866,7 @@ pub fn forge_connecting(
     use jig_client_protocol_wire as j;
     use skein_lib::Reader;
     use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record = wire::requesting(&w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap());
+    let record = wire::requesting(&w::Requesting { request });
     let engine = service.engine.as_mut().unwrap();
     let family = j::FamilyRequest { scope: j::Scope::Deployment, record };
     let mut bytes = skein_lib::Writer::new(
@@ -1892,8 +1892,7 @@ pub fn forge_connecting(
     else {
         panic!("family terminal")
     };
-    let answer =
-        w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record.as_ref())).unwrap().into_parts().outcome;
+    let answer = w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record.as_ref())).unwrap().outcome;
     assert_eq!(answer, w::Outcome::Connecting);
 }
 

@@ -230,11 +230,11 @@ pub fn assert_hold_words(world: &mut World, task: u64, expected: &str) {
 fn panel(world: &mut World, watch: skein_lib::Token, record: &client::Family) -> client::Event {
     use temper_client_protocol_wire as wire;
     let watching = wire::decode_watching(&record.bytes, &wire::v1::CEILINGS).expect("change watch");
-    let wire::v1::Watch::Change(subject) = watching.into_parts().watch else { panic!("change") };
+    let wire::v1::Watch::Change(subject) = watching.watch else { panic!("change") };
     if !world
         .store
         .rows
-        .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::ChangeHot(subject.task())))
+        .contains_key(&temper_engine_domain::Key::Forge(temper_engine_domain_forge::Key::ChangeHot(subject.task)))
     {
         return client::Event::Up { up: client::Up::WatchEnded { watch, end: c::WatchEnd::Unknown } };
     }
@@ -245,7 +245,7 @@ fn panel(world: &mut World, watch: skein_lib::Token, record: &client::Family) ->
         subject: jig_domain_core::documents::Watched::Application {
             scope: jig_domain_people::ApplicationScope::Project(1),
             connector: 0,
-            subject: skein_lib::Token::new(subject.task()),
+            subject: skein_lib::Token::new(subject.task),
         },
         window: jig_domain_core::documents::Window { rows: 0, after: None },
     }));

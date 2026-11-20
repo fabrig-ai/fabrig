@@ -31,47 +31,33 @@ fn compose_keeps_startup_limits_profile_and_endpoint_order_with_named_or_fallbac
     local.program = None;
     local.address = config::EndpointAddress::Socket(([127, 0, 0, 1], 8080).into());
     engine.jig.llm.endpoints = Box::new([openai, local]);
-    let named = s::AgentLimits::new(
-        &s::CEILINGS,
-        s::AgentLimitsParts {
-            window: 2_000_000,
-            output: 1234,
-            reasoning_item: 99,
-            head_ms: 345,
-            idle_ms: 678,
-            oversized: s::Oversized::Drop,
-        },
-    )
-    .unwrap();
-    let fallback = s::AgentLimits::new(
-        &s::CEILINGS,
-        s::AgentLimitsParts {
-            window: 500,
-            output: 100,
-            reasoning_item: 50,
-            head_ms: 10,
-            idle_ms: u64::MAX,
-            oversized: s::Oversized::Fail,
-        },
-    )
-    .unwrap();
-    let agents = s::AgentFigures::new(
-        &s::CEILINGS,
-        s::AgentFiguresParts {
-            profile: List::from_boxed(Box::new([s::AgentFigure::new(
-                &s::CEILINGS,
-                s::AgentFigureParts { name: b"policy.max_turns".as_slice().into(), value: 19 },
-            )
-            .unwrap()])),
-            endpoints: List::from_boxed(Box::new([s::AgentEndpointLimits::new(
-                &s::CEILINGS,
-                s::AgentEndpointLimitsParts { endpoint: b"openai".as_slice().into(), limits: named.clone() },
-            )
-            .unwrap()])),
-            fallback: fallback.clone(),
-        },
-    )
-    .unwrap();
+    let named = s::AgentLimits {
+        window: 2_000_000,
+        output: 1234,
+        reasoning_item: 99,
+        head_ms: 345,
+        idle_ms: 678,
+        oversized: s::Oversized::Drop,
+    };
+    let fallback = s::AgentLimits {
+        window: 500,
+        output: 100,
+        reasoning_item: 50,
+        head_ms: 10,
+        idle_ms: u64::MAX,
+        oversized: s::Oversized::Fail,
+    };
+    let agents = s::AgentFigures {
+        profile: List::from_boxed(Box::new([s::AgentFigure {
+            name: b"policy.max_turns".as_slice().into(),
+            value: 19,
+        }])),
+        endpoints: List::from_boxed(Box::new([s::AgentEndpointLimits {
+            endpoint: b"openai".as_slice().into(),
+            limits: named.clone(),
+        }])),
+        fallback: fallback.clone(),
+    };
     let figures = figures::compose(&engine, &agents);
     assert_eq!(figures.places, 0);
     let profile = &figures.agents.profile;
@@ -103,11 +89,11 @@ fn compose_keeps_startup_limits_profile_and_endpoint_order_with_named_or_fallbac
         let limits = &endpoint.limits;
         assert_eq!(
             (limits.window, limits.output, limits.reasoning_item),
-            (expected_limits.window(), expected_limits.output(), expected_limits.reasoning_item())
+            (expected_limits.window, expected_limits.output, expected_limits.reasoning_item)
         );
         assert_eq!(
             (limits.head, limits.idle),
-            (Duration::from_millis(expected_limits.head_ms()), Duration::from_millis(expected_limits.idle_ms()))
+            (Duration::from_millis(expected_limits.head_ms), Duration::from_millis(expected_limits.idle_ms))
         );
     }
     let openai = &figures.agents.endpoints.as_slice()[0];

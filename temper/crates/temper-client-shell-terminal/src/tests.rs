@@ -6,6 +6,7 @@ use jig_client_protocol_link as link;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Queue, Time};
 use temper_client_domain as client;
+use temper_client_protocol_wire::v1::Record;
 pub use temper_fixtures::client_documents as documents;
 mod family;
 pub(crate) mod fixtures;
