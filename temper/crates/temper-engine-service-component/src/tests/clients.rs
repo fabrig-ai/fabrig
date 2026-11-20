@@ -224,9 +224,16 @@ fn first_link_url_is_what_serve_prints() {
         name: Box::from(b"temper.example.com:8443".as_slice()),
     };
     let address = ([127, 0, 0, 1], 7100).into();
-    let secret = given_secret();
-    for origin in [None, Some(&public)] {
+    let secret = skein_lib::Secret::new(Box::new([7; 32]));
+    for (origin, expected) in [
+        (None, b"http://127.0.0.1:7100/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc".as_slice()),
+        (
+            Some(&public),
+            b"https://temper.example.com:8443/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc".as_slice(),
+        ),
+    ] {
         let url = crate::clients::first_link_url(address, origin, &secret);
+        assert_eq!(url.as_ref(), expected);
         assert!(url == crate::clients::printed::link_public(address, origin, &secret), "same URL bytes");
         assert!(!url.contains(&b'\n'), "the URL has no line feed");
     }
@@ -356,7 +363,7 @@ fn the_component_prints_one_sign_in_link_at_start() {
         &mut None,
     );
     let link = clients.links.pop().unwrap();
-    assert!(link.starts_with(b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret="));
+    assert!(link.starts_with(b"http://127.0.0.1:7100/sign-in?secret="));
     assert!(clients.links.is_empty());
     clients.iterate(
         skein_lib::Time::ZERO,
@@ -513,7 +520,7 @@ fn the_next_clients_stream_opens_once_a_peer_ends_its_own() {
 fn the_engine_prints_one_sign_in_link_at_start() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().expect("sign-in link");
-    assert!(link.starts_with(b"http://127.0.0.1:7100/jig/v1/sign-in/link?secret="));
+    assert!(link.starts_with(b"http://127.0.0.1:7100/sign-in?secret="));
     assert!(service.links().is_empty());
     super::fixtures::turn(&mut service);
     assert!(service.links().is_empty());

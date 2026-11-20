@@ -2,7 +2,7 @@
 use crate::Limits;
 use jig_client_protocol_wire::Record as _;
 #[path = "settings_file_values.rs"]
-mod values;
+pub(crate) mod values;
 use crate::view as c;
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};

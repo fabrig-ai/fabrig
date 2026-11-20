@@ -461,7 +461,7 @@ elif sys.argv[1] == 'program-login':
     print('LOGIN-READ', flush=True)
 else:
     assert sys.argv[1] == '--front'
-    os.write(3, b'http://{address}/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
+    os.write(3, b'http://{address}/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA')
     os.close(3)
     sys.stdin.buffer.read()
 ",

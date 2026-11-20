@@ -2038,3 +2038,173 @@ fn gates_settings_name_a_repository_of_another_project() {
         }
     }
 }
+
+fn repairs_setting() -> settings::ProjectLanding {
+    settings::ProjectLanding {
+        wait: temper_engine_domain_forge_change::Wait::Landed,
+        repairs: Some(settings::RepairSettings {
+            goals: 2,
+            attempts: 2,
+            deadline_ms: 86_400_000,
+            goal: settings::RepairGoalSettings {
+                charter: 1,
+                llm: Some(settings::NamedLlm {
+                    account: Some(9),
+                    main: settings::NamedModel { model: b"scripted".as_slice().into(), effort: None },
+                    subagents: Box::new([]),
+                    later: None,
+                }),
+                priority: 42,
+                budget: 2_000_000,
+            },
+        }),
+        ..settings::ProjectLanding::default()
+    }
+}
+fn repairs_config() -> crate::Config {
+    let mut config = resume_fixture::config(7);
+    let first = resume_fixture::models()[0].clone();
+    let mut other = first.clone();
+    other.name = b"other".as_slice().into();
+    // Deliberately reordered: a kept name must resolve to the new catalogue index.
+    config.core.settings.models = Box::new([other, first]);
+    config
+}
+fn repairs_root() -> (Domain, Env<RootLimits>) {
+    resume_fixture::root_with_config(repairs_config())
+}
+#[test]
+fn repair_proposals_check_the_deployments_charter_models_efforts_and_budget() {
+    for (charter, model, effort, budget, expected) in [
+        (
+            99,
+            b"scripted".as_slice(),
+            None,
+            2_000_000,
+            Some(b"repairs.goal.charter: not offered by the deployment or charter".as_slice()),
+        ),
+        (1, b"gone", None, 2_000_000, Some(b"repairs.goal.llm: not offered by the deployment or charter")),
+        (1, b"other", None, 2_000_000, Some(b"repairs.goal.llm: not offered by the deployment or charter")),
+        (
+            1,
+            b"scripted",
+            Some(b"unknown".as_slice()),
+            2_000_000,
+            Some(b"repairs.goal.llm: not offered by the deployment or charter"),
+        ),
+        (1, b"scripted", None, 1, Some(b"repairs.goal.budget: must be above minimum_run_spend")),
+        (1, b"scripted", None, 2, None),
+    ] {
+        let (mut domain, env) = repairs_root();
+        let mut value = repairs_setting();
+        let goal = &mut value.repairs.as_mut().unwrap().goal;
+        goal.charter = charter;
+        goal.budget = budget;
+        let llm = goal.llm.as_mut().unwrap();
+        llm.main.model = model.into();
+        llm.main.effort = match effort {
+            Some(effort) => Some(Box::from(effort)),
+            None => None,
+        };
+        let judged = judge_landing_value(&mut domain, &env, 4, PROJECT, settings::Value::Landing(value));
+        if let Some(expected) = expected {
+            let connector::Judged::Refuse { why } = judged else { panic!("incomplete repairs refused") };
+            assert_eq!(why.as_ref(), expected);
+        } else {
+            let connector::Judged::Accept { .. } = judged else { panic!("whole repairs accepted") };
+        }
+    }
+}
+fn start_with_repairs(landing: Option<settings::ProjectLanding>, spec: u32) -> (Domain, Env<RootLimits>) {
+    let mut limits = resume_fixture::limits();
+    limits.tasks.spec_bytes = spec;
+    limits.journal.transcript_bytes = limits.journal.transcript_bytes.max(65_536);
+    limits.loads.transcript_bytes = limits.loads.transcript_bytes.max(65_536);
+    limits.loads.bytes = limits.loads.bytes.max(65_536);
+    limits.loads.reply_bytes = limits.loads.reply_bytes.max(limits.loads.bytes);
+    let mut domain = Domain::new(repairs_config(), &limits).unwrap();
+    let env = Env { now: skein_lib::Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut store = resume_fixture::StartStore::new();
+    if let Some(landing) = landing {
+        let value = settings::SizedValue {
+            size: settings::landing_record(&landing)
+                .measure(&temper_client_protocol_wire::v1::CEILINGS)
+                .expect("within ceilings"),
+            value: settings::Value::Landing(landing),
+        };
+        let row = Record::Forge {
+            row: Box::new(forge::Stored::Setting(settings::SettingRow {
+                key: settings::SettingKey { kind: 4, scope: PROJECT, number: 1, slot: settings::SettingSlot::Change },
+                edit: settings::Edit::Set(value),
+            })),
+        };
+        store.rows.insert(row.key(), row);
+    }
+    crate::step(&mut domain, &env, crate::Event::Restart { pending: false });
+    store.run(&mut domain, &env, false);
+    assert!(domain.ready());
+    assert_eq!(domain.start_stop(), None, "incomplete repairs never stop a start");
+    (domain, env)
+}
+fn keep_repairs(domain: &mut Domain, env: &Env<RootLimits>, landing: settings::ProjectLanding) {
+    let value = settings::SizedValue {
+        size: settings::landing_record(&landing)
+            .measure(&temper_client_protocol_wire::v1::CEILINGS)
+            .expect("within ceilings"),
+        value: settings::Value::Landing(landing),
+    };
+    domain.forge.keep_settings(
+        &crate::translate::environment_forge(env),
+        2,
+        None,
+        &[settings::Asked { kind: 4, scope: PROJECT, number: 1, edit: settings::Edit::Set(value) }],
+        &mut Queue::uncapped(),
+    );
+}
+#[test]
+fn a_start_resolves_repairs_or_keeps_the_first_incomplete_field_without_stopping() {
+    for (charter, model, spec, expected) in [
+        (99, b"gone".as_slice(), 8_191, Some(b"repairs are off in project 1: goal.charter".as_slice())),
+        (1, b"gone", 8_191, Some(b"repairs are off in project 1: goal.llm")),
+        (1, b"scripted", 8_191, Some(b"repairs are off in project 1: tasks.spec_bytes")),
+        (1, b"scripted", 8_192, None),
+    ] {
+        let mut landing = repairs_setting();
+        let goal = &mut landing.repairs.as_mut().unwrap().goal;
+        goal.charter = charter;
+        goal.llm.as_mut().unwrap().main.model = model.into();
+        let (domain, _) = start_with_repairs(Some(landing.clone()), spec);
+        if let Some(expected) = expected {
+            assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), expected);
+        } else {
+            let held = domain.forge.project_repairs(PROJECT).unwrap();
+            assert_eq!((held.goals, held.attempts, held.deadline_ms), (2, 2, 86_400_000));
+            assert_eq!((held.goal.charter, held.goal.priority, held.goal.budget), (1, 42, 2_000_000));
+            assert_eq!(held.goal.llm.as_ref().unwrap().main.model, 1, "resolved by name, not old position");
+            assert_eq!(held.goal.llm.as_ref().unwrap().account, Some(9));
+        }
+        assert_eq!(domain.forge.landing_settings(PROJECT), Some(&landing), "taken setting is kept even when off");
+    }
+    let (domain, _) = start_with_repairs(None, 8_192);
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+}
+#[test]
+fn accepted_repair_settings_wait_for_the_next_start() {
+    let (mut domain, mut env) = repairs_root();
+    env.limits.tasks.spec_bytes = 8_192;
+    let landing = repairs_setting();
+    let connector::Judged::Accept { .. } =
+        judge_landing_value(&mut domain, &env, 4, PROJECT, settings::Value::Landing(landing.clone()))
+    else {
+        panic!("whole repairs accepted")
+    };
+    keep_repairs(&mut domain, &env, landing.clone());
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+    let (mut domain, env) = start_with_repairs(Some(landing), 8_192);
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap().goal.priority, 42);
+    // Saving an off setting does not change this start's resolved repairs either.
+    keep_repairs(&mut domain, &env, settings::ProjectLanding::default());
+    domain.forge.project_repairs(PROJECT).expect("this start still holds its repairs");
+    let (domain, _) = start_with_repairs(Some(settings::ProjectLanding::default()), 8_192);
+    assert_eq!(domain.forge.project_repairs(PROJECT).unwrap_err().as_ref(), b"repairs are off in project 1");
+}

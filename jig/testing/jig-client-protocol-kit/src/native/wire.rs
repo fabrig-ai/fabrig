@@ -297,7 +297,7 @@ impl Wire {
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
             | Event::AskLink
-            | Event::AskApproval
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }

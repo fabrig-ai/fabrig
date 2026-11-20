@@ -538,7 +538,7 @@ fn sign_in_without_installation_leaves_old_reads_eligible() {
             let (mut c, signing, reads) = reads_across_sign_in_exchange(match &with {
                 With::Link { secret, held } => With::Link { secret: secret.clone(), held: held.clone() },
                 With::Service(credential) => With::Service(credential.clone()),
-                With::Approval { secret } => With::Approval { secret: secret.clone() },
+                With::Approval { secret, grant } => With::Approval { secret: secret.clone(), grant: grant.clone() },
                 With::Held(_) | With::Transport => unreachable!("exchange sign-in"),
             });
             let event = match result {

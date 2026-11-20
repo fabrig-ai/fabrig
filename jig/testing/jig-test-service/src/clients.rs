@@ -261,12 +261,12 @@ impl Clients {
         for _ in 0..self.server_out.len() {
             match self.server_out.pop().expect("server requests") {
                 crate::server::Routed::Io(request) => self.io.push(tag(request)),
-                crate::server::Routed::Call { call, head } => {
+                crate::server::Routed::Call { call, head, peer } => {
                     let answer = self.pages.route(&head);
                     if answer != crate::server::Answer::Mount {
                         self.pages.call(&mut self.server, call, &head, answer, &mut self.server_out);
                     } else if self.mount.room_for(&head) > 0 {
-                        self.mount.down(&self.mount_env, http::Event::Call { call, head });
+                        self.mount.down(&self.mount_env, http::Event::Call { call, head, peer });
                     } else {
                         self.refused.insert(call, ()).expect("bounded refused server calls");
                         self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);
@@ -570,7 +570,7 @@ pub(super) fn printed(address: ::core::net::SocketAddr, secret: &skein_lib::Secr
 }
 
 pub(super) fn http_settings() -> http::Settings {
-    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), public: None }
+    http::Settings { max_age: 0, prefix: Box::from(b"/jig".as_slice()), page: None, public: None }
 }
 
 #[cfg(test)]

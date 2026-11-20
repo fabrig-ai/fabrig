@@ -5,10 +5,31 @@ use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{Secret, Writer, length::usize_of};
 
+#[test]
+fn an_exchange_keeps_its_way_and_source_on_the_component_record() {
+    let mut world = Exchange::new();
+    let owner = skein_lib::Token::new(900);
+    let source = Some(core::net::Ipv4Addr::new(203, 0, 113, 7).into());
+    world.component.down(
+        &world.env,
+        Event::Transport(crate::FromTransport::Exchange {
+            exchange: owner,
+            credential: None,
+            browser: false,
+            via: crate::Via::Public,
+            source,
+            message: Message::ApprovalAsk(Box::new([])),
+        }),
+        &mut world.out,
+    );
+    let connection = world.component.connections.get(&owner).expect("received exchange");
+    assert_eq!((connection.via, connection.source), (crate::Via::Public, source));
+}
+
 type ApprovalCase = (&'static str, fn(Box<[u8]>) -> Message, Box<[u8]>, Box<[u8]>);
 
 fn cases(stopping: bool) -> [ApprovalCase; 4] {
-    let ask = w::ApprovalAsk {};
+    let ask = w::ApprovalAsk { port: None };
     let mut ask_bytes =
         Writer::new(usize_of(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     ask.write(&jig_client_protocol_wire::CEILINGS, &mut ask_bytes).expect("ask bytes");
@@ -20,7 +41,7 @@ fn cases(stopping: bool) -> [ApprovalCase; 4] {
     let mut decide_bytes =
         Writer::new(usize_of(decide.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     decide.write(&jig_client_protocol_wire::CEILINGS, &mut decide_bytes).expect("decision bytes");
-    let take = w::ApprovalSignIn { secret: Secret::new(Box::new([7; 32])) };
+    let take = w::ApprovalSignIn { secret: Secret::new(Box::new([7; 32])), grant: None };
     let mut take_bytes =
         Writer::new(usize_of(take.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")));
     take.write(&jig_client_protocol_wire::CEILINGS, &mut take_bytes).expect("take bytes");

@@ -290,6 +290,15 @@ BODY
   or `null` for the charter's default; `priority`, a tracked priority,
   `u32`; `budget`, the goal's spend, above the rules'
   `minimum_run_spend`.
+- **`llm` is kept as written,** by the catalogue's names, in the
+  setting, the store and the client's wire: the root resolves it to
+  the catalogue's numbers when it judges a proposal and at each start
+  (below), and the act reads the resolved one. Nothing renumbers an
+  application kind's value when the catalogue changes, as jig does its
+  templates', so a kept number could name another model after a
+  redeploy; a kept name is resolved or found gone. A proposal and a
+  rendering need no catalogue: the entrances that decode kind 4 hold
+  none.
 - **In a settings file** as kind 4's other members, `{"wait":
   "landed", "repairs": {"repair_goals": 2, "goal": {"charter": 5,
   "llm": null, "priority": 0, "budget": 2000000}}}`, absent members at
@@ -297,8 +306,9 @@ BODY
 - **Judged when proposed:** refused without `wait: landed` (`repairs:
   needs wait landed`); a member out of bounds; `goal` missing or a
   member of it missing; a charter the deployment lacks or that runs no
-  agent; an `llm` whose models the deployment's catalogue or the charter
-  lacks.
+  agent (every charter jig holds is an agent's, `Executor::Agent`'s, so
+  a charter held is one that runs an agent); an `llm` whose names the
+  deployment's catalogue or the charter lacks.
 - **Checked at each start** complete again, against the deployment's
   charters, models and limits as they then stand: a charter or model
   gone, or `tasks.spec_bytes` below 8,192, turns the project's repairs
@@ -336,10 +346,22 @@ BODY
   - `RepairJudging { Landing(Commit), After(u64), Release }`;
   - `BlameMove { by: Filer, why: Box<[u8]> }` and `FindingBlame`'s
     `moved: Option<BlameMove>`;
-  - `Repairs { goals: u8, attempts: u8, deadline_ms: u64, goal:
-    RepairGoal }`, `RepairGoal { charter: u32, llm:
-    Option<LlmChoice>, priority: u32, budget: u64 }`, and
-    `ProjectLanding`'s `repairs: Option<Repairs>`;
+  - the setting as written: `RepairSettings { goals: u8, attempts: u8,
+    deadline_ms: u64, goal: RepairGoalSettings }`,
+    `RepairGoalSettings { charter: u32, llm: Option<NamedLlm>,
+    priority: u32, budget: u64 }`, `NamedLlm { account: Option<u32>,
+    main: NamedModel, subagents: Box<[NamedModel]>, later:
+    Option<NamedLater> }`, `NamedLater { main: NamedModel, subagents:
+    Box<[NamedModel]> }` and `NamedModel { model: Box<[u8]>, effort:
+    Option<Box<[u8]>> }`, a template's file form's members, and
+    `ProjectLanding`'s `repairs: Option<RepairSettings>`; in the store
+    and the client's wire, records of the same members;
+  - the setting resolved at a start (section 7): `Repairs { goals: u8,
+    attempts: u8, deadline_ms: u64, goal: RepairGoal }`, `RepairGoal {
+    charter: u32, llm: Option<LlmChoice>, priority: u32, budget: u64
+    }`, `LlmChoice` jig's (`jig_domain_tasks`), in the forge's memory
+    only, which `Domain::project_repairs(project) -> Result<&Repairs,
+    Box<[u8]>>` answers, its `Err` 4.2's first refusal's words;
   - `Triage`'s variants `Repair(RepairAct)` and `Blame(BlameAct)`,
     `RepairAct { more: Box<[u32]>, words: Box<[u8]> }` (the findings
     past `TriageFinding`'s `number`) and `BlameAct { landing:

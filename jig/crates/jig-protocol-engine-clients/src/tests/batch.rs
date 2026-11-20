@@ -220,6 +220,8 @@ fn an_empty_or_signed_out_batch_is_still_an_exchange_with_parts_and_done() {
         Event::Transport(FromTransport::Exchange {
             exchange: owner,
             credential: None,
+            via: crate::Via::Listener,
+            source: None,
             browser: false,
             message: Message::Batch(encoded(&[w::Member::Read(read()), opening([0; 16], 1), closing([0; 16], 1)])),
         }),

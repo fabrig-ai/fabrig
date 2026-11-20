@@ -620,7 +620,9 @@ sign in and out (`../../client/domain/client/README.md`, section 9; `../client/s
   - the clients' component gives the secret, and the application's
     startup prints the URL: under the default mapping, the link's route
     under its prefix, the secret in its query,
-    `<origin><prefix>/v1/sign-in/link?secret=…` (`../client/sign-in.md` and `../client/default-http.md`, section 1
+    `<origin><prefix>/v1/sign-in/link?secret=…`, or, where the
+    application gives the mapping a link page, the same link at that
+    page, `<origin><page>?secret=…` (`../client/sign-in.md` and `../client/default-http.md`, section 1
     );
   - a GET of the link's route spends nothing and draws nothing: the
     mapping's engine end leaves it to the application's page, with the

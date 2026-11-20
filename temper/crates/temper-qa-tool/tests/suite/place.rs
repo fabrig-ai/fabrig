@@ -2,8 +2,7 @@
 use skein_scratch::Scratch;
 use std::{
     fs,
-    io::{BufRead, BufReader},
-    os::unix::{ffi::OsStringExt, fs::PermissionsExt},
+    os::unix::fs::{PermissionsExt, symlink},
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
@@ -624,20 +623,11 @@ fn unknown_unread_and_nonpass_setups_refuse_before_touching_the_box() {
 }
 
 #[test]
-fn another_process_holding_the_drive_lock_refuses_setup_and_recipe_and_probe_releases() {
+fn another_holder_of_the_drive_lock_refuses_setup_and_recipe_and_probe_releases() {
     let mut world = World::new();
     assert!(!place_busy(&world.place.paths).expect("free"));
-    let mut holder = Command::new("flock")
-        .args(["--exclusive"])
-        .arg(&world.place.paths.drive_lock)
-        .args(["/bin/sh", "-c", "printf 'ready\\n'; cat >/dev/null"])
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("holder");
-    let mut line = String::new();
-    BufReader::new(holder.stdout.take().expect("stdout")).read_line(&mut line).expect("ready");
-    assert_eq!(line, "ready\n");
+    let holder = fs::OpenOptions::new().read(true).write(true).open(&world.place.paths.drive_lock).expect("holder");
+    holder.try_lock().expect("holder takes lock");
     assert!(place_busy(&world.place.paths).expect("busy"));
     let mut output = Vec::new();
     let expected = "the drive session is open at places/1; close it first: temper-qa pass close";
@@ -645,8 +635,7 @@ fn another_process_holding_the_drive_lock_refuses_setup_and_recipe_and_probe_rel
     let input =
         RecipeInput::decode(br#"{"after":"fresh","lines":["web see \"Ready\""],"readme":"Ready."}"#).expect("recipe");
     assert_eq!(world.place.recipe("added", &input, &[], &mut output).expect_err("busy").to_string(), expected);
-    drop(holder.stdin.take());
-    assert!(holder.wait().expect("holder ended").success());
+    drop(holder);
     assert!(!place_busy(&world.place.paths).expect("free again"));
     let lock = fs::OpenOptions::new().read(true).write(true).open(&world.place.paths.drive_lock).expect("lock");
     lock.try_lock().expect("probe did not keep it");
@@ -729,19 +718,40 @@ fn a_new_recipe_reads_quoted_commit_paths_as_bytes() {
     let mut world = World::new();
     let files = world.home.directory.join("passes/1/files");
     fs::create_dir_all(&files).expect("pass files");
-    let paths = [b"a space.txt".as_slice(), b"a\"quote.txt", b"a\\slash.txt", b"a\xff.txt"];
+    let paths = ["a space.txt", "a\"quote.txt", "a\\slash.txt"];
     for path in paths {
-        fs::write(files.join(std::ffi::OsString::from_vec(path.to_vec())), path).expect("commit file");
+        fs::write(files.join(path), path).expect("commit file");
     }
     let mut input = commit_input();
-    input.lines[0] = r#"forge commit forgejo playground/widget "m with \"quotes\"" "a space.txt" "a\"quote.txt" "a\\slash.txt" "a\xff.txt""#.into();
+    input.lines[0] =
+        r#"forge commit forgejo playground/widget "m with \"quotes\"" "a space.txt" "a\"quote.txt" "a\\slash.txt""#
+            .into();
     input.lines.insert(1, r#"forge commit forgejo playground/widget "again" "a space.txt""#.into());
     assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("quoted paths"), 0);
     let copied = world.place.setups.join("added/files");
     assert_eq!(fs::read_dir(&copied).expect("copied files").count(), paths.len());
     for path in paths {
-        assert_eq!(fs::read(copied.join(std::ffi::OsString::from_vec(path.to_vec()))).expect("copied bytes"), path);
+        assert_eq!(fs::read(copied.join(path)).expect("copied bytes"), path.as_bytes());
     }
+}
+
+// APFS, macOS's file system, holds no file name that is not UTF-8 (temper/docs/design/testing/macos.md, 3).
+#[cfg(target_os = "linux")]
+#[test]
+fn a_new_recipe_reads_a_non_utf8_commit_path_as_its_bytes() {
+    use std::os::unix::ffi::OsStringExt;
+
+    let mut world = World::new();
+    let files = world.home.directory.join("passes/1/files");
+    fs::create_dir_all(&files).expect("pass files");
+    let path = std::ffi::OsString::from_vec(b"a\xff.txt".to_vec());
+    fs::write(files.join(&path), b"non-UTF-8 path").expect("commit file");
+    let mut input = commit_input();
+    input.lines[0] = r#"forge commit forgejo playground/widget "m" "a\xff.txt""#.into();
+    assert_eq!(world.place.recipe("added", &input, &[], &mut Vec::new()).expect("non-UTF-8 path"), 0);
+    let copied = world.place.setups.join("added/files");
+    assert_eq!(fs::read_dir(&copied).expect("copied files").count(), 1);
+    assert_eq!(fs::read(copied.join(path)).expect("copied bytes"), b"non-UTF-8 path");
 }
 
 #[test]
@@ -854,6 +864,173 @@ fn assert_copy_state(scratch: &Path) {
     assert_eq!(fs::read_to_string(scratch.join(CHECKOUT_AGENT)).expect("checkout state"), "checkout state");
 }
 
+fn assert_pinned_agent(scratch: &Path) {
+    let agent = scratch.join(PINNED_AGENT);
+    assert_eq!(fs::read(agent.join("temper-box")).expect("pinned binary"), b"pinned binary");
+    assert_eq!(fs::read(agent.join("agent.json")).expect("pinned document"), b"{}");
+}
+
+const TAR: &str = r#"#!/bin/sh
+set -eu
+printf '%s\n' "$@" > "$3.arguments"
+if test -e "$5/$QA_TAR_PINNED" || test -L "$5/$QA_TAR_PINNED"; then
+    printf 'present\n' > "$3.pinned"
+else
+    printf 'absent\n' > "$3.pinned"
+fi
+printf 'fake tar stderr\n' >&2
+exit "$QA_TAR_EXIT"
+"#;
+
+fn scripted_archive(directory: &Path, code: u8) -> RealArchive {
+    let tar = directory.join("tar");
+    fs::write(&tar, TAR).expect("fake tar");
+    fs::set_permissions(tar, fs::Permissions::from_mode(0o700)).expect("executable tar");
+    RealArchive {
+        environment: vec![
+            (Box::from(b"PATH".as_slice()), directory.as_os_str().as_encoded_bytes().into()),
+            (Box::from(b"QA_TAR_PINNED".as_slice()), PINNED_AGENT.as_bytes().into()),
+            (Box::from(b"QA_TAR_EXIT".as_slice()), code.to_string().into_bytes().into()),
+        ],
+    }
+}
+
+#[test]
+fn archive_commands_use_only_portable_options_and_hide_the_pinned_path() {
+    for config in [true, false] {
+        let scratch = Scratch::new("qa-portable-tar");
+        let source = scratch.path().join("source");
+        let archive = scratch.path().join("copy.tar");
+        write_copy_state(&source, true);
+        if config {
+            fs::create_dir(source.join("config")).expect("configuration");
+        }
+        let mut face = scripted_archive(scratch.path(), 0);
+        face.create(&source, &archive, &[PINNED_AGENT]).expect("create");
+        let members = if config { "config\ndata\n" } else { "data\n" };
+        assert_eq!(
+            fs::read_to_string(archive.with_extension("tar.arguments")).expect("create arguments"),
+            format!("--create\n--file\n{}\n--directory\n{}\n{members}", archive.display(), source.display())
+        );
+        assert_eq!(
+            fs::read_to_string(archive.with_extension("tar.pinned")).expect("pinned while creating"),
+            "absent\n"
+        );
+        assert_pinned_agent(&source);
+        assert!(!archive.with_extension("tar.left-out").exists(), "nothing remains set aside");
+        face.extract(&archive, &source, &[PINNED_AGENT]).expect("extract");
+        assert_eq!(
+            fs::read_to_string(archive.with_extension("tar.arguments")).expect("extract arguments"),
+            format!("--extract\n--file\n{}\n--directory\n{}\n", archive.display(), source.display())
+        );
+        assert_eq!(
+            fs::read_to_string(archive.with_extension("tar.pinned")).expect("pinned while extracting"),
+            "present\n"
+        );
+        assert_copy_state(&source);
+    }
+}
+
+#[test]
+fn a_failed_archive_save_restores_the_pinned_bytes_and_removes_the_set_aside_directory() {
+    let scratch = Scratch::new("qa-failed-tar");
+    let source = scratch.path().join("source");
+    let archive = scratch.path().join("copy.tar");
+    write_copy_state(&source, true);
+    let why = scripted_archive(scratch.path(), 2).create(&source, &archive, &[PINNED_AGENT]).expect_err("tar failed");
+    assert_eq!(why.to_string(), "tar --create: exit status: 2: fake tar stderr");
+    assert_eq!(fs::read_to_string(archive.with_extension("tar.pinned")).expect("pinned while creating"), "absent\n");
+    assert_pinned_agent(&source);
+    assert!(!archive.with_extension("tar.left-out").exists(), "nothing remains set aside after failure");
+}
+
+#[test]
+fn a_failed_archive_save_reports_tar_then_move_back_and_keeps_private_set_aside_bytes() {
+    let scratch = Scratch::new("qa-tar-move-back");
+    let source = scratch.path().join("source");
+    let archive = scratch.path().join("copy.tar");
+    write_copy_state(&source, true);
+    let mut face = scripted_archive(scratch.path(), 2);
+    fs::write(
+        scratch.path().join("tar"),
+        TAR.replace("exit \"$QA_TAR_EXIT\"", "/bin/mkdir -p \"$5/$QA_TAR_PINNED/occupied\"\nexit \"$QA_TAR_EXIT\""),
+    )
+    .expect("tar blocks move back");
+    let why = face.create(&source, &archive, &[PINNED_AGENT]).expect_err("tar and move back failed").to_string();
+    assert!(
+        why.starts_with(&format!(
+            "tar --create: exit status: 2: fake tar stderr; {}: ",
+            source.join(PINNED_AGENT).display()
+        )),
+        "{why}"
+    );
+    let aside = archive.with_extension("tar.left-out");
+    assert_mode(&aside, 0o700);
+    assert_eq!(fs::read(aside.join("0/temper-box")).expect("saved binary"), b"pinned binary");
+    assert_eq!(fs::read(aside.join("0/agent.json")).expect("saved document"), b"{}");
+}
+
+#[test]
+fn an_interrupted_saves_set_aside_is_removed_before_moving_the_pinned_path() {
+    let scratch = Scratch::new("qa-interrupted-tar");
+    let source = scratch.path().join("source");
+    let archive = scratch.path().join("copy.tar");
+    let aside = archive.with_extension("tar.left-out");
+    fs::create_dir(&aside).expect("interrupted save");
+    fs::write(aside.join("0"), "interrupted pinned file").expect("stale entry");
+    write_copy_state(&source, true);
+    scripted_archive(scratch.path(), 0).create(&source, &archive, &[PINNED_AGENT]).expect("next save");
+    assert_pinned_agent(&source);
+    assert!(!aside.exists(), "the interrupted save and this save leave nothing set aside");
+}
+
+#[test]
+fn archive_restore_removes_a_pinned_symlink_without_following_it() {
+    for dangling in [false, true] {
+        let scratch = Scratch::new("qa-tar-symlink");
+        let source = scratch.path().join("source");
+        let archive = scratch.path().join("copy.tar");
+        let target = scratch.path().join("target");
+        if !dangling {
+            fs::create_dir(&target).expect("symlink target");
+            fs::write(target.join("kept"), b"outside the scratch directory").expect("target state");
+        }
+        write_copy_state(&source, false);
+        symlink(&target, source.join(PINNED_AGENT)).expect("pinned symlink");
+        scripted_archive(scratch.path(), 0).extract(&archive, &source, &[PINNED_AGENT]).expect("extract");
+        assert!(fs::symlink_metadata(source.join(PINNED_AGENT)).is_err(), "even a dangling symlink is removed");
+        assert_copy_state(&source);
+        if !dangling {
+            assert_eq!(fs::read(target.join("kept")).expect("symlink target kept"), b"outside the scratch directory");
+        }
+    }
+}
+
+#[test]
+fn a_failed_archive_restore_leaves_the_pinned_path_untouched() {
+    let scratch = Scratch::new("qa-failed-restore");
+    let source = scratch.path().join("source");
+    let archive = scratch.path().join("copy.tar");
+    write_copy_state(&source, true);
+    let why = scripted_archive(scratch.path(), 2).extract(&archive, &source, &[PINNED_AGENT]).expect_err("tar failed");
+    assert_eq!(why.to_string(), "tar --extract: exit status: 2: fake tar stderr");
+    assert_pinned_agent(&source);
+}
+
+#[test]
+fn archive_restore_refuses_an_unremovable_path_by_name() {
+    let scratch = Scratch::new("qa-restore-removal");
+    let source = scratch.path().join("source");
+    let archive = scratch.path().join("copy.tar");
+    write_copy_state(&source, true);
+    let path = source.join("data/state/agent");
+    let expected = fs::symlink_metadata(&path).expect_err("state is a file");
+    let why = scripted_archive(scratch.path(), 0)
+        .extract(&archive, &source, &["data/state/agent"])
+        .expect_err("cannot remove");
+    assert_eq!(why.to_string(), format!("{}: {expected}", path.display()));
+}
+
 fn real_archive() -> RealArchive {
     RealArchive { environment: vec![(Box::from(b"PATH".as_slice()), Box::from(b"/usr/bin:/bin".as_slice()))] }
 }
@@ -869,8 +1046,12 @@ fn real_copies_leave_out_only_the_pinned_agent_and_allow_its_absence() {
         fs::create_dir(&restored).expect("restore directory");
         let mut face = real_archive();
         face.create(&source, &archive, &[PINNED_AGENT]).expect("create copy");
-        // With a pin, inspect create's archive without masking it through extract's exclusion.
-        // Without one, exercise extract's exclusion of an absent directory as well.
+        assert_eq!(source.join(PINNED_AGENT).exists(), pinned, "save keeps the source's pinned directory");
+        if pinned {
+            assert_pinned_agent(&source);
+        }
+        // With a pin, inspect create's archive without masking it through extract's removal.
+        // Without one, exercise extract's removal of an absent directory as well.
         let left_out: &[&str] = if pinned { &[] } else { &[PINNED_AGENT] };
         face.extract(&archive, &restored, left_out).expect("restore copy");
         assert_copy_state(&restored);

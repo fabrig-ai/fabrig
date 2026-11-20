@@ -18,11 +18,10 @@ fn an_ask_is_answered_as_the_typed_configuration_enables_the_approval() {
         };
         fixtures::listening(&mut service);
         let engine = service.engine.as_mut().expect("engine");
-        let ask = w::ApprovalAsk {};
-        let mut body = Writer::new(
-            usize::try_from(ask.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
-        );
-        ask.write(&jig_client_protocol_wire::CEILINGS, &mut body).unwrap();
+        let limits = &engine.clients.env.limits.wire;
+        let ask = w::ApprovalAsk { port: None };
+        let mut body = Writer::new(usize::try_from(ask.measure(limits).expect("bounded fixture")).unwrap());
+        ask.write(limits, &mut body).unwrap();
         let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/approval/ask", &body.finish(), None);
         let wall = Wall::from_nanos(123_000_000_000);
         peer.pump_at(engine, false, Time::from_nanos(1), wall);

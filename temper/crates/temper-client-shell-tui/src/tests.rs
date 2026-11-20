@@ -726,6 +726,10 @@ pub(crate) fn signed_in_answer() -> w::SignInAnswer {
 }
 
 fn local_link(address: &str, secret: &str) -> Secret {
+    Secret::new(format!("http://{address}/sign-in?secret={secret}").into_bytes().into())
+}
+
+fn route_link(address: &str, secret: &str) -> Secret {
     Secret::new(format!("http://{address}/jig/v1/sign-in/link?secret={secret}").into_bytes().into())
 }
 
@@ -769,8 +773,8 @@ struct LocalRow {
 fn the_engines_link_signs_in_and_falls_back() {
     use LocalAct::{Answer, Approve, Connect, Due, End, Found, Lost, Paste};
     use LocalWant::{Ask, Connecting, Ended, Keep, Pasted, Quiet, Read, Send, SendHeld, Taking, Until, Wait};
-    let found = || Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET)));
-    let fresh = || Found(Some(local_link("127.0.0.1:8367", FRESH_SECRET)));
+    let found = || Found(Some(route_link("127.0.0.1:8367", LOCAL_SECRET)));
+    let fresh = || Found(Some(route_link("127.0.0.1:8367", FRESH_SECRET)));
     let row = |name, steps| LocalRow { front: false, name, local: true, note: None, held: false, first: Read, steps };
     let mut rows = vec![
         row("fresh", vec![]),
@@ -786,17 +790,12 @@ fn the_engines_link_signs_in_and_falls_back() {
         },
         row("no file", vec![(Found(None), Ask)]),
         row("garbage", vec![(Found(Some(Secret::new(b"garbage".as_slice().into()))), Ask)]),
-        row("other address", vec![(Found(Some(local_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
+        row("other address", vec![(Found(Some(route_link("127.0.0.1:9000", LOCAL_SECRET))), Ask)]),
         row("signed in", vec![(found(), Send), (Answer(signed_in_answer()), Keep), (Connect, Until)]),
         row(
             "page signed in",
             vec![
-                (
-                    Found(Some(Secret::new(
-                        format!("http://127.0.0.1:8367/sign-in?secret={LOCAL_SECRET}").into_bytes().into(),
-                    ))),
-                    Send,
-                ),
+                (Found(Some(local_link("127.0.0.1:8367", LOCAL_SECRET))), Send),
                 (Answer(signed_in_answer()), Keep),
                 (Connect, Until),
             ],
@@ -1074,7 +1073,7 @@ fn local_row(settings: &Settings, row: LocalRow, failures: &mut Vec<String>) {
             LocalAct::Approve => reply(&mut host, exchange, approval_bytes(b"WDJBMJHT", b"")),
             LocalAct::Paste => {
                 host.frame();
-                host.report(Report::Key(Key::Paste(local_link("127.0.0.1:8367", LOCAL_SECRET).into_exposed())));
+                host.report(Report::Key(Key::Paste(route_link("127.0.0.1:8367", LOCAL_SECRET).into_exposed())));
                 host.report(Report::Key(Key::Enter))
             }
             LocalAct::Connect => connect(&mut host),

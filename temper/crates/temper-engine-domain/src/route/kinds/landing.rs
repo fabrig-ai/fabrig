@@ -1,6 +1,8 @@
 //! Cross-domain landing judgements (temper/docs/design/domain/landing-settings.md, 1.1).
 use crate::Domain;
+mod repairs;
 use alloc::boxed::Box;
+pub(crate) use repairs::restored;
 use skein_lib::{Decimal, List};
 use temper_engine_domain_forge::settings;
 
@@ -30,6 +32,16 @@ pub(super) fn refusal(domain: &Domain, asked: &settings::Asked) -> Option<Box<[u
         }
         if let Some(why) = domain.config.turn_capacity {
             return Some(why.into());
+        }
+    }
+    if let settings::Value::Landing(landing) = &value.value
+        && let Some(settings) = &landing.repairs
+    {
+        if let Err(field) = repairs::resolve(domain, settings) {
+            return Some(words(&[b"repairs.", field, b": not offered by the deployment or charter"]));
+        }
+        if settings.goal.budget <= domain.core.authority.rules().minimum_run_spend {
+            return Some(words(&[b"repairs.goal.budget: must be above minimum_run_spend"]));
         }
     }
     if let settings::Value::Gates(gates) = &value.value {

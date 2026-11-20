@@ -22,6 +22,8 @@ fn batch_frames_leave_before_done_and_the_call_lasts_through_the_body() {
         [kit::FromTransport::Exchange {
             exchange: fixtures::EXCHANGE,
             credential: None,
+            via: Via::Listener,
+            source: None,
             browser: false,
             message: kit::Message::Batch(Box::new([0, 0, 0, 0])),
         }]
@@ -145,7 +147,11 @@ fn a_batchs_bad_record_and_oversize_answers_are_whole() {
     let length = u64::from(fixtures::env().limits.body).checked_add(1).expect("past body bound");
     mount.down(
         &fixtures::env(),
-        Event::Call { call, head: fixtures::head(Method::Post, b"/jig/v1/batch", &[], http::Body::Length(length)) },
+        Event::Call {
+            peer: None,
+            call,
+            head: fixtures::head(Method::Post, b"/jig/v1/batch", &[], http::Body::Length(length)),
+        },
     );
     fixtures::pump(&mut mount, &mut out);
     let (status, bytes, _) = fixtures::answered(&mut mount, &mut out, call);

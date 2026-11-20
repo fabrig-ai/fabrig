@@ -7,12 +7,12 @@ Run temper long-term: engine behind a TLS proxy with Google sign-in and owned Fo
 ## Before you start
 
 - **WireGuard hosts:** `engine` (public proxy, engine, Forgejo), `worker`
-  (worker, Forgejo runner). On `engine`: user `temper`, home
+  (worker, Forgejo runner). `engine`: user `temper`, home
   `/var/lib/temper` (0700, no login shell); `CONFIG`, `DATA`, `CACHE`:
   its `config/`, `data/`, `cache/`.
-- **Names:** `temper.example.com` for temper, `git.example.com` for Forgejo.
-- **Google client:** OAuth consent in Testing, members its test users,
-  scopes `openid`, `email`, `profile`; a Web application client with one redirect URI
+- **Names:** temper: `temper.example.com`; Forgejo: `git.example.com`.
+- **Google client:** OAuth consent in Testing, members as test users,
+  scopes `openid`, `email`, `profile`; Web application, one redirect URI
   `https://temper.example.com/sign-in/google/return`.
 - `HEX`: `w1.digest`'s hex, not its path.
 - `COMMIT`: the build's twelve hex digits, the same on both Linux x86-64
@@ -32,7 +32,7 @@ for name in $binaries; do cat Linux-x86_64/"$name" | gunzip | sudo tee /usr/loca
 tar -xzf examples.tar.gz --strip-components=3
 ```
 
-Binaries are suffixless gzip; keep the checksum layout. Strip
+Binaries: suffixless gzip; keep checksum layout. Strip
 `temper/docs/examples/` for `owned.json`.
 
 ## 1. Write the engine's configuration
@@ -105,7 +105,6 @@ temper ctl DIR worker add w1 --places 4 --digest HEX --key KEY
 ```
 
 Workers are store settings; `engine.hosts.workers` is refused.
-Places apply at next opening.
 
 Expect: `stat -c '%U %a' FILE` prints `temper 600` for each.
 
@@ -130,20 +129,19 @@ engine, which connects kept forges:
 temper-engine serve --config CONFIG --data DATA --cache CACHE
 ```
 
-Expect: `prepare` fetches pinned binaries, printing `fetched BINARY DONE of
-TOTAL bytes`, nothing if present, and exits 0. `run` prints Forgejo's
+Expect: `prepare` exits 0, fetching missing pinned binaries with `fetched
+BINARY DONE of TOTAL bytes`, nothing if present. `run` prints Forgejo's
 output; `serve` prints its sign-in link,
-`https://temper.example.com/jig/v1/sign-in/link?secret=` and its
+`https://temper.example.com/sign-in?secret=` and its
 secret, and on stderr `listening clients 127.0.0.1:8367`.
 With `[[sign_in.forges]]` on a new store, `serve`'s stderr says
 `temper-engine serve: forge 1: no sign-in through temper-engine: no such forge is kept`
 until step 6 connects it.
 
-If not: refused start names member, file, address or restore:
+If not: start refusal names member, file, address or restore:
 `temper-engine serve: restore KIND: REASON` or
 `temper-engine serve: restart refused during PHASE: REASON`.
-The reason names store cause, record family and key if available.
-Keep `DATA` unchanged; report it.
+Reason: store cause, record family/key if available. Keep `DATA` unchanged; report it.
 
 ## 4. The TLS proxy
 
@@ -165,7 +163,9 @@ temper.example.com {
 }
 ```
 
-Keep `Host` for cookies' `Secure`; no retries.
+Keep `Host` for cookies' `Secure`; no retries. With no `trusted_proxies`,
+Caddy overwrites client-sent `X-Forwarded-For` with the client's address;
+temper reads its last entry as a terminal's approval source: leave it so.
 
 Expect: `https://temper.example.com/` answers 200;
 `POST /jig/v1/sign-in/link` and `GET /sign-in` answer 403;
@@ -229,21 +229,20 @@ journalctl -u temper -o cat | grep 'task TASK run'
 
 ## 6. Sign in, through a tunnel, and connect the forge
 
-The proxy refuses the link's public route. Give ctl the listener's
+The proxy refuses the link's public page and route. Give ctl the listener's
 origin, on `engine` as `temper`:
 
 ```
-journalctl -u temper -o cat | grep -o 'https://temper.example.com/jig/v1/sign-in/link?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
+journalctl -u temper -o cat | grep -o 'https://temper.example.com/sign-in?[^ ]*' | tail -1 | sed 's#^https://temper.example.com#http://127.0.0.1:8367#' | temper ctl DIR sign-in -
 ```
 
 Browser: open that link through `ssh -L 8367:127.0.0.1:8367 engine`.
 
-Add the worker with step 2's `worker add` command after signing in,
-including after a store reset. Until its setting exists, the worker
-redials with `not-admitted`; adding it needs no engine restart.
+After sign-in, even after a store reset, use step 2's `worker add`. Until
+then it redials with `not-admitted`; no engine restart.
 
-Connect Forgejo: without a record, `forge list` is empty; `forge setup`
-refuses. A new store's forge is 1:
+Connect Forgejo: no record means `forge list` is empty, `forge setup`
+refuses. New store: forge 1:
 
 ```
 temper ctl DIR forge connect forgejo-admin DATA/forge-1/admin_token --api 127.0.0.1:3000 --git http://127.0.0.1:3000 --web https://git.example.com --key KEY
@@ -263,8 +262,7 @@ Sign-out empties even an engine-refused token; no answer keeps it (exit 1).
 `temper ctl: the sign-in link was refused` distinguishes `it was already
 used`, `it has expired`, and `temper does not know it, as another
 deployment's link or one it no longer remembers`; each asks for a fresh
-link from `temper-box serve`: get one and rerun. Other refusals keep the
-line without a reason.
+`temper-box serve` link: rerun with one. Other refusals keep only the line.
 `connected already` (exit 2): the store keeps its forge; nothing to do.
 Other refusals: temper help forgejo, step 2.
 

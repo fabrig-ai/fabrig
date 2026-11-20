@@ -22,23 +22,26 @@ pub enum Unlinked {
 pub fn link_url(mapping: &Mapping, host: &[u8], secret: &Secret) -> Box<[u8]> {
     let encoded = base64::encoded_len(Alphabet::Url, u32::try_from(secret.len()).expect("bounded secret"))
         .expect("bounded base64");
-    let route = b"/v1/sign-in/link?secret=";
+    let (path, query): (&[u8], &[u8]) = match &mapping.page {
+        Some(page) => (page, b"?secret="),
+        None => (&mapping.prefix, b"/v1/sign-in/link?secret="),
+    };
     let mut url = skein_lib::Writer::new(
         b"http://"
             .len()
             .checked_add(host.len())
             .expect("host")
-            .checked_add(mapping.prefix.len())
-            .expect("prefix")
-            .checked_add(route.len())
-            .expect("route")
+            .checked_add(path.len())
+            .expect("path")
+            .checked_add(query.len())
+            .expect("query")
             .checked_add(skein_lib::length::usize_of(encoded))
             .expect("secret"),
     );
     url.put(b"http://").expect("measured scheme");
     url.put(host).expect("measured host");
-    url.put(&mapping.prefix).expect("measured prefix");
-    url.put(route).expect("measured route");
+    url.put(path).expect("measured path");
+    url.put(query).expect("measured query");
     base64::encode(Alphabet::Url, secret.expose(), &mut url).expect("measured secret");
     url.finish()
 }

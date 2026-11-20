@@ -32,7 +32,7 @@ fn start_message_makes_slices_that_post_the_printed_link() {
     assert_eq!(line.process.as_ref(), b"temper serve");
     assert_eq!(line.stream, bridge::Stream::Output);
     let url = std::str::from_utf8(&line.line).expect("sign-in URL");
-    let prefix = format!("http://{}/jig/v1/sign-in/link?secret=", documents::CLIENTS);
+    let prefix = format!("http://{}/sign-in?secret=", documents::CLIENTS);
     let secret = url.strip_prefix(&prefix).expect("service's sign-in URL");
     assert!(!secret.is_empty() && !secret.contains(['\r', '\n']));
     assert!(matches!(posts.last(), Some(ToPage::Clock(_))), "the clock closes the slice");

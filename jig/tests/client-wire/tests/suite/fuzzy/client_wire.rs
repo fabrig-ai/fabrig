@@ -50,6 +50,9 @@ fn records_1(bytes: &[u8]) {
     check!(LinkAsked, bytes);
     check!(LinkAskAnswer, bytes);
     check!(ApprovalRead, bytes);
+    check!(ApprovalKind, bytes);
+    check!(ApprovalLoopback, bytes);
+    check!(ApprovalApproved, bytes);
     check!(ApprovalWaiting, bytes);
     check!(ApprovalState, bytes);
     check!(ApprovalDecide, bytes);

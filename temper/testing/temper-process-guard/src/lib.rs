@@ -276,7 +276,7 @@ impl Drop for Guard {
 pub fn signal(child: &mut Child, signal: &str) {
     assert!(child.id() > 1, "owned child PID");
     if child.try_wait().expect("child status before signal").is_none() {
-        let sent = Command::new("/usr/bin/kill")
+        let sent = Command::new("/bin/kill")
             .args([&format!("-{signal}"), &child.id().to_string()])
             .status()
             .expect("signal owned child");

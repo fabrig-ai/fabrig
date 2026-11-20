@@ -314,6 +314,13 @@ pub fn project_stock(kind: u32) -> Option<SizedValue> {
 }
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[cfg_attr(
+    target_pointer_width = "64",
+    expect(
+        clippy::large_enum_variant,
+        reason = "settings edits own their typed value, including named repair settings"
+    )
+)]
 pub enum Edit {
     Set(SizedValue),
     Remove,
@@ -1227,7 +1234,11 @@ pub use temper_client_protocol_wire::v1::{AgentEndpointLimits, AgentFigure, Agen
 #[path = "settings/agents.rs"]
 pub mod agents;
 mod landing;
+mod repairs;
 pub use landing::{
     CARRIER, ProjectGates, ProjectLanding, gates_bytes, gates_from, gates_heap, gates_record, landing_from,
     landing_record,
+};
+pub use repairs::{
+    NamedLater, NamedLlm, NamedModel, RepairGoal, RepairGoalSettings, RepairSettings, Repairs, repairs_heap,
 };

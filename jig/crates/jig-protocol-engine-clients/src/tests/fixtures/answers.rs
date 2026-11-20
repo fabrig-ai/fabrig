@@ -19,7 +19,10 @@ pub fn moved_hold() -> w::Final {
     let reason = w::HoldCategory::Dependency(w::HoldCategoryDependency { task: 9 });
     w::Final::Refused(w::Refused { at: None, refusal: hold_refusal(reason) })
 }
-pub const SERVICE_ANSWER: [u8; 25] = [1, 0, 0, 0, 0, 38, 0, 0, 0, 15, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0];
+pub const SERVICE_ANSWER: [u8; 25] = {
+    let [v0, v1, v2, v3] = w::VERSION.to_be_bytes();
+    [1, 0, v0, v1, v2, v3, 0, 0, 0, 15, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0]
+};
 pub fn application_answer() -> w::KeyedAnswer {
     let owner = w::Owner::Family(w::Family { number: 9 });
     w::KeyedAnswer::FinalAnswer(w::Owned { owner, version: 2, record: Box::from(b"outcome".as_slice()) })

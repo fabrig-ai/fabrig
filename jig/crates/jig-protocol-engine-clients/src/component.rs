@@ -470,16 +470,16 @@ impl Component {
     }
     fn transport(&mut self, env: &Env<Limits>, message: crate::FromTransport, out: &mut Queue<Request>) {
         match message {
-            crate::FromTransport::Exchange { exchange, credential, browser, message } => {
+            crate::FromTransport::Exchange { exchange, credential, browser, via, source, message } => {
                 let (route, body) = routes::message(message);
-                self.receive(env, exchange, (credential, browser), route, body, out);
+                self.receive(env, (exchange, via, source), (credential, browser), route, body, out);
             }
             crate::FromTransport::StreamOpen { stream, credential, version, replaces } => {
                 let body: Box<[u8]> = match replaces {
                     Some(name) => Box::from(name),
                     None => Box::new([]),
                 };
-                self.receive(env, stream, (credential, false), Route::Stream, body, out);
+                self.receive(env, (stream, crate::Via::Listener, None), (credential, false), Route::Stream, body, out);
                 self.connections.get_mut(&stream).expect("received stream").version = version;
             }
             crate::FromTransport::StreamTaken { stream } => {
@@ -510,14 +510,17 @@ impl Component {
     fn receive(
         &mut self,
         env: &Env<Limits>,
-        owner: Token,
+        transport: (Token, crate::Via, Option<::core::net::IpAddr>),
         authentication: (Option<skein_lib::Secret>, bool),
         route: Route,
         body: Box<[u8]>,
         out: &mut Queue<Request>,
     ) {
+        let (owner, via, source) = transport;
         let exchange = self.name();
         let mut connection = Exchange::new(exchange, route == Route::Stream);
+        connection.via = via;
+        connection.source = source;
         if route == Route::Batch && !self.batch_decode(env, exchange, &body) {
             connection.respond(crate::Reply::NotARecord);
             self.connections.insert(owner, connection).expect("transport bounds active exchanges");

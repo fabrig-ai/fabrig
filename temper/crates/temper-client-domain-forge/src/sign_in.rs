@@ -1,8 +1,7 @@
 //! Shared shell words for a full deployment (client/line.md, 7).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Wall, Writer};
-/// The printed link's page (temper/docs/design/client/README.md, 4).
-pub const LINK_PAGE: &[u8] = b"/sign-in";
+pub use temper_client_protocol_wire::LINK_PAGE;
 
 const FULL: [&[u8]; 4] = [
     b": all ",

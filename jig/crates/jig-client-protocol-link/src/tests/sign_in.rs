@@ -259,6 +259,7 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             Signing::SignedIn { party: PARTY },
         ),
         (w::ApprovalSignInAnswer::Waiting, Signing::Approval(Taking::Waiting)),
+        (w::ApprovalSignInAnswer::NotGranted, Signing::Approval(Taking::NotGranted)),
         (w::ApprovalSignInAnswer::Refused, Signing::Approval(Taking::Refused)),
         (w::ApprovalSignInAnswer::Expired, Signing::Approval(Taking::Expired)),
         (w::ApprovalSignInAnswer::Used, Signing::Approval(Taking::Used)),
@@ -282,16 +283,18 @@ fn each_approval_take_answer_is_decoded_without_a_credential() {
             Signing::Lost,
         ),
     ] {
-        for trailing in [false, true] {
+        for (trailing, grant) in [(false, None), (true, None), (false, Some(Secret::new(Box::new([9; 32]))))] {
             let mut h = Harness::new(&limits());
             h.sign_in(held());
-            let exchange = h.sign_in(With::Approval { secret: Secret::new(Box::new(LINK_SECRET)) }).unwrap();
+            let exchange =
+                h.sign_in(With::Approval { secret: Secret::new(Box::new(LINK_SECRET)), grant: grant.clone() }).unwrap();
             assert_eq!(h.credentials().as_slice(), &[None], "a take never carries the held credential");
             let Some(Request::Exchange { message: Message::SignInApproval(body), .. }) = h.out.pop() else {
                 panic!("take exchange")
             };
             let record = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(&body)).unwrap();
             assert_eq!(record.secret.expose(), LINK_SECRET);
+            assert_eq!(record.grant, grant);
             let mut bytes = skein_lib::Writer::new(
                 usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap()
                     + usize::from(trailing),

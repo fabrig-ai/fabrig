@@ -9,7 +9,7 @@ use temper_client_protocol_wire::{self as wire, v1 as w};
 
 // The request's review size; the secret is thirty-two zero bytes, never a credential.
 const FULL: skein_ui_screen::Size = skein_ui_screen::Size { columns: 80, rows: 24 };
-const PRINTED: &[u8] = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const PRINTED: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 const OPEN: &str = "Welcome. Set temper up in your browser: open this link on this machine.";
 const PENDING: &str = "The link comes here once the box has started.";
 const ONCE: &str = "It signs you in as this temper's owner, once, within 2 hours.";

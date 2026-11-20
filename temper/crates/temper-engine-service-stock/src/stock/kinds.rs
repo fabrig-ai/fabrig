@@ -115,12 +115,13 @@ pub fn kinds(limits: &Limits, connector: u16) -> Box<[Kind]> {
             number: 4,
             scope: KindScope::Project,
             connector,
-            value_bytes: size(&settings::Value::Landing(settings::ProjectLanding {
-                merge_job: Some(word(4096)),
-                close_job: Some(word(4096)),
-                check_timeout_ms: Some(u64::MAX),
-                ..settings::ProjectLanding::default()
-            })),
+            value_bytes: u32::try_from(
+                temper_client_protocol_wire::v1::ProjectLanding::encoded_bound(
+                    &temper_client_protocol_wire::v1::CEILINGS,
+                )
+                .expect("landing bound"),
+            )
+            .expect("bounded encoding"),
             per_scope: 1,
             charters: 0,
         },

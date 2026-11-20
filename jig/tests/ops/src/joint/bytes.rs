@@ -114,7 +114,7 @@ impl Side {
             | Event::StartUnlinked { .. }
             | Event::SignIn { .. }
             | Event::AskLink
-            | Event::AskApproval
+            | Event::AskApproval { .. }
             | Event::ReadApproval { .. }
             | Event::DecideApproval { .. }
             | Event::ApprovalAnswer { .. }
@@ -321,7 +321,7 @@ fn callback(event: &Event) -> Option<Callback> {
         | Event::StartUnlinked { .. }
         | Event::SignIn { .. }
         | Event::AskLink
-        | Event::AskApproval
+        | Event::AskApproval { .. }
         | Event::ReadApproval { .. }
         | Event::DecideApproval { .. }
         | Event::ApprovalAnswer { .. }
@@ -440,9 +440,9 @@ impl Bytes {
                     self.server.up(event, &mut self.server_out);
                 }
             }
-            jig_test_service::server::Routed::Call { call, head } => {
+            jig_test_service::server::Routed::Call { call, head, peer } => {
                 if self.mount.room() > 0 {
-                    self.mount_event(http::Event::Call { call, head });
+                    self.mount_event(http::Event::Call { call, head, peer });
                 } else {
                     self.refused.insert(call, ()).expect("bounded refused server calls");
                     self.server.answer(call, skein_http::server::Request::Discard, &mut self.server_out);

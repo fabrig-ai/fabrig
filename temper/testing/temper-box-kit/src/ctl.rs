@@ -1050,7 +1050,7 @@ impl Calls {
                 self.action = Some(Action::Signal);
                 let signal: &[u8] = if matches!(step, Step::Pause) { b"-STOP" } else { b"-CONT" };
                 self.spawn(
-                    b"/usr/bin/kill".as_slice().into(),
+                    b"/bin/kill".as_slice().into(),
                     vec![signal.into(), self.forgejo.expect("owned Forgejo pid").to_string().into_bytes().into()],
                     Vec::new(),
                     false,
@@ -1801,7 +1801,7 @@ pub mod serve_gate_tests {
         let scratch = super::super::Scratch::new("ctl-serve-gate");
         let mut calls =
             Calls::new(Fd::new(0), vec![Step::Run(Call::sign_in())], None, None).with_serve_data(scratch.path());
-        calls.link = b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=fixture\n".to_vec();
+        calls.link = b"http://127.0.0.1:8367/sign-in?secret=fixture\n".to_vec();
         calls.within = Some(WITHIN);
         calls.advance(Time::ZERO);
         assert!(calls.child.is_none(), "an early link starts no sign-in");

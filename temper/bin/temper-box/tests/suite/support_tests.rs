@@ -528,6 +528,10 @@ fn fixture_limits_are_applied_before_the_subprocess_restart() {
     configuration.temper_over("checkout.remote_timeout_ms", 7_000);
     support::limit_settings::remember(scratch.path(), &configuration);
     support::limit_settings::install(scratch.path());
+    configuration.jig_over("tasks.project_goals", 1);
+    configuration.temper_over("checkout.remote_timeout_ms", 8_000);
+    support::limit_settings::remember(scratch.path(), &configuration);
+    support::limit_settings::install(scratch.path());
     let seen = support::ctl::run(support::ctl::Story::new(
         scratch.path(),
         vec![
@@ -543,7 +547,7 @@ fn fixture_limits_are_applied_before_the_subprocess_restart() {
             .iter()
             .find(|item| item["name"] == "tasks.project_goals")
             .expect("project goal capacity")["value"],
-        2
+        1
     );
     assert_eq!(
         support::ctl::json(&seen.calls[2])["value"]
@@ -552,7 +556,7 @@ fn fixture_limits_are_applied_before_the_subprocess_restart() {
             .iter()
             .find(|item| item["name"] == "checkout.remote_timeout_ms")
             .expect("worker checkout limit")["value"],
-        7_000
+        8_000
     );
     scratch.remove();
 }

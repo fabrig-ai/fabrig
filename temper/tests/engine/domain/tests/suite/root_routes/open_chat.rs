@@ -245,6 +245,8 @@ pub(crate) fn client_request_with_models(
         Event::Transport(FromTransport::Exchange {
             exchange,
             credential: Some(skein_lib::Secret::new(token.clone().into_boxed_slice())),
+            via: jig_protocol_engine_clients::Via::Listener,
+            source: None,
             browser: false,
             message: Message::Request(out.finish()),
         }),

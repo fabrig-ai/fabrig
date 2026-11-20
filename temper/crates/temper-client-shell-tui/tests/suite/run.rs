@@ -768,10 +768,15 @@ impl Engine {
             self.batch(owner, bytes);
         } else if self.bodies.remove(&owner) {
             self.watch(owner, bytes);
-        } else if bytes.starts_with(b"GET /jig/v1/stream?version=38") && self.deny_stream {
+        } else if bytes
+            .starts_with(format!("GET /jig/v1/stream?version={}", jig_client_protocol_wire::VERSION).as_bytes())
+            && self.deny_stream
+        {
             self.denied += 1;
             self.respond(owner, b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\n\r\n".as_slice().into());
-        } else if bytes.starts_with(b"GET /jig/v1/stream?version=38") {
+        } else if bytes
+            .starts_with(format!("GET /jig/v1/stream?version={}", jig_client_protocol_wire::VERSION).as_bytes())
+        {
             self.stream = Some(owner);
             let mut response = b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\n".to_vec();
             response.extend_from_slice(&hello_event());
@@ -1874,8 +1879,7 @@ fn the_box_ending_while_lent_leaves_the_login_to_its_end() {
     world.end_loan_world();
 }
 
-const HANDED_LINK: &[u8] =
-    b"http://127.0.0.1:8367/jig/v1/sign-in/link?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+const HANDED_LINK: &[u8] = b"http://127.0.0.1:8367/sign-in?secret=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
 
 #[test]
 fn a_front_connects_after_early_readiness_or_a_refused_connect() {
