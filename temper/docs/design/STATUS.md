@@ -623,7 +623,7 @@ Design documents:
 - [`domain/worker/jobs.md`](domain/worker/jobs.status.md)
 - [`playground.md`](playground.status.md)
 - [`protocol/README.md`](protocol/README.status.md)
-- [`protocol/floor.md`](protocol/floor.status.md) — floor 1, dev.fabrig.ai's settled store; explicit owner levels, registered layouts converted at read, fixed formats outside the registry and named refusals below the floor. The one-process floor deployment opens and serves; its floorless copy refuses. Upgrade stories use a registry change and a job, with a current settled image. No gap.
+- [`protocol/floor.md`](protocol/floor.status.md) — floor 1, dev.fabrig.ai's settled store; explicit owner levels, registered layouts converted at read, fixed formats outside the registry and named refusals below the floor. The one-process floor deployment opens and serves; its floorless copy refuses. Dev's image starts here; a guard keeps its layouts. Upgrade stories use a registry change and a job, with a current settled image. No gap.
 - [`protocol/binaries.md`](protocol/binaries.status.md)
 - [`protocol/channel.md`](protocol/channel.status.md)
 - [`protocol/checkpoints.md`](protocol/checkpoints.status.md)

@@ -1,0 +1,11 @@
+family jig-store-openings 1
+
+record OpenedWire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
+record OpenedTerm { kind: u16 largest: u32 }
+versioned record WorkerOpening {
+    worker: text 256
+    wires: list 16 OpenedWire
+    output: u32
+    terms: list 64 OpenedTerm
+    at: u64
+}
