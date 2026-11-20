@@ -177,10 +177,7 @@ esac
     stub
 }
 
-#[test]
-fn a_held_login_import_refuses_after_returning_without_starting_ctl() {
-    let scratch = support::Scratch::startup("held-login-import");
-    let root = scratch.path();
+fn held_import_echo(root: &Path) -> std::path::PathBuf {
     let stub = root.join("ctl-stub's path");
     support::write_private(
         &stub,
@@ -189,6 +186,47 @@ printf '%s\n' "$@"
 "#,
     );
     fs::set_permissions(&stub, fs::Permissions::from_mode(0o700)).expect("executable ctl stub");
+    stub
+}
+
+#[test]
+fn a_held_login_import_waits_for_the_rust_file_lock() {
+    use std::os::unix::fs::OpenOptionsExt;
+    let scratch = support::Scratch::startup("held-login-lock");
+    let root = scratch.path();
+    let stub = held_import_echo(root);
+    let _call = support::held_login::import_guard(&stub, root, root, &[]);
+    let lock = fs::OpenOptions::new()
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .mode(0o600)
+        .open(root.join("login.lock"))
+        .expect("login lock");
+    lock.lock().expect("hold login lock in Rust");
+    let mut guard = support::parent::Guard::new(
+        std::process::Command::new(root.join("import-held"))
+            .env_clear()
+            .stdout(std::process::Stdio::piped())
+            .spawn()
+            .expect("start import wrapper"),
+    );
+    // One bounded observation while Rust holds the lock; ctl exits as soon as it starts.
+    std::thread::sleep(std::time::Duration::from_millis(100));
+    let blocked = guard.child.as_mut().expect("import child").try_wait().expect("import status").is_none();
+    drop(lock);
+    let output = guard.child.take().expect("import child").wait_with_output().expect("import after unlock");
+    assert!(blocked, "the import wrapper must not reach ctl while Rust holds login.lock");
+    assert!(output.status.success());
+    assert_eq!(String::from_utf8(output.stdout).expect("ctl arguments"), format!("ctl\n{}\n", root.display()));
+    scratch.remove();
+}
+
+#[test]
+fn a_held_login_import_refuses_after_returning_without_starting_ctl() {
+    let scratch = support::Scratch::startup("held-login-import");
+    let root = scratch.path();
+    let stub = held_import_echo(root);
     let arguments = ["account", "import", "synthetic-record", "--key", "connect-plan"];
     let call = support::held_login::import_guard(&stub, root, root, &arguments);
     let ended = support::ctl::alone(root, call.clone());
