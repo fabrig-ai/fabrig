@@ -697,6 +697,12 @@ mod tests {
         assert_eq!(complete.result, Ok(Done::Count(4)));
         let Op::PipeRead { buf, .. } = complete.kind else { unreachable!("the read record comes back") };
         assert_eq!(buf.get(..4), Some(b"file".as_slice()));
+
+        submit(&mut kernel, 2, Op::PipeRead { fd: Fd::new(file.as_raw_fd()), buf });
+        assert!(kernel.waiters.is_empty(), "a file at EOF keeps no interest either");
+        kernel.reap(&mut out);
+        let complete = out.pop().expect("EOF completes at the next reap, without waiting");
+        assert_eq!(complete.result, Ok(Done::Count(0)), "a file at its end is always ready");
     }
 
     #[test]
