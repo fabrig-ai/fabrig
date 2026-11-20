@@ -587,3 +587,7 @@ impl Page {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "web/tests.rs"]
+mod tests;
