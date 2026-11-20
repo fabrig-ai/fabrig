@@ -24,7 +24,12 @@ pub fn grant(returned: &Returned, port: u16) -> Option<Secret> {
     if !returned.get || returned.host.as_deref()? != format!("127.0.0.1:{port}").as_bytes() {
         return None;
     }
-    let text = returned.target.strip_prefix(b"/approved?grant=")?;
+    target_grant(&returned.target)
+}
+
+/// Read the grant in a target even if the return wasn't accepted.
+pub(crate) fn target_grant(target: &[u8]) -> Option<Secret> {
+    let text = target.strip_prefix(b"/approved?grant=")?;
     if text.len() != 43 {
         return None;
     }

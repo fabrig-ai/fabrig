@@ -146,12 +146,22 @@ fn listening_and_returned_are_recorded_and_replay_with_the_hosts_not_found() {
     let mut walk = Walk::new();
     let request = Returned { get: true, target: b"/approved?grant=sample".as_slice().into(), host: None };
     let duties = walk.reports(vec![Report::Listening { port: Some(43210) }, Report::Returned(request.clone())]);
-    assert!(duties.iter().all(|duty| !duty.listen && !duty.unlisten));
-    assert!(matches!(duties.as_slice(), [Duties { answer: None, .. }, Duties { answer: Some(Answer::NotFound), .. }]));
+    assert!(matches!(
+        duties.as_slice(),
+        [
+            Duties { listen: false, unlisten: true, answer: None, .. },
+            Duties { listen: false, unlisten: false, answer: Some(Answer::NotFound), .. }
+        ]
+    ));
     let records = lines(&walk.save()).expect("readable journey");
     assert!(matches!(records.first(), Some(Line::Journey { version: 4 })));
-    assert!(records.windows(3).any(|lines| lines
-        == [Line::Listening(Some(43210)), Line::Returned(request.clone()), Line::Answer(Answer::NotFound)]));
+    assert!(records.windows(4).any(|lines| lines
+        == [
+            Line::Listening(Some(43210)),
+            Line::Unlisten,
+            Line::Returned(request.clone()),
+            Line::Answer(Answer::NotFound)
+        ]));
     same_frames(walk);
 }
 
@@ -490,6 +500,10 @@ fn approved() -> Walk {
 
 fn approved_at(facts: &Facts) -> Walk {
     let mut walk = Walk::with(facts);
+    if facts.address.at_name() {
+        // Keep this walk on the typed-code path when there is no listener.
+        walk.reports(vec![Report::Listening { port: None }]);
+    }
     let exchange = sent(&mut walk, |message| matches!(message, Sent::ApprovalAsk(_)));
     // v21 ApprovalAskAnswer::Asked: tag, secret length and bytes, code, expiry.
     let mut asked = vec![0];

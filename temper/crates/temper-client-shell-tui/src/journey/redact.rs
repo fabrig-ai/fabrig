@@ -149,7 +149,9 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
                 match message {
                     Sent::SignInApproval(bytes) => {
                         if let Ok(value) = w::ApprovalSignIn::decode(&w::CEILINGS, &mut Reader::new(bytes)) {
-                            candidates.push((Kind::Approval, value.into_parts().secret.into_exposed()));
+                            let parts = value.into_parts();
+                            candidates.push((Kind::Approval, parts.secret.into_exposed()));
+                            candidates.extend(parts.grant.map(|grant| (Kind::Approval, grant.into_exposed())));
                         }
                     }
                     Sent::SignInLink(bytes) => {
@@ -176,6 +178,11 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             }
             Line::Stream(Some(bytes)) | Line::Replacing { credential: Some(bytes), .. } => {
                 candidates.push((Kind::Bearer, bytes.clone()));
+            }
+            Line::Returned(returned) => {
+                candidates.extend(
+                    crate::loopback::target_grant(&returned.target).map(|grant| (Kind::Approval, grant.into_exposed())),
+                );
             }
             Line::Found(Some(bytes)) => {
                 candidates.extend(link_original(bytes));
@@ -219,7 +226,6 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::Unsaved
             | Line::Kept { .. }
             | Line::Listening(_)
-            | Line::Returned(_)
             | Line::Listen
             | Line::Unlisten
             | Line::Answer(_)
@@ -244,6 +250,13 @@ pub fn originals(lines: &[Line], given: &[Box<[u8]>]) -> Originals {
             | Line::End(_) => {}
         }
     }
+    // Shared redaction seeks equal bytes once under their first kind. Keep the kinds
+    // with extra encodings first, so a grant or link also carried elsewhere keeps its URL form.
+    candidates.sort_by_key(|(kind, _)| match kind {
+        Kind::Link => 0,
+        Kind::Approval => 1,
+        Kind::Stored | Kind::Typed | Kind::Given | Kind::Credential | Kind::Bearer => 2,
+    });
     Originals::new(candidates, given)
 }
 
@@ -257,12 +270,12 @@ fn link_original(url: &[u8]) -> Option<(Kind, Box<[u8]>)> {
 pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unreadable> {
     let mut lines = super::lines(recording)?;
     let originals = originals(&lines, given);
-    let forms = link_forms(&originals);
+    let forms = encoded_forms(&originals);
     let mut places = 0_u32;
     let mut recording = Vec::new();
     for line in &mut lines {
         for (field, framing) in fields_mut(line) {
-            places = places.checked_add(redact_links(field, &forms)).expect("replacement count fits u32");
+            places = places.checked_add(redact_encoded(field, &forms)).expect("replacement count fits u32");
             places = places.checked_add(redact_field(field, framing, &originals)).expect("replacement count fits u32");
         }
         line.write(&mut recording);
@@ -270,21 +283,23 @@ pub fn redact(recording: &[u8], given: &[Box<[u8]>]) -> Result<Redacted, Unreada
     Ok(Redacted { recording: recording.into(), originals, places })
 }
 
-/// A link's canonical URL-base64 and its Typed event's decimal byte elements.
-pub(super) struct LinkForm {
+/// Canonical URL-base64 for approvals and links, and decimal byte elements for a Typed link.
+pub(super) struct EncodedForm {
     bytes: Box<[u8]>,
     hidden: Box<[u8]>,
     decimal: bool,
 }
 
-pub(super) fn link_forms(originals: &Originals) -> Vec<LinkForm> {
+pub(super) fn encoded_forms(originals: &Originals) -> Vec<EncodedForm> {
     let mut forms = Vec::new();
     for original in originals.sought() {
-        if original.kind() == Kind::Link {
+        if matches!(original.kind(), Kind::Link | Kind::Approval) {
             let bytes = url_base64(original.forms().first().expect("an original has its bytes"));
             let hidden = url_base64(&vec![b'x'; original.len()]);
-            forms.push(LinkForm { bytes: decimal(&bytes), hidden: decimal(&hidden), decimal: true });
-            forms.push(LinkForm { bytes, hidden, decimal: false });
+            if original.kind() == Kind::Link {
+                forms.push(EncodedForm { bytes: decimal(&bytes), hidden: decimal(&hidden), decimal: true });
+            }
+            forms.push(EncodedForm { bytes, hidden, decimal: false });
         }
     }
     forms
@@ -302,7 +317,7 @@ fn decimal(bytes: &[u8]) -> Box<[u8]> {
     bytes.iter().map(u8::to_string).collect::<Vec<_>>().join(", ").into_bytes().into()
 }
 
-impl LinkForm {
+impl EncodedForm {
     pub(super) fn occurrences(&self, field: &[u8]) -> Vec<(usize, usize)> {
         if !self.decimal {
             // The welcome and /web note wrap links at their own column
@@ -332,9 +347,8 @@ impl LinkForm {
         let mut from = 0;
         while let Some(at) = find_from(field, &self.bytes, from) {
             let end = at.checked_add(self.bytes.len()).expect("found form fits field");
-            if !self.decimal
-                || ((field[..at].ends_with(b"[") || field[..at].ends_with(b", "))
-                    && (field[end..].starts_with(b"]") || field[end..].starts_with(b",")))
+            if (field[..at].ends_with(b"[") || field[..at].ends_with(b", "))
+                && (field[end..].starts_with(b"]") || field[end..].starts_with(b","))
             {
                 found.push((at, end));
             }
@@ -344,9 +358,9 @@ impl LinkForm {
     }
 }
 
-fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
+fn redact_encoded(field: &mut Box<[u8]>, forms: &[EncodedForm]) -> u32 {
     let mut replacements = BTreeMap::new();
-    for form in links {
+    for form in forms {
         for (at, end) in form.occurrences(field) {
             if replacements.range(..end).next_back().is_none_or(|(_, (prior_end, _))| *prior_end <= at) {
                 let hidden = if form.decimal {
@@ -359,7 +373,7 @@ fn redact_links(field: &mut Box<[u8]>, links: &[LinkForm]) -> u32 {
                             if byte.is_ascii_whitespace() {
                                 *byte
                             } else {
-                                *bytes.next().expect("one hidden byte per link byte")
+                                *bytes.next().expect("one hidden byte per encoded byte")
                             }
                         })
                         .collect()
