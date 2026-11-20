@@ -131,7 +131,7 @@ fn exercise(world: &mut Joined, seed: u64, version: u16) {
     world.engine_busy();
     world.run();
 }
-// Usage's new up records are unheld below 18; its down call is gated before translation.
+// Usage's new up records are unheld below 19; its down call is gated before translation.
 fn usage_records(world: &mut Joined, seed: u64, version: u16) {
     use jig_domain_link::{FactWindow, UsageOutcome, UsageWindow, WINDOW_WARNED};
     use skein_lib::Wall;
@@ -156,7 +156,7 @@ fn usage_records(world: &mut Joined, seed: u64, version: u16) {
         let sent = world.worker_records().len();
         world.worker_up(record, Box::new([]));
         world.run();
-        if version >= 18 {
+        if version >= 19 {
             let Some(jig_protocol_engine_workers::Request::Up { up, parts, .. }) = world.engine_root.last() else {
                 panic!("usage arrived")
             };
@@ -175,7 +175,7 @@ fn usage_records(world: &mut Joined, seed: u64, version: u16) {
     let heard = world.worker_root.len();
     world.engine_down(host::LinkDown::ReadUsage { read: seed, source }, Box::new([]), Box::new([]));
     world.run();
-    if version >= 18 {
+    if version >= 19 {
         let Some(Request::Down { down, parts }) = world.worker_root.last() else { panic!("usage read arrived") };
         assert_eq!(down, &host::LinkDown::ReadUsage { read: seed, source });
         assert_eq!(parts.as_ref(), &[], "usage read has no application parts");

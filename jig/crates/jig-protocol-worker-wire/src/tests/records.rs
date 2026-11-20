@@ -11,7 +11,7 @@ fn hello_schema() -> skein_channel::Schema {
     crate::schema(&fixtures::LIMITS).expect("small schema")
 }
 
-// Wire 18 has sixteen up records and eighteen down records.
+// Wire 19 has sixteen up records and eighteen down records.
 const UP_KINDS: u32 = 16;
 const DOWN_KINDS: u32 = 18;
 const CHANNEL_KINDS: u32 = UP_KINDS + DOWN_KINDS;

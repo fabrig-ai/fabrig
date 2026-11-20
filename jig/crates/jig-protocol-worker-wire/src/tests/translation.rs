@@ -210,7 +210,7 @@ fn model_refusals_round_trip_at_eighteen_and_are_unheld_below_it() {
     assert_eq!(schema.spelled(schema.field(field).name), b"refusal");
     for refusal in [Some(b"empty-message".as_slice().into()), None] {
         let record = model_answer(refusal.clone());
-        for version in [16, 17, 18] {
+        for version in [16, 17, 18, 19] {
             let sent = opaque().send(worker(&record), version, &agreed(version, 5), &wire::CEILINGS);
             if version < 18 && refusal.is_some() {
                 let refused = sent.expect_err("an older engine cannot hold the refusal");
@@ -617,15 +617,15 @@ fn usage_records() -> [wire::FromWorker; 5] {
 #[test]
 fn usage_records_round_trip_at_nineteen() {
     for record in usage_records() {
-        let frame = opaque().send(worker(&record), 19, &agreed(18, 5), &wire::CEILINGS).unwrap();
-        let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(18, 5), &wire::CEILINGS).unwrap();
+        let frame = opaque().send(worker(&record), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
+        let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
         assert_eq!(worker_value(&up), record);
     }
     let record = wire::FromEngine::ReadUsage(
         wire::ReadUsage { read: 42, source: b"personal".as_slice().into() },
     );
-    let frame = opaque().send(engine(&record), 19, &agreed(18, 5), &wire::CEILINGS).unwrap();
-    let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(18, 5), &wire::CEILINGS).unwrap();
+    let frame = opaque().send(engine(&record), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
+    let up = opaque().receive(frame.kind(), body(&frame), 19, &agreed(19, 5), &wire::CEILINGS).unwrap();
     assert_eq!(engine_value(&up), record);
 }
 #[test]
@@ -669,7 +669,9 @@ fn seventeens_kept_goldens_go_up_to_eighteens_equal_bytes_and_back() {
         }
     }
     let old = values(old.expect("kept 17"));
-    let current = values(crate::SCHEMA);
+    let current = values(
+        kept::TEXTS.iter().find(|text| text.starts_with("family jig-worker-wire 18\n")).expect("kept 18"),
+    );
     let older = &old.goldens;
     let newer = &current.goldens;
     let mut bridge = kept::bridge(Capacity {
