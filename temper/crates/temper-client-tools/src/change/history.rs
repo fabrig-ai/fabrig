@@ -50,7 +50,7 @@ pub(super) fn answer(
     }
     match reply {
         Some(w::HistoryReply::Page(page)) => {
-            let more = page.after().is_some();
+            let more = page.after.is_some();
             if let Some(read) = reading.pages.accept(page) {
                 reading.read = read;
                 send(watch, out);

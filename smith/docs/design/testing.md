@@ -124,7 +124,13 @@ vocabulary.
     skein's test certificates, the issuer reached through a `sign_in`
     account's moved addresses (shell/credentials.md, 1).
 - **Outside the loop:** git, rg, sh, the checks and the fake program, as
-  children in a scratch directory. The directory holds:
+  children in a scratch directory. git is `/usr/bin/git` and sh
+  `/bin/sh`; rg is the one on the test process's own `PATH`, which the
+  loop gives its agent's commands as their `PATH`, as smith's default
+  `inherit` gives a person's run theirs (`shell/README.md`, section 4),
+  so the agent finds it there as it ships (`protocol/agent.md`,
+  section 2). A world that runs the machine's listing against a real rg
+  takes the same one. The directory holds:
   - the settings;
   - the state and credentials directories;
   - the workspace's repositories.

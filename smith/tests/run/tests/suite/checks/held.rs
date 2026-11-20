@@ -27,8 +27,11 @@ impl Check {
     fn start(run: PendingCheck, request: Request) -> Self {
         let Request::Check { owner, program, bound, cap, tail } = request else { panic!("check") };
         let limits = smith_protocol_machine::Limits { output_bytes: tail, ..smith_protocol_machine_fixtures::SMALL };
-        let mut machine =
-            Component::new(&limits, smith_protocol_machine::Environment::encode(&[], &limits).expect("environment"));
+        let mut machine = Component::new(
+            &limits,
+            smith_protocol_machine::Environment::encode(&[], &limits).expect("environment"),
+            Box::from(b"/usr/bin/rg".as_slice()),
+        );
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
                 host: b"/host".as_slice().into(),

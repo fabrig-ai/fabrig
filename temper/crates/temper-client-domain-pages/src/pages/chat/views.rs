@@ -7,6 +7,7 @@ use crate::{
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Readable, Readout, contract as c};
 use skein_lib::{Duration, List, Map, Queue, Time};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 /// A view's last answer, kept while a newer revision is read.
@@ -205,26 +206,18 @@ fn gather(text: &[u8], wanted: &mut Map<Box<[u8]>, ()>) {
 fn reading(read: &Reading, limits: forge::Limits) -> Option<Readable> {
     let project = read.project?;
     let bounds = forge::wire_limits(&limits)?;
-    let record = w::Reading::new(
-        &bounds,
-        w::ReadingParts {
-            read: w::Read::View(
-                w::ViewRead::new(&bounds, w::ViewReadParts { project, address: read.address.clone() }).ok()?,
-            ),
-        },
-    )
-    .ok()?;
+    let record = w::Reading { read: w::Read::View(w::ViewRead { project, address: read.address.clone() }) };
     Some(Readable::Family {
         scope: c::Scope::Project(project),
         window: c::Window { rows: 0, after: None },
         record: jig_client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::reading(&record),
+            bytes: record.encode(&bounds).ok()?,
         },
     })
 }
 fn answer(page: &Readout, limits: forge::Limits) -> Option<w::View> {
     let Readout::Family { family: wire::FORGE, record: Some(bytes) } = page else { return None };
-    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.into_parts().view)
+    Some(wire::decode_view_answer(bytes, &forge::wire_limits(&limits)?)?.view)
 }

@@ -20,6 +20,9 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   accepts flat files or `gh run download`'s `part-PART/PART.xml` directories, and
   copies the full part files beside the failure-only report. A fault exits 2.
 - `wasm-compiler`: check Homebrew's newest LLVM targets wasm32 and export its target-only C tools.
+- `install-ripgrep`: download smith's workflow-pinned ripgrep release, check its
+  SHA-256 before unpacking into `RUNNER_TEMP/ripgrep`, print its version through
+  `RUN`, and append its directory to `GITHUB_PATH`.
 - `setup-runner`, `annotate`: keep each check's log and annotate failures; the
   runner preserves the command's exit status. With `MACOS_STARTED` and `PART`,
   checks stop 15 minutes before the part's timeout (150 minutes for e2e parts,
@@ -35,6 +38,11 @@ or builds, temporary directories inside the checkout, under 60 seconds).
   crates, and appends `MACOS_BUILT=true` to `GITHUB_ENV` only after every command
   succeeds. Browser pair runs warn on any compiled crates without changing
   their verdict. `verdict` fails on a failed case, after its file is uploaded.
+  `fetch-forge`
+  exports `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` after the build
+  for `process`, `live` and `temper`. Only `temper` restores and saves its fetch
+  cache between runs; configuration and data start empty, and `process` and
+  `live` start with an empty cache too.
   `prune` keeps each profile's `deps`, `build` and `.fingerprint`, less workspace
   package/target entries matched by whole name, optional sixteen-hex cargo hash
   and extension, in either spelling. Only sourced packages in the tested

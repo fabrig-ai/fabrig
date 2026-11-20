@@ -21,9 +21,9 @@ pub fn head(b: &mut Builder, ways: &StockWays, project_name: &[u8], w: &Words, b
     let line = if tab.index.is_some() {
         tab.line.clone()
     } else if let Some(words) = ways.words()
-        && !words.lede().is_empty()
+        && !words.lede.is_empty()
     {
-        copy_of(words.lede())
+        copy_of(&words.lede)
     } else {
         w.say(Word::WayOwn, &[Hole::Name(copy_of(project_name))])
     };
@@ -116,16 +116,16 @@ pub fn drawing(
 ) {
     let mut stops = List::with_capacity(paths::STOPS);
     let mut acts = List::with_capacity(paths::STOPS);
-    for (index, stop) in path.stops().iter().enumerate() {
+    for (index, stop) in path.stops.iter().enumerate() {
         let index = u32::try_from(index).expect("wire bounds stops");
-        let (mark, act) = match stop.actor() {
+        let (mark, act) = match &stop.actor {
             wire::Actor::Person => (paths::Mark::Person, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Agent => (paths::Mark::Agent, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Code => (paths::Mark::Code, Some(bindings.insert(Act::WayStop { project, stop: index }))),
             wire::Actor::Bar => (paths::Mark::Bar, None),
         };
         stops
-            .push(paths::Stop { mark, words: stop.words(), needed: stop.needed(), over: stop.over() })
+            .push(paths::Stop { mark, words: &stop.words, needed: stop.needed, over: &stop.over })
             .expect("wire bounds stops");
         acts.push(act).expect("one act per stop");
     }
@@ -157,36 +157,36 @@ pub fn legend(b: &mut Builder, w: &Words) {
 /// The open stop's card: heading, `who`, "Open NAME ›" where the stop opens a
 /// charter, a gate or a rule, and its facts.
 pub fn card(b: &mut Builder, stop: &wire::Stop, w: &Words, bindings: &mut Bindings, project: u32) {
-    let mut heading = copy_of(stop.words());
+    let mut heading = copy_of(&stop.words);
     if let Some(first) = heading.first_mut() {
         first.make_ascii_uppercase();
     }
-    let card = stop.card();
+    let card = &stop.card;
     b.open(Role::Region);
     b.name(&heading);
     b.style(look::WAYS_ZOOM);
     b.open(Role::Slot);
     b.style(look::WAYS_ZOOM_HEAD);
     text(b, Role::Heading { level: 3 }, &heading, None);
-    b.text(Run::Plain, card.who());
-    let address = match stop.opens() {
-        wire::Opens::Charter(c) => Some(Address::Role { project, charter: c.charter() }),
-        wire::Opens::Gate(g) => Some(Address::Role { project, charter: g.charter() }),
-        wire::Opens::Rule(r) => Some(Address::Rule { project, kind: r.kind(), number: r.number() }),
+    b.text(Run::Plain, &card.who);
+    let address = match &stop.opens {
+        wire::Opens::Charter(c) => Some(Address::Role { project, charter: c.charter }),
+        wire::Opens::Gate(g) => Some(Address::Role { project, charter: g.charter }),
+        wire::Opens::Rule(r) => Some(Address::Rule { project, kind: r.kind, number: r.number }),
         wire::Opens::Nothing | wire::Opens::Tier(_) | wire::Opens::Queue | wire::Opens::Turn => None,
     };
     if let Some(address) = address {
-        let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(card.name()))]);
+        let label = w.say(Word::WaysOpen, &[Hole::Name(copy_of(&card.name))]);
         crate::bindings::link(b, &label, bindings.insert(Act::Go { address }));
         b.text(Run::Plain, &label);
         b.close();
     }
     b.close();
     b.open(Role::Group);
-    for fact in card.facts() {
+    for fact in &card.facts {
         b.open(Role::Slot);
-        text(b, Role::Term, fact.label(), None);
-        text(b, Role::Description, fact.value(), None);
+        text(b, Role::Term, &fact.label, None);
+        text(b, Role::Description, &fact.value, None);
         b.close();
     }
     b.close();

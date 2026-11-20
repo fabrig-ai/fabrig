@@ -3,6 +3,7 @@ use super::{Names, PublicAsk, phase, w};
 use crate::{Domain, Limits};
 use alloc::boxed::Box;
 use skein_lib::{List, Map};
+use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_change as change;
 struct Queue {
     repository: Box<[u8]>,
@@ -45,15 +46,7 @@ impl Domain {
                     landed.push(hash).ok()?;
                 }
             }
-            landings
-                .push(
-                    w::PublicLandingLine::new(
-                        l,
-                        w::PublicLandingLineParts { members, phase: phase(&row.phase), landed },
-                    )
-                    .ok()?,
-                )
-                .ok()?;
+            landings.push(w::PublicLandingLine { members, phase: phase(&row.phase), landed }).ok()?;
         }
         for (_, logged) in &self.queue_merges(ask, limits)? {
             if landings.room() == 0 {
@@ -90,22 +83,20 @@ impl Domain {
                 let task = names.name(entry.task)?;
                 let goal = names.name(goal)?;
                 changes
-                    .push(
-                        w::PublicQueued::new(
-                            l,
-                            w::PublicQueuedParts {
-                                task,
-                                goal,
-                                ready_since: entry.since.as_nanos().checked_div(1_000_000_000)?,
-                            },
-                        )
-                        .ok()?,
-                    )
+                    .push(w::PublicQueued {
+                        task,
+                        goal,
+                        ready_since: entry.since.as_nanos().checked_div(1_000_000_000)?,
+                    })
                     .ok()?;
             }
-            made.push(w::PublicQueue::new(l, w::PublicQueueParts { changes }).ok()?).ok()?;
+            made.push(w::PublicQueue { changes }).ok()?;
         }
-        w::PublicLandings::new(l, w::PublicLandingsParts { turn, landings, queues: made }).ok()
+        {
+            let value = w::PublicLandings { turn, landings, queues: made };
+            value.measure(l).ok()?;
+            Some(value)
+        }
     }
     fn public_queues(&self, ask: &PublicAsk<'_>, limits: &Limits) -> Option<List<Queue>> {
         let mut queues = List::with_capacity(limits.changes);

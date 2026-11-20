@@ -1,6 +1,7 @@
 use super::*;
 use jig_client::contract as c;
 use skein_lib::{Env, Queue, Time, Token, Wall, Writer};
+use temper_client_protocol_wire::v1::Record;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[must_use]
@@ -525,11 +526,7 @@ fn root_at_with_classes_from(
     if let (Some(watch), Some(projects)) = (dismissed_watch, dismissed) {
         let mut dismissed = List::with_capacity(wire::DISMISSED);
         for project in projects {
-            dismissed
-                .push(w::PersonFact::ToBegin(
-                    w::ToBegin::new(&w::CEILINGS, w::ToBeginParts { project: *project }).unwrap(),
-                ))
-                .unwrap();
+            dismissed.push(w::PersonFact::ToBegin(w::ToBegin { project: *project })).unwrap();
         }
         root_event(
             &mut root,
@@ -540,9 +537,7 @@ fn root_at_with_classes_from(
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::dismissals(
-                                &w::Dismissals::new(&w::CEILINGS, w::DismissalsParts { dismissed }).unwrap(),
-                            ),
+                            bytes: wire::dismissals(&w::Dismissals { dismissed }),
                         },
                     },
                 },
@@ -554,7 +549,6 @@ fn root_at_with_classes_from(
             Some(rows) => rows,
             None => List::with_capacity(0),
         };
-        let wire_limits = forge::wire_limits(&limits.forge).unwrap();
         temper_client_domain::step(
             &mut root,
             &env,
@@ -565,9 +559,7 @@ fn root_at_with_classes_from(
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::forges(
-                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows, linked: false }).unwrap(),
-                            ),
+                            bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                         },
                     },
                 },
@@ -615,7 +607,7 @@ fn root_at_with_classes_from(
                 },
         } = request
         {
-            match wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read() {
+            match &wire::decode_reading(&record.bytes, &w::CEILINGS).expect("forge read").read {
                 w::Read::Deployment => deliver_deployment(&mut root, token, true, true),
                 w::Read::Playground => read = Some(token),
                 w::Read::Setting(setting) => {
@@ -634,7 +626,7 @@ fn root_at_with_classes_from(
                             &mut out,
                         );
                     } else if let Some(ways) = ways {
-                        let value = match setting.kind() {
+                        let value = match setting.kind {
                             7 => Some(ways_bytes(ways)),
                             8 => match classes {
                                 Some(classes) => Some(classes_bytes(classes)),
@@ -642,9 +634,7 @@ fn root_at_with_classes_from(
                             },
                             _ => None,
                         };
-                        let answer =
-                            w::SettingAnswer::new(&w::CEILINGS, w::SettingAnswerParts { revision: None, value })
-                                .unwrap();
+                        let answer = w::SettingAnswer { revision: None, value };
                         temper_client_domain::step(
                             &mut root,
                             &env,
@@ -664,19 +654,11 @@ fn root_at_with_classes_from(
                     }
                 }
                 w::Read::Limits(_) => {
-                    let answer = w::LimitsAnswer::new(
-                        &w::CEILINGS,
-                        w::LimitsAnswerParts { rows: List::with_capacity(0), next: None, revision: 0 },
-                    )
-                    .unwrap();
+                    let answer = w::LimitsAnswer { rows: List::with_capacity(0), next: None, revision: 0 };
                     playground_record(&mut root, token, Some(wire::limits_answer(&answer)));
                 }
                 w::Read::LimitHolds(_) => {
-                    let answer = w::LimitHoldsAnswer::new(
-                        &w::CEILINGS,
-                        w::LimitHoldsAnswerParts { rows: List::with_capacity(0), next: None },
-                    )
-                    .unwrap();
+                    let answer = w::LimitHoldsAnswer { rows: List::with_capacity(0), next: None };
                     playground_record(&mut root, token, Some(wire::limit_holds_answer(&answer)));
                 }
                 w::Read::RevisionSetting(_)
@@ -972,16 +954,12 @@ fn inbox_read_at(
             } = &request
                 && Some(subject) == forge::decided::watch(PROJECT, &env.limits.forge).as_ref()
             {
-                let document = w::Decisions::new(
-                    &w::CEILINGS,
-                    w::DecisionsParts {
-                        project: PROJECT,
-                        rows: List::with_capacity(0),
-                        asked: List::with_capacity(0),
-                        cut: false,
-                    },
-                )
-                .unwrap();
+                let document = w::Decisions {
+                    project: PROJECT,
+                    rows: List::with_capacity(0),
+                    asked: List::with_capacity(0),
+                    cut: false,
+                };
                 temper_client_domain::step(
                     &mut root,
                     &env,
@@ -1494,27 +1472,19 @@ pub fn deliver_playground(
     let mut cues = List::with_capacity(2);
     cues.push(Box::from(PLAYGROUND_CUE)).expect("first cue");
     cues.push(Box::from(PLAYGROUND_OTHER_CUE)).expect("second cue");
-    let answer = w::PlaygroundAnswer::new(
-        &w::CEILINGS,
-        w::PlaygroundAnswerParts {
-            state,
-            project,
-            forge,
-            provider: 17,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            cues,
-        },
-    )
-    .expect("playground answer");
+    let answer = w::PlaygroundAnswer {
+        state,
+        project,
+        forge,
+        provider: 17,
+        owner: b"acme".as_slice().into(),
+        name: b"shop".as_slice().into(),
+        cues,
+    };
     playground_record(root, read, Some(wire::playground_answer(&answer)));
 }
 pub fn deliver_deployment(root: &mut temper_client_domain::Domain, read: Token, welcome: bool, owned: bool) {
-    let answer = w::DeploymentAnswer::new(
-        &w::CEILINGS,
-        w::DeploymentAnswerParts { push: None, welcome, owned, program_login: None },
-    )
-    .expect("deployment answer");
+    let answer = w::DeploymentAnswer { push: None, welcome, owned, program_login: None };
     playground_record(root, read, Some(wire::deployment_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
@@ -1643,7 +1613,7 @@ pub fn playground_start_attempt(root: &mut temper_client_domain::Domain) -> Toke
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartPlayground
+            && wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request == w::Request::StartPlayground
         {
             return attempt;
         }
@@ -1669,7 +1639,7 @@ pub fn playground_start_answer(
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+                        bytes: wire::answer(&w::Answer { outcome }),
                     })),
                 },
             },
@@ -1785,19 +1755,15 @@ pub fn root_with_classes(
 #[must_use]
 pub fn classes_bytes(classes: &temper_protocol_reaches::Classes) -> Box<[u8]> {
     let record = temper_protocol_reaches::classes_record(classes).unwrap();
-    let mut writer = Writer::new(usize::try_from(record.measure()).unwrap());
-    record.encode(&mut writer).unwrap();
+    let mut writer = Writer::new(usize::try_from(record.measure(&w::CEILINGS).expect("within ceilings")).unwrap());
+    record.write(&w::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 #[must_use]
 pub fn ways_bytes(ways: forge::ways::Ways) -> Box<[u8]> {
-    let value = w::ProjectWays::new(
-        &w::CEILINGS,
-        w::ProjectWaysParts { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way },
-    )
-    .unwrap();
-    let mut writer = Writer::new(usize::try_from(value.measure()).unwrap());
-    value.encode(&mut writer).unwrap();
+    let value = w::ProjectWays { drafts: ways.drafts, goals: ways.goals, changes: ways.changes, way: ways.way };
+    let mut writer = Writer::new(usize::try_from(value.measure(&w::CEILINGS).expect("within ceilings")).unwrap());
+    value.write(&w::CEILINGS, &mut writer).unwrap();
     writer.finish()
 }
 
@@ -1820,24 +1786,20 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
         false,
         true,
     );
-    let row = w::AwayRow::new(
-        &w::CEILINGS,
-        w::AwayRowParts {
-            project: PROJECT,
-            since: 0,
-            until: match until {
-                Some(wall) => Some(wall.as_nanos()),
-                None => None,
-            },
-
-            landed: 0,
-            off: match off {
-                Some(wall) => Some(wall.as_nanos()),
-                None => None,
-            },
+    let row = w::AwayRow {
+        project: PROJECT,
+        since: 0,
+        until: match until {
+            Some(wall) => Some(wall.as_nanos()),
+            None => None,
         },
-    )
-    .unwrap();
+
+        landed: 0,
+        off: match off {
+            Some(wall) => Some(wall.as_nanos()),
+            None => None,
+        },
+    };
     root_event(
         &mut root,
         temper_client_domain::Event::Client {
@@ -1847,10 +1809,7 @@ pub fn away_frame(until: Option<Wall>, off: Option<Wall>) -> (temper_client_doma
                     record: jig_client::Family {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
-                        bytes: wire::aways(
-                            &w::Aways::new(&w::CEILINGS, w::AwaysParts { rows: List::from_boxed(Box::new([row])) })
-                                .unwrap(),
-                        ),
+                        bytes: wire::aways(&w::Aways { rows: List::from_boxed(Box::new([row])) }),
                     },
                 },
             },
@@ -1889,7 +1848,7 @@ pub fn away_toggle(root: &mut temper_client_domain::Domain) -> Token {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && let w::Request::SetAway(_) = wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request()
+            && let w::Request::SetAway(_) = &wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request
         {
             return attempt;
         }
@@ -1944,9 +1903,7 @@ impl ReadPage {
                         record: jig_client::Family {
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
-                            bytes: wire::forges(
-                                &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, linked: false }).unwrap(),
-                            ),
+                            bytes: wire::forges(&w::Forges { forges: rows, linked: false }),
                         },
                     });
                 }
@@ -2131,25 +2088,20 @@ pub fn answer_empty_chats(root: &mut temper_client_domain::Domain) {
 pub fn sheet_root() -> temper_client_domain::Domain {
     let mut rows = List::with_capacity(1);
     let mut row =
-        connect_forge::row(1, w::Kind::Forgejo, w::Mode::Owned, connect_forge::connected(), w::Offer::NotOffered)
-            .into_parts();
-    row.repositories = List::from_boxed(Box::new([w::Adoption::new(
-        &w::CEILINGS,
-        w::AdoptionParts { owner: b"acme".as_slice().into(), name: b"kept".as_slice().into(), project: PROJECT },
-    )
-    .unwrap()]));
-    row.makings = List::from_boxed(Box::new([w::RepositoryMaking::new(
-        &w::CEILINGS,
-        w::RepositoryMakingParts {
-            org: b"acme".as_slice().into(),
-            name: b"copy".as_slice().into(),
-            from: w::MakeFrom::Empty,
-            into: None,
-            state: w::MakingState::Making,
-        },
-    )
-    .unwrap()]));
-    rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+        connect_forge::row(1, w::Kind::Forgejo, w::Mode::Owned, connect_forge::connected(), w::Offer::NotOffered);
+    row.repositories = List::from_boxed(Box::new([w::Adoption {
+        owner: b"acme".as_slice().into(),
+        name: b"kept".as_slice().into(),
+        project: PROJECT,
+    }]));
+    row.makings = List::from_boxed(Box::new([w::RepositoryMaking {
+        org: b"acme".as_slice().into(),
+        name: b"copy".as_slice().into(),
+        from: w::MakeFrom::Empty,
+        into: None,
+        state: w::MakingState::Making,
+    }]));
+    rows.push(row).unwrap();
     forge_root(temper_client_domain::Address::Adopt { project: PROJECT }, rows)
 }
 

@@ -336,8 +336,8 @@ fn picker(b: &mut Builder, root: &Domain, sheet: &sheet::Sheet, project: &[u8], 
     for shown in &shown {
         b.open(Role::Item);
         b.open(Role::Check);
-        b.name(&forge::words::full_name(shown.row.owner().login(), shown.row.name()));
-        b.bind(bindings.insert(Meaning::Sheet(Act::Pick { id: shown.row.id(), on: !shown.picked })));
+        b.name(&forge::words::full_name(&shown.row.owner.login, &shown.row.name));
+        b.bind(bindings.insert(Meaning::Sheet(Act::Pick { id: shown.row.id, on: !shown.picked })));
         if shown.picked {
             b.state(State::Pressed);
         }

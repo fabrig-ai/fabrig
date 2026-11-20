@@ -83,8 +83,13 @@ pub(super) fn decode_decided(row: w::Decided) -> Result<d::Decided, Undecodable>
 
 pub(super) fn encode_reach(reach: temper_protocol_reaches::Reach) -> w::Reach {
     let record = temper_protocol_reaches::reach_record(&reach);
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("reach measure fits"));
-    record.encode(&mut writer).expect("measured reach room");
+    let mut writer = Writer::new(
+        usize::try_from(
+            record.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("admitted client record within ceilings"),
+        )
+        .expect("reach measure fits"),
+    );
+    record.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured reach room");
     w::Reach::decode(&w::CEILINGS, &mut Reader::new(&writer.finish())).expect("matching reach records")
 }
 pub(super) fn decode_reach(record: w::Reach) -> Result<temper_protocol_reaches::Reach, Undecodable> {

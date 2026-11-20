@@ -223,8 +223,8 @@ fn restored(ask: &jig_client::Ask, limits: forge::Limits) -> Option<forge::Adopt
         return None;
     }
     let requesting = wire::decode_requesting(&record.bytes, &forge::wire_limits(&limits)?)?;
-    let w::Request::Adopt(adopt) = requesting.into_parts().request else { return None };
-    let a = adopt.into_parts();
+    let w::Request::Adopt(adopt) = requesting.request else { return None };
+    let a = adopt;
     Some(forge::Adoption {
         project: a.project,
         home: a.home,

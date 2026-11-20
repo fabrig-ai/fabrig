@@ -1169,7 +1169,7 @@ fn stage_mark(current: Option<usize>, failed: Option<usize>, index: usize) -> Ma
 fn setup_target<'a>(root: &'a Domain, row: &Row) -> Option<(&'a [u8], &'a [u8])> {
     match root.forge().set_up() {
         Some(last) if last.forge == Some(row.number) => match &last.first {
-            forge::forges::SetUpFirst::Empty(first) => Some((first.org(), first.repository())),
+            forge::forges::SetUpFirst::Empty(first) => Some((&first.org, &first.repository)),
             forge::forges::SetUpFirst::Copies(_) | forge::forges::SetUpFirst::Nothing => None,
         },
         Some(_) | None => None,

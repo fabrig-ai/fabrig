@@ -35,8 +35,11 @@ fn perform(directory: &Path, op: tools::Op) -> tools::Done {
     let mut files = FileIo::with_limits(&file_limits);
     let root = files.adopt_root(open_root(directory).expect("scratch root")).expect("root slot");
     assert_eq!(root, ROOT);
-    let mut component =
-        Component::new(&limits, smith_protocol_machine::Environment::encode(&[], &limits).expect("empty environment"));
+    let mut component = Component::new(
+        &limits,
+        smith_protocol_machine::Environment::encode(&[], &limits).expect("empty environment"),
+        Box::from(b"/usr/bin/rg".as_slice()),
+    );
     component.workspace(&run::Workspace {
         directories: Box::new([run::Directory {
             host: b"/host".as_slice().into(),

@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use skein_json::writer::Encoder;
 use skein_lib::List;
 use temper_client_protocol_wire::v1 as w;
+use temper_client_protocol_wire::v1::Record;
 
 fn text(d: &Decoder<'_>, fields: &Fields, name: &[u8], required: bool) -> Result<Box<[u8]>, Error> {
     let Some(at) = optional(fields, name) else {
@@ -17,8 +18,14 @@ fn text(d: &Decoder<'_>, fields: &Fields, name: &[u8], required: bool) -> Result
 fn repository(d: &Decoder<'_>, fields: &Fields) -> Result<w::FollowRepository, Error> {
     let forge = u16::try_from(super::number(d, fields, b"forge")?).or(Err(error(b"forge", b"u16 bound")))?;
     let repository = super::number(d, fields, b"repository")?;
-    w::FollowRepository::new(&d.kinds, w::FollowRepositoryParts { forge, repository })
-        .or(Err(error(b"", b"wire value bound")))
+    {
+        let value = w::FollowRepository { forge, repository };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"", b"wire value bound")))
 }
 fn source(d: &Decoder<'_>, at: u32) -> Result<w::FollowSource, Error> {
     let fields = d.object(at, &[b"forge", b"repository", b"branch", b"paths"])?;
@@ -32,22 +39,26 @@ fn source(d: &Decoder<'_>, at: u32) -> Result<w::FollowSource, Error> {
             paths.push(path).expect("counted paths");
         }
     }
-    w::FollowSource::new(
-        &d.kinds,
-        w::FollowSourceParts {
-            repository: repository(d, &fields)?,
-            branch: text(d, &fields, b"branch", false)?,
-            paths,
-        },
-    )
+    {
+        let value =
+            w::FollowSource { repository: repository(d, &fields)?, branch: text(d, &fields, b"branch", false)?, paths };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 fn target(d: &Decoder<'_>, at: u32) -> Result<w::FollowTarget, Error> {
     let fields = d.object(at, &[b"forge", b"repository", b"branch"])?;
-    w::FollowTarget::new(
-        &d.kinds,
-        w::FollowTargetParts { repository: repository(d, &fields)?, branch: text(d, &fields, b"branch", false)? },
-    )
+    {
+        let value =
+            w::FollowTarget { repository: repository(d, &fields)?, branch: text(d, &fields, b"branch", false)? };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 fn check(d: &Decoder<'_>, at: u32) -> Result<w::FollowCheck, Error> {
@@ -57,14 +68,17 @@ fn check(d: &Decoder<'_>, at: u32) -> Result<w::FollowCheck, Error> {
         b"lines" => w::FollowFormat::Lines,
         _ => return Err(error(b"format", b"junit or lines required")),
     };
-    w::FollowCheck::new(
-        &d.kinds,
-        w::FollowCheckParts {
+    {
+        let value = w::FollowCheck {
             workflow: text(d, &fields, b"workflow", true)?,
             artifact: text(d, &fields, b"artifact", true)?,
             format,
-        },
-    )
+        };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
     .or(Err(error(b"", b"wire value bound")))
 }
 
@@ -84,13 +98,25 @@ pub(super) fn read(d: &Decoder<'_>, at: u32) -> Result<w::Follow, Error> {
     }
     let owner = if let Some(at) = optional(&owner, b"person") {
         w::FollowOwner::Person(
-            w::FollowPerson::new(&d.kinds, w::FollowPersonParts { person: d.number(at)? })
-                .or(Err(error(b"owner", b"wire value bound")))?,
+            {
+                let value = w::FollowPerson { person: d.number(at)? };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
+            .or(Err(error(b"owner", b"wire value bound")))?,
         )
     } else {
         w::FollowOwner::Task(
-            w::FollowOwnerTask::new(&d.kinds, w::FollowOwnerTaskParts { task: d.number(field(&owner, b"task")?)? })
-                .or(Err(error(b"owner", b"wire value bound")))?,
+            {
+                let value = w::FollowOwnerTask { task: d.number(field(&owner, b"task")?)? };
+                match value.encode(&d.kinds) {
+                    Ok(_) => Ok(value),
+                    Err(problem) => Err(problem),
+                }
+            }
+            .or(Err(error(b"owner", b"wire value bound")))?,
         )
     };
     let start = match text(d, &fields, b"start", false)?.as_ref() {
@@ -104,15 +130,21 @@ pub(super) fn read(d: &Decoder<'_>, at: u32) -> Result<w::Follow, Error> {
         Ok(value) => value,
         Err(why) => return Err(why.at(b"check")),
     };
-    w::Follow::new(&d.kinds, w::FollowParts { source, target, owner, start, producer, verification })
-        .or(Err(error(b"", b"wire value bound")))
+    {
+        let value = w::Follow { source, target, owner, start, producer, verification };
+        match value.encode(&d.kinds) {
+            Ok(_) => Ok(value),
+            Err(problem) => Err(problem),
+        }
+    }
+    .or(Err(error(b"", b"wire value bound")))
 }
 
 fn render_repository(value: &w::FollowRepository, branch: &[u8], out: &mut Encoder) {
     out.key(b"forge");
-    out.unsigned(u64::from(value.forge()));
+    out.unsigned(u64::from(value.forge));
     out.key(b"repository");
-    out.unsigned(u64::from(value.repository()));
+    out.unsigned(u64::from(value.repository));
     out.key(b"branch");
     out.string(branch);
 }
@@ -120,48 +152,48 @@ pub(super) fn render(value: &w::Follow, out: &mut Encoder) {
     out.object_start();
     out.key(b"source");
     out.object_start();
-    render_repository(value.source().repository(), value.source().branch(), out);
+    render_repository(&value.source.repository, &value.source.branch, out);
     out.key(b"paths");
     out.array_start();
-    for path in value.source().paths() {
+    for path in &value.source.paths {
         out.string(path);
     }
     out.array_end();
     out.object_end();
     out.key(b"target");
     out.object_start();
-    render_repository(value.target().repository(), value.target().branch(), out);
+    render_repository(&value.target.repository, &value.target.branch, out);
     out.object_end();
     out.key(b"owner");
     out.object_start();
-    match value.owner() {
+    match &value.owner {
         w::FollowOwner::Person(person) => {
             out.key(b"person");
-            out.unsigned(person.person());
+            out.unsigned(person.person);
         }
         w::FollowOwner::Task(task) => {
             out.key(b"task");
-            out.unsigned(task.task());
+            out.unsigned(task.task);
         }
     }
     out.object_end();
     out.key(b"start");
-    out.string(match value.start() {
+    out.string(match &value.start {
         w::FollowStart::Owner => b"owner",
         w::FollowStart::Code => b"code",
     });
-    if let Some(producer) = value.producer() {
+    if let Some(producer) = &value.producer {
         out.key(b"producer");
         out.string(producer);
     }
     out.key(b"check");
     out.object_start();
     out.key(b"workflow");
-    out.string(value.verification().workflow());
+    out.string(&value.verification.workflow);
     out.key(b"artifact");
-    out.string(value.verification().artifact());
+    out.string(&value.verification.artifact);
     out.key(b"format");
-    out.string(match value.verification().format() {
+    out.string(match &value.verification.format {
         w::FollowFormat::Junit => b"junit",
         w::FollowFormat::Lines => b"lines",
     });

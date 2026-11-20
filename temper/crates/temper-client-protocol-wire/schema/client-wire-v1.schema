@@ -561,4 +561,4 @@ record AgentFigures { profile: list 128 AgentFigure endpoints: list 64 AgentEndp
 
 # Limit overrides (protocol/configuration/limit-settings.md, 2.3).
 record LimitOverride { name: bytes 64 value: u64 reason: text 120 }
-record TemperLimits { overrides: list 256 LimitOverride }
+record LimitOverrides { overrides: list 256 LimitOverride }

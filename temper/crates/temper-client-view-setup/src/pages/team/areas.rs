@@ -39,9 +39,9 @@ pub(super) fn names(words: &Words, names: &List<team::AreaName>, last: &[u8]) ->
 }
 pub(super) fn holder_name(words: &Words, facts: &team::Facts, holder: &w::Holder) -> Box<[u8]> {
     let holder = match holder {
-        w::Holder::Task(task) => team::Holder::Task(task.number()),
-        w::Holder::Party(party) => team::Holder::Party(party.number()),
-        w::Holder::Role(role) => team::Holder::Role(role.number()),
+        w::Holder::Task(task) => team::Holder::Task(task.number),
+        w::Holder::Party(party) => team::Holder::Party(party.number),
+        w::Holder::Role(role) => team::Holder::Role(role.number),
     };
     named_holder(words, Some(facts), &holder)
 }
@@ -56,7 +56,7 @@ fn reader(facts: &team::Facts, party: u64) -> bool {
 fn plural(facts: &team::Facts, holder: &w::Holder) -> bool {
     match holder {
         w::Holder::Task(_) => false,
-        w::Holder::Party(party) => reader(facts, party.number()),
+        w::Holder::Party(party) => reader(facts, party.number),
         w::Holder::Role(_) => true,
     }
 }
@@ -75,14 +75,14 @@ fn who(holder: &w::Holder) -> Who {
 }
 pub(super) fn absent(words: &Words, owner: &w::AreaOwner, project: &[u8]) -> Box<[u8]> {
     match owner {
-        w::AreaOwner::Task(task) => words.say(Word::TeamOwnerEnded, &[Hole::Number(task.number())]),
+        w::AreaOwner::Task(task) => words.say(Word::TeamOwnerEnded, &[Hole::Number(task.number)]),
         w::AreaOwner::Party(party) => {
-            words.say(Word::TeamOwnerLeft, &[Hole::Number(party.number()), Hole::Name(project.into())])
+            words.say(Word::TeamOwnerLeft, &[Hole::Number(party.number), Hole::Name(project.into())])
         }
         w::AreaOwner::Charter(charter) => {
-            words.say(Word::TeamOwnerNotStarted, &[Hole::Number(u64::from(charter.number()))])
+            words.say(Word::TeamOwnerNotStarted, &[Hole::Number(u64::from(charter.number))])
         }
-        w::AreaOwner::Role(role) => role_name(words, role.number()),
+        w::AreaOwner::Role(role) => role_name(words, role.number),
     }
 }
 
@@ -193,7 +193,7 @@ fn now(b: &mut Builder, words: &Words, facts: &team::Facts, row: &team::AreaPart
     }
     if let Some(w::Holder::Party(party)) = &row.holder {
         for person in &facts.people {
-            if person.party == party.number()
+            if person.party == party.number
                 && let Some(line) = crate::shared::person_line(words, person)
             {
                 said = Some(line);
@@ -238,7 +238,7 @@ fn routes(b: &mut Builder, words: &Words, project: u32, facts: &team::Facts, bin
     let word = match holder {
         w::Holder::Task(_) => Word::TeamRoutesTask,
         w::Holder::Party(party) => {
-            if reader(facts, party.number()) {
+            if reader(facts, party.number) {
                 Word::TeamRoutesYou
             } else {
                 Word::TeamRoutesPerson

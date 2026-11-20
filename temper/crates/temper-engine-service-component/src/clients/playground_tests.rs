@@ -8,7 +8,7 @@ fn enqueue(clients: &mut Clients) {
     enqueue_request(clients, w::Request::StartPlayground);
 }
 fn enqueue_request(clients: &mut Clients, request: w::Request) {
-    let requesting = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+    let requesting = w::Requesting { request };
     clients.out.push(kit::Request::Application(kit::ToApplication::Request {
         reply_to: skein_lib::ReplyTo::new(Token::new(91)),
         sign_in: 1,

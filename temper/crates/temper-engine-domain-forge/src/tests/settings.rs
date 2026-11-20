@@ -6,6 +6,7 @@ use crate::settings::{
 use crate::{GateLast, GatePattern, JudgeFreshness, Requires};
 use alloc::boxed::Box;
 use skein_lib::List;
+use temper_client_protocol_wire::v1::Record;
 
 // Tiny admission bounds: two gates and roles, five base segments, eight bytes each.
 const BOUNDS: Bounds = Bounds {
@@ -857,7 +858,11 @@ fn project_gates_fit_the_carrier_at_its_bound_and_refuse_one_more_byte() {
         .expect("bounded paths");
     gates.repositories[0].gates[0].ignored = paths.into_boxed();
     assert_eq!(gates_bytes(&gates), Some(CARRIER));
-    assert_eq!(gates_record(&gates).measure(), CARRIER, "judge counts the codec's bytes");
+    assert_eq!(
+        gates_record(&gates).measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
+        CARRIER,
+        "judge counts the codec's bytes"
+    );
     assert_eq!(
         judge(&Item { kind: 5, scope: PROJECT, number: 1, value: Some(Value::Gates(gates.clone())) }, &bounds),
         Ok(())

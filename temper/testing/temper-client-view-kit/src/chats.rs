@@ -348,7 +348,7 @@ pub fn deployment_chats_root(welcome: Option<bool>, me: Option<Me>) -> Domain {
                     jig_client::UnlinkedRequest::Down {
                         down: jig_client::Down::Read { read, what: jig_client::Readable::Family { record, .. } },
                     },
-            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read() == &w::Read::Deployment => {
+            } if wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read == w::Read::Deployment => {
                 if let Some(welcome) = welcome {
                     fixtures::deliver_deployment(&mut root, read, welcome, false);
                 }

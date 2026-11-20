@@ -494,10 +494,10 @@ fn view_read(out: &mut Queue<Request>) -> Option<(Handle, u32, Box<[u8]>)> {
             request
         {
             let reading = wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap();
-            if let w::Read::View(view) = reading.read() {
-                assert_eq!(scope, c::Scope::Project(view.project()));
+            if let w::Read::View(view) = &reading.read {
+                assert_eq!(scope, c::Scope::Project(view.project));
                 assert!(found.is_none(), "only one view read");
-                found = Some((handle, view.project(), view.address().into()));
+                found = Some((handle, view.project, view.address.clone()));
             }
         }
     }
@@ -545,35 +545,17 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
         assert_eq!(text.as_ref(), wanted);
         event(&mut f, Event::Went { address: address.clone() });
         assert_eq!(view_read(&mut f.out), None);
-        let card = w::Card::new(
-            &w::CEILINGS,
-            w::CardParts {
-                name: b"the reviewer".as_slice().into(),
-                who: b"an agent".as_slice().into(),
-                facts: List::with_capacity(0),
-            },
-        )
-        .unwrap();
+        let card = w::Card {
+            name: b"the reviewer".as_slice().into(),
+            who: b"an agent".as_slice().into(),
+            facts: List::with_capacity(0),
+        };
         let view = match address {
-            Address::Settings { .. } => w::View::Roles(
-                w::RolesView::new(
-                    &w::CEILINGS,
-                    w::RolesViewParts {
-                        roles: List::from_boxed(Box::new([w::CharterView::new(
-                            &w::CEILINGS,
-                            w::CharterViewParts { charter: 4, card },
-                        )
-                        .unwrap()])),
-                    },
-                )
-                .unwrap(),
-            ),
-            Address::Role { .. } => {
-                w::View::Charter(w::CharterView::new(&w::CEILINGS, w::CharterViewParts { charter: 4, card }).unwrap())
-            }
-            Address::Rule { .. } => {
-                w::View::Rule(w::RuleView::new(&w::CEILINGS, w::RuleViewParts { kind: 2, number: 1, card }).unwrap())
-            }
+            Address::Settings { .. } => w::View::Roles(w::RolesView {
+                roles: List::from_boxed(Box::new([w::CharterView { charter: 4, card }])),
+            }),
+            Address::Role { .. } => w::View::Charter(w::CharterView { charter: 4, card }),
+            Address::Rule { .. } => w::View::Rule(w::RuleView { kind: 2, number: 1, card }),
             Address::AllHome
             | Address::Inbox { .. }
             | Address::Chats { .. }
@@ -602,7 +584,7 @@ fn role_pages_read_the_named_view_once_and_keep_the_answer() {
             | Address::Tell { .. }
             | Address::Adopt { .. } => unreachable!("role or rule row"),
         };
-        let answer = w::ViewAnswer::new(&w::CEILINGS, w::ViewAnswerParts { view: view.clone() }).unwrap();
+        let answer = w::ViewAnswer { view: view.clone() };
         event(
             &mut f,
             Event::Told {
